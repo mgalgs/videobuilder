@@ -4,7 +4,10 @@ import subprocess
 import tempfile
 import unittest
 
-from videobuilder import Film
+import struct
+import wave
+
+from videobuilder import Audio, Film, Grid, Segment, Timeline
 from videobuilder.render import check_chunk, render
 
 
@@ -50,6 +53,51 @@ class RenderJoins(unittest.TestCase):
         self.assertEqual(int(facts['nb_read_frames']), 50)
         self.assertEqual((int(facts['width']), int(facts['height'])), (1080, 1080))
         self.assertAlmostEqual(float(facts['duration']), 50 / 30, places=3)
+
+
+class AudioTrim(unittest.TestCase):
+    def test_trim_defaults_to_the_grid(self):
+        tl = Timeline(Grid(fps=30, bpm=120, head_trim=8), [Segment('a', 0, 2)], end=2)
+        film = Film(draw=lambda n, cv: None, timeline=tl, audio=Audio('x.wav'))
+        self.assertEqual(film.audio.trim_frames, 8)
+        film = Film(draw=lambda n, cv: None, timeline=tl, audio=Audio('x.wav', trim_frames=3))
+        self.assertEqual(film.audio.trim_frames, 3)  # given: kept
+        film = Film(draw=lambda n, cv: None, fps=30, frames=10, audio=Audio('x.wav'))
+        self.assertEqual(film.audio.trim_frames, 0)  # no grid, no trim
+
+    def test_audio_object_not_mutated(self):
+        au = Audio('x.wav')
+        tl = Timeline(Grid(head_trim=4), [Segment('a', 0, 1)], end=1)
+        Film(draw=lambda n, cv: None, timeline=tl, audio=au)
+        self.assertIsNone(au.trim_frames)
+
+
+@unittest.skipUnless(shutil.which('ffmpeg'), 'needs ffmpeg')
+class AudioFade(unittest.TestCase):
+    def test_fade_ends_silent_at_the_last_frame(self):
+        sr, fps, frames, k = 48000, 30, 30, 10
+        with tempfile.TemporaryDirectory() as tmp:
+            wav = os.path.join(tmp, 'dc.wav')
+            with wave.open(wav, 'wb') as w:  # a 2 s square wave at 1 kHz, half scale
+                w.setnchannels(1), w.setsampwidth(2), w.setframerate(sr)
+                w.writeframes(b''.join(struct.pack('<h', 16000 if (i // 24) % 2 else -16000) for i in range(2 * sr)))
+            film = Film(draw=lambda n, cv: None, fps=fps, frames=frames, formats=['1x1'],
+                        audio=Audio(wav, fade_out_frames=k))
+            out = os.path.join(tmp, 'x.mp4')
+            with open(os.devnull, 'w') as quiet:
+                render(film, out, jobs=1, chunk=15, log=quiet)
+            raw = subprocess.run(['ffmpeg', '-v', 'error', '-i', out, '-ac', '1', '-ar', str(sr), '-f', 's16le', '-'],
+                                 capture_output=True, check=True).stdout
+        pcm = struct.unpack(f'<{len(raw) // 2}h', raw)
+
+        def level(frame):  # peak over the middle of a frame
+            a = int((frame + 0.25) * sr / fps)
+            return max(abs(v) for v in pcm[a:a + sr // fps // 2]) / 16000
+
+        start = frames - 1 - k  # gain 1 here, falling to 0 at the start of the last frame
+        self.assertGreater(level(start - 2), 0.9)
+        self.assertAlmostEqual(level(start + k // 2), 0.5, delta=0.12)
+        self.assertLess(level(frames - 1), 0.08)
 
 
 if __name__ == '__main__':

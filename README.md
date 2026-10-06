@@ -85,7 +85,7 @@ A film file is a Python module that defines `FILM = videobuilder.Film(...)`:
 | `timeline` | Optional `Timeline`. It gives the preview and stills its segments and beats, and supplies fps and frames. |
 | `formats` | Format names (`'9x16'` 1080×1920, `'16x9'` 1920×1080, `'1x1'` 1080×1080) or `Format(name, w, h)`. The first is the default. |
 | `background` | Colour painted before `draw`, or `None` for transparent. Default black. |
-| `audio` | Optional `Audio(path, trim_frames=0, gain_db=0, fade_out_frames=0)`, muxed in by `render`. |
+| `audio` | Optional `Audio(path, trim_frames=None, gain_db=0, fade_out_frames=0)`, muxed in by `render`. `trim_frames` (frames cut from the file's head) defaults to the timeline's `Grid.head_trim`. The fade is linear over the `fade_out_frames` frames before the last and silent from the last frame's start, so Remotion's `interpolate(f, [D - m, D - 1], [1, 0])` is `fade_out_frames=m - 1`. |
 | `keyframes` | Optional frames worth reviewing: frame numbers or `(frame, label)` pairs. `sheet` shows them, labelled, by default. |
 
 Inside `draw`, `canvas.width` and `canvas.height` are the format's size in film

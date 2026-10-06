@@ -11,7 +11,7 @@ import importlib.util
 import itertools
 import os
 import sys
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import Callable
 
 from .canvas import Canvas
@@ -64,10 +64,20 @@ def as_format(f):
 
 @dataclass
 class Audio:
+    """A music track, muxed in by `render`.
+
+    `trim_frames`: frames skipped at the head of the file. None (the default)
+    takes the film's `Grid.head_trim`, the trim that lands the track's beats on
+    the grid, so the two can't disagree; 0 without a timeline.
+    `fade_out_frames`: a linear fade over the k frames before the last one,
+    silent from the start of the last frame: gain 1 at frame `frames - 1 - k`
+    and 0 at `frames - 1`. Remotion's `interpolate(f, [D - m, D - 1], [1, 0])`
+    is `fade_out_frames=m - 1`.
+    """
     path: str
-    trim_frames: int = 0  # skipped at the head of the file
+    trim_frames: int | None = None
     gain_db: float = 0.0
-    fade_out_frames: int = 0  # linear fade reaching silence on the last frame
+    fade_out_frames: int = 0
 
 
 @dataclass
@@ -110,6 +120,9 @@ class Film:
                 raise ValueError(f'keyframe {n} ({label}) outside 0..{self.frames - 1}')
             keys.append((n, label))
         self.keyframes = tuple(keys)
+        if self.audio is not None and self.audio.trim_frames is None:
+            trim = self.timeline.grid.head_trim if self.timeline is not None else 0
+            self.audio = replace(self.audio, trim_frames=trim)
 
     def format(self, name=None):
         """The `Format` called `name` (default: the film's first)."""
