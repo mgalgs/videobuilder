@@ -40,6 +40,10 @@ class Font:
     weight: int = 400  # any value on the font's wght axis
     tracking: float = 0.0  # letter-spacing, em
     line_height: float | None = None  # multiple of size; None = the font's normal
+    # CSS adds letter-spacing after the last letter too; Pango doesn't. True
+    # counts it in a line's width, as a browser does, so aligned and centred
+    # tracked text lands where a browser puts it. Glyphs don't move.
+    css_tracking: bool = False
 
     def description(self):
         d = Pango.FontDescription.from_string(f'{self.family} @wght={self.weight}')
@@ -77,8 +81,11 @@ def _layout(ctx, text, font):
 
 @lru_cache(maxsize=4096)
 def measure(text, font):
-    """Advance width of one line, px."""
-    return _layout(_scratch, text, font).get_extents()[1].width / S
+    """Advance width of one line, px (with `css_tracking`, plus one trailing letter-spacing)."""
+    w = _layout(_scratch, text, font).get_extents()[1].width / S
+    if font.css_tracking and text:
+        w += font.tracking * font.size
+    return w
 
 
 @lru_cache(maxsize=64)

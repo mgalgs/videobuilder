@@ -48,6 +48,20 @@ class Marks(unittest.TestCase):
         self.assertAlmostEqual(right.w, text.measure('short', font))
 
 
+class CssTracking(unittest.TestCase):
+    def test_trailing_spacing_counts_in_width_and_alignment(self):
+        pango = Font('Cantarell', 100, tracking=-0.025)
+        css = Font('Cantarell', 100, tracking=-0.025, css_tracking=True)
+        self.assertAlmostEqual(text.measure('Same party.', css), text.measure('Same party.', pango) - 2.5)
+        self.assertEqual(text.measure('', css), 0)
+        untracked = Font('Cantarell', 100, css_tracking=True)
+        self.assertEqual(text.measure('abc', untracked), text.measure('abc', Font('Cantarell', 100)))
+        cv = Canvas(1000, 200)
+        a = text.draw(cv, 'Same party.', pango, 0, 0, '#ffffff', align='center', width=1000)
+        b = text.draw(cv, 'Same party.', css, 0, 0, '#ffffff', align='center', width=1000)
+        self.assertAlmostEqual(b.x - a.x, 1.25)  # half a spacing
+
+
 class Containment(unittest.TestCase):
     def test_contains(self):
         safe = Box(60, 220, 880, 1320)

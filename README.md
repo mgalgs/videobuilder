@@ -159,8 +159,9 @@ videobuilder handles each of these, but you should know about them:
   drift at every join. The renderer rejects such chunk sizes. The default,
   15, is safe at 24/25/30/60 fps.
 - **Letter-spacing.** CSS adds letter-spacing after the last letter too, and
-  Pango doesn't. When matching a browser layout, a tracked line here is one
-  spacing narrower.
+  Pango doesn't, so a tracked line here is one spacing narrower than in a
+  browser, and centred lines sit half a spacing off. When matching a browser
+  layout, use `Font(..., css_tracking=True)`.
 
 ## Tests
 
