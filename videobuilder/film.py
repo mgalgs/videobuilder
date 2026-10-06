@@ -11,7 +11,7 @@ import importlib.util
 import itertools
 import os
 import sys
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Callable
 
 from .canvas import Canvas
@@ -84,7 +84,6 @@ class Film:
     background: str | tuple | None = '#000000'
     audio: Audio | None = None
     timeline: Timeline | None = None
-    meta: dict = field(default_factory=dict)
 
     def __post_init__(self):
         if self.timeline is not None:
@@ -106,10 +105,11 @@ class Film:
         """The `Format` called `name` (default: the film's first)."""
         if name is None:
             return self.formats[0]
-        f = as_format(name)
-        if f not in self.formats:
-            raise ValueError(f'film has no {f.name} format; it has {", ".join(map(str, self.formats))}')
-        return f
+        key = getattr(name, 'name', name)
+        for f in self.formats:
+            if f.name == key:
+                return f
+        raise ValueError(f'film has no {key} format; it has {", ".join(map(str, self.formats))}')
 
     def frame(self, n, format=None, scale=1.0):
         """Draw frame `n` into a fresh Canvas."""
