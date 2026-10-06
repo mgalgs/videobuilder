@@ -15,7 +15,7 @@ gi.require_version('PangoCairo', '1.0')
 from gi.repository import Pango, PangoCairo  # noqa: E402
 
 from .canvas import rgba  # noqa: E402
-from .layout import Box  # noqa: E402
+from .layout import Box, _edges  # noqa: E402
 
 S = Pango.SCALE
 
@@ -151,3 +151,26 @@ def draw(cv, lines, font, x, y, color, align='left', width=None, alpha=1.0):
     if not lines:
         return Box(x, y, 0, 0)
     return Box(left, y, right - left, lh * len(lines))
+
+
+def _lines(text):
+    return [text] if isinstance(text, str) else list(text)
+
+
+def box(text, font, padding=0, x=0, y=0):
+    """The Box of `text` (a line, or lines) with CSS-style `padding` around it
+    (px: a, (v, h), (t, h, b) or (t, r, b, l)), at (x, y): the border box of a
+    label, chip or button. Its height is the line boxes plus padding, so it is
+    known before anything is drawn. Draw the text in it with `draw_in`."""
+    t, r, b, l = _edges(padding)
+    lines = _lines(text)
+    w, h = block_size(lines, font) if lines else (0.0, 0.0)
+    return Box(x, y, w + (l + r), h + (t + b))
+
+
+def draw_in(cv, box, text, font, color, padding=0, align='left', alpha=1.0):
+    """Draw `text` inside `box` at its `padding` (as given to `text.box`),
+    aligned within the padded width. Returns the Box the text took up."""
+    t, r, b, l = _edges(padding)
+    return draw(cv, _lines(text), font, box.x + l, box.y + t, color, align=align,
+                width=box.w - l - r, alpha=alpha)

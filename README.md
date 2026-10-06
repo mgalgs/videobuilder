@@ -96,6 +96,22 @@ per-format table (`per_format(table, canvas)`, with `'*'` as the fallback).
 The film's directory goes on `sys.path`, so a film can import helper modules
 that sit beside it. The preview reloads those too.
 
+## Text in a box
+
+A label, chip or button is text with padding around it: the CSS box model.
+`text.box(text, font, padding, x=0, y=0)` gives its border box, sized from the
+text's measured width and line boxes plus the padding (CSS shorthand, in px),
+so layout can use the size before anything is drawn. `text.draw_in(cv, box,
+text, font, color, padding)` draws the text at the padding offset.
+
+```python
+font = vb.Font('Sans', 40, 800, line_height=1.1)
+pad = (40 * 0.15, 40 * 0.3)                       # 0.15em 0.3em
+chip = text.box('New', font, pad, x=100, y=200)
+cv.rect(*chip, '#ffffff', radius=8)
+text.draw_in(cv, chip, 'New', font, '#000000', pad)
+```
+
 ## Timelines: groups and overlaps
 
 A `Timeline` is gap-free segments, in beats. Two things give it structure:
@@ -181,7 +197,8 @@ python -m videobuilder preview film.py [--host 127.0.0.1] [--port 8000] [--open]
   it landed in the frame, through any layer moves.
 - `text`: Pango text. `Font` (variable `weight` and `tracking`), `wrap`
   (with CSS-style `balance`), `measure`, `block_size`, `draw` (returns the
-  `Box` it drew), and `register` for fonts that aren't installed.
+  `Box` it drew), `box` and `draw_in` for text in a box, and `register` for
+  fonts that aren't installed.
 - `layout`: `Box` with `pad`, `row`, `column`, `grid`, `center`, `anchor`
   and `fit` (`contain`, `cover`, `fill`, `none`, `scale-down`), and
   `contains` / `intersects` for checks; `fr` shares; and `per_format` tables.
