@@ -25,11 +25,12 @@
 | # | Phase | State |
 |---|---|---|
 | 1 | **Project core:** package `videobuilder` (rename from `motion`), `pyproject.toml`, CLI (`render`, `still`, `preview`), **live preview** (frame server, scrubber, hot reload, timeline overlay), **layout** module (row/column/center/anchor/fit) with **per-format layout tables** (9:16 / 16:9 / 1:1 from one film), a generic example film with no Sonlet assets, unit tests (ease, timeline) and golden-still tests, README | done |
-| 2 | **Prove it:** port the sonlet-videos party-templates reel onto the package (sonlet-videos depends on videobuilder), then render all three formats from one film; add `media` (video clips, multi-track audio) only if a real film needs it | planned |
+| 2 | **Prove it:** port the sonlet-videos party-templates reel onto the package (sonlet-videos depends on videobuilder), then render all three formats from one film; add `media` (video clips, multi-track audio) only if a real film needs it | done |
+| 2b | **Close the gaps the port found:** timeline groups and overlaps (`Shot`s from `Timeline.live`), `text.box`/`draw_in`, `Canvas.view` camera with `pin`, and the small edges (short/alpha hex colours, `outline`/`line`, `wrap` forced breaks, `vb.main(__file__)` and `load_module`, one-table-per-format layouts, grid-derived audio trim, per-format sheet tiles, image cache eviction, invisible layers keep their transform). Each proven in the party-templates film with byte-identical frames | done |
 | 3 | **Skill:** the "make a video" skill in claude-config: scaffolding a film, the authoring loop (preview → contact sheet → render), music and beat-locking, and the review checks (read times, cuts on grid, ffprobe). Style-neutral | planned |
 | 4 | Optional modules as needed: `html` (Chromium screenshot of a static panel → image), `charts`, captions | as needed |
 
-**State (2026-10-06):** phase 1 is done on branch `phase1-core`. The package, CLI (`render`/`still`/`sheet`/`preview`), hot-reloading preview, `layout`, `examples/tour.py` in three formats, and 65 passing tests are in place. Audio in the preview is deferred.
+**State (2026-10-06):** phases 1, 2 and 2b are done. The party-templates reel renders 9:16, 16:9 and 1:1 from one film on videobuilder, its timeline grouped and overlapping, with 112 passing tests. Phase 3 (the skill) is next. Phase 1 was done on branch `phase1-core`. The package, CLI (`render`/`still`/`sheet`/`preview`), hot-reloading preview, `layout`, `examples/tour.py` in three formats, and 65 passing tests are in place. Audio in the preview is deferred.
 
 ## 2. References
 - The comparison report and its evidence: the sonlet-videos repo, branch `video-pt-nolib`, `nolib/REPORT.md`.
