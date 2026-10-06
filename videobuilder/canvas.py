@@ -15,13 +15,27 @@ from .layout import Box
 
 
 def rgba(color, alpha=1.0):
-    """'#RRGGBB' or an (r, g, b[, a]) tuple of 0-255 / 0-1 alpha -> cairo floats."""
+    """A colour -> cairo's (r, g, b, a) floats. Takes '#rgb', '#rgba', '#rrggbb',
+    '#rrggbbaa', or an (r, g, b[, a]) tuple of 0-255 channels and 0-1 alpha.
+    `alpha` multiplies the colour's own."""
     if isinstance(color, str):
-        h = color.lstrip('#')
-        r, g, b = (int(h[i:i + 2], 16) for i in (0, 2, 4))
-        a = 1.0
+        h = color[1:] if color.startswith('#') else color
+        if len(h) in (3, 4):
+            h = ''.join(ch * 2 for ch in h)
+        try:
+            if len(h) not in (6, 8):
+                raise ValueError
+            r, g, b, *rest = (int(h[i:i + 2], 16) for i in range(0, len(h), 2))
+        except ValueError:
+            raise ValueError(f"bad colour {color!r}: use '#rgb', '#rgba', '#rrggbb' or '#rrggbbaa'") from None
+        a = rest[0] / 255 if rest else 1.0
     else:
-        r, g, b, *rest = color
+        try:
+            r, g, b, *rest = color
+            if len(rest) > 1:
+                raise ValueError
+        except (TypeError, ValueError):
+            raise ValueError(f'bad colour {color!r}: use a hex string or an (r, g, b[, a]) tuple') from None
         a = rest[0] if rest else 1.0
     return r / 255, g / 255, b / 255, a * alpha
 
@@ -158,6 +172,24 @@ class Canvas:
         _rounded(c, x, y, w, h, radius)
         c.set_source_rgba(*rgba(color, alpha))
         c.fill()
+
+    def outline(self, x, y, w, h, color, width=1, radius=0, alpha=1.0):
+        """Stroke the edge of the box (x, y, w, h), `width` px wide and centred on
+        it (half inside, half out), with corner `radius`."""
+        c = self.ctx
+        _rounded(c, x, y, w, h, radius)
+        c.set_source_rgba(*rgba(color, alpha))
+        c.set_line_width(width)
+        c.stroke()
+
+    def line(self, x0, y0, x1, y1, color, width=1, alpha=1.0):
+        """A straight line from (x0, y0) to (x1, y1), with butt ends."""
+        c = self.ctx
+        c.move_to(x0, y0)
+        c.line_to(x1, y1)
+        c.set_source_rgba(*rgba(color, alpha))
+        c.set_line_width(width)
+        c.stroke()
 
     def image(self, img, x, y, w, h, alpha=1.0):
         """Draw `img` stretched to the box (x, y, w, h). Mip level picked by scale."""

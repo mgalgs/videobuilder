@@ -217,8 +217,13 @@ python -m videobuilder preview film.py [--host 127.0.0.1] [--port 8000] [--open]
   `spring_at` (closed form), `critical`, and `log_lerp`.
 - `canvas`: `Canvas` with rects, images (mip-mapped; `Image.load(path)` decodes
   a file once and is safe to call in `draw`), `view` (a camera on an image in
-  a window, with `pin`), CSS-style shadows, clips, and `layer` groups with
-  opacity and transform. `mark(name, *box)`
+  a window, with `pin`), `outline` and `line` strokes, CSS-style shadows,
+  clips, and `layer` groups with opacity and transform. Colours anywhere are
+  `'#rgb'`, `'#rgba'`, `'#rrggbb'`, `'#rrggbbaa'` or an `(r, g, b[, a])` tuple
+  (0-255, alpha 0-1); `rgba(colour)` turns one into cairo floats for raw
+  `canvas.ctx` drawing, and a bad colour raises an error naming it. A CSS
+  shadow list is one `canvas.shadow(...)` call per shadow; CSS paints the
+  first on top, so call them last to first to match a browser exactly. `mark(name, *box)`
   tags content for checks: `canvas.marks` lists each visible mark's box where
   it landed in the frame, through any layer moves.
 - `text`: Pango text. `Font` (variable `weight` and `tracking`), `wrap`
