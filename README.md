@@ -112,6 +112,31 @@ cv.rect(*chip, '#ffffff', radius=8)
 text.draw_in(cv, chip, 'New', font, '#000000', pad)
 ```
 
+## A camera on an image
+
+Product films show screen captures through windows, panning and zooming.
+`cv.view(img, box, center, scale, radius=0, background=None)` draws `img`
+clipped to `box` with the image point `center` (image px) at the box's centre,
+`scale` display px per image px. Animate `center` to pan and `scale` to zoom
+(`log_lerp` keeps a zoom even). The defaults show the image's centre, covering
+the box.
+
+`view.pin(src, img=None, x=None, y=None)` draws the part `src` (a `Box` in
+image px) of the same image, or another one at the same scale, inside the
+window at canvas point (x, y). Leave either as None and it stays where the
+camera puts it, so `y=box.y` pins a navbar strip to the window's top while it
+still pans sideways with the page:
+
+```python
+page = vb.Image.load('capture-full.jpg')
+s = box.w / page.w
+v = cv.view(page, box, (page.w / 2, 900 + scroll), s, radius=24, background='#ffffff')
+v.pin(Box(0, 0, page.w, 128), y=box.y)            # the site's sticky navbar
+```
+
+`view.to_screen(px, py)` and `view.image_box()` say where image points land,
+for marks or for drawing over the capture.
+
 ## Timelines: groups and overlaps
 
 A `Timeline` is gap-free segments, in beats. Two things give it structure:
@@ -191,8 +216,9 @@ python -m videobuilder preview film.py [--host 127.0.0.1] [--port 8000] [--open]
 - `ease`: CSS `bezier`, `interpolate` over keyframes, `spring` and
   `spring_at` (closed form), `critical`, and `log_lerp`.
 - `canvas`: `Canvas` with rects, images (mip-mapped; `Image.load(path)` decodes
-  a file once and is safe to call in `draw`), CSS-style shadows,
-  clips, and `layer` groups with opacity and transform. `mark(name, *box)`
+  a file once and is safe to call in `draw`), `view` (a camera on an image in
+  a window, with `pin`), CSS-style shadows, clips, and `layer` groups with
+  opacity and transform. `mark(name, *box)`
   tags content for checks: `canvas.marks` lists each visible mark's box where
   it landed in the frame, through any layer moves.
 - `text`: Pango text. `Font` (variable `weight` and `tracking`), `wrap`

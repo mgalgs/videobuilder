@@ -204,6 +204,23 @@ class Canvas:
         self.marks.append((name, box))
         return box
 
+    def view(self, img, box, center=None, scale=None, radius=0, background=None):
+        """Show `img` through the window `box` with a camera: the image point
+        `center` (image px; default the image's centre) at the box's centre,
+        `scale` display px per image px (default: cover the box). Pan by moving
+        `center`, zoom by changing `scale`. Clipped to the box, with corner
+        `radius`; `background` fills the box first. Returns the `View`, whose
+        `pin` places a part of this or another image in the same window."""
+        box = Box(*box)
+        cx, cy = center if center is not None else (img.w / 2, img.h / 2)
+        s = scale if scale is not None else max(box.w / img.w, box.h / img.h)
+        v = View(self, img, box, cx, cy, s, radius)
+        with self.clip(*box, radius):
+            if background is not None:
+                self.rect(*box, background)
+            self.image(img, v.left, v.top, img.w * s, img.h * s)
+        return v
+
     # ---- structure ----
     @contextmanager
     def layer(self, opacity=1.0, dx=0.0, dy=0.0, scale=1.0):
@@ -252,3 +269,37 @@ class Canvas:
 
     def save_png(self, path):
         self.surface.write_to_png(path)
+
+
+class View:
+    """A camera on an image in a window (see `Canvas.view`). `left`, `top`: where
+    the image's top-left corner lands; `to_screen` maps any image point."""
+
+    def __init__(self, canvas, img, box, cx, cy, scale, radius=0):
+        self.canvas, self.img, self.box, self.scale, self.radius = canvas, img, box, scale, radius
+        self.center = cx, cy
+        self.left = box.x + box.w / 2 - cx * scale
+        self.top = box.y + box.h / 2 - cy * scale
+
+    def to_screen(self, px, py):
+        """Where the image point (px, py) lands, in canvas px."""
+        return self.left + px * self.scale, self.top + py * self.scale
+
+    def image_box(self):
+        """Where the whole image lands (most of it clipped away, usually)."""
+        return Box(self.left, self.top, self.img.w * self.scale, self.img.h * self.scale)
+
+    def pin(self, src, img=None, x=None, y=None):
+        """Draw the part `src` (a Box in image px) of `img` (default: this view's
+        image) at the view's scale, inside the window. Its top-left goes to (x, y)
+        in canvas px; either left as None stays where the camera puts that point
+        of the page, so `y=view.box.y` alone pins a strip (a navbar, say) to the
+        window's top while it still pans sideways with the page."""
+        img = img or self.img
+        s = self.scale
+        sx, sy = self.to_screen(src.x, src.y)
+        x = sx if x is None else x
+        y = sy if y is None else y
+        cv = self.canvas
+        with cv.clip(*self.box, self.radius), cv.clip(x, y, src.w * s, src.h * s):
+            cv.image(img, x - src.x * s, y - src.y * s, img.w * s, img.h * s)
