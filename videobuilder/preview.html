@@ -1,0 +1,276 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>videobuilder preview</title>
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; }
+  body { margin: 0; font: 13px/1.4 system-ui, sans-serif; background: #161616; color: #ddd;
+         display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+  #stage { flex: 1; min-height: 0; display: flex; align-items: center; justify-content: center; padding: 12px; }
+  #frame { max-width: 100%; max-height: 100%; box-shadow: 0 0 0 1px #333; background: #000; }
+  #error { display: none; position: fixed; inset: 12px 12px auto 12px; max-height: 60vh; overflow: auto;
+           background: #3a1212; color: #ffd6d6; padding: 12px; font: 12px/1.4 ui-monospace, monospace;
+           white-space: pre-wrap; border: 1px solid #a33; }
+  #bar { padding: 8px 12px 12px; background: #1f1f1f; border-top: 1px solid #2c2c2c; }
+  #controls { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin-bottom: 6px; }
+  #controls button, #controls select { background: #2b2b2b; color: #ddd; border: 1px solid #444; padding: 3px 10px; }
+  .readout { font-variant-numeric: tabular-nums; min-width: 5.5em; }
+  .readout b { color: #fff; font-weight: 600; }
+  #track { position: relative; height: 50px; overflow: hidden; }
+  #segments { position: absolute; left: 8px; right: 8px; top: 30px; height: 20px; pointer-events: none; }
+  .seg { position: absolute; top: 0; bottom: 0; border-left: 1px solid #888; overflow: hidden; white-space: nowrap;
+         font-size: 11px; padding: 2px 4px; color: #ccc; }
+  .seg:nth-child(odd) { background: #ffffff22; } .seg:nth-child(even) { background: #ffffff11; }
+  #ticks { position: absolute; left: 8px; right: 8px; top: 0; height: 10px; pointer-events: none; }
+  .tick { position: absolute; bottom: 0; width: 1px; height: 4px; background: #777; }
+  .tick.bar { height: 9px; background: #bbb; }
+  #scrub { position: absolute; left: 0; right: 0; top: 10px; width: 100%; margin: 0; height: 18px; }
+  .hint { color: #777; margin-left: auto; }
+</style>
+</head>
+<body>
+<div id="stage"><img id="frame" alt=""></div>
+<div id="error"></div>
+<div id="bar">
+  <div id="controls">
+    <button id="play" title="space">▶ play</button>
+    <span class="readout">frame <b id="r-frame">0</b>/<span id="r-frames">0</span></span>
+    <span class="readout">time <b id="r-time">0.00</b>s</span>
+    <span class="readout" id="beat-box">beat <b id="r-beat">–</b></span>
+    <span class="readout">segment <b id="r-seg">–</b></span>
+    <label>format <select id="format"></select></label>
+    <label>scale <select id="scale">
+      <option value="0.25">¼</option><option value="0.5" selected>½</option><option value="1">1</option>
+    </select></label>
+    <label><input type="checkbox" id="overlay"> overlay</label>
+    <label><input type="checkbox" id="loop" checked> loop</label>
+    <span class="readout" id="r-fps"></span>
+    <span class="hint">space play · ←/→ frame · shift ←/→ beat · [ ] segment · home/end · o overlay · f format</span>
+  </div>
+  <div id="track">
+    <div id="ticks"></div>
+    <div id="segments"></div>
+    <input type="range" id="scrub" min="0" max="0" value="0">
+  </div>
+</div>
+<script>
+'use strict';
+const $ = id => document.getElementById(id);
+const img = $('frame');
+let info = null, frame = 0, playing = false, playT0 = 0, playF0 = 0;
+let shownFrame = null, shownVersion = null, waitTimer = null;
+let inflight = false, wanted = null, lastURL = null, shown = 0, shownT = performance.now();
+
+// State lives in the URL hash so a reload (or a screenshot URL) keeps it.
+function readHash() {
+  const h = new URLSearchParams(location.hash.slice(1));
+  if (h.has('frame')) frame = parseInt(h.get('frame')) || 0;
+  if (h.has('overlay')) $('overlay').checked = h.get('overlay') === '1';
+  if (h.has('scale')) $('scale').value = h.get('scale');
+  return h.get('format');
+}
+function writeHash() {
+  const h = new URLSearchParams({frame, format: $('format').value, scale: $('scale').value,
+                                 overlay: $('overlay').checked ? '1' : '0'});
+  history.replaceState(null, '', '#' + h);
+}
+
+function fpb() { return info && info.timeline ? info.timeline.frames_per_beat : null; }
+function segAt(n) {
+  if (!info || !info.timeline) return null;
+  return info.timeline.segments.find(s => s.start <= n && n < s.end) || null;
+}
+
+function readouts() {
+  $('r-frame').textContent = frame;
+  $('r-frames').textContent = info ? info.frames - 1 : 0;
+  $('r-time').textContent = info ? (frame / info.fps).toFixed(2) : '0.00';
+  $('r-beat').textContent = fpb() ? (frame / fpb()).toFixed(2) : '–';
+  const s = segAt(frame);
+  $('r-seg').textContent = s ? s.name : '–';
+  $('scrub').value = frame;
+}
+
+function frameURL(n) {
+  const q = new URLSearchParams({frame: n, format: $('format').value, scale: $('scale').value,
+                                 overlay: $('overlay').checked ? '1' : '0', v: info ? info.version : 0});
+  return '/frame?' + q;
+}
+
+// One request in flight; the newest wanted frame wins, so scrubbing never queues up.
+function request(n) {
+  wanted = n;
+  if (!inflight) pump();
+}
+async function pump() {
+  if (wanted === null) return;
+  const n = wanted;
+  wanted = null;
+  inflight = true;
+  try {
+    const r = await fetch(frameURL(n));
+    if (!r.ok) {
+      showError(await r.text());
+    } else {
+      const url = URL.createObjectURL(await r.blob());
+      await new Promise(res => { img.onload = res; img.onerror = res; img.src = url; });
+      if (lastURL) URL.revokeObjectURL(lastURL);
+      lastURL = url;
+      img.dataset.frame = n;
+      shownFrame = n; shownVersion = info ? info.version : null;
+      shown++;
+      if (!(info && info.error)) showError(null);
+    }
+  } catch (e) {
+    showError(String(e));
+  }
+  inflight = false;
+  if (playing) tick();
+  else if (wanted !== null) pump();
+}
+
+function showError(text) {
+  $('error').style.display = text ? 'block' : 'none';
+  $('error').textContent = text || '';
+}
+
+function go(n) {
+  if (!info) return;
+  frame = Math.max(0, Math.min(info.frames - 1, Math.round(n)));
+  readouts();
+  writeHash();
+  request(frame);
+}
+
+// Playback runs on the wall clock: if drawing is slower than real time, frames are skipped, not slowed.
+function tick() {
+  if (!playing) return;
+  let n = playF0 + Math.floor((performance.now() - playT0) * info.fps / 1000);
+  if (n >= info.frames) {
+    if (!$('loop').checked) { setPlaying(false); go(info.frames - 1); return; }
+    playT0 = performance.now(); playF0 = 0; n = 0;
+  }
+  if (n === shownFrame && shownVersion === info.version) {
+    // Drawing is ahead of the clock: wait for the next frame's time instead of redrawing this one.
+    const due = playT0 + (n - playF0 + 1) * 1000 / info.fps;
+    clearTimeout(waitTimer);
+    waitTimer = setTimeout(tick, Math.max(1, due - performance.now()));
+    return;
+  }
+  frame = n;
+  readouts();
+  request(n);
+}
+function setPlaying(p) {
+  playing = p && !!info;
+  $('play').textContent = playing ? '❚❚ pause' : '▶ play';
+  if (playing) {
+    if (frame >= info.frames - 1) frame = 0;
+    playT0 = performance.now(); playF0 = frame;
+    if (!inflight) tick();
+  } else {
+    writeHash();
+  }
+}
+setInterval(() => {
+  const now = performance.now();
+  const fps = shown / ((now - shownT) / 1000);
+  $('r-fps').textContent = playing ? `${fps.toFixed(1)} fps drawn` : '';
+  shown = 0; shownT = now;
+}, 1000);
+
+function buildTrack() {
+  const segs = $('segments'), ticks = $('ticks');
+  segs.innerHTML = ''; ticks.innerHTML = '';
+  $('scrub').max = info.frames - 1;
+  const span = Math.max(1, info.frames - 1);
+  const pct = n => (100 * n / span) + '%';
+  const tl = info.timeline;
+  $('beat-box').style.display = tl ? '' : 'none';
+  if (!tl) return;
+  for (const s of tl.segments) {
+    const d = document.createElement('div');
+    d.className = 'seg';
+    d.style.left = pct(s.start);
+    d.style.width = (100 * (s.end - s.start) / span) + '%';
+    d.textContent = s.name;
+    d.title = `${s.name}: beats ${s.at}–${s.until}, frames ${s.start}–${s.end - 1}`;
+    segs.appendChild(d);
+  }
+  tl.beats.forEach((f, k) => {
+    const t = document.createElement('div');
+    t.className = 'tick' + (k % 4 === 0 ? ' bar' : '');
+    t.style.left = pct(f);
+    ticks.appendChild(t);
+  });
+}
+
+async function refresh(wantFormat) {
+  let next;
+  try { next = await (await fetch('/info')).json(); } catch (e) { return; }
+  const changed = !info || next.version !== info.version;
+  if (!changed) return;
+  showError(next.error);
+  if (next.frames === undefined) { info = next; return; }  // nothing loaded yet
+  const sel = $('format'), cur = wantFormat || sel.value;
+  sel.innerHTML = '';
+  for (const f of next.formats) {
+    const o = document.createElement('option');
+    o.value = f.name; o.textContent = `${f.name} (${f.width}×${f.height})`;
+    sel.appendChild(o);
+  }
+  if (next.formats.some(f => f.name === cur)) sel.value = cur;
+  document.title = next.path.split('/').pop() + ' · videobuilder';
+  info = next;
+  buildTrack();
+  go(frame);  // redraw: the film changed
+}
+
+$('play').onclick = () => setPlaying(!playing);
+$('scrub').oninput = e => { setPlaying(false); go(+e.target.value); };
+for (const id of ['format', 'scale', 'overlay']) $(id).onchange = () => { $(id).blur(); go(frame); };
+
+// The next (or previous) beat's frame; without a timeline, ten frames.
+function beatStep(dir) {
+  if (!info.timeline) return frame + 10 * dir;
+  const beats = info.timeline.beats;
+  const t = dir > 0 ? beats.find(b => b > frame) : beats.filter(b => b < frame).pop();
+  return t === undefined ? frame : t;
+}
+
+document.addEventListener('keydown', e => {
+  if (!info || e.target.tagName === 'SELECT') return;
+  let handled = true;
+  switch (e.key) {
+    case ' ': setPlaying(!playing); break;
+    case 'ArrowRight': setPlaying(false); go(e.shiftKey ? beatStep(+1) : frame + 1); break;
+    case 'ArrowLeft': setPlaying(false); go(e.shiftKey ? beatStep(-1) : frame - 1); break;
+    case 'Home': setPlaying(false); go(0); break;
+    case 'End': setPlaying(false); go(info.frames - 1); break;
+    case ']': case '[': {
+      setPlaying(false);
+      const starts = info.timeline ? info.timeline.segments.map(s => s.start) : [0];
+      const t = e.key === ']' ? starts.find(s => s > frame) : starts.filter(s => s < frame).pop();
+      if (t !== undefined) go(t);
+      break;
+    }
+    case 'o': $('overlay').checked = !$('overlay').checked; go(frame); break;
+    case 'f': {
+      const sel = $('format');
+      sel.selectedIndex = (sel.selectedIndex + 1) % sel.options.length;
+      go(frame);
+      break;
+    }
+    default: handled = false;
+  }
+  if (handled) e.preventDefault();
+});
+
+const startFormat = readHash();
+refresh(startFormat);
+setInterval(refresh, 500);  // hot reload: the server bumps `version` when the film file changes
+</script>
+</body>
+</html>
