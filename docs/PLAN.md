@@ -24,10 +24,12 @@
 
 | # | Phase | State |
 |---|---|---|
-| 1 | **Project core:** package `videobuilder` (rename from `motion`), `pyproject.toml`, CLI (`render`, `still`, `preview`), **live preview** (frame server, scrubber, hot reload, timeline overlay), **layout** module (row/column/center/anchor/fit) with **per-format layout tables** (9:16 / 16:9 / 1:1 from one film), a generic example film with no Sonlet assets, unit tests (ease, timeline) and golden-still tests, README | next |
+| 1 | **Project core:** package `videobuilder` (rename from `motion`), `pyproject.toml`, CLI (`render`, `still`, `preview`), **live preview** (frame server, scrubber, hot reload, timeline overlay), **layout** module (row/column/center/anchor/fit) with **per-format layout tables** (9:16 / 16:9 / 1:1 from one film), a generic example film with no Sonlet assets, unit tests (ease, timeline) and golden-still tests, README | done |
 | 2 | **Prove it:** port the sonlet-videos party-templates reel onto the package (sonlet-videos depends on videobuilder), then render all three formats from one film; add `media` (video clips, multi-track audio) only if a real film needs it | planned |
 | 3 | **Skill:** the "make a video" skill in claude-config: scaffolding a film, the authoring loop (preview → contact sheet → render), music and beat-locking, and the review checks (read times, cuts on grid, ffprobe). Style-neutral | planned |
 | 4 | Optional modules as needed: `html` (Chromium screenshot of a static panel → image), `charts`, captions | as needed |
+
+**State (2026-10-06):** phase 1 is done on branch `phase1-core`. The package, CLI (`render`/`still`/`sheet`/`preview`), hot-reloading preview, `layout`, `examples/tour.py` in three formats, and 65 passing tests are in place. Audio in the preview is deferred.
 
 ## 2. References
 - The comparison report and its evidence: the sonlet-videos repo, branch `video-pt-nolib`, `nolib/REPORT.md`.
