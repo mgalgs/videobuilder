@@ -41,7 +41,17 @@ class Image:
 
     def __init__(self, path):
         self.path = path
-        pil = PILImage.open(path)
+        self._set(PILImage.open(path))
+
+    @classmethod
+    def from_pil(cls, pil):
+        """An Image from a PIL image already in memory (one generated in code, say)."""
+        img = cls.__new__(cls)
+        img.path = None
+        img._set(pil)
+        return img
+
+    def _set(self, pil):
         self.w, self.h = pil.size
         self._pil = pil.convert('RGBA' if pil.mode in ('RGBA', 'LA', 'P') else 'RGB')
         self._levels = {}
