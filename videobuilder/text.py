@@ -25,6 +25,13 @@ def register(path):
         raise RuntimeError(f'could not load font {path}')
 
 
+_WEIGHTS = sorted(int(w) for w in Pango.Weight.__enum_values__.values())
+
+
+def _nearest_weight(w):
+    return Pango.Weight(min(_WEIGHTS, key=lambda k: abs(k - w)))
+
+
 @dataclass(frozen=True)
 class Font:
     family: str
@@ -35,7 +42,7 @@ class Font:
 
     def description(self):
         d = Pango.FontDescription.from_string(f'{self.family} @wght={self.weight}')
-        d.set_weight(self.weight)  # picks the face of static families; the axis drives variable ones
+        d.set_weight(_nearest_weight(self.weight))  # picks a static family's face; the axis drives variable ones
         d.set_absolute_size(self.size * S)
         return d
 
