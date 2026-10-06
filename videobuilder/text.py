@@ -35,6 +35,7 @@ class Font:
 
     def description(self):
         d = Pango.FontDescription.from_string(f'{self.family} @wght={self.weight}')
+        d.set_weight(self.weight)  # picks the face of static families; the axis drives variable ones
         d.set_absolute_size(self.size * S)
         return d
 

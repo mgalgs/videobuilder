@@ -1,103 +1,75 @@
 """Render a film: frames in parallel chunks, each chunk piped to its own ffmpeg,
-then the chunks concatenated (no re-encode) and the music muxed in.
+then the chunks concatenated (no re-encode) and the audio muxed in.
 
-    python3 -m videobuilder film.py out.mp4 [--jobs N]
-    python3 -m videobuilder film.py --still 300 f300.png
-
-A film file defines `FILM = Film(...)`. Its `draw(n, canvas)` must be a pure
-function of `n`, so any frame (or chunk) renders alone and in any order.
+Every frame is drawn on its own (`draw(n, canvas)` is pure), so chunks render
+in any order on any worker.
 """
-import argparse
-import importlib.util
 import multiprocessing as mp
 import os
 import subprocess
 import sys
 import tempfile
 import time
-from dataclasses import dataclass
-from typing import Callable
 
-from .canvas import Canvas
+from .film import Audio, Film, load  # noqa: F401  (Audio, Film: the old import path)
 
 
-@dataclass
-class Audio:
-    path: str
-    trim_frames: int = 0  # skipped at the head of the file
-    gain_db: float = 0.0
-    fade_out_frames: int = 0  # linear fade reaching silence on the last frame
+def check_chunk(chunk, fps):
+    """The concat demuxer keeps time in microseconds; a chunk that isn't a whole
+    number of them (20 frames at 30 fps) drifts the joins by a fraction of a ms each."""
+    if chunk < 1:
+        raise ValueError('chunk must be at least one frame')
+    if chunk * 1_000_000 % fps:
+        raise ValueError(f'chunk of {chunk} frames is not a whole number of microseconds at {fps} fps')
 
 
-@dataclass
-class Film:
-    width: int
-    height: int
-    fps: int
-    frames: int
-    draw: Callable[[int, Canvas], None]
-    background: str = '#000000'
-    audio: Audio | None = None
-
-    def frame(self, n):
-        cv = Canvas(self.width, self.height, self.background)
-        self.draw(n, cv)
-        return cv
-
-
-def load(path):
-    path = os.path.abspath(path)
-    spec = importlib.util.spec_from_file_location('film', path)
-    mod = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(mod)
-    return mod.FILM
-
-
-_film = None
+_job = None  # (film, format) for forked workers
 
 
 def _encode_chunk(args):
     a, z, out, crf = args
-    f = _film
+    film, fmt = _job
     enc = subprocess.Popen([
         'ffmpeg', '-v', 'error', '-y', '-f', 'rawvideo', '-pix_fmt', 'bgra',
-        '-s', f'{f.width}x{f.height}', '-r', str(f.fps), '-i', '-',
+        '-s', f'{fmt.width}x{fmt.height}', '-r', str(film.fps), '-i', '-',
         '-c:v', 'libx264', '-preset', 'medium', '-crf', str(crf), '-pix_fmt', 'yuv420p',
-        '-threads', '2', '-video_track_timescale', str(f.fps * 512), out], stdin=subprocess.PIPE)
+        '-threads', '2', '-video_track_timescale', str(film.fps * 512), out], stdin=subprocess.PIPE)
     for n in range(a, z):
-        enc.stdin.write(f.frame(n).bgra())
+        enc.stdin.write(film.frame(n, fmt).bgra())
     enc.stdin.close()
     if enc.wait():
         raise RuntimeError(f'ffmpeg failed on chunk {a}-{z}')
     return a, z
 
 
-def render(film_path, out, jobs=None, chunk=15, crf=18, frames=None):
-    film = load(film_path)
+def render(film, out, format=None, jobs=None, chunk=15, crf=18, frames=None, log=sys.stderr):
+    """Render `film` (a Film or a film file path) in `format` to the MP4 `out`."""
+    if isinstance(film, (str, os.PathLike)):
+        film = load(film)
+    fmt = film.format(format)
     a, z = frames or (0, film.frames)
+    if not 0 <= a < z <= film.frames:
+        raise ValueError(f'frames {a}:{z} outside 0:{film.frames}')
     jobs = jobs or os.cpu_count()
-    # The concat demuxer keeps time in microseconds; a chunk that isn't a whole
-    # number of them (20 frames at 30 fps) drifts the joins by a fraction of a ms each.
-    if chunk * 1_000_000 % film.fps:
-        raise ValueError(f'chunk of {chunk} frames is not a whole number of microseconds at {film.fps} fps')
+    check_chunk(chunk, film.fps)
     t0 = time.time()
     with tempfile.TemporaryDirectory() as tmp:
         tasks = [(s, min(s + chunk, z), os.path.join(tmp, f'c{s:06d}.mp4'), crf) for s in range(a, z, chunk)]
         # Warm the asset caches once (decoded images, mip levels, text metrics) by
         # drawing the first frame of each chunk here, then fork: workers share the
         # decoded pixels copy-on-write instead of each decoding every capture again.
-        global _film
-        _film = film
+        global _job
+        _job = film, fmt
         for t in tasks:
-            film.frame(t[0])
+            film.frame(t[0], fmt)
         t_warm = time.time() - t0
         ctx = mp.get_context('fork')
         with ctx.Pool(jobs) as pool:
             done = 0
             for _ in pool.imap_unordered(_encode_chunk, tasks):
                 done += 1
-                print(f'\rchunks {done}/{len(tasks)}', end='', file=sys.stderr, flush=True)
-        print(file=sys.stderr)
+                print(f'\r{fmt.name}: chunks {done}/{len(tasks)}', end='', file=log, flush=True)
+        print(file=log)
         t1 = time.time()
         listing = os.path.join(tmp, 'list.txt')
         with open(listing, 'w') as fh:
@@ -117,27 +89,6 @@ def render(film_path, out, jobs=None, chunk=15, crf=18, frames=None):
         cmd += ['-c:v', 'copy', '-movflags', '+faststart', out]
         subprocess.run(cmd, check=True)
     t2 = time.time()
-    print(f'{z - a} frames, {jobs} jobs: warm {t_warm:.1f}s, frames+encode {t1 - t0:.1f}s, mux {t2 - t1:.1f}s, total {t2 - t0:.1f}s', file=sys.stderr)
-
-
-def main():
-    p = argparse.ArgumentParser()
-    p.add_argument('film')
-    p.add_argument('out', nargs='?')
-    p.add_argument('--jobs', type=int)
-    p.add_argument('--frames', help='a:b, half-open')
-    p.add_argument('--chunk', type=int, default=15, help='frames per encoded chunk')
-    p.add_argument('--still', type=int, nargs='+', help='frame number(s); out is a PNG path or a dir')
-    a = p.parse_args()
-    if a.still:
-        film = load(a.film)
-        for n in a.still:
-            path = os.path.join(a.out, f'f{n:04d}.png') if len(a.still) > 1 else a.out
-            film.frame(n).save_png(path)
-        return
-    frames = tuple(int(x) for x in a.frames.split(':')) if a.frames else None
-    render(a.film, a.out, a.jobs, chunk=a.chunk, frames=frames)
-
-
-if __name__ == '__main__':
-    main()
+    print(f'{out}: {z - a} frames {fmt.width}x{fmt.height}, {jobs} jobs: warm {t_warm:.1f}s, '
+          f'frames+encode {t1 - t0:.1f}s, mux {t2 - t1:.1f}s, total {t2 - t0:.1f}s', file=log)
+    return out

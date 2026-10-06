@@ -100,10 +100,21 @@ def _shadow_mask(w, h, radius, blur, spread):
 
 
 class Canvas:
-    def __init__(self, width, height, background=None):
+    """A frame to draw on, `width` x `height` in film px.
+
+    `scale` shrinks the pixels, not the coordinates: a preview at 0.5 draws
+    the same calls into a half-size surface. `format` is the film format being
+    drawn (see `videobuilder.film.Format`), for per-format layout.
+    """
+
+    def __init__(self, width, height, background=None, scale=1.0, format=None):
         self.width, self.height = width, height
-        self.surface = cairo.ImageSurface(cairo.FORMAT_ARGB32, width, height)
+        self.format = format
+        self.surface = cairo.ImageSurface(cairo.FORMAT_ARGB32, max(1, round(width * scale)),
+                                          max(1, round(height * scale)))
         self.ctx = cairo.Context(self.surface)
+        if scale != 1:
+            self.ctx.scale(scale, scale)
         if background:
             self.fill(background)
 

@@ -8,7 +8,6 @@ version = "0.1.0"
 description = "A small, dependency-light framework for making videos in code (cairo + Pango + ffmpeg)"
 readme = "README.md"
 requires-python = ">=3.11"
-license = {text = "MIT"}
 # System packages are also needed: ffmpeg, cairo and Pango (with GObject
 # introspection data). See README.md for per-platform install commands.
 dependencies = [
