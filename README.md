@@ -86,6 +86,7 @@ A film file is a Python module that defines `FILM = videobuilder.Film(...)`:
 | `formats` | Format names (`'9x16'` 1080×1920, `'16x9'` 1920×1080, `'1x1'` 1080×1080) or `Format(name, w, h)`. The first is the default. |
 | `background` | Colour painted before `draw`, or `None` for transparent. Default black. |
 | `audio` | Optional `Audio(path, trim_frames=0, gain_db=0, fade_out_frames=0)`, muxed in by `render`. |
+| `keyframes` | Optional frames worth reviewing: frame numbers or `(frame, label)` pairs. `sheet` shows them, labelled, by default. |
 
 Inside `draw`, `canvas.width` and `canvas.height` are the format's size in film
 pixels, and `canvas.format` says which format is being drawn. Formats are
@@ -107,8 +108,11 @@ that sit beside it. The preview reloads those too.
    to 127.0.0.1 because it runs your film's code on request.
 2. **Stills and contact sheets.** `still film.py 120 240 --format all --out
    stills/` writes PNGs, and `--overlay` adds the timeline overlay.
-   `sheet film.py --format 9x16` lays out the first, middle and last frame
-   of every segment. Use `--every N` or `--frames a,b,c` to choose others.
+   `sheet film.py --format 9x16` lays out the film's `keyframes`, or else
+   the first, middle and last frame of every segment. Use `--every N` or
+   `--frames a,b,c` to choose others. From Python,
+   `cli.contact_sheet(film, frames, fmt, decorate=fn)` calls `fn(canvas, n)`
+   on each frame so a check can draw over it (its marks, a safe area).
    Check the cuts and text here before you render.
 3. **Render.** `render film.py --format all [--jobs N] [--out film.mp4]`
    writes H.264/AAC MP4s. Check them with ffprobe.

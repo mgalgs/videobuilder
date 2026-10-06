@@ -59,8 +59,14 @@ def cmd_still(a):
             print(path)
 
 
-def contact_sheet(film, frames, fmt, width=360, cols=6, overlay=False):
-    """A PIL image: the given frames as thumbnails `width` px wide, labelled."""
+def contact_sheet(film, frames, fmt, width=360, cols=6, overlay=False, decorate=None):
+    """A PIL image: the given frames as thumbnails `width` px wide, labelled.
+
+    `frames` holds frame numbers or (frame, label) pairs; a frame without a
+    label is named by its segment. `decorate(canvas, n)`, if given, is called
+    on each drawn frame and may draw over it in film px (a check's overlay,
+    using `canvas.marks`, say); a string it returns is added to the label.
+    """
     from PIL import Image, ImageDraw
     fmt = film.format(fmt)
     scale = width / fmt.width
@@ -70,8 +76,10 @@ def contact_sheet(film, frames, fmt, width=360, cols=6, overlay=False):
     rows = (len(frames) + cols - 1) // cols
     sheet = Image.new('RGB', (cols * (width + gap) + gap, rows * (th + label + gap) + gap), (24, 24, 24))
     d = ImageDraw.Draw(sheet)
-    for i, n in enumerate(frames):
+    for i, item in enumerate(frames):
+        n, name = (item, '') if isinstance(item, int) else item
         cv = _still(film, n, fmt, overlay, scale)
+        note = decorate(cv, n) if decorate else None
         cv.surface.flush()
         w, h = cv.surface.get_width(), cv.surface.get_height()
         im = Image.frombuffer('RGBA', (w, h), bytes(cv.surface.get_data()), 'raw', 'BGRA', cv.surface.get_stride(), 1)
@@ -79,18 +87,26 @@ def contact_sheet(film, frames, fmt, width=360, cols=6, overlay=False):
         y = gap + (i // cols) * (th + label + gap)
         sheet.paste(im.convert('RGB'), (x, y))
         text = f'f {n}  {n / film.fps:.2f}s'
-        if film.timeline is not None:
+        if not name and film.timeline is not None:
             try:
-                text += f'  {film.timeline.at(n)[0].name}'
+                name = film.timeline.at(n)[0].name
             except IndexError:
                 pass
+        if name:
+            text += f'  {name}'
+        if isinstance(note, str):
+            text += f'  {note}'
         d.text((x + 2, y + th + 4), text, fill=(220, 220, 220))
     return sheet
 
 
 def default_sheet_frames(film, every=None):
+    """`every` N frames if asked; else the film's keyframes; else the first,
+    middle and last frame of each segment (or one a second, with no timeline)."""
     if every:
         return list(range(0, film.frames, every))
+    if film.keyframes:
+        return list(film.keyframes)
     tl = film.timeline
     if tl is None:
         return list(range(0, film.frames, film.fps))
@@ -142,7 +158,7 @@ def main(argv=None):
     s.add_argument('--scale', type=float, default=1.0)
     s.set_defaults(fn=cmd_still)
 
-    c = sub.add_parser('sheet', help='a contact sheet of frames (default: in/middle/out of each segment)')
+    c = sub.add_parser('sheet', help="a contact sheet of frames (default: the film's keyframes, or in/middle/out of each segment)")
     c.add_argument('film')
     c.add_argument('--format')
     c.add_argument('--frames', help='comma-separated frame numbers')

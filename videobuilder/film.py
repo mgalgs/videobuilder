@@ -84,6 +84,9 @@ class Film:
     background: str | tuple | None = '#000000'
     audio: Audio | None = None
     timeline: Timeline | None = None
+    # Frames worth reviewing, as frame numbers or (frame, label) pairs: the
+    # default frames of `sheet`, labelled. Checks can walk them too.
+    keyframes: tuple = ()
 
     def __post_init__(self):
         if self.timeline is not None:
@@ -100,6 +103,13 @@ class Film:
         self.formats = tuple(as_format(f) for f in self.formats)
         if not self.formats:
             raise ValueError('Film needs at least one format')
+        keys = []
+        for k in self.keyframes:
+            n, label = (k, '') if isinstance(k, int) else k
+            if not 0 <= n < self.frames:
+                raise ValueError(f'keyframe {n} ({label}) outside 0..{self.frames - 1}')
+            keys.append((n, label))
+        self.keyframes = tuple(keys)
 
     def format(self, name=None):
         """The `Format` called `name` (default: the film's first)."""
