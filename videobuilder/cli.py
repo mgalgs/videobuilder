@@ -7,6 +7,7 @@
 """
 import argparse
 import os
+import sys
 
 from .film import load
 
@@ -179,3 +180,14 @@ def main(argv=None):
 
     a = p.parse_args(argv)
     a.fn(a)
+
+
+def film_main(path, argv=None):
+    """Run the CLI on the film file `path`, so a film is runnable on its own:
+    end it with `if __name__ == '__main__': videobuilder.main(__file__)`, and
+    `python film.py render --format all` is `python -m videobuilder render
+    film.py --format all`. `argv` defaults to the command line."""
+    argv = sys.argv[1:] if argv is None else list(argv)
+    if not argv or argv[0].startswith('-'):
+        return main(argv or ['--help'])
+    return main([argv[0], os.path.abspath(path), *argv[1:]])

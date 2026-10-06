@@ -133,8 +133,10 @@ _counter = itertools.count()
 
 
 def load_module(path):
-    """Import a film file afresh (a new module each call, so edits are seen).
-    Its directory goes on sys.path so it can import its neighbours."""
+    """Import a film file afresh (a new module each call, so edits are seen) and
+    return the module: `FILM` and the film's other module-level names (its
+    layout tables, say) for tools that check a film. Its directory goes on
+    sys.path so it can import its neighbours."""
     path = os.path.abspath(path)
     d = os.path.dirname(path)
     if d not in sys.path:

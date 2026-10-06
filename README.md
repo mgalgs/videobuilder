@@ -96,6 +96,15 @@ per-format table (`per_format(table, canvas)`, with `'*'` as the fallback).
 The film's directory goes on `sys.path`, so a film can import helper modules
 that sit beside it. The preview reloads those too.
 
+End a film with `if __name__ == '__main__': videobuilder.main(__file__)` and
+it runs the CLI on itself: `python film.py render --format all` is
+`python -m videobuilder render film.py --format all`.
+
+A tool that checks a film (a safe-area check, a parity script) often needs
+the film's own data too, its layout tables say. `videobuilder.load_module(path)`
+imports the film file afresh and returns the module: `mod.FILM` is the film
+and every other module-level name is there. (`load(path)` returns just `FILM`.)
+
 ## Text in a box
 
 A label, chip or button is text with padding around it: the CSS box model.
