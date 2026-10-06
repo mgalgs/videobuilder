@@ -1,8 +1,8 @@
 """Render a film: frames in parallel chunks, each chunk piped to its own ffmpeg,
 then the chunks concatenated (no re-encode) and the music muxed in.
 
-    python3 -m motion films/party_templates.py out.mp4 [--jobs N]
-    python3 -m motion films/party_templates.py --still 300 f300.png
+    python3 -m videobuilder film.py out.mp4 [--jobs N]
+    python3 -m videobuilder film.py --still 300 f300.png
 
 A film file defines `FILM = Film(...)`. Its `draw(n, canvas)` must be a pure
 function of `n`, so any frame (or chunk) renders alone and in any order.
