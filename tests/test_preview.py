@@ -101,5 +101,21 @@ class PreviewServer(unittest.TestCase):
         self.assertIn(b'NameError', e.exception.read())
 
 
+    def test_info_lists_children_groups_overlaps_and_cuts(self):
+        self.write(self.film, self.source.replace(
+            "[vb.Segment('one', 0, 2), vb.Segment('two', 2, 4)]",
+            "[vb.Segment('g', 0, 2, children=vb.timeline.sequence(0, [('one', 1), ('one b', 1)])),"
+            " vb.Segment('two', 2, 4, overlap=1)]"))
+        info = json.loads(self.get('/info')[2])
+        self.assertIsNone(info['error'])
+        tl = info['timeline']
+        self.assertEqual([(s['name'], s['group'], s['overlap_end']) for s in tl['segments']],
+                         [('one', 'g', None), ('one b', 'g', None), ('two', None, 45)])
+        self.assertEqual(tl['groups'], [{'name': 'g', 'start': 0, 'end': 30, 'depth': 0}])
+        self.assertEqual(tl['cuts'], [0, 15])
+        status, ctype, body = self.get('/frame?frame=35&format=1x1&scale=0.25&overlay=1')  # overlay draws them
+        self.assertEqual(status, 200)
+
+
 if __name__ == '__main__':
     unittest.main()

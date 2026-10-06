@@ -12,7 +12,7 @@ def readout(film, n):
     if tl is not None:
         parts.append(f'beat {n / tl.grid.frames_per_beat:.2f}')
         try:
-            parts.append(tl.at(n)[0].name)
+            parts.append(tl.label(n))
         except IndexError:
             pass
     return '  '.join(parts)
@@ -40,12 +40,20 @@ def draw(cv, film, n):
     if tl is not None:
         b = tl.grid.b
         shades = ((255, 255, 255, 0.16), (255, 255, 255, 0.08))
-        for i, s in enumerate(tl.segments):
+        for i, s in enumerate(tl.leaves()):
             a, z = fx(b(s.at)), fx(b(s.until))
             cv.rect(a, y, z - a, bar_h, shades[i % 2])
             name = s.name
             if measure(name, small) < z - a - 8 * u:
                 draw_text(cv, name, small, a + 6 * u, y + (bar_h - 20 * u * 1.3) / 2, (255, 255, 255, 0.85))
+        for s, parents in tl.walk():
+            a, z = fx(b(s.at)), fx(b(s.until))
+            if s.children:  # a group: a bracket over its children, named
+                gy = y - (16 + 6 * len(parents)) * u
+                cv.rect(a, gy, z - a, 2 * u, (255, 255, 255, 0.6))
+                draw_text(cv, s.name, small, a, gy - 26 * u, (255, 255, 255, 0.75))
+            if s.overlap:  # the previous segment still drawing under this one
+                cv.rect(a, y + bar_h - 6 * u, fx(b(s.at + s.overlap)) - a, 6 * u, (255, 210, 80, 0.8))
         beats = int(tl.end) + 1
         every = max(1, round(beats / (span / (6 * u))))  # keep ticks >= ~6 px apart
         for k in range(0, beats, every):

@@ -107,7 +107,13 @@ class Session:
                     'bpm': tl.grid.bpm, 'frames_per_beat': tl.grid.frames_per_beat, 'end_beat': tl.end,
                     'beats': [b(k) for k in range(int(tl.end) + 1)],
                     'segments': [{'name': s.name, 'start': b(s.at), 'end': b(s.until),
-                                  'at': s.at, 'until': s.until} for s in tl.segments],
+                                  'at': s.at, 'until': s.until,
+                                  'group': ' / '.join(g.name for g in parents) or None,
+                                  'overlap_end': b(s.at + s.overlap) if s.overlap else None}
+                                 for s, parents in tl.walk() if not s.children],
+                    'groups': [{'name': s.name, 'start': b(s.at), 'end': b(s.until), 'depth': len(parents)}
+                               for s, parents in tl.walk() if s.children],
+                    'cuts': tl.cut_frames(),
                 }
             return out
 

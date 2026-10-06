@@ -23,6 +23,8 @@
   .seg { position: absolute; top: 0; bottom: 0; border-left: 1px solid #888; overflow: hidden; white-space: nowrap;
          font-size: 11px; padding: 2px 4px; color: #ccc; }
   .seg:nth-child(odd) { background: #ffffff22; } .seg:nth-child(even) { background: #ffffff11; }
+  .seg .ovl { position: absolute; left: 0; bottom: 0; height: 3px; background: #ffd250cc; }
+  .grp { position: absolute; top: -2px; height: 2px; background: #ffffff99; }
   #ticks { position: absolute; left: 8px; right: 8px; top: 0; height: 10px; pointer-events: none; }
   .tick { position: absolute; bottom: 0; width: 1px; height: 4px; background: #777; }
   .tick.bar { height: 9px; background: #bbb; }
@@ -89,7 +91,7 @@ function readouts() {
   $('r-time').textContent = info ? (frame / info.fps).toFixed(2) : '0.00';
   $('r-beat').textContent = fpb() ? (frame / fpb()).toFixed(2) : '–';
   const s = segAt(frame);
-  $('r-seg').textContent = s ? s.name : '–';
+  $('r-seg').textContent = s ? (s.group ? s.group + ' / ' : '') + s.name : '–';
   $('scrub').value = frame;
 }
 
@@ -196,7 +198,23 @@ function buildTrack() {
     d.style.left = pct(s.start);
     d.style.width = (100 * (s.end - s.start) / span) + '%';
     d.textContent = s.name;
-    d.title = `${s.name}: beats ${s.at}–${s.until}, frames ${s.start}–${s.end - 1}`;
+    d.title = `${s.group ? s.group + ' / ' : ''}${s.name}: beats ${s.at}–${s.until}, frames ${s.start}–${s.end - 1}`;
+    if (s.overlap_end) {  // the previous segment still draws under this one until here
+      d.title += `, over the previous until frame ${s.overlap_end - 1}`;
+      const o = document.createElement('div');
+      o.className = 'ovl';
+      o.style.width = (100 * (s.overlap_end - s.start) / (s.end - s.start)) + '%';
+      d.appendChild(o);
+    }
+    segs.appendChild(d);
+  }
+  for (const g of tl.groups || []) {
+    const d = document.createElement('div');
+    d.className = 'grp';
+    d.style.left = pct(g.start);
+    d.style.width = (100 * (g.end - g.start) / span) + '%';
+    d.style.top = (-2 - 3 * g.depth) + 'px';
+    d.title = `${g.name}: frames ${g.start}–${g.end - 1}`;
     segs.appendChild(d);
   }
   tl.beats.forEach((f, k) => {

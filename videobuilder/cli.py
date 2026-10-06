@@ -89,7 +89,7 @@ def contact_sheet(film, frames, fmt, width=360, cols=6, overlay=False, decorate=
         text = f'f {n}  {n / film.fps:.2f}s'
         if not name and film.timeline is not None:
             try:
-                name = film.timeline.at(n)[0].name
+                name = film.timeline.label(n)
             except IndexError:
                 pass
         if name:
@@ -102,7 +102,8 @@ def contact_sheet(film, frames, fmt, width=360, cols=6, overlay=False, decorate=
 
 def default_sheet_frames(film, every=None):
     """`every` N frames if asked; else the film's keyframes; else the first,
-    middle and last frame of each segment (or one a second, with no timeline)."""
+    middle and last frame of each segment, groups' children included (or one a
+    second, with no timeline)."""
     if every:
         return list(range(0, film.frames, every))
     if film.keyframes:
@@ -112,7 +113,7 @@ def default_sheet_frames(film, every=None):
         return list(range(0, film.frames, film.fps))
     b = tl.grid.b
     picks = set()
-    for s in tl.segments:
+    for s in tl.leaves():
         a, z = b(s.at), b(s.until)
         picks.update((a, (a + z) // 2, z - 1))  # in, middle, last frame of each segment
     return sorted(p for p in picks if 0 <= p < film.frames)

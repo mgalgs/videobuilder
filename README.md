@@ -96,6 +96,48 @@ per-format table (`per_format(table, canvas)`, with `'*'` as the fallback).
 The film's directory goes on `sys.path`, so a film can import helper modules
 that sit beside it. The preview reloads those too.
 
+## Timelines: groups and overlaps
+
+A `Timeline` is gap-free segments, in beats. Two things give it structure:
+
+- **Groups.** A segment with `children` holds segments that fill it, gap-free.
+  `sequence(at, parts)` lays children back to back from `(name, beats[, data])`.
+- **Overlaps.** `Segment(..., overlap=k)` starts on its own beat, but the
+  segment before it keeps drawing under it for `k` more beats: a transition,
+  not a cut.
+
+`timeline.live(n)` gives every segment drawing at frame `n` as `Shot`s, back
+to front, so `draw` can be a loop:
+
+```python
+TIMELINE = vb.Timeline(GRID, [
+    vb.Segment('title', 0, 4),
+    vb.Segment('quick cuts', 4, 8, children=vb.sequence(4, [('a', 2), ('b', 1), ('c', 1)])),
+    vb.Segment('wall', 8, 12),
+    vb.Segment('end card', 12, 16, overlap=1),     # slides in over the wall for a beat
+], end=16)
+
+
+def draw(n, cv):
+    for shot in TIMELINE.live(n):                  # in an overlap: wall, then end card
+        SCENES[shot.group.name if shot.group else shot.name](cv, shot)
+```
+
+A `Shot` has the `segment` (and its `name`, `data`), `f` (frames into it),
+`length` (its frames), and for a group's child `group` and `group_f` (frames
+into the group: a chip that springs in once across all the quick cuts keys off
+`group_f`). A segment still drawing under the next one's overlap keeps counting
+`f` past its `length`, and `exit` says how many frames ago the next one began
+(it is `None` otherwise). `timeline.at(n)` is the frontmost `(segment, f)`.
+
+Hard cuts (`cut_frames()`) are every segment start, at any level, except
+starts that overlap. The preview, the timeline overlay and sheet labels show
+groups' children by name ("quick cuts / b", "wall > end card" in an overlap),
+and `sheet`'s default frames are the in, middle and out frame of each child.
+`timeline.start(name)` and `span(name)` give a segment's frames, for keyframes
+and checks. Every start, children's too, must be on the half-beat grid, and
+frames round half up.
+
 ## The authoring loop
 
 1. **Preview.** `python -m videobuilder preview film.py` serves a page with
@@ -109,7 +151,7 @@ that sit beside it. The preview reloads those too.
 2. **Stills and contact sheets.** `still film.py 120 240 --format all --out
    stills/` writes PNGs, and `--overlay` adds the timeline overlay.
    `sheet film.py --format 9x16` lays out the film's `keyframes`, or else
-   the first, middle and last frame of every segment. Use `--every N` or
+   the first, middle and last frame of every segment (each group's children). Use `--every N` or
    `--frames a,b,c` to choose others. From Python,
    `cli.contact_sheet(film, frames, fmt, decorate=fn)` calls `fn(canvas, n)`
    on each frame so a check can draw over it (its marks, a safe area).
@@ -126,8 +168,10 @@ python -m videobuilder preview film.py [--host 127.0.0.1] [--port 8000] [--open]
 
 ## Modules
 
-- `timeline`: `Grid(fps, bpm, head_trim)`, `Segment(name, at, until)` in
-  beats, and `Timeline.at(frame)`. It also has `round_half_up`.
+- `timeline`: `Grid(fps, bpm, head_trim)`, `Segment(name, at, until, data,
+  children, overlap)` in beats, `sequence`, and `Timeline` with `live(frame)`
+  (`Shot`s), `at`, `cut_frames`, `walk`, `leaves`, `span`. It also has
+  `round_half_up`.
 - `ease`: CSS `bezier`, `interpolate` over keyframes, `spring` and
   `spring_at` (closed form), `critical`, and `log_lerp`.
 - `canvas`: `Canvas` with rects, images (mip-mapped; `Image.load(path)` decodes

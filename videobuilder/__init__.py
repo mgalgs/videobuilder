@@ -4,9 +4,9 @@ from .ease import bezier, clamp01, critical, interpolate, linear, log_lerp, spri
 from .layout import Box, fr, per_format
 from .film import FORMATS, Audio, Film, Format, load
 from .text import Font
-from .timeline import Grid, Segment, Timeline, round_half_up
+from .timeline import Grid, Segment, Shot, Timeline, round_half_up, sequence
 from . import layout, text
 
-__all__ = ['Audio', 'Box', 'Canvas', 'FORMATS', 'Film', 'Font', 'Format', 'Grid', 'Image', 'Segment', 'Timeline',
+__all__ = ['Audio', 'Box', 'Canvas', 'FORMATS', 'Film', 'Font', 'Format', 'Grid', 'Image', 'Segment', 'Shot', 'Timeline',
            'bezier', 'clamp01', 'critical', 'fr', 'interpolate', 'layout', 'linear', 'load', 'log_lerp', 'per_format',
-           'round_half_up', 'spring', 'spring_at', 'text']
+           'round_half_up', 'sequence', 'spring', 'spring_at', 'text']

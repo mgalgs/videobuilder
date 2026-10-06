@@ -24,6 +24,16 @@ class Keyframes(unittest.TestCase):
         plain = Film(draw=draw, timeline=TL)
         self.assertEqual(default_sheet_frames(plain), [0, 15, 29, 30, 45, 59])
 
+    def test_default_frames_and_labels_follow_groups_and_overlaps(self):
+        tl = Timeline(Grid(fps=30, bpm=120), [
+            Segment('cuts', 0, 2, children=[Segment('c1', 0, 1), Segment('c2', 1, 2)]),
+            Segment('end', 2, 4, overlap=1),
+        ], end=4)
+        film = Film(draw=draw, timeline=tl)
+        self.assertEqual(default_sheet_frames(film), [0, 7, 14, 15, 22, 29, 30, 45, 59])  # the children, not the group
+        self.assertEqual(tl.label(7), 'cuts / c1')
+        self.assertEqual(tl.label(35), 'cuts / c2 > end')
+
 
 class Decorate(unittest.TestCase):
     def test_decorate_sees_marks_and_draws_in_film_px(self):
