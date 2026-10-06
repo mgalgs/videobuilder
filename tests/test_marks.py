@@ -35,6 +35,15 @@ class Marks(unittest.TestCase):
             self.assertIsNotNone(cv.mark('faint', 0, 0, 10, 10))
         self.assertEqual([n for n, _ in cv.marks], ['faint'])
 
+    def test_invisible_layer_keeps_its_transform(self):
+        # Drawing nothing, but code asking "where would this land?" gets the real answer.
+        cv = Canvas(400, 300)
+        with cv.layer(opacity=0, dx=100, dy=20, scale=2):
+            self.assertEqual(cv.ctx.user_to_device(10, 10), (120, 40))
+        with cv.layer(opacity=1, dx=100, dy=20, scale=2):
+            self.assertEqual(cv.ctx.user_to_device(10, 10), (120, 40))
+        self.assertEqual(cv.ctx.user_to_device(10, 10), (10, 10))
+
     def test_text_draw_returns_its_box(self):
         cv = Canvas(800, 400)
         font = Font('Cantarell', 40, line_height=1.5)

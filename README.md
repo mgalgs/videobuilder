@@ -255,7 +255,8 @@ python -m videobuilder preview film.py [--host 127.0.0.1] [--port 8000] [--open]
   a file once and is safe to call in `draw`; an edited file is decoded again
   and its old decode dropped), `view` (a camera on an image in
   a window, with `pin`), `outline` and `line` strokes, CSS-style shadows,
-  clips, and `layer` groups with opacity and transform. Colours anywhere are
+  clips, and `layer` groups with opacity and transform (an invisible layer
+  draws nothing but keeps its transform). Colours anywhere are
   `'#rgb'`, `'#rgba'`, `'#rrggbb'`, `'#rrggbbaa'` or an `(r, g, b[, a])` tuple
   (0-255, alpha 0-1); `rgba(colour)` turns one into cairo floats for raw
   `canvas.ctx` drawing, and a bad colour raises an error naming it. A CSS

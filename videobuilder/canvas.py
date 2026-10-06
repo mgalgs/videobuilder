@@ -260,10 +260,14 @@ class Canvas:
         """A group: children draw translated/scaled, then composite at `opacity`."""
         c = self.ctx
         if opacity <= 0:
-            # Invisible: run the body against an empty clip, which cairo skips cheaply.
+            # Invisible: run the body against an empty clip, which cairo skips cheaply,
+            # but with the same transform, so code that asks where things are still knows.
             c.save()
             c.rectangle(0, 0, 0, 0)
             c.clip()
+            c.translate(dx, dy)
+            if scale != 1:
+                c.scale(scale, scale)
             try:
                 yield self
             finally:
