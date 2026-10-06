@@ -112,7 +112,10 @@ def _break(text, font, width):
 @lru_cache(maxsize=1024)
 def wrap(text, font, max_width, balance=False):
     """Lines of `text` within `max_width`. `balance`: CSS text-wrap: balance,
-    i.e. the same number of lines as greedy wrapping, at the narrowest width."""
+    i.e. the same number of lines as greedy wrapping, at the narrowest width.
+    A '\n' is a forced break: each part wraps (and balances) on its own."""
+    if '\n' in text:
+        return tuple(ln for part in text.split('\n') for ln in wrap(part, font, max_width, balance))
     lines = _break(text, font, max_width)
     if not balance or len(lines) < 2:
         return tuple(lines)

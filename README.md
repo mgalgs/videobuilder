@@ -227,7 +227,8 @@ python -m videobuilder preview film.py [--host 127.0.0.1] [--port 8000] [--open]
   tags content for checks: `canvas.marks` lists each visible mark's box where
   it landed in the frame, through any layer moves.
 - `text`: Pango text. `Font` (variable `weight` and `tracking`), `wrap`
-  (with CSS-style `balance`), `measure`, `block_size`, `draw` (returns the
+  (with CSS-style `balance`; a `'\n'` is a forced break, and each part wraps
+  on its own), `measure`, `block_size`, `draw` (returns the
   `Box` it drew), `box` and `draw_in` for text in a box, and `register` for
   fonts that aren't installed.
 - `layout`: `Box` with `pad`, `row`, `column`, `grid`, `center`, `anchor`

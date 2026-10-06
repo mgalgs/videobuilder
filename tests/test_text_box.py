@@ -56,5 +56,25 @@ class TextBox(unittest.TestCase):
         self.assertAlmostEqual(got.cx, 150)
 
 
+
+class ForcedBreaks(unittest.TestCase):
+    def test_newline_is_a_forced_break_and_each_part_wraps(self):
+        font = Font('Cantarell', 40)
+        a, b = 'Try any look', 'as a live party, with words to wrap'
+        width = text.measure(b, font) * 0.6
+        want = text.wrap(a, font, width) + text.wrap(b, font, width)
+        self.assertGreater(len(text.wrap(b, font, width)), 1)
+        self.assertEqual(text.wrap(f'{a}\n{b}', font, width), want)
+        self.assertEqual(text.wrap('one\ntwo', font, 1000), ('one', 'two'))  # fits on one line, still two
+        self.assertEqual(text.wrap('a\n\nb', font, 1000), ('a', '', 'b'))  # a blank line stays
+
+    def test_each_part_balances_on_its_own(self):
+        font = Font('Cantarell', 40)
+        part = 'a few words here to balance'
+        width = text.measure(part, font) * 0.7
+        self.assertEqual(text.wrap(f'short\n{part}', font, width, balance=True),
+                         ('short',) + text.wrap(part, font, width, balance=True))
+
+
 if __name__ == '__main__':
     unittest.main()
