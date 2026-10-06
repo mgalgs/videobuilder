@@ -225,7 +225,10 @@ frames round half up.
 2. **Stills and contact sheets.** `still film.py 120 240 --format all --out
    stills/` writes PNGs, and `--overlay` adds the timeline overlay.
    `sheet film.py --format 9x16` lays out the film's `keyframes`, or else
-   the first, middle and last frame of every segment (each group's children). Use `--every N` or
+   the first, middle and last frame of every segment (each group's children).
+   Tiles default to 360 px, 6 across, for portrait formats and 480 px, 4
+   across, for the rest, so `--format all` gives each format a sheet that
+   reads; `--width` and `--cols` override both. Use `--every N` or
    `--frames a,b,c` to choose others. From Python,
    `cli.contact_sheet(film, frames, fmt, decorate=fn)` calls `fn(canvas, n)`
    on each frame so a check can draw over it (its marks, a safe area).
@@ -236,7 +239,7 @@ frames round half up.
 ```
 python -m videobuilder render  film.py [--format 9x16|16x9|1x1|all] [--jobs N] [--out FILE] [--frames a:b]
 python -m videobuilder still   film.py FRAME [FRAME ...] [--format F|all] [--out PATH] [--overlay] [--scale S]
-python -m videobuilder sheet   film.py [--format F|all] [--every N | --frames a,b,c] [--cols 6] [--width 360]
+python -m videobuilder sheet   film.py [--format F|all] [--every N | --frames a,b,c] [--cols C] [--width W]
 python -m videobuilder preview film.py [--host 127.0.0.1] [--port 8000] [--open]
 ```
 

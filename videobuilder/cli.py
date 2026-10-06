@@ -2,7 +2,7 @@
 
     python -m videobuilder render  film.py [--format 9x16|16x9|1x1|all] [--jobs N] [--out FILE]
     python -m videobuilder still   film.py FRAME [FRAME ...] [--format F] [--out PATH] [--overlay]
-    python -m videobuilder sheet   film.py [--format F] [--every N | --frames 0,30,60] [--out FILE]
+    python -m videobuilder sheet   film.py [--format F] [--every N | --frames 0,30,60] [--out FILE] [--width W] [--cols C]
     python -m videobuilder preview film.py [--port 8000] [--host 127.0.0.1]
 """
 import argparse
@@ -60,8 +60,15 @@ def cmd_still(a):
             print(path)
 
 
-def contact_sheet(film, frames, fmt, width=360, cols=6, overlay=False, decorate=None):
+def sheet_tiles(fmt):
+    """Default (thumbnail width, columns) of a sheet in `fmt`: 360 px x 6 for a
+    portrait format, 480 px x 4 otherwise, so each format's sheet reads well."""
+    return (360, 6) if fmt.portrait else (480, 4)
+
+
+def contact_sheet(film, frames, fmt, width=None, cols=None, overlay=False, decorate=None):
     """A PIL image: the given frames as thumbnails `width` px wide, labelled.
+    `width` and `cols` default to `sheet_tiles(fmt)`.
 
     `frames` holds frame numbers or (frame, label) pairs; a frame without a
     label is named by its segment. `decorate(canvas, n)`, if given, is called
@@ -70,6 +77,8 @@ def contact_sheet(film, frames, fmt, width=360, cols=6, overlay=False, decorate=
     """
     from PIL import Image, ImageDraw
     fmt = film.format(fmt)
+    dw, dc = sheet_tiles(fmt)
+    width, cols = width or dw, cols or dc
     scale = width / fmt.width
     th = round(fmt.height * scale)
     label = 22
@@ -165,8 +174,8 @@ def main(argv=None):
     c.add_argument('--format')
     c.add_argument('--frames', help='comma-separated frame numbers')
     c.add_argument('--every', type=int, help='every N frames')
-    c.add_argument('--cols', type=int, default=6)
-    c.add_argument('--width', type=int, default=360, help='thumbnail width, px')
+    c.add_argument('--cols', type=int, help='default: 6 for portrait formats, else 4')
+    c.add_argument('--width', type=int, help='thumbnail width, px (default: 360 for portrait formats, else 480)')
     c.add_argument('--overlay', action='store_true')
     c.add_argument('--out')
     c.set_defaults(fn=cmd_sheet)

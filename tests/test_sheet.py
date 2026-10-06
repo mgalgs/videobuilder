@@ -1,7 +1,7 @@
 import unittest
 
 from videobuilder import Film, Grid, Segment, Timeline
-from videobuilder.cli import contact_sheet, default_sheet_frames
+from videobuilder.cli import contact_sheet, default_sheet_frames, sheet_tiles
 
 TL = Timeline(Grid(fps=30, bpm=120), [Segment('a', 0, 2), Segment('b', 2, 4)], end=4)
 
@@ -49,6 +49,19 @@ class Decorate(unittest.TestCase):
         self.assertEqual(seen, [(0, [(10, 10, 50, 50)]), (31, [(10, 10, 50, 50)])])
         self.assertEqual(sheet.getpixel((8 + 40, 8 + 50)), (255, 0, 0))  # left half of the first thumb
         self.assertEqual(sheet.getpixel((8 + 150, 8 + 50)), (0, 0, 0))  # right half untouched
+
+
+
+class Tiles(unittest.TestCase):
+    def test_per_format_defaults(self):
+        film = Film(draw=draw, timeline=TL, formats=('9x16', '16x9', '1x1'))
+        self.assertEqual([sheet_tiles(f) for f in film.formats], [(360, 6), (480, 4), (480, 4)])
+        frames = [0, 10, 20]
+        portrait = contact_sheet(film, frames, '9x16')
+        wide = contact_sheet(film, frames, '16x9')
+        self.assertEqual(portrait.size[0], 6 * (360 + 8) + 8)
+        self.assertEqual(wide.size[0], 4 * (480 + 8) + 8)
+        self.assertEqual(contact_sheet(film, frames, '16x9', width=100, cols=3).size[0], 3 * 108 + 8)
 
 
 if __name__ == '__main__':
