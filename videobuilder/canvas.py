@@ -60,20 +60,21 @@ class Image:
         self.path = path
         self._set(PILImage.open(path))
 
-    _cache = {}
+    _cache = {}  # absolute path -> (mtime, Image): one decode per file
 
     @classmethod
     def load(cls, path):
         """The Image of `path`, decoded once per process and shared after that.
         Call it freely inside `draw`: a big capture is decoded on first use (the
         renderer draws a frame of each chunk before it forks, so workers share
-        the pixels), not on every frame. A changed file is decoded again."""
+        the pixels), not on every frame. A changed file is decoded again, and
+        its old decode dropped."""
         path = os.path.abspath(path)
-        key = path, os.stat(path).st_mtime_ns
-        img = cls._cache.get(key)
-        if img is None:
-            img = cls._cache[key] = cls(path)
-        return img
+        stamp = os.stat(path).st_mtime_ns
+        hit = cls._cache.get(path)
+        if hit is None or hit[0] != stamp:
+            hit = cls._cache[path] = stamp, cls(path)
+        return hit[1]
 
     @classmethod
     def from_pil(cls, pil):

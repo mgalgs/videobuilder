@@ -252,7 +252,8 @@ python -m videobuilder preview film.py [--host 127.0.0.1] [--port 8000] [--open]
 - `ease`: CSS `bezier`, `interpolate` over keyframes, `spring` and
   `spring_at` (closed form), `critical`, and `log_lerp`.
 - `canvas`: `Canvas` with rects, images (mip-mapped; `Image.load(path)` decodes
-  a file once and is safe to call in `draw`), `view` (a camera on an image in
+  a file once and is safe to call in `draw`; an edited file is decoded again
+  and its old decode dropped), `view` (a camera on an image in
   a window, with `pin`), `outline` and `line` strokes, CSS-style shadows,
   clips, and `layer` groups with opacity and transform. Colours anywhere are
   `'#rgb'`, `'#rgba'`, `'#rrggbb'`, `'#rrggbbaa'` or an `(r, g, b[, a])` tuple

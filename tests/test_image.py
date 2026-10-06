@@ -23,6 +23,8 @@ class Load(unittest.TestCase):
             b = Image.load(path)
             self.assertIsNot(b, a)
             self.assertEqual((b.w, b.h), (10, 30))
+            self.assertEqual([im for p, (_, im) in Image._cache.items() if p == os.path.abspath(path)], [b])
+            self.assertNotIn(a, [im for _, im in Image._cache.values()])  # the old decode is dropped
 
     def test_missing_file(self):
         with self.assertRaises(FileNotFoundError):
