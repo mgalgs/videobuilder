@@ -4,6 +4,7 @@ Immediate mode: a frame function draws into a fresh Canvas, back to front.
 Groups (`layer`) carry opacity and a transform, like a CSS stacking context.
 """
 import math
+import os
 from contextlib import contextmanager
 from functools import lru_cache
 
@@ -44,6 +45,21 @@ class Image:
     def __init__(self, path):
         self.path = path
         self._set(PILImage.open(path))
+
+    _cache = {}
+
+    @classmethod
+    def load(cls, path):
+        """The Image of `path`, decoded once per process and shared after that.
+        Call it freely inside `draw`: a big capture is decoded on first use (the
+        renderer draws a frame of each chunk before it forks, so workers share
+        the pixels), not on every frame. A changed file is decoded again."""
+        path = os.path.abspath(path)
+        key = path, os.stat(path).st_mtime_ns
+        img = cls._cache.get(key)
+        if img is None:
+            img = cls._cache[key] = cls(path)
+        return img
 
     @classmethod
     def from_pil(cls, pil):

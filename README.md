@@ -130,7 +130,8 @@ python -m videobuilder preview film.py [--host 127.0.0.1] [--port 8000] [--open]
   beats, and `Timeline.at(frame)`. It also has `round_half_up`.
 - `ease`: CSS `bezier`, `interpolate` over keyframes, `spring` and
   `spring_at` (closed form), `critical`, and `log_lerp`.
-- `canvas`: `Canvas` with rects, images (mip-mapped), CSS-style shadows,
+- `canvas`: `Canvas` with rects, images (mip-mapped; `Image.load(path)` decodes
+  a file once and is safe to call in `draw`), CSS-style shadows,
   clips, and `layer` groups with opacity and transform. `mark(name, *box)`
   tags content for checks: `canvas.marks` lists each visible mark's box where
   it landed in the frame, through any layer moves.
