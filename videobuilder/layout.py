@@ -84,6 +84,17 @@ class Box:
         """Unpacks as x, y, w, h, so `canvas.rect(*box, color)` works."""
         return iter((self.x, self.y, self.w, self.h))
 
+    def contains(self, other, tolerance=0.5):
+        """True if `other` lies inside this box (to `tolerance` px, for anti-aliased edges)."""
+        t = tolerance
+        return (other.x >= self.x - t and other.y >= self.y - t
+                and other.right <= self.right + t and other.bottom <= self.bottom + t)
+
+    def intersects(self, other, tolerance=0.5):
+        """True if the two boxes overlap by more than `tolerance` px both ways."""
+        return (min(self.right, other.right) - max(self.x, other.x) > tolerance
+                and min(self.bottom, other.bottom) - max(self.y, other.y) > tolerance)
+
     def moved(self, dx=0, dy=0):
         return Box(self.x + dx, self.y + dy, self.w, self.h)
 

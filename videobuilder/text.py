@@ -15,6 +15,7 @@ gi.require_version('PangoCairo', '1.0')
 from gi.repository import Pango, PangoCairo  # noqa: E402
 
 from .canvas import rgba  # noqa: E402
+from .layout import Box  # noqa: E402
 
 S = Pango.SCALE
 
@@ -123,7 +124,9 @@ def block_size(lines, font):
 
 
 def draw(cv, lines, font, x, y, color, align='left', width=None, alpha=1.0):
-    """Draw lines top-down from (x, y). `align` within `width` (default: the block's)."""
+    """Draw lines top-down from (x, y). `align` within `width` (default: the block's).
+    Returns the Box the lines take up (widest line by the line boxes' height), for
+    layout that follows the text or for `Canvas.mark`."""
     if isinstance(lines, str):
         lines = [lines]
     ctx = cv.ctx
@@ -131,8 +134,13 @@ def draw(cv, lines, font, x, y, color, align='left', width=None, alpha=1.0):
     content, _ = _content(font)
     width = width if width is not None else block_size(lines, font)[0]
     ctx.set_source_rgba(*rgba(color, alpha))
+    left, right = float('inf'), float('-inf')
     for i, t in enumerate(lines):
         w = measure(t, font)
         dx = {'left': 0, 'center': (width - w) / 2, 'right': width - w}[align]
+        left, right = min(left, x + dx), max(right, x + dx + w)
         ctx.move_to(x + dx, y + i * lh + (lh - content) / 2)
         PangoCairo.show_layout(ctx, _layout(ctx, t, font))
+    if not lines:
+        return Box(x, y, 0, 0)
+    return Box(left, y, right - left, lh * len(lines))

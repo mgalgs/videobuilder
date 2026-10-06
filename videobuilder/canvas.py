@@ -10,6 +10,8 @@ from functools import lru_cache
 import cairo
 from PIL import Image as PILImage, ImageChops, ImageDraw, ImageFilter
 
+from .layout import Box
+
 
 def rgba(color, alpha=1.0):
     """'#RRGGBB' or an (r, g, b[, a]) tuple of 0-255 / 0-1 alpha -> cairo floats."""
@@ -120,6 +122,8 @@ class Canvas:
     def __init__(self, width, height, background=None, scale=1.0, format=None):
         self.width, self.height = width, height
         self.format = format
+        self.scale = scale
+        self.marks = []  # (name, Box) pairs from `mark`, in frame px
         self.surface = cairo.ImageSurface(cairo.FORMAT_ARGB32, max(1, round(width * scale)),
                                           max(1, round(height * scale)))
         self.ctx = cairo.Context(self.surface)
@@ -167,6 +171,22 @@ class Canvas:
         """Current user->device scale (for mip selection under a scaled layer)."""
         xx, yx, xy, yy, _, _ = self.ctx.get_matrix()
         return math.sqrt(abs(xx * yy - xy * yx))
+
+    def mark(self, name, x, y, w, h):
+        """Tag the box (x, y, w, h) as content named `name`, for checks run on the
+        finished frame (a safe area, overlaps). The box is recorded where it lands
+        in the frame, through any `layer` moves and scales, and only if it can be
+        seen: a mark inside an invisible layer or an empty clip is skipped.
+        Returns the recorded Box, or None. Drawing nothing, it costs nothing."""
+        c = self.ctx
+        x0, y0, x1, y1 = c.clip_extents()
+        if x1 <= x0 or y1 <= y0:
+            return None
+        pts = [c.user_to_device(px, py) for px, py in ((x, y), (x + w, y), (x, y + h), (x + w, y + h))]
+        xs, ys = [p[0] / self.scale for p in pts], [p[1] / self.scale for p in pts]
+        box = Box(min(xs), min(ys), max(xs) - min(xs), max(ys) - min(ys))
+        self.marks.append((name, box))
+        return box
 
     # ---- structure ----
     @contextmanager

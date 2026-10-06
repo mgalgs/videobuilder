@@ -127,13 +127,15 @@ python -m videobuilder preview film.py [--host 127.0.0.1] [--port 8000] [--open]
 - `ease`: CSS `bezier`, `interpolate` over keyframes, `spring` and
   `spring_at` (closed form), `critical`, and `log_lerp`.
 - `canvas`: `Canvas` with rects, images (mip-mapped), CSS-style shadows,
-  clips, and `layer` groups with opacity and transform.
+  clips, and `layer` groups with opacity and transform. `mark(name, *box)`
+  tags content for checks: `canvas.marks` lists each visible mark's box where
+  it landed in the frame, through any layer moves.
 - `text`: Pango text. `Font` (variable `weight` and `tracking`), `wrap`
-  (with CSS-style `balance`), `measure`, `block_size`, `draw`, and
-  `register` for fonts that aren't installed.
+  (with CSS-style `balance`), `measure`, `block_size`, `draw` (returns the
+  `Box` it drew), and `register` for fonts that aren't installed.
 - `layout`: `Box` with `pad`, `row`, `column`, `grid`, `center`, `anchor`
-  and `fit` (`contain`, `cover`, `fill`, `none`, `scale-down`); `fr` shares;
-  and `per_format` tables.
+  and `fit` (`contain`, `cover`, `fill`, `none`, `scale-down`), and
+  `contains` / `intersects` for checks; `fr` shares; and `per_format` tables.
 - `film`: `Film`, `Format`, `FORMATS`, `Audio` and `load`.
 - `render`: chunked parallel rendering and the ffmpeg concat and mux.
 - `preview` and `overlay`: the live preview and the timeline overlay.
