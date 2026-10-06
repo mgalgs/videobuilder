@@ -107,6 +107,12 @@ class PerFormat(unittest.TestCase):
         cv = Canvas(1920, 1080, format=FORMATS['16x9'])
         self.assertEqual(per_format(self.TABLE, cv)['cols'], 2)
 
+    def test_merge_is_one_level_deep(self):
+        # Documented: a nested dict in an entry replaces the fallback's whole,
+        # which is why nested layouts are better as one full table per format.
+        table = {'*': {'title': {'size': 96, 'weight': 800}, 'cols': 1}, '16x9': {'title': {'size': 120}}}
+        self.assertEqual(per_format(table, '16x9'), {'title': {'size': 120}, 'cols': 1})
+
     def test_missing_without_fallback(self):
         with self.assertRaises(KeyError):
             per_format({'16x9': 1}, '9x16')

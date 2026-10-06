@@ -190,6 +190,10 @@ def per_format(table, fmt):
             '16x9': dict(columns=2),
         }
         L = per_format(LAYOUT, cv)   # {'title': 96, 'columns': 2} in 16:9
+
+    The merge is one level deep: a nested dict in an entry replaces the
+    fallback's whole. A nested layout reads better as one full table per
+    format, each built by a function from that format's own boxes.
     """
     if not isinstance(fmt, str):
         fmt = getattr(fmt, 'format', fmt)  # a Canvas carries its Format

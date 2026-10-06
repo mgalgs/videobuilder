@@ -93,6 +93,30 @@ pixels, and `canvas.format` says which format is being drawn. Formats are
 layouts, not crops: lay each format out for its own shape, usually from a
 per-format table (`per_format(table, canvas)`, with `'*'` as the fallback).
 
+For a flat table of a few values (a font size, a column count), a `'*'` base
+with small per-format overrides is fine; dict entries merge one level deep.
+For a real layout, nested and computed from the frame's boxes, write one
+full table per format, each from a function, and let `per_format` only pick:
+
+```python
+def layout_9x16():
+    safe = Box(60, 220, 880, 1320)
+    return dict(safe=safe, title=dict(size=110, measure=safe.w), card=safe.pad(0, 0, 400, 0))
+
+
+def layout_16x9():
+    safe = Box(0, 0, 1920, 1080).pad(54)
+    return dict(safe=safe, title=dict(size=132, measure=1200), card=safe.row(fr, fr, gap=40)[1])
+
+
+LAYOUTS = {'9x16': layout_9x16(), '16x9': layout_16x9()}
+L = per_format(LAYOUTS, cv)
+```
+
+Each format's numbers then sit together and come from its own geometry, and
+nothing is half-inherited: a deep merge of `'*'` would have to guess whether a
+nested dict is a group of overrides or one value (a shadow, a font spec).
+
 The film's directory goes on `sys.path`, so a film can import helper modules
 that sit beside it. The preview reloads those too.
 
