@@ -31,8 +31,7 @@ An edit answers 200 with {message, commit, warning, changed, undo}, where
 and `undo` is the edit that reverses it. A refused edit answers 400 with
 {error} and changes nothing. Other errors answer {error} with 4xx or 500.
 
-Trust. The editor runs each film's Python, as the preview does, so it is for
-trusted repos on a trusted network. It binds to 127.0.0.1 by default and has
+Trust. Film code runs in a sandboxed worker, including after Accept. It binds to 127.0.0.1 by default and has
 no authentication: `request_hook` is where a check of a reverse proxy's
 identity header belongs. POSTs must be JSON from the editor's own origin, so
 another web page can't make edits through a reviewer's browser.
@@ -54,7 +53,7 @@ from . import edits
 from .notes import NoteStore
 from .agents import backend_from_config
 from .drafts import Drafts
-from .preview import Session
+from .workers import Environments, Pool
 from .project import Project, read_config
 
 STATE_DIR = '.vb-editor'
@@ -97,22 +96,23 @@ class Editor:
     and the notes. One lock covers every film load and draw."""
 
     def __init__(self, root, state_dir=None, backend=None, poll=0.25, agent=None, allowed_hosts=(), host='127.0.0.1',
-                 unsandboxed_previews=False):
+                 unsandboxed_previews=False, envs=None, env_builder=None):
         self.root = os.path.abspath(root)
         cfg = read_config(self.root)
         state = state_dir or cfg.get('state_dir') or STATE_DIR
         self.state_dir = os.path.abspath(os.path.join(self.root, state))
         self.lock = threading.RLock()
-        self.project = Project(self.root, skip=[self.state_dir], lock=self.lock)
-        self.drafts = Drafts(self)
         self.unsandboxed_previews = bool(unsandboxed_previews or cfg.get('unsandboxed_previews', False))
+        self.envs = Environments(self.state_dir, envs or cfg.get('envs', 'pinned'), env_builder)
+        self.pool = Pool(self.envs, self.unsandboxed_previews)
+        self.project = Project(self.root, skip=[self.state_dir], lock=self.lock, worker=self.session)
+        self.drafts = Drafts(self)
         agent_cfg = {**cfg.get('agent', {}), **(agent or {})}
         self.notes = NoteStore(os.path.join(self.state_dir, 'notes'),
                                backend or backend_from_config(agent_cfg), context=self.drafts.context)
         self.allowed_hosts = {h.lower().rstrip('.') for h in
                               ['localhost', '127.0.0.1', '::1', host, *cfg.get('allowed_hosts', []), *allowed_hosts]}
         self.poll = poll
-        self.sessions = {}
         _ensure_state_dir(self.state_dir)
 
     def session(self, vid):
@@ -121,14 +121,14 @@ class Editor:
                 video = self.project.video(vid)
             except KeyError:
                 raise HTTPError(404, f'no video {vid!r} in this project') from None
-            s = self.sessions.get(vid)
-            if s is None or s.path != video.path:
-                s = self.sessions[vid] = Session(video.path, poll=self.poll, lock=self.lock)
-            return s
+            self.pool.unsandboxed = self.unsandboxed_previews
+            return self.pool.get(vid, self.root, video.path, self.root)
 
     def project_info(self):
         try:
-            videos, error = [v.to_json(self.root) for v in self.project.videos()], None
+            videos = [{**v.to_json(self.root), **self.envs.describe(v.path, self.root)}
+                      for v in self.project.videos()]
+            error = None
         except ValueError as e:
             videos, error = [], str(e)
         return {'name': os.path.basename(self.root), 'root': self.root, 'git': self.project.git is not None,
@@ -136,9 +136,8 @@ class Editor:
 
     def info(self, vid):
         s = self.session(vid)
-        s.check()
-        out = s.info()
-        out.update(video=vid, edits_file=os.path.relpath(edits.path_for(s.path), self.root),
+        out = s.request('info')
+        out.update(video=vid, edits_file=os.path.relpath(edits.path_for(s.film), self.root),
                    git=self.project.git_info(vid), undo=self.project.last.get(vid))
         return out
 
@@ -154,8 +153,7 @@ class Editor:
                 result = self.project.edit(vid, 'copy', _field(body, 'segment', str), _field(body, 'value', str),
                                            key=_field(body, 'key', str))
         except ValueError as e:
-            raise HTTPError(400, _short(str(e), s.path)) from None
-        s.check(force=True)
+            raise HTTPError(400, _short(str(e), s.film)) from None
         if result['warning']:
             print(f'[editor] {result["warning"]}', file=sys.stderr, flush=True)
         return result
@@ -166,18 +164,21 @@ class Editor:
         frame = _field(body, 'frame', int)
         fmt = body.get('format') or None
         with self.lock:
-            s.check()
-            film = s.film
-            if film is None:
+            info = s.request('info')
+            if 'frames' not in info:
                 raise HTTPError(409, 'the video does not load; fix it before pinning notes')
-            frame = max(0, min(film.frames - 1, frame))
-            fmt = film.format(fmt).name
-            segment = film.timeline.at(frame)[0].name if film.timeline is not None else None
-            png = s.png(frame, fmt, NOTE_SCALE)
+            frame = max(0, min(info['frames'] - 1, frame))
+            formats = [x['name'] for x in info['formats']]
+            fmt = fmt or formats[0]
+            if fmt not in formats:
+                raise HTTPError(400, f'unknown format {fmt!r}')
+            tl = info.get('timeline')
+            segment = next((x['name'] for x in tl['segments'] if x['start'] <= frame < x['end']), None) if tl else None
+            png = s.request('frame', frame=frame, format=fmt, scale=NOTE_SCALE)
         try:
             return self.notes.add(vid, fmt, frame, segment, body.get('text'), png, author=author,
-                                  time=frame / film.fps,
-                                  beat=frame / film.timeline.grid.frames_per_beat if film.timeline else None)
+                                  time=frame / info['fps'],
+                                  beat=frame / tl['frames_per_beat'] if tl else None)
         except ValueError as e:
             raise HTTPError(400, str(e)) from None
 
@@ -300,10 +301,9 @@ def make_handler(editor, hook=request_hook):
                 return self._json(200, editor.info(_need(q, 'video')))
             if route == '/api/frame':
                 s = editor.session(_need(q, 'video'))
-                s.check()
                 try:
-                    png = s.png(int(q.get('frame', 0)), q.get('format') or None, float(q.get('scale', 0.5)),
-                                q.get('overlay') in ('1', 'true'))
+                    png = s.request('frame', frame=int(q.get('frame', 0)), format=q.get('format') or None,
+                                    scale=float(q.get('scale', 0.5)), overlay=q.get('overlay') in ('1', 'true'))
                 except ValueError as e:
                     raise HTTPError(400, str(e)) from None
                 return self._send(200, png, 'image/png')
@@ -347,9 +347,9 @@ def _need(q, name):
 
 
 def serve(root, host='127.0.0.1', port=8100, state_dir=None, open_browser=False, backend=None,
-          hook=request_hook, agent=None, allowed_hosts=(), unsandboxed_previews=False):
+          hook=request_hook, agent=None, allowed_hosts=(), unsandboxed_previews=False, envs=None):
     editor = Editor(root, state_dir=state_dir, backend=backend, agent=agent, allowed_hosts=allowed_hosts, host=host,
-                    unsandboxed_previews=unsandboxed_previews)
+                    unsandboxed_previews=unsandboxed_previews, envs=envs)
     httpd = ThreadingHTTPServer((host, port), make_handler(editor, hook))
     httpd.daemon_threads = True
     url = f'http://{host}:{httpd.server_address[1]}/'
@@ -370,3 +370,4 @@ def serve(root, host='127.0.0.1', port=8100, state_dir=None, open_browser=False,
         pass
     finally:
         httpd.server_close()
+        editor.pool.close()

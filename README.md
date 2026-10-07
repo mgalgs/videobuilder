@@ -290,6 +290,16 @@ its own.
 
     python -m videobuilder editor path/to/project [--port 8100] [--host 127.0.0.1] [--state-dir DIR]
 
+Each video may pin videobuilder in its directory's `requirements.txt`. The
+editor finds the nearest such file up to the project root. It builds an
+environment under `<state-dir>/envs/` once per pin contents and Python version,
+then runs that video's preview, edits and note frames in a sandboxed worker.
+Environment creation uses `pip install -r` and may need the network; workers
+have no network. A pin older than 0.1.2 cannot provide the worker protocol and
+must be upgraded to open. With no pin, the editor's interpreter is used and
+the video list says "editor's own". Set `[editor] envs = "current"` or pass
+`--envs current` to ignore pins during development; `pinned` is the default.
+
 Open `http://127.0.0.1:8100/` and pick a video. The page has:
 
 - **A preview** of the frame at the playhead, at ¼, ½ or full scale, with
@@ -405,8 +415,10 @@ draft branch and preview worktrees, keeping the conversation and session.
 Both decisions record the identity supplied by `request_hook`. Run one
 editor process per state directory; queues advance while the page polls.
 
-**Trust.** The editor runs each film's Python, as the preview does. Use it
-on repos you trust, on a network you trust. It binds to 127.0.0.1 unless
+**Trust.** Main and draft film code runs in isolated workers, with the checkout
+and installed environment read-only, a scrubbed environment, and no network.
+Without a working bubblewrap, the editor refuses to run film code unless
+`unsandboxed_previews` is enabled. In that mode use repos you trust. The editor binds to 127.0.0.1 unless
 told otherwise, and it has no login. `videobuilder.editor.request_hook` is
 where a check of a reverse proxy's identity header belongs (the identity
 it returns becomes a note's author). Edits must be JSON POSTs from the

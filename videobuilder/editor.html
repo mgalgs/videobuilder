@@ -218,12 +218,12 @@ async function loadProject(want) {
   $('project').textContent = project.name;
   const sel = $('video');
   sel.innerHTML = '';
-  for (const v of project.videos) sel.append(el('option', {value: v.id}, v.id));
+  for (const v of project.videos) sel.append(el('option', {value: v.id}, `${v.id} · ${v.pin} · ${v.env}`));
   const list = $('videos');
   list.innerHTML = '';
   for (const v of project.videos)
     list.append(el('li', {}, el('a', {href: '#video=' + encodeURIComponent(v.id), onclick: e => { e.preventDefault(); openVideo(v.id); }},
-                                v.id, el('small', {}, v.path))));
+                                v.id, el('small', {}, `${v.path} · ${v.pin} · ${v.env}${v.error ? ': ' + v.error : ''}`))));
   $('landing-msg').textContent = project.error ? project.error
     : project.videos.length ? 'Pick a video to review.' : 'No videos found under this project.';
   const ids = project.videos.map(v => v.id);
@@ -249,7 +249,8 @@ async function refresh(wantFormat, force) {
   if (!video) return;
   let next;
   try { next = await getJSON(draftView ? 'draft/info' : 'info', {video});
-    if (draftView) { next.video = video; next.git = {state: 'draft'}; next.undo = null; } } catch (e) { showError(String(e.message)); return; }
+    if (draftView) { next.video = video; next.git = {state: 'draft'}; next.undo = null; } } catch (e) { showError(String(e.message)); updateEnv(); return; }
+  if (force) updateEnv();
   if (next.video !== video) return;
   const changed = force || !info || next.version !== info.version || JSON.stringify(next.undo) !== JSON.stringify(info.undo)
                   || JSON.stringify(next.git) !== JSON.stringify(info.git);
@@ -267,6 +268,17 @@ async function refresh(wantFormat, force) {
   if (!drag) buildTimeline();
   renderCopy();
   go(frame);
+}
+async function updateEnv() {
+  try {
+    const data = await getJSON('project');
+    for (const v of data.videos) {
+      const option = [...$('video').options].find(o => o.value === v.id);
+      if (option) option.textContent = `${v.id} · ${v.pin} · ${v.env}`;
+      const item = [...$('videos').children].find(x => x.querySelector('a')?.hash === '#video=' + encodeURIComponent(v.id));
+      if (item) item.querySelector('small').textContent = `${v.path} · ${v.pin} · ${v.env}${v.error ? ': ' + v.error : ''}`;
+    }
+  } catch (_) {}
 }
 function gitBadge() {
   const g = info.git, b = $('git');

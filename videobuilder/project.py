@@ -23,6 +23,7 @@ not committed, and the result carries a warning. Nothing is ever pushed.
 import ast
 import os
 import subprocess
+import tempfile
 import threading
 import tomllib
 from dataclasses import dataclass
@@ -163,12 +164,13 @@ class Project:
     around every film load (imports and Pango are not thread-safe); share it
     with anything else that loads films."""
 
-    def __init__(self, root, skip=(), lock=None):
+    def __init__(self, root, skip=(), lock=None, worker=None):
         self.root = os.path.abspath(root)
         if not os.path.isdir(self.root):
             raise ValueError(f'{root} is not a directory')
         self.skip = tuple(skip)
         self.lock = lock or threading.RLock()
+        self.worker = worker
         self.git = git_root(self.root)
         self.last = {}  # video id -> the inverse of the last edit made here, for undo
         self.seen = {}  # video id -> Video, so a film mid-edit with a syntax error stays listed
@@ -229,10 +231,23 @@ class Project:
             message += ' (undo)'
         with self.lock:
             try:
-                before = self._current(video, op, segment, key)
+                before = self._current(video, op, segment, key) if self.worker is None else None
                 state = git_state(self.git, path)
                 old = _read(path)
-                if op == 'roll':
+                if self.worker is not None:
+                    response = self.worker(vid).request('edit', segment=segment,
+                                                        field='until' if op == 'roll' else 'data',
+                                                        key=key, value=value)
+                    before = response['before']
+                    if response['toml']:
+                        with tempfile.NamedTemporaryFile(mode='w', encoding='utf-8', dir=os.path.dirname(path),
+                                                         delete=False) as output:
+                            output.write(response['toml'])
+                            temporary = output.name
+                        os.replace(temporary, path)
+                    elif os.path.exists(path):
+                        os.remove(path)
+                elif op == 'roll':
                     edits.roll(video.path, segment, value)
                 else:
                     edits.set_copy(video.path, segment, key, value)

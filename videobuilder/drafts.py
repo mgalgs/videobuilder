@@ -1,7 +1,7 @@
 """Draft scope checks, isolated previews, and local-only git integration.
 
 Every operation resolves a branch to an immutable commit before checking it.
-Preview workers reuse preview.Session via stdin/stdout, never import draft
+Preview workers use the shared persistent worker pool, never import draft
 code into the editor. Without a usable bubblewrap, previews are refused unless
 the editor opts in with unsandboxed_previews: environment scrubbing alone is
 not a sandbox, and draft code could read any credential file the editor can.
@@ -106,39 +106,13 @@ class Drafts:
             branch = self.editor.notes.session(video)['draft']
             result = guarded(self.editor.root, branch, context['directory'])
             work = self._worktree(video, result['tip'])
-        with tempfile.TemporaryDirectory(dir=self.editor.state_dir) as home:
-            env = child_environment(home)
-            # -I ignores cwd, PYTHONPATH and user site packages. Only the installed
-            # framework source is added explicitly, never the draft repository.
-            source = str(Path(__file__).resolve().parent.parent)
-            code = ('import sys; sys.path.insert(0, ' + repr(source) + '); '
-                    'from videobuilder.drafts import worker; worker()')
-            command = [sys.executable, '-I', '-c', code]
-            wrapper = []
-            if shutil.which('bwrap'):
-                wrapper = ['bwrap', '--unshare-all', '--new-session', '--die-with-parent', '--tmpfs', '/tmp']
-                for system in ('/usr', '/bin', '/lib', '/lib64', '/etc/fonts', '/etc/ld.so.cache'):
-                    if os.path.exists(system):
-                        wrapper += ['--ro-bind', system, system]
-                for path in dict.fromkeys([sys.prefix, source, str(work)]):
-                    wrapper += ['--ro-bind', path, path]
-                wrapper += ['--bind', home, home, '--proc', '/proc', '--dev', '/dev']
-                probe = subprocess.run([*wrapper, '/bin/true'], env=env, cwd=home,
-                                       capture_output=True, timeout=10)
-                if probe.returncode:
-                    wrapper = []
-            if not wrapper:
-                if not self.editor.unsandboxed_previews:
-                    raise ValueError('draft previews need a working bwrap; set unsandboxed_previews '
-                                     'only where draft code may read everything the editor can')
-                logging.warning('bwrap unavailable or unusable: draft preview is not sandboxed')
-            command = wrapper + command
-            payload = dict(path=str(work / context['film']), operation=operation, query=query)
-            result = subprocess.run(command, input=json.dumps(payload).encode(), env=env,
-                                    cwd=home, capture_output=True, timeout=60)
-            if result.returncode:
-                raise ValueError('draft preview failed: ' + result.stderr.decode(errors='replace'))
-            return result.stdout
+        film = work / context['film']
+        self.editor.pool.unsandboxed = self.editor.unsandboxed_previews
+        worker = self.editor.pool.get(video, work, film, work, revision=result['tip'])
+        if operation == 'info':
+            return json.dumps(worker.request('info')).encode()
+        return worker.request('frame', frame=int(query.get('frame', 0)),
+                              format=query.get('format') or None, scale=float(query.get('scale', 0.5)))
 
     def accept(self, video, author):
         e = self.editor
@@ -200,18 +174,3 @@ class Drafts:
             git(e.root, 'branch', '-D', branch)
             e.notes.resolve(video, branch, 'dropped', author)
             return dict(state='dropped')
-
-
-def worker():
-    from contextlib import redirect_stdout
-    from .preview import Session
-    request = json.load(sys.stdin)
-    with redirect_stdout(sys.stderr):
-        session = Session(request['path'])
-        q = request['query']
-        if request['operation'] == 'info':
-            output = json.dumps(session.info()).encode()
-        else:
-            output = session.png(int(q.get('frame', 0)), q.get('format') or None,
-                                 float(q.get('scale', 0.5)))
-    sys.stdout.buffer.write(output)

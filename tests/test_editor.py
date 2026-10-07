@@ -15,7 +15,8 @@ from tests.test_project import FILM, TempProject, git
 class API(TempProject):
     def start(self, **kw):
         hook = kw.pop('hook', None)
-        self.editor = Editor(self.root, poll=0, **kw)
+        self.editor = Editor(self.root, poll=0, unsandboxed_previews=True, **kw)
+        self.addCleanup(self.editor.pool.close)
         handler = make_handler(self.editor, hook) if hook else make_handler(self.editor)
         self.httpd = ThreadingHTTPServer(('127.0.0.1', 0), handler)
         self.base = f'http://127.0.0.1:{self.httpd.server_address[1]}'
@@ -48,7 +49,9 @@ class API(TempProject):
         self.assertNotIn(b'http://', page.replace(b'http://www.w3.org', b''))  # nothing from a CDN
         p = self.get('/api/project')
         self.assertEqual((p['name'], p['git'], p['backend'], p['error']), ('project', True, 'null', None))
-        self.assertEqual(p['videos'], [{'id': 'promo/film', 'path': 'promo/film.py', 'edits': 'promo/film.edits.toml'}])
+        self.assertEqual(p['videos'], [{'id': 'promo/film', 'path': 'promo/film.py',
+                                        'edits': 'promo/film.edits.toml', 'pin': "editor's own",
+                                        'env': 'ready', 'error': None}])
         self.assertEqual(p['state_dir'], str(self.root / '.vb-editor'))
         self.assertEqual(git(self.root, 'status', '--porcelain'), '')  # the state dir ignores itself
 

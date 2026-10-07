@@ -109,7 +109,8 @@ class DraftLoop(TempProject):
     def setUp(self):
         super().setUp()
         git(self.root, 'branch', '-M', 'main')
-        self.editor = Editor(self.root, backend=FakeBackend(delay=0), poll=0)
+        self.editor = Editor(self.root, backend=FakeBackend(delay=0), poll=0, unsandboxed_previews=True)
+        self.addCleanup(self.editor.pool.close)
 
     def draft(self):
         n = self.editor.add_note(dict(video='promo/film', frame=0, text='Add a highlight'), 'reviewer')
@@ -198,7 +199,9 @@ class DraftLoop(TempProject):
 
     def test_preview_without_bwrap_refused_unless_opted_in(self):
         self.draft()
-        with patch('videobuilder.drafts.shutil.which', return_value=None):
+        self.editor.unsandboxed_previews = False
+        self.editor.pool.unsandboxed = False
+        with patch('videobuilder.workers.shutil.which', return_value=None):
             with self.assertRaisesRegex(ValueError, 'need a working bwrap'):
                 self.editor.drafts.preview('promo/film', 'info', {})
 
