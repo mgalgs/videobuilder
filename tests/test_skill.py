@@ -90,6 +90,26 @@ class Skill(unittest.TestCase):
         self.assertIn('variable: wght 100-800', out)
         self.assertIn('SIL Open Font License', out)
 
+    def test_fontinfo_resolves_and_writes_the_ofl(self):
+        font = ROOT / 'examples' / 'assets' / 'Inter-Variable.ttf'
+        out = script('fontinfo.py', '--resolve', 'Inter', 700, font, cwd=ROOT).stdout
+        self.assertIn('-> Inter', out)
+        self.assertNotIn('fallback', out)
+        out = script('fontinfo.py', '--resolve', 'No Such Family', 400, cwd=ROOT).stdout
+        self.assertIn('fallback', out)
+        with tempfile.TemporaryDirectory() as d:
+            copy = Path(d, 'Inter.ttf')
+            copy.write_bytes(font.read_bytes())
+            script('fontinfo.py', '--write-ofl', copy, cwd=d)
+            ofl = Path(d, 'Inter-OFL.txt').read_text()
+        self.assertTrue(ofl.startswith('Copyright 2016 The Inter Project Authors'))
+        self.assertIn('SIL OPEN FONT LICENSE Version 1.1', ofl)
+        self.assertNotIn('Cantarell', ofl)
+
+    def test_benchmark_example_passes_its_checks(self):
+        out = script('check.py', ROOT / 'examples' / 'benchmark.py', cwd=ROOT).stdout
+        self.assertIn('0 failed, 0 warnings', out)
+
     def test_doctor_passes_here(self):
         out = script('doctor.py', cwd=ROOT)
         self.assertIn('all good', out.stdout)

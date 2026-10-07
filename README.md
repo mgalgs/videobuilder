@@ -71,8 +71,30 @@ FILM = vb.Film(draw=draw, timeline=TIMELINE, formats=('16x9', '9x16', '1x1'), ba
     python -m videobuilder render hello.py --format all  # hello-16x9.mp4, hello-9x16.mp4, hello-1x1.mp4
 
 `examples/tour.py` is a fuller example (12 s, three formats, a generated
-picture and click track). Its font, Cantarell, is vendored with its OFL
-licence in `examples/assets/`.
+picture and click track). `examples/benchmark.py` is a 20 s benchmark reel
+with a bar chart drawn on the canvas, made by an agent with the
+make-a-video skill. Their fonts are vendored with their OFL licences in
+`examples/assets/`.
+
+## The make-a-video skill
+
+`skill/make-a-video/` is a Claude Code skill that teaches an agent to make
+a film with videobuilder: setup, a storyboard, a template film, the
+authoring loop, music and beat-locking, formats, and review checks. Its
+scripts work without the skill too:
+
+- `scripts/check.py film.py [--video]`: the storyboard with read times,
+  marks against each format's safe area and each other, cuts landing on
+  content, and for the renders ffprobe facts, picture cuts against the
+  grid, and music onsets against the beats.
+- `scripts/tempo.py track.mp3`: a track's BPM and the `head_trim` that puts
+  its first beat on frame 0.
+- `scripts/make_track.py --bpm 120 --beats 40 --out music.wav`: a
+  placeholder music bed exactly on the grid.
+- `scripts/fontinfo.py`: a font file's family name, weights and licence;
+  which face Pango really draws; an OFL licence file for a vendored font.
+- `scripts/doctor.py`: are the dependencies here, and is videobuilder
+  importable.
 
 ## The film file
 

@@ -41,8 +41,9 @@ Rules of thumb (process, not style):
 - **Read time**: a segment lasts at least 1 s plus its words at 3 words a
   second (`check.py` enforces this; `--wps` and `--lead` change it if the
   brief or audience calls for it). Text entering late in a segment has less
-  time: count from when it's legible. When copy doesn't fit, cut words before
-  adding beats.
+  time: count from when it's legible. A URL, a command or a number reads
+  slower than its word count: give it extra time. When copy doesn't fit,
+  cut words before adding beats.
 - **Cuts on beats**: whole beats by default; half beats (`6.5`) for a quick
   cut. A run of quick cuts is a `group` so one thing can carry across them.
 - **Overlaps** (`overlap=k`) for transitions: the outgoing segment keeps

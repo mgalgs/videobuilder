@@ -113,7 +113,7 @@ def fade_out(shot, frames=8):
     return vb.interpolate(shot.f, [shot.length - frames, shot.length], [1, 0])
 
 
-def copy_block(cv, shot, words, fnt, box, colour, align='center', delay=0, valign='center'):
+def copy_block(cv, shot, words, fnt, box, colour, align='center', delay=0, valign='center', name='copy'):
     """Wrapped, balanced copy in `box` (`valign` top, center or bottom),
     springing up; marked for checks. Returns the Box drawn."""
     lines = text.wrap(words, fnt, box.w, balance=True)
@@ -122,7 +122,7 @@ def copy_block(cv, shot, words, fnt, box, colour, align='center', delay=0, valig
     s = appear(shot.f, delay)
     with cv.layer(opacity=min(1, s), dy=(1 - s) * 40):
         drawn = text.draw(cv, lines, fnt, at.x, at.y, colour, align=align, width=at.w)
-        cv.mark('copy', *drawn)
+        cv.mark(name, *drawn)  # check.py: inside the safe area, overlapping no other mark
     return drawn
 
 

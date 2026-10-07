@@ -83,17 +83,19 @@ layout, images, views) with the traps each part hides.
 
 - **Fonts**: vendor the font files into `assets/` *with their licence*.
   `python $SKILL/scripts/fontinfo.py --ofl /usr/share/fonts/*/*.[ot]tf`
-  lists OFL fonts on this machine with the family name to use in `Font`,
-  each file's weight (or variable axes), copyright and licence, read from
-  the font itself. Go by that, not a distro's licence file (some ship the
-  wrong text). For an OFL font, write `<Family>-OFL.txt`: the font's
-  copyright line, then the OFL 1.1 text (copy it from
-  `$VB/examples/assets/Cantarell-OFL.txt`, which also has a vendorable
-  variable font). The template registers every `assets/*.otf|ttf`; set
-  `FAMILY`, and pass `family=` to `font()` for a second family (a mono for
-  code). With static files, vendor each weight you use: a weight you
-  didn't vendor falls back to the nearest. Never rely on what `Sans`
-  resolves to on this machine.
+  lists the OFL families on this machine, one line each (`--family NAME`
+  shows one family's files: the family name to use in `Font`, weights or
+  variable axes, copyright, licence), read from the font itself. Go by
+  that, not a distro's licence file (some ship the wrong text), and use the
+  family name it prints: a variable file's often differs from its static
+  siblings'. `$VB/examples/assets/` has three vendorable OFL variable fonts
+  (Cantarell, Inter, Source Code Pro). After copying a font into `assets/`,
+  `fontinfo.py --write-ofl assets/X.otf` writes its `<Family>-OFL.txt`, and
+  `fontinfo.py --resolve 'Family' 700 assets/*` shows the face Pango really
+  draws (it flags a fallback). The template registers every
+  `assets/*.otf|ttf`; set `FAMILY`, and pass `family=` to `font()` for a
+  second family (a mono for code). With static files, vendor each weight
+  you use. Never rely on what `Sans` resolves to on this machine.
 - **Images**: `vb.Image.load(path)` (decoded once; fine to call in `draw`),
   drawn with `cv.image(img, *box.cover(img.w, img.h))` inside `cv.clip`.
 - **Screen captures**: `cv.view(img, box, center, scale)` is a camera on a
@@ -118,18 +120,29 @@ layout, images, views) with the traps each part hides.
 
 You can't watch the preview yourself: work from sheets and stills (read the
 PNGs), and offer the preview command to the user. `sheet --every 5` or
-`--frames a,b,c` show motion; `FILM.keyframes` set the default frames.
+`--frames a,b,c` show motion. `FILM.keyframes`, when set, *replace* the
+sheet's default in/middle/out frames: list those too
+(`$VB/examples/benchmark.py`'s `_keyframes()` does).
 
 **Cuts must land on something.** A hard cut reads on the beat only if the
 new segment's first frame shows it: start entrances a few frames in (the
 template's `appear` is `ENTER` frames in at `f = 0`). `check.py` warns
 on a cut onto a frame with nothing marked on it. Settle motion by a segment's middle (the checks and default sheet
-look there), or set `FILM.keyframes` to the frames that show it settled.
+look there), or add the settled frames to `FILM.keyframes`.
+
+**Motion on a beat** (a bar that grows on beat 10): key it off the beat's
+frame, already `ENTER` frames in as it lands, e.g.
+`vb.spring_at(shot.group_f - GRID.b(2) + ENTER, GRID.fps, ...)` for two
+beats into a group. Check with `sheet --frames` around that frame.
 
 Draw rules that keep frames pure (any frame renders alone, in any order):
 no state across frames, no `random` without a fixed seed, no clock, no
 I/O except cached loads. Animate from `shot.f` (frames into the segment),
 `shot.group_f` (into the group) or `n`.
+
+For a chart (a benchmark, a result), read `$VB/examples/benchmark.py`: a
+bar chart drawn with `cv.rect`, `cv.line` and `text.draw`, bars growing on
+beats, numbers counting up, horizontal in 9:16 and columns in 16:9.
 
 ## 6. Music and beat-locking
 
@@ -155,8 +168,11 @@ See `reference/music.md`. In short:
   vertical chart, a different crop); don't shrink it.
 - Put `safe` in every table: the area text and key content stay inside
   (platform UI covers the edges of vertical video; use the platform's own
-  numbers when the user names one). `cv.mark(name, *box)` every block of
-  copy, chart and image; `text.draw` returns the box it drew.
+  numbers when the user names one, else keep the template's placeholder
+  margins and say so). `cv.mark(name, *box)` every block of
+  copy, chart and image; `text.draw` returns the box it drew. Name marks
+  by what they are (`'headline'`, `'chart'`, `'cta'`): every pair is checked
+  for overlap, same names included. One mark for a whole chart is enough.
 - Checks: `check.py` fails a mark outside `safe` or two marks overlapping on
   held frames. List deliberate overlaps in the film: `OVERLAP_OK = {('chart',
   'label')}`.
