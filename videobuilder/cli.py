@@ -171,7 +171,8 @@ def cmd_editor(a):
                     submit_args=a.agent_submit_args, poll_args=a.agent_poll_args,
                     extra_args=a.agent_extra_arg).items() if v is not None}
         serve(a.project, host=a.host, port=a.port, state_dir=a.state_dir, open_browser=a.open,
-              agent=agent, allowed_hosts=a.allow_host, unsandboxed_previews=a.unsandboxed_previews)
+              agent=agent, allowed_hosts=a.allow_host, unsandboxed_previews=a.unsandboxed_previews,
+              envs=a.envs)
     except ValueError as e:
         raise SystemExit(f'editor: {e}') from None
 
@@ -257,12 +258,16 @@ def main(argv=None):
     d.add_argument('--allow-host', action='append', default=[])
     d.add_argument('--unsandboxed-previews', action='store_true',
                    help='render drafts without bwrap: draft code can read whatever the editor can')
+    d.add_argument('--envs', choices=['pinned', 'current'], help='use video pins or the editor interpreter')
     d.add_argument('--agent', choices=['null', 'fake', 'command', 'fork-sandbox'])
     d.add_argument('--agent-executable')
     for name in ('submit-command', 'poll-command', 'submit-args', 'poll-args'):
         d.add_argument('--agent-' + name, type=__import__('json').loads, help='JSON argv array')
     d.add_argument('--agent-extra-arg', action='append', help='repeatable; use = for leading dashes')
     d.set_defaults(fn=cmd_editor)
+
+    w = sub.add_parser('worker', help='serve the versioned film worker protocol on standard streams')
+    w.set_defaults(fn=lambda a: __import__('videobuilder.worker', fromlist=['serve']).serve())
 
     a = p.parse_args(argv)
     a.fn(a)

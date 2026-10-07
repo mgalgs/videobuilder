@@ -267,7 +267,7 @@ def timeline(film_path):
     return _timeline(film_path, _current(film_path))
 
 
-def _change(film_path, segment, field, key, value):
+def change_text(film_path, segment, field, key, value):
     """Set (or, at the film's own value, remove) one edit, after proving the
     film loads with it. Returns the new edits."""
     segments = _current(film_path)
@@ -295,8 +295,14 @@ def _change(film_path, segment, field, key, value):
             entry.setdefault('data', {})[key] = value
         segments = Edits(path_for(film_path), segments).segments  # normalised as read back
         _timeline(film_path, segments)
-    _write(path_for(film_path), segments)
-    return segments
+    return dumps(segments)
+
+
+def _change(film_path, segment, field, key, value):
+    content = change_text(film_path, segment, field, key, value)
+    _write(path_for(film_path), Edits(path_for(film_path),
+                                      __import__('tomllib').loads(content).get('segments', {}) if content else {}).segments)
+    return _current(film_path)
 
 
 def roll(film_path, segment, until):
