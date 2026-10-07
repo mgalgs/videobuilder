@@ -9,6 +9,7 @@ One film, many formats: `per_format` picks a film's layout table entry for the
 format being drawn, so 9:16, 16:9 and 1:1 are layouts of the same film, not
 crops of one frame.
 """
+import math
 from dataclasses import dataclass
 
 # anchor name -> (fraction across, fraction down)
@@ -126,6 +127,26 @@ class Box:
     def column(self, *sizes, gap=0, justify='start'):
         """Split top to bottom. Sizes are px or `fr` shares; each child is full width."""
         return [Box(self.x, self.y + a, self.w, s) for a, s in _track(sizes, self.h, gap, justify)]
+
+    def stack(self, heights, gap=0, align='top'):
+        """Return (boxes, total height) for full-width blocks measured once.
+
+        `heights` may be an iterable. Alignment is top, center or bottom;
+        overflow stays top-aligned, without shrinking or clipping blocks.
+        Heights and gap must be finite and nonnegative. Empty input uses 0 px.
+        """
+        heights = tuple(heights)
+        if align not in ('top', 'center', 'bottom'):
+            raise ValueError(f'unknown stack alignment {align!r}')
+        if any(not math.isfinite(v) or v < 0 for v in (*heights, gap)):
+            raise ValueError('stack heights and gap must be finite and nonnegative')
+        total = sum(heights) + gap * max(0, len(heights) - 1)
+        y = self.y + max(0, self.h - total) * {'top': 0, 'center': 0.5, 'bottom': 1}[align]
+        boxes = []
+        for h in heights:
+            boxes.append(Box(self.x, y, self.w, h))
+            y += h + gap
+        return boxes, total
 
     def grid(self, cols, rows, gap=0):
         """cols x rows equal cells, row-major. `gap` is one number or (row gap, column gap)."""

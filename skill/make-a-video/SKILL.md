@@ -108,6 +108,8 @@ layout, images, views) with the traps each part hides.
 - **Screen captures**: `cv.view(img, box, center, scale)` is a camera on a
   capture: animate `center` to pan, `scale` to zoom (`vb.log_lerp`). `pin`
   keeps a strip (a navbar) fixed. See `$VB/README.md`, "A camera on an image".
+- **Redrawn UI**: when captures are unusable, see `reference/redrawn-ui.md`
+  for faithful vector screens and measured blocks stacked per format.
 - **Generated imagery**: draw it with the canvas (`cv.ctx` is raw cairo), or
   make a PIL image once at import and wrap it with `vb.Image.from_pil`. Seed
   any randomness. No network fetches at render time: anything downloaded is

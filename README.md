@@ -421,7 +421,8 @@ python -m videobuilder editor PROJECT-DIR [--host 127.0.0.1] [--port 8100] [--st
   on its own), `measure`, `block_size`, `draw` (returns the
   `Box` it drew), `box` and `draw_in` for text in a box, and `register` for
   fonts that aren't installed.
-- `layout`: `Box` with `pad`, `row`, `column`, `grid`, `center`, `anchor`
+- `layout`: `Box` with `pad`, `row`, `column`, `grid`, `center`, `anchor`,
+  `stack(heights, gap=0, align='top')` (boxes and occupied height)
   and `fit` (`contain`, `cover`, `fill`, `none`, `scale-down`), and
   `contains` / `intersects` for checks; `fr` shares; and `per_format` tables.
 - `film`: `Film`, `Format`, `FORMATS`, `Audio` and `load`.

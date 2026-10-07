@@ -120,3 +120,27 @@ class PerFormat(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+class Stack(unittest.TestCase):
+    def test_variable_heights_measured_once(self):
+        calls = []
+        def heights():
+            for h in (10, 30, 20):
+                calls.append(h)
+                yield h
+        boxes, total = Box(5, 10, 80, 100).stack(heights(), gap=5)
+        self.assertEqual(calls, [10, 30, 20])
+        self.assertEqual(total, 70)
+        self.assertEqual(boxes, [Box(5, 10, 80, 10), Box(5, 25, 80, 30), Box(5, 60, 80, 20)])
+
+    def test_alignment_overflow_and_empty(self):
+        b = Box(5, 10, 80, 100)
+        self.assertEqual(b.stack([20], align='center')[0], [Box(5, 50, 80, 20)])
+        self.assertEqual(b.stack([20], align='bottom')[0], [Box(5, 90, 80, 20)])
+        self.assertEqual(b.stack([120], align='bottom')[0], [Box(5, 10, 80, 120)])
+        self.assertEqual(b.stack([], gap=20), ([], 0))
+        for heights, gap, align in [([-1], 0, 'top'), ([float('nan')], 0, 'top'),
+                                    ([2], -1, 'top'), ([2], 0, 'left')]:
+            with self.assertRaises(ValueError):
+                b.stack(heights, gap=gap, align=align)

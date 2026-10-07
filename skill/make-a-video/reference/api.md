@@ -128,6 +128,7 @@ frame = Box.of(cv)                    # or Box(0, 0, 1080, 1920)
 safe = frame.pad(200, 60, 360, 60)    # CSS order: top, right, bottom, left
 left, right = safe.row(fr, 1.5 * fr, gap=40)       # px or fr shares
 top, mid, bottom = safe.column(200, fr, 120, gap=24)
+boxes, total = safe.stack([120, 260, 80], gap=24, align='top')  # measured heights
 cells = safe.grid(3, 2, gap=20)        # cols, rows; row-major
 safe.center(w, h), safe.anchor(w, h, 'bottom-left', margin=20)
 safe.contain(16, 9), safe.cover(w, h), safe.fit(w, h, 'scale-down')
