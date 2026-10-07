@@ -131,13 +131,24 @@ class DraftLoop(TempProject):
         note = self.draft()
         detail = self.editor.drafts.details('promo/film')
         self.assertEqual(detail['files'], ['promo/film.py'])
+        preview = self.editor.drafts._worktree('promo/film', detail['tip'])
+        self.assertTrue(preview.exists())
         result = self.editor.drafts.accept('promo/film', 'sam')
+        self.assertFalse(preview.exists())
         self.assertEqual(result['commit'], git(self.root, 'rev-parse', 'main').strip())
         self.assertIn('agent: Add a highlight', self.log())
         note = self.editor.notes.get(note['id'])
         self.assertEqual(note['state'], 'accepted')
         self.assertEqual(note['history'][-1]['author'], 'sam')
         self.assertIsNone(self.editor.notes.session('promo/film')['draft'])
+
+    def test_startup_prunes_preview_worktrees(self):
+        note = self.draft()
+        path = self.editor.drafts._worktree('promo/film', self.editor.drafts.details('promo/film')['tip'])
+        self.assertTrue(path.exists())
+        other = Editor(self.root, unsandboxed_previews=True)
+        self.addCleanup(other.pool.close)
+        self.assertFalse(path.exists())
 
     def test_dirty_checkout_refused(self):
         self.draft()

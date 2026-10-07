@@ -43,6 +43,11 @@ class API(TempProject):
             with e:
                 return e.code, json.loads(e.read())
 
+    def test_healthz_ignores_host_allowlist(self):
+        req = urllib.request.Request(self.base + '/healthz', headers={'Host': 'kubelet.invalid'})
+        with urllib.request.urlopen(req) as response:
+            self.assertEqual((response.status, response.read()), (200, b'ok 0.1.2'))
+
     def test_page_and_project(self):
         page = self.get('/')
         self.assertIn(b'videobuilder editor', page)

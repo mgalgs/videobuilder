@@ -78,6 +78,22 @@ class Drafts:
     def __init__(self, editor):
         self.editor = editor
 
+    def prune(self):
+        if self.editor.project.git is None:
+            return
+        git(self.editor.root, "worktree", "prune")
+        sessions = Path(self.editor.state_dir) / "sessions"
+        for path in sessions.glob("*/preview-*"):
+            try:
+                git(self.editor.root, "worktree", "remove", "--force", str(path))
+            except ValueError:
+                shutil.rmtree(path)
+
+    def _remove_previews(self, video):
+        self.editor.pool.close_draft(video)
+        for path in self.editor.notes.session_dir(video).glob("preview-*"):
+            git(self.editor.root, "worktree", "remove", "--force", str(path))
+
     def context(self, video):
         film = os.path.relpath(self.editor.project.video(video).path, self.editor.root)
         return dict(project=self.editor.root, film=film, directory=str(PurePosixPath(film).parent))
@@ -118,6 +134,8 @@ class Drafts:
         e = self.editor
         with e.lock, e.notes.video_lock(video):
             self._idle(video)
+            if e.sync:
+                e.sync.before_commit()
             branch = e.notes.session(video)['draft']
             detail = guarded(e.root, branch, self.context(video)['directory'])
             main = git(e.root, 'rev-parse', 'refs/heads/main')
@@ -157,9 +175,11 @@ class Drafts:
                 else:
                     git(e.root, 'update-ref', 'refs/heads/main', tip, main)
                 git(e.root, 'update-ref', 'refs/heads/' + branch, tip, detail['tip'])
+                if e.sync:
+                    e.sync.after_commit()
                 e.notes.resolve(video, branch, 'accepted', author)
                 e.project.last.pop(video, None)
-                e.pool.close_draft(video)
+                self._remove_previews(video)
                 return dict(state='accepted', commit=tip)
             finally:
                 git(e.root, 'worktree', 'remove', '--force', str(work))
@@ -170,9 +190,7 @@ class Drafts:
             self._idle(video)
             branch = e.notes.session(video)['draft']
             branch_tip(e.root, branch)
-            e.pool.close_draft(video)
-            for path in e.notes.session_dir(video).glob('preview-*'):
-                git(e.root, 'worktree', 'remove', '--force', str(path))
+            self._remove_previews(video)
             git(e.root, 'branch', '-D', branch)
             e.notes.resolve(video, branch, 'dropped', author)
             return dict(state='dropped')

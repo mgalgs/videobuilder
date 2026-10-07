@@ -43,6 +43,7 @@ import json
 import os
 import re
 import sys
+import time
 import threading
 import traceback
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -55,6 +56,7 @@ from .agents import backend_from_config
 from .drafts import Drafts
 from .workers import Environments, Pool
 from .project import Project, read_config
+from .sync import ForgeSync
 
 STATE_DIR = '.vb-editor'
 NOTE_SCALE = 0.5  # the size of a note's saved frame
@@ -96,12 +98,14 @@ class Editor:
     and the notes. One lock covers every film load and draw."""
 
     def __init__(self, root, state_dir=None, backend=None, poll=0.25, agent=None, allowed_hosts=(), host='127.0.0.1',
-                 unsandboxed_previews=False, envs=None, env_builder=None):
+                 unsandboxed_previews=False, envs=None, env_builder=None, sync_remote=None):
         self.root = os.path.abspath(root)
         cfg = read_config(self.root)
         state = state_dir or cfg.get('state_dir') or STATE_DIR
         self.state_dir = os.path.abspath(os.path.join(self.root, state))
         self.lock = threading.RLock()
+        remote = sync_remote if sync_remote is not None else cfg.get("sync_remote")
+        self.sync = ForgeSync(self.root, remote) if remote else None
         self.unsandboxed_previews = bool(unsandboxed_previews or cfg.get('unsandboxed_previews', False))
         self.envs = Environments(self.state_dir, envs or cfg.get('envs', 'pinned'), env_builder)
         self.pool = Pool(self.envs, self.unsandboxed_previews)
@@ -113,6 +117,7 @@ class Editor:
         self.allowed_hosts = {h.lower().rstrip('.') for h in
                               ['localhost', '127.0.0.1', '::1', host, *cfg.get('allowed_hosts', []), *allowed_hosts]}
         self.poll = poll
+        self.drafts.prune()
         _ensure_state_dir(self.state_dir)
 
     def session(self, vid):
@@ -125,6 +130,9 @@ class Editor:
             return self.pool.get(vid, self.root, video.path, self.root)
 
     def project_info(self):
+        if self.sync:
+            with self.lock:
+                self.sync.refresh(force=True)
         try:
             videos = [{**v.to_json(self.root), **self.envs.describe(v.path, self.root)}
                       for v in self.project.videos()]
@@ -135,6 +143,9 @@ class Editor:
                 'backend': self.notes.backend.name, 'state_dir': self.state_dir, 'videos': videos, 'error': error}
 
     def info(self, vid):
+        if self.sync:
+            with self.lock:
+                self.sync.refresh(force=True)
         s = self.session(vid)
         out = s.request('info')
         out.update(video=vid, edits_file=os.path.relpath(edits.path_for(s.film), self.root),
@@ -142,18 +153,23 @@ class Editor:
         return out
 
     def edit(self, vid, op, body):
-        s = self.session(vid)
-        try:
-            if op == 'undo':
-                result = self.project.undo(vid)
-            elif op == 'roll':
-                result = self.project.edit(vid, 'roll', _field(body, 'segment', str),
-                                           _field(body, 'until', (int, float)))
-            else:
-                result = self.project.edit(vid, 'copy', _field(body, 'segment', str), _field(body, 'value', str),
-                                           key=_field(body, 'key', str))
-        except ValueError as e:
-            raise HTTPError(400, _short(str(e), s.film)) from None
+        with self.lock:
+            if self.sync:
+                self.sync.before_commit()
+            s = self.session(vid)
+            try:
+                if op == 'undo':
+                    result = self.project.undo(vid)
+                elif op == 'roll':
+                    result = self.project.edit(vid, 'roll', _field(body, 'segment', str),
+                                               _field(body, 'until', (int, float)))
+                else:
+                    result = self.project.edit(vid, 'copy', _field(body, 'segment', str), _field(body, 'value', str),
+                                               key=_field(body, 'key', str))
+            except ValueError as e:
+                raise HTTPError(400, _short(str(e), s.film)) from None
+            if self.sync and result["commit"]:
+                self.sync.after_commit()
         if result['warning']:
             print(f'[editor] {result["warning"]}', file=sys.stderr, flush=True)
         return result
@@ -222,6 +238,8 @@ def make_handler(editor, hook=request_hook):
                     valid = parsed.port is None or 0 < parsed.port < 65536
                 except ValueError:
                     hostname, valid = None, False
+                if self.path.split('?', 1)[0] == '/healthz':
+                    return True
                 if not valid or not hostname or parsed.username or parsed.password or parsed.path or hostname.lower().rstrip('.') not in editor.allowed_hosts:
                     raise Forbidden('Host is not allowed; configure --allow-host for this name')
             except Forbidden as e:
@@ -287,6 +305,9 @@ def make_handler(editor, hook=request_hook):
             self._handle('POST')
 
         def _get(self, route, q):
+            if route == '/healthz':
+                from . import __version__
+                return self._send(200, ('ok ' + __version__).encode(), 'text/plain; charset=utf-8')
             if route in ('/', '/index.html'):
                 return self._send(200, _page(), 'text/html; charset=utf-8')
             if route == '/api/draft':
@@ -347,11 +368,21 @@ def _need(q, name):
 
 
 def serve(root, host='127.0.0.1', port=8100, state_dir=None, open_browser=False, backend=None,
-          hook=request_hook, agent=None, allowed_hosts=(), unsandboxed_previews=False, envs=None):
+          hook=request_hook, agent=None, allowed_hosts=(), unsandboxed_previews=False, envs=None, sync_remote=None):
     editor = Editor(root, state_dir=state_dir, backend=backend, agent=agent, allowed_hosts=allowed_hosts, host=host,
-                    unsandboxed_previews=unsandboxed_previews, envs=envs)
+                    unsandboxed_previews=unsandboxed_previews, envs=envs, sync_remote=sync_remote)
     httpd = ThreadingHTTPServer((host, port), make_handler(editor, hook))
     httpd.daemon_threads = True
+    stop_sync = threading.Event()
+    if editor.sync:
+        def periodic_sync():
+            while not stop_sync.wait(editor.sync.interval):
+                try:
+                    with editor.lock:
+                        editor.sync.refresh()
+                except ValueError as exc:
+                    print(f'[editor] forge sync: {exc}', file=sys.stderr, flush=True)
+        threading.Thread(target=periodic_sync, daemon=True).start()
     url = f'http://{host}:{httpd.server_address[1]}/'
     videos = editor.project_info()['videos']
     print(f'[editor] {editor.root}: {len(videos)} video(s) at {url} (Ctrl-C to stop)', file=sys.stderr, flush=True)
@@ -369,5 +400,6 @@ def serve(root, host='127.0.0.1', port=8100, state_dir=None, open_browser=False,
     except KeyboardInterrupt:
         pass
     finally:
+        stop_sync.set()
         httpd.server_close()
         editor.pool.close()
