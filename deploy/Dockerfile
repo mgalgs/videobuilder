@@ -1,12 +1,12 @@
 # Build from the repository root: docker build -f deploy/Dockerfile .
-ARG BASE=debian:bookworm-slim
+ARG BASE=debian:trixie-slim
 FROM ${BASE} AS runtime
 USER root
 ENV DEBIAN_FRONTEND=noninteractive PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    python3 python3-venv python3-pip python3-setuptools python3-cairo python3-gi \
+    python3 python3-venv python3-pip python3-setuptools python3-cairo python3-gi python3-gi-cairo \
     python3-pil python3-yaml gir1.2-pango-1.0 ffmpeg fonts-dejavu-core fontconfig \
-    bubblewrap tini git openssh-client ca-certificates && \
+    bubblewrap tini git openssh-client ca-certificates curl && \
     rm -rf /var/lib/apt/lists/*
 WORKDIR /opt/videobuilder
 COPY . .

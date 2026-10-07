@@ -19,9 +19,9 @@ and Pillow.
 
     sudo pacman -S python python-cairo python-gobject python-pillow pango ffmpeg
 
-**Debian / Ubuntu**
+**Debian / Ubuntu** (Pango 1.56 or newer: Debian 13 or later)
 
-    sudo apt install python3 python3-venv python3-cairo python3-gi python3-pil \
+    sudo apt install python3 python3-venv python3-cairo python3-gi python3-gi-cairo python3-pil \
         gir1.2-pango-1.0 ffmpeg
 
 To have pip build pycairo and PyGObject in a virtualenv instead of using
@@ -550,10 +550,12 @@ the example explicitly uses `--host 0.0.0.0` and `--allow-host editor.example.co
 The host allowlist is the v1 LAN trust boundary; put the Ingress on a trusted
 network. **Never set `unsandboxed_previews` in a pod holding credentials.**
 
-Build with `docker build -f deploy/Dockerfile .`. Set `--build-arg BASE=...`
-to layer on a fork-sandbox postmaster image carrying `fork-sandbox` and
-`kubectl`; see fork-sandbox's cluster postmaster documentation for its image
-and client Role setup. The example RoleBinding names that client Role. Set
+Build with `docker build -f deploy/Dockerfile .`. The base must ship Pango
+1.56 or newer (Debian 13 or later); `--build-arg BASE=...` overrides it. To
+drive fork-sandbox from the pod, build fork-sandbox's postmaster layer
+(`kubectl` and its scripts) on top of this image, passing this image as that
+layer's base; see fork-sandbox's cluster postmaster documentation for the
+layer and the client Role setup. The example RoleBinding names that client Role. Set
 `[editor.agent] backend = "fork-sandbox"` and `extra_args = ["--k8s"]` in
 the project's `videobuilder.toml`. Set `context_root` to a directory under
 `/var/tmp/claude-scratch/forks/` and `context_mount = "/work/context"`.
