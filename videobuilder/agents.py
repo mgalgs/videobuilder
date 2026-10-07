@@ -11,7 +11,8 @@ The stable per-video state_dir is the runner's resumable session, and draft
 is the current linear branch (null after Accept/Drop). Runners must honor it.
 
 ForkSandboxBackend is deliberately isolated here: run --resume STATE
-[extra_args] PROJECT NOTE prints a run directory; status --json RUN prints
+[--base DRAFT] [extra_args] PROJECT NOTE prints a run directory (--base only
+when a draft exists; without it the run starts from main); status --json RUN prints
 the status above, optionally reply_file (otherwise RUN/outbox/reply.md).
 executable, submit_args, poll_args, extra_args are configurable argv lists
 (executable is a string). No shell expansion is performed.
@@ -59,7 +60,8 @@ class ForkSandboxBackend(AgentBackend):
         self.extra_args = extra_args or []
 
     def submit(self, note):
-        return run([self.executable, *self.submit_args, '--resume', note['state_dir'],
+        base = ['--base', note['draft']] if note.get('draft') else []
+        return run([self.executable, *self.submit_args, '--resume', note['state_dir'], *base,
                     *self.extra_args, note['project'], note['note_file']])
 
     def poll(self, handle):

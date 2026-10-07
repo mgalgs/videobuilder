@@ -97,6 +97,9 @@ else:
         backend = ForkSandboxBackend('runner', ['start'], ['query', '--json'], ['--local'])
         self.assertEqual(backend.submit(dict(state_dir='/state', project='/project', note_file='/note')), '/run/example')
         run.assert_called_with(['runner', 'start', '--resume', '/state', '--local', '/project', '/note'])
+        backend.submit(dict(state_dir='/state', project='/project', note_file='/note', draft='draft/a'))
+        run.assert_called_with(['runner', 'start', '--resume', '/state', '--base', 'draft/a', '--local',
+                                '/project', '/note'])
         run.return_value = json.dumps(dict(state='replied', branch='draft/a', reply='done'))
         self.assertEqual(backend.poll('/run/example').reply, 'done')
         run.assert_called_with(['runner', 'query', '--json', '/run/example'])
