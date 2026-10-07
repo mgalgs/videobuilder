@@ -1,9 +1,11 @@
-"""Command line: render, still, sheet, preview.
+"""Command line: render, still, sheet, preview, edit.
 
     python -m videobuilder render  film.py [--format 9x16|16x9|1x1|all] [--jobs N] [--out FILE]
     python -m videobuilder still   film.py FRAME [FRAME ...] [--format F] [--out PATH] [--overlay]
     python -m videobuilder sheet   film.py [--format F] [--every N | --frames 0,30,60] [--out FILE] [--width W] [--cols C]
     python -m videobuilder preview film.py [--port 8000] [--host 127.0.0.1]
+    python -m videobuilder edit roll film.py SEGMENT UNTIL
+    python -m videobuilder edit copy film.py SEGMENT KEY VALUE
 """
 import argparse
 import os
@@ -146,6 +148,18 @@ def cmd_preview(a):
     serve(a.film, host=a.host, port=a.port, open_browser=a.open)
 
 
+def cmd_edit(a):
+    from . import edits
+    try:
+        if a.edit == 'roll':
+            edits.roll(a.film, a.segment, a.until)
+        else:
+            edits.set_copy(a.film, a.segment, a.key, a.value)
+    except ValueError as e:
+        raise SystemExit(f'not edited: {e}') from None
+    print(edits.path_for(a.film))
+
+
 def main(argv=None):
     p = argparse.ArgumentParser(prog='videobuilder', description='Make videos in code.')
     sub = p.add_subparsers(dest='cmd', required=True)
@@ -188,6 +202,20 @@ def main(argv=None):
     v.add_argument('--port', type=int, default=8000)
     v.add_argument('--open', action='store_true', help='open a browser')
     v.set_defaults(fn=cmd_preview)
+
+    e = sub.add_parser('edit', help="write a direct edit to the film's edits.toml")
+    esub = e.add_subparsers(dest='edit', required=True)
+    er = esub.add_parser('roll', help='move the cut at the end of a segment (the next one starts there)')
+    er.add_argument('film')
+    er.add_argument('segment')
+    er.add_argument('until', type=float, help='the new end, in beats, on the half-beat grid')
+    er.set_defaults(fn=cmd_edit)
+    ec = esub.add_parser('copy', help="replace a string in a segment's data")
+    ec.add_argument('film')
+    ec.add_argument('segment')
+    ec.add_argument('key')
+    ec.add_argument('value')
+    ec.set_defaults(fn=cmd_edit)
 
     a = p.parse_args(argv)
     a.fn(a)

@@ -45,6 +45,46 @@ class Cli(unittest.TestCase):
         self.assertIn('no 4x3 format', e.exception.stderr)
 
 
+class Edit(unittest.TestCase):
+    """`edit roll` and `edit copy` write the film's edits.toml, or refuse and leave it."""
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.dir = Path(self.tmp.name)
+        Path(self.dir, 'film.py').write_text(
+            "import videobuilder as vb\n"
+            "T = vb.Timeline(vb.Grid(), [vb.Segment('intro', 0, 4, dict(title='Hi')), vb.Segment('body', 4, 8)], end=8)\n"
+            "FILM = vb.Film(draw=lambda n, cv: None, timeline=T)\n")
+        self.toml = self.dir / 'edits.toml'
+
+    def tearDown(self):
+        self.tmp.cleanup()
+
+    def text(self):
+        return self.toml.read_text()
+
+    def test_edit_roll_and_copy(self):
+        env = {**os.environ, 'PYTHONPATH': str(ROOT) + os.pathsep + os.environ.get('PYTHONPATH', '')}
+
+        def vb(*args):
+            return subprocess.run([sys.executable, '-m', 'videobuilder', 'edit', *args], cwd=self.dir, env=env,
+                                  capture_output=True, text=True)
+        r = vb('roll', 'film.py', 'intro', '6.5')
+        self.assertEqual((r.returncode, r.stdout.strip()), (0, str(self.toml)))
+        r = vb('copy', 'film.py', 'intro', 'title', 'Line "one"\\two')
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertEqual(self.text(), '[segments.intro]\nuntil = 6.5\n\n[segments.intro.data]\n'
+                                      'title = "Line \\"one\\"\\\\two"\n')
+        before = self.text()
+        r = vb('roll', 'film.py', 'intro', '6.25')
+        self.assertNotEqual(r.returncode, 0)
+        self.assertIn('not edited', r.stderr)
+        self.assertIn('half-beat grid', r.stderr)
+        self.assertEqual(self.text(), before)
+        self.assertEqual(vb('roll', 'film.py', 'intro', '4').returncode, 0)  # the film's own end: no edit
+        self.assertEqual(self.text(), '[segments.intro.data]\ntitle = "Line \\"one\\"\\\\two"\n')
+
+
 class RunnableFilm(unittest.TestCase):
     """A film that ends with videobuilder.main(__file__) runs the CLI on itself."""
 
