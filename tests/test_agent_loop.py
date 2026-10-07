@@ -88,7 +88,7 @@ else:
         result = editor.notes.list()[0]
         self.assertEqual(result['reply'], 'Done')
         md = (editor.notes.session_dir('promo/film') / (note['id'] + '.md')).read_text()
-        for part in ('film: promo/film.py', 'frame: 12', 'time: 0.4', 'beat: 0.8', 'reply.md', 'only under promo'):
+        for part in ('film: promo/film.py', 'frame: 12', 'time: 0.4', 'beat: 0.8', 'final message', 'only under promo'):
             self.assertIn(part, md)
 
     def test_refused_submit_shows_the_runners_reason(self):

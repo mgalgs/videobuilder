@@ -182,7 +182,9 @@ class NoteStore:
                     for key in ('video', 'film', 'format', 'frame', 'segment', 'beat', 'time', 'image', 'draft'):
                         lines.append(f"{key}: {payload.get(key)}")
                     lines += ['', f"Change files only under {payload.get('directory', video)}.",
-                              'Write your answer to reply.md.',
+                              'Commit only changes to the video. Never commit a reply or notes file: '
+                              'end with a short answer for the reviewer as your final message, '
+                              'and it is shown to them as your reply.',
                               'Continue the supplied draft, or start from main when draft is null.']
                     path.write_text('\n'.join(lines) + '\n', encoding='utf-8')
                     payload['note_file'] = str(path)
