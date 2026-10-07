@@ -166,7 +166,12 @@ def cmd_preview(a):
 def cmd_editor(a):
     from .editor import serve
     try:
-        serve(a.project, host=a.host, port=a.port, state_dir=a.state_dir, open_browser=a.open)
+        agent = {k: v for k, v in dict(backend=a.agent, executable=a.agent_executable,
+                    submit_command=a.agent_submit_command, poll_command=a.agent_poll_command,
+                    submit_args=a.agent_submit_args, poll_args=a.agent_poll_args,
+                    extra_args=a.agent_extra_arg).items() if v is not None}
+        serve(a.project, host=a.host, port=a.port, state_dir=a.state_dir, open_browser=a.open,
+              agent=agent, allowed_hosts=a.allow_host)
     except ValueError as e:
         raise SystemExit(f'editor: {e}') from None
 
@@ -249,6 +254,12 @@ def main(argv=None):
     d.add_argument('--port', type=int, default=8100)
     d.add_argument('--state-dir', help='where notes are kept (default: <project>/.vb-editor)')
     d.add_argument('--open', action='store_true', help='open a browser')
+    d.add_argument('--allow-host', action='append', default=[])
+    d.add_argument('--agent', choices=['null', 'fake', 'command', 'fork-sandbox'])
+    d.add_argument('--agent-executable')
+    for name in ('submit-command', 'poll-command', 'submit-args', 'poll-args'):
+        d.add_argument('--agent-' + name, type=__import__('json').loads, help='JSON argv array')
+    d.add_argument('--agent-extra-arg', action='append', help='repeatable; use = for leading dashes')
     d.set_defaults(fn=cmd_editor)
 
     a = p.parse_args(argv)

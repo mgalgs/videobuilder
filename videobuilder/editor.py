@@ -46,7 +46,9 @@ from importlib import resources
 from urllib.parse import parse_qs, unquote, urlparse
 
 from . import edits
-from .notes import NoteStore, NullBackend
+from .notes import NoteStore
+from .agents import backend_from_config
+from .drafts import Drafts
 from .preview import Session
 from .project import Project, read_config
 
@@ -89,14 +91,19 @@ class Editor:
     """The project being edited: its videos, a preview Session per open video,
     and the notes. One lock covers every film load and draw."""
 
-    def __init__(self, root, state_dir=None, backend=None, poll=0.25):
+    def __init__(self, root, state_dir=None, backend=None, poll=0.25, agent=None, allowed_hosts=(), host='127.0.0.1'):
         self.root = os.path.abspath(root)
         cfg = read_config(self.root)
         state = state_dir or cfg.get('state_dir') or STATE_DIR
         self.state_dir = os.path.abspath(os.path.join(self.root, state))
         self.lock = threading.RLock()
         self.project = Project(self.root, skip=[self.state_dir], lock=self.lock)
-        self.notes = NoteStore(os.path.join(self.state_dir, 'notes'), backend or NullBackend())
+        self.drafts = Drafts(self)
+        agent_cfg = {**cfg.get('agent', {}), **(agent or {})}
+        self.notes = NoteStore(os.path.join(self.state_dir, 'notes'),
+                               backend or backend_from_config(agent_cfg), context=self.drafts.context)
+        self.allowed_hosts = {h.lower().rstrip('.') for h in
+                              ['localhost', '127.0.0.1', '::1', host, *cfg.get('allowed_hosts', []), *allowed_hosts]}
         self.poll = poll
         self.sessions = {}
         _ensure_state_dir(self.state_dir)
@@ -161,7 +168,9 @@ class Editor:
             segment = film.timeline.at(frame)[0].name if film.timeline is not None else None
             png = s.png(frame, fmt, NOTE_SCALE)
         try:
-            return self.notes.add(vid, fmt, frame, segment, body.get('text'), png, author=author)
+            return self.notes.add(vid, fmt, frame, segment, body.get('text'), png, author=author,
+                                  time=frame / film.fps,
+                                  beat=frame / film.timeline.grid.frames_per_beat if film.timeline else None)
         except ValueError as e:
             raise HTTPError(400, str(e)) from None
 
@@ -230,6 +239,15 @@ def make_handler(editor, hook=request_hook):
             url = urlparse(self.path)
             q = {k: v[-1] for k, v in parse_qs(url.query).items()}
             try:
+                hosts = self.headers.get_all('Host', [])
+                try:
+                    parsed = urlparse('//' + (hosts[0] if len(hosts) == 1 else ''))
+                    hostname = parsed.hostname
+                    valid = parsed.port is None or 0 < parsed.port < 65536
+                except ValueError:
+                    hostname, valid = None, False
+                if not valid or not hostname or parsed.username or parsed.password or parsed.path or hostname.lower().rstrip('.') not in editor.allowed_hosts:
+                    raise Forbidden('Host is not allowed; configure --allow-host for this name')
                 identity = hook(self)
                 route = url.path
                 if method == 'GET':
@@ -238,6 +256,8 @@ def make_handler(editor, hook=request_hook):
                     self._post(route, self._body(), identity)
             except (BrokenPipeError, ConnectionResetError):
                 pass
+            except (ValueError, KeyError) as e:
+                self._json(400, {'error': str(e)})
             except HTTPError as e:
                 self._json(e.code, {'error': str(e)})
             except Exception:
@@ -252,6 +272,12 @@ def make_handler(editor, hook=request_hook):
         def _get(self, route, q):
             if route in ('/', '/index.html'):
                 return self._send(200, _page(), 'text/html; charset=utf-8')
+            if route == '/api/draft':
+                return self._json(200, editor.drafts.details(_need(q, 'video')))
+            if route in ('/api/draft/info', '/api/draft/frame'):
+                op = route.rsplit('/', 1)[1]
+                data = editor.drafts.preview(_need(q, 'video'), op, q)
+                return self._send(200, data, 'application/json' if op == 'info' else 'image/png')
             if route == '/api/project':
                 return self._json(200, editor.project_info())
             if route == '/api/info':
@@ -279,6 +305,9 @@ def make_handler(editor, hook=request_hook):
             raise HTTPError(404, 'not found')
 
         def _post(self, route, body, identity):
+            if route in ('/api/draft/accept', '/api/draft/drop'):
+                action = getattr(editor.drafts, route.rsplit('/', 1)[1])
+                return self._json(200, action(_field(body, 'video', str), identity))
             if route in ('/api/roll', '/api/copy', '/api/undo'):
                 return self._json(200, editor.edit(_field(body, 'video', str), route[5:], body))
             if route == '/api/notes':
@@ -302,8 +331,8 @@ def _need(q, name):
 
 
 def serve(root, host='127.0.0.1', port=8100, state_dir=None, open_browser=False, backend=None,
-          hook=request_hook):
-    editor = Editor(root, state_dir=state_dir, backend=backend)
+          hook=request_hook, agent=None, allowed_hosts=()):
+    editor = Editor(root, state_dir=state_dir, backend=backend, agent=agent, allowed_hosts=allowed_hosts, host=host)
     httpd = ThreadingHTTPServer((host, port), make_handler(editor, hook))
     httpd.daemon_threads = True
     url = f'http://{host}:{httpd.server_address[1]}/'

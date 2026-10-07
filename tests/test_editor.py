@@ -161,6 +161,39 @@ class API(TempProject):
         self.assertEqual(self.log(), ['init'])
 
 
+    def test_draft_endpoints(self):
+        from videobuilder.agents import FakeBackend
+        git(self.root, 'branch', '-M', 'main')
+        self.editor.notes.backend = FakeBackend(delay=0)
+        code, note = self.post('/api/notes', dict(video='promo/film', frame=0, text='Highlight'))
+        self.assertEqual(code, 200)
+        self.get('/api/notes')
+        detail = self.get('/api/draft?video=promo/film')
+        self.assertEqual(detail['files'], ['promo/film.py'])
+        from unittest.mock import patch
+        with patch('videobuilder.drafts.shutil.which', return_value=None):
+            self.assertEqual(self.get('/api/draft/info?video=promo/film')['frames'], 210)
+            self.assertTrue(self.get('/api/draft/frame?video=promo/film&scale=0.1').startswith(b'\x89PNG'))
+        self.assertEqual(self.post('/api/draft/accept', dict(video='promo/film'))[1]['state'], 'accepted')
+        self.assertEqual(self.get('/api/notes')["notes"][0]['state'], 'accepted')
+        self.post('/api/notes', dict(video='promo/film', frame=0, text='Again'))
+        self.get('/api/notes')
+        self.assertEqual(self.post('/api/draft/drop', dict(video='promo/film'))[1]['state'], 'dropped')
+
+    def test_host_allowlist_get_and_post(self):
+        for method in ('GET', 'POST'):
+            req = urllib.request.Request(self.base + '/api/project', method=method,
+                                         headers={'Host': 'rebinding.example', 'Origin': 'http://rebinding.example'})
+            with self.assertRaises(urllib.error.HTTPError) as e:
+                urllib.request.urlopen(req)
+            with e.exception:
+                self.assertEqual(e.exception.code, 403)
+                self.assertIn('Host is not allowed', e.exception.read().decode())
+        self.editor.allowed_hosts.add('review.example')
+        req = urllib.request.Request(self.base + '/api/project', headers={'Host': 'review.example:8100'})
+        with urllib.request.urlopen(req) as response:
+            self.assertEqual(response.status, 200)
+
 
 class Command(unittest.TestCase):
     def test_a_missing_project_dir(self):
