@@ -75,6 +75,21 @@ class Skill(unittest.TestCase):
             out = script('tempo.py', 't.wav', '--fps', 30, cwd=d).stdout
         self.assertIn('Grid(fps=30, bpm=112, head_trim=12)', out)
 
+    def test_check_warns_on_a_cut_onto_an_empty_frame(self):
+        with tempfile.TemporaryDirectory() as d:
+            script('make_track.py', '--bpm', 120, '--beats', 8, '--out', 'music.wav', cwd=d)
+            Path(d, 'short.py').write_text(
+                SHORT.replace('HEAD', '0').replace('BOX', '(200, 200, 300, 100)')
+                .replace("    cv.mark(seg.name", "    if f > 3: cv.mark(seg.name"))
+            out = script('check.py', 'short.py', cwd=d).stdout
+        self.assertIn('WARN  1x1 f60 (b): the cut lands on a frame with no visible marked content', out)
+
+    def test_fontinfo_reads_the_font_itself(self):
+        out = script('fontinfo.py', ROOT / 'examples' / 'assets' / 'Cantarell-VF.otf', '--ofl', cwd=ROOT).stdout
+        self.assertIn("Font('Cantarell', ...)", out)
+        self.assertIn('variable: wght 100-800', out)
+        self.assertIn('SIL Open Font License', out)
+
     def test_doctor_passes_here(self):
         out = script('doctor.py', cwd=ROOT)
         self.assertIn('all good', out.stdout)

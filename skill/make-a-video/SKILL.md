@@ -32,8 +32,8 @@ python $SKILL/scripts/doctor.py
 
 It checks Python 3.11+, ffmpeg/ffprobe, pycairo, PyGObject with Pango, and
 Pillow, and prints the install command for this OS when one is missing
-(installing system packages needs the user: ask). If only `videobuilder` is
-missing, it prints the `PYTHONPATH` that makes the checkout importable.
+(installing system packages needs the user: ask). If `videobuilder` isn't
+installed, it prints the `PYTHONPATH` that makes the checkout importable.
 **Your shell's environment doesn't persist between commands**, so put
 `PYTHONPATH=$VB` at the front of every `python` command (or `pip install -e
 $VB` once, if pip and the user allow).
@@ -81,12 +81,19 @@ layout, images, views) with the traps each part hides.
 
 ## 4. Assets
 
-- **Fonts**: vendor the font files into `assets/` *with their licence*
-  (an OFL font's `OFL.txt`; look in `/usr/share/fonts` and
-  `/usr/share/licenses`, or the font's source). The template registers every
-  `assets/*.otf|ttf`; set `FAMILY` to the font's family name
-  (`fc-scan --format '%{family}\n' assets/X.otf`). Never rely on whatever
-  `Sans` resolves to on this machine for a film you deliver.
+- **Fonts**: vendor the font files into `assets/` *with their licence*.
+  `python $SKILL/scripts/fontinfo.py --ofl /usr/share/fonts/*/*.[ot]tf`
+  lists OFL fonts on this machine with the family name to use in `Font`,
+  each file's weight (or variable axes), copyright and licence, read from
+  the font itself. Go by that, not a distro's licence file (some ship the
+  wrong text). For an OFL font, write `<Family>-OFL.txt`: the font's
+  copyright line, then the OFL 1.1 text (copy it from
+  `$VB/examples/assets/Cantarell-OFL.txt`, which also has a vendorable
+  variable font). The template registers every `assets/*.otf|ttf`; set
+  `FAMILY`, and pass `family=` to `font()` for a second family (a mono for
+  code). With static files, vendor each weight you use: a weight you
+  didn't vendor falls back to the nearest. Never rely on what `Sans`
+  resolves to on this machine.
 - **Images**: `vb.Image.load(path)` (decoded once; fine to call in `draw`),
   drawn with `cv.image(img, *box.cover(img.w, img.h))` inside `cv.clip`.
 - **Screen captures**: `cv.view(img, box, center, scale)` is a camera on a
@@ -96,7 +103,8 @@ layout, images, views) with the traps each part hides.
   make a PIL image once at import and wrap it with `vb.Image.from_pil`. Seed
   any randomness. No network fetches at render time: anything downloaded is
   vendored first, with its licence.
-- Write `assets/README.md`: each file, where it came from, its licence.
+- Write `assets/README.md`: each file, where it came from, its licence
+  (generated files: the command that made them, and "generated for this film").
 
 ## 5. The authoring loop
 
@@ -106,11 +114,17 @@ layout, images, views) with the traps each part hides.
 | sheet | `PYTHONPATH=$VB python film.py sheet --format all` | your main eyes: in/middle/out frame of every segment, labelled. Read the PNGs after every real change |
 | still | `PYTHONPATH=$VB python film.py still 412 --format 16x9 --overlay` | one frame at full size: text edges, alignment, a mid-motion frame, a cut (`still c-1 c`) |
 | check | `PYTHONPATH=$VB python $SKILL/scripts/check.py film.py` | storyboard table, read times, safe area and overlaps (needs `cv.mark`) |
-| render | `PYTHONPATH=$VB python film.py render --format all` | the MP4s, once sheets and checks are clean. ~1 s of CPU per second of film |
+| render | `PYTHONPATH=$VB python film.py render --format all` | the MP4s, once sheets and checks are clean. Seconds to a minute for a short film; if it stops with "render stalled", `still` one of the frames it names |
 
 You can't watch the preview yourself: work from sheets and stills (read the
 PNGs), and offer the preview command to the user. `sheet --every 5` or
 `--frames a,b,c` show motion; `FILM.keyframes` set the default frames.
+
+**Cuts must land on something.** A hard cut reads on the beat only if the
+new segment's first frame shows it: start entrances a few frames in (the
+template's `appear` is `ENTER` frames in at `f = 0`). `check.py` warns
+on a cut onto a frame with nothing marked on it. Settle motion by a segment's middle (the checks and default sheet
+look there), or set `FILM.keyframes` to the frames that show it settled.
 
 Draw rules that keep frames pure (any frame renders alone, in any order):
 no state across frames, no `random` without a fixed seed, no clock, no

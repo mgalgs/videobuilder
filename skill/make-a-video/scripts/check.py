@@ -14,7 +14,11 @@ What it checks:
               the format's safe area (`LAYOUTS[fmt]['safe']` if the film has
               one, else the frame), and no two marks overlap, unless the film
               lists the pair in `OVERLAP_OK = {('a', 'b'), ...}`. Frames in an
-              overlap transition are skipped.
+              overlap transition are skipped. Held frames assume a segment's
+              motion has settled by its middle; set FILM.keyframes to the
+              settled frames when it hasn't.
+  cut frames  each hard cut's first frame shows some marked content: a cut
+              onto an empty frame doesn't read as landing on the beat.
   video       ffprobe: H.264, yuv420p, the format's size, the film's fps, exact
               frame count and duration, an AAC stream as long as the picture
               when the film has audio.
@@ -77,7 +81,7 @@ def storyboard(film, r, wps, lead):
     for seg, parents in tl.walk():
         a, z = tl.span(seg)
         name = ' / '.join([p.name for p in parents] + [seg.name])
-        copy = (seg.data or {}).get('copy', '') or ''
+        copy = ((seg.data or {}).get('copy', '') or '').replace('\n', ' / ')
         words = len(copy.split())
         flag = f' (overlaps {seg.overlap:g})' if seg.overlap else ''
         print(f'  {name:28} {seg.at:5g}-{seg.until:<5g} {a:5d}-{z:<5d} {(z - a) / g.fps:6.2f}  {words:5d}  '
@@ -142,6 +146,14 @@ def marks(mod, film, fmts, r, every=None):
                     if key not in seen:
                         seen.add(key)
                         r.fail(f'{fmt.name} f{n} ({label}): marks {na!r} {_box(ba)} and {nb!r} {_box(bb)} overlap')
+        empty = []
+        for c in (tl.cut_frames() if tl is not None else []):
+            if c and not film.frame(c, fmt, scale=0.05).marks:
+                empty.append(c)
+        for c in empty:
+            r.warn(f'{fmt.name} f{c} ({tl.label(c)}): the cut lands on a frame with no visible marked content, so '
+                   f'it won\'t read on the beat; have something on screen on the cut frame (start the entrance '
+                   f'a few frames early, e.g. a spring at f + 3)')
         if count == 0:
             r.warn(f'{fmt.name}: no marks on {checked} held frames; mark content boxes with canvas.mark(name, *box)')
         elif not any(k[0] in ('out', 'overlap') for k in seen):

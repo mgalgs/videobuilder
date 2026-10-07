@@ -30,7 +30,8 @@ Make a placeholder bed exactly on the grid:
 `--beats` is the film's `TIMELINE.end`. `--loop minor|major|drone` and
 `--voices kick,hat,bass,pad` change its character; drop `kick,hat` for a
 calmer bed. It starts on beat 1 at 0 s, so `head_trim=0`. Tell the user it's
-a placeholder; real music is their call (and their licence).
+a placeholder; real music is their call (and their licence). In
+`assets/README.md`, record it as generated for this film, with the command.
 
 ## In the film
 

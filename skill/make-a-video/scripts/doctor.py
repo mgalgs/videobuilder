@@ -24,6 +24,10 @@ HINTS = {
 }
 
 
+class PathOnly(Exception):
+    """videobuilder works, but only with PYTHONPATH set."""
+
+
 def distro():
     if platform.system() == 'Darwin':
         return 'mac'
@@ -45,6 +49,8 @@ def main():
         try:
             detail = fn()
             print(f'  ok       {name}' + (f': {detail}' if detail else ''))
+        except PathOnly as e:
+            print(f'  ok       {name}, with PYTHONPATH: {e}')
         except Exception as e:  # noqa: BLE001 - report anything
             print(f'  MISSING  {name}: {e}')
             missing.append(name)
@@ -83,9 +89,9 @@ def main():
             if (REPO / 'videobuilder' / '__init__.py').exists():
                 sys.path.insert(0, str(REPO))
                 import videobuilder as vb  # noqa: F401
-                raise RuntimeError(f'not installed, but the checkout at {REPO} works: run films with\n'
-                                   f'             PYTHONPATH={REPO}\n'
-                                   f'           or install it: pip install -e {REPO}')
+                raise PathOnly(f'not installed, but the checkout works. Run every command as\n'
+                               f'             PYTHONPATH={REPO} python ...\n'
+                               f'           (or install it once: pip install -e {REPO})')
             raise
         return str(Path(vb.__file__).resolve().parent)
 

@@ -20,7 +20,7 @@ from videobuilder import Box, fr, per_format, text  # noqa: E402
 # ---- assets: vendored fonts (with their licences) live in assets/ ----
 for _f in sorted((HERE / 'assets').glob('*.[ot]tf')):
     text.register(_f)
-FAMILY = 'Sans'  # PLACEHOLDER: the family name of the font you vendored
+FAMILY = 'Sans'  # PLACEHOLDER: the vendored font's family name (scripts/fontinfo.py prints it)
 
 # ---- time: pick BPM and fps first; everything below is in beats ----
 # 120 bpm at 30 fps is 15 frames a beat; 40 beats is 20 s.
@@ -69,8 +69,9 @@ ACCENT = '#888888'
 PANEL = '#222222'
 
 
-def font(size, weight=400, **kw):
-    return vb.Font(FAMILY, size, weight=weight, **kw)
+def font(size, weight=400, family=None, **kw):
+    """A Font in FAMILY, or another vendored `family` (a mono for code, say)."""
+    return vb.Font(family or FAMILY, size, weight=weight, **kw)
 
 
 # ---- layout: one full table per format, each from its own geometry ----
@@ -98,9 +99,13 @@ BOUNCY = dict(stiffness=170, damping=14)
 
 
 # ---- helpers ----
+ENTER = 3  # frames an entrance is already under way on its segment's first frame
+
+
 def appear(f, delay=0, spring=SETTLE):
-    """0 -> 1 entrance, `delay` frames into the shot."""
-    return vb.spring_at(f - delay, GRID.fps, **spring)
+    """0 -> 1 entrance, `delay` frames into the shot. With delay 0 it's ENTER
+    frames in on the cut frame, so something is on screen as the beat lands."""
+    return vb.spring_at(f + ENTER - delay, GRID.fps, **spring)
 
 
 def fade_out(shot, frames=8):
@@ -108,11 +113,12 @@ def fade_out(shot, frames=8):
     return vb.interpolate(shot.f, [shot.length - frames, shot.length], [1, 0])
 
 
-def copy_block(cv, shot, words, fnt, box, colour, align='center', delay=0):
-    """Wrapped, balanced copy centred in `box`, springing up; marked for checks."""
+def copy_block(cv, shot, words, fnt, box, colour, align='center', delay=0, valign='center'):
+    """Wrapped, balanced copy in `box` (`valign` top, center or bottom),
+    springing up; marked for checks. Returns the Box drawn."""
     lines = text.wrap(words, fnt, box.w, balance=True)
     w, h = text.block_size(lines, fnt)
-    at = box.center(box.w, h)
+    at = box.anchor(box.w, h, {'top': 'top', 'center': 'center', 'bottom': 'bottom'}[valign])
     s = appear(shot.f, delay)
     with cv.layer(opacity=min(1, s), dy=(1 - s) * 40):
         drawn = text.draw(cv, lines, fnt, at.x, at.y, colour, align=align, width=at.w)
@@ -131,7 +137,8 @@ def points(cv, shot, L):
     safe = L['safe']
     p = EASE_OUT(vb.clamp01(shot.group_f / 12))
     cv.rect(safe.x, safe.cy - 4, safe.w * p, 8, ACCENT)
-    copy_block(cv, shot, shot.data['copy'], font(L['body'], 600), safe.pad(0, 0, safe.h / 2 + 40, 0), INK)
+    above = Box(safe.x, safe.y, safe.w, safe.h / 2 - L['gap'])
+    copy_block(cv, shot, shot.data['copy'], font(L['body'], 600), above, INK, valign='bottom')
 
 
 def proof(cv, shot, L):

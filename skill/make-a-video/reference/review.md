@@ -17,6 +17,7 @@ Run before calling a film done. Every box gets checked on every format.
 - [ ] **WARNs judged.** A picture jump off the cut grid (a flash, a
   segment drawing a frame early or late): look at `still c-1 c c+1`. Music
   off the beat: apply the suggested `head_trim`, or justify it.
+- [ ] No WARN of a cut landing on an empty frame, or each one deliberate.
 - [ ] Every block of copy, chart and image is marked; with no marks, the
   safe-area check checks nothing (it warns).
 
@@ -30,8 +31,9 @@ Read each sheet PNG (and `sheet --every 10` for motion):
 - [ ] No text clipped by the frame or a box, no line too long or too short
   for its width, no widow word on a line of its own when it could balance.
 - [ ] Nothing overlaps that shouldn't, including during transitions.
-- [ ] No empty frame that isn't meant to be (a segment's first frame before
-  its entrance is fine for a beat, not for a second).
+- [ ] No empty frame that isn't meant to be, and none on a cut.
+- [ ] Each format uses its frame: no large empty region the layout didn't
+  intend (in 9:16, content bunched at the top of a tall safe area).
 - [ ] Each format is laid out for its shape, not a scaled copy.
 - [ ] The intended font is drawn (not a fallback), at a size that reads
   at the delivery size (look at a `still` at `--scale 0.5` for a phone).

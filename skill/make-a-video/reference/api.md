@@ -68,6 +68,9 @@ cv.ctx                                           # raw cairo context, for paths,
 vb.rgba(colour)                                  # -> cairo floats for cv.ctx.set_source_rgba(*...)
 ```
 
+- `cv.fill` and `ctx.paint()` fill the whole clip and ignore a layer's
+  `dx`/`dy`: a background that should slide with a layer is
+  `cv.rect(0, 0, cv.width, cv.height, colour)` (or a `ctx.rectangle` path).
 - Colours: `'#rgb'`, `'#rgba'`, `'#rrggbb'`, `'#rrggbbaa'`, or `(r, g, b[, a])`
   with 0–255 channels and 0–1 alpha.
 - `layer(scale=s)` scales about (0, 0) of the current space: to scale about a
@@ -112,8 +115,11 @@ text.draw_in(cv, chip, 'New', F, colour, padding=(8, 16))
 - **Trap:** CSS adds letter-spacing after the last letter too; Pango doesn't.
   To match a browser layout, `Font(..., css_tracking=True)`.
 - **Trap:** a `Font` whose family isn't registered or installed silently
-  falls back to a system font. Get the exact family name with
-  `fc-scan --format '%{family}\n' assets/Font.otf`, and look at a still.
+  falls back to a system font, and a weight a static family doesn't have
+  falls back to the nearest file. `$SKILL/scripts/fontinfo.py assets/*`
+  prints each file's family name and weight; look at a still to confirm.
+- Two families: `vb.Font('Family A', ...)` and `vb.Font('Family B', ...)`;
+  register both files.
 
 ## Layout
 
