@@ -47,6 +47,24 @@ class Skill(unittest.TestCase):
             out = script('check.py', film, cwd=d)
             self.assertIn('0 failed', out.stdout)
 
+    def test_sandbox_checkout_with_placeholder_track(self):
+        with tempfile.TemporaryDirectory() as d:
+            film = Path(d, 'film.py')
+            film.write_text((SKILL / 'template' / 'film.py').read_text().replace(
+                '# audio=vb.Audio', 'audio=vb.Audio'))
+            Path(d, 'assets').mkdir()
+            script('make_track.py', '--bpm', 120, '--beats', 40,
+                   '--out', 'assets/music.wav', cwd=d)
+            result = subprocess.run(
+                [sys.executable, '-c',
+                 "import videobuilder as vb; f=vb.load('film.py'); "
+                 "assert f.timeline.grid.head_trim == 0; "
+                 "assert f.audio.path; f.frame(0, scale=0.05)"],
+                cwd=d, env={**os.environ, 'PYTHONPATH': str(ROOT)},
+                capture_output=True, text=True)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertIn('0 failed', script('check.py', film, cwd=d).stdout)
+
     def test_template_registers_nested_fonts(self):
         from unittest.mock import patch
         from videobuilder import load

@@ -41,6 +41,18 @@ $VB` once, if pip and the user allow).
 Work in a directory of its own (a project's `video/`, or a new one); the
 film, its `assets/`, renders and sheets go there.
 
+### Running in a sandbox
+
+If `import videobuilder` fails and a checkout is provided, run each command
+with `PYTHONPATH=<checkout>`. Read the skill directly from that checkout's
+`skill/make-a-video/`; a global skill installation or network is unnecessary.
+When the real track is unavailable, use `scripts/make_track.py --bpm 120
+--beats 40 --out assets/music.wav` for a placeholder bed (choose the film's
+BPM and beat count). Swap in the real track later, checking its BPM and
+setting `Grid.head_trim` to its first beat; a tempo change requires retiming.
+The generated bed starts at beat zero with `head_trim=0`. Render-time network
+fetches remain forbidden: all assets must already be local.
+
 ## 2. Plan before code
 
 Write the storyboard first, in the film or a scratch note, and show it to
