@@ -233,6 +233,52 @@ and `sheet`'s default frames are the in, middle and out frame of each child.
 `timeline.start(name)` and `span(name)` give a segment's frames, for keyframes
 and checks. Every start, children's too, must be on the half-beat grid, and
 frames round half up.
+Segment names are unique across the timeline, groups and children included:
+they are the ids that direct edits key on.
+
+## Direct edits (`edits.toml`)
+
+A reviewer who doesn't write Python can still move a cut or change a line of
+copy. Those edits are data, in `edits.toml` beside the film, and videobuilder
+applies them as the film's `Timeline` is built:
+
+```toml
+[segments.intro]
+until = 6.5            # roll the cut at the end of intro to beat 6.5
+
+[segments.intro.data]
+title = "New copy"     # replace the string intro.data['title']
+```
+
+- **`until` is a roll.** The segment's end and its next sibling's start move
+  together, so the film's length and every other cut stay put. The new end
+  must be on the half-beat grid, strictly between the segment's start and
+  the sibling's end, and leave room for both segments' overlaps. The segment
+  needs a next sibling at its own level, and neither side may be a group.
+- **`data` replaces a string.** Only an existing key whose value is a `str`.
+- Anything else (an unknown segment or key, a rule broken) is an error that
+  names the segment and the rule. With no `edits.toml`, nothing changes.
+
+The edits apply while the film is imported (`load`, `load_module`, the
+preview, the CLI), to the first `Timeline` the film builds, so values the
+film derives from its timeline at module level (`T.span('x')`) see them. A
+Timeline built outside a film load sees none. `timeline.edits` holds what
+was applied. The preview reloads when `edits.toml` changes, and its `/info`
+gives each segment's `copy` (its `data` strings) and `rollable`, and the
+edits with their path (`null` with no file).
+
+Draw on-screen copy from `Segment.data` (`shot.data`) and it is editable
+this way. `edits.toml` belongs to the film beside it: keep one film per
+directory if you use it.
+
+To write edits, use the CLI or `videobuilder.edits.roll(film, segment,
+until)` and `set_copy(film, segment, key, value)`. Each loads the film
+with the new edits first and leaves the file unchanged if that fails. The
+file is written the same way every time, with segments sorted. Setting a
+segment's own value removes its entry, and the file goes when it's empty:
+
+    python -m videobuilder edit roll film.py intro 6.5
+    python -m videobuilder edit copy film.py intro title 'New copy'
 
 ## The authoring loop
 
@@ -266,6 +312,8 @@ python -m videobuilder render  film.py [--format 9x16|16x9|1x1|all] [--jobs N] [
 python -m videobuilder still   film.py FRAME [FRAME ...] [--format F|all] [--out PATH] [--overlay] [--scale S]
 python -m videobuilder sheet   film.py [--format F|all] [--every N | --frames a,b,c] [--cols C] [--width W]
 python -m videobuilder preview film.py [--host 127.0.0.1] [--port 8000] [--open]
+python -m videobuilder edit roll film.py SEGMENT UNTIL
+python -m videobuilder edit copy film.py SEGMENT KEY VALUE
 ```
 
 ## Modules
@@ -300,6 +348,7 @@ python -m videobuilder preview film.py [--host 127.0.0.1] [--port 8000] [--open]
 - `film`: `Film`, `Format`, `FORMATS`, `Audio` and `load`.
 - `render`: chunked parallel rendering and the ffmpeg concat and mux.
 - `preview` and `overlay`: the live preview and the timeline overlay.
+- `edits`: direct edits, `edits.toml`: `roll`, `set_copy` and `rollable`.
 
 ## Known traps
 
@@ -330,8 +379,8 @@ videobuilder handles each of these, but you should know about them:
     python -m unittest
 
 These cover easing (including Remotion-parity springs), timeline rounding,
-the chunk guard, layout, film loading, the CLI and the preview server.
-Golden stills of the example film are compared by PSNR, since text
+the chunk guard, layout, film loading, direct edits, the CLI and the
+preview server. Golden stills of the example films are compared by PSNR, since text
 rasterisation varies a little between FreeType and Pango versions. After a
 deliberate visual change, refresh them with
 `VIDEOBUILDER_UPDATE_GOLDEN=1 python -m unittest tests.test_golden`, and
