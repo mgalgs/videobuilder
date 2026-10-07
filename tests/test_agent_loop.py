@@ -83,7 +83,7 @@ else:
     print(json.dumps({'state': 'replied', 'reply': 'Done', 'branch': 'draft/test'}))
 ''')
         backend = CommandBackend([sys.executable, str(script), 'submit'], [sys.executable, str(script), 'poll'])
-        editor = Editor(self.root, backend=backend)
+        editor = Editor(self.root, backend=backend, unsandboxed_previews=True)
         note = editor.add_note(dict(video='promo/film', frame=12, text='Change title'), 'reviewer')
         result = editor.notes.list()[0]
         self.assertEqual(result['reply'], 'Done')
@@ -96,7 +96,7 @@ else:
         script.write_text('import sys\nprint("Error: the project must live under an allowed root", file=sys.stderr)\n'
                           'sys.exit(1)\n')
         command = [sys.executable, str(script)]
-        editor = Editor(self.root, backend=CommandBackend(command, command))
+        editor = Editor(self.root, backend=CommandBackend(command, command), unsandboxed_previews=True)
         note = editor.add_note(dict(video='promo/film', frame=12, text='Change title'), 'reviewer')
         self.assertEqual(note['state'], 'failed')
         self.assertIn('must live under an allowed root', note['reply'])
