@@ -91,6 +91,16 @@ else:
         for part in ('film: promo/film.py', 'frame: 12', 'time: 0.4', 'beat: 0.8', 'reply.md', 'only under promo'):
             self.assertIn(part, md)
 
+    def test_refused_submit_shows_the_runners_reason(self):
+        script = self.root / 'refuse.py'
+        script.write_text('import sys\nprint("Error: the project must live under an allowed root", file=sys.stderr)\n'
+                          'sys.exit(1)\n')
+        command = [sys.executable, str(script)]
+        editor = Editor(self.root, backend=CommandBackend(command, command))
+        note = editor.add_note(dict(video='promo/film', frame=12, text='Change title'), 'reviewer')
+        self.assertEqual(note['state'], 'failed')
+        self.assertIn('must live under an allowed root', note['reply'])
+
     @patch('videobuilder.agents.run')
     def test_fork_sandbox_argv(self, run):
         run.return_value = '/run/example'

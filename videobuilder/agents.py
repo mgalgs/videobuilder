@@ -26,7 +26,11 @@ from .notes import AgentBackend, AgentStatus, NullBackend
 
 
 def run(argv):
-    return subprocess.run(argv, capture_output=True, text=True, check=True, timeout=60).stdout.strip()
+    result = subprocess.run(argv, capture_output=True, text=True, timeout=60)
+    if result.returncode:
+        reason = result.stderr.strip()[-2000:] or result.stdout.strip()[-2000:]
+        raise ValueError(f'{argv[0]} exited {result.returncode}: {reason}')
+    return result.stdout.strip()
 
 
 class CommandBackend(AgentBackend):
