@@ -615,11 +615,13 @@ async function loadNotes() {
 async function loadDraft() {
   let panel = $('draft-panel');
   if (!panel) { panel = el('div', {id: 'draft-panel'}); $('pane-notes').append(panel); }
+  const previousTip = draft && draft.tip;
   try { draft = await getJSON('draft', {video}); }
   catch (e) { panel.textContent = e.message; return; }
   panel.innerHTML = '';
   $('compare').hidden = !draft || draft.refused.length > 0;
   if (!draft) return;
+  if (draftView && previousTip !== draft.tip) await refresh(null, true);
   panel.append(el('h3', {}, 'Draft'), el('div', {class: 'text muted'}, draft.branch),
     el('pre', {style: 'white-space:pre-wrap'}, draft.commits.join('\n')),
     el('div', {}, 'Changed files'), el('pre', {style: 'white-space:pre-wrap'}, draft.files.join('\n')));

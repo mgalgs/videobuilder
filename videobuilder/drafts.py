@@ -100,7 +100,7 @@ class Drafts:
         return path
 
     def preview(self, video, operation, query):
-        with self.editor.notes.lock:
+        with self.editor.notes.video_lock(video):
             context = self.context(video)
             branch = self.editor.notes.session(video)['draft']
             result = guarded(self.editor.root, branch, context['directory'])
@@ -138,7 +138,7 @@ class Drafts:
 
     def accept(self, video, author):
         e = self.editor
-        with e.lock, e.notes.lock:
+        with e.lock, e.notes.video_lock(video):
             self._idle(video)
             branch = e.notes.session(video)['draft']
             detail = guarded(e.root, branch, self.context(video)['directory'])
@@ -187,7 +187,7 @@ class Drafts:
 
     def drop(self, video, author):
         e = self.editor
-        with e.lock, e.notes.lock:
+        with e.lock, e.notes.video_lock(video):
             self._idle(video)
             branch = e.notes.session(video)['draft']
             branch_tip(e.root, branch)

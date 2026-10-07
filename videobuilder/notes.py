@@ -75,7 +75,12 @@ class NoteStore:
         self.dir = os.path.abspath(dir)
         self.backend = backend or NullBackend()
         self.lock = threading.RLock()
+        self.video_locks = {}
         self.context = context or (lambda video: {})
+
+    def video_lock(self, video):
+        with self.lock:
+            return self.video_locks.setdefault(video, threading.RLock())
 
     def _path(self, nid, ext):
         if not nid or not all(c.isalnum() or c in '-_' for c in nid):
@@ -103,7 +108,7 @@ class NoteStore:
                 'text': text.strip(), 'author': author,
                 'created': time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime(now)),
                 **context, 'backend': self.backend.name, 'handle': None, **asdict(AgentStatus('queued'))}
-        with self.lock:
+        with self.video_lock(video):
             self._save(note)
             self._advance(video)
             note = self.get(nid)
@@ -147,14 +152,20 @@ class NoteStore:
         tmp.replace(path)
 
     def list(self, video=None, refresh=True):
-        with self.lock:
-            notes = [self.get(p.stem) for p in sorted(Path(self.dir).glob('*.json'))]
-            if refresh:
-                for vid in dict.fromkeys(n['video'] for n in notes):
-                    if video is None or vid == video:
-                        self._advance(vid)
-                notes = [self.get(n['id']) for n in notes]
-            return [n for n in notes if video is None or n['video'] == video]
+        notes = []
+        for path in sorted(Path(self.dir).glob('*.json')):
+            try:
+                note = self.get(path.stem)
+            except KeyError:
+                continue
+            if video is None or note['video'] == video:
+                notes.append(note)
+        if refresh:
+            for vid in dict.fromkeys(n['video'] for n in notes):
+                with self.video_lock(vid):
+                    self._advance(vid)
+            return self.list(video, refresh=False)
+        return notes
 
     def _advance(self, video):
         for note in self.list(video, refresh=False):
@@ -201,7 +212,7 @@ class NoteStore:
                 return
 
     def resolve(self, video, branch, action, author):
-        with self.lock:
+        with self.video_lock(video):
             for note in self.list(video, refresh=False):
                 if note['branch'] == branch and note['state'] == 'replied':
                     note['state'] = action
@@ -212,15 +223,13 @@ class NoteStore:
             self.save_session(video, state)
 
     def delete(self, nid):
-        note = self.get(nid)
-        if note['state'] not in FINAL and note['handle'] and self.backend.name != 'null':
-            raise ValueError('cannot delete an in-flight note')
-        found = False
-        for ext in ('json', 'png'):
-            try:
-                os.remove(self._path(nid, ext))
-                found = True
-            except FileNotFoundError:
-                pass
-        if not found:
-            raise KeyError(nid)
+        video = self.get(nid)['video']
+        with self.video_lock(video):
+            note = self.get(nid)
+            if note['state'] not in FINAL and note['handle'] and self.backend.name != 'null':
+                raise ValueError('cannot delete an in-flight note')
+            for ext in ('json', 'png'):
+                try:
+                    os.remove(self._path(nid, ext))
+                except FileNotFoundError:
+                    pass

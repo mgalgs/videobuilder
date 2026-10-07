@@ -4,6 +4,7 @@ import os
 from pathlib import Path
 import subprocess
 import sys
+import threading
 import unittest
 from unittest.mock import patch
 
@@ -47,6 +48,26 @@ class Queue(TempProject):
         store.list('a')
         self.assertEqual(store.get(third['id'])['state'], 'failed')
         self.assertEqual(store.session('a')['draft'], 'draft/a')
+
+    def test_slow_submission_does_not_block_another_video(self):
+        entered, release = threading.Event(), threading.Event()
+        class Slow(FakeAgent):
+            def submit(self, note):
+                if note['video'] == 'slow':
+                    entered.set()
+                    release.wait(5)
+                return super().submit(note)
+        store = NoteStore(self.root / '.vb-editor/notes', Slow())
+        worker = threading.Thread(target=lambda: store.add('slow', '1x1', 0, None, 'slow', b''))
+        worker.start()
+        try:
+            self.assertTrue(entered.wait(2))
+            fast = store.add('fast', '1x1', 0, None, 'fast', b'')
+            self.assertIsNotNone(fast['handle'])
+            self.assertTrue(worker.is_alive())
+        finally:
+            release.set()
+            worker.join(5)
 
     def test_command_contract(self):
         script = self.root / 'runner.py'
