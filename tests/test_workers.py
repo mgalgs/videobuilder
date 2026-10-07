@@ -135,3 +135,15 @@ class PinnedWorkers(unittest.TestCase):
                             self.assertEqual(actual, expected)
             finally:
                 worker.close()
+
+    def test_checkout_installs_offline_when_build_tools_exist(self):
+        env = Path(self.tmp.name) / 'offline'
+        subprocess.run([sys.executable, '-m', 'venv', '--system-site-packages', str(env)], check=True)
+        python = str(env / 'bin' / 'python')
+        result = subprocess.run([python, '-m', 'pip', 'install', '--no-build-isolation', '--no-index',
+                                 str(SOURCE.parent)], capture_output=True, text=True)
+        if result.returncode:
+            self.skipTest('offline build tools unavailable: ' + (result.stderr or result.stdout)[-300:])
+        version = subprocess.check_output([python, '-c', 'import videobuilder; print(videobuilder.__version__)'],
+                                          cwd=self.tmp.name, text=True).strip()
+        self.assertEqual(version, '0.1.2')
