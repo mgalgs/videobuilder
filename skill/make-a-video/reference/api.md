@@ -59,6 +59,8 @@ cv.fill(colour)
 cv.rect(x, y, w, h, colour, radius=0, alpha=1)   # or cv.rect(*box, colour)
 cv.outline(*box, colour, width=2, radius=0)
 cv.line(x0, y0, x1, y1, colour, width=2)
+cv.arc(cx, cy, r, a0, a1, colour, width=2, alpha=1)  # stroke, butt ends
+cv.sector(cx, cy, r, a0, a1, colour, alpha=1)        # filled pie slice
 cv.image(img, *box, alpha=1)                     # stretched to the box
 cv.shadow(*box, radius=24, dy=18, blur=50, color=(0, 0, 0, 0.4))   # draw before the box
 with cv.layer(opacity=0.5, dx=0, dy=40, scale=1.0): ...   # group: fades, moves, scales together
@@ -68,6 +70,9 @@ cv.ctx                                           # raw cairo context, for paths,
 vb.rgba(colour)                                  # -> cairo floats for cv.ctx.set_source_rgba(*...)
 ```
 
+- Arc/sector angles are radians from the positive x axis, increasing clockwise
+  in canvas coordinates (Cairo convention). `0` to `2 * math.pi` makes a circle.
+  Radius and stroke width are film pixels; layers and clips apply as usual.
 - `cv.fill` and `ctx.paint()` fill the whole clip and ignore a layer's
   `dx`/`dy`: a background that should slide with a layer is
   `cv.rect(0, 0, cv.width, cv.height, colour)` (or a `ctx.rectangle` path).

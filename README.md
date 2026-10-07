@@ -406,7 +406,7 @@ python -m videobuilder editor PROJECT-DIR [--host 127.0.0.1] [--port 8100] [--st
 - `canvas`: `Canvas` with rects, images (mip-mapped; `Image.load(path)` decodes
   a file once and is safe to call in `draw`; an edited file is decoded again
   and its old decode dropped), `view` (a camera on an image in
-  a window, with `pin`), `outline` and `line` strokes, CSS-style shadows,
+  a window, with `pin`), `outline`, `line` and `arc` strokes, filled `sector` slices, CSS-style shadows,
   clips, and `layer` groups with opacity and transform (an invisible layer
   draws nothing but keeps its transform). Colours anywhere are
   `'#rgb'`, `'#rgba'`, `'#rrggbb'`, `'#rrggbbaa'` or an `(r, g, b[, a])` tuple

@@ -192,6 +192,26 @@ class Canvas:
         c.set_line_width(width)
         c.stroke()
 
+    def arc(self, cx, cy, r, a0, a1, color, width=1, alpha=1.0):
+        """Stroke a circular arc with butt ends; angles in radians, increasing
+        clockwise in canvas coordinates, from the positive x axis."""
+        c = self.ctx
+        c.new_path()
+        c.arc(cx, cy, r, a0, a1)
+        c.set_source_rgba(*rgba(color, alpha))
+        c.set_line_width(width)
+        c.stroke()
+
+    def sector(self, cx, cy, r, a0, a1, color, alpha=1.0):
+        """Fill a pie sector; angles use the same convention as `arc`."""
+        c = self.ctx
+        c.new_path()
+        c.move_to(cx, cy)
+        c.arc(cx, cy, r, a0, a1)
+        c.close_path()
+        c.set_source_rgba(*rgba(color, alpha))
+        c.fill()
+
     def image(self, img, x, y, w, h, alpha=1.0):
         """Draw `img` stretched to the box (x, y, w, h). Mip level picked by scale."""
         c = self.ctx
