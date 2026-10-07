@@ -12,7 +12,7 @@ from unittest import mock
 
 from videobuilder.editor import Editor
 from videobuilder.preview import Session
-from videobuilder.workers import Environments, Worker, pin_for
+from videobuilder.workers import Environments, Worker, pin_for, sandbox_command
 
 from tests.test_project import FILM
 
@@ -44,6 +44,48 @@ class SandboxedWorker(unittest.TestCase):
             editor = Editor(root, state_dir=state, env_builder=copy_builder)
             self.addCleanup(editor.pool.close)
             self.assertEqual(editor.info('a/film')['frames'], 210)
+
+    def test_film_renders_in_a_sandbox_without_proc(self):
+        real = subprocess.run
+        def masked_proc(argv, **kwargs):
+            if argv[0] == 'bwrap' and '--proc' in argv:
+                return subprocess.CompletedProcess(argv, 1, b'', b"bwrap: Can't mount proc on /proc")
+            return real(argv, **kwargs)
+        with tempfile.TemporaryDirectory() as tmp, \
+                mock.patch('videobuilder.workers.subprocess.run', side_effect=masked_proc):
+            root, state = Path(tmp) / 'project', Path(tmp) / 'state'
+            (root / 'a').mkdir(parents=True)
+            (root / 'a' / 'film.py').write_text(FILM)
+            (root / 'a' / 'requirements.txt').write_text('videobuilder==0.1.2\n')
+            editor = Editor(root, state_dir=state, env_builder=copy_builder)
+            self.addCleanup(editor.pool.close)
+            self.assertEqual(editor.info('a/film')['frames'], 210)
+            png = editor.session('a/film').request('frame', frame=30, format=None, scale=0.25, overlay=False)
+            self.assertTrue(png.startswith(b'\x89PNG'))
+
+
+class SandboxProbe(unittest.TestCase):
+    def probe(self, refuse):
+        def run(argv, **kwargs):
+            message = refuse(argv)
+            return subprocess.CompletedProcess(argv, 1 if message else 0, b'', message.encode())
+        with mock.patch('videobuilder.workers.shutil.which', return_value='/usr/bin/bwrap'), \
+                mock.patch('videobuilder.workers.subprocess.run', side_effect=run):
+            return sandbox_command(sys.executable, SOURCE, tempfile.gettempdir())
+
+    def test_masked_proc_falls_back_to_a_sandbox_without_proc(self):
+        command = self.probe(lambda argv: "bwrap: Can't mount proc on /proc: Operation not permitted"
+                             if '--proc' in argv else '')
+        self.assertEqual(command[0], 'bwrap')
+        self.assertNotIn('--proc', command)
+        self.assertIn('--unshare-all', command)
+
+    def test_proc_is_kept_where_it_mounts(self):
+        self.assertIn('--proc', self.probe(lambda argv: ''))
+
+    def test_refusal_names_the_reason(self):
+        with self.assertRaisesRegex(ValueError, 'No permissions to create a new namespace'):
+            self.probe(lambda argv: 'bwrap: No permissions to create a new namespace')
 
 
 class PinnedWorkers(unittest.TestCase):

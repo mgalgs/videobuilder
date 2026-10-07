@@ -114,27 +114,33 @@ def child_environment(home, source=None):
 
 def sandbox_command(python, checkout, home, unsandboxed=False, source=None):
     command = [python, '-m', 'videobuilder', 'worker']
-    wrapper = []
+    wrapper, reason = [], 'bwrap not found'
     if shutil.which('bwrap'):
-        wrapper = ['bwrap', '--unshare-all', '--new-session', '--tmpfs', '/tmp']
+        base = ['bwrap', '--unshare-all', '--new-session', '--tmpfs', '/tmp']
         for system in ('/usr', '/bin', '/lib', '/lib64', '/etc/fonts', '/etc/ld.so.cache'):
             if os.path.exists(system):
-                wrapper += ['--ro-bind', system, system]
+                base += ['--ro-bind', system, system]
         # The venv root, not resolve()'s target: a venv's bin/python links to the
         # system interpreter, so resolving it would mount /usr and leave the env out.
         env = Path(python).absolute().parent.parent
         for path in dict.fromkeys([sys.prefix, str(env), str(checkout), str(source or '')]):
             if path and os.path.exists(path):
-                wrapper += ['--ro-bind', path, path]
-        wrapper += ['--bind', str(home), str(home), '--proc', '/proc', '--dev', '/dev']
-        probe = subprocess.run([*wrapper, '/bin/true'], env=child_environment(home, source),
-                               cwd=home, capture_output=True, timeout=10)
-        if probe.returncode:
-            wrapper = []
+                base += ['--ro-bind', path, path]
+        base += ['--bind', str(home), str(home), '--dev', '/dev']
+        # A container's masked /proc makes the kernel refuse a fresh proc mount in a
+        # user namespace, so the sandbox goes without /proc there rather than not at all.
+        for candidate in (base + ['--proc', '/proc'], base):
+            probe = subprocess.run([*candidate, '/bin/true'], env=child_environment(home, source),
+                                   cwd=home, capture_output=True, timeout=10)
+            if not probe.returncode:
+                wrapper = candidate
+                break
+            reason = probe.stderr.decode(errors='replace').strip() or f'bwrap exited {probe.returncode}'
     if not wrapper:
         if not unsandboxed:
-            raise ValueError('film workers need a working bwrap; set unsandboxed_previews only where film code may read editor files')
-        logging.warning('bwrap unavailable or unusable: film worker is not sandboxed')
+            raise ValueError(f'film workers need a working bwrap ({reason}); '
+                             'set unsandboxed_previews only where film code may read editor files')
+        logging.warning('bwrap unavailable or unusable (%s): film worker is not sandboxed', reason)
     return wrapper + command
 
 
