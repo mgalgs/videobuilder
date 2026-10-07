@@ -71,7 +71,8 @@ replace its content:
   cards sharing one scene, `overlap=k` for a transition. The copy lives in
   the storyboard so `check.py` can time it.
 - Draw every line of on-screen copy from `shot.data`, never a literal in a
-  scene: a direct edit (`edits.toml`) can replace `Segment.data` strings only.
+  scene: a direct edit (`film.edits.toml`) can replace `Segment.data`
+  strings only.
 - `layout_9x16()`, `layout_16x9()` (add `layout_1x1()` for square): one full
   table per format, each computed from its own frame and safe area.
 - `SCENES`: segment (or group) name → scene function `(cv, shot, L)`.

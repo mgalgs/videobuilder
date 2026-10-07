@@ -1,7 +1,7 @@
 """Live preview: a stdlib HTTP server that draws frames on request, and a page
 to scrub, play and step through them. The film file (any .py file beside it,
-and its edits.toml) is watched; on a change it is re-imported and the page
-redraws.
+and its <film>.edits.toml) is watched; on a change it is re-imported and the
+page redraws.
 
     python -m videobuilder preview film.py [--port 8000]
 

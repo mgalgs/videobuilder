@@ -120,7 +120,7 @@ class Timeline:
     `at(frame)` finds the frontmost live segment; `live(frame)` all that draw.
 
     Built while a film file is loaded, the first Timeline applies the film's
-    `edits.toml` (see `videobuilder.edits`) and keeps it as `edits`."""
+    edits file (see `videobuilder.edits`) and keeps it as `edits`."""
 
     def __init__(self, grid, segments, end):
         self.grid = grid

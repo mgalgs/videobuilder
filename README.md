@@ -236,11 +236,12 @@ frames round half up.
 Segment names are unique across the timeline, groups and children included:
 they are the ids that direct edits key on.
 
-## Direct edits (`edits.toml`)
+## Direct edits (`<film>.edits.toml`)
 
 A reviewer who doesn't write Python can still move a cut or change a line of
-copy. Those edits are data, in `edits.toml` beside the film, and videobuilder
-applies them as the film's `Timeline` is built:
+copy. Those edits are data, in a file named for the film beside it
+(`film.py` → `film.edits.toml`), and videobuilder applies them as the film's
+`Timeline` is built:
 
 ```toml
 [segments.intro]
@@ -257,19 +258,19 @@ title = "New copy"     # replace the string intro.data['title']
   needs a next sibling at its own level, and neither side may be a group.
 - **`data` replaces a string.** Only an existing key whose value is a `str`.
 - Anything else (an unknown segment or key, a rule broken) is an error that
-  names the segment and the rule. With no `edits.toml`, nothing changes.
+  names the segment and the rule. With no edits file, nothing changes.
 
 The edits apply while the film is imported (`load`, `load_module`, the
 preview, the CLI), to the first `Timeline` the film builds, so values the
 film derives from its timeline at module level (`T.span('x')`) see them. A
 Timeline built outside a film load sees none. `timeline.edits` holds what
-was applied. The preview reloads when `edits.toml` changes, and its `/info`
+was applied. The preview reloads when the edits file changes, and its `/info`
 gives each segment's `copy` (its `data` strings) and `rollable`, and the
 edits with their path (`null` with no file).
 
 Draw on-screen copy from `Segment.data` (`shot.data`) and it is editable
-this way. `edits.toml` belongs to the film beside it: keep one film per
-directory if you use it.
+this way. Each film has its own edits file, so several films can share a
+directory; a plain `edits.toml` is ignored.
 
 To write edits, use the CLI or `videobuilder.edits.roll(film, segment,
 until)` and `set_copy(film, segment, key, value)`. Each loads the film
@@ -348,7 +349,7 @@ python -m videobuilder edit copy film.py SEGMENT KEY VALUE
 - `film`: `Film`, `Format`, `FORMATS`, `Audio` and `load`.
 - `render`: chunked parallel rendering and the ffmpeg concat and mux.
 - `preview` and `overlay`: the live preview and the timeline overlay.
-- `edits`: direct edits, `edits.toml`: `roll`, `set_copy` and `rollable`.
+- `edits`: direct edits, `<film>.edits.toml`: `roll`, `set_copy` and `rollable`.
 
 ## Known traps
 

@@ -46,7 +46,7 @@ class Cli(unittest.TestCase):
 
 
 class Edit(unittest.TestCase):
-    """`edit roll` and `edit copy` write the film's edits.toml, or refuse and leave it."""
+    """`edit roll` and `edit copy` write the film's film.edits.toml, or refuse and leave it."""
 
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
@@ -55,7 +55,7 @@ class Edit(unittest.TestCase):
             "import videobuilder as vb\n"
             "T = vb.Timeline(vb.Grid(), [vb.Segment('intro', 0, 4, dict(title='Hi')), vb.Segment('body', 4, 8)], end=8)\n"
             "FILM = vb.Film(draw=lambda n, cv: None, timeline=T)\n")
-        self.toml = self.dir / 'edits.toml'
+        self.toml = self.dir / 'film.edits.toml'
 
     def tearDown(self):
         self.tmp.cleanup()

@@ -1,4 +1,4 @@
-"""Direct edits: the edits.toml overlay, its rules, and writing it."""
+"""Direct edits: the <film>.edits.toml overlay, its rules, and writing it."""
 import hashlib
 import os
 import tempfile
@@ -39,7 +39,7 @@ class FilmDir(unittest.TestCase):
         self.dir = Path(self.tmp.name)
         self.film = self.dir / 'film.py'
         self.film.write_text(FILM)
-        self.toml = self.dir / 'edits.toml'
+        self.toml = self.dir / 'film.edits.toml'
 
     def tearDown(self):
         self.tmp.cleanup()
@@ -124,6 +124,25 @@ class Overlay(FilmDir):
     def test_empty_file_and_empty_tables(self):
         self.assertIsNone(self.load('').T.find('intro').data.get('x'))
         self.assertEqual(self.load('[segments.intro]\n[segments.intro.data]\n').T.cut_frames()[1], 60)
+
+    def test_the_edits_file_is_named_for_the_film(self):
+        self.assertEqual(edits.path_for(str(self.film)), str(self.toml))
+        self.assertEqual(edits.path_for('a/b/v2.final.py'), os.path.abspath('a/b/v2.final.edits.toml'))
+
+    def test_a_plain_edits_toml_is_ignored(self):
+        (self.dir / 'edits.toml').write_text('[segments.intro]\nuntil = 6\n')
+        self.assertIsNone(self.load().T.edits)
+
+    def test_two_films_in_one_directory_keep_their_own_edits(self):
+        other = self.dir / 'other.py'
+        other.write_text("import videobuilder as vb\n"
+                         "T = vb.Timeline(vb.Grid(), [vb.Segment('x', 0, 2), vb.Segment('y', 2, 4)], end=4)\n"
+                         "FILM = vb.Film(draw=lambda n, cv: None, timeline=T)\n")
+        edits.roll(str(other), 'x', 1)
+        edits.roll(str(self.film), 'intro', 6)  # would fail if it read other's edits: no segment x
+        self.assertEqual(load_module(str(self.film)).T.find('intro').until, 6)
+        self.assertEqual(load_module(str(other)).T.find('x').until, 1)
+        self.assertEqual(sorted(p.name for p in self.dir.glob('*.toml')), ['film.edits.toml', 'other.edits.toml'])
 
     def test_timeline_outside_a_film_load_sees_no_edits(self):
         self.toml.write_text('[segments.x]\nuntil = 1\n')
@@ -253,7 +272,7 @@ class ExampleFilms(unittest.TestCase):
     """The examples load with no edits, and an edit to one moves its cut on screen."""
 
     def test_examples_have_no_edits(self):
-        self.assertFalse((ROOT / 'examples' / 'edits.toml').exists())
+        self.assertEqual(list((ROOT / 'examples').glob('*.toml')), [])
         for name in ('tour.py', 'benchmark.py'):
             with self.subTest(film=name):
                 self.assertIsNone(load(str(ROOT / 'examples' / name)).timeline.edits)
@@ -263,7 +282,7 @@ class ExampleFilms(unittest.TestCase):
             copy = Path(d, 'tour.py')
             copy.write_text((ROOT / 'examples' / 'tour.py').read_text())
             os.symlink(ROOT / 'examples' / 'assets', Path(d, 'assets'))
-            Path(d, 'edits.toml').write_text('[segments.title]\nuntil = 4\n')
+            Path(d, 'tour.edits.toml').write_text('[segments.title]\nuntil = 4\n')
             edited = load(str(copy))
         film = load(str(ROOT / 'examples' / 'tour.py'))
         self.assertEqual(film.timeline.cut_frames(), [0, 90, 195, 300])

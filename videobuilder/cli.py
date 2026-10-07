@@ -203,7 +203,7 @@ def main(argv=None):
     v.add_argument('--open', action='store_true', help='open a browser')
     v.set_defaults(fn=cmd_preview)
 
-    e = sub.add_parser('edit', help="write a direct edit to the film's edits.toml")
+    e = sub.add_parser('edit', help="write a direct edit to the film's <film>.edits.toml")
     esub = e.add_subparsers(dest='edit', required=True)
     er = esub.add_parser('roll', help='move the cut at the end of a segment (the next one starts there)')
     er.add_argument('film')

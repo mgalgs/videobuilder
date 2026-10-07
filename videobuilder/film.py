@@ -152,7 +152,7 @@ def load_module(path, edits=None):
     layout tables, say) for tools that check a film. Its directory goes on
     sys.path so it can import its neighbours.
 
-    The `edits.toml` beside the film applies to the first Timeline it builds
+    The film's `<stem>.edits.toml` applies to the first Timeline it builds
     (see `videobuilder.edits`); `edits`, an `edits.Edits`, replaces it."""
     path = os.path.abspath(path)
     if edits is None:

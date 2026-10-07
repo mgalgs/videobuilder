@@ -1,5 +1,7 @@
-"""Direct edits: an `edits.toml` beside a film that moves cuts and replaces
-on-screen copy without touching the film's Python.
+"""Direct edits: a `<film>.edits.toml` beside a film (`film.py` ->
+`film.edits.toml`) that moves cuts and replaces on-screen copy without
+touching the film's Python. Each film has its own, so films can share a
+directory; a plain `edits.toml` means nothing.
 
     [segments.intro]
     until = 6.5            # a roll edit, in beats
@@ -25,14 +27,15 @@ import math
 import os
 import tomllib
 
-FILENAME = 'edits.toml'
+SUFFIX = '.edits.toml'
 
 _active = contextvars.ContextVar('videobuilder_edits', default=None)
 
 
 def path_for(film_path):
-    """The `edits.toml` of a film: the one in its directory."""
-    return os.path.join(os.path.dirname(os.path.abspath(film_path)), FILENAME)
+    """The edits file of a film: `<stem>.edits.toml` beside it."""
+    root, _ = os.path.splitext(os.path.abspath(film_path))
+    return root + SUFFIX
 
 
 class Edits:
@@ -294,7 +297,7 @@ def _change(film_path, segment, field, key, value):
 def roll(film_path, segment, until):
     """Move the cut at the end of `segment` to beat `until`, moving its next
     sibling's start with it. Setting the film's own value removes the edit.
-    Raises ValueError, leaving `edits.toml` unchanged, if the film won't load."""
+    Raises ValueError, leaving the edits file unchanged, if the film won't load."""
     if isinstance(until, bool) or not isinstance(until, (int, float)):
         raise ValueError(f'until must be a number of beats, not {until!r}')
     return _change(film_path, segment, 'until', None, until)
@@ -302,8 +305,8 @@ def roll(film_path, segment, until):
 
 def set_copy(film_path, segment, key, value):
     """Replace the string `data[key]` of `segment`. Setting the film's own
-    value removes the edit. Raises ValueError, leaving `edits.toml`
-    unchanged, if the film won't load."""
+    value removes the edit. Raises ValueError, leaving the edits
+    file unchanged, if the film won't load."""
     if not isinstance(value, str):
         raise ValueError(f'copy must be a string, not {value!r}')
     return _change(film_path, segment, 'data', key, value)

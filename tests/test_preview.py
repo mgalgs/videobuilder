@@ -122,7 +122,7 @@ class PreviewServer(unittest.TestCase):
         self.assertIsNone(info['edits'])
         self.assertEqual([(s['name'], s['copy'], s['rollable']) for s in info['timeline']['segments']],
                          [('one', {'title': 'Hi'}, True), ('two', {}, False)])
-        toml = os.path.join(self.tmp.name, 'edits.toml')
+        toml = os.path.join(self.tmp.name, 'film.edits.toml')
         self.write(toml, '[segments.one]\nuntil = 3\n[segments.one.data]\ntitle = "Hello"\n')
         info = json.loads(self.get('/info')[2])
         self.assertIsNone(info['error'])
@@ -132,7 +132,7 @@ class PreviewServer(unittest.TestCase):
         self.assertEqual(info['timeline']['cuts'], [0, 45])
 
     def test_edits_toml_hot_reload(self):
-        toml = os.path.join(self.tmp.name, 'edits.toml')
+        toml = os.path.join(self.tmp.name, 'film.edits.toml')
         v0 = json.loads(self.get('/info')[2])['version']
         self.write(toml, '[segments.one]\nuntil = 1\n')
         info = json.loads(self.get('/info')[2])
