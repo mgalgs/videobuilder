@@ -102,8 +102,16 @@ def resolve(family, weight, files):
     d.set_absolute_size(40 * Pango.SCALE)
     font = fm.load_font(fm.create_context(), d)
     got = font.describe()
-    face = font.get_face()
-    return got.get_family(), face.get_face_name(), int(got.get_weight())
+    # Not font.get_face(): Pango 1.56 aborts the process there for a font added
+    # with add_font_file. describe() carries the weight and style the face has.
+    weight = int(got.get_weight())
+    try:
+        face = Pango.Weight(weight).value_nick.replace('-', ' ').title()
+    except ValueError:
+        face = f'wght {weight}'
+    if got.get_style() != Pango.Style.NORMAL:
+        face += ' ' + got.get_style().value_nick.title()
+    return got.get_family(), face, weight
 
 
 def main(argv=None):
