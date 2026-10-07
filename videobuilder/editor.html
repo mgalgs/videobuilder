@@ -7,6 +7,7 @@
   :root { color-scheme: dark; --bg: #151515; --panel: #1d1d1d; --line: #2e2e2e; --ink: #ddd; --muted: #8a8a8a;
           --accent: #ffb547; --cut: #ff6b6b; --ok: #6bd68a; --warn: #ffcf5a; --err: #ff7a7a; }
   * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
   body { margin: 0; font: 13px/1.4 system-ui, sans-serif; background: var(--bg); color: var(--ink);
          height: 100vh; overflow: hidden; display: grid; grid-template-rows: auto 1fr auto; }
   button, select, textarea, input { font: inherit; color: var(--ink); }
@@ -66,10 +67,9 @@
   #controls { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin-bottom: 8px; }
   .readout { font-variant-numeric: tabular-nums; }
   .readout b { color: #fff; font-weight: 600; }
-  #undo { display: none; }
-  .spacer { margin-left: auto; }
+  .spacer { flex: 1 1 0; min-width: 0; text-align: right; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
-  #tl { position: relative; padding: 0 10px; cursor: pointer; }
+  #tl { position: relative; padding: 18px 10px 0; cursor: pointer; }  /* the top strip holds the drag label */
   #ruler { position: relative; height: 20px; }
   .tick { position: absolute; bottom: 0; width: 1px; height: 4px; background: #666; }
   .tick.bar { height: 8px; background: #aaa; }
@@ -91,12 +91,12 @@
   .handle::before { content: ''; position: absolute; left: 4px; top: 6px; bottom: 6px; width: 4px; border-radius: 2px;
                     background: #ffffff55; }
   .handle:hover::before, .handle.drag::before { background: var(--accent); }
-  .cutline { position: absolute; top: 0; bottom: 0; width: 1px; background: #ff6b6b66; pointer-events: none; z-index: 2; }
-  #playhead { position: absolute; top: 0; bottom: 0; width: 2px; margin-left: -1px; background: #fff; pointer-events: none; z-index: 4; }
+  .cutline { position: absolute; top: 18px; bottom: 0; width: 1px; background: #ff6b6b66; pointer-events: none; z-index: 2; }
+  #playhead { position: absolute; top: 18px; bottom: 0; width: 2px; margin-left: -1px; background: #fff; pointer-events: none; z-index: 4; }
   #playhead::before { content: ''; position: absolute; top: 0; left: -5px; border-left: 6px solid transparent;
                       border-right: 6px solid transparent; border-top: 8px solid #fff; }
-  #ghost { display: none; position: absolute; top: 0; bottom: 0; width: 2px; margin-left: -1px; background: var(--accent); z-index: 5; pointer-events: none; }
-  #ghost span { position: absolute; top: -22px; left: 6px; background: var(--accent); color: #1a1306; font-size: 11px; font-weight: 600;
+  #ghost { display: none; position: absolute; top: 18px; bottom: 0; width: 2px; margin-left: -1px; background: var(--accent); z-index: 5; pointer-events: none; }
+  #ghost span { position: absolute; top: -18px; left: 6px; background: var(--accent); color: #1a1306; font-size: 11px; font-weight: 600;
                 padding: 1px 6px; border-radius: 3px; white-space: nowrap; }
   #ghost.left span { left: auto; right: 6px; }
 
@@ -145,7 +145,7 @@
     <span class="readout">segment <b id="r-seg">–</b></span>
     <label>format <select id="format"></select></label>
     <label>scale <select id="scale"><option value="0.25">¼</option><option value="0.5" selected>½</option><option value="1">1</option></select></label>
-    <button id="undo"></button>
+    <button id="undo" hidden></button>
     <span class="spacer muted">space play · ←/→ frame · shift ←/→ beat · [ ] segment · n note · drag a ▮ handle to move a cut</span>
   </div>
   <div id="tl">
@@ -233,8 +233,8 @@ function showLanding(on) {
   $('landing').style.display = on ? 'block' : 'none';
   $('video').style.display = on && !video ? 'none' : '';
 }
-async function openVideo(id, wantFormat) {
-  if (id !== video) { selected = null; if (video) frame = 0; }
+async function openVideo(id, wantFormat, wantFrame) {
+  if (id !== video) { selected = null; if (video) frame = wantFrame || 0; }
   video = id;
   $('video').value = id;
   showLanding(false);
@@ -277,7 +277,7 @@ function gitBadge() {
 }
 function undoButton() {
   const u = info.undo, b = $('undo');
-  b.style.display = u ? '' : 'none';
+  b.hidden = !u;
   if (!u) return;
   b.textContent = u.op === 'roll' ? `↶ undo: ${u.segment}'s cut back to beat ${fmtBeat(u.value)}`
                                   : `↶ undo: ${u.segment}.${u.key} copy`;
@@ -679,6 +679,12 @@ document.addEventListener('keydown', e => {
 
 const start = readHash();
 loadProject(start).catch(e => showError(String(e)));
+window.addEventListener('hashchange', () => {  // a pasted link to another video or frame
+  const want = readHash();
+  if (want.video && want.video !== video && project && project.videos.some(v => v.id === want.video))
+    openVideo(want.video, want.format, frame);
+  else go(frame);
+});
 setInterval(() => { if (!drag && !busy) refresh(); }, 600);  // hot reload: `version` bumps when the film changes
 setInterval(loadNotes, 4000);  // a backend may move notes along
 </script>
