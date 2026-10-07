@@ -132,9 +132,23 @@ def default_sheet_frames(film, every=None):
     return sorted(p for p in picks if 0 <= p < film.frames)
 
 
+def cut_sheet_frames(film, count=3):
+    """First `count` frames at each hard cut, including frame zero."""
+    if count < 1:
+        raise ValueError('cut frame count must be positive')
+    if film.timeline is None:
+        raise ValueError('--cuts requires a timeline')
+    return sorted({n for c in film.timeline.cut_frames()
+                   for n in range(c, min(c + count, film.frames))})
+
+
 def cmd_sheet(a):
     film = load(a.film)
-    frames = [int(x) for x in a.frames.split(',')] if a.frames else default_sheet_frames(film, a.every)
+    try:
+        frames = (cut_sheet_frames(film, a.cuts) if a.cuts is not None else
+                  [int(x) for x in a.frames.split(',')] if a.frames else default_sheet_frames(film, a.every))
+    except ValueError as e:
+        raise SystemExit(str(e)) from None
     for fmt in _formats(film, a.format):
         out = a.out or f'{_stem(a.film)}-{fmt.name}-sheet.png'
         if a.format == 'all' and a.out:
@@ -197,8 +211,11 @@ def main(argv=None):
     c = sub.add_parser('sheet', help="a contact sheet of frames (default: the film's keyframes, or in/middle/out of each segment)")
     c.add_argument('film')
     c.add_argument('--format')
-    c.add_argument('--frames', help='comma-separated frame numbers')
-    c.add_argument('--every', type=int, help='every N frames')
+    picks = c.add_mutually_exclusive_group()
+    picks.add_argument('--cuts', nargs='?', const=3, type=int, metavar='N',
+                       help='first N frames at each hard cut, including frame zero (default 3)')
+    picks.add_argument('--frames', help='comma-separated frame numbers')
+    picks.add_argument('--every', type=int, help='every N frames')
     c.add_argument('--cols', type=int, help='default: 6 for portrait formats, else 4')
     c.add_argument('--width', type=int, help='thumbnail width, px (default: 360 for portrait formats, else 480)')
     c.add_argument('--overlay', action='store_true')

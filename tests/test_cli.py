@@ -38,6 +38,28 @@ class Cli(unittest.TestCase):
         self.assertEqual(w, 4 * 108 + 8)  # 4 segments x (in, middle, out) = 12 thumbs, 3 rows
         self.assertEqual(h, 3 * (100 + 22 + 8) + 8)
 
+    def test_cut_sheet_frames(self):
+        import videobuilder as vb
+        from videobuilder.cli import cut_sheet_frames
+        t = vb.Timeline(vb.Grid(fps=2, bpm=120), [
+            vb.Segment('a', 0, 2), vb.Segment('b', 2, 4),
+            vb.Segment('c', 4, 6, overlap=1)], end=6)
+        film = vb.Film(draw=lambda n, cv: None, timeline=t, keyframes=[5])
+        self.assertEqual(cut_sheet_frames(film), [0, 1, 2, 3, 4])
+        self.assertEqual(cut_sheet_frames(film, 20), list(range(6)))
+        with self.assertRaises(ValueError):
+            cut_sheet_frames(film, 0)
+        with self.assertRaises(ValueError):
+            cut_sheet_frames(vb.Film(draw=lambda n, cv: None, frames=10))
+
+    def test_cuts_cli_all_formats(self):
+        with tempfile.TemporaryDirectory() as d:
+            run('sheet', FILM, '--cuts', '--format', 'all', '--width', '40', cwd=d)
+            self.assertEqual(len(list(Path(d).glob('*.png'))), 3)
+            run('sheet', FILM, '--cuts', '1', '--width', '40', cwd=d)
+            with self.assertRaises(subprocess.CalledProcessError):
+                run('sheet', FILM, '--cuts', '--every', '3', cwd=d)
+
     def test_bad_format(self):
         with tempfile.TemporaryDirectory() as d:
             with self.assertRaises(subprocess.CalledProcessError) as e:

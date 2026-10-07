@@ -157,7 +157,7 @@ if __name__ == '__main__':
 ```
 python film.py render  [--format F|all] [--jobs N] [--out FILE] [--frames a:b]
 python film.py still   FRAME [FRAME ...] [--format F|all] [--out PATH] [--overlay] [--scale S]
-python film.py sheet   [--format F|all] [--every N | --frames a,b,c] [--cols C] [--width W]
+python film.py sheet   [--format F|all] [--every N | --frames a,b,c | --cuts [N]] [--cols C] [--width W]
 python film.py preview [--port 8000] [--open]
 ```
 

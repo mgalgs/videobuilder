@@ -373,7 +373,9 @@ The HTTP API (`/api/project`, `/api/info`, `/api/frame`, `/api/roll`,
    Tiles default to 360 px, 6 across, for portrait formats and 480 px, 4
    across, for the rest, so `--format all` gives each format a sheet that
    reads; `--width` and `--cols` override both. Use `--every N` or
-   `--frames a,b,c` to choose others. From Python,
+   `--frames a,b,c` to choose others. `--cuts [N]` shows the first N frames
+   at each hard cut, including frame zero (default 3); combine with
+   `--format all` to review every format. From Python,
    `cli.contact_sheet(film, frames, fmt, decorate=fn)` calls `fn(canvas, n)`
    on each frame so a check can draw over it (its marks, a safe area).
    Check the cuts and text here before you render.
@@ -386,7 +388,7 @@ The HTTP API (`/api/project`, `/api/info`, `/api/frame`, `/api/roll`,
 ```
 python -m videobuilder render  film.py [--format 9x16|16x9|1x1|all] [--jobs N] [--out FILE] [--frames a:b] [--stall S]
 python -m videobuilder still   film.py FRAME [FRAME ...] [--format F|all] [--out PATH] [--overlay] [--scale S]
-python -m videobuilder sheet   film.py [--format F|all] [--every N | --frames a,b,c] [--cols C] [--width W]
+python -m videobuilder sheet   film.py [--format F|all] [--every N | --frames a,b,c | --cuts [N]] [--cols C] [--width W]
 python -m videobuilder preview film.py [--host 127.0.0.1] [--port 8000] [--open]
 python -m videobuilder edit roll film.py SEGMENT UNTIL
 python -m videobuilder edit copy film.py SEGMENT KEY VALUE

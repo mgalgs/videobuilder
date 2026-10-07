@@ -31,6 +31,7 @@ Read each sheet PNG (and `sheet --every 10` for motion):
 - [ ] No text clipped by the frame or a box, no line too long or too short
   for its width, no widow word on a line of its own when it could balance.
 - [ ] Nothing overlaps that shouldn't, including during transitions.
+- [ ] A mark proves a box is there, not that anything is in it: look at the first frames after each cut with `sheet --cuts --format all`.
 - [ ] No empty frame that isn't meant to be, and none on a cut.
 - [ ] Each format uses its frame: no large empty region the layout didn't
   intend (in 9:16, content bunched at the top of a tall safe area).
