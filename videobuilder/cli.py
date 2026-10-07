@@ -32,7 +32,7 @@ def cmd_render(a):
         if len(fmts) > 1 and a.out:
             root, ext = os.path.splitext(a.out)
             out = f'{root}-{fmt.name}{ext or ".mp4"}'
-        render(film, out, fmt, jobs=a.jobs, chunk=a.chunk, crf=a.crf, frames=frames)
+        render(film, out, fmt, jobs=a.jobs, chunk=a.chunk, crf=a.crf, frames=frames, stall=a.stall)
 
 
 def _still(film, n, fmt, overlay=False, scale=1.0):
@@ -158,6 +158,8 @@ def main(argv=None):
     r.add_argument('--frames', help='a:b, half-open, to render part of the film')
     r.add_argument('--chunk', type=int, default=15, help='frames per encoded chunk')
     r.add_argument('--crf', type=int, default=18, help='x264 quality (lower is better)')
+    r.add_argument('--stall', type=float, default=600,
+                   help='give up when no chunk finishes for this many seconds (default 600)')
     r.set_defaults(fn=cmd_render)
 
     s = sub.add_parser('still', help='render frames to PNG')

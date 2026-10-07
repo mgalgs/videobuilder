@@ -42,8 +42,10 @@ def _encode_chunk(args):
     return a, z
 
 
-def render(film, out, format=None, jobs=None, chunk=15, crf=18, frames=None, log=sys.stderr):
-    """Render `film` (a Film or a film file path) in `format` to the MP4 `out`."""
+def render(film, out, format=None, jobs=None, chunk=15, crf=18, frames=None, log=sys.stderr, stall=600):
+    """Render `film` (a Film or a film file path) in `format` to the MP4 `out`.
+    `stall`: seconds to wait for the next chunk before giving up with an error
+    that names the chunks still pending (a worker stuck in `draw`, say)."""
     if isinstance(film, (str, os.PathLike)):
         film = load(film)
     fmt = film.format(format)
@@ -65,8 +67,16 @@ def render(film, out, format=None, jobs=None, chunk=15, crf=18, frames=None, log
         t_warm = time.time() - t0
         ctx = mp.get_context('fork')
         with ctx.Pool(jobs) as pool:
-            done = 0
-            for _ in pool.imap_unordered(_encode_chunk, tasks):
+            done, pending = 0, {t[0]: t[1] for t in tasks}
+            results = pool.imap_unordered(_encode_chunk, tasks)
+            for _ in tasks:
+                try:
+                    first, _ = results.next(timeout=stall)
+                except mp.TimeoutError:
+                    stuck = ', '.join(f'{p}-{e - 1}' for p, e in sorted(pending.items()))
+                    raise RuntimeError(f'render stalled: no chunk finished in {stall:g} s; frames still pending: '
+                                       f'{stuck}. Try `still` on one of them to see where draw hangs.') from None
+                del pending[first]
                 done += 1
                 print(f'\r{fmt.name}: chunks {done}/{len(tasks)}', end='', file=log, flush=True)
         print(file=log)

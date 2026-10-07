@@ -4,6 +4,7 @@ Lines follow the CSS line-box model, so a block laid out here lands where a
 browser would put it: each line is `line_height` tall and the glyphs' content
 area (ascent + descent) is centred in it.
 """
+import os
 from dataclasses import dataclass
 from functools import lru_cache
 
@@ -20,10 +21,30 @@ from .layout import Box, _edges  # noqa: E402
 S = Pango.SCALE
 
 
+_registered = []  # font files added with `register`, for a forked child's font map
+_stale = []  # font maps replaced after a fork, kept so they're never finalized
+
+
 def register(path):
     """Make a font file available by its family name (no system install)."""
     if not PangoCairo.FontMap.get_default().add_font_file(str(path)):
         raise RuntimeError(f'could not load font {path}')
+    _registered.append(str(path))
+
+
+def _fresh_font_map():
+    """After a fork, give the child its own font map. Pango's font map loads
+    fonts on a worker thread, and a forked child has no copy of that thread:
+    the child's first new font load (a size it hasn't drawn yet, say text in
+    a scaled layer) would wait on it forever."""
+    _stale.append(PangoCairo.FontMap.get_default())
+    fm = PangoCairo.FontMap.new()
+    PangoCairo.FontMap.set_default(fm)
+    for path in _registered:
+        fm.add_font_file(path)
+
+
+os.register_at_fork(after_in_child=_fresh_font_map)
 
 
 _WEIGHTS = sorted(int(w) for w in Pango.Weight.__enum_values__.values())

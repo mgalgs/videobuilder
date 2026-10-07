@@ -55,6 +55,34 @@ class RenderJoins(unittest.TestCase):
         self.assertAlmostEqual(float(facts['duration']), 50 / 30, places=3)
 
 
+@unittest.skipUnless(shutil.which('ffmpeg'), 'needs ffmpeg')
+class ForkedWorkers(unittest.TestCase):
+    def test_text_at_new_sizes_in_workers(self):
+        # Pango loads fonts on a thread a forked worker doesn't inherit: text at a
+        # size the parent never drew (a scaled layer) hung every worker.
+        from videobuilder import Font, text
+
+        def draw(n, cv):
+            s = 0.3 + 0.7 * n / 30
+            with cv.layer(dx=540 * (1 - s), dy=540 * (1 - s), scale=s):
+                text.draw(cv, f'Scaled {n}', Font('Sans', 80, 700), 100, 500, '#ffffff')
+        film = Film(draw=draw, fps=30, frames=30, formats=['1x1'])
+        with tempfile.TemporaryDirectory() as tmp, open(os.devnull, 'w') as quiet:
+            render(film, os.path.join(tmp, 'x.mp4'), jobs=2, chunk=15, log=quiet, stall=60)
+
+    def test_a_stalled_worker_is_an_error(self):
+        import time
+        parent = os.getpid()
+
+        def draw(n, cv):
+            if os.getpid() != parent and n == 20:
+                time.sleep(30)
+        film = Film(draw=draw, fps=30, frames=30, formats=['1x1'])
+        with tempfile.TemporaryDirectory() as tmp, open(os.devnull, 'w') as quiet:
+            with self.assertRaisesRegex(RuntimeError, 'frames still pending: 15-29'):
+                render(film, os.path.join(tmp, 'x.mp4'), jobs=2, chunk=15, log=quiet, stall=3)
+
+
 class AudioTrim(unittest.TestCase):
     def test_trim_defaults_to_the_grid(self):
         tl = Timeline(Grid(fps=30, bpm=120, head_trim=8), [Segment('a', 0, 2)], end=2)

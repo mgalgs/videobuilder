@@ -234,10 +234,12 @@ frames round half up.
    on each frame so a check can draw over it (its marks, a safe area).
    Check the cuts and text here before you render.
 3. **Render.** `render film.py --format all [--jobs N] [--out film.mp4]`
-   writes H.264/AAC MP4s. Check them with ffprobe.
+   writes H.264/AAC MP4s. Check them with ffprobe. If no chunk finishes
+   for `--stall` seconds (default 600), the render stops with an error
+   naming the frames still pending, rather than waiting forever.
 
 ```
-python -m videobuilder render  film.py [--format 9x16|16x9|1x1|all] [--jobs N] [--out FILE] [--frames a:b]
+python -m videobuilder render  film.py [--format 9x16|16x9|1x1|all] [--jobs N] [--out FILE] [--frames a:b] [--stall S]
 python -m videobuilder still   film.py FRAME [FRAME ...] [--format F|all] [--out PATH] [--overlay] [--scale S]
 python -m videobuilder sheet   film.py [--format F|all] [--every N | --frames a,b,c] [--cols C] [--width W]
 python -m videobuilder preview film.py [--host 127.0.0.1] [--port 8000] [--open]
@@ -290,6 +292,11 @@ videobuilder handles each of these, but you should know about them:
   so chunks whose length isn't a whole number of µs (20 frames at 30 fps)
   drift at every join. The renderer rejects such chunk sizes. The default,
   15, is safe at 24/25/30/60 fps.
+- **Pango after fork.** Pango loads fonts on a worker thread, and the
+  renderer's forked workers don't inherit it, so a worker's first new font
+  load (text at a size the parent hadn't drawn, as in a scaled layer) hung.
+  Each forked worker now gets its own font map, with the `text.register`ed
+  fonts added again.
 - **Letter-spacing.** CSS adds letter-spacing after the last letter too, and
   Pango doesn't, so a tracked line here is one spacing narrower than in a
   browser, and centred lines sit half a spacing off. When matching a browser
