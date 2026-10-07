@@ -18,7 +18,7 @@ def manifest(paths):
         for fmt in film.formats:
             for n in PICKS[path.stem]:
                 output = io.BytesIO()
-                film.frame(n, fmt, scale=.25).surface.write_to_png(output)
+                film.frame(n, fmt).surface.write_to_png(output)
                 digest = hashlib.sha256(output.getvalue()).hexdigest()
                 lines.append(f'{digest}  {path.stem}/{fmt.name}/{n}\n')
     return ''.join(lines)
