@@ -51,7 +51,7 @@ class ForgeSync:
         git(self.root, 'update-ref', backup, local)
         result = git(self.root, 'rebase', self.upstream, check=False)
         if result.returncode:
-            diff = git(self.root, 'diff', '--binary', remote, backup)
+            diff = git(self.root, 'diff', '--binary', base, backup)
             git(self.root, 'rebase', '--abort')
             git(self.root, 'reset', '--hard', remote)
             raise ValueError(f'main rebase conflicted; main reset to {self.remote}/main. '

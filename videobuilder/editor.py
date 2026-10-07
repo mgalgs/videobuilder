@@ -106,6 +106,7 @@ class Editor:
         self.lock = threading.RLock()
         remote = sync_remote if sync_remote is not None else cfg.get("sync_remote")
         self.sync = ForgeSync(self.root, remote) if remote else None
+        self.sync_error = None
         self.unsandboxed_previews = bool(unsandboxed_previews or cfg.get('unsandboxed_previews', False))
         self.envs = Environments(self.state_dir, envs or cfg.get('envs', 'pinned'), env_builder)
         self.pool = Pool(self.envs, self.unsandboxed_previews)
@@ -129,10 +130,21 @@ class Editor:
             self.pool.unsandboxed = self.unsandboxed_previews
             return self.pool.get(vid, self.root, video.path, self.root)
 
-    def project_info(self):
-        if self.sync:
+    def refresh(self, force=False):
+        """Fetch from the forge if due; a failure is reported, never raised, so an
+        unreachable forge degrades to a stale view rather than a broken page."""
+        if not self.sync:
+            return
+        try:
             with self.lock:
-                self.sync.refresh(force=True)
+                self.sync.refresh(force=force)
+            self.sync_error = None
+        except ValueError as exc:
+            self.sync_error = str(exc)
+            print(f'[editor] forge sync: {exc}', file=sys.stderr, flush=True)
+
+    def project_info(self):
+        self.refresh(force=True)
         try:
             videos = [{**v.to_json(self.root), **self.envs.describe(v.path, self.root)}
                       for v in self.project.videos()]
@@ -140,12 +152,11 @@ class Editor:
         except ValueError as e:
             videos, error = [], str(e)
         return {'name': os.path.basename(self.root), 'root': self.root, 'git': self.project.git is not None,
-                'backend': self.notes.backend.name, 'state_dir': self.state_dir, 'videos': videos, 'error': error}
+                'backend': self.notes.backend.name, 'state_dir': self.state_dir, 'videos': videos, 'error': error,
+                'sync_error': self.sync_error}
 
     def info(self, vid):
-        if self.sync:
-            with self.lock:
-                self.sync.refresh(force=True)
+        self.refresh()
         s = self.session(vid)
         out = s.request('info')
         out.update(video=vid, edits_file=os.path.relpath(edits.path_for(s.film), self.root),
@@ -377,11 +388,7 @@ def serve(root, host='127.0.0.1', port=8100, state_dir=None, open_browser=False,
     if editor.sync:
         def periodic_sync():
             while not stop_sync.wait(editor.sync.interval):
-                try:
-                    with editor.lock:
-                        editor.sync.refresh()
-                except ValueError as exc:
-                    print(f'[editor] forge sync: {exc}', file=sys.stderr, flush=True)
+                editor.refresh()
         threading.Thread(target=periodic_sync, daemon=True).start()
     url = f'http://{host}:{httpd.server_address[1]}/'
     videos = editor.project_info()['videos']

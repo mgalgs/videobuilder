@@ -7,6 +7,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 from videobuilder.agents import ForkSandboxBackend, source_pin
+from videobuilder.editor import Editor
 from videobuilder.sync import ForgeSync, git
 from tests.test_project import FILM
 
@@ -66,8 +67,19 @@ class Sync(unittest.TestCase):
         b.after_commit()
         with self.assertRaisesRegex(ValueError, 'rescue-.*Diff:') as error:
             a.before_commit()
-        self.assertIn('# local', str(error.exception))
+        self.assertIn('+# local', str(error.exception))
+        self.assertNotIn('# remote', str(error.exception))  # only the local side, from the merge base
         self.assertEqual(call(self.a, 'rev-parse', 'main'), call(self.remote, 'rev-parse', 'main'))
+
+    def test_unreachable_forge_leaves_the_page_working(self):
+        editor = Editor(self.a, state_dir=Path(self.tmp.name) / 'state', envs='current', sync_remote='origin')
+        self.addCleanup(editor.pool.close)
+        call(self.a, 'remote', 'set-url', 'origin', str(Path(self.tmp.name) / 'gone.git'))
+        info = editor.project_info()
+        self.assertEqual(len(info['videos']), 2)
+        self.assertIn('gone.git', info['sync_error'])
+        call(self.a, 'remote', 'set-url', 'origin', str(self.remote))
+        self.assertIsNone(editor.project_info()['sync_error'])
 
 
 class AgentSource(unittest.TestCase):
