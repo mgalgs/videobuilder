@@ -281,6 +281,81 @@ segment's own value removes its entry, and the file goes when it's empty:
     python -m videobuilder edit roll film.py intro 6.5
     python -m videobuilder edit copy film.py intro title 'New copy'
 
+## The editor (`python -m videobuilder editor`)
+
+A web editor for people who review a video and change it without writing
+Python. It runs on your machine, against a *project*: a directory, usually
+a git repo, holding one or more videos, each a film file in a directory of
+its own.
+
+    python -m videobuilder editor path/to/project [--port 8100] [--host 127.0.0.1] [--state-dir DIR]
+
+Open `http://127.0.0.1:8100/` and pick a video. The page has:
+
+- **A preview** of the frame at the playhead, at ¼, ½ or full scale, with
+  play and pause at the film's fps (frames are dropped when drawing falls
+  behind) and a switch for each of the film's formats.
+- **A timeline**: a beat ruler, the segments as blocks, groups above them,
+  red cut markers and a playhead. Press or drag anywhere on it to seek;
+  ←/→ step a frame, shift+←/→ a beat, `[`/`]` jump between segments, space
+  plays.
+- **Rolling a cut.** A segment whose end can move (`rollable` in `/info`)
+  has a handle on its right edge. Drag it: the label shows the target beat
+  and frame, snapped to the half-beat grid. Let go and the edit is written
+  and committed; if it breaks a rule, the error shows and the cut snaps
+  back. The undo button reverses the last edit, as one more edit and commit.
+- **Copy.** Click a segment, or a group, to list its `data` strings in the
+  side panel. Edit one and save (ctrl+enter): one edit, one commit.
+- **Notes.** Press `n` (or "+ Note at playhead"), type, and pin it. A note
+  keeps its video, format, frame, segment and a PNG of the frame, and the
+  list beside the preview seeks to it when clicked. For now notes stay in
+  the editor: they are queued for an agent that a later version will run.
+
+**Finding videos.** If the project has a `videobuilder.toml` listing them,
+exactly those:
+
+```toml
+[editor]
+videos = ["launch/film.py", "promo/promo.py"]   # relative to the project
+state_dir = ".vb-editor"                        # optional
+```
+
+Otherwise, every `*.py` file under the project that assigns a module-level
+`FILM` and mentions `Timeline`, found by reading the source (nothing is run
+until you open the video). Dot-directories and `tests`, `test`, `vendor`,
+`node_modules`, `__pycache__`, `build`, `dist`, `venv` and `site-packages`
+are skipped. A video's id is its path without `.py` (`launch/film`).
+
+**Git.** Each direct edit is one commit in the project's repo that touches
+only that film's edits file (`git commit -- launch/film.edits.toml`), with
+the author from your git config and a message like
+`edit(launch/film): roll intro to beat 6.5` or
+`edit(launch/film): copy intro.title`. Nothing else is staged, and nothing is
+pushed. If the project isn't in a git repo, or the edits file already has
+uncommitted changes, the edit is still written, but not committed; the
+editor says so in its header and after the edit.
+
+**Notes and agents.** Notes live in the editor's state directory,
+`<project>/.vb-editor/` by default (`--state-dir`, or `state_dir` in
+`videobuilder.toml`), which git-ignores itself. Each note goes to an
+`AgentBackend` (`videobuilder.notes`), with two calls: `submit(note)`
+returns a handle, and `poll(handle)` returns an `AgentStatus`, made of a
+`state` (`queued`, `working`, `replied` or `failed`), the agent's `reply`,
+and a draft `branch`. The editor polls notes that are still in flight
+whenever it lists them. Only `NullBackend` ships, and it leaves every note
+`queued`.
+
+**Trust.** The editor runs each film's Python, as the preview does. Use it
+on repos you trust, on a network you trust. It binds to 127.0.0.1 unless
+told otherwise, and it has no login. `videobuilder.editor.request_hook` is
+where a check of a reverse proxy's identity header belongs (the identity
+it returns becomes a note's author). Edits must be JSON POSTs from the
+page's own origin, so another site can't make edits through your browser.
+
+The HTTP API (`/api/project`, `/api/info`, `/api/frame`, `/api/roll`,
+`/api/copy`, `/api/undo`, `/api/notes`) is listed in
+`videobuilder/editor.py`.
+
 ## The authoring loop
 
 1. **Preview.** `python -m videobuilder preview film.py` serves a page with
@@ -315,6 +390,7 @@ python -m videobuilder sheet   film.py [--format F|all] [--every N | --frames a,
 python -m videobuilder preview film.py [--host 127.0.0.1] [--port 8000] [--open]
 python -m videobuilder edit roll film.py SEGMENT UNTIL
 python -m videobuilder edit copy film.py SEGMENT KEY VALUE
+python -m videobuilder editor PROJECT-DIR [--host 127.0.0.1] [--port 8100] [--state-dir DIR] [--open]
 ```
 
 ## Modules
@@ -349,6 +425,8 @@ python -m videobuilder edit copy film.py SEGMENT KEY VALUE
 - `film`: `Film`, `Format`, `FORMATS`, `Audio` and `load`.
 - `render`: chunked parallel rendering and the ffmpeg concat and mux.
 - `preview` and `overlay`: the live preview and the timeline overlay.
+- `editor`, `project` and `notes`: the editor, finding a project's videos and
+  committing edits, and review notes with their `AgentBackend`.
 - `edits`: direct edits, `<film>.edits.toml`: `roll`, `set_copy` and `rollable`.
 
 ## Known traps
@@ -380,8 +458,8 @@ videobuilder handles each of these, but you should know about them:
     python -m unittest
 
 These cover easing (including Remotion-parity springs), timeline rounding,
-the chunk guard, layout, film loading, direct edits, the CLI and the
-preview server. Golden stills of the example films are compared by PSNR, since text
+the chunk guard, layout, film loading, direct edits, the CLI, the
+preview server and the editor (in temporary git repos). Golden stills of the example films are compared by PSNR, since text
 rasterisation varies a little between FreeType and Pango versions. After a
 deliberate visual change, refresh them with
 `VIDEOBUILDER_UPDATE_GOLDEN=1 python -m unittest tests.test_golden`, and

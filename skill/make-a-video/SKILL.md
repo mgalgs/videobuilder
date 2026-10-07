@@ -122,10 +122,13 @@ layout, images, views) with the traps each part hides.
 | render | `PYTHONPATH=$VB python film.py render --format all` | the MP4s, once sheets and checks are clean. Seconds to a minute for a short film; if it stops with "render stalled", `still` one of the frames it names |
 
 You can't watch the preview yourself: work from sheets and stills (read the
-PNGs), and offer the preview command to the user. `sheet --every 5` or
-`--frames a,b,c` show motion. `FILM.keyframes`, when set, *replace* the
-sheet's default in/middle/out frames: list those too
-(`$VB/examples/benchmark.py`'s `_keyframes()` does).
+PNGs), and offer the preview command to the user. When a human reviews the
+video, they can do it in the editor (`python -m videobuilder editor
+<project-dir>`, see `$VB/README.md`): it moves cuts and changes
+`Segment.data` copy as git commits to the film's edits file, and keeps
+their notes. `sheet --every 5` or `--frames a,b,c` show motion.
+`FILM.keyframes`, when set, *replace* the sheet's default in/middle/out
+frames: list those too (`$VB/examples/benchmark.py`'s `_keyframes()` does).
 
 **Cuts must land on something.** A hard cut reads on the beat only if the
 new segment's first frame shows it: start entrances a few frames in (the
