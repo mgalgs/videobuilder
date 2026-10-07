@@ -111,7 +111,7 @@ class PreviewServer(unittest.TestCase):
         tl = info['timeline']
         self.assertEqual([(s['name'], s['group'], s['overlap_end']) for s in tl['segments']],
                          [('one', 'g', None), ('one b', 'g', None), ('two', None, 45)])
-        self.assertEqual(tl['groups'], [{'name': 'g', 'start': 0, 'end': 30, 'depth': 0}])
+        self.assertEqual(tl['groups'], [{'name': 'g', 'start': 0, 'end': 30, 'depth': 0, 'copy': {}}])
         self.assertEqual(tl['cuts'], [0, 15])
         status, ctype, body = self.get('/frame?frame=35&format=1x1&scale=0.25&overlay=1')  # overlay draws them
         self.assertEqual(status, 200)

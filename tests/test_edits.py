@@ -279,9 +279,10 @@ class ExampleFilms(unittest.TestCase):
 
     def test_a_roll_moves_the_tours_first_cut(self):
         with tempfile.TemporaryDirectory() as d:
+            # A symlink, not a copy: the film finds its assets (and registers its
+            # fonts) through its resolved path, which outlives this directory.
             copy = Path(d, 'tour.py')
-            copy.write_text((ROOT / 'examples' / 'tour.py').read_text())
-            os.symlink(ROOT / 'examples' / 'assets', Path(d, 'assets'))
+            os.symlink(ROOT / 'examples' / 'tour.py', copy)
             Path(d, 'tour.edits.toml').write_text('[segments.title]\nuntil = 4\n')
             edited = load(str(copy))
         film = load(str(ROOT / 'examples' / 'tour.py'))
@@ -292,6 +293,20 @@ class ExampleFilms(unittest.TestCase):
         self.assertNotEqual(digest(edited, 75, '16x9'), digest(film, 75, '16x9'))
         for n in (30, 200, 330):  # before the moved cut, and after the next one: untouched
             self.assertEqual(digest(edited, n, '16x9'), digest(film, n, '16x9'), n)
+
+    def test_copy_edits_show_in_the_benchmark(self):
+        with tempfile.TemporaryDirectory() as d:
+            copy = Path(d, 'benchmark.py')
+            os.symlink(ROOT / 'examples' / 'benchmark.py', copy)  # as above
+            edits.set_copy(str(copy), 'hook', 'question', 'How quick?')
+            edits.set_copy(str(copy), 'chart', 'title', 'Parse time, 1 GB')  # a group's copy
+            edited = load(str(copy))
+        film = load(str(ROOT / 'examples' / 'benchmark.py'))
+        self.assertEqual(sorted(edited.timeline.edits.segments), ['chart', 'hook'])
+        for n in (60, 200, 330):  # the hook, the bars and the verdict, under the chart's title
+            self.assertNotEqual(digest(edited, n, '16x9'), digest(film, n, '16x9'), n)
+        self.assertEqual(digest(edited, 500, '16x9'), digest(film, 500, '16x9'))  # the end card: untouched
+
 
 
 if __name__ == '__main__':

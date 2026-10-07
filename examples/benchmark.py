@@ -48,29 +48,35 @@ FPB = GRID.frames_per_beat
 
 
 # ---- the storyboard ----
-def card(name, beats, copy='', overlap=0, **data):
-    return dict(name=name, beats=beats, copy=copy, overlap=overlap, data=data, children=())
+# Each line of on-screen copy is a named string in the segment's data, and the
+# scenes draw it from `shot.data` (the chart's title from its group's), so a
+# direct edit (benchmark.edits.toml) can replace it. check.py times a segment
+# by all of its strings.
+def card(name, beats, overlap=0, **copy):
+    return dict(name=name, beats=beats, overlap=overlap, data=copy, children=())
 
 
-def group(name, *cards):
-    return dict(name=name, beats=sum(c['beats'] for c in cards), copy='', overlap=0, data={}, children=cards)
+def group(name, *cards, **copy):
+    return dict(name=name, beats=sum(c['beats'] for c in cards), overlap=0, data=copy, children=cards)
 
 
 def segments(at, items):
     out = []
     for c in items:
-        out.append(vb.Segment(c['name'], at, at + c['beats'], dict(copy=c['copy'], **c['data']),
+        out.append(vb.Segment(c['name'], at, at + c['beats'], dict(c['data']),
                               children=segments(at, c['children']), overlap=c['overlap']))
         at += c['beats']
     return out
 
 
+URL = 'github.com/lumen-json/lumen'  # PLACEHOLDER: Lumen is invented
 STORYBOARD = [
-    card('hook', 8, '1 GB of JSON. How fast?'),
+    card('hook', 8, headline='1 GB of JSON.', question='How fast?'),
     group('chart',
-          card('bars', 12, 'Time to parse 1 GB of JSON. Same machine, lower is better.'),
-          card('verdict', 8, '2.4× faster than the next best')),
-    card('end', 12, 'Lumen. The open-source JSON parser. github.com/lumen-json/lumen', overlap=1),
+          card('bars', 12, note='Same machine.\nLower is better.'),
+          card('verdict', 8, callout='2.4× faster', callout_sub='than the next best'),
+          title='Time to parse 1 GB of JSON'),  # the chart's title, over both
+    card('end', 12, overlap=1, wordmark='Lumen', tagline='The open-source JSON parser', url=URL),
 ]
 END = sum(c['beats'] for c in STORYBOARD)
 TIMELINE = vb.Timeline(GRID, segments(0, STORYBOARD), end=END)
@@ -85,7 +91,6 @@ BARS = [
 ]
 AXIS_MAX = 12.0
 TICKS = (0, 4, 8, 12)
-URL = 'github.com/lumen-json/lumen'  # PLACEHOLDER: Lumen is invented
 
 # ---- look (chosen for this film) ----
 BG = '#0d1117'
@@ -191,8 +196,8 @@ def hook(cv, shot, L):
     json_backdrop(cv, shot.f, out)
     with cv.layer(opacity=out):
         f1 = font(L['hook'], 800, line_height=1.0, tracking=-0.02)
-        l1 = text.wrap('1 GB of JSON.', f1, safe.w)
-        l2 = text.wrap('How fast?', f1, safe.w)
+        l1 = text.wrap(shot.data['headline'], f1, safe.w)
+        l2 = text.wrap(shot.data['question'], f1, safe.w)
         h = text.block_size(l1, f1)[1] + text.block_size(l2, f1)[1] + L['gap'] * 0.5
         top = safe.cy - h / 2
         a = appear(shot.f)
@@ -217,11 +222,11 @@ def chart(cv, shot, L):
     dim = vb.interpolate(vf, [0, 10], [1, 0.35], ease=EASE_OUT) if verdict else 1.0
 
     # title and note (the note swaps to the callout on the verdict cut)
-    copy_block(cv, g, 'Time to parse 1 GB of JSON', font(L['h1'], 750, line_height=1.08, tracking=-0.01),
+    copy_block(cv, g, shot.group.data['title'], font(L['h1'], 750, line_height=1.08, tracking=-0.01),
                L['title'], INK, 'title', align='left' if L['orient'] == 'v' else 'center',
                valign='bottom' if L['orient'] == 'v' else 'center')
     if not verdict:
-        copy_block(cv, g, 'Same machine.\nLower is better.', font(L['sub'], 450, line_height=1.3), L['note'], MUTED,
+        copy_block(cv, g, shot.data['note'], font(L['sub'], 450, line_height=1.3), L['note'], MUTED,
                    'note', align='left' if L['orient'] == 'v' else 'center',
                    valign='top' if L['orient'] == 'v' else 'center', delay=6)
     else:
@@ -240,8 +245,8 @@ def verdict_block(cv, shot, L):
     big = font(L['verdict'], 850, line_height=1.0, tracking=-0.02)
     small = font(L['sub'], 500, line_height=1.25)
     s = appear(shot.f, spring=BOUNCY)
-    l1 = ['2.4× faster']
-    l2 = text.wrap('than the next best', small, box.w)
+    l1 = [shot.data['callout']]
+    l2 = text.wrap(shot.data['callout_sub'], small, box.w)
     h1, h2 = text.block_size(l1, big)[1], text.block_size(l2, small)[1]
     total = h1 + 14 + h2
     y = box.y if v else box.y + (box.h - total) / 2
@@ -342,10 +347,11 @@ def end(cv, shot, L):
         word_f = font(L['word'], 850, tracking=-0.035, line_height=1.0)
         tag_f = font(L['tag'], 500)
         url_f = font(L['url'], 600, MONO)
-        word_w = text.measure('Lumen', word_f)
+        word, tagline, url = shot.data['wordmark'], shot.data['tagline'], shot.data['url']
+        word_w = text.measure(word, word_f)
         dot = L['word'] * 0.22
-        tag_lines = text.wrap('The open-source JSON parser', tag_f, safe.w, balance=True)
-        pill = text.box(URL, url_f, padding=(22, 36))
+        tag_lines = text.wrap(tagline, tag_f, safe.w, balance=True)
+        pill = text.box(url, url_f, padding=(22, 36))
         wh = text.line_height(word_f)
         th = text.block_size(tag_lines, tag_f)[1]
         total = wh + 30 + th + 70 + pill.h
@@ -359,15 +365,15 @@ def end(cv, shot, L):
             for r, al in ((dot * 1.6, 0.10), (dot * 1.1, 0.18)):
                 cv.rect(cx - r, cy - r, 2 * r, 2 * r, ACCENT, radius=r, alpha=al * pulse)
             cv.rect(cx - dot / 2, cy - dot / 2, dot, dot, ACCENT, radius=dot / 2)
-            wb = text.draw(cv, ['Lumen'], word_f, gx + dot * 1.6, y, INK)
+            wb = text.draw(cv, [word], word_f, gx + dot * 1.6, y, INK)
             cv.mark('wordmark', gx, wb.y, wb.right - gx, wb.h)
-        copy_block(cv, shot.f, 'The open-source JSON parser', tag_f,
+        copy_block(cv, shot.f, tagline, tag_f,
                    Box(safe.x, y + wh + 30, safe.w, th), MUTED, 'tagline', delay=8, valign='top')
         b = appear(shot.f, 14, BOUNCY)
         pb = Box(safe.cx - pill.w / 2, y + wh + 30 + th + 70, pill.w, pill.h)
         with cv.layer(opacity=vb.clamp01(b), dy=(1 - b) * 40):
             cv.rect(*pb, ACCENT, radius=pb.h / 2)
-            text.draw_in(cv, pb, URL, url_f, ACCENT_INK, padding=(22, 36), align='center')
+            text.draw_in(cv, pb, url, url_f, ACCENT_INK, padding=(22, 36), align='center')
             cv.mark('url', *pb)
 
 

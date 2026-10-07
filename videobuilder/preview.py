@@ -111,7 +111,8 @@ class Session:
                                   'copy': {k: v for k, v in s.data.items() if isinstance(v, str)},
                                   'rollable': edits.rollable(tl, s.name)}
                                  for s, parents in tl.walk() if not s.children],
-                    'groups': [{'name': s.name, 'start': b(s.at), 'end': b(s.until), 'depth': len(parents)}
+                    'groups': [{'name': s.name, 'start': b(s.at), 'end': b(s.until), 'depth': len(parents),
+                                'copy': {k: v for k, v in s.data.items() if isinstance(v, str)}}
                                for s, parents in tl.walk() if s.children],
                     'cuts': tl.cut_frames(),
                 }

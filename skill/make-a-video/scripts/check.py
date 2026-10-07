@@ -7,8 +7,9 @@
 
 What it checks:
   storyboard  each leaf segment's beats, frames, seconds and copy (from
-              `segment.data['copy']`), and its read time: a segment must last
-              at least `--lead` s plus its words at `--wps` words a second.
+              `segment.data['copy']`, or with no `copy` key, all of its
+              `data` strings), and its read time: a segment must last at
+              least `--lead` s plus its words at `--wps` words a second.
   marks       on held frames (the middle and three-quarter frame of each
               segment, plus FILM.keyframes), every `canvas.mark` box lies in
               the format's safe area (`LAYOUTS[fmt]['safe']` if the film has
@@ -69,6 +70,14 @@ class Report:
 
 
 # ---- storyboard and read times ----
+def copy_of(seg):
+    """The words a segment shows: `data['copy']`, or all its data strings."""
+    data = seg.data or {}
+    if 'copy' in data:
+        return data['copy'] or ''
+    return '\n'.join(v for v in data.values() if isinstance(v, str))
+
+
 def storyboard(film, r, wps, lead):
     tl = film.timeline
     if tl is None:
@@ -81,13 +90,13 @@ def storyboard(film, r, wps, lead):
     for seg, parents in tl.walk():
         a, z = tl.span(seg)
         name = ' / '.join([p.name for p in parents] + [seg.name])
-        copy = ((seg.data or {}).get('copy', '') or '').replace('\n', ' / ')
-        words = len(copy.split())
+        words = len(copy_of(seg).split())
+        copy = copy_of(seg).replace('\n', ' / ')
         flag = f' (overlaps {seg.overlap:g})' if seg.overlap else ''
         print(f'  {name:28} {seg.at:5g}-{seg.until:<5g} {a:5d}-{z:<5d} {(z - a) / g.fps:6.2f}  {words:5d}  '
               f'{copy[:60]}{flag}')
     for seg in tl.leaves():
-        copy = (seg.data or {}).get('copy', '') or ''
+        copy = copy_of(seg)
         if not copy:
             continue
         a, z = tl.span(seg)
