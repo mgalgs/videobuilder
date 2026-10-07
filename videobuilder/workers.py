@@ -215,6 +215,16 @@ class Pool:
         self.unsandboxed = unsandboxed
         self.workers = {}
         self.lock = threading.RLock()
+        self.stopping = threading.Event()
+        threading.Thread(target=self._reap, daemon=True).start()
+
+    def _reap(self):
+        while not self.stopping.wait(30):
+            with self.lock:
+                for identity, (_, _, worker) in list(self.workers.items()):
+                    if time.monotonic() - worker.used > IDLE:
+                        worker.close()
+                        del self.workers[identity]
 
     def get(self, video, checkout, film, root, revision=None):
         python, key, pin = self.envs.python(film, root)
@@ -223,7 +233,8 @@ class Pool:
         with self.lock:
             for old, entry in list(self.workers.items()):
                 worker = entry[-1]
-                if time.monotonic() - worker.used > IDLE or (old == identity and entry[:2] != (key, revision)):
+                obsolete_draft = revision is not None and old[0] == str(video) and entry[1] is not None and old != identity
+                if time.monotonic() - worker.used > IDLE or obsolete_draft or (old == identity and entry[:2] != (key, revision)):
                     worker.close()
                     del self.workers[old]
             entry = self.workers.get(identity)
@@ -235,7 +246,15 @@ class Pool:
                 self.workers[identity] = (key, revision, worker)
             return self.workers[identity][-1]
 
+    def close_draft(self, video):
+        with self.lock:
+            for identity, entry in list(self.workers.items()):
+                if identity[0] == str(video) and entry[1] is not None:
+                    entry[-1].close()
+                    del self.workers[identity]
+
     def close(self):
+        self.stopping.set()
         with self.lock:
             for _, _, worker in self.workers.values():
                 worker.close()

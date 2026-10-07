@@ -159,6 +159,7 @@ class Drafts:
                 git(e.root, 'update-ref', 'refs/heads/' + branch, tip, detail['tip'])
                 e.notes.resolve(video, branch, 'accepted', author)
                 e.project.last.pop(video, None)
+                e.pool.close_draft(video)
                 return dict(state='accepted', commit=tip)
             finally:
                 git(e.root, 'worktree', 'remove', '--force', str(work))
@@ -169,6 +170,7 @@ class Drafts:
             self._idle(video)
             branch = e.notes.session(video)['draft']
             branch_tip(e.root, branch)
+            e.pool.close_draft(video)
             for path in e.notes.session_dir(video).glob('preview-*'):
                 git(e.root, 'worktree', 'remove', '--force', str(path))
             git(e.root, 'branch', '-D', branch)

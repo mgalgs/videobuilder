@@ -300,8 +300,7 @@ def change_text(film_path, segment, field, key, value):
 
 def _change(film_path, segment, field, key, value):
     content = change_text(film_path, segment, field, key, value)
-    _write(path_for(film_path), Edits(path_for(film_path),
-                                      __import__('tomllib').loads(content).get('segments', {}) if content else {}).segments)
+    _write(path_for(film_path), tomllib.loads(content).get('segments', {}) if content else {})
     return _current(film_path)
 
 
