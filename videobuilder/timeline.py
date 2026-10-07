@@ -123,6 +123,11 @@ class Timeline:
         self.end = end
         if self.segments:
             _check(self.segments, self.segments[0].at, end, '')
+        seen = set()
+        for s, _ in self.walk():
+            if s.name in seen:
+                raise ValueError(f'two segments are named {s.name!r}; names must be unique, groups and children included')
+            seen.add(s.name)
 
     @property
     def frames(self):

@@ -144,6 +144,15 @@ class Structure(unittest.TestCase):
         with self.assertRaises(ValueError):  # a child off the half-beat grid
             Timeline(g, [Segment('a', 0, 2, children=sequence(0, [('x', 0.25), ('y', 1.75)]))], end=2)
 
+    def test_names_unique(self):
+        g = self.grid
+        with self.assertRaisesRegex(ValueError, "'a'.*unique"):
+            Timeline(g, [Segment('a', 0, 2), Segment('a', 2, 4)], end=4)
+        with self.assertRaisesRegex(ValueError, "'x'"):  # a child named like a top-level segment
+            Timeline(g, [Segment('g', 0, 2, children=sequence(0, [('x', 1), ('y', 1)])), Segment('x', 2, 4)], end=4)
+        with self.assertRaisesRegex(ValueError, "'g'"):  # a child named like its group
+            Timeline(g, [Segment('g', 0, 2, children=sequence(0, [('g', 1), ('y', 1)]))], end=2)
+
     def test_flat_timeline_unchanged(self):
         tl = Timeline(self.grid, [Segment('a', 0, 2), Segment('b', 2, 4)], end=4)
         self.assertEqual(tl.at(30), (tl.segments[1], 0))
