@@ -1,4 +1,4 @@
-"""Golden stills of the example film: a few frames per format, compared by PSNR.
+"""Golden stills of the example films: a few frames per format, compared by PSNR.
 
 Text rasterisation shifts a little between FreeType/Pango versions, so frames
 are compared by peak signal-to-noise ratio, not byte for byte. To accept new
@@ -16,9 +16,11 @@ from PIL import Image, ImageChops
 from videobuilder import load
 
 ROOT = Path(__file__).resolve().parent.parent
-FILM_PATH = ROOT / 'examples' / 'tour.py'
 GOLDEN = Path(__file__).resolve().parent / 'golden'
-FRAMES = (45, 142, 247, 330)  # one in each segment, mid-motion
+FILMS = {  # one frame in each segment, mid-motion
+    'tour': (45, 142, 247, 330),
+    'benchmark': (60, 230, 330, 500),
+}
 MIN_PSNR = 32.0  # dB; an unchanged film scores inf, a moved card or wrong colour well under 25
 
 
@@ -42,27 +44,31 @@ def to_rgb(canvas):
 class GoldenStills(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.film = load(FILM_PATH)
+        cls.films = {name: load(ROOT / 'examples' / f'{name}.py') for name in FILMS}
+        cls.film = cls.films['tour']
         cls.update = bool(os.environ.get('VIDEOBUILDER_UPDATE_GOLDEN'))
 
     def test_frames(self):
         GOLDEN.mkdir(exist_ok=True)
-        for fmt in self.film.formats:
-            for n in FRAMES:
-                with self.subTest(format=fmt.name, frame=n):
-                    path = GOLDEN / f'tour-{fmt.name}-f{n:04d}.png'
-                    got = to_rgb(self.film.frame(n, fmt))
-                    if self.update or not path.exists():
-                        got.save(path, optimize=True)
-                        if not self.update:
-                            self.fail(f'no golden at {path}; wrote one, check it and commit it')
-                        continue
-                    want = Image.open(path).convert('RGB')
-                    score = psnr(got, want)
-                    if score < MIN_PSNR:
-                        got.save(path.with_suffix('.actual.png'))
-                    self.assertGreaterEqual(score, MIN_PSNR, f'{path.name}: PSNR {score:.1f} dB; '
-                                            f'actual frame saved beside it as .actual.png')
+        for name, frames in FILMS.items():
+            film = self.films[name]
+            for fmt in film.formats:
+                for n in frames:
+                    with self.subTest(film=name, format=fmt.name, frame=n):
+                        self.check(GOLDEN / f'{name}-{fmt.name}-f{n:04d}.png', to_rgb(film.frame(n, fmt)))
+
+    def check(self, path, got):
+        if self.update or not path.exists():
+            got.save(path, optimize=True)
+            if not self.update:
+                self.fail(f'no golden at {path}; wrote one, check it and commit it')
+            return
+        want = Image.open(path).convert('RGB')
+        score = psnr(got, want)
+        if score < MIN_PSNR:
+            got.save(path.with_suffix('.actual.png'))
+        self.assertGreaterEqual(score, MIN_PSNR, f'{path.name}: PSNR {score:.1f} dB; '
+                                f'actual frame saved beside it as .actual.png')
 
     def test_psnr_detects_change(self):
         # The threshold has teeth: the same frame a few px off scores under it.

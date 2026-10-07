@@ -1,4 +1,5 @@
 """Direct edits: the edits.toml overlay, its rules, and writing it."""
+import hashlib
 import os
 import tempfile
 import textwrap
@@ -224,6 +225,38 @@ class Writing(FilmDir):
         with self.assertRaises(ValueError):
             edits.roll(str(self.film), 'intro', 9)
         self.assertFalse(self.toml.exists())
+
+
+def digest(film, n, fmt):
+    cv = film.frame(n, fmt, scale=0.25)
+    cv.surface.flush()
+    return hashlib.sha256(bytes(cv.surface.get_data())).hexdigest()
+
+
+class ExampleFilms(unittest.TestCase):
+    """The examples load with no edits, and an edit to one moves its cut on screen."""
+
+    def test_examples_have_no_edits(self):
+        self.assertFalse((ROOT / 'examples' / 'edits.toml').exists())
+        for name in ('tour.py', 'benchmark.py'):
+            with self.subTest(film=name):
+                self.assertIsNone(load(str(ROOT / 'examples' / name)).timeline.edits)
+
+    def test_a_roll_moves_the_tours_first_cut(self):
+        with tempfile.TemporaryDirectory() as d:
+            copy = Path(d, 'tour.py')
+            copy.write_text((ROOT / 'examples' / 'tour.py').read_text())
+            os.symlink(ROOT / 'examples' / 'assets', Path(d, 'assets'))
+            Path(d, 'edits.toml').write_text('[segments.title]\nuntil = 4\n')
+            edited = load(str(copy))
+        film = load(str(ROOT / 'examples' / 'tour.py'))
+        self.assertEqual(film.timeline.cut_frames(), [0, 90, 195, 300])
+        self.assertEqual(edited.timeline.cut_frames(), [0, 60, 195, 300])  # picture starts 2 beats early
+        self.assertEqual(edited.frames, film.frames)
+        self.assertEqual((film.timeline.label(75), edited.timeline.label(75)), ('title', 'picture'))
+        self.assertNotEqual(digest(edited, 75, '16x9'), digest(film, 75, '16x9'))
+        for n in (30, 200, 330):  # before the moved cut, and after the next one: untouched
+            self.assertEqual(digest(edited, n, '16x9'), digest(film, n, '16x9'), n)
 
 
 if __name__ == '__main__':
