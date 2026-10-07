@@ -1,4 +1,4 @@
-"""Command line: render, still, sheet, preview, edit.
+"""Command line: render, still, sheet, preview, edit, editor.
 
     python -m videobuilder render  film.py [--format 9x16|16x9|1x1|all] [--jobs N] [--out FILE]
     python -m videobuilder still   film.py FRAME [FRAME ...] [--format F] [--out PATH] [--overlay]
@@ -6,6 +6,7 @@
     python -m videobuilder preview film.py [--port 8000] [--host 127.0.0.1]
     python -m videobuilder edit roll film.py SEGMENT UNTIL
     python -m videobuilder edit copy film.py SEGMENT KEY VALUE
+    python -m videobuilder editor PROJECT-DIR [--port 8100] [--host 127.0.0.1] [--state-dir DIR]
 """
 import argparse
 import os
@@ -148,6 +149,14 @@ def cmd_preview(a):
     serve(a.film, host=a.host, port=a.port, open_browser=a.open)
 
 
+def cmd_editor(a):
+    from .editor import serve
+    try:
+        serve(a.project, host=a.host, port=a.port, state_dir=a.state_dir, open_browser=a.open)
+    except ValueError as e:
+        raise SystemExit(f'editor: {e}') from None
+
+
 def cmd_edit(a):
     from . import edits
     try:
@@ -216,6 +225,14 @@ def main(argv=None):
     ec.add_argument('key')
     ec.add_argument('value')
     ec.set_defaults(fn=cmd_edit)
+
+    d = sub.add_parser('editor', help="a web editor for a project's videos: timeline, direct edits that commit, notes")
+    d.add_argument('project', help='the project directory: its videos are found under it')
+    d.add_argument('--host', default='127.0.0.1')
+    d.add_argument('--port', type=int, default=8100)
+    d.add_argument('--state-dir', help='where notes are kept (default: <project>/.vb-editor)')
+    d.add_argument('--open', action='store_true', help='open a browser')
+    d.set_defaults(fn=cmd_editor)
 
     a = p.parse_args(argv)
     a.fn(a)

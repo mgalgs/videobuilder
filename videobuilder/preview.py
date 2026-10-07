@@ -31,11 +31,13 @@ class Session:
     """The film being previewed, reloaded when its files change. Keeps the last
     good film when a reload fails, and reports the error alongside it."""
 
-    def __init__(self, path, poll=0.25):
+    def __init__(self, path, poll=0.25, lock=None):
         self.path = os.path.abspath(path)
         self.dir = os.path.dirname(self.path)
         self.poll = poll
-        self.lock = threading.RLock()  # one draw at a time: imports and Pango are not thread-safe
+        # One draw at a time: imports and Pango are not thread-safe. Sessions
+        # in one process (the editor's) share a lock.
+        self.lock = lock or threading.RLock()
         self.film = None
         self.error = None
         self.version = 0
