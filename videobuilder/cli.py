@@ -171,7 +171,7 @@ def cmd_editor(a):
                     submit_args=a.agent_submit_args, poll_args=a.agent_poll_args,
                     extra_args=a.agent_extra_arg).items() if v is not None}
         serve(a.project, host=a.host, port=a.port, state_dir=a.state_dir, open_browser=a.open,
-              agent=agent, allowed_hosts=a.allow_host)
+              agent=agent, allowed_hosts=a.allow_host, unsandboxed_previews=a.unsandboxed_previews)
     except ValueError as e:
         raise SystemExit(f'editor: {e}') from None
 
@@ -255,6 +255,8 @@ def main(argv=None):
     d.add_argument('--state-dir', help='where notes are kept (default: <project>/.vb-editor)')
     d.add_argument('--open', action='store_true', help='open a browser')
     d.add_argument('--allow-host', action='append', default=[])
+    d.add_argument('--unsandboxed-previews', action='store_true',
+                   help='render drafts without bwrap: draft code can read whatever the editor can')
     d.add_argument('--agent', choices=['null', 'fake', 'command', 'fork-sandbox'])
     d.add_argument('--agent-executable')
     for name in ('submit-command', 'poll-command', 'submit-args', 'poll-args'):

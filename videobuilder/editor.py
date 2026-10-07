@@ -96,7 +96,8 @@ class Editor:
     """The project being edited: its videos, a preview Session per open video,
     and the notes. One lock covers every film load and draw."""
 
-    def __init__(self, root, state_dir=None, backend=None, poll=0.25, agent=None, allowed_hosts=(), host='127.0.0.1'):
+    def __init__(self, root, state_dir=None, backend=None, poll=0.25, agent=None, allowed_hosts=(), host='127.0.0.1',
+                 unsandboxed_previews=False):
         self.root = os.path.abspath(root)
         cfg = read_config(self.root)
         state = state_dir or cfg.get('state_dir') or STATE_DIR
@@ -104,6 +105,7 @@ class Editor:
         self.lock = threading.RLock()
         self.project = Project(self.root, skip=[self.state_dir], lock=self.lock)
         self.drafts = Drafts(self)
+        self.unsandboxed_previews = bool(unsandboxed_previews or cfg.get('unsandboxed_previews', False))
         agent_cfg = {**cfg.get('agent', {}), **(agent or {})}
         self.notes = NoteStore(os.path.join(self.state_dir, 'notes'),
                                backend or backend_from_config(agent_cfg), context=self.drafts.context)
@@ -345,8 +347,9 @@ def _need(q, name):
 
 
 def serve(root, host='127.0.0.1', port=8100, state_dir=None, open_browser=False, backend=None,
-          hook=request_hook, agent=None, allowed_hosts=()):
-    editor = Editor(root, state_dir=state_dir, backend=backend, agent=agent, allowed_hosts=allowed_hosts, host=host)
+          hook=request_hook, agent=None, allowed_hosts=(), unsandboxed_previews=False):
+    editor = Editor(root, state_dir=state_dir, backend=backend, agent=agent, allowed_hosts=allowed_hosts, host=host,
+                    unsandboxed_previews=unsandboxed_previews)
     httpd = ThreadingHTTPServer((host, port), make_handler(editor, hook))
     httpd.daemon_threads = True
     url = f'http://{host}:{httpd.server_address[1]}/'

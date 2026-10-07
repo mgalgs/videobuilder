@@ -185,12 +185,19 @@ class DraftLoop(TempProject):
     def test_preview_child_scrubs_environment_and_renders(self):
         self.editor.notes.backend = FakeBackend(delay=0, change='\nimport os\nassert "VB_SECRET_SENTINEL" not in os.environ\n')
         self.draft()
+        self.editor.unsandboxed_previews = True
         with patch.dict(os.environ, VB_SECRET_SENTINEL='secret'), patch('videobuilder.drafts.shutil.which', return_value=None):
             info = json.loads(self.editor.drafts.preview('promo/film', 'info', {}))
             self.assertIsNone(info['error'])
             png = self.editor.drafts.preview('promo/film', 'frame', dict(frame=0, scale=0.1))
         self.assertEqual(png[:8], b'\x89PNG\r\n\x1a\n')
         self.assertEqual(set(child_environment('/tmp/home')), {'PATH', 'HOME', 'LANG', 'LC_ALL'})
+
+    def test_preview_without_bwrap_refused_unless_opted_in(self):
+        self.draft()
+        with patch('videobuilder.drafts.shutil.which', return_value=None):
+            with self.assertRaisesRegex(ValueError, 'need a working bwrap'):
+                self.editor.drafts.preview('promo/film', 'info', {})
 
     def test_preview_and_accept_reject_guard(self):
         note = self.draft()

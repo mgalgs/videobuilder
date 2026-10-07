@@ -2,8 +2,9 @@
 
 Every operation resolves a branch to an immutable commit before checking it.
 Preview workers reuse preview.Session via stdin/stdout, never import draft
-code into the editor. Bubblewrap is optional; without it environment scrubbing
-is not a security sandbox, and the fallback is explicitly logged.
+code into the editor. Without a usable bubblewrap, previews are refused unless
+the editor opts in with unsandboxed_previews: environment scrubbing alone is
+not a sandbox, and draft code could read any credential file the editor can.
 """
 import fnmatch
 import json
@@ -115,7 +116,7 @@ class Drafts:
             command = [sys.executable, '-I', '-c', code]
             wrapper = []
             if shutil.which('bwrap'):
-                wrapper = ['bwrap', '--unshare-net', '--die-with-parent', '--tmpfs', '/tmp']
+                wrapper = ['bwrap', '--unshare-all', '--new-session', '--die-with-parent', '--tmpfs', '/tmp']
                 for system in ('/usr', '/bin', '/lib', '/lib64', '/etc/fonts', '/etc/ld.so.cache'):
                     if os.path.exists(system):
                         wrapper += ['--ro-bind', system, system]
@@ -127,6 +128,9 @@ class Drafts:
                 if probe.returncode:
                     wrapper = []
             if not wrapper:
+                if not self.editor.unsandboxed_previews:
+                    raise ValueError('draft previews need a working bwrap; set unsandboxed_previews '
+                                     'only where draft code may read everything the editor can')
                 logging.warning('bwrap unavailable or unusable: draft preview is not sandboxed')
             command = wrapper + command
             payload = dict(path=str(work / context['film']), operation=operation, query=query)

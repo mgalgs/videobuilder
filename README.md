@@ -388,9 +388,13 @@ Drafts are checked against their merge base with main before rendering or
 Accept. Changes outside the video directory, dependency pins/lockfiles,
 symlinks and submodules are refused with paths shown inline. Draft previews
 run in a separate Python process with only PATH, temporary HOME, and locale
-variables. When usable, bubblewrap adds a read-only checkout, restricted
-filesystem and no network; otherwise the editor logs that the preview is
-**not sandboxed**. The toggle preserves frame and format and shows the
+variables, under bubblewrap: a read-only checkout, a restricted filesystem,
+and no network or view of other processes. Without a usable bubblewrap
+(common in unprivileged containers) draft previews are refused, because
+draft code could read any file the editor can, credentials included. Opt in
+with `--unsandboxed-previews` (or `unsandboxed_previews = true` under
+`[editor]`) only where that is acceptable, or render previews in a process
+that holds no credentials. The toggle preserves frame and format and shows the
 draft's timeline. Direct edits are available while viewing main.
 
 Accept rebases in a separate worktree, then fast-forwards main without

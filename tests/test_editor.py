@@ -171,6 +171,7 @@ class API(TempProject):
         detail = self.get('/api/draft?video=promo/film')
         self.assertEqual(detail['files'], ['promo/film.py'])
         from unittest.mock import patch
+        self.editor.unsandboxed_previews = True
         with patch('videobuilder.drafts.shutil.which', return_value=None):
             self.assertEqual(self.get('/api/draft/info?video=promo/film')['frames'], 210)
             self.assertTrue(self.get('/api/draft/frame?video=promo/film&scale=0.1').startswith(b'\x89PNG'))
