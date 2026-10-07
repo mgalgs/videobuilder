@@ -7,6 +7,7 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
   name: videobuilder-editor-fork-sandbox
+  namespace: fork-sandbox  # where fork-sandbox's client Role lives
 subjects:
   - kind: ServiceAccount
     name: videobuilder-editor
@@ -95,7 +96,7 @@ spec:
         - name: forge
           secret:
             secretName: editor-forge-ssh
-            defaultMode: 0400
+            defaultMode: 0440  # root-owned, group = fsGroup: 0400 is unreadable to uid 1000
 ---
 apiVersion: v1
 kind: Service
