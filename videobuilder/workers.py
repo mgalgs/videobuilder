@@ -120,7 +120,10 @@ def sandbox_command(python, checkout, home, unsandboxed=False, source=None):
         for system in ('/usr', '/bin', '/lib', '/lib64', '/etc/fonts', '/etc/ld.so.cache'):
             if os.path.exists(system):
                 wrapper += ['--ro-bind', system, system]
-        for path in dict.fromkeys([sys.prefix, str(Path(python).resolve().parent.parent), str(checkout), str(source or '')]):
+        # The venv root, not resolve()'s target: a venv's bin/python links to the
+        # system interpreter, so resolving it would mount /usr and leave the env out.
+        env = Path(python).absolute().parent.parent
+        for path in dict.fromkeys([sys.prefix, str(env), str(checkout), str(source or '')]):
             if path and os.path.exists(path):
                 wrapper += ['--ro-bind', path, path]
         wrapper += ['--bind', str(home), str(home), '--proc', '/proc', '--dev', '/dev']

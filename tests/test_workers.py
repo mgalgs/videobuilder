@@ -28,6 +28,24 @@ def copy_builder(target, pin):
     init.write_text(init.read_text().replace("__version__ = '0.1.2'", "__version__ = '" + pin.read_text().split('==')[1].strip() + "'"))
 
 
+def bwrap_usable():
+    return bool(shutil.which('bwrap')) and subprocess.run(
+        ['bwrap', '--unshare-all', '--ro-bind', '/', '/', '/bin/true'], capture_output=True).returncode == 0
+
+
+@unittest.skipUnless(bwrap_usable(), 'needs a usable bwrap')
+class SandboxedWorker(unittest.TestCase):
+    def test_pinned_env_outside_the_project_is_mounted(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root, state = Path(tmp) / 'project', Path(tmp) / 'state'
+            (root / 'a').mkdir(parents=True)
+            (root / 'a' / 'film.py').write_text(FILM)
+            (root / 'a' / 'requirements.txt').write_text('videobuilder==0.1.2\n')
+            editor = Editor(root, state_dir=state, env_builder=copy_builder)
+            self.addCleanup(editor.pool.close)
+            self.assertEqual(editor.info('a/film')['frames'], 210)
+
+
 class PinnedWorkers(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
