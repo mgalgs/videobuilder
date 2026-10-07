@@ -17,12 +17,16 @@ the status above, optionally reply_file (otherwise RUN/outbox/reply.md).
 executable, submit_args, poll_args, extra_args are configurable argv lists
 (executable is a string). No shell expansion is performed.
 """
+import fcntl
 import json
+import re
+import tempfile
 import subprocess
 import time
 from pathlib import Path
 
 from .notes import AgentBackend, AgentStatus, NullBackend
+from .workers import pin_for, pinned_version
 
 
 def run(argv):
@@ -54,19 +58,67 @@ class CommandBackend(AgentBackend):
         return AgentStatus(**json.loads(run(self.poll_command + [handle])))
 
 
+CONTEXT_STAGING_ROOT = Path("/var/tmp/claude-scratch/forks")
+
+
+def source_pin(pin, fallback):
+    version = pinned_version(pin)
+    if version == "unknown":
+        raise ValueError(f"{pin}: no versioned videobuilder pin")
+    for line in pin.read_text().splitlines():
+        match = re.match(r"^\s*videobuilder\s*@\s*git\+(.+)@([^@\s#]+)", line, re.I)
+        if match:
+            return version, match.group(1), match.group(2)
+    if not fallback:
+        raise ValueError("editor.agent.videobuilder_repo is required for a == pin")
+    return version, fallback, "v" + version
+
+
 class ForkSandboxBackend(AgentBackend):
     name = 'fork-sandbox'
 
-    def __init__(self, executable='fork-sandbox', submit_args=None, poll_args=None, extra_args=None):
+    def __init__(self, executable='fork-sandbox', submit_args=None, poll_args=None, extra_args=None,
+                 context_root=None, context_mount=None, videobuilder_repo=None):
         self.executable = executable
         self.submit_args = ['run'] if submit_args is None else submit_args
         self.poll_args = ['status', '--json'] if poll_args is None else poll_args
         self.extra_args = extra_args or []
+        self.context_root = Path(context_root).resolve() if context_root else None
+        self.context_mount = context_mount
+        self.videobuilder_repo = videobuilder_repo
+        if self.context_root and not self.context_root.is_relative_to(CONTEXT_STAGING_ROOT):
+            raise ValueError(f"editor.agent.context_root must be under {CONTEXT_STAGING_ROOT}")
+
+    def _context(self, note):
+        pin = pin_for(Path(note['project']) / note['film'], note['project'])
+        if pin is None:
+            raise ValueError('agent source staging needs a videobuilder requirements.txt pin')
+        version, url, ref = source_pin(pin, self.videobuilder_repo)
+        target = self.context_root / ('v' + version)
+        self.context_root.mkdir(parents=True, exist_ok=True)
+        with open(self.context_root / ('v' + version + '.lock'), 'a+b') as lock:
+            fcntl.flock(lock, fcntl.LOCK_EX)
+            if not (target / 'videobuilder' / '.git').exists():
+                with tempfile.TemporaryDirectory(prefix='v' + version + '-', dir=self.context_root) as temporary:
+                    staged = Path(temporary) / 'videobuilder'
+                    result = subprocess.run(['git', 'clone', '--depth', '1', '--branch', ref, url, str(staged)],
+                                            capture_output=True, text=True)
+                    if result.returncode:
+                        raise ValueError('could not stage pinned videobuilder: ' + result.stderr.strip())
+                    Path(temporary).rename(target)
+        mount = self.context_mount or str(target)
+        with open(note['note_file'], 'a', encoding='utf-8') as fh:
+            fh.write(f"\nPinned videobuilder source: {mount}/videobuilder\n"
+                     f"Use PYTHONPATH={mount}/videobuilder to render this video.\n"
+                     f"Read {mount}/videobuilder/skill/make-a-video/SKILL.md.\n")
+        return target
 
     def submit(self, note):
+        context = self._context(note) if self.context_root else None
         base = ['--base', note['draft']] if note.get('draft') else []
         return run([self.executable, *self.submit_args, '--resume', note['state_dir'], *base,
-                    *self.extra_args, note['project'], note['note_file']])
+                    *self.extra_args, *(['--context-ro', str(context)] if context else []),
+                    note['project'], note['note_file']])
 
     def poll(self, handle):
         data = json.loads(run([self.executable, *self.poll_args, handle]))
@@ -139,5 +191,6 @@ def backend_from_config(config):
         return CommandBackend(cfg.get('submit_command'), cfg.get('poll_command'))
     if name == 'fork-sandbox':
         return ForkSandboxBackend(**{k: v for k, v in cfg.items()
-                                     if k in ('executable', 'submit_args', 'poll_args', 'extra_args')})
+                                     if k in ('executable', 'submit_args', 'poll_args', 'extra_args',
+                                              'context_root', 'context_mount', 'videobuilder_repo')})
     raise ValueError(f'unknown agent backend {name!r}')
