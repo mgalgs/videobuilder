@@ -239,8 +239,10 @@ def _write(path, segments):
 
 
 def _load(film_path, segments):
-    """The film loaded with exactly these edits (none from disk)."""
-    from .film import load_module
+    """The film loaded with exactly these edits (none from disk). Its helper
+    modules are imported afresh: Segments they hold were edited in place."""
+    from .film import forget_neighbours, load_module
+    forget_neighbours(film_path)
     return load_module(film_path, edits=Edits(path_for(film_path), segments))
 
 

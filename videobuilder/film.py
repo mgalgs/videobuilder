@@ -170,6 +170,16 @@ def load_module(path, edits=None):
     return mod
 
 
+def forget_neighbours(path):
+    """Drop the modules imported from a film's directory, so the next
+    `load_module` imports its helpers afresh too."""
+    d = os.path.dirname(os.path.abspath(path))
+    for name, mod in list(sys.modules.items()):
+        f = getattr(mod, '__file__', None)
+        if f and os.path.dirname(os.path.abspath(f)) == d:
+            del sys.modules[name]
+
+
 def load(path):
     """The `FILM` of a film file."""
     mod = load_module(path)

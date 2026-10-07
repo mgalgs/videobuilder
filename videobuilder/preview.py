@@ -24,7 +24,7 @@ from importlib import resources
 from urllib.parse import parse_qs, urlparse
 
 from . import edits, overlay
-from .film import Film, load_module
+from .film import Film, forget_neighbours, load_module
 
 
 class Session:
@@ -75,11 +75,7 @@ class Session:
             self._reload()
 
     def _reload(self):
-        # Forget the film's neighbours too, so an edited helper module is re-imported.
-        for name, mod in list(sys.modules.items()):
-            f = getattr(mod, '__file__', None)
-            if f and os.path.dirname(os.path.abspath(f)) == self.dir:
-                del sys.modules[name]
+        forget_neighbours(self.path)  # so an edited helper module is re-imported
         try:
             film = getattr(load_module(self.path), 'FILM', None)
             if not isinstance(film, Film):

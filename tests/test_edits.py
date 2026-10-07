@@ -221,6 +221,22 @@ class Writing(FilmDir):
             self.assertEqual(self.toml.read_bytes(), before)
         self.assertFalse(Path(str(self.toml) + '.tmp').exists())
 
+    def test_segments_from_a_helper_module(self):
+        # Rolls edit Segments in place; a helper holding them must be re-imported
+        # for set_copy and roll to see the film's own values.
+        name = f'storyboard_{id(self)}'
+        (self.dir / f'{name}.py').write_text(
+            "import videobuilder as vb\nSEGS = [vb.Segment('x', 0, 2, dict(t='A')), vb.Segment('y', 2, 4)]\n")
+        self.film.write_text(f"import videobuilder as vb\nfrom {name} import SEGS\n"
+                             "T = vb.Timeline(vb.Grid(), SEGS, end=4)\n"
+                             "FILM = vb.Film(draw=lambda n, cv: None, timeline=T)\n")
+        f = str(self.film)
+        edits.roll(f, 'x', 1)
+        edits.set_copy(f, 'x', 't', 'B')
+        edits.roll(f, 'x', 2)  # the film's own end: removed, not written
+        edits.set_copy(f, 'x', 't', 'A')
+        self.assertIsNone(self.text())
+
     def test_refused_with_no_file_writes_none(self):
         with self.assertRaises(ValueError):
             edits.roll(str(self.film), 'intro', 9)
