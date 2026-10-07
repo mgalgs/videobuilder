@@ -208,6 +208,24 @@ def _page():
 
 def make_handler(editor, hook=request_hook):
     class Handler(BaseHTTPRequestHandler):
+        def parse_request(self):
+            if not super().parse_request():
+                return False
+            try:
+                hosts = self.headers.get_all('Host', [])
+                try:
+                    parsed = urlparse('//' + (hosts[0] if len(hosts) == 1 else ''))
+                    hostname = parsed.hostname
+                    valid = parsed.port is None or 0 < parsed.port < 65536
+                except ValueError:
+                    hostname, valid = None, False
+                if not valid or not hostname or parsed.username or parsed.password or parsed.path or hostname.lower().rstrip('.') not in editor.allowed_hosts:
+                    raise Forbidden('Host is not allowed; configure --allow-host for this name')
+            except Forbidden as e:
+                self._json(e.code, {'error': str(e)})
+                return False
+            return True
+
         def log_message(self, *args):
             pass
 
@@ -244,15 +262,6 @@ def make_handler(editor, hook=request_hook):
             url = urlparse(self.path)
             q = {k: v[-1] for k, v in parse_qs(url.query).items()}
             try:
-                hosts = self.headers.get_all('Host', [])
-                try:
-                    parsed = urlparse('//' + (hosts[0] if len(hosts) == 1 else ''))
-                    hostname = parsed.hostname
-                    valid = parsed.port is None or 0 < parsed.port < 65536
-                except ValueError:
-                    hostname, valid = None, False
-                if not valid or not hostname or parsed.username or parsed.password or parsed.path or hostname.lower().rstrip('.') not in editor.allowed_hosts:
-                    raise Forbidden('Host is not allowed; configure --allow-host for this name')
                 identity = hook(self)
                 route = url.path
                 if method == 'GET':

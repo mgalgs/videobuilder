@@ -181,14 +181,15 @@ class API(TempProject):
         self.assertEqual(self.post('/api/draft/drop', dict(video='promo/film'))[1]['state'], 'dropped')
 
     def test_host_allowlist_get_and_post(self):
-        for method in ('GET', 'POST'):
+        for method in ('GET', 'POST', 'HEAD', 'OPTIONS'):
             req = urllib.request.Request(self.base + '/api/project', method=method,
                                          headers={'Host': 'rebinding.example', 'Origin': 'http://rebinding.example'})
             with self.assertRaises(urllib.error.HTTPError) as e:
                 urllib.request.urlopen(req)
             with e.exception:
                 self.assertEqual(e.exception.code, 403)
-                self.assertIn('Host is not allowed', e.exception.read().decode())
+                if method != 'HEAD':
+                    self.assertIn('Host is not allowed', e.exception.read().decode())
         self.editor.allowed_hosts.add('review.example')
         req = urllib.request.Request(self.base + '/api/project', headers={'Host': 'review.example:8100'})
         with urllib.request.urlopen(req) as response:
