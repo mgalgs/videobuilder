@@ -262,6 +262,11 @@ def _current(film_path):
     return edits.segments if edits else {}
 
 
+def timeline(film_path):
+    """The film's Timeline with its edits file applied, loaded afresh."""
+    return _timeline(film_path, _current(film_path))
+
+
 def _change(film_path, segment, field, key, value):
     """Set (or, at the film's own value, remove) one edit, after proving the
     film loads with it. Returns the new edits."""
