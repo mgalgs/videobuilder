@@ -126,6 +126,7 @@ class NoteStore:
 
     def session_dir(self, video):
         slug = ''.join(c if c.isascii() and c.isalnum() else '-' for c in video)
+        slug = slug[:96]
         slug += '-' + hashlib.sha256(video.encode()).hexdigest()[:12]
         path = Path(self.dir).parent / 'sessions' / slug
         path.mkdir(parents=True, exist_ok=True)
@@ -183,7 +184,11 @@ class NoteStore:
             else:
                 try:
                     status = self.backend.poll(note['handle'])
+                    if status.branch and state['draft'] and status.branch != state['draft']:
+                        status = AgentStatus('failed', 'Runner returned a different draft branch; '
+                                             'continue ' + state['draft'])
                     note.update(asdict(status))
+                    note.pop('poll_error', None)
                     if status.branch:
                         state['draft'] = status.branch
                         self.save_session(video, state)

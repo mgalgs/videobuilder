@@ -33,6 +33,21 @@ class Queue(TempProject):
         self.assertEqual(restarted.session('a')['session'], store.session('a')['session'])
         self.assertEqual(restarted.get(b['id'])['handle'], 'h3')
 
+    def test_failed_note_releases_queue_and_branch_stays_linear(self):
+        backend = FakeAgent()
+        store = NoteStore(self.root / '.vb-editor/notes', backend)
+        first = store.add('a', '1x1', 0, None, 'first', b'')
+        second = store.add('a', '1x1', 0, None, 'second', b'')
+        backend.states[first['handle']] = AgentStatus('failed', 'try again')
+        store.list('a')
+        backend.states[store.get(second['id'])['handle']] = AgentStatus('replied', 'done', 'draft/a')
+        store.list('a')
+        third = store.add('a', '1x1', 0, None, 'followup', b'')
+        backend.states[third['handle']] = AgentStatus('replied', 'done', 'draft/wrong')
+        store.list('a')
+        self.assertEqual(store.get(third['id'])['state'], 'failed')
+        self.assertEqual(store.session('a')['draft'], 'draft/a')
+
     def test_command_contract(self):
         script = self.root / 'runner.py'
         script.write_text('''import sys, json
