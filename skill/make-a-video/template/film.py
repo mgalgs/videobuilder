@@ -30,7 +30,8 @@ FPB = GRID.frames_per_beat
 
 # ---- the storyboard: one card per segment, its copy beside it ----
 def card(name, beats, copy='', overlap=0, **data):
-    """A storyboard line: `beats` long, showing `copy`. `overlap`: beats the
+    """A storyboard line: `beats` long, showing `copy` (a string or list of strings).
+    `copy_at` in data is the beat offset when all copy is legible. `overlap`: beats the
     previous segment keeps drawing under this one (a transition, not a cut)."""
     return dict(name=name, beats=beats, copy=copy, overlap=overlap, data=data, children=())
 
@@ -116,6 +117,7 @@ def fade_out(shot, frames=8):
 def copy_block(cv, shot, words, fnt, box, colour, align='center', delay=0, valign='center', name='copy'):
     """Wrapped, balanced copy in `box` (`valign` top, center or bottom),
     springing up; marked for checks. Returns the Box drawn."""
+    words = '\n'.join(words) if isinstance(words, list) else words
     lines = text.wrap(words, fnt, box.w, balance=True)
     w, h = text.block_size(lines, fnt)
     at = box.anchor(box.w, h, {'top': 'top', 'center': 'center', 'bottom': 'bottom'}[valign])

@@ -12,7 +12,7 @@ GRID = vb.Grid(fps=30, bpm=120, head_trim=0)   # 15 frames a beat
 GRID.b(6.5)                # frame of beat 6.5 (round half up) -> 98
 GRID.frames_per_beat       # 15.0
 TIMELINE = vb.Timeline(GRID, [
-    vb.Segment('title', 0, 4, data={'copy': '...'}),
+    vb.Segment('title', 0, 8, data={'copy': ['Title', 'Supporting line'], 'copy_at': 0.5}),
     vb.Segment('list', 4, 10, children=vb.sequence(4, [('a', 2), ('b', 2), ('c', 2)])),
     vb.Segment('end', 10, 16, overlap=1),        # the list keeps drawing under it for a beat
 ], end=16)

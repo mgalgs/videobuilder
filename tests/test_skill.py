@@ -47,6 +47,28 @@ class Skill(unittest.TestCase):
             out = script('check.py', film, cwd=d)
             self.assertIn('0 failed', out.stdout)
 
+    def test_copy_lists_warnings_and_entrance_times(self):
+        cases = [
+            ("copy=['one two three', 'four five six']", 1, '6 words'),
+            ("copy='Hi', pro='Other words'", 0, 'uncounted string keys beside copy: pro'),
+            ("copy=['Hi'], copy_at=0.5", 0, '1.73 s'),
+            ("copy=['Hi'], copy_at=2.5", 1, '0.73 s'),
+            ("copy='Hi', copy_at=10", 1, '0.00 s'),
+            ("copy=['Hi', 2]", 1, 'copy must be a string or a list'),
+            ("copy='Hi', copy_at=-1", 1, 'copy_at must be finite'),
+            ("copy='Hi', copy_at=float('nan')", 1, 'copy_at must be finite'),
+            ("title='Hi', subtitle='There'", 0, '2 words'),
+        ]
+        with tempfile.TemporaryDirectory() as d:
+            for data, code, message in cases:
+                with self.subTest(data=data):
+                    Path(d, 'short.py').write_text(
+                        SHORT.replace('HEAD', '0').replace('BOX', '(200, 200, 300, 100)')
+                        .replace("copy='Hi'", data))
+                    out = script('check.py', 'short.py', cwd=d, check=False)
+                    self.assertEqual(out.returncode, code, out.stdout + out.stderr)
+                    self.assertIn(message, out.stdout)
+
     def test_short_film_render_checks_clean(self):
         with tempfile.TemporaryDirectory() as d:
             script('make_track.py', '--bpm', 120, '--beats', 8, '--out', 'music.wav', cwd=d)

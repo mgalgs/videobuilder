@@ -58,3 +58,19 @@ layout in 16:9 that stacks in 9:16, a chart with fewer bars in portrait, a
 capture cropped differently. Same timeline, same copy, different layout.
 If a format would need different copy or timing, that's a separate film
 (copy the file), not a layout table.
+
+## Declaring copy and its entrance
+
+Use `data={'copy': ['Product name', 'Try it free'], 'copy_at': 2.5}`,
+or `card('end', 10, ['Product name', 'Try it free'], copy_at=2.5)`.
+Every list entry counts toward the combined read time. `copy_at` is a finite,
+nonnegative number of beats after this segment starts, default 0, when all
+listed text is legible. For staggered entrances use the latest one; this is
+conservative. The checker uses the grid-rounded entrance frame through the
+segment's end, excluding any outgoing overlap extension. It fails when that
+remaining hold is too short. The declaration does not animate the text.
+
+With `copy`, other string-valued data keys are excluded and named in a warning:
+include any on-screen words in the list, and judge off-screen metadata yourself.
+Without `copy`, all data strings count. List copy is edited in Python; direct
+edits currently replace only string-valued data keys.

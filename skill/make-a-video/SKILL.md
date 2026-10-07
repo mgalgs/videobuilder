@@ -69,10 +69,14 @@ replace its content:
 
 - `STORYBOARD`: `card(name, beats, copy)` per segment, `group(...)` for
   cards sharing one scene, `overlap=k` for a transition. The copy lives in
-  the storyboard so `check.py` can time it.
+  the storyboard so `check.py` can time it. Use a string or a list of strings
+  for `copy`: every listed line counts. Other string keys beside `copy`
+  produce a warning naming what was excluded. Set `copy_at=2.5` for copy
+  legible 2.5 beats after the segment starts (default 0); for staggered
+  lines use the latest entrance. This declares timing; animate it yourself.
 - Draw every line of on-screen copy from `shot.data`, never a literal in a
   scene: a direct edit (`film.edits.toml`) can replace `Segment.data`
-  strings only.
+  strings only; list-valued copy currently requires editing Python.
 - `layout_9x16()`, `layout_16x9()` (add `layout_1x1()` for square): one full
   table per format, each computed from its own frame and safe area.
 - `SCENES`: segment (or group) name → scene function `(cv, shot, L)`.

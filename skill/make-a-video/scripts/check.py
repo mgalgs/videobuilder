@@ -74,7 +74,12 @@ def copy_of(seg):
     """The words a segment shows: `data['copy']`, or all its data strings."""
     data = seg.data or {}
     if 'copy' in data:
-        return data['copy'] or ''
+        copy = data['copy']
+        if isinstance(copy, str):
+            return copy
+        if isinstance(copy, list) and all(isinstance(v, str) for v in copy):
+            return '\n'.join(copy)
+        raise ValueError('copy must be a string or a list of strings')
     return '\n'.join(v for v in data.values() if isinstance(v, str))
 
 
@@ -90,19 +95,29 @@ def storyboard(film, r, wps, lead):
     for seg, parents in tl.walk():
         a, z = tl.span(seg)
         name = ' / '.join([p.name for p in parents] + [seg.name])
-        words = len(copy_of(seg).split())
-        copy = copy_of(seg).replace('\n', ' / ')
+        data = seg.data or {}
+        if 'copy' in data:
+            keys = [str(k) for k, v in data.items() if k != 'copy' and isinstance(v, str)]
+            if keys:
+                r.warn(f'{name!r}: uncounted string keys beside copy: {", ".join(keys)}')
+        try:
+            copy = copy_of(seg)
+            offset = data.get('copy_at', 0)
+            if isinstance(offset, bool) or not isinstance(offset, (int, float)) or not math.isfinite(offset) or offset < 0:
+                raise ValueError('copy_at must be finite, nonnegative beats after segment start')
+        except ValueError as e:
+            r.fail(f'{name!r}: {e}')
+            continue
+        words = len(copy.split())
+        copy = copy.replace('\n', ' / ')
         flag = f' (overlaps {seg.overlap:g})' if seg.overlap else ''
         print(f'  {name:28} {seg.at:5g}-{seg.until:<5g} {a:5d}-{z:<5d} {(z - a) / g.fps:6.2f}  {words:5d}  '
               f'{copy[:60]}{flag}')
-    for seg in tl.leaves():
-        copy = copy_of(seg)
-        if not copy:
+        if seg.children or not copy:
             continue
-        a, z = tl.span(seg)
-        secs = (z - a) / g.fps
-        need = lead + len(copy.split()) / wps
-        msg = f'read time {seg.name!r}: {len(copy.split())} words in {secs:.2f} s (needs {need:.2f} s at {wps:g} w/s + {lead:g} s)'
+        secs = max(0, z - g.b(seg.at + offset)) / g.fps
+        need = lead + words / wps
+        msg = f'read time {seg.name!r}: {words} words in {secs:.2f} s (needs {need:.2f} s at {wps:g} w/s + {lead:g} s)'
         (r.ok if secs + 1e-9 >= need else r.fail)(msg)
 
 
