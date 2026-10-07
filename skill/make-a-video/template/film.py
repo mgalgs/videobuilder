@@ -18,7 +18,7 @@ import videobuilder as vb  # noqa: E402
 from videobuilder import Box, fr, per_format, text  # noqa: E402
 
 # ---- assets: vendored fonts (with their licences) live in assets/ ----
-for _f in sorted((HERE / 'assets').glob('*.[ot]tf')):
+for _f in sorted((HERE / 'assets').rglob('*.[ot]tf')):
     text.register(_f)
 FAMILY = 'Sans'  # PLACEHOLDER: the vendored font's family name (scripts/fontinfo.py prints it)
 

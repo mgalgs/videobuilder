@@ -100,7 +100,7 @@ layout, images, views) with the traps each part hides.
   `fontinfo.py --write-ofl assets/X.otf` writes its `<Family>-OFL.txt`, and
   `fontinfo.py --resolve 'Family' 700 assets/*` shows the face Pango really
   draws (it flags a fallback). The template registers every
-  `assets/*.otf|ttf`; set `FAMILY`, and pass `family=` to `font()` for a
+  `assets/**/*.otf|ttf` recursively (including `assets/fonts/`); set `FAMILY`, and pass `family=` to `font()` for a
   second family (a mono for code). With static files, vendor each weight
   you use. Never rely on what `Sans` resolves to on this machine.
 - **Images**: `vb.Image.load(path)` (decoded once; fine to call in `draw`),

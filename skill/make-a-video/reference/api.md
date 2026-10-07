@@ -114,8 +114,8 @@ text.draw_in(cv, chip, 'New', F, colour, padding=(8, 16))
 - `weight` takes any value on a variable font's axis.
 - **Trap:** CSS adds letter-spacing after the last letter too; Pango doesn't.
   To match a browser layout, `Font(..., css_tracking=True)`.
-- **Trap:** a `Font` whose family isn't registered or installed silently
-  falls back to a system font, and a weight a static family doesn't have
+- **Trap:** a `Font` whose family isn't registered or installed logs one warning per family per
+  process when used, then falls back to a system font, and a weight a static family doesn't have
   falls back to the nearest file. `$SKILL/scripts/fontinfo.py assets/*`
   prints each file's family name and weight; look at a still to confirm.
 - Two families: `vb.Font('Family A', ...)` and `vb.Font('Family B', ...)`;

@@ -47,6 +47,20 @@ class Skill(unittest.TestCase):
             out = script('check.py', film, cwd=d)
             self.assertIn('0 failed', out.stdout)
 
+    def test_template_registers_nested_fonts(self):
+        from unittest.mock import patch
+        from videobuilder import load
+        with tempfile.TemporaryDirectory() as d:
+            film = Path(d, 'film.py')
+            film.write_text((SKILL / 'template' / 'film.py').read_text())
+            fonts = Path(d, 'assets', 'fonts')
+            fonts.mkdir(parents=True)
+            for name in ('A.otf', 'B.ttf', 'OFL.txt'):
+                (fonts / name).touch()
+            with patch('videobuilder.text.register') as register:
+                load(film)
+            self.assertEqual([c.args[0].name for c in register.call_args_list], ['A.otf', 'B.ttf'])
+
     def test_copy_lists_warnings_and_entrance_times(self):
         cases = [
             ("copy=['one two three', 'four five six']", 1, '6 words'),

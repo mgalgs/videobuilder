@@ -5,6 +5,7 @@ browser would put it: each line is `line_height` tall and the glyphs' content
 area (ascent + descent) is centred in it.
 """
 import os
+import logging
 from dataclasses import dataclass
 from functools import lru_cache
 
@@ -21,6 +22,10 @@ from .layout import Box, _edges  # noqa: E402
 S = Pango.SCALE
 
 
+_warned_families = set()
+_known_families = None
+
+
 _registered = []  # font files added with `register`, for a forked child's font map
 _stale = []  # font maps replaced after a fork, kept so they're never finalized
 
@@ -30,6 +35,8 @@ def register(path):
     if not PangoCairo.FontMap.get_default().add_font_file(str(path)):
         raise RuntimeError(f'could not load font {path}')
     _registered.append(str(path))
+    global _known_families
+    _known_families = None
 
 
 def _fresh_font_map():
@@ -37,6 +44,9 @@ def _fresh_font_map():
     fonts on a worker thread, and a forked child has no copy of that thread:
     the child's first new font load (a size it hasn't drawn yet, say text in
     a scaled layer) would wait on it forever."""
+    global _known_families
+    _known_families = None
+    _warned_families.clear()
     _stale.append(PangoCairo.FontMap.get_default())
     fm = PangoCairo.FontMap.new()
     PangoCairo.FontMap.set_default(fm)
@@ -67,10 +77,25 @@ class Font:
     css_tracking: bool = False
 
     def description(self):
+        _warn_missing_family(self.family)
         d = Pango.FontDescription.from_string(f'{self.family} @wght={self.weight}')
         d.set_weight(_nearest_weight(self.weight))  # picks a static family's face; the axis drives variable ones
         d.set_absolute_size(self.size * S)
         return d
+
+
+def _warn_missing_family(family):
+    global _known_families
+    if _known_families is None:
+        _known_families = {f.get_name().casefold() for f in PangoCairo.FontMap.get_default().list_families()}
+        _known_families.update(('sans', 'sans-serif', 'serif', 'monospace', 'system-ui'))
+    for name in family.split(','):
+        name = name.strip()
+        key = name.casefold()
+        if key not in _known_families and key not in _warned_families:
+            _warned_families.add(key)
+            logging.getLogger(__name__).warning(
+                "Font family %r is not registered or installed; Pango will fall back", name)
 
 
 def _font_options():
