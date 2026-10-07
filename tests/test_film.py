@@ -70,6 +70,19 @@ class Loading(unittest.TestCase):
             with self.assertRaises(TypeError):
                 load(p)
 
+    def test_reload_sees_same_size_edit(self):
+        with tempfile.TemporaryDirectory() as d:
+            p = os.path.join(d, 'film.py')
+            src = 'import videobuilder as vb\nFILM = vb.Film(draw=lambda n, cv: None, fps=30, frames={})\n'
+            with open(p, 'w') as fh:
+                fh.write(src.format(12))
+            self.assertEqual(load(p).frames, 12)
+            st = os.stat(p)
+            with open(p, 'w') as fh:
+                fh.write(src.format(13))
+            os.utime(p, ns=(st.st_atime_ns, st.st_mtime_ns))  # the edit lands within the same second
+            self.assertEqual(load(p).frames, 13)
+
 
 if __name__ == '__main__':
     unittest.main()

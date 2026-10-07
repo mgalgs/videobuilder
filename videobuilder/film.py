@@ -163,8 +163,12 @@ def load_module(path, edits=None):
     name = f'_videobuilder_film_{next(_counter)}'
     spec = importlib.util.spec_from_file_location(name, path)
     mod = importlib.util.module_from_spec(spec)
+    # Compiled here, not by exec_module: its bytecode cache trusts mtime and
+    # size, so a same-length edit within one second would load the old film.
+    with open(path, 'rb') as fh:
+        code = compile(fh.read(), path, 'exec')
     with _edits.active(edits):
-        spec.loader.exec_module(mod)
+        exec(code, mod.__dict__)
     if edits is not None and edits.segments and not edits.used:
         raise ValueError(f'{edits.path} has edits, but {path} built no Timeline to apply them to')
     return mod
