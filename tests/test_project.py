@@ -199,6 +199,19 @@ class Committing(TempProject):
         self.assertTrue(self.toml.exists())
         self.assertEqual(git(self.root, 'diff', '--cached', '--name-only'), '')  # nothing left staged
 
+    def test_videos_are_found_again_when_asked_for_an_unknown_one(self):
+        self.assertEqual([v.id for v in self.project.videos()], ['promo/film'])
+        (self.root / 'launch').mkdir()
+        (self.root / 'launch' / 'film.py').write_text(FILM)
+        self.assertEqual(self.project.video('launch/film').path, str(self.root / 'launch' / 'film.py'))
+        (self.root / 'launch' / 'film.py').unlink()
+        with self.assertRaises(KeyError):
+            self.project.video('launch/film')
+        (self.root / 'videobuilder.toml').write_text('[editor]\nvideos = []\n')  # a list is the truth
+        self.assertEqual(self.project.videos(), [])
+        with self.assertRaises(KeyError):
+            self.project.video('promo/film')
+
     def test_unknown_video(self):
         with self.assertRaises(KeyError):
             self.project.edit('nope', 'roll', 'intro', 3)

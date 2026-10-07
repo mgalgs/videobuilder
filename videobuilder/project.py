@@ -177,6 +177,7 @@ class Project:
         """The videos found now, and any found before whose file still exists."""
         found = discover(self.root, self.skip)
         if read_config(self.root).get('videos') is not None:
+            self.seen = {v.id: v for v in found}  # the list is the truth
             return found
         for v in found:
             self.seen[v.id] = v
@@ -184,6 +185,11 @@ class Project:
         return sorted(self.seen.values(), key=lambda v: v.id)
 
     def video(self, vid):
+        """The video `vid`: from the last look while its file exists (this is
+        asked on every frame), else from a fresh one. Raises KeyError."""
+        v = self.seen.get(vid)
+        if v is not None and os.path.isfile(v.path):
+            return v
         for v in self.videos():
             if v.id == vid:
                 return v
