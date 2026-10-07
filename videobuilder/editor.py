@@ -19,7 +19,12 @@ The HTTP API (JSON in and out, except the PNGs; `video` is a video id from
     POST /api/notes  {video, format, frame, text}  pin a note at a frame
     GET  /api/notes/<id>                 one note
     GET  /api/notes/<id>.png             the frame it was pinned to
-    POST /api/notes/<id>/delete          remove a note
+    POST /api/notes/<id>/delete          remove a note (refused for active real runs)
+    GET  /api/draft?video=V             branch, tip, commits, files, refused paths (or null)
+    GET  /api/draft/info?video=V        isolated draft timeline/info
+    GET  /api/draft/frame?video=V&frame=n&format=f&scale=s  isolated draft PNG
+    POST /api/draft/accept {video}      accepted, or rebase_requested with automatic note
+    POST /api/draft/drop   {video}      delete draft and keep session
 
 An edit answers 200 with {message, commit, warning, changed, undo}, where
 `commit` is the new sha (null when it wasn't committed, `warning` says why)

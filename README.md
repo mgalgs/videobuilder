@@ -308,8 +308,9 @@ Open `http://127.0.0.1:8100/` and pick a video. The page has:
   side panel. Edit one and save (ctrl+enter): one edit, one commit.
 - **Notes.** Press `n` (or "+ Note at playhead"), type, and pin it. A note
   keeps its video, format, frame, segment and a PNG of the frame, and the
-  list beside the preview seeks to it when clicked. For now notes stay in
-  the editor: they are queued for an agent that a later version will run.
+  list beside the preview seeks to it when clicked. Notes queue for the configured agent, with one conversation and one linear
+  draft per video. Review the reply and changed files, preview the draft at
+  the same frame and format, then Accept it onto main or Drop it.
 
 **Finding videos.** If the project has a `videobuilder.toml` listing them,
 exactly those:
@@ -335,15 +336,70 @@ pushed. If the project isn't in a git repo, or the edits file already has
 uncommitted changes, the edit is still written, but not committed; the
 editor says so in its header and after the edit.
 
-**Notes and agents.** Notes live in the editor's state directory,
-`<project>/.vb-editor/` by default (`--state-dir`, or `state_dir` in
-`videobuilder.toml`), which git-ignores itself. Each note goes to an
-`AgentBackend` (`videobuilder.notes`), with two calls: `submit(note)`
-returns a handle, and `poll(handle)` returns an `AgentStatus`, made of a
-`state` (`queued`, `working`, `replied` or `failed`), the agent's `reply`,
-and a draft `branch`. The editor polls notes that are still in flight
-whenever it lists them. Only `NullBackend` ships, and it leaves every note
-`queued`.
+**Notes and agents.** The default backend is `null` (notes remain queued).
+Use `--agent fake` for a local demo: the fake agent adds an amber bar to the
+film in a draft branch. `--agent command` invokes your own runner, and
+`--agent fork-sandbox` selects a configurable preset for its proposed CLI.
+Real fork-sandbox runs are not required or tested. Configure them in
+`videobuilder.toml`:
+
+```toml
+[editor]
+allowed_hosts = ["review.example.org"]
+
+[editor.agent]
+backend = "fork-sandbox"  # null | fake | command | fork-sandbox
+executable = "fork-sandbox"
+submit_args = ["run"]
+poll_args = ["status", "--json"]
+extra_args = []
+# For command instead:
+# submit_command = ["my-runner", "submit"]
+# poll_command = ["my-runner", "poll"]
+# For fake: delay = 3 (seconds)
+```
+
+CLI overrides are `--agent`, `--agent-executable`, `--agent-submit-args`,
+`--agent-poll-args`, `--agent-submit-command`, `--agent-poll-command`
+(the four argv options take JSON arrays), and repeatable
+`--agent-extra-arg=VALUE`. `--allow-host NAME` is repeatable and extends the
+configured host list. The bind address and localhost/loopback are always
+allowed. Other Host headers are refused on both GET and POST.
+
+Notes and PNGs stay under `.vb-editor/notes/`. Each video's stable session
+id and current draft live under `.vb-editor/sessions/<slug>/session.json`.
+Listing notes polls and advances queues; restarting the editor resumes
+polling saved handles. Runners must make submission idempotent by note id,
+because a process can stop after submission but before saving the handle.
+Other videos have independent queues. A runner receives a markdown request
+with the frame, format, beat, time, segment, film, image, and directory scope,
+and must continue the supplied draft (or start from main after Accept/Drop).
+
+The generic command contract is `submit_command + [request.json]` →
+`{"handle":"opaque"}`, and `poll_command + [handle]` →
+`{"state":"working","reply":null,"branch":null}` on stdout. Terminal runner
+states are `replied` and `failed`; a reply can include a local draft branch.
+The request JSON includes `project`, `film`, `directory`, `image`, `note_file`,
+`state_dir`, `session`, `draft`, and all note fields. Commands run without a
+shell, with a 60-second timeout. See `videobuilder/agents.py` for the complete
+contract and the small fork-sandbox adapter.
+
+Drafts are checked against their merge base with main before rendering or
+Accept. Changes outside the video directory, dependency pins/lockfiles,
+symlinks and submodules are refused with paths shown inline. Draft previews
+run in a separate Python process with only PATH, temporary HOME, and locale
+variables. When usable, bubblewrap adds a read-only checkout, restricted
+filesystem and no network; otherwise the editor logs that the preview is
+**not sandboxed**. The toggle preserves frame and format and shows the
+draft's timeline. Direct edits are available while viewing main.
+
+Accept rebases in a separate worktree, then fast-forwards main without
+pushing. A dirty main checkout is refused. A rebase conflict is aborted and
+automatically sends “rebase your draft onto main” through the same session.
+Accept and Drop wait until queued/working notes finish. Drop deletes the
+draft branch and preview worktrees, keeping the conversation and session.
+Both decisions record the identity supplied by `request_hook`. Run one
+editor process per state directory; queues advance while the page polls.
 
 **Trust.** The editor runs each film's Python, as the preview does. Use it
 on repos you trust, on a network you trust. It binds to 127.0.0.1 unless

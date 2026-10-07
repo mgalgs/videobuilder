@@ -24,7 +24,7 @@
   #git { margin-left: auto; font-size: 12px; color: var(--muted); }
   #git.warn { color: var(--warn); }
 
-  main { display: grid; grid-template-columns: 1fr 340px; min-height: 0; }
+  main { display: grid; grid-template-columns: 1fr 420px; min-height: 0; }
   #stage { position: relative; min-width: 0; min-height: 0; display: flex; align-items: center; justify-content: center; padding: 12px; }
   #frame { max-width: 100%; max-height: 100%; box-shadow: 0 0 0 1px #333; background: #000; }
   #error { display: none; position: absolute; inset: 12px 12px auto 12px; max-height: 60%; overflow: auto; z-index: 5;
@@ -122,9 +122,9 @@
     <div id="landing"><h2>Videos</h2><p class="muted" id="landing-msg"></p><ul id="videos"></ul></div>
   </div>
   <aside>
-    <div class="tabs"><button id="tab-copy" class="on">Copy</button><button id="tab-notes">Notes</button></div>
-    <div class="pane on" id="pane-copy"></div>
-    <div class="pane" id="pane-notes">
+    <div class="tabs"><button id="tab-copy">Copy</button><button id="tab-notes" class="on">Notes</button></div>
+    <div class="pane" id="pane-copy"></div>
+    <div class="pane on" id="pane-notes">
       <div class="row" style="margin: 0 0 12px"><button id="note-new" class="primary">+ Note at playhead</button> <kbd>n</kbd></div>
       <div id="note-form">
         <div class="muted" id="note-where"></div>
@@ -145,7 +145,7 @@
     <span class="readout">segment <b id="r-seg">–</b></span>
     <label>format <select id="format"></select></label>
     <label>scale <select id="scale"><option value="0.25">¼</option><option value="0.5" selected>½</option><option value="1">1</option></select></label>
-    <button id="undo" hidden></button>
+    <button id="undo" hidden></button><button id="compare" hidden>Viewing main · switch to draft</button>
     <span class="spacer muted">space play · ←/→ frame · shift ←/→ beat · [ ] segment · n note · drag a ▮ handle to move a cut</span>
   </div>
   <div id="tl">
@@ -161,6 +161,7 @@
 'use strict';
 const $ = id => document.getElementById(id);
 const img = $('frame');
+let draftView = false, draft = null;
 let project = null, video = null, info = null, frame = 0, selected = null;
 let playing = false, playT0 = 0, playF0 = 0, waitTimer = null, shownFrame = null, shownVersion = null;
 let inflight = false, wanted = null, lastURL = null, drag = null, busy = false, notes = [];
@@ -238,7 +239,7 @@ async function openVideo(id, wantFormat, wantFrame) {
   video = id;
   $('video').value = id;
   showLanding(false);
-  info = null;
+  info = null; draftView = false; draft = null;
   await refresh(wantFormat, true);
   loadNotes();
 }
@@ -247,7 +248,8 @@ async function openVideo(id, wantFormat, wantFrame) {
 async function refresh(wantFormat, force) {
   if (!video) return;
   let next;
-  try { next = await getJSON('info', {video}); } catch (e) { showError(String(e.message)); return; }
+  try { next = await getJSON(draftView ? 'draft/info' : 'info', {video});
+    if (draftView) { next.video = video; next.git = {state: 'draft'}; next.undo = null; } } catch (e) { showError(String(e.message)); return; }
   if (next.video !== video) return;
   const changed = force || !info || next.version !== info.version || JSON.stringify(next.undo) !== JSON.stringify(info.undo)
                   || JSON.stringify(next.git) !== JSON.stringify(info.git);
@@ -268,7 +270,7 @@ async function refresh(wantFormat, force) {
 }
 function gitBadge() {
   const g = info.git, b = $('git');
-  const msgs = {none: 'not a git repo: edits are saved, not committed',
+  const msgs = {draft: 'Draft preview · timeline follows draft · switch to main to edit', none: 'not a git repo: edits are saved, not committed',
                 dirty: `${info.edits_file} has uncommitted changes: edits are saved, not committed`,
                 ignored: `${info.edits_file} is git-ignored: edits are saved, not committed`,
                 clean: `edits commit to git · ${info.edits_file}`};
@@ -285,7 +287,7 @@ function undoButton() {
 
 // ---- frames: one request in flight, the newest wanted frame wins ----
 function frameURL(n) {
-  return api('frame', {video, frame: n, format: $('format').value, scale: $('scale').value, v: info ? info.version : 0});
+  return api(draftView ? 'draft/frame' : 'frame', {video, frame: n, format: $('format').value, scale: $('scale').value, v: info ? info.version : 0});
 }
 function request(n) { wanted = n; if (!inflight) pump(); }
 async function pump() {
@@ -411,7 +413,7 @@ function buildTimeline() {
     segs.append(d);
   }
   for (const s of t.segments) {
-    if (!s.rollable) continue;
+    if (draftView || !s.rollable) continue;
     const h = el('div', {class: 'handle', style: `left:${xOf(s.end)}`, title: `drag to move the cut at the end of ${s.name}`});
     h.dataset.roll = s.name;
     segs.append(h);
@@ -488,6 +490,7 @@ async function endRoll(d) {
 // One edit at a time. On success: report the commit (or why there's none) and
 // reload; on a refusal: report it, and the timeline snaps back.
 async function runEdit(op, body) {
+  if (draftView) { toast('Switch to main to make direct edits.', 'warn'); return false; }
   if (busy) return false;
   busy = true;
   document.body.style.cursor = 'progress';
@@ -574,11 +577,11 @@ async function loadNotes() {
   $('tab-notes').textContent = notes.length ? `Notes (${notes.length})` : 'Notes';
   const list = $('note-list');
   const sig = JSON.stringify(notes);
-  if (list.dataset.sig === sig) return;
+  if (list.dataset.sig === sig) { await loadDraft(); return; }
   list.dataset.sig = sig;
   list.innerHTML = '';
   if (!notes.length) list.append(el('p', {class: 'muted'}, 'No notes on this video yet.'));
-  for (const n of [...notes].reverse()) {
+  for (const n of notes) {
     const del = el('button', {class: 'del', title: 'delete this note'}, '×');
     del.onclick = async e => {
       e.stopPropagation();
@@ -593,7 +596,7 @@ async function loadNotes() {
          n.reply ? el('div', {class: 'text muted'}, '↳ ' + n.reply) : null,
          el('div', {class: 'meta'},
             el('span', {}, `f ${n.frame} · ${n.format}${n.segment ? ' · ' + n.segment : ''}`),
-            el('span', {class: 'state', title: `backend: ${n.backend}`}, n.state),
+            el('span', {class: 'state', title: `backend: ${n.backend}`}, n.state + (n.state === 'working' && n.started ? ` · ${Math.floor(Date.now()/1000-n.started)}s` : '')),
             n.author ? el('span', {}, n.author) : null,
             del)));
     card.dataset.frame = n.frame;
@@ -602,10 +605,52 @@ async function loadNotes() {
       if ([...$('format').options].some(o => o.value === n.format)) $('format').value = n.format;
       go(n.frame);
     };
+    if (n.history) card.append(el('div', {class: 'meta'}, n.history.map(h => `${h.state} by ${h.author || 'anonymous'}`).join(' · ')));
+    if (n.poll_error) card.append(el('div', {class: 'text muted'}, 'Polling will retry: ' + n.poll_error));
     list.append(card);
   }
+  await loadDraft();
   readouts();
 }
+async function loadDraft() {
+  let panel = $('draft-panel');
+  if (!panel) { panel = el('div', {id: 'draft-panel'}); $('pane-notes').append(panel); }
+  try { draft = await getJSON('draft', {video}); }
+  catch (e) { panel.textContent = e.message; return; }
+  panel.innerHTML = '';
+  $('compare').hidden = !draft || draft.refused.length > 0;
+  if (!draft) return;
+  panel.append(el('h3', {}, 'Draft'), el('div', {class: 'text muted'}, draft.branch),
+    el('pre', {style: 'white-space:pre-wrap'}, draft.commits.join('\n')),
+    el('div', {}, 'Changed files'), el('pre', {style: 'white-space:pre-wrap'}, draft.files.join('\n')));
+  if (draft.refused.length) panel.append(el('div', {class: 'text', style: 'color:var(--err)'},
+    'Draft refused: ' + draft.refused.join(' · ')));
+  const row = el('div', {class: 'row'});
+  for (const [label, action] of [['Preview draft', 'preview'], ['Accept', 'accept'], ['Drop', 'drop']]) {
+    const button = el('button', {}, label);
+    button.disabled = action !== 'drop' && draft.refused.length > 0;
+    if (action !== 'preview' && notes.some(n => ['queued', 'working'].includes(n.state))) button.disabled = true;
+    button.onclick = async () => {
+      try {
+        if (action === 'preview') { draftView = true; await refresh(null, true); }
+        else {
+          const result = await postJSON('draft/' + action, {video});
+          draftView = false;
+          toast(result.message || result.state);
+          await refresh(null, true); await loadNotes();
+        }
+        $('compare').textContent = draftView ? 'Viewing draft · switch to main' : 'Viewing main · switch to draft';
+      } catch (e) { panel.append(el('div', {style: 'color:var(--err)'}, e.message)); }
+    };
+    row.append(button);
+  }
+  panel.append(row);
+}
+$('compare').onclick = async () => {
+  draftView = !draftView;
+  $('compare').textContent = draftView ? 'Viewing draft · switch to main' : 'Viewing main · switch to draft';
+  await refresh(null, true);
+};
 function openNote() {
   if (!info) return;
   setPlaying(false);
@@ -685,7 +730,7 @@ window.addEventListener('hashchange', () => {  // a pasted link to another video
     openVideo(want.video, want.format, frame);
   else go(frame);
 });
-setInterval(() => { if (!drag && !busy) refresh(); }, 600);  // hot reload: `version` bumps when the film changes
+setInterval(() => { if (!draftView && !drag && !busy) refresh(); }, 600);  // hot reload: `version` bumps when the film changes
 setInterval(loadNotes, 4000);  // a backend may move notes along
 </script>
 </body>
