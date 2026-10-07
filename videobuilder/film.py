@@ -14,6 +14,7 @@ import sys
 from dataclasses import dataclass, replace
 from typing import Callable
 
+from . import edits as _edits
 from .canvas import Canvas
 from .timeline import Timeline
 
@@ -145,19 +146,27 @@ class Film:
 _counter = itertools.count()
 
 
-def load_module(path):
+def load_module(path, edits=None):
     """Import a film file afresh (a new module each call, so edits are seen) and
     return the module: `FILM` and the film's other module-level names (its
     layout tables, say) for tools that check a film. Its directory goes on
-    sys.path so it can import its neighbours."""
+    sys.path so it can import its neighbours.
+
+    The `edits.toml` beside the film applies to the first Timeline it builds
+    (see `videobuilder.edits`); `edits`, an `edits.Edits`, replaces it."""
     path = os.path.abspath(path)
+    if edits is None:
+        edits = _edits.Edits.read(_edits.path_for(path))
     d = os.path.dirname(path)
     if d not in sys.path:
         sys.path.insert(0, d)
     name = f'_videobuilder_film_{next(_counter)}'
     spec = importlib.util.spec_from_file_location(name, path)
     mod = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(mod)
+    with _edits.active(edits):
+        spec.loader.exec_module(mod)
+    if edits is not None and edits.segments and not edits.used:
+        raise ValueError(f'{edits.path} has edits, but {path} built no Timeline to apply them to')
     return mod
 
 

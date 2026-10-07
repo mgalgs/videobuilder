@@ -9,6 +9,8 @@ a segment, at any level, starts without an overlap.
 import math
 from dataclasses import dataclass, field
 
+from . import edits as _edits
+
 
 def round_half_up(x):
     """JS Math.round. Python's round() is banker's: round(487.5) == 488 but
@@ -115,7 +117,10 @@ def _check(segments, start, end, where):
 
 class Timeline:
     """Gap-free segments on a grid, optionally grouped and overlapping.
-    `at(frame)` finds the frontmost live segment; `live(frame)` all that draw."""
+    `at(frame)` finds the frontmost live segment; `live(frame)` all that draw.
+
+    Built while a film file is loaded, the first Timeline applies the film's
+    `edits.toml` (see `videobuilder.edits`) and keeps it as `edits`."""
 
     def __init__(self, grid, segments, end):
         self.grid = grid
@@ -128,6 +133,10 @@ class Timeline:
             if s.name in seen:
                 raise ValueError(f'two segments are named {s.name!r}; names must be unique, groups and children included')
             seen.add(s.name)
+        self.edits = _edits.take()
+        if self.edits is not None:
+            _edits.apply(self, self.edits)
+            _check(self.segments, self.segments[0].at, end, f' (after {self.edits.path})')
 
     @property
     def frames(self):

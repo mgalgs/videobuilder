@@ -6,9 +6,9 @@ from .film import FORMATS, Audio, Film, Format, load, load_module
 from .cli import film_main as main
 from .text import Font
 from .timeline import Grid, Segment, Shot, Timeline, round_half_up, sequence
-from . import layout, text
+from . import edits, layout, text
 
 __all__ = ['Audio', 'Box', 'Canvas', 'FORMATS', 'Film', 'Font', 'Format', 'Grid', 'Image', 'Segment', 'Shot',
-           'Timeline', 'View', 'bezier', 'clamp01', 'critical', 'fr', 'interpolate', 'layout', 'linear', 'load',
+           'Timeline', 'View', 'bezier', 'clamp01', 'critical', 'edits', 'fr', 'interpolate', 'layout', 'linear', 'load',
            'load_module', 'log_lerp', 'main', 'per_format', 'rgba', 'round_half_up', 'sequence', 'spring',
            'spring_at', 'text']
