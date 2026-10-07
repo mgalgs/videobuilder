@@ -350,7 +350,7 @@ editor says so in its header and after the edit.
 Use `--agent fake` for a local demo: the fake agent adds an amber bar to the
 film in a draft branch. `--agent command` invokes your own runner, and
 `--agent fork-sandbox` selects a configurable preset for its proposed CLI.
-Real fork-sandbox runs are not required or tested. Configure them in
+Fork-sandbox runs have been tested end to end. Configure them in
 `videobuilder.toml`:
 
 ```toml
@@ -407,8 +407,8 @@ with `--unsandboxed-previews` (or `unsandboxed_previews = true` under
 that holds no credentials. The toggle preserves frame and format and shows the
 draft's timeline. Direct edits are available while viewing main.
 
-Accept rebases in a separate worktree, then fast-forwards main without
-pushing. A dirty main checkout is refused. A rebase conflict is aborted and
+Accept rebases in a separate worktree, then fast-forwards main. With
+`sync_remote` configured, the editor also pushes main. A dirty main checkout is refused. A rebase conflict is aborted and
 automatically sends “rebase your draft onto main” through the same session.
 Accept and Drop wait until queued/working notes finish. Drop deletes the
 draft branch and preview worktrees, keeping the conversation and session.
@@ -539,3 +539,63 @@ rasterisation varies a little between FreeType and Pango versions. After a
 deliberate visual change, refresh them with
 `VIDEOBUILDER_UPDATE_GOLDEN=1 python -m unittest tests.test_golden`, and
 commit the new PNGs.
+
+## Deploying the editor
+
+The example in `deploy/k8s/editor.yaml` runs one replica with `Recreate`, a
+PVC for the editor state, project clone and fork-sandbox scratch, a Service,
+Ingress and `/healthz` probes. Replace every `example.com` value, image,
+Secret and Role name for your site. The editor binds to loopback by default;
+the example explicitly uses `--host 0.0.0.0` and `--allow-host editor.example.com`.
+The host allowlist is the v1 LAN trust boundary; put the Ingress on a trusted
+network. **Never set `unsandboxed_previews` in a pod holding credentials.**
+
+Build with `docker build -f deploy/Dockerfile .`. Set `--build-arg BASE=...`
+to layer on a fork-sandbox postmaster image carrying `fork-sandbox` and
+`kubectl`; see fork-sandbox's cluster postmaster documentation for its image
+and client Role setup. The example RoleBinding names that client Role. Set
+`[editor.agent] backend = "fork-sandbox"` and `extra_args = ["--k8s"]` in
+the project's `videobuilder.toml`. Set `context_root` to a directory under
+`/var/tmp/claude-scratch/forks/` and `context_mount = "/work/context"`.
+The project lives under `/home/editor/src/` for fork-sandbox's project root
+rule. The `--state-dir` and runner session directories live on the PVC under
+`/var/tmp/claude-scratch` for resumable agent runs. The start script clones
+the project on first start, writes SSH config and known_hosts from the
+`editor-forge-ssh` Secret's `id_ed25519` and `known_hosts` keys, and sets the
+git author from `GIT_AUTHOR_NAME` and `GIT_AUTHOR_EMAIL`. Mount an agent
+credential Secret separately, as in the example. The forge key needs read
+and write access to the project and read access to pinned source URLs.
+
+Bubblewrap needs a node-installed Localhost seccomp profile. Obtain Moby's
+Apache-2.0 `profiles/seccomp/default.json` from its source repository,
+then run `python3 deploy/seccomp/mkprofile.py default.json >
+videobuilder-bwrap.json`. Install the output at
+`<kubelet seccomp root>/profiles/videobuilder-bwrap.json` on every eligible
+node and use the example pod's `seccompProfile`. The generator downloads
+nothing. It targets amd64 and a restricted pod with no capabilities.
+
+The image build runs the full unittest suite and compares exact PNG hashes
+for fixed tour and benchmark frames in every format. These hashes depend on
+the image's cairo/Pango. To create the first manifest, run
+`docker build -f deploy/Dockerfile --target frames-export --output type=local,dest=deploy/ .`,
+then move `deploy/frames.sha256` into the committed source tree. Inspect any
+changed frames before accepting a new manifest; repeat that command and
+commit the new file deliberately. A normal build fails if the manifest is
+missing or differs. `python3 -m videobuilder frames --hash
+examples/tour.py examples/benchmark.py` prints the image-specific values.
+
+Set `[editor] sync_remote = "origin"` or `--sync-remote origin` to fetch
+main on project/video opens and before an edit or Accept, and push after a
+commit. The editor fast-forwards clean local checkouts, rebases local-only
+commits when main diverges, and retries a rejected push up to three times.
+On a rebase conflict, it aborts the rebase, resets main to the fetched
+remote, preserves the old commits under `refs/vb-sync/rescue-*`, and reports
+the diff in the error. Draft branches remain local. This mode expects one
+editor process and a clean main checkout.
+
+For agent source staging, set `[editor.agent] context_root` under
+`/var/tmp/claude-scratch/forks/`. Each pinned version is cloned once under
+`v<version>/videobuilder` from the pin's git URL and tag. For a `==` pin,
+set `[editor.agent] videobuilder_repo` to the source repository URL.
+`context_mount` defaults to the local staging path; set it to
+`/work/context` for a fork-sandbox Kubernetes run.

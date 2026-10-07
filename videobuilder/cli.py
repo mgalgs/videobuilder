@@ -172,9 +172,17 @@ def cmd_editor(a):
                     extra_args=a.agent_extra_arg).items() if v is not None}
         serve(a.project, host=a.host, port=a.port, state_dir=a.state_dir, open_browser=a.open,
               agent=agent, allowed_hosts=a.allow_host, unsandboxed_previews=a.unsandboxed_previews,
-              envs=a.envs)
+              envs=a.envs, sync_remote=a.sync_remote)
     except ValueError as e:
         raise SystemExit(f'editor: {e}') from None
+
+
+def cmd_frames(a):
+    from .frames import check, manifest
+    try:
+        print(check(a.films, a.check) if a.check else manifest(a.films), end="")
+    except ValueError as e:
+        raise SystemExit(str(e)) from None
 
 
 def cmd_edit(a):
@@ -253,6 +261,7 @@ def main(argv=None):
     d.add_argument('project', help='the project directory: its videos are found under it')
     d.add_argument('--host', default='127.0.0.1')
     d.add_argument('--port', type=int, default=8100)
+    d.add_argument('--sync-remote', help='fetch and push main through this git remote')
     d.add_argument('--state-dir', help='where notes are kept (default: <project>/.vb-editor)')
     d.add_argument('--open', action='store_true', help='open a browser')
     d.add_argument('--allow-host', action='append', default=[])
@@ -265,6 +274,12 @@ def main(argv=None):
         d.add_argument('--agent-' + name, type=__import__('json').loads, help='JSON argv array')
     d.add_argument('--agent-extra-arg', action='append', help='repeatable; use = for leading dashes')
     d.set_defaults(fn=cmd_editor)
+
+    f = sub.add_parser('frames', help='hash fixed example keyframes in every format')
+    f.add_argument('--hash', action='store_true', required=True)
+    f.add_argument('--check', help='compare against a frame manifest')
+    f.add_argument('films', nargs='+')
+    f.set_defaults(fn=cmd_frames)
 
     w = sub.add_parser('worker', help='serve the versioned film worker protocol on standard streams')
     w.set_defaults(fn=lambda a: __import__('videobuilder.worker', fromlist=['serve']).serve())

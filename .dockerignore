@@ -1,0 +1,8 @@
+.git
+.vb-editor
+__pycache__
+*.pyc
+*.mp4
+*.actual.png
+outbox
+.env*
