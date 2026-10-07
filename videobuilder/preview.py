@@ -1,6 +1,7 @@
 """Live preview: a stdlib HTTP server that draws frames on request, and a page
-to scrub, play and step through them. The film file (and any .py file beside
-it) is watched; on a change it is re-imported and the page redraws.
+to scrub, play and step through them. The film file (any .py file beside it,
+and its edits.toml) is watched; on a change it is re-imported and the page
+redraws.
 
     python -m videobuilder preview film.py [--port 8000]
 
@@ -22,7 +23,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from importlib import resources
 from urllib.parse import parse_qs, urlparse
 
-from . import overlay
+from . import edits, overlay
 from .film import Film, load_module
 
 
@@ -43,7 +44,7 @@ class Session:
         self.check(force=True)
 
     def _watched(self):
-        files = {self.path}
+        files = {self.path, edits.path_for(self.path)}
         try:
             files.update(os.path.join(self.dir, f) for f in os.listdir(self.dir) if f.endswith('.py'))
         except OSError:
@@ -101,6 +102,7 @@ class Session:
             out.update(fps=f.fps, frames=f.frames,
                        formats=[{'name': x.name, 'width': x.width, 'height': x.height} for x in f.formats])
             tl = f.timeline
+            out['edits'] = tl.edits.to_json() if tl is not None and tl.edits is not None else None
             if tl is not None:
                 b = tl.grid.b
                 out['timeline'] = {
@@ -109,7 +111,9 @@ class Session:
                     'segments': [{'name': s.name, 'start': b(s.at), 'end': b(s.until),
                                   'at': s.at, 'until': s.until,
                                   'group': ' / '.join(g.name for g in parents) or None,
-                                  'overlap_end': b(s.at + s.overlap) if s.overlap else None}
+                                  'overlap_end': b(s.at + s.overlap) if s.overlap else None,
+                                  'copy': {k: v for k, v in s.data.items() if isinstance(v, str)},
+                                  'rollable': edits.rollable(tl, s.name)}
                                  for s, parents in tl.walk() if not s.children],
                     'groups': [{'name': s.name, 'start': b(s.at), 'end': b(s.until), 'depth': len(parents)}
                                for s, parents in tl.walk() if s.children],

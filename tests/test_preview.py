@@ -116,6 +116,37 @@ class PreviewServer(unittest.TestCase):
         status, ctype, body = self.get('/frame?frame=35&format=1x1&scale=0.25&overlay=1')  # overlay draws them
         self.assertEqual(status, 200)
 
+    def test_info_has_copy_rollable_and_edits(self):
+        self.write(self.film, self.source.replace("vb.Segment('one', 0, 2)", "vb.Segment('one', 0, 2, dict(title='Hi', n=3))"))
+        info = json.loads(self.get('/info')[2])
+        self.assertIsNone(info['edits'])
+        self.assertEqual([(s['name'], s['copy'], s['rollable']) for s in info['timeline']['segments']],
+                         [('one', {'title': 'Hi'}, True), ('two', {}, False)])
+        toml = os.path.join(self.tmp.name, 'edits.toml')
+        self.write(toml, '[segments.one]\nuntil = 3\n[segments.one.data]\ntitle = "Hello"\n')
+        info = json.loads(self.get('/info')[2])
+        self.assertIsNone(info['error'])
+        self.assertEqual(info['edits'], {'path': toml, 'segments': {'one': {'until': 3, 'data': {'title': 'Hello'}}}})
+        seg = info['timeline']['segments'][0]
+        self.assertEqual((seg['end'], seg['until'], seg['copy']), (45, 3, {'title': 'Hello'}))
+        self.assertEqual(info['timeline']['cuts'], [0, 45])
+
+    def test_edits_toml_hot_reload(self):
+        toml = os.path.join(self.tmp.name, 'edits.toml')
+        v0 = json.loads(self.get('/info')[2])['version']
+        self.write(toml, '[segments.one]\nuntil = 1\n')
+        info = json.loads(self.get('/info')[2])
+        self.assertEqual((info['version'], info['timeline']['cuts']), (v0 + 1, [0, 15]))
+        self.write(toml, '[segments.one]\nuntil = 1.5\n')  # an edit to it
+        self.assertEqual(json.loads(self.get('/info')[2])['timeline']['cuts'], [0, 23])
+        self.write(toml, '[segments.one]\nuntil = 9\n')  # a bad edit keeps the last good film
+        info = json.loads(self.get('/info')[2])
+        self.assertIn('strictly between', info['error'])
+        self.assertEqual(info['timeline']['cuts'], [0, 23])
+        os.remove(toml)  # and removing it is a change too
+        info = json.loads(self.get('/info')[2])
+        self.assertEqual((info['error'], info['edits'], info['timeline']['cuts']), (None, None, [0, 30]))
+
 
 if __name__ == '__main__':
     unittest.main()
