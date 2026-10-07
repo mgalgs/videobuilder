@@ -234,7 +234,8 @@ frames round half up.
    on each frame so a check can draw over it (its marks, a safe area).
    Check the cuts and text here before you render.
 3. **Render.** `render film.py --format all [--jobs N] [--out film.mp4]`
-   writes H.264/AAC MP4s. Check them with ffprobe. If no chunk finishes
+   writes H.264/AAC MP4s. Check them with ffprobe. Progress is a counter
+   on a terminal and a line per tenth of the chunks in a log. If no chunk finishes
    for `--stall` seconds (default 600), the render stops with an error
    naming the frames still pending, rather than waiting forever.
 

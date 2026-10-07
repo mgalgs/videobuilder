@@ -65,6 +65,8 @@ def render(film, out, format=None, jobs=None, chunk=15, crf=18, frames=None, log
         for t in tasks:
             film.frame(t[0], fmt)
         t_warm = time.time() - t0
+        tty = getattr(log, 'isatty', lambda: False)()
+        step = max(1, len(tasks) // 10)
         ctx = mp.get_context('fork')
         with ctx.Pool(jobs) as pool:
             done, pending = 0, {t[0]: t[1] for t in tasks}
@@ -78,8 +80,12 @@ def render(film, out, format=None, jobs=None, chunk=15, crf=18, frames=None, log
                                        f'{stuck}. Try `still` on one of them to see where draw hangs.') from None
                 del pending[first]
                 done += 1
-                print(f'\r{fmt.name}: chunks {done}/{len(tasks)}', end='', file=log, flush=True)
-        print(file=log)
+                if tty:
+                    print(f'\r{fmt.name}: chunks {done}/{len(tasks)}', end='', file=log, flush=True)
+                elif done % step == 0 or done == len(tasks):  # a log file: a line every tenth
+                    print(f'{fmt.name}: chunks {done}/{len(tasks)}', file=log, flush=True)
+        if tty:
+            print(file=log)
         t1 = time.time()
         listing = os.path.join(tmp, 'list.txt')
         with open(listing, 'w') as fh:

@@ -70,6 +70,16 @@ class ForkedWorkers(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp, open(os.devnull, 'w') as quiet:
             render(film, os.path.join(tmp, 'x.mp4'), jobs=2, chunk=15, log=quiet, stall=60)
 
+    def test_progress_in_a_log_is_lines(self):
+        import io
+        film = Film(draw=lambda n, cv: None, fps=30, frames=300, formats=['1x1'])
+        log = io.StringIO()
+        with tempfile.TemporaryDirectory() as tmp:
+            render(film, os.path.join(tmp, 'x.mp4'), jobs=4, chunk=15, log=log)
+        lines = log.getvalue().splitlines()
+        self.assertNotIn('\r', log.getvalue())
+        self.assertEqual(lines[:-1], [f'1x1: chunks {k}/20' for k in range(2, 21, 2)])
+
     def test_a_stalled_worker_is_an_error(self):
         import time
         parent = os.getpid()
