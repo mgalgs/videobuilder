@@ -164,7 +164,7 @@ def cmd_preview(a):
 
 
 def cmd_editor(a):
-    from .editor import serve
+    from .editor import serve, serve_library
     try:
         agent = {k: v for k, v in dict(backend=a.agent, executable=a.agent_executable,
                     submit_command=a.agent_submit_command, poll_command=a.agent_poll_command,
@@ -172,9 +172,20 @@ def cmd_editor(a):
                     extra_args=a.agent_extra_arg, context_root=a.agent_context_root,
                     context_mount=a.agent_context_mount,
                     videobuilder_repo=a.agent_videobuilder_repo).items() if v is not None}
-        serve(a.project, host=a.host, port=a.port, state_dir=a.state_dir, open_browser=a.open,
-              agent=agent, allowed_hosts=a.allow_host, unsandboxed_previews=a.unsandboxed_previews,
-              envs=a.envs, sync_remote=a.sync_remote)
+        if a.library:
+            if a.project:
+                raise ValueError('PROJECT and --library cannot be used together')
+            if a.sync_remote:
+                raise ValueError('--sync-remote is only for single-project mode')
+            serve_library(a.library, host=a.host, port=a.port, checkouts=a.checkouts,
+                          state_dir=a.state_dir, open_browser=a.open, agent=agent,
+                          allowed_hosts=a.allow_host, unsandboxed_previews=a.unsandboxed_previews, envs=a.envs)
+        else:
+            if not a.project:
+                raise ValueError('provide PROJECT or --library DIR')
+            serve(a.project, host=a.host, port=a.port, state_dir=a.state_dir, open_browser=a.open,
+                  agent=agent, allowed_hosts=a.allow_host, unsandboxed_previews=a.unsandboxed_previews,
+                  envs=a.envs, sync_remote=a.sync_remote)
     except ValueError as e:
         raise SystemExit(f'editor: {e}') from None
 
@@ -260,7 +271,9 @@ def main(argv=None):
     ec.set_defaults(fn=cmd_edit)
 
     d = sub.add_parser('editor', help="a web editor for a project's videos: timeline, direct edits that commit, notes")
-    d.add_argument('project', help='the project directory: its videos are found under it')
+    d.add_argument('project', nargs='?', help='the project directory: its videos are found under it')
+    d.add_argument('--library', help='host one git repository per video under DIR')
+    d.add_argument('--checkouts', help='library checkout directory (default: DIR/checkouts)')
     d.add_argument('--host', default='127.0.0.1')
     d.add_argument('--port', type=int, default=8100)
     d.add_argument('--sync-remote', help='fetch and push main through this git remote')

@@ -167,7 +167,7 @@ let playing = false, playT0 = 0, playF0 = 0, waitTimer = null, shownFrame = null
 let inflight = false, wanted = null, lastURL = null, drag = null, busy = false, notes = [];
 
 // ---- small helpers ----
-const api = (path, params) => '/api/' + path + (params ? '?' + new URLSearchParams(params) : '');
+const api = (path, params) => 'api/' + path + (params ? '?' + new URLSearchParams(params) : '');
 async function getJSON(path, params) {
   const r = await fetch(api(path, params));
   const body = await r.json();

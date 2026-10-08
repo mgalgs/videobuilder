@@ -237,6 +237,8 @@ def _page():
 
 
 def make_handler(editor, hook=request_hook):
+    from .library import Library, git_route, serve_git, valid_name
+    library = editor if isinstance(editor, Library) else None
     class Handler(BaseHTTPRequestHandler):
         def parse_request(self):
             if not super().parse_request():
@@ -296,10 +298,35 @@ def make_handler(editor, hook=request_hook):
             try:
                 identity = hook(self)
                 route = url.path
+                active = editor
+                if library:
+                    if route.startswith('/git/'):
+                        # Git POSTs use its own content types; the JSON and Origin rule is for browser edits.
+                        if serve_git(self, library, method, identity):
+                            return
+                        raise HTTPError(404, 'repository not found')
+                    if route in ('/', '/index.html') and method == 'GET':
+                        return self._send(200, library.index(self.headers['Host']), 'text/html; charset=utf-8')
+                    if route == '/api/library/new' and method == 'POST':
+                        body = self._body()
+                        try:
+                            return self._json(201, library.copied(_field(body, 'from', str),
+                                                                   _field(body, 'name', str)))
+                        except ValueError as exc:
+                            raise HTTPError(400, str(exc)) from None
+                    if route != '/healthz':
+                        match = re.fullmatch(r'/v/(.+?)(/api(?:/.*)?|/)?', route)
+                        if not match or not valid_name(match.group(1)):
+                            raise HTTPError(404, 'not found')
+                        try:
+                            active = library.editor(match.group(1))
+                        except ValueError as exc:
+                            raise HTTPError(404, str(exc)) from None
+                        route = match.group(2) or '/'
                 if method == 'GET':
-                    self._get(route, q)
+                    self._get(route, q, active)
                 else:
-                    self._post(route, self._body(), identity)
+                    self._post(route, self._body(), identity, active)
             except (BrokenPipeError, ConnectionResetError):
                 pass
             except (ValueError, KeyError) as e:
@@ -315,7 +342,7 @@ def make_handler(editor, hook=request_hook):
         def do_POST(self):
             self._handle('POST')
 
-        def _get(self, route, q):
+        def _get(self, route, q, editor):
             if route == '/healthz':
                 from . import __version__
                 return self._send(200, ('ok ' + __version__).encode(), 'text/plain; charset=utf-8')
@@ -352,7 +379,7 @@ def make_handler(editor, hook=request_hook):
                     raise HTTPError(404, f'no note {nid!r}') from None
             raise HTTPError(404, 'not found')
 
-        def _post(self, route, body, identity):
+        def _post(self, route, body, identity, editor):
             if route in ('/api/draft/accept', '/api/draft/drop'):
                 action = getattr(editor.drafts, route.rsplit('/', 1)[1])
                 return self._json(200, action(_field(body, 'video', str), identity))
@@ -410,3 +437,24 @@ def serve(root, host='127.0.0.1', port=8100, state_dir=None, open_browser=False,
         stop_sync.set()
         httpd.server_close()
         editor.pool.close()
+
+
+def serve_library(root, host='127.0.0.1', port=8100, checkouts=None, state_dir=None, open_browser=False,
+                  hook=request_hook, agent=None, allowed_hosts=(), unsandboxed_previews=False, envs=None):
+    from .library import Library
+    library = Library(root, checkouts=checkouts, state_dir=state_dir, host=host, agent=agent,
+                      allowed_hosts=allowed_hosts, unsandboxed_previews=unsandboxed_previews, envs=envs)
+    httpd = ThreadingHTTPServer((host, port), make_handler(library, hook))
+    httpd.daemon_threads = True
+    url = f'http://{host}:{httpd.server_address[1]}/'
+    print(f'[editor] library {library.root} at {url} (Ctrl-C to stop)', file=sys.stderr, flush=True)
+    if open_browser:
+        import webbrowser
+        webbrowser.open(url)
+    try:
+        httpd.serve_forever()
+    except KeyboardInterrupt:
+        pass
+    finally:
+        httpd.server_close()
+        library.close()
