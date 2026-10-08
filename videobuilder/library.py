@@ -35,8 +35,11 @@ class Library:
             path.mkdir(parents=True, exist_ok=True)
         self.allowed_hosts = {h.lower().rstrip('.') for h in
                               ('localhost', '127.0.0.1', '::1', host, *allowed_hosts)}
+        from .workers import Environments
+        # Names can't start with '.', so '.shared' never collides with a repo's state dir.
+        environments = Environments(self.state_dir / '.shared', envs or 'pinned')
         self.options = dict(backend=backend, agent=agent, allowed_hosts=allowed_hosts, host=host,
-                            unsandboxed_previews=unsandboxed_previews, envs=envs)
+                            unsandboxed_previews=unsandboxed_previews, environments=environments)
         self.editors = {}
         self.lock = threading.RLock()
 
@@ -103,7 +106,7 @@ class Library:
             run('git', '--git-dir', str(target), 'update-ref', '-d', 'refs/vb-source')
         return {'name': name, 'commit': commit, 'from': source, 'source_commit': sha}
 
-    def index(self, host):
+    def index(self, host, scheme='http'):
         groups = {}
         for name in self.names():
             namespace = name.split('/')[0] if '/' in name else 'Videos'
@@ -113,7 +116,7 @@ class Library:
             rows.append(f'<h2>{html.escape(group)}</h2><ul>')
             for name in names:
                 encoded = '/'.join(quote(p) for p in name.split('/'))
-                url = f'http://{host}/git/{encoded}.git'
+                url = f'{scheme}://{host}/git/{encoded}.git'
                 status = (f'<a href="/v/{encoded}/">Open</a>' if self.has_main(name) else 'Empty')
                 rows.append(f'<li><strong>{html.escape(name)}</strong> · {status}<br><code>{html.escape(url)}</code></li>')
             rows.append('</ul>')
@@ -178,7 +181,9 @@ def serve_git(handler, library, method, identity):
     path = library.path(name)
     if not path.exists():
         query = parse_qs(parsed.query)
-        if method == 'GET' and suffix == '/info/refs' and query.get('service') == ['git-receive-pack']:
+        # Creating on a GET: require a git client, so a cross-site <img> can't make repos.
+        if (method == 'GET' and suffix == '/info/refs' and query.get('service') == ['git-receive-pack']
+                and handler.headers.get('User-Agent', '').startswith('git/')):
             try:
                 library.create(name)
             except ValueError:

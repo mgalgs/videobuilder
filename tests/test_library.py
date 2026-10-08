@@ -1,4 +1,5 @@
 """Library routing and smart HTTP with a real git client."""
+import http.client
 import json
 import os
 from pathlib import Path
@@ -137,8 +138,30 @@ class HostedGit(unittest.TestCase):
         self.assertEqual(code, 403)
         self.assertFalse(self.library.path('acme/launch').exists())
 
+    def test_only_a_git_client_creates_a_repo(self):
+        self.assertEqual(self.request('/git/acme/drive-by.git/info/refs?service=git-receive-pack',
+                                      headers={'User-Agent': 'Mozilla/5.0'})[0], 404)
+        self.assertFalse(self.library.path('acme/drive-by').exists())
+
+    def test_trailing_slash_redirect_and_https_clone_url(self):
+        self.seed()
+        conn = http.client.HTTPConnection('127.0.0.1', self.httpd.server_address[1], timeout=20)
+        self.addCleanup(conn.close)
+        conn.request('GET', '/v/acme/launch')
+        response = conn.getresponse()
+        response.read()
+        self.assertEqual((response.status, response.headers['Location']), (301, '/v/acme/launch/'))
+        page = self.request('/', headers={'X-Forwarded-Proto': 'https'})[1]
+        self.assertIn(b'https://127.0.0.1:', page)
+
+    def test_repos_share_one_env_cache(self):
+        self.seed('acme/launch')
+        self.request('/api/library/new', {'from': 'acme/launch', 'name': 'acme/promo'})
+        self.assertIs(self.library.editor('acme/launch').envs, self.library.editor('acme/promo').envs)
+
     def test_empty_repo_is_listed_but_cannot_open_or_copy(self):
-        self.assertEqual(self.request('/git/acme/empty.git/info/refs?service=git-receive-pack')[0], 200)
+        self.assertEqual(self.request('/git/acme/empty.git/info/refs?service=git-receive-pack',
+                                      headers={'User-Agent': 'git/2.50.0'})[0], 200)
         self.assertIn(b'Empty', self.request('/')[1])
         self.assertEqual(self.request('/v/acme/empty/')[0], 404)
         self.assertEqual(self.request('/api/library/new', {'from': 'acme/empty', 'name': 'another'})[0], 400)

@@ -98,7 +98,7 @@ class Editor:
     and the notes. One lock covers every film load and draw."""
 
     def __init__(self, root, state_dir=None, backend=None, poll=0.25, agent=None, allowed_hosts=(), host='127.0.0.1',
-                 unsandboxed_previews=False, envs=None, env_builder=None, sync_remote=None):
+                 unsandboxed_previews=False, envs=None, env_builder=None, sync_remote=None, environments=None):
         self.root = os.path.abspath(root)
         cfg = read_config(self.root)
         state = state_dir or cfg.get('state_dir') or STATE_DIR
@@ -108,7 +108,7 @@ class Editor:
         self.sync = ForgeSync(self.root, remote) if remote else None
         self.sync_error = None
         self.unsandboxed_previews = bool(unsandboxed_previews or cfg.get('unsandboxed_previews', False))
-        self.envs = Environments(self.state_dir, envs or cfg.get('envs', 'pinned'), env_builder)
+        self.envs = environments or Environments(self.state_dir, envs or cfg.get('envs', 'pinned'), env_builder)
         self.pool = Pool(self.envs, self.unsandboxed_previews)
         self.project = Project(self.root, skip=[self.state_dir], lock=self.lock, worker=self.session)
         self.drafts = Drafts(self)
@@ -306,7 +306,9 @@ def make_handler(editor, hook=request_hook):
                             return
                         raise HTTPError(404, 'repository not found')
                     if route in ('/', '/index.html') and method == 'GET':
-                        return self._send(200, library.index(self.headers['Host']), 'text/html; charset=utf-8')
+                        scheme = self.headers.get('X-Forwarded-Proto', 'http').lower()
+                        page = library.index(self.headers['Host'], scheme if scheme in ('http', 'https') else 'http')
+                        return self._send(200, page, 'text/html; charset=utf-8')
                     if route == '/api/library/new' and method == 'POST':
                         body = self._body()
                         try:
@@ -318,6 +320,12 @@ def make_handler(editor, hook=request_hook):
                         match = re.fullmatch(r'/v/(.+?)(/api(?:/.*)?|/)?', route)
                         if not match or not valid_name(match.group(1)):
                             raise HTTPError(404, 'not found')
+                        if match.group(2) is None and method == 'GET':
+                            # The page calls a relative api/, which needs the trailing slash.
+                            self.send_response(301)
+                            self.send_header('Location', route + '/')
+                            self.send_header('Content-Length', '0')
+                            return self.end_headers()
                         try:
                             active = library.editor(match.group(1))
                         except ValueError as exc:
