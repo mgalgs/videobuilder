@@ -10,13 +10,16 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     rm -rf /var/lib/apt/lists/*
 WORKDIR /opt/videobuilder
 COPY . .
+# ssh refuses to run for a uid with no passwd entry.
 RUN python3 -m pip install --break-system-packages --no-deps --no-build-isolation . && \
+    groupadd --gid 1000 editor && \
+    useradd --uid 1000 --gid 1000 --home-dir /home/editor --no-create-home --shell /bin/sh editor && \
     mkdir -p /var/tmp/claude-scratch /home/editor/src && \
     chown -R 1000:1000 /var/tmp/claude-scratch /home/editor
 ENV HOME=/home/editor
 USER 1000:1000
 ENTRYPOINT ["tini", "--"]
-CMD ["python3", "-m", "videobuilder", "editor", "/home/editor/src/project"]
+CMD ["/opt/videobuilder/deploy/start-editor.sh"]
 
 FROM runtime AS frames
 USER root
