@@ -26,7 +26,11 @@ class HostedGit(unittest.TestCase):
                     'GIT_AUTHOR_NAME': 'Test', 'GIT_AUTHOR_EMAIL': 'test@example.com',
                     'GIT_COMMITTER_NAME': 'Test', 'GIT_COMMITTER_EMAIL': 'test@example.com'}
         self.library = Library(self.root / 'library', unsandboxed_previews=True, envs='current')
-        self.httpd = ThreadingHTTPServer(('127.0.0.1', 0), make_handler(self.library))
+        self.git_requests = []
+        def hook(request):
+            if request.path.startswith('/git/'):
+                self.git_requests.append((request.command, request.headers.get('Transfer-Encoding')))
+        self.httpd = ThreadingHTTPServer(('127.0.0.1', 0), make_handler(self.library, hook))
         self.base = f'http://127.0.0.1:{self.httpd.server_address[1]}'
         self.thread = threading.Thread(target=self.httpd.serve_forever)
         self.thread.start()
@@ -85,6 +89,7 @@ class HostedGit(unittest.TestCase):
         self.git('add', '.', cwd=work)
         self.git('commit', '-m', 'large', cwd=work)
         self.git('-c', 'http.postBuffer=1024', 'push', cwd=work)
+        self.assertIn(('POST', 'chunked'), self.git_requests)
         self.git('fetch', 'origin', cwd=clone)
         self.git('merge', '--ff-only', 'origin/main', cwd=clone)
         self.assertEqual((clone / 'big.bin').read_bytes(), (work / 'big.bin').read_bytes())
@@ -97,6 +102,7 @@ class HostedGit(unittest.TestCase):
         self.git('add', '.', cwd=work)
         self.git('commit', '-m', 'stale', cwd=work)
         self.assertNotEqual(self.git('push', cwd=work, ok=False).returncode, 0)
+        self.assertNotEqual(self.git('push', '--force', cwd=work, ok=False).returncode, 0)
         self.assertNotEqual(self.git('push', 'origin', ':main', cwd=work, ok=False).returncode, 0)
 
     def test_copy_and_validation(self):
@@ -130,6 +136,12 @@ class HostedGit(unittest.TestCase):
                                headers={'Host': 'other.example'})
         self.assertEqual(code, 403)
         self.assertFalse(self.library.path('acme/launch').exists())
+
+    def test_empty_repo_is_listed_but_cannot_open_or_copy(self):
+        self.assertEqual(self.request('/git/acme/empty.git/info/refs?service=git-receive-pack')[0], 200)
+        self.assertIn(b'Empty', self.request('/')[1])
+        self.assertEqual(self.request('/v/acme/empty/')[0], 404)
+        self.assertEqual(self.request('/api/library/new', {'from': 'acme/empty', 'name': 'another'})[0], 400)
 
 
 if __name__ == '__main__':
