@@ -34,6 +34,14 @@ class Queue(TempProject):
         self.assertEqual(restarted.session('a')['session'], store.session('a')['session'])
         self.assertEqual(restarted.get(b['id'])['handle'], 'h3')
 
+    def test_current_polls_the_backend(self):
+        backend = FakeAgent()
+        store = NoteStore(self.root / '.vb-editor/notes', backend)
+        note = store.add('a', '1x1', 0, None, 'first', b'')
+        backend.states[note['handle']] = AgentStatus('replied', 'done', 'draft/a')
+        self.assertEqual(store.get(note['id'])['state'], 'queued')
+        self.assertEqual(store.current(note['id'])['reply'], 'done')
+
     def test_failed_note_releases_queue_and_branch_stays_linear(self):
         backend = FakeAgent()
         store = NoteStore(self.root / '.vb-editor/notes', backend)

@@ -17,7 +17,7 @@ The HTTP API (JSON in and out, except the PNGs; `video` is a video id from
     POST /api/undo   {video}                       reverse the last edit, as a new edit
     GET  /api/notes[?video=V]            notes, oldest first (polls the backend)
     POST /api/notes  {video, format, frame, text}  pin a note at a frame
-    GET  /api/notes/<id>                 one note
+    GET  /api/notes/<id>                 one note (polls the backend)
     GET  /api/notes/<id>.png             the frame it was pinned to
     POST /api/notes/<id>/delete          remove a note (refused for active real runs)
     GET  /api/draft?video=V             branch, tip, commits, files, refused paths (or null)
@@ -382,7 +382,7 @@ def make_handler(editor, hook=request_hook):
                 try:
                     if m.group(2):
                         return self._send(200, editor.notes.image(nid), 'image/png')
-                    return self._json(200, editor.notes.get(nid))
+                    return self._json(200, editor.notes.current(nid))
                 except KeyError:
                     raise HTTPError(404, f'no note {nid!r}') from None
             raise HTTPError(404, 'not found')

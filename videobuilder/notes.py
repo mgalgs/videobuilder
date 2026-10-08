@@ -121,6 +121,13 @@ class NoteStore:
         except FileNotFoundError:
             raise KeyError(nid) from None
 
+    def current(self, nid):
+        """One note after polling its video's backend, as list() does."""
+        video = self.get(nid)['video']
+        with self.video_lock(video):
+            self._advance(video)
+        return self.get(nid)
+
     def image(self, nid):
         """The PNG bytes of a note's frame."""
         try:
