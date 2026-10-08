@@ -66,6 +66,17 @@ class Cli(unittest.TestCase):
                 run('still', FILM, '0', '--format', '4x3', cwd=d)
         self.assertIn('no 4x3 format', e.exception.stderr)
 
+    def test_editor_agent_context_flags(self):
+        from unittest import mock
+        from videobuilder.cli import main
+        with mock.patch('videobuilder.editor.serve') as serve:
+            main(['editor', 'proj', '--agent', 'fork-sandbox', '--agent-extra-arg=--k8s',
+                  '--agent-context-root', '/var/tmp/claude-scratch/forks/ctx',
+                  '--agent-context-mount', '/work/context'])
+        self.assertEqual(serve.call_args.kwargs['agent'], {
+            'backend': 'fork-sandbox', 'extra_args': ['--k8s'],
+            'context_root': '/var/tmp/claude-scratch/forks/ctx', 'context_mount': '/work/context'})
+
 
 class Edit(unittest.TestCase):
     """`edit roll` and `edit copy` write the film's film.edits.toml, or refuse and leave it."""

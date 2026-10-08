@@ -371,7 +371,8 @@ extra_args = []
 
 CLI overrides are `--agent`, `--agent-executable`, `--agent-submit-args`,
 `--agent-poll-args`, `--agent-submit-command`, `--agent-poll-command`
-(the four argv options take JSON arrays), and repeatable
+(the four argv options take JSON arrays), `--agent-context-root`,
+`--agent-context-mount`, `--agent-videobuilder-repo`, and repeatable
 `--agent-extra-arg=VALUE`. `--allow-host NAME` is repeatable and extends the
 configured host list. The bind address and localhost/loopback are always
 allowed. Other Host headers are refused on both GET and POST.
@@ -600,4 +601,7 @@ For agent source staging, set `[editor.agent] context_root` under
 `v<version>/videobuilder` from the pin's git URL and tag. For a `==` pin,
 set `[editor.agent] videobuilder_repo` to the source repository URL.
 `context_mount` defaults to the local staging path; set it to
-`/work/context` for a fork-sandbox Kubernetes run.
+`/work/context` for a fork-sandbox Kubernetes run. `--agent-context-root`,
+`--agent-context-mount` and `--agent-videobuilder-repo` set the same three
+keys from the command line, so a deployment can keep them out of the
+project repo.

@@ -169,7 +169,9 @@ def cmd_editor(a):
         agent = {k: v for k, v in dict(backend=a.agent, executable=a.agent_executable,
                     submit_command=a.agent_submit_command, poll_command=a.agent_poll_command,
                     submit_args=a.agent_submit_args, poll_args=a.agent_poll_args,
-                    extra_args=a.agent_extra_arg).items() if v is not None}
+                    extra_args=a.agent_extra_arg, context_root=a.agent_context_root,
+                    context_mount=a.agent_context_mount,
+                    videobuilder_repo=a.agent_videobuilder_repo).items() if v is not None}
         serve(a.project, host=a.host, port=a.port, state_dir=a.state_dir, open_browser=a.open,
               agent=agent, allowed_hosts=a.allow_host, unsandboxed_previews=a.unsandboxed_previews,
               envs=a.envs, sync_remote=a.sync_remote)
@@ -273,6 +275,9 @@ def main(argv=None):
     for name in ('submit-command', 'poll-command', 'submit-args', 'poll-args'):
         d.add_argument('--agent-' + name, type=__import__('json').loads, help='JSON argv array')
     d.add_argument('--agent-extra-arg', action='append', help='repeatable; use = for leading dashes')
+    d.add_argument('--agent-context-root', help="stage each video's pinned videobuilder here")
+    d.add_argument('--agent-context-mount', help='where the agent sees --agent-context-root')
+    d.add_argument('--agent-videobuilder-repo', help='videobuilder git URL, for == pins')
     d.set_defaults(fn=cmd_editor)
 
     f = sub.add_parser('frames', help='hash fixed example keyframes in every format')
