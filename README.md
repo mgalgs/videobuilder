@@ -429,6 +429,32 @@ The HTTP API (`/api/project`, `/api/info`, `/api/frame`, `/api/roll`,
 `/api/copy`, `/api/undo`, `/api/notes`) is listed in
 `videobuilder/editor.py`.
 
+## Hosting videos
+
+Run `python -m videobuilder editor --library DIR` to host one git repository
+per video. Bare repositories live at `DIR/repos/<name>.git`; the editor makes
+one checkout per repository in `DIR/checkouts/` and keeps notes and agent
+state in `DIR/state/`. Set `--checkouts DIR2` and `--state-dir DIR3` to move
+those directories. Checkouts and state use flat names: `acme/launch` becomes
+`acme--launch`. Names have one or two lower-case path parts, for example
+`launch` or `acme/launch`; the first part is only a listing namespace.
+
+The index at `/` lists repositories, clone URLs, and links to each video page
+at `/v/<name>/`. Its API is at `/v/<name>/api/…`. Git is served at
+`http://HOST/git/<name>.git`: use that URL with ordinary `git clone`,
+`git fetch`, and `git push`. The first push to a valid unused name creates
+the bare repository. Until it has `main`, the index lists it as empty and
+the video page cannot open. Non-fast-forward pushes and deletion of `main`
+are refused. The index's **New video from…** form creates a new repository
+with one fresh commit containing the source `main` tree.
+
+The editor hosts these remotes and does not push to a forge. To keep a forge
+copy, configure any forge that supports HTTP Git pull mirroring to pull from
+the editor's Git URL. Anyone who can reach the editor can push, under the same
+LAN trust model as the UI. The `request_hook` in `videobuilder.editor` is the
+place to authenticate requests behind a proxy; the host allowlist still
+applies to Git URLs. Single-project mode still supports `sync_remote`.
+
 ## The authoring loop
 
 1. **Preview.** `python -m videobuilder preview film.py` serves a page with
@@ -466,6 +492,7 @@ python -m videobuilder preview film.py [--host 127.0.0.1] [--port 8000] [--open]
 python -m videobuilder edit roll film.py SEGMENT UNTIL
 python -m videobuilder edit copy film.py SEGMENT KEY VALUE
 python -m videobuilder editor PROJECT-DIR [--host 127.0.0.1] [--port 8100] [--state-dir DIR] [--open]
+python -m videobuilder editor --library DIR [--checkouts DIR2] [--state-dir DIR3] [--open]
 ```
 
 ## Modules
@@ -544,7 +571,7 @@ commit the new PNGs.
 ## Deploying the editor
 
 The example in `deploy/k8s/editor.yaml` runs one replica with `Recreate`, a
-PVC for the editor state, project clone and fork-sandbox scratch, a Service,
+PVC for the library, checkouts, editor state and fork-sandbox scratch, a Service,
 Ingress and `/healthz` probes. Replace every `example.com` value, image,
 Secret and Role name for your site. The editor binds to loopback by default;
 the example explicitly uses `--host 0.0.0.0` and `--allow-host editor.example.com`.
@@ -558,16 +585,16 @@ drive fork-sandbox from the pod, build fork-sandbox's postmaster layer
 layer's base; see fork-sandbox's cluster postmaster documentation for the
 layer and the client Role setup. The example RoleBinding names that client Role. Set
 `[editor.agent] backend = "fork-sandbox"` and `extra_args = ["--k8s"]` in
-the project's `videobuilder.toml`. Set `context_root` to a directory under
+each video's `videobuilder.toml`. Set `context_root` to a directory under
 `/var/tmp/claude-scratch/forks/` and `context_mount = "/work/context"`.
-The project lives under `/home/editor/src/` for fork-sandbox's project root
-rule. The `--state-dir` and runner session directories live on the PVC under
-`/var/tmp/claude-scratch` for resumable agent runs. The start script clones
-the project on first start, writes SSH config and known_hosts from the
-`editor-forge-ssh` Secret's `id_ed25519` and `known_hosts` keys, and sets the
-git author from `GIT_AUTHOR_NAME` and `GIT_AUTHOR_EMAIL`. Mount an agent
-credential Secret separately, as in the example. The forge key needs read
-and write access to the project and read access to pinned source URLs.
+Video checkouts live under `/home/editor/src/` for fork-sandbox's project root
+rule. The library and `--state-dir` live on the PVC under
+`/var/tmp/claude-scratch` for resumable agent runs. The start script starts
+library mode and sets the git author from `GIT_AUTHOR_NAME` and
+`GIT_AUTHOR_EMAIL`. The optional `editor-forge-ssh` Secret supplies
+`id_ed25519` and `known_hosts` only when a video's pin needs a private Git
+source; read access is enough. Mount an agent credential Secret separately,
+as in the example.
 
 Bubblewrap needs a node-installed Localhost seccomp profile. Obtain Moby's
 Apache-2.0 `profiles/seccomp/default.json` from its source repository,

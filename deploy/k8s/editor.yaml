@@ -57,10 +57,8 @@ spec:
           image: registry.example.com/videobuilder/editor:replace-me
           imagePullPolicy: IfNotPresent
           command: ["tini", "--", "/opt/videobuilder/deploy/start-editor.sh"]
-          args: ["--host", "0.0.0.0", "--port", "8100", "--allow-host", "editor.example.com", "--state-dir", "/var/tmp/claude-scratch/editor-state", "--sync-remote", "origin"]
+          args: ["--host", "0.0.0.0", "--port", "8100", "--allow-host", "editor.example.com", "--state-dir", "/var/tmp/claude-scratch/editor-state"]
           env:
-            - name: PROJECT_REPO
-              value: git@forge.example.com:org/project.git
             - name: ANTHROPIC_API_KEY
               valueFrom:
                 secretKeyRef:
@@ -96,6 +94,7 @@ spec:
         - name: forge
           secret:
             secretName: editor-forge-ssh
+            optional: true
             defaultMode: 0440  # root-owned, group = fsGroup: 0400 is unreadable to uid 1000
 ---
 apiVersion: v1
