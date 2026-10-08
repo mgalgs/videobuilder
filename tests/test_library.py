@@ -7,6 +7,7 @@ import subprocess
 import tempfile
 import threading
 import unittest
+from unittest import mock
 import urllib.error
 import urllib.request
 from http.server import ThreadingHTTPServer
@@ -26,7 +27,11 @@ class HostedGit(unittest.TestCase):
         self.env = {**os.environ, 'HOME': str(self.home), 'GIT_CONFIG_NOSYSTEM': '1',
                     'GIT_AUTHOR_NAME': 'Test', 'GIT_AUTHOR_EMAIL': 'test@example.com',
                     'GIT_COMMITTER_NAME': 'Test', 'GIT_COMMITTER_EMAIL': 'test@example.com'}
-        self.library = Library(self.root / 'library', unsandboxed_previews=True, envs='current')
+        # The editor runs git in-process: give it this env, not the host's git config.
+        patcher = mock.patch.dict(os.environ, self.env)
+        patcher.start()
+        self.addCleanup(patcher.stop)
+        self.library =Library(self.root / 'library', unsandboxed_previews=True, envs='current')
         self.git_requests = []
         def hook(request):
             if request.path.startswith('/git/'):

@@ -2,6 +2,7 @@
 import json
 import os
 from pathlib import Path
+import re
 import shutil
 import subprocess
 import sys
@@ -25,7 +26,8 @@ def copy_builder(target, pin):
     site = target / 'lib' / f'python{sys.version_info.major}.{sys.version_info.minor}' / 'site-packages'
     shutil.copytree(SOURCE, site / 'videobuilder', ignore=shutil.ignore_patterns('__pycache__'))
     init = site / 'videobuilder' / '__init__.py'
-    init.write_text(init.read_text().replace("__version__ = '0.1.2'", "__version__ = '" + pin.read_text().split('==')[1].strip() + "'"))
+    version = pin.read_text().split('==')[1].strip()
+    init.write_text(re.sub(r"^__version__ = '[^']*'", f"__version__ = '{version}'", init.read_text(), flags=re.M))
 
 
 def bwrap_usable():
@@ -173,7 +175,8 @@ class PinnedWorkers(unittest.TestCase):
         source = SOURCE.parent
         worker = Worker(sys.executable, self.root, film, unsandboxed=True, source=source)
         self.addCleanup(worker.close)
-        self.assertEqual(worker.version, '0.1.2')
+        from videobuilder import __version__
+        self.assertEqual(worker.version, __version__)  # runs the source tree, not the pin
         with mock.patch('videobuilder.workers.json.loads', return_value={'protocol': 99, 'version': '0.1.2'}):
             with self.assertRaisesRegex(ValueError, 'unsupported worker protocol'):
                 Worker(sys.executable, self.root, film, unsandboxed=True, source=source)
@@ -206,4 +209,5 @@ class PinnedWorkers(unittest.TestCase):
             self.skipTest('offline build tools unavailable: ' + (result.stderr or result.stdout)[-300:])
         version = subprocess.check_output([python, '-c', 'import videobuilder; print(videobuilder.__version__)'],
                                           cwd=self.tmp.name, text=True).strip()
-        self.assertEqual(version, '0.1.2')
+        from videobuilder import __version__
+        self.assertEqual(version, __version__)

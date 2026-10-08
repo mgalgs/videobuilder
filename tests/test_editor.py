@@ -46,7 +46,8 @@ class API(TempProject):
     def test_healthz_ignores_host_allowlist(self):
         req = urllib.request.Request(self.base + '/healthz', headers={'Host': 'kubelet.invalid'})
         with urllib.request.urlopen(req) as response:
-            self.assertEqual((response.status, response.read()), (200, b'ok 0.1.2'))
+            from videobuilder import __version__
+            self.assertEqual((response.status, response.read()), (200, b'ok ' + __version__.encode()))
 
     def test_page_and_project(self):
         page = self.get('/')
