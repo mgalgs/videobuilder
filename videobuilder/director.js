@@ -268,12 +268,31 @@ function openSheet(view) {
   setView(view);
   $('panel').classList.add('open');
   $('shade').hidden=false;
-  if(view==='chat') {
-    // A plain focus() scrolls #app (overflow: hidden) to the sheet, leaving the
-    // player off screen after the sheet closes.
-    $('message').focus({preventScroll: true});
-    renderNotes()
-  }
+  // No auto-focus: on a phone it raises the keyboard over the chat before the
+  // director has read it.
+  if(view==='chat')renderNotes()
+}
+// Lift the sheet above the on-screen keyboard (see --kb in director.css).
+function trackKeyboard() {
+  const vv=window.visualViewport;
+  const kb=vv ? Math.max(0, window.innerHeight-vv.height-vv.offsetTop) : 0;
+  document.documentElement.style.setProperty('--kb', `${Math.round(kb)}px`);
+  $('app').scrollTop=0
+}
+window.visualViewport?.addEventListener('resize', trackKeyboard);
+window.visualViewport?.addEventListener('scroll', trackKeyboard);
+function videoDuration() {
+  return Number.isFinite(player.duration) ? player.duration : 0
+}
+function seekTo(fraction) {
+  const duration=videoDuration();
+  if(!duration)return;
+  player.currentTime=Math.min(1, Math.max(0, fraction))*duration;
+  updateTime()
+}
+function scrubAt(e) {
+  const r=$('progress').getBoundingClientRect();
+  seekTo((e.clientX-r.left)/r.width)
 }
 function closeSheet() {
   $('panel').classList.remove('open');

@@ -841,8 +841,10 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible {
     z-index: 4;
     left: 0;
     right: 0;
-    bottom: 0;
-    height: min(73dvh,calc(100dvh - 110px));
+    /* --kb: the on-screen keyboard's height, from director.js. iOS lays the
+       keyboard over the page without shrinking dvh. */
+    bottom: var(--kb, 0px);
+    height: min(73dvh,calc(100dvh - 110px - var(--kb, 0px)));
     max-width: none;
     min-width: 0;
     border: 0;
