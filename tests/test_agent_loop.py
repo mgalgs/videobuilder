@@ -125,6 +125,8 @@ else:
         run.return_value = json.dumps(dict(state='replied', branch='draft/a', reply='done'))
         self.assertEqual(backend.poll('/run/example').reply, 'done')
         run.assert_called_with(['runner', 'query', '--json', '/run/example'])
+        run.return_value = json.dumps(dict(state='replied', reply='== result: success · 2 turns · $1 ==\ndone\n'))
+        self.assertEqual(backend.poll('/run/example').reply, 'done\n')
 
 
 class DraftLoop(TempProject):

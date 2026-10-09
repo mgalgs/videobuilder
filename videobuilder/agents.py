@@ -128,6 +128,8 @@ class ForkSandboxBackend(AgentBackend):
             path = Path(data.get('reply_file') or Path(handle) / 'outbox/reply.md')
             if path.is_file():
                 reply = path.read_text(encoding='utf-8')
+        if reply:
+            reply = re.sub(r'^== result:[^\n]*==\n+', '', reply)
         return AgentStatus(data['state'], reply, data.get('branch'))
 
 

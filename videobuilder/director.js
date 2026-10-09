@@ -44,6 +44,8 @@ const node = (tag, className, text) => {
   if(text!=null)n.textContent=text;
   return n
 };
+// Replies stored before the runner stripped its "== result: ... ==" banner.
+const replyText = reply => reply && reply.replace(/^== result:[^\n]*==\n+/, '');
 async function json(path, params, body) {
   const r=await fetch(api(path,params),body===undefined? {
   }
@@ -352,7 +354,7 @@ function renderNotes() {
     if(note.reply) {
       const reply=node('div','bubble-row builder');
       const box=node('div','bubble');
-      box.append(node('span','who','Builder'),node('span',null,note.reply));
+      box.append(node('span','who','Builder'),node('span',null,replyText(note.reply)));
       reply.append(box);
       list.append(reply)
     }
@@ -375,7 +377,7 @@ function renderNotes() {
         note.state === 'conflict' ? 'Conflict' : 'Builder error';
       const detail = note.state === 'refused'
         ? `These paths were outside this video: ${(note.refused || []).join(', ')}`
-        : note.message || note.reply || 'Please try again.';
+        : note.message || replyText(note.reply) || 'Please try again.';
       box.append(node('span','who',title),node('span','problem',detail));
       problem.append(box);
       list.append(problem)
