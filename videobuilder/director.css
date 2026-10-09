@@ -687,7 +687,9 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible {
     display: none !important;
   }
 
-  .phone-only {
+  /* :not([hidden]): both rules are !important, so without it this one, coming
+     later, would beat [hidden] and show the shade over the whole page. */
+  .phone-only:not([hidden]) {
     display: flex !important;
   }
 
