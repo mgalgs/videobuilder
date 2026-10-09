@@ -581,7 +581,8 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible {
   background: #1d1d22;
   color: #fff;
   padding: 0 16px;
-  font-size: 15px;
+  /* Under 16px, iOS Safari zooms the page in when the field takes focus. */
+  font-size: 16px;
 }
 
 .accent {
