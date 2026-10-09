@@ -228,8 +228,8 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible {
   position: absolute;
   left: 12px;
   right: 12px;
-  top: 50%;
-  transform: translateY(-50%);
+  /* Below the centred 72px play glyph, not over it. */
+  top: calc(50% + 48px);
   padding: 12px;
   background: #141417df;
   border-radius: 10px;
@@ -801,6 +801,10 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible {
     right: 16px;
     width: auto;
     justify-content: space-between;
+  }
+
+  .render-status {
+    right: 76px;
   }
 
   .phone-rail {
