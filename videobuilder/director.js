@@ -280,13 +280,18 @@ function openSheet(view) {
   $('panel').classList.add('open');
   $('shade').hidden=false;
   if(view==='chat') {
-    $('message').focus();
+    // A plain focus() scrolls #app (overflow: hidden) to the sheet, leaving the
+    // player off screen after the sheet closes.
+    $('message').focus({preventScroll: true});
     renderNotes()
   }
 }
 function closeSheet() {
   $('panel').classList.remove('open');
-  $('shade').hidden=true
+  $('shade').hidden=true;
+  document.activeElement?.blur();
+  // iOS can still scroll #app when its keyboard opens.
+  $('app').scrollTop=0
 }
 function attachmentUrl(id) {
   return api('attachments/'+encodeURIComponent(id))
@@ -505,7 +510,7 @@ async function sendNote() {
   if(state.sending)return;
   const text=$('message').value.trim();
   if(!text) {
-    $('message').focus();
+    $('message').focus({preventScroll: true});
     return
   }
   if(!await ensureName())return;
