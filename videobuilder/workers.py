@@ -117,7 +117,10 @@ def sandbox_command(python, checkout, home, unsandboxed=False, source=None, comm
     wrapper, reason = [], 'bwrap not found'
     if shutil.which('bwrap'):
         base = ['bwrap', '--unshare-all', '--new-session', '--tmpfs', '/tmp']
-        for system in ('/usr', '/bin', '/lib', '/lib64', '/etc/fonts', '/etc/ld.so.cache'):
+        # Debian links shared libraries such as ffmpeg's libblas through
+        # /etc/alternatives; without it ffmpeg fails to load in the sandbox.
+        for system in ('/usr', '/bin', '/lib', '/lib64', '/etc/alternatives', '/etc/fonts',
+                       '/etc/ld.so.cache'):
             if os.path.exists(system):
                 base += ['--ro-bind', system, system]
         # The venv root, not resolve()'s target: a venv's bin/python links to the
