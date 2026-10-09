@@ -663,6 +663,14 @@ player.onplay=()=> {
   $('desktop-play').setAttribute('aria-label','Pause video');
   $('tap-player').setAttribute('aria-label','Pause video')
 };
+player.onvolumechange=()=> {
+  $('mute').replaceChildren(icon(player.muted ? 'muted' : 'volume'));
+  $('mute').setAttribute('aria-label', player.muted ? 'Unmute' : 'Mute');
+  $('mute').setAttribute('aria-pressed', String(player.muted))
+};
+$('mute').onclick=()=> {
+  player.muted=!player.muted
+};
 player.ontimeupdate=updateTime;
 $('progress').onpointerdown=e=> {
   $('progress').setPointerCapture(e.pointerId);

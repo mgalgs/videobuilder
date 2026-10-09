@@ -804,6 +804,11 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible {
     justify-content: space-between;
   }
 
+  #mute {
+    height: 36px;
+    background: none;
+  }
+
   .render-status {
     right: 76px;
   }
