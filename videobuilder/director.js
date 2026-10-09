@@ -354,9 +354,11 @@ function renderNotes() {
       box.append(node('span','who','Builder'));
       const dots=node('span','dots');
       for(let i=0;i<3;i++)dots.append(node('i','dot'));
-      const message='Working on it. A new version usually takes 2–3 minutes. ' +
-        'You can keep watching or add more notes.';
-      box.append(dots,node('span','state-message',message));
+      const message=note.state==='queued' ?
+        'Queued. The builder takes notes one at a time and starts this one when the note before it lands.' :
+        'Working on it. A new version usually takes 2–3 minutes. You can keep watching or add more notes.';
+      if(note.state==='working')box.append(dots);
+      box.append(node('span','state-message',message));
       working.append(box);
       list.append(working)
     }
