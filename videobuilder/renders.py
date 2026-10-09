@@ -104,9 +104,9 @@ class Renders:
                 film = work / context['film']
                 python, key, _ = e.envs.python(film, work)
                 source = Path(__file__).resolve().parent.parent if key == 'current' else None
-                command = sandbox_command(python, work, home, source=source)[:-4]
-                command += [python, '-m', 'videobuilder', 'render', str(film), '--format', fmt,
-                            '--out', str(home / output.name.removesuffix('.partial')), '--jobs', str(self.jobs)]
+                command = sandbox_command(python, work, home, source=source, command=[
+                    python, '-m', 'videobuilder', 'render', str(film), '--format', fmt,
+                    '--out', str(home / output.name.removesuffix('.partial')), '--jobs', str(self.jobs)])
                 with tempfile.TemporaryFile() as log:
                     proc = subprocess.Popen(command, cwd=home, env=child_environment(home, source),
                                             stdout=log, stderr=log, start_new_session=True)

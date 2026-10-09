@@ -112,8 +112,8 @@ def child_environment(home, source=None):
     return env
 
 
-def sandbox_command(python, checkout, home, unsandboxed=False, source=None):
-    command = [python, '-m', 'videobuilder', 'worker']
+def sandbox_command(python, checkout, home, unsandboxed=False, source=None, command=None):
+    command = command or [python, '-m', 'videobuilder', 'worker']
     wrapper, reason = [], 'bwrap not found'
     if shutil.which('bwrap'):
         base = ['bwrap', '--unshare-all', '--new-session', '--tmpfs', '/tmp']
