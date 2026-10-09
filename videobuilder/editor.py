@@ -604,6 +604,20 @@ def _need(q, name):
     return q[name]
 
 
+NOTE_TICK = 5
+
+
+def _ticker(tick, stop):
+    """Run the agent loop with no page open: a director may send a note and close the tab."""
+    def loop():
+        while not stop.wait(NOTE_TICK):
+            try:
+                tick()
+            except Exception as e:
+                print(f'[editor] note poll failed: {e}', file=sys.stderr, flush=True)
+    threading.Thread(target=loop, daemon=True).start()
+
+
 def serve(root, host='127.0.0.1', port=8100, state_dir=None, open_browser=False, backend=None,
           hook=request_hook, agent=None, allowed_hosts=(), unsandboxed_previews=False, envs=None, sync_remote=None):
     editor = Editor(root, state_dir=state_dir, backend=backend, agent=agent, allowed_hosts=allowed_hosts, host=host,
@@ -611,6 +625,7 @@ def serve(root, host='127.0.0.1', port=8100, state_dir=None, open_browser=False,
     httpd = ThreadingHTTPServer((host, port), make_handler(editor, hook))
     httpd.daemon_threads = True
     stop_sync = threading.Event()
+    _ticker(editor.notes.tick, stop_sync)
     if editor.sync:
         def periodic_sync():
             while not stop_sync.wait(editor.sync.interval):
@@ -646,6 +661,8 @@ def serve_library(root, host='127.0.0.1', port=8100, checkouts=None, state_dir=N
                       allowed_hosts=allowed_hosts, unsandboxed_previews=unsandboxed_previews, envs=envs)
     httpd = ThreadingHTTPServer((host, port), make_handler(library, hook))
     httpd.daemon_threads = True
+    stop = threading.Event()
+    _ticker(library.tick, stop)
     url = f'http://{host}:{httpd.server_address[1]}/'
     print(f'[editor] library {library.root} at {url} (Ctrl-C to stop)', file=sys.stderr, flush=True)
     if open_browser:
@@ -656,5 +673,6 @@ def serve_library(root, host='127.0.0.1', port=8100, checkouts=None, state_dir=N
     except KeyboardInterrupt:
         pass
     finally:
+        stop.set()
         httpd.server_close()
         library.close()

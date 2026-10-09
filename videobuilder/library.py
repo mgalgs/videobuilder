@@ -4,6 +4,7 @@ import os
 from pathlib import Path
 import re
 import subprocess
+import sys
 import threading
 from urllib.parse import parse_qs, quote, urlsplit
 
@@ -131,6 +132,19 @@ class Library:
                 'headers:{"Content-Type":"application/json"},body:JSON.stringify(Object.fromEntries(form))});'
                 'if(r.ok)location.reload();else document.querySelector("#error").textContent=(await r.json()).error;'
                 '};</script></body></html>').encode()
+
+    def tick(self):
+        """Advance unfinished notes in every repo, opening an editor only where one is pending."""
+        from .notes import NoteStore
+        for name in self.names():
+            if name not in self.editors:
+                notes = self.state_dir / name.replace('/', '--') / 'notes'
+                if not notes.is_dir() or not NoteStore(notes).pending():
+                    continue
+            try:
+                self.editor(name).notes.tick()
+            except Exception as e:
+                print(f'[editor] {name}: note poll failed: {e}', file=sys.stderr, flush=True)
 
     def close(self):
         for editor in self.editors.values():

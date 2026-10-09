@@ -176,6 +176,16 @@ class NoteStore:
             return self.list(video, refresh=False)
         return notes
 
+    def pending(self):
+        """The videos that have a note not yet in a final state."""
+        return list(dict.fromkeys(n['video'] for n in self.list(refresh=False) if n['state'] not in FINAL))
+
+    def tick(self):
+        """Advance every video with unfinished notes, as a page poll would."""
+        for vid in self.pending():
+            with self.video_lock(vid):
+                self._advance(vid)
+
     def _advance(self, video):
         for note in self.list(video, refresh=False):
             if note['state'] in FINAL:

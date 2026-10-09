@@ -384,8 +384,9 @@ manual Accept. Out-of-scope changes are refused and the draft is reset to
 rebased onto current `main`, squashed to one version, and the draft advances
 to that version. On a rebase conflict, one automatic rebase request is sent to
 the agent. A second conflict ends in `conflict` with a director-facing message.
-A reply without commits stays `replied`. Listing notes polls runs and advances
-the queue; per-video sessions survive restarts. Manual Accept/Drop routes stay
+A reply without commits stays `replied`. The server polls runs and advances
+the queue every few seconds, so a turn lands with no page open; listing notes
+polls too. Per-video sessions survive restarts. Manual Accept/Drop routes stay
 available when `auto_land = false`.
 
 The name used for notes, edits and restores comes from `request_hook`, then

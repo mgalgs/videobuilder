@@ -137,6 +137,24 @@ class HostedGit(unittest.TestCase):
         self.git('clone', self.url('acme/launch'), str(clone))
         self.assertIn('Updated', (clone / 'promo' / 'film.edits.toml').read_text())
 
+    def test_tick_reopens_only_repos_with_pending_notes(self):
+        from videobuilder.agents import FakeBackend
+        self.library.options['backend'] = FakeBackend(delay=0)
+        self.seed(film=True)
+        code, note = self.request('/v/acme/launch/api/notes', {'video': 'promo/film', 'text': 'Highlight'})
+        self.assertEqual(code, 200, note)
+
+        def forget():
+            editor = self.library.editors.pop('acme/launch')
+            editor.renders.close()
+            editor.pool.close()
+        forget()
+        self.library.tick()
+        self.assertEqual(self.library.editors['acme/launch'].notes.get(note['id'])['state'], 'landed')
+        forget()
+        self.library.tick()
+        self.assertNotIn('acme/launch', self.library.editors)
+
     def test_host_rule_on_git(self):
         code, _ = self.request('/git/acme/launch.git/info/refs?service=git-receive-pack',
                                headers={'Host': 'other.example'})

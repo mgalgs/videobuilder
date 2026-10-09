@@ -46,6 +46,14 @@ class Director(TempProject):
         self.assertEqual(versions[0]['commit'], new)
         self.assertEqual(versions[0]['n'], versions[1]['n'] + 1)
 
+    def test_tick_lands_without_a_page_poll(self):
+        self.editor.notes.backend = FakeBackend(delay=0)
+        note = self.post('/api/notes', {'video':'promo/film','text':'Highlight'})[1]
+        self.assertNotEqual(self.editor.notes.get(note['id'])['state'], 'landed')
+        self.editor.notes.tick()
+        self.assertEqual(self.editor.notes.get(note['id'])['state'], 'landed')
+        self.assertEqual(self.editor.notes.pending(), [])
+
     def test_multi_commit_turn_is_one_version(self):
         self.editor.notes.backend = FakeBackend(delay=0, commits=3)
         old = git(self.root, 'rev-parse', 'main').strip()
