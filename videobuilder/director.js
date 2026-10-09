@@ -2,6 +2,9 @@
 const $ = id => document.getElementById(id);
 const api = (path, params) => 'api/' + path + (params ? '?' + new URLSearchParams(params) : '');
 const libMode = location.pathname.startsWith('/v/');
+// The library entry (e.g. "test/smoke"), not a video id: the API under /v/<name>/ is already
+// scoped to that repo, and its videos come from api/project.
+const libName = libMode ? decodeURIComponent(location.pathname.split('/').slice(2, -1).join('/')) : null;
 const state = {
   video: null,
   project: null,
@@ -566,7 +569,7 @@ async function openVideo(video) {
   state.notes=[];
   state.versionCursor=null;
   clearTimeout(state.renderTimer);
-  $('video-title').textContent=video;
+  $('video-title').textContent=libName||video;
   $('video-picker').value=video;
   try {
     state.info=await json('info', {
@@ -607,8 +610,8 @@ async function init() {
       opt.value=v.id;
       picker.append(opt)
     }
-    const picked=libMode?decodeURIComponent(location.pathname.split('/').slice(2,-1).join('/')):videos[0]?.id;
-    if(!libMode&&videos.length>1) {
+    const picked=videos[0]?.id;
+    if(videos.length>1) {
       picker.hidden=false;
       $('video-title').hidden=true
     }
