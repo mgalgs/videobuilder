@@ -118,17 +118,26 @@ else:
         backend.submit(dict(state_dir='/state', project='/project', note_file='/note', draft='draft/a'))
         run.assert_called_with(['runner', 'start', '--resume', '/state', '--base', 'draft/a', '--local',
                                 '/project', '/note'])
+        backend.submit(dict(state_dir='/state', project='/project', note_file='/note',
+                            attach_dir='/var/tmp/claude-scratch/attach'))
+        run.assert_called_with(['runner', 'start', '--resume', '/state', '--local', '--attach-dir',
+                                '/var/tmp/claude-scratch/attach', '/project', '/note'])
         run.return_value = json.dumps(dict(state='replied', branch='draft/a', reply='done'))
         self.assertEqual(backend.poll('/run/example').reply, 'done')
         run.assert_called_with(['runner', 'query', '--json', '/run/example'])
 
 
 class DraftLoop(TempProject):
+    def tearDown(self):
+        self.editor.renders.close()
+        super().tearDown()
+
     def setUp(self):
         super().setUp()
         git(self.root, 'branch', '-M', 'main')
-        self.editor = Editor(self.root, backend=FakeBackend(delay=0), poll=0, unsandboxed_previews=True)
+        self.editor = Editor(self.root, backend=FakeBackend(delay=0), poll=0, unsandboxed_previews=True, auto_land=False)
         self.addCleanup(self.editor.pool.close)
+        self.addCleanup(self.editor.renders.close)
 
     def draft(self):
         n = self.editor.add_note(dict(video='promo/film', frame=0, text='Add a highlight'), 'reviewer')

@@ -27,8 +27,8 @@ import threading
 import time
 from dataclasses import asdict, dataclass
 
-STATES = ('queued', 'working', 'replied', 'failed', 'accepted', 'dropped')
-FINAL = ('replied', 'failed', 'accepted', 'dropped')
+STATES = ('queued', 'working', 'replied', 'failed', 'accepted', 'dropped', 'landed', 'refused', 'conflict')
+FINAL = ('replied', 'failed', 'accepted', 'dropped', 'landed', 'refused', 'conflict')
 
 
 @dataclass
@@ -71,12 +71,13 @@ class NullBackend(AgentBackend):
 class NoteStore:
     """Notes on disk under `dir`, submitted to `backend` as they are added."""
 
-    def __init__(self, dir, backend=None, context=None):
+    def __init__(self, dir, backend=None, context=None, before_submit=None, on_reply=None, attachments=None):
         self.dir = os.path.abspath(dir)
         self.backend = backend or NullBackend()
         self.lock = threading.RLock()
         self.video_locks = {}
         self.context = context or (lambda video: {})
+        self.before_submit, self.on_reply, self.attachments = before_submit, on_reply, attachments
 
     def video_lock(self, video):
         with self.lock:
@@ -102,8 +103,9 @@ class NoteStore:
         os.makedirs(self.dir, exist_ok=True)
         now = time.time()
         nid = time.strftime('%Y%m%dT%H%M%S', time.gmtime(now)) + f'{int(now % 1 * 1e6):06d}Z-{secrets.token_hex(3)}'
-        with open(self._path(nid, 'png'), 'wb') as fh:
-            fh.write(png)
+        if png is not None:
+            with open(self._path(nid, 'png'), 'wb') as fh:
+                fh.write(png)
         note = {'id': nid, 'video': video, 'format': format, 'frame': frame, 'segment': segment,
                 'text': text.strip(), 'author': author,
                 'created': time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime(now)),
@@ -181,20 +183,33 @@ class NoteStore:
             state = self.session(video)
             if not note['handle']:
                 try:
+                    if self.before_submit:
+                        self.before_submit(video, note, state)
                     payload = {**note, **self.context(video), **state,
                                'state_dir': str(self.session_dir(video)),
-                               'image': self._path(note['id'], 'png')}
+                               'image': self._path(note['id'], 'png') if note.get('frame') is not None else None}
                     path = self.session_dir(video) / (note['id'] + '.md')
-                    lines = ['# Review request', '', note['text'], '']
+                    lines = ['# Review request', '', *([note['rejection']] if note.get('rejection') else []), note['text'], '']
+                    if note.get('time') is not None:
+                        t = note['time']
+                        lines += [f'At {int(t // 60)}:{int(t % 60):02d} (frame {note["frame"]}, segment {json.dumps(note.get("segment"))})', '']
+                    if note.get('attachments'):
+                        lines += ['Attachments (read-only reference files):']
+                        for item in note['attachments']:
+                            lines.append(f'- /attachments/{item["name"]} ({item["type"]}, {item["size"]} bytes)')
+                        lines += ['Use them as reference. To include one in the video, copy it into the video assets directory and commit it there. Never write into /attachments.', '']
                     for key in ('video', 'film', 'format', 'frame', 'segment', 'beat', 'time', 'image', 'draft'):
                         lines.append(f"{key}: {payload.get(key)}")
                     lines += ['', f"Change files only under {payload.get('directory', video)}.",
                               'Commit only changes to the video. Never commit a reply or notes file: '
                               'end with a short answer for the reviewer as your final message, '
                               'and it is shown to them as your reply.',
-                              'Continue the supplied draft, or start from main when draft is null.']
+                              'Continue the supplied draft, or start from main when draft is null.',
+                              'End your reply with Summary: <one line>.']
                     path.write_text('\n'.join(lines) + '\n', encoding='utf-8')
                     payload['note_file'] = str(path)
+                    if self.attachments:
+                        payload['attach_dir'] = self.attachments.stage(note)
                     note['handle'] = self.backend.submit(payload)
                     note['started'] = time.time()
                     self._save(note)
@@ -212,6 +227,9 @@ class NoteStore:
                     if status.branch:
                         state['draft'] = status.branch
                         self.save_session(video, state)
+                    self._save(note)
+                    if status.state == 'replied' and self.on_reply:
+                        self.on_reply(video, note)
                 except Exception as e:
                     note['poll_error'] = str(e)
                     self._save(note)

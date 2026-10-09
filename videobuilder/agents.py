@@ -118,6 +118,7 @@ class ForkSandboxBackend(AgentBackend):
         base = ['--base', note['draft']] if note.get('draft') else []
         return run([self.executable, *self.submit_args, '--resume', note['state_dir'], *base,
                     *self.extra_args, *(['--context-ro', str(context)] if context else []),
+                    *(['--attach-dir', note['attach_dir']] if note.get('attach_dir') else []),
                     note['project'], note['note_file']])
 
     def poll(self, handle):
@@ -136,8 +137,10 @@ class FakeBackend(AgentBackend):
     """
     name = 'fake'
 
-    def __init__(self, delay=3, change=None):
+    def __init__(self, delay=3, change=None, commits=1, extra_path=None):
         self.delay = delay
+        self.commits = commits
+        self.extra_path = extra_path
         self.change = change or ('\n_original_draw = FILM.draw\n'
                                 'def _draft_draw(n, cv):\n'
                                 '    _original_draw(n, cv)\n'
@@ -167,10 +170,18 @@ class FakeBackend(AgentBackend):
         git(root, 'worktree', 'add', str(work), branch)
         try:
             film = work / note['film']
-            film.write_text(film.read_text() + self.change)
-            git(work, 'add', '--', note['film'])
-            git(work, '-c', 'user.name=Demo agent', '-c', 'user.email=agent@example.com',
-                'commit', '-qm', 'agent: ' + note['text'].splitlines()[0])
+            for number in range(self.commits):
+                film.write_text(film.read_text() + self.change)
+                git(work, 'add', '--', note['film'])
+                git(work, '-c', 'user.name=Demo agent', '-c', 'user.email=agent@example.com',
+                    'commit', '-qm', 'agent: ' + note['text'].splitlines()[0])
+            if self.extra_path:
+                target = work / self.extra_path
+                target.parent.mkdir(parents=True, exist_ok=True)
+                target.write_text('out of scope')
+                git(work, 'add', '--', self.extra_path)
+                git(work, '-c', 'user.name=Demo agent', '-c', 'user.email=agent@example.com',
+                    'commit', '-qm', 'outside change')
         finally:
             git(root, 'worktree', 'remove', '--force', str(work))
         result = AgentStatus('replied', 'Added an amber bar at the top of the frame for review.', branch)
