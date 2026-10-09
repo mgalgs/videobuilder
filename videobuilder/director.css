@@ -767,7 +767,7 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible {
 
   .player {
     width: 100%;
-    height: calc(100dvh - env(safe-area-inset-bottom));
+    height: calc(100dvh - 44px - env(safe-area-inset-bottom));
     max-height: none;
     aspect-ratio: auto;
     border-radius: 0;
@@ -785,7 +785,7 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible {
     position: absolute;
     left: 16px;
     right: 80px;
-    bottom: calc(28px + env(safe-area-inset-bottom));
+    bottom: calc(72px + env(safe-area-inset-bottom));
     text-shadow: 0 1px 3px #000b;
     pointer-events: none;
   }
@@ -799,13 +799,18 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible {
   }
 
   .watch-controls {
-    display: none;
+    position: absolute;
+    top: calc(100dvh - 40px - env(safe-area-inset-bottom));
+    left: 16px;
+    right: 16px;
+    width: auto;
+    justify-content: space-between;
   }
 
   .phone-rail {
     position: absolute;
     right: 8px;
-    bottom: calc(28px + env(safe-area-inset-bottom));
+    bottom: calc(72px + env(safe-area-inset-bottom));
     flex-direction: column;
     gap: 12px;
     z-index: 1;
