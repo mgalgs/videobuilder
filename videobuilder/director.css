@@ -778,26 +778,6 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible {
     object-fit: contain;
   }
 
-  .caption {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-    position: absolute;
-    left: 16px;
-    right: 80px;
-    bottom: calc(72px + env(safe-area-inset-bottom));
-    text-shadow: 0 1px 3px #000b;
-    pointer-events: none;
-  }
-
-  .caption strong {
-    font-size: 15px;
-  }
-
-  .caption span {
-    font-size: 14px;
-  }
-
   .watch-controls {
     position: absolute;
     top: calc(100dvh - 40px - env(safe-area-inset-bottom));
