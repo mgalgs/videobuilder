@@ -767,7 +767,7 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible {
 
   .player {
     width: 100%;
-    height: calc(100dvh - 151px);
+    height: calc(100dvh - env(safe-area-inset-bottom));
     max-height: none;
     aspect-ratio: auto;
     border-radius: 0;
@@ -785,7 +785,7 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible {
     position: absolute;
     left: 16px;
     right: 80px;
-    bottom: 170px;
+    bottom: calc(28px + env(safe-area-inset-bottom));
     text-shadow: 0 1px 3px #000b;
     pointer-events: none;
   }
@@ -799,18 +799,13 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible {
   }
 
   .watch-controls {
-    position: absolute;
-    top: calc(100dvh - 145px);
-    left: 16px;
-    right: 16px;
-    width: auto;
-    justify-content: space-between;
+    display: none;
   }
 
   .phone-rail {
     position: absolute;
     right: 8px;
-    bottom: 182px;
+    bottom: calc(28px + env(safe-area-inset-bottom));
     flex-direction: column;
     gap: 12px;
     z-index: 1;
@@ -839,21 +834,6 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible {
     display: grid;
     place-items: center;
     font-size: 26px;
-  }
-
-  #chat-prompt {
-    position: absolute;
-    left: 16px;
-    right: 16px;
-    bottom: calc(56px + env(safe-area-inset-bottom));
-    height: 48px;
-    border: 0;
-    border-radius: 24px;
-    background: #1d1d22;
-    color: #a9a9b2;
-    text-align: left;
-    padding: 0 18px;
-    font-size: 15px;
   }
 
   #shade {

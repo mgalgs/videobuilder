@@ -650,7 +650,6 @@ $('phone-format').onclick=()=> {
   if(formats.length)setFormat(formats[(i+1)%formats.length].name)
 };
 $('rail-chat').onclick=()=>openSheet('chat');
-$('chat-prompt').onclick=()=>openSheet('chat');
 $('rail-versions').onclick=()=>openSheet('versions');
 $('rail-tune').onclick=async()=> {
   if(await ensureName())openSheet('tune')
