@@ -81,19 +81,8 @@ async function ensureName() {
   const value=prompt('What should we call you?');
   if(value===null)return false;
   try {
-    const data=await fetch(libMode?'/api/name':'api/name', {
-      method:'POST',headers: {
-        'Content-Type':'application/json'
-      },body:JSON.stringify( {
-        name:value
-      })
-    }).then(async r=> {
-      const v=await r.json();
-      if(!r.ok)throw Error(v.error);
-      return v;
-    });
-    state.name=data.name;
-    $('director-name').querySelector('strong').textContent=state.name;
+    state.name=(await jsonName(value)).name;
+    updateName();
     return true
   }
   catch(e) {
