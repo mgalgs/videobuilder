@@ -111,6 +111,14 @@ class HostedGit(unittest.TestCase):
         self.assertNotEqual(self.git('push', '--force', cwd=work, ok=False).returncode, 0)
         self.assertNotEqual(self.git('push', 'origin', ':main', cwd=work, ok=False).returncode, 0)
 
+    def test_director_assets_under_video_path(self):
+        self.seed(film=True)
+        for path, marker in (('', b'id="player"'), ('tuning.html', b'id="tl"'),
+                             ('director.js', b'loadVersions'), ('director.css', b'.panel')):
+            code, body = self.request('/v/acme/launch/' + path)
+            self.assertEqual(code, 200, path)
+            self.assertIn(marker, body)
+
     def test_copy_and_validation(self):
         self.seed()
         code, result = self.request('/api/library/new', {'from': 'acme/launch', 'name': 'acme/promo'})

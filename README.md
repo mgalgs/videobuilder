@@ -300,30 +300,26 @@ must be upgraded to open. With no pin, the editor's interpreter is used and
 the video list says "editor's own". Set `[editor] envs = "current"` or pass
 `--envs current` to ignore pins during development; `pinned` is the default.
 
-Open `http://127.0.0.1:8100/` and pick a video. The page has:
+Open `http://127.0.0.1:8100/` and pick a video. Each video opens in
+**director mode**. The newest rendered MP4 plays in a format matched to the
+film. Tap the player to pause or play, choose a format, or download the current
+version. While a render is queued, the current frame appears in its place.
 
-- **A preview** of the frame at the playhead, at ¼, ½ or full scale, with
-  play and pause at the film's fps (frames are dropped when drawing falls
-  behind) and a switch for each of the film's formats.
-- **A timeline**: a beat ruler, the segments as blocks, groups above them,
-  red cut markers and a playhead. Press or drag anywhere on it to seek;
-  ←/→ step a frame, shift+←/→ a beat, `[`/`]` jump between segments, space
-  plays.
-- **Rolling a cut.** A segment whose end can move (`rollable` in `/info`)
-  has a handle on its right edge. Drag it: the label shows the target beat
-  and frame, snapped to the half-beat grid. Let go and the edit is written
-  and committed; if it breaks a rule, the error shows and the cut snaps
-  back. The undo button reverses the last edit, as one more edit and commit.
-- **Copy.** Click a segment, or a group, to list its `data` strings in the
-  side panel. Edit one and save (ctrl+enter): one edit, one commit.
-- **Notes.** The current page pins a frame and PNG when you press `n`. The
-  director API also accepts a chat note without a frame, a playhead time, and
-  uploaded reference files. Builder replies are saved with each note. With
-  `auto_land = true` (the default), each successful builder turn becomes one
-  new commit on `main` and a playable MP4 is queued. The director-mode player
-  and chat sheet are separate frontend work; this page remains the timeline UI.
-  Set `auto_land = false` to keep manual Accept/Drop review.
+Use **Chat** to tell the builder what to change. A timestamp from the current
+playhead is included by default; remove it for a general note. Attach images,
+video, audio, PDF or text files before sending. The note list shows the
+builder's reply and a Watch button when a new version lands. **Versions** lets
+you watch an older version or restore it as a new commit. The player follows
+new versions automatically until you choose an older one; then a toast offers
+a Watch action. The director name is shared between videos in the browser.
 
+**Fine tuning** opens the original timeline and copy editor. It starts
+collapsed. You can drag rollable cut handles, edit copy, and undo the last
+change there. Each direct edit commits a new version. If `auto_land = false`,
+Fine tuning also shows the manual draft preview, Accept and Drop controls.
+The timeline's keyboard shortcuts remain available while Fine tuning has focus:
+←/→ step a frame, shift+←/→ a beat, `[`/`]` jump between segments, and space
+plays its frame preview.
 
 **Finding videos.** If the project has a `videobuilder.toml` listing them,
 exactly those:

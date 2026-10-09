@@ -23,4 +23,4 @@ videobuilder = "videobuilder.cli:main"
 packages = ["videobuilder"]
 
 [tool.setuptools.package-data]
-videobuilder = ["*.html"]
+videobuilder = ["*.html", "*.js", "*.css"]

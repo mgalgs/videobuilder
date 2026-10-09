@@ -221,3 +221,35 @@ class Command(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+class DirectorPageRoutes(API):
+    def test_director_assets_and_api_contract(self):
+        import re
+        for path, content_type, marker in (
+            ('/', 'text/html', b'id="player"'),
+            ('/tuning.html', 'text/html', b'id="tl"'),
+            ('/director.js', 'text/javascript', b"json('versions'"),
+            ('/director.css', 'text/css', b'.panel')):
+            with urllib.request.urlopen(self.base + path, timeout=20) as response:
+                self.assertEqual(response.headers.get_content_type(), content_type)
+                self.assertIn(marker, response.read())
+        js = Path('videobuilder/director.js').read_text()
+        tuning = Path('videobuilder/tuning.html').read_text()
+        paths = set(re.findall(r"(?:api|json|postJSON|getJSON)\('([a-z][a-z/-]*)'", js+tuning))
+        expected = {'project','name','info','frame','video','notes','versions','versions/restore',
+                    'attachments','roll','copy','undo','draft','draft/info','draft/frame',
+                    'draft/accept','draft/drop'}
+        # Dynamic attachment and note ids have their own router patterns.
+        self.assertTrue(paths - {'attachments/', 'draft/'} <= expected, paths - expected)
+        self.assertIn("api('attachments/'", js)
+        self.assertIn("api('video'", js)
+
+    def test_fine_tuning_edit_endpoints(self):
+        self.assertIn(b'id="pane-copy"', self.get('/tuning.html'))
+        video = 'promo/film'
+        self.assertEqual(self.post('/api/roll', {'video': video, 'segment': 'intro', 'until': 6})[0], 200)
+        self.assertEqual(self.get('/api/info?video=promo/film')['timeline']['cuts'][1], 90)
+        self.assertEqual(self.post('/api/copy', {'video': video, 'segment': 'intro', 'key': 'title', 'value': 'New'})[0], 200)
+        self.assertEqual(self.get('/api/info?video=promo/film')['timeline']['segments'][0]['copy']['title'], 'New')
+        self.assertEqual(self.post('/api/undo', {'video': video})[0], 200)
+        self.assertEqual(self.get('/api/info?video=promo/film')['timeline']['segments'][0]['copy']['title'], 'Hello')

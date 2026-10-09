@@ -1,0 +1,761 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>videobuilder editor</title>
+<style>
+  :root { color-scheme: dark; --bg: #151515; --panel: #1d1d1d; --line: #2e2e2e; --ink: #ddd; --muted: #8a8a8a;
+          --accent: #ffb547; --cut: #ff6b6b; --ok: #6bd68a; --warn: #ffcf5a; --err: #ff7a7a; }
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  body { margin: 0; font: 13px/1.4 system-ui, sans-serif; background: var(--bg); color: var(--ink);
+         height: 100vh; overflow: hidden; display: grid; grid-template-rows: auto 1fr auto; }
+  button, select, textarea, input { font: inherit; color: var(--ink); }
+  button, select { background: #2b2b2b; border: 1px solid #444; border-radius: 4px; padding: 3px 10px; cursor: pointer; }
+  button:hover:not(:disabled) { background: #353535; }
+  button:disabled { opacity: .45; cursor: default; }
+  button.primary { background: #4a3a17; border-color: #8a6a2a; }
+  kbd { font: 11px ui-monospace, monospace; border: 1px solid #444; border-radius: 3px; padding: 0 4px; color: var(--muted); }
+
+  header { display: flex; align-items: center; gap: 12px; padding: 6px 12px; background: var(--panel);
+           border-bottom: 1px solid var(--line); min-height: 40px; }
+  header .brand { font-weight: 600; color: #fff; }
+  header .project { color: var(--muted); }
+  #git { margin-left: auto; font-size: 12px; color: var(--muted); }
+  #git.warn { color: var(--warn); }
+
+  main { display: grid; grid-template-columns: 1fr 420px; min-height: 0; }
+  #stage { position: relative; min-width: 0; min-height: 0; display: flex; align-items: center; justify-content: center; padding: 12px; }
+  #frame { max-width: 100%; max-height: 100%; box-shadow: 0 0 0 1px #333; background: #000; }
+  #error { display: none; position: absolute; inset: 12px 12px auto 12px; max-height: 60%; overflow: auto; z-index: 5;
+           background: #3a1212; color: #ffd6d6; padding: 12px; font: 12px/1.4 ui-monospace, monospace;
+           white-space: pre-wrap; border: 1px solid #a33; }
+  #landing { display: none; position: absolute; inset: 0; padding: 40px; overflow: auto; background: var(--bg); z-index: 4; }
+  #landing h2 { margin: 0 0 12px; font-weight: 600; }
+  #landing ul { list-style: none; padding: 0; margin: 0; max-width: 560px; }
+  #landing li a { display: block; padding: 10px 12px; margin-bottom: 6px; background: var(--panel); border: 1px solid var(--line);
+                  border-radius: 6px; color: var(--ink); text-decoration: none; }
+  #landing li a:hover { border-color: var(--accent); }
+  #landing li small { color: var(--muted); margin-left: 8px; }
+
+  aside { border-left: 1px solid var(--line); background: var(--panel); display: flex; flex-direction: column; min-height: 0; }
+  .tabs { display: flex; border-bottom: 1px solid var(--line); }
+  .tabs button { flex: 1; border: 0; border-radius: 0; background: transparent; padding: 8px; color: var(--muted); }
+  .tabs button.on { color: #fff; box-shadow: inset 0 -2px 0 var(--accent); }
+  .pane { display: none; flex: 1; overflow: auto; padding: 12px; }
+  .pane.on { display: block; }
+  .muted { color: var(--muted); }
+  .pane h3 { margin: 0 0 2px; font-size: 14px; color: #fff; }
+  .field { margin: 12px 0; }
+  .field label { display: flex; justify-content: space-between; align-items: baseline; font-size: 12px; color: var(--muted); margin-bottom: 4px; }
+  .field .badge { font-size: 11px; color: var(--accent); }
+  textarea { width: 100%; background: #111; border: 1px solid #3a3a3a; border-radius: 4px; padding: 6px 8px; resize: vertical; }
+  textarea:focus { outline: none; border-color: var(--accent); }
+  .row { display: flex; gap: 8px; align-items: center; margin-top: 6px; }
+  .note { display: grid; grid-template-columns: 96px 1fr; gap: 8px; padding: 8px; margin-bottom: 8px; border: 1px solid var(--line);
+          border-radius: 6px; cursor: pointer; background: #181818; }
+  .note:hover { border-color: #555; }
+  .note.here { border-color: var(--accent); }
+  .note img { width: 96px; height: 64px; object-fit: contain; background: #000; border-radius: 3px; }
+  .note .text { white-space: pre-wrap; word-break: break-word; }
+  .note .meta { font-size: 11px; color: var(--muted); margin-top: 4px; display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+  .note .state { padding: 0 5px; border-radius: 3px; background: #333; }
+  .note .del { margin-left: auto; padding: 0 6px; font-size: 11px; }
+  #note-form { display: none; border: 1px solid var(--accent); border-radius: 6px; padding: 8px; margin-bottom: 12px; }
+
+  footer { background: var(--panel); border-top: 1px solid var(--line); padding: 8px 12px 12px; user-select: none; }
+  #controls { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin-bottom: 8px; }
+  .readout { font-variant-numeric: tabular-nums; }
+  .readout b { color: #fff; font-weight: 600; }
+  .spacer { flex: 1 1 0; min-width: 0; text-align: right; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+  #tl { position: relative; padding: 18px 10px 0; cursor: pointer; }  /* the top strip holds the drag label */
+  #ruler { position: relative; height: 20px; }
+  .tick { position: absolute; bottom: 0; width: 1px; height: 4px; background: #666; }
+  .tick.bar { height: 8px; background: #aaa; }
+  .tick span { position: absolute; bottom: 8px; left: 3px; font-size: 10px; color: var(--muted); white-space: nowrap; }
+  .cutmark { position: absolute; bottom: 0; width: 0; height: 0; margin-left: -4px;
+             border-left: 4px solid transparent; border-right: 4px solid transparent; border-top: 6px solid var(--cut); }
+  #groups { position: relative; }
+  .grp { position: absolute; height: 16px; border-radius: 3px; background: #ffffff1c; border: 1px solid #ffffff30;
+         font-size: 10px; line-height: 14px; padding: 0 5px; color: #bbb; overflow: hidden; white-space: nowrap; }
+  .grp.sel { border-color: var(--accent); color: #fff; }
+  #segs { position: relative; height: 38px; margin-top: 2px; }
+  .seg { position: absolute; top: 0; bottom: 0; border-radius: 3px; overflow: hidden; white-space: nowrap;
+         font-size: 11px; padding: 4px 6px; color: #ddd; background: #3a3f4a; border: 1px solid #4b5160; }
+  .seg:nth-child(even) { background: #343944; }
+  .seg.sel { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); color: #fff; }
+  .seg.edited::after { content: '•'; color: var(--accent); margin-left: 4px; }
+  .seg .ovl { position: absolute; left: 0; bottom: 0; height: 3px; background: #ffd250cc; }
+  .handle { position: absolute; top: 0; bottom: 0; width: 12px; margin-left: -6px; cursor: ew-resize; z-index: 3; }
+  .handle::before { content: ''; position: absolute; left: 4px; top: 6px; bottom: 6px; width: 4px; border-radius: 2px;
+                    background: #ffffff55; }
+  .handle:hover::before, .handle.drag::before { background: var(--accent); }
+  .cutline { position: absolute; top: 18px; bottom: 0; width: 1px; background: #ff6b6b66; pointer-events: none; z-index: 2; }
+  #playhead { position: absolute; top: 18px; bottom: 0; width: 2px; margin-left: -1px; background: #fff; pointer-events: none; z-index: 4; }
+  #playhead::before { content: ''; position: absolute; top: 0; left: -5px; border-left: 6px solid transparent;
+                      border-right: 6px solid transparent; border-top: 8px solid #fff; }
+  #ghost { display: none; position: absolute; top: 18px; bottom: 0; width: 2px; margin-left: -1px; background: var(--accent); z-index: 5; pointer-events: none; }
+  #ghost span { position: absolute; top: -18px; left: 6px; background: var(--accent); color: #1a1306; font-size: 11px; font-weight: 600;
+                padding: 1px 6px; border-radius: 3px; white-space: nowrap; }
+  #ghost.left span { left: auto; right: 6px; }
+
+  #toast { position: fixed; right: 16px; bottom: 150px; max-width: 460px; display: flex; flex-direction: column; gap: 6px; z-index: 10; }
+  .msg { background: #262626; border: 1px solid #444; border-left: 4px solid var(--ok); padding: 8px 10px; border-radius: 4px;
+         box-shadow: 0 4px 16px #0008; white-space: pre-wrap; word-break: break-word; }
+  .msg.warn { border-left-color: var(--warn); }
+  .msg.err { border-left-color: var(--err); }
+  .msg code { font: 11px ui-monospace, monospace; color: var(--muted); }
+  @media (max-width: 700px) {
+    body { height: 100dvh; min-width: 0; grid-template-rows: auto minmax(540px, 1fr) auto; overflow: auto; }
+    header { flex-wrap: wrap; }
+    main { grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(240px, 1fr) minmax(290px, 1fr); }
+    #stage { min-height: 240px; }
+    aside { border-left: 0; border-top: 1px solid var(--line); }
+    footer { min-width: 0; }
+    #controls { gap: 6px; }
+    .spacer { display: none; }
+  }
+</style>
+</head>
+<body>
+<header>
+  <span class="brand">videobuilder editor</span>
+  <span class="project" id="project"></span>
+  <select id="video" title="video"></select>
+  <span id="git"></span>
+</header>
+<main>
+  <div id="stage">
+    <img id="frame" alt="">
+    <div id="error"></div>
+    <div id="landing"><h2>Videos</h2><p class="muted" id="landing-msg"></p><ul id="videos"></ul></div>
+  </div>
+  <aside>
+    <div class="tabs"><button id="tab-copy">Copy</button><button id="tab-notes" class="on">Notes</button></div>
+    <div class="pane" id="pane-copy"></div>
+    <div class="pane on" id="pane-notes">
+      <div class="row" style="margin: 0 0 12px"><button id="note-new" class="primary">+ Note at playhead</button> <kbd>n</kbd></div>
+      <div id="note-form">
+        <div class="muted" id="note-where"></div>
+        <textarea id="note-text" rows="4" placeholder="What should change here?"></textarea>
+        <div class="row"><button id="note-save" class="primary">Pin note</button><button id="note-cancel">Cancel</button>
+          <span class="muted">ctrl+enter</span></div>
+      </div>
+      <div id="note-list"></div>
+    </div>
+  </aside>
+</main>
+<footer>
+  <div id="controls">
+    <button id="play" title="space">▶ play</button>
+    <span class="readout">frame <b id="r-frame">0</b>/<span id="r-frames">0</span></span>
+    <span class="readout">time <b id="r-time">0.00</b>s</span>
+    <span class="readout">beat <b id="r-beat">–</b></span>
+    <span class="readout">segment <b id="r-seg">–</b></span>
+    <label>format <select id="format"></select></label>
+    <label>scale <select id="scale"><option value="0.25">¼</option><option value="0.5" selected>½</option><option value="1">1</option></select></label>
+    <button id="undo" hidden></button><button id="compare" hidden>Viewing main · switch to draft</button>
+    <span class="spacer muted">space play · ←/→ frame · shift ←/→ beat · [ ] segment · n note · drag a ▮ handle to move a cut</span>
+  </div>
+  <div id="tl">
+    <div id="ruler"></div>
+    <div id="groups"></div>
+    <div id="segs"></div>
+    <div id="playhead"></div>
+    <div id="ghost"><span></span></div>
+  </div>
+</footer>
+<div id="toast"></div>
+<script>
+'use strict';
+const $ = id => document.getElementById(id);
+const img = $('frame');
+let draftView = false, draft = null;
+let project = null, video = null, info = null, frame = 0, selected = null;
+let playing = false, playT0 = 0, playF0 = 0, waitTimer = null, shownFrame = null, shownVersion = null;
+let inflight = false, wanted = null, lastURL = null, drag = null, busy = false, notes = [];
+
+// ---- small helpers ----
+const api = (path, params) => 'api/' + path + (params ? '?' + new URLSearchParams(params) : '');
+async function getJSON(path, params) {
+  const r = await fetch(api(path, params));
+  const body = await r.json();
+  if (!r.ok) throw new Error(body.error || r.statusText);
+  return body;
+}
+async function postJSON(path, body) {
+  const r = await fetch(api(path), {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(body)});
+  const out = await r.json();
+  if (!r.ok) throw new Error(out.error || r.statusText);
+  return out;
+}
+function el(tag, props = {}, ...kids) {
+  const e = document.createElement(tag);
+  for (const [k, v] of Object.entries(props)) {
+    if (k === 'class') e.className = v; else if (k === 'style') e.style.cssText = v;
+    else if (k.startsWith('on')) e[k] = v; else e.setAttribute(k, v);
+  }
+  for (const k of kids) if (k !== null && k !== undefined) e.append(k);
+  return e;
+}
+function toast(text, kind = '', ms = 5000) {
+  const m = el('div', {class: 'msg ' + kind}, text);
+  $('toast').append(m);
+  setTimeout(() => m.remove(), kind === 'err' ? Math.max(ms, 9000) : ms);
+}
+const fmtBeat = b => String(+b.toFixed(3));
+const tl = () => info && info.timeline;
+const fpb = () => tl() ? tl().frames_per_beat : null;
+const beatFrame = b => Math.floor(b * fpb() + 0.5);  // round half up, as Grid.b does
+
+// ---- URL hash: video, frame, format, scale survive a reload ----
+function readHash() {
+  const h = new URLSearchParams(location.hash.slice(1));
+  if (h.has('frame')) frame = parseInt(h.get('frame')) || 0;
+  if (h.has('scale')) $('scale').value = h.get('scale');
+  return {video: h.get('video'), format: h.get('format')};
+}
+function writeHash() {
+  if (!video) return;
+  const h = new URLSearchParams({video, frame, format: $('format').value, scale: $('scale').value});
+  history.replaceState(null, '', '#' + h);
+}
+
+// ---- project and videos ----
+async function loadProject(want) {
+  project = await getJSON('project');
+  $('project').textContent = project.name;
+  const sel = $('video');
+  sel.innerHTML = '';
+  for (const v of project.videos) sel.append(el('option', {value: v.id}, `${v.id} · ${v.pin} · ${v.env}`));
+  const list = $('videos');
+  list.innerHTML = '';
+  for (const v of project.videos)
+    list.append(el('li', {}, el('a', {href: '#video=' + encodeURIComponent(v.id), onclick: e => { e.preventDefault(); openVideo(v.id); }},
+                                v.id, el('small', {}, `${v.path} · ${v.pin} · ${v.env}${v.error ? ': ' + v.error : ''}`))));
+  $('landing-msg').textContent = project.error ? project.error
+    : project.videos.length ? 'Pick a video to review.' : 'No videos found under this project.';
+  const ids = project.videos.map(v => v.id);
+  const pick = ids.includes(want.video) ? want.video : ids.length === 1 ? ids[0] : null;
+  if (pick) openVideo(pick, want.format); else showLanding(true);
+}
+function showLanding(on) {
+  $('landing').style.display = on ? 'block' : 'none';
+  $('video').style.display = on && !video ? 'none' : '';
+}
+async function openVideo(id, wantFormat, wantFrame) {
+  if (id !== video) { selected = null; if (video) frame = wantFrame || 0; }
+  video = id;
+  $('video').value = id;
+  showLanding(false);
+  info = null; draftView = false; draft = null;
+  await refresh(wantFormat, true);
+  loadNotes();
+}
+
+// ---- info, hot reload ----
+async function refresh(wantFormat, force) {
+  if (!video) return;
+  let next;
+  try { next = await getJSON(draftView ? 'draft/info' : 'info', {video});
+    if (draftView) { next.video = video; next.git = {state: 'draft'}; next.undo = null; } } catch (e) { showError(String(e.message)); updateEnv(); return; }
+  if (force) updateEnv();
+  if (next.video !== video) return;
+  const changed = force || !info || next.version !== info.version || JSON.stringify(next.undo) !== JSON.stringify(info.undo)
+                  || JSON.stringify(next.git) !== JSON.stringify(info.git);
+  if (!changed) return;
+  showError(next.error);
+  if (next.frames === undefined) { info = null; return; }  // nothing has loaded yet
+  const sel = $('format'), cur = wantFormat || sel.value;
+  sel.innerHTML = '';
+  for (const f of next.formats) sel.append(el('option', {value: f.name}, `${f.name} (${f.width}×${f.height})`));
+  if (next.formats.some(f => f.name === cur)) sel.value = cur;
+  document.title = `${video} · videobuilder editor`;
+  info = next;
+  gitBadge();
+  undoButton();
+  if (!drag) buildTimeline();
+  renderCopy();
+  go(frame);
+}
+async function updateEnv() {
+  try {
+    const data = await getJSON('project');
+    for (const v of data.videos) {
+      const option = [...$('video').options].find(o => o.value === v.id);
+      if (option) option.textContent = `${v.id} · ${v.pin} · ${v.env}`;
+      const item = [...$('videos').children].find(x => x.querySelector('a')?.hash === '#video=' + encodeURIComponent(v.id));
+      if (item) item.querySelector('small').textContent = `${v.path} · ${v.pin} · ${v.env}${v.error ? ': ' + v.error : ''}`;
+    }
+  } catch (_) {}
+}
+function gitBadge() {
+  const g = info.git, b = $('git');
+  const msgs = {draft: 'Draft preview · timeline follows draft · switch to main to edit', none: 'not a git repo: edits are saved, not committed',
+                dirty: `${info.edits_file} has uncommitted changes: edits are saved, not committed`,
+                ignored: `${info.edits_file} is git-ignored: edits are saved, not committed`,
+                clean: `edits commit to git · ${info.edits_file}`};
+  b.textContent = msgs[g.state] || '';
+  b.className = g.state === 'clean' ? '' : 'warn';
+}
+function undoButton() {
+  const u = info.undo, b = $('undo');
+  b.hidden = !u;
+  if (!u) return;
+  b.textContent = u.op === 'roll' ? `↶ undo: ${u.segment}'s cut back to beat ${fmtBeat(u.value)}`
+                                  : `↶ undo: ${u.segment}.${u.key} copy`;
+}
+
+// ---- frames: one request in flight, the newest wanted frame wins ----
+function frameURL(n) {
+  return api(draftView ? 'draft/frame' : 'frame', {video, frame: n, format: $('format').value, scale: $('scale').value, v: info ? info.version : 0});
+}
+function request(n) { wanted = n; if (!inflight) pump(); }
+async function pump() {
+  if (wanted === null) return;
+  const n = wanted;
+  wanted = null;
+  inflight = true;
+  try {
+    const r = await fetch(frameURL(n));
+    if (!r.ok) {
+      const t = await r.text();
+      try { showError(JSON.parse(t).error); } catch (e) { showError(t); }
+    } else {
+      const url = URL.createObjectURL(await r.blob());
+      await new Promise(res => { img.onload = res; img.onerror = res; img.src = url; });
+      if (lastURL) URL.revokeObjectURL(lastURL);
+      lastURL = url;
+      img.dataset.frame = n;
+      shownFrame = n; shownVersion = info ? info.version : null;
+      if (!(info && info.error)) showError(null);
+    }
+  } catch (e) { showError(String(e)); }
+  inflight = false;
+  if (playing) tick(); else if (wanted !== null) pump();
+}
+function showError(text) {
+  $('error').style.display = text ? 'block' : 'none';
+  $('error').textContent = text || '';
+}
+
+// ---- seeking and playback ----
+function segAt(n) { return tl() ? tl().segments.find(s => s.start <= n && n < s.end) || null : null; }
+function readouts() {
+  $('r-frame').textContent = frame;
+  $('r-frames').textContent = info ? info.frames - 1 : 0;
+  $('r-time').textContent = info ? (frame / info.fps).toFixed(2) : '0.00';
+  $('r-beat').textContent = fpb() ? (frame / fpb()).toFixed(2) : '–';
+  const s = segAt(frame);
+  $('r-seg').textContent = s ? (s.group ? s.group + ' / ' : '') + s.name : '–';
+  if (info) $('playhead').style.left = tlX(frame);
+  for (const n of document.querySelectorAll('.note')) n.classList.toggle('here', +n.dataset.frame === frame);
+}
+function go(n) {
+  if (!info) return;
+  frame = Math.max(0, Math.min(info.frames - 1, Math.round(n)));
+  readouts();
+  writeHash();
+  request(frame);
+}
+function tick() {
+  if (!playing) return;
+  let n = playF0 + Math.floor((performance.now() - playT0) * info.fps / 1000);
+  if (n >= info.frames) { playT0 = performance.now(); playF0 = 0; n = 0; }
+  if (n === shownFrame && shownVersion === info.version) {
+    const due = playT0 + (n - playF0 + 1) * 1000 / info.fps;
+    clearTimeout(waitTimer);
+    waitTimer = setTimeout(tick, Math.max(1, due - performance.now()));
+    return;
+  }
+  frame = n;
+  readouts();
+  request(n);
+}
+function setPlaying(p) {
+  playing = p && !!info;
+  $('play').textContent = playing ? '❚❚ pause' : '▶ play';
+  if (playing) {
+    if (frame >= info.frames - 1) frame = 0;
+    playT0 = performance.now(); playF0 = frame;
+    if (!inflight) tick();
+  } else writeHash();
+}
+
+// ---- the timeline ----
+const xOf = f => (100 * f / info.frames) + '%';  // in the rows (#segs and the like)
+const tlX = f => `calc(10px + (100% - 20px) * ${f / info.frames})`;  // in #tl, inside its padding
+function trackBox() {
+  const r = $('segs').getBoundingClientRect();
+  return {left: r.left, width: r.width};
+}
+function frameAtX(clientX) {
+  const b = trackBox();
+  return Math.max(0, Math.min(info.frames - 1, Math.floor((clientX - b.left) / b.width * info.frames)));
+}
+function nextSibling(s) {  // the segment a roll of s moves: next at its level, starting where s ends
+  const segs = tl().segments, i = segs.indexOf(s);
+  const n = segs[i + 1];
+  return n && n.group === s.group && n.at === s.until ? n : null;
+}
+function edited(name) { return info.edits && info.edits.segments[name]; }
+
+function buildTimeline() {
+  const ruler = $('ruler'), groups = $('groups'), segs = $('segs');
+  ruler.innerHTML = ''; groups.innerHTML = ''; segs.innerHTML = '';
+  for (const c of document.querySelectorAll('.cutline')) c.remove();
+  const t = tl();
+  if (!t) { segs.append(el('div', {class: 'muted', style: 'padding:10px'}, 'This video has no timeline: nothing to edit here.')); return; }
+  t.beats.forEach((f, k) => {
+    const tick = el('div', {class: 'tick' + (k % 4 === 0 ? ' bar' : ''), style: `left:${xOf(f)}`});
+    if (k % 4 === 0) tick.append(el('span', {}, String(k)));
+    ruler.append(tick);
+  });
+  for (const c of t.cuts) {
+    ruler.append(el('div', {class: 'cutmark', style: `left:${xOf(c)}`, title: `cut at frame ${c}`}));
+    $('tl').append(el('div', {class: 'cutline', style: `left:${tlX(c)}`}));
+  }
+  const depth = Math.max(0, ...(t.groups || []).map(g => g.depth + 1));
+  groups.style.height = depth ? (depth * 18) + 'px' : '0';
+  for (const g of t.groups || []) {
+    const d = el('div', {class: 'grp' + (selected === g.name ? ' sel' : ''),
+                         style: `left:${xOf(g.start)};width:${100 * (g.end - g.start) / info.frames}%;top:${g.depth * 18}px`,
+                         title: `group ${g.name}: beats ${g.start / t.frames_per_beat}–${g.end / t.frames_per_beat}`}, g.name);
+    d.dataset.select = g.name;
+    groups.append(d);
+  }
+  for (const s of t.segments) {
+    const d = el('div', {class: 'seg' + (selected === s.name ? ' sel' : '') + (edited(s.name) ? ' edited' : ''),
+                         style: `left:${xOf(s.start)};width:${100 * (s.end - s.start) / info.frames}%`,
+                         title: `${s.group ? s.group + ' / ' : ''}${s.name}: beats ${s.at}–${s.until}, frames ${s.start}–${s.end - 1}`},
+                 s.name);
+    d.dataset.select = s.name;
+    if (s.overlap_end) d.append(el('div', {class: 'ovl', style: `width:${100 * (s.overlap_end - s.start) / (s.end - s.start)}%`}));
+    segs.append(d);
+  }
+  for (const s of t.segments) {
+    if (draftView || !s.rollable) continue;
+    const h = el('div', {class: 'handle', style: `left:${xOf(s.end)}`, title: `drag to move the cut at the end of ${s.name}`});
+    h.dataset.roll = s.name;
+    segs.append(h);
+  }
+  readouts();
+}
+
+// Seek (and scrub) by pressing anywhere on the timeline; select a segment or
+// group by pressing on it; drag a handle to roll a cut.
+$('tl').addEventListener('pointerdown', e => {
+  if (!info || !tl() || busy || e.button !== 0) return;
+  e.preventDefault();
+  setPlaying(false);
+  const roll = e.target.dataset.roll;
+  $('tl').setPointerCapture(e.pointerId);
+  if (roll) return startRoll(roll, e);
+  const pick = e.target.dataset.select;
+  if (pick && pick !== selected) { selected = pick; buildTimeline(); renderCopy(); showTab('copy'); }
+  drag = {kind: 'seek'};
+  go(frameAtX(e.clientX));
+});
+$('tl').addEventListener('pointermove', e => {
+  if (!drag) return;
+  if (drag.kind === 'seek') go(frameAtX(e.clientX));
+  else moveRoll(e);
+});
+$('tl').addEventListener('pointerup', e => {
+  if (!drag) return;
+  const d = drag;
+  drag = null;
+  if (d.kind === 'roll') endRoll(d);
+});
+$('tl').addEventListener('pointercancel', () => { if (drag && drag.kind === 'roll') cancelRoll(); drag = null; });
+
+function startRoll(name, e) {
+  const s = tl().segments.find(x => x.name === name), nxt = nextSibling(s);
+  if (!nxt) return;
+  const handle = e.target;
+  handle.classList.add('drag');
+  const blocks = [...$('segs').children].filter(c => c.dataset.select === s.name || c.dataset.select === nxt.name);
+  drag = {kind: 'roll', s, nxt, handle, blocks, beat: s.until};
+  moveRoll(e);
+}
+function moveRoll(e) {
+  const {s, nxt} = drag, b = trackBox();
+  const raw = (e.clientX - b.left) / b.width * tl().end_beat;
+  let beat = Math.round(raw * 2) / 2;  // the half-beat grid
+  beat = Math.max(s.at + 0.5, Math.min(nxt.until - 0.5, beat));  // strictly inside both segments
+  drag.beat = beat;
+  const f = beatFrame(beat);
+  drag.handle.style.left = xOf(f);
+  const [a, z] = drag.blocks;
+  a.style.width = (100 * (f - s.start) / info.frames) + '%';
+  z.style.left = xOf(f); z.style.width = (100 * (nxt.end - f) / info.frames) + '%';
+  const ghost = $('ghost');
+  ghost.style.display = 'block';
+  ghost.style.left = tlX(f);
+  ghost.classList.toggle('left', f / info.frames > 0.8);
+  const moved = beat === s.until ? ' (unchanged)' : ` (was ${fmtBeat(s.until)})`;
+  ghost.firstElementChild.textContent = `${s.name} → beat ${fmtBeat(beat)} · frame ${f}${moved}`;
+  go(f);
+}
+function cancelRoll() {
+  $('ghost').style.display = 'none';
+  drag = null;
+  buildTimeline();
+}
+async function endRoll(d) {
+  $('ghost').style.display = 'none';
+  if (d.beat === d.s.until) { buildTimeline(); return; }
+  await runEdit('roll', {segment: d.s.name, until: d.beat});
+}
+
+// One edit at a time. On success: report the commit (or why there's none) and
+// reload; on a refusal: report it, and the timeline snaps back.
+async function runEdit(op, body) {
+  if (draftView) { toast('Switch to main to make direct edits.', 'warn'); return false; }
+  if (busy) return false;
+  busy = true;
+  document.body.style.cursor = 'progress';
+  try {
+    const r = await postJSON(op, {video, ...body});
+    if (!r.changed) toast(`${r.message}: no change`, 'warn');
+    else if (r.commit) toast(el('span', {}, `committed ${r.message} `, el('code', {}, r.commit.slice(0, 10))));
+    else toast(`${r.message}\n${r.warning}`, 'warn');
+    await refresh(null, true);
+    return true;
+  } catch (e) {
+    toast(`not edited: ${e.message}`, 'err');
+    buildTimeline();
+    return false;
+  } finally {
+    busy = false;
+    document.body.style.cursor = '';
+  }
+}
+$('undo').onclick = () => runEdit('undo', {});
+
+// ---- the copy panel ----
+function findSelected() {
+  if (!tl() || !selected) return null;
+  const s = tl().segments.find(x => x.name === selected);
+  if (s) return {kind: 'segment', ...s};
+  const g = (tl().groups || []).find(x => x.name === selected);
+  return g ? {kind: 'group', ...g} : null;
+}
+function renderCopy() {
+  const pane = $('pane-copy');
+  if (pane.contains(document.activeElement) && document.activeElement.tagName === 'TEXTAREA'
+      && document.activeElement.value !== document.activeElement.dataset.saved) return;  // don't clobber typing
+  pane.innerHTML = '';
+  const s = findSelected();
+  if (!s) {
+    pane.append(el('p', {class: 'muted'}, tl() ? 'Click a segment on the timeline to edit its on-screen copy.' : ''));
+    return;
+  }
+  const fp = fpb();
+  pane.append(el('h3', {}, s.name),
+              el('div', {class: 'muted'}, `${s.kind}${s.group ? ' in ' + s.group : ''} · beats ${fmtBeat(s.start / fp)}–${fmtBeat(s.end / fp)}`
+                 + ` · frames ${s.start}–${s.end - 1}`));
+  const keys = Object.keys(s.copy || {});
+  if (!keys.length) {
+    pane.append(el('p', {class: 'muted'}, 'No editable copy here. For anything else, pin a note.'));
+    return;
+  }
+  const ed = (edited(s.name) || {}).data || {};
+  for (const k of keys) {
+    const ta = el('textarea', {rows: Math.min(6, Math.max(2, s.copy[k].split('\n').length + 1))});
+    ta.value = s.copy[k];
+    ta.dataset.saved = s.copy[k];
+    const save = el('button', {class: 'primary', disabled: ''}, 'Save');
+    const revert = el('button', {disabled: ''}, 'Revert');
+    const dirty = () => { const on = ta.value !== ta.dataset.saved; save.disabled = revert.disabled = !on; };
+    ta.oninput = dirty;
+    ta.onkeydown = e => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); save.click(); } };
+    revert.onclick = () => { ta.value = ta.dataset.saved; dirty(); };
+    save.onclick = async () => {
+      save.disabled = true;
+      ta.dataset.saved = ta.value;  // so the refresh after saving redraws the panel
+      if (!await runEdit('copy', {segment: s.name, key: k, value: ta.value})) { ta.dataset.saved = s.copy[k]; dirty(); }
+    };
+    pane.append(el('div', {class: 'field'},
+                   el('label', {}, el('span', {}, k), k in ed ? el('span', {class: 'badge'}, 'edited') : null),
+                   ta, el('div', {class: 'row'}, save, revert)));
+  }
+}
+
+// ---- notes ----
+function showTab(t) {
+  for (const n of ['copy', 'notes']) {
+    $('tab-' + n).classList.toggle('on', n === t);
+    $('pane-' + n).classList.toggle('on', n === t);
+  }
+}
+$('tab-copy').onclick = () => showTab('copy');
+$('tab-notes').onclick = () => showTab('notes');
+
+async function loadNotes() {
+  if (!video) return;
+  try { notes = (await getJSON('notes', {video})).notes; } catch (e) { return; }
+  $('tab-notes').textContent = notes.length ? `Notes (${notes.length})` : 'Notes';
+  const list = $('note-list');
+  const sig = JSON.stringify(notes);
+  if (list.dataset.sig === sig) { await loadDraft(); return; }
+  list.dataset.sig = sig;
+  list.innerHTML = '';
+  if (!notes.length) list.append(el('p', {class: 'muted'}, 'No notes on this video yet.'));
+  for (const n of notes) {
+    const del = el('button', {class: 'del', title: 'delete this note'}, '×');
+    del.onclick = async e => {
+      e.stopPropagation();
+      if (!confirm('Delete this note?')) return;
+      try { await postJSON(`notes/${encodeURIComponent(n.id)}/delete`, {}); } catch (err) { toast(err.message, 'err'); }
+      loadNotes();
+    };
+    const card = el('div', {class: 'note'},
+      el('img', {src: api(`notes/${encodeURIComponent(n.id)}.png`), alt: ''}),
+      el('div', {},
+         el('div', {class: 'text'}, n.text),
+         n.reply ? el('div', {class: 'text muted'}, '↳ ' + n.reply) : null,
+         el('div', {class: 'meta'},
+            el('span', {}, `f ${n.frame} · ${n.format}${n.segment ? ' · ' + n.segment : ''}`),
+            el('span', {class: 'state', title: `backend: ${n.backend}`}, n.state + (n.state === 'working' && n.started ? ` · ${Math.floor(Date.now()/1000-n.started)}s` : '')),
+            n.author ? el('span', {}, n.author) : null,
+            del)));
+    card.dataset.frame = n.frame;
+    card.onclick = () => {
+      setPlaying(false);
+      if ([...$('format').options].some(o => o.value === n.format)) $('format').value = n.format;
+      go(n.frame);
+    };
+    if (n.history) card.append(el('div', {class: 'meta'}, n.history.map(h => `${h.state} by ${h.author || 'anonymous'}`).join(' · ')));
+    if (n.poll_error) card.append(el('div', {class: 'text muted'}, 'Polling will retry: ' + n.poll_error));
+    list.append(card);
+  }
+  await loadDraft();
+  readouts();
+}
+async function loadDraft() {
+  let panel = $('draft-panel');
+  if (!panel) { panel = el('div', {id: 'draft-panel'}); $('pane-notes').append(panel); }
+  const previousTip = draft && draft.tip;
+  try { draft = await getJSON('draft', {video}); }
+  catch (e) { panel.textContent = e.message; return; }
+  panel.innerHTML = '';
+  $('compare').hidden = !draft || draft.refused.length > 0;
+  if (!draft) return;
+  if (draftView && previousTip !== draft.tip) await refresh(null, true);
+  panel.append(el('h3', {}, 'Draft'), el('div', {class: 'text muted'}, draft.branch),
+    el('pre', {style: 'white-space:pre-wrap'}, draft.commits.join('\n')),
+    el('div', {}, 'Changed files'), el('pre', {style: 'white-space:pre-wrap'}, draft.files.join('\n')));
+  if (draft.refused.length) panel.append(el('div', {class: 'text', style: 'color:var(--err)'},
+    'Draft refused: ' + draft.refused.join(' · ')));
+  const row = el('div', {class: 'row'});
+  for (const [label, action] of [['Preview draft', 'preview'], ['Accept', 'accept'], ['Drop', 'drop']]) {
+    const button = el('button', {}, label);
+    button.disabled = action !== 'drop' && draft.refused.length > 0;
+    if (action !== 'preview' && notes.some(n => ['queued', 'working'].includes(n.state))) button.disabled = true;
+    button.onclick = async () => {
+      try {
+        if (action === 'preview') { draftView = true; await refresh(null, true); }
+        else {
+          const result = await postJSON('draft/' + action, {video});
+          draftView = false;
+          toast(result.message || result.state);
+          await refresh(null, true); await loadNotes();
+        }
+        $('compare').textContent = draftView ? 'Viewing draft · switch to main' : 'Viewing main · switch to draft';
+      } catch (e) { panel.append(el('div', {style: 'color:var(--err)'}, e.message)); }
+    };
+    row.append(button);
+  }
+  panel.append(row);
+}
+$('compare').onclick = async () => {
+  draftView = !draftView;
+  $('compare').textContent = draftView ? 'Viewing draft · switch to main' : 'Viewing main · switch to draft';
+  await refresh(null, true);
+};
+function openNote() {
+  if (!info) return;
+  setPlaying(false);
+  showTab('notes');
+  const s = segAt(frame);
+  $('note-where').textContent = `at frame ${frame} · ${$('format').value}${s ? ' · ' + s.name : ''}`;
+  $('note-form').style.display = 'block';
+  $('note-form').dataset.frame = frame;
+  $('note-text').focus();
+}
+function closeNote() { $('note-form').style.display = 'none'; $('note-text').value = ''; }
+async function saveNote() {
+  const text = $('note-text').value.trim();
+  if (!text) { $('note-text').focus(); return; }
+  $('note-save').disabled = true;
+  try {
+    await postJSON('notes', {video, format: $('format').value, frame: +$('note-form').dataset.frame, text});
+    closeNote();
+    toast('note pinned; it is queued for the agent');
+    await loadNotes();
+  } catch (e) { toast(`note not saved: ${e.message}`, 'err'); }
+  $('note-save').disabled = false;
+}
+$('note-new').onclick = openNote;
+$('note-cancel').onclick = closeNote;
+$('note-save').onclick = saveNote;
+$('note-text').addEventListener('keydown', e => {
+  if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); saveNote(); }
+  if (e.key === 'Escape') closeNote();
+});
+
+// ---- controls and keys ----
+$('play').onclick = () => setPlaying(!playing);
+$('video').onchange = e => { $('video').blur(); openVideo(e.target.value); };
+for (const id of ['format', 'scale']) $(id).onchange = () => { $(id).blur(); go(frame); };
+function beatStep(dir) {
+  if (!tl()) return frame + 10 * dir;
+  const beats = tl().beats;
+  const t = dir > 0 ? beats.find(b => b > frame) : beats.filter(b => b < frame).pop();
+  return t === undefined ? frame : t;
+}
+document.addEventListener('keydown', e => {
+  const tag = e.target.tagName;
+  if (!info || tag === 'TEXTAREA' || tag === 'INPUT' || tag === 'SELECT') return;
+  if (e.key === 'Escape' && drag && drag.kind === 'roll') { cancelRoll(); return; }
+  let handled = true;
+  switch (e.key) {
+    case ' ': setPlaying(!playing); break;
+    case 'ArrowRight': setPlaying(false); go(e.shiftKey ? beatStep(+1) : frame + 1); break;
+    case 'ArrowLeft': setPlaying(false); go(e.shiftKey ? beatStep(-1) : frame - 1); break;
+    case 'Home': setPlaying(false); go(0); break;
+    case 'End': setPlaying(false); go(info.frames - 1); break;
+    case ']': case '[': {
+      setPlaying(false);
+      const starts = tl() ? tl().segments.map(s => s.start) : [0];
+      const t = e.key === ']' ? starts.find(s => s > frame) : starts.filter(s => s < frame).pop();
+      if (t !== undefined) go(t);
+      break;
+    }
+    case 'n': openNote(); break;
+    case 'f': {
+      const sel = $('format');
+      sel.selectedIndex = (sel.selectedIndex + 1) % sel.options.length;
+      go(frame);
+      break;
+    }
+    default: handled = false;
+  }
+  if (handled) e.preventDefault();
+});
+
+const start = readHash();
+loadProject(start).catch(e => showError(String(e)));
+window.addEventListener('hashchange', () => {  // a pasted link to another video or frame
+  const want = readHash();
+  if (want.video && want.video !== video && project && project.videos.some(v => v.id === want.video))
+    openVideo(want.video, want.format, frame);
+  else go(frame);
+});
+setInterval(() => { if (!draftView && !drag && !busy) refresh(); }, 600);  // hot reload: `version` bumps when the film changes
+setInterval(loadNotes, 4000);  // a backend may move notes along
+</script>
+</body>
+</html>

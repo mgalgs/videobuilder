@@ -443,7 +443,7 @@ def make_handler(editor, hook=request_hook):
                         except ValueError as exc:
                             raise HTTPError(400, str(exc)) from None
                     if route != '/healthz':
-                        match = re.fullmatch(r'/v/(.+?)(/api(?:/.*)?|/)?', route)
+                        match = re.fullmatch(r'/v/(.+?)(/api(?:/.*)?|/tuning.html|/director\.(?:js|css)|/)?', route)
                         if not match or not valid_name(match.group(1)):
                             raise HTTPError(404, 'not found')
                         if match.group(2) is None and method == 'GET':
@@ -491,6 +491,9 @@ def make_handler(editor, hook=request_hook):
                 return self._send(200, ('ok ' + __version__).encode(), 'text/plain; charset=utf-8')
             if route in ('/', '/index.html'):
                 return self._send(200, _page(), 'text/html; charset=utf-8')
+            if route in ('/tuning.html', '/director.js', '/director.css'):
+                kind = 'text/html; charset=utf-8' if route.endswith('.html') else ('text/javascript; charset=utf-8' if route.endswith('.js') else 'text/css; charset=utf-8')
+                return self._send(200, resources.files(__package__).joinpath(route[1:]).read_bytes(), kind)
             if route == '/api/versions':
                 editor.main_moved()
                 try:
