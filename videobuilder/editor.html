@@ -5,62 +5,223 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>videobuilder editor · Director</title>
 <link rel="stylesheet" href="director.css">
-<script src="director.js" defer></script>
+<script src="director.js" defer>
+</script>
 </head>
 <body>
 <div id="app">
   <header class="topbar">
-    <a id="library-link" href="../../" aria-label="Back to the library">‹ <span>Library</span></a>
+    <a id="library-link" href="../../" aria-label="Back to the library">
+<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+<path d="M15 5l-7 7 7 7">
+</path>
+</svg> <span>Library</span>
+</a>
     <span class="slash">/</span>
-    <div class="title"><select id="video-picker" aria-label="Choose video" hidden></select><strong id="video-title">Video</strong><span id="version-label">Loading…</span></div>
+    <div class="title">
+<select id="video-picker" aria-label="Choose video" hidden>
+</select>
+<strong id="video-title">Video</strong>
+<span id="version-label">Loading…</span>
+</div>
     <button id="phone-format" class="phone-only format-chip" aria-label="Change format">9:16</button>
-    <button id="director-name" class="desktop-only" aria-label="Change your name">Directing as <strong>…</strong></button>
+    <button id="director-name" class="desktop-only" aria-label="Change your name">Directing as <strong>…</strong>
+</button>
   </header>
   <main class="layout">
     <section class="watch" aria-label="Video player">
       <div class="player" id="player-box">
-        <video id="player" playsinline loop preload="metadata" aria-label="Current video"></video>
+        <video id="player" playsinline loop preload="metadata" aria-label="Current video">
+</video>
         <img id="poster" alt="Current frame" hidden>
-        <button id="tap-player" aria-label="Pause video"><span id="play-glyph" hidden>▶</span></button>
-        <div id="render-status" class="render-status" hidden><span id="render-text"></span><button id="retry-render" hidden>Retry</button></div>
-        <div class="caption"><strong id="caption-by">Builder · v1</strong><span id="caption-text"></span></div>
-        <div class="progress"><div id="progress-fill"></div></div>
+        <button id="tap-player" aria-label="Pause video">
+<span id="play-glyph">
+<svg width="30" height="30" viewBox="0 0 24 24" fill="currentColor" stroke="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+<path d="M7 4.5v15l13-7.5z">
+</path>
+</svg>
+</span>
+</button>
+        <div id="render-status" class="render-status" hidden>
+<span id="render-text">
+</span>
+<button id="retry-render" hidden>Retry</button>
+</div>
+        <div class="caption">
+<strong id="caption-by">Builder · v1</strong>
+<span id="caption-text">
+</span>
+</div>
+        <div class="progress">
+<div id="progress-fill">
+</div>
+</div>
       </div>
       <nav class="phone-rail phone-only" aria-label="Director tools">
-        <button id="rail-chat" aria-label="Chat with the builder"><span class="rail-icon">♧</span><span id="chat-count">0</span></button>
-        <button id="rail-versions" aria-label="Versions"><span class="rail-icon">◇</span><span id="rail-version">v1</span></button>
-        <button id="rail-tune" aria-label="Fine tuning"><span class="rail-icon">☷</span><span>Tune</span></button>
-        <a id="rail-save" aria-label="Download this version" download><span class="rail-icon">↓</span><span>Save</span></a>
+        <button id="rail-chat" aria-label="Chat with the builder">
+<span class="rail-icon">
+<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+<path d="M4 5.5h16v10H9l-4.5 3.5v-3.5H4z">
+</path>
+</svg>
+</span>
+<span id="chat-count">0</span>
+</button>
+        <button id="rail-versions" aria-label="Versions">
+<span class="rail-icon">
+<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+<path d="M12 3l9 5-9 5-9-5z">
+</path>
+<path d="M3 13l9 5 9-5">
+</path>
+</svg>
+</span>
+<span id="rail-version">v1</span>
+</button>
+        <button id="rail-tune" aria-label="Fine tuning">
+<span class="rail-icon">
+<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+<path d="M5 4v16M12 4v16M19 4v16">
+</path>
+<path d="M3 9h4M10 15h4M17 7h4">
+</path>
+</svg>
+</span>
+<span>Tune</span>
+</button>
+        <a id="rail-save" aria-label="Download this version" download>
+<span class="rail-icon">
+<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+<path d="M12 4v11M7 10l5 5 5-5M5 20h14">
+</path>
+</svg>
+</span>
+<span>Save</span>
+</a>
       </nav>
       <div class="watch-controls">
-        <button id="desktop-play" class="desktop-only round" aria-label="Pause video">Ⅱ</button>
+        <button id="desktop-play" class="desktop-only round" aria-label="Play video">
+<svg width="30" height="30" viewBox="0 0 24 24" fill="currentColor" stroke="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+<path d="M7 4.5v15l13-7.5z">
+</path>
+</svg>
+</button>
         <span id="time-display">0:00 / 0:00</span>
-        <div id="desktop-formats" class="desktop-only format-list"></div>
-        <a id="desktop-save" class="desktop-only round" aria-label="Download this version" download>↓</a>
+        <div id="desktop-formats" class="desktop-only format-list">
+</div>
+        <a id="desktop-save" class="desktop-only round" aria-label="Download this version" download>
+<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+<path d="M12 4v11M7 10l5 5 5-5M5 20h14">
+</path>
+</svg>
+</a>
       </div>
       <button id="chat-prompt" class="phone-only">Tell the builder what to change…</button>
       <section id="desktop-tune" class="desktop-only tuning">
-        <button id="desktop-tune-toggle" aria-expanded="false">› &nbsp;<strong>Fine tuning</strong><span>Optional: drag cuts, edit copy. Each edit saves a version.</span></button>
-        <div id="desktop-tune-body" hidden></div>
+        <button id="desktop-tune-toggle" aria-expanded="false">
+<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+<path d="M9 6l6 6-6 6">
+</path>
+</svg> <strong>Fine tuning</strong>
+<span>Optional: drag cuts, edit copy. Each edit saves a version.</span>
+</button>
+        <div id="desktop-tune-body" hidden>
+</div>
       </section>
     </section>
-    <div id="shade" class="phone-only" hidden><button id="shade-close" aria-label="Close sheet"></button></div>
+    <div id="shade" class="phone-only" hidden>
+<button id="shade-close" aria-label="Close sheet">
+</button>
+</div>
     <aside id="panel" class="panel" data-view="chat" aria-label="Director panel">
-      <div class="desktop-tabs desktop-only"><button id="tab-chat" class="active">Chat</button><button id="tab-versions">Versions</button></div>
-      <div class="sheet-head phone-only"><div><strong id="sheet-title">Builder chat</strong><span id="sheet-subtitle">Playing v1 · 0:00</span></div><button id="sheet-close" aria-label="Close sheet">×</button></div>
+      <div class="desktop-tabs desktop-only">
+<button id="tab-chat" class="active">Chat</button>
+<button id="tab-versions">Versions</button>
+</div>
+      <div class="sheet-head phone-only">
+<div>
+<strong id="sheet-title">Builder chat</strong>
+<span id="sheet-subtitle">Playing v1 · 0:00</span>
+</div>
+<button id="sheet-close" aria-label="Close sheet">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+<path d="M6 6l12 12M18 6L6 18">
+</path>
+</svg>
+</button>
+</div>
       <div id="chat-view" class="panel-view">
-        <div id="note-list" class="scroll-list" aria-live="polite"></div>
+        <div id="note-list" class="scroll-list" aria-live="polite">
+</div>
         <div id="composer" class="composer">
-          <div class="composer-extras"><button id="timestamp" aria-label="Remove the timestamp from this message">at 0:00 ×</button><span class="drop-hint desktop-only">Drop screenshots, images, clips or audio here</span><div id="attachments"></div></div>
-          <div class="composer-row"><button id="attach-button" class="round" aria-label="Attach a file">♧</button><input id="file-picker" type="file" multiple accept=".png,.jpg,.jpeg,.webp,.gif,.mp4,.mov,.webm,.mp3,.wav,.m4a,.aac,.ogg,.pdf,.txt,.md" hidden><label class="sr-only" for="message">Message to the builder</label><input id="message" placeholder="Tell the builder what to change…"><button id="send" class="round accent" aria-label="Send message">↑</button></div>
-          <div id="composer-error" role="alert" hidden></div>
+          <div class="composer-extras">
+<button id="timestamp" aria-label="Remove the timestamp from this message">
+</button>
+<span class="drop-hint desktop-only">Drop screenshots, images, clips or audio here</span>
+<div id="attachments">
+</div>
+</div>
+          <div class="composer-row">
+<button id="attach-button" class="round" aria-label="Attach a file">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+<path d="M20 11.5l-8.2 8.2a5 5 0 01-7.1-7.1l8.5-8.5a3.4 3.4 0 014.8 4.8l-8.4 8.4a1.7 1.7 0 01-2.4-2.4l7.7-7.7">
+</path>
+</svg>
+</button>
+<input id="file-picker" type="file" multiple accept=".png,.jpg,.jpeg,.webp,.gif,.mp4,.mov,.webm,.mp3,.wav,.m4a,.aac,.ogg,.pdf,.txt,.md" hidden>
+<label class="sr-only" for="message">Message to the builder</label>
+<input id="message" placeholder="Tell the builder what to change…">
+<button id="send" class="round accent" aria-label="Send message">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+<path d="M12 19V5M6 11l6-6 6 6">
+</path>
+</svg>
+</button>
+</div>
+          <div id="composer-error" role="alert" hidden>
+</div>
         </div>
       </div>
-      <div id="versions-view" class="panel-view" hidden><p class="versions-intro">Every builder reply and every fine tuning edit saves one. Restoring makes a new version, so nothing is lost.</p><div id="version-list" class="scroll-list"></div></div>
-      <div id="tune-view" class="panel-view" hidden><p>Optional direct edits. Drag a cut to retime it; edit a line of copy. Each edit saves a version.</p><div id="phone-tune-body"></div></div>
+      <div id="versions-view" class="panel-view" hidden>
+<p class="versions-intro">Every builder reply and every fine tuning edit saves one. Restoring makes a new version, so nothing is lost.</p>
+<div id="version-list" class="scroll-list">
+</div>
+</div>
+      <div id="tune-view" class="panel-view" hidden>
+<p>Optional direct edits. Drag a cut to retime it; edit a line of copy. Each edit saves a version.</p>
+<div id="phone-tune-body">
+</div>
+</div>
     </aside>
   </main>
-  <div id="toast" role="status" hidden></div>
+  <div id="toast" role="status" hidden>
 </div>
+</div>
+<template id="icon-play">
+<svg width="30" height="30" viewBox="0 0 24 24" fill="currentColor" stroke="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+<path d="M7 4.5v15l13-7.5z">
+</path>
+</svg>
+</template>
+<template id="icon-pause">
+<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" stroke="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+<path d="M6 4h4v16H6zM14 4h4v16h-4z">
+</path>
+</svg>
+</template>
+<template id="icon-clock">
+<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+<circle cx="12" cy="12" r="9">
+</circle>
+<path d="M12 7v5l3 2">
+</path>
+</svg>
+</template>
+<template id="icon-close">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+<path d="M6 6l12 12M18 6L6 18">
+</path>
+</svg>
+</template>
 </body>
 </html>

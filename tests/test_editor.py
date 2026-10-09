@@ -223,6 +223,13 @@ if __name__ == '__main__':
     unittest.main()
 
 class DirectorPageRoutes(API):
+    def test_director_source_line_length(self):
+        for name in ('director.js', 'director.css'):
+            path = Path('videobuilder') / name
+            long_lines = [number for number, line in enumerate(path.read_text().splitlines(), 1)
+                          if len(line) > 120]
+            self.assertEqual(long_lines, [], f'{path}: lines over 120 characters')
+
     def test_director_assets_and_api_contract(self):
         import re
         for path, content_type, marker in (
