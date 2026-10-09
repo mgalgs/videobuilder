@@ -209,7 +209,7 @@ class Project:
             raise ValueError(f'segment {segment}: data has no key {key!r} to override')
         return s.data[key]
 
-    def edit(self, vid, op, segment, value, key=None, undo=False):
+    def edit(self, vid, op, segment, value, key=None, undo=False, director=None):
         """Apply one direct edit to video `vid` and commit it: `op` 'roll'
         (`value`: the new end in beats) or 'copy' (`key`, and the new string).
         Returns a dict: `message`, `commit` (sha or None), `warning` (or None),
@@ -268,7 +268,7 @@ class Project:
                 warning = f'{os.path.relpath(path, self.root)} is git-ignored: the edit is saved but not committed'
             else:
                 try:
-                    commit = commit_path(self.git, path, message)
+                    commit = commit_path(self.git, path, message + "\n\nVersion-kind: edit\nDirected-by: " + (director or "anonymous"))
                 except RuntimeError as e:
                     warning = f'the edit is saved, but git would not commit it: {e}'
             inverse = {'op': op, 'segment': segment, 'value': before}
@@ -279,14 +279,14 @@ class Project:
             return {'message': message, 'commit': commit, 'warning': warning, 'changed': changed,
                     'undo': self.last.get(vid)}
 
-    def undo(self, vid):
+    def undo(self, vid, director=None):
         """Reverse the last edit made to `vid` through this Project, as a new
         edit (and commit). Raises ValueError when there is none, or it is
         refused now."""
         inverse = self.last.get(vid)
         if not inverse:
             raise ValueError('nothing to undo')
-        return self.edit(vid, inverse['op'], inverse['segment'], inverse['value'], inverse.get('key'), undo=True)
+        return self.edit(vid, inverse['op'], inverse['segment'], inverse['value'], inverse.get('key'), undo=True, director=director)
 
     def git_info(self, vid):
         path = edits.path_for(self.video(vid).path)

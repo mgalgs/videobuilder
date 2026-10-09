@@ -130,15 +130,42 @@ class Drafts:
         return worker.request('frame', frame=int(query.get('frame', 0)),
                               format=query.get('format') or None, scale=float(query.get('scale', 0.5)))
 
-    def accept(self, video, author):
+    def before_submit(self, video, note, state):
+        branch = state.get('draft')
+        if not branch:
+            return
+        root = self.editor.root
+        tip = branch_tip(root, branch)
+        main = git(root, 'rev-parse', 'main')
+        if git(root, 'merge-base', tip, main) == tip:
+            git(root, 'update-ref', 'refs/heads/' + branch, main, tip)
+
+    def accept(self, video, author, note=None):
         e = self.editor
+        auto = note is not None
         with e.lock, e.notes.video_lock(video):
-            self._idle(video)
+            if not auto:
+                self._idle(video)
             if e.sync:
                 e.sync.before_commit()
             branch = e.notes.session(video)['draft']
-            detail = guarded(e.root, branch, self.context(video)['directory'])
+            detail = inspect(e.root, branch, self.context(video)['directory'])
+            if detail['refused']:
+                if not auto:
+                    raise ValueError('Draft refused:\n' + '\n'.join(detail['refused']))
+                note.update(state='refused', refused=detail['refused'])
+                e.notes._save(note)
+                git(e.root, 'update-ref', 'refs/heads/' + branch, git(e.root, 'rev-parse', 'main'), detail['tip'])
+                state = e.notes.session(video)
+                state['rejection'] = 'Your previous change was not kept: it touched ' + ', '.join(
+                    x.split(':', 1)[0] for x in detail['refused']) + ', which are outside this video.'
+                e.notes.save_session(video, state)
+                return {'state': 'refused', 'refused': detail['refused']}
             main = git(e.root, 'rev-parse', 'refs/heads/main')
+            if detail['tip'] == main or git(e.root, 'merge-base', main, detail['tip']) == detail['tip']:
+                if auto and detail['tip'] != main:
+                    git(e.root, 'update-ref', 'refs/heads/' + branch, main, detail['tip'])
+                return {'state': 'replied', 'commit': None}
             main_work = None
             for record in git(e.root, 'worktree', 'list', '--porcelain').split('\n\n'):
                 lines = record.splitlines()
@@ -153,19 +180,36 @@ class Drafts:
                     git(work, 'rebase', main)
                 except ValueError:
                     git(work, 'rebase', '--abort')
-                    previous = e.notes.list(video, refresh=False)[-1]
-                    e.notes.add(video, previous['format'], previous['frame'], previous['segment'],
-                                'rebase your draft onto main', e.notes.image(previous['id']),
-                                author='editor', automatic=True)
+                    if auto and note.get('automatic'):
+                        original = e.notes.get(note['retry_for'])
+                        original.update(state='conflict', message='Draft still conflicts with main after one automatic rebase request.')
+                        e.notes._save(original)
+                        note.update(state='conflict', message=original['message'])
+                        e.notes._save(note)
+                        return {'state': 'conflict', 'message': original['message']}
+                    previous = note if auto else e.notes.list(video, refresh=False)[-1]
+                    retry = e.notes.add(video, previous['format'], previous['frame'], previous['segment'],
+                                        'rebase your draft onto main',
+                                        e.notes.image(previous['id']) if previous.get('frame') is not None else None,
+                                        author='editor', automatic=True,
+                                        retry_for=note['id'] if auto else None)
                     return dict(state='rebase_requested', message='Rebase conflicted; queued a note to the agent.')
                 tip = git(work, 'rev-parse', 'HEAD')
-                # Validate the rebased result as well, before moving either ref.
                 temp_branch = 'vb-accept/' + e.notes.session(video)['session']
                 git(e.root, 'branch', temp_branch, tip)
                 try:
                     guarded(e.root, temp_branch, self.context(video)['directory'])
                 finally:
                     git(e.root, 'branch', '-D', temp_branch)
+                if auto:
+                    summary = next((x.split(':', 1)[1].strip() for x in reversed((note.get('reply') or '').splitlines())
+                                    if x.startswith('Summary: ') and x.split(':', 1)[1].strip()), None)
+                    summary = summary or git(work, 'show', '-s', '--format=%s', 'HEAD')
+                    builder = git(work, 'show', '-s', '--format=%an <%ae>', 'HEAD')
+                    git(work, 'reset', '--soft', main)
+                    git(work, 'commit', '--author', builder, '-m',
+                        f'{summary}\n\nVersion-kind: builder\nNote: {note["id"]}\nDirected-by: {note.get("author") or "anonymous"}')
+                    tip = git(work, 'rev-parse', 'HEAD')
                 if git(e.root, 'rev-parse', 'refs/heads/main') != main:
                     raise ValueError('main moved during Accept; retry')
                 if main_work:
@@ -177,10 +221,19 @@ class Drafts:
                 git(e.root, 'update-ref', 'refs/heads/' + branch, tip, detail['tip'])
                 if e.sync:
                     e.sync.after_commit()
-                e.notes.resolve(video, branch, 'accepted', author)
+                if auto:
+                    note.update(state='landed', version={'n': e.versions.number(tip), 'commit': tip})
+                    e.notes._save(note)
+                    if note.get('retry_for'):
+                        original = e.notes.get(note['retry_for'])
+                        original.update(state='landed', version=note['version'])
+                        e.notes._save(original)
+                else:
+                    e.notes.resolve(video, branch, 'accepted', author)
                 e.project.last.pop(video, None)
                 self._remove_previews(video)
-                return dict(state='accepted', commit=tip)
+                e.render_first(video, tip)
+                return dict(state='landed' if auto else 'accepted', commit=tip)
             finally:
                 git(e.root, 'worktree', 'remove', '--force', str(work))
 
