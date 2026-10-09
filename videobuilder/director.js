@@ -205,11 +205,11 @@ async function loadPlayer(retry=false) {
       state.renderTimer=setTimeout(()=>loadPlayer(),document.hidden ? 15000 : 2000);
       return
     }
-    if (r.status !== 206) throw Error(`Unexpected video response: ${r.status}`);
     if(!r.ok) {
       const body=await r.json();
       throw Error(body.log||body.error||r.statusText)
     }
+    if (r.status !== 206) throw Error(`Unexpected video response: ${r.status}`);
     await r.body?.cancel();
     state.videoReady=true;
     for(const id of ['rail-save','desktop-save'])$(id).href=url;
@@ -589,7 +589,10 @@ async function openVideo(video) {
 }
 async function init() {
   if(libMode)$('library-link').href='/';
-  else $('library-link').hidden=true;
+  else {
+    $('library-link').hidden=true;
+    document.querySelector('.topbar .slash').hidden=true;
+  }
   try {
     const [project,name]=await Promise.all([json('project'),fetch(libMode?'/api/name':'api/name').then(r=>r.json())]);
     state.project=project;
@@ -682,6 +685,7 @@ function updateName() {
   $('director-name').replaceChildren();
   if (state.name) $('director-name').append('Directing as ', node('strong', null, state.name));
   else $('director-name').textContent='Set your name';
+  $('director-name').setAttribute('aria-label', state.name ? 'Change your name' : 'Set your name');
 }
 window.addEventListener('message',async e=> {
   if (e.origin!==location.origin || e.data?.type!=='videobuilder:edit' ||

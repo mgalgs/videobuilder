@@ -419,6 +419,9 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible {
 
 .bubble .stamp {
   align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
   background: #ffffff20;
   border: 0;
   color: #fff;
