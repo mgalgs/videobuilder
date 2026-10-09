@@ -219,13 +219,13 @@ class Command(unittest.TestCase):
         self.assertIn('not a directory', str(e.exception))
 
 
-if __name__ == '__main__':
-    unittest.main()
+PKG = Path(__file__).resolve().parents[1] / 'videobuilder'
+
 
 class DirectorPageRoutes(API):
     def test_director_source_line_length(self):
         for name in ('director.js', 'director.css'):
-            path = Path('videobuilder') / name
+            path = PKG / name
             long_lines = [number for number, line in enumerate(path.read_text().splitlines(), 1)
                           if len(line) > 120]
             self.assertEqual(long_lines, [], f'{path}: lines over 120 characters')
@@ -240,15 +240,15 @@ class DirectorPageRoutes(API):
             with urllib.request.urlopen(self.base + path, timeout=20) as response:
                 self.assertEqual(response.headers.get_content_type(), content_type)
                 self.assertIn(marker, response.read())
-        js = Path('videobuilder/director.js').read_text()
-        tuning = Path('videobuilder/tuning.html').read_text()
+        js = (PKG / 'director.js').read_text()
+        tuning = (PKG / 'tuning.html').read_text()
         paths = set(re.findall(r"(?:api|json|postJSON|getJSON)\('([a-z][a-z/-]*)'", js+tuning))
         expected = {'project','name','info','frame','video','notes','versions','versions/restore',
                     'attachments','video/retry','roll','copy','undo','draft','draft/info','draft/frame',
                     'draft/accept','draft/drop'}
         # Dynamic attachment and draft actions have their own router patterns.
         self.assertTrue(paths - {'attachments/', 'draft/'} <= expected, paths - expected)
-        router = Path('videobuilder/editor.py').read_text()
+        router = (PKG / 'editor.py').read_text()
         for path in paths - {'attachments/', 'draft/'}:
             self.assertIn("'/api/" + path + "'", router, path)
         self.assertIn("api('attachments/'", js)
@@ -263,3 +263,7 @@ class DirectorPageRoutes(API):
         self.assertEqual(self.get('/api/info?video=promo/film')['timeline']['segments'][0]['copy']['title'], 'New')
         self.assertEqual(self.post('/api/undo', {'video': video})[0], 200)
         self.assertEqual(self.get('/api/info?video=promo/film')['timeline']['segments'][0]['copy']['title'], 'Hello')
+
+
+if __name__ == '__main__':
+    unittest.main()
