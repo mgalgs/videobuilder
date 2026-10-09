@@ -11,6 +11,8 @@ import threading
 from .drafts import git
 from .workers import child_environment, sandbox_command
 
+RENDER_LOCK = threading.Lock()
+
 
 class Renders:
     def __init__(self, editor, jobs, keep, renderer=None):
@@ -52,15 +54,13 @@ class Renders:
                 self.queue.append(key)
                 self.status[key] = {'state': 'queued'}
                 state = self.status[key]
-            return {**state, 'position': list(self.queue).index(key) + 1 if key in self.queue else 0}
+            position = list(self.queue).index(key) + 1 if key in self.queue else (1 if state['state'] == 'queued' else 0)
+            return {**state, 'position': position}
 
     def _loop(self):
         while not self.stopping.is_set():
             with self.lock:
                 key = self.queue.popleft() if self.queue else None
-                if key:
-                    self.active = key
-                    self.status[key] = {'state': 'rendering'}
             if key is None:
                 self.stopping.wait(0.1)
                 continue
@@ -69,8 +69,18 @@ class Renders:
             output.parent.mkdir(parents=True, exist_ok=True)
             partial = output.with_suffix('.mp4.partial')
             try:
-                self.renderer(video, sha, fmt, partial)
-                os.replace(partial, output)
+                while not self.stopping.is_set() and not RENDER_LOCK.acquire(timeout=0.2):
+                    pass
+                if self.stopping.is_set():
+                    return
+                try:
+                    with self.lock:
+                        self.active = key
+                        self.status[key] = {'state': 'rendering'}
+                    self.renderer(video, sha, fmt, partial)
+                    os.replace(partial, output)
+                finally:
+                    RENDER_LOCK.release()
                 with self.lock:
                     self.status.pop(key, None)
                 self.evict(video, sha)

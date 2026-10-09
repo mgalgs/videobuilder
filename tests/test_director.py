@@ -253,6 +253,32 @@ FILM = vb.Film(draw=draw, timeline=T, formats=('1x1',))
         renders.evict('promo/film')
         self.assertFalse(path.exists())
 
+    def test_render_queue_is_shared_across_video_editors(self):
+        import threading
+        from videobuilder.renders import Renders
+        first = self.editor.renders
+        second = Renders(self.editor, 1, 20)
+        self.addCleanup(second.close)
+        entered, release, other_started = threading.Event(), threading.Event(), threading.Event()
+        def slow(video, sha, fmt, output):
+            entered.set()
+            release.wait(3)
+            output.write_bytes(b'first')
+        def other(video, sha, fmt, output):
+            other_started.set()
+            output.write_bytes(b'second')
+        first.renderer, second.renderer = slow, other
+        sha = git(self.root, 'rev-parse', 'main').strip()
+        first.request('promo/film', sha, '1x1')
+        try:
+            self.assertTrue(entered.wait(2))
+            second.request('promo/film', sha, '16x9')
+            self.assertFalse(other_started.wait(0.2))
+        finally:
+            release.set()
+        self.assertTrue(other_started.wait(2))
+        second.close()
+
     def test_video_range_and_failed_render(self):
         sha = git(self.root, 'rev-parse', 'main').strip()
         path = self.editor.renders.path('promo/film', sha, '1x1')
