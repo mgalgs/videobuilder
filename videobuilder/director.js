@@ -230,7 +230,9 @@ function updateTime() {
   const duration=Number.isFinite(player.duration)?player.duration:(state.info?state.info.frames/state.info.fps:0);
   $('time-display').textContent=`${timeLabel(player.currentTime)} / ${timeLabel(duration)}`;
   $('sheet-subtitle').textContent=`Playing v${currentVersion()?.n||'…'} · ${timeLabel(player.currentTime)}`;
-  $('progress-fill').style.width=duration?`${100*player.currentTime/duration}%`:'0%';
+  const percent=duration ? Math.min(100, 100*player.currentTime/duration) : 0;
+  $('progress-fill').style.width=`${percent}%`;
+  $('progress').setAttribute('aria-valuenow', Math.round(percent));
   if(state.stamp)stampLabel()
 }
 function stampLabel() {
@@ -651,6 +653,21 @@ player.onplay=()=> {
   $('tap-player').setAttribute('aria-label','Pause video')
 };
 player.ontimeupdate=updateTime;
+$('progress').onpointerdown=e=> {
+  $('progress').setPointerCapture(e.pointerId);
+  $('progress').classList.add('scrubbing');
+  scrubAt(e)
+};
+$('progress').onpointermove=e=> {
+  if($('progress').classList.contains('scrubbing'))scrubAt(e)
+};
+$('progress').onpointerup=$('progress').onpointercancel=()=>$('progress').classList.remove('scrubbing');
+$('progress').onkeydown=e=> {
+  const step={ArrowLeft:-5,ArrowRight:5}[e.key];
+  if(!step||!videoDuration())return;
+  e.preventDefault();
+  seekTo((player.currentTime+step)/videoDuration())
+};
 $('retry-render').onclick=()=>loadPlayer(true);
 $('phone-format').onclick=()=> {
   const formats=state.info?.formats||[];

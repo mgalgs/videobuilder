@@ -189,18 +189,33 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible {
   font-size: 28px;
 }
 
+/* A tall, mostly transparent touch target; the visible bar is its bottom 5px. */
 .progress {
   position: absolute;
   bottom: 0;
   left: 0;
   right: 0;
-  height: 5px;
-  background: #ffffff40;
-  pointer-events: none;
+  height: 28px;
+  display: flex;
+  align-items: flex-end;
+  background: linear-gradient(#ffffff40,#ffffff40) bottom / 100% 5px no-repeat;
+  cursor: pointer;
+  touch-action: none;
+}
+
+.progress.scrubbing {
+  background-size: 100% 9px;
 }
 
 .progress div {
-  height: 100%;
+  height: 5px;
+}
+
+.progress.scrubbing div {
+  height: 9px;
+}
+
+.progress div {
   width: 0;
   background: var(--accent);
 }
