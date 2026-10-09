@@ -57,6 +57,13 @@ class Renders:
             position = list(self.queue).index(key) + 1 if key in self.queue else (1 if state['state'] == 'queued' else 0)
             return {**state, 'position': position}
 
+    def retry(self, video, sha, fmt):
+        key = (video, sha, fmt)
+        with self.lock:
+            if self.status.get(key, {}).get('state') == 'failed':
+                self.status.pop(key)
+            return self.request(video, sha, fmt)
+
     def _loop(self):
         while not self.stopping.is_set():
             with self.lock:

@@ -313,3 +313,11 @@ FILM = vb.Film(draw=draw, timeline=T, formats=('1x1',))
             urllib.request.urlopen(req)
         with caught.exception:
             self.assertIn('boom', caught.exception.read().decode())
+        self.editor.renders.renderer = lambda video, sha, fmt, output: output.write_bytes(b'retried')
+        code, retried = self.post('/api/video/retry', {'video':'promo/film','commit':sha,'format':'1x1'})
+        self.assertEqual(code, 202)
+        self.assertIn(retried['state'], ('queued', 'rendering'))
+        deadline = time.monotonic() + 3
+        while self.editor.renders.state('promo/film', sha, '1x1')['state'] != 'ready' and time.monotonic() < deadline:
+            time.sleep(0.01)
+        self.assertEqual(path.read_bytes(), b'retried')

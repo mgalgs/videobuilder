@@ -32,6 +32,7 @@ GET  /api/versions?video=V[&limit=50&before=SHA]
                                      author,directed_by,note,restores,time,
                                      renders:{format:state}}]}; newest first.
                                      `before` is exclusive; 400 invalid cursor.
+POST /api/video/retry {video,commit,format}  requeue a failed render
 POST /api/versions/restore {video,commit}
                                      200 {commit,changed,n}; 400 foreign sha.
 GET  /api/video?video=V&commit=SHA&format=F
@@ -576,6 +577,16 @@ def make_handler(editor, hook=request_hook):
             raise HTTPError(404, 'not found')
 
         def _post(self, route, body, identity, editor):
+            if route == '/api/video/retry':
+                video = _field(body, 'video', str)
+                sha = _field(body, 'commit', str)
+                fmt = _field(body, 'format', str)
+                editor.project.video(video)
+                if sha not in git(editor.root, 'rev-list', '--first-parent', 'main').splitlines():
+                    raise HTTPError(400, 'commit is not on main')
+                if fmt not in [f['name'] for f in editor.info(video)['formats']]:
+                    raise HTTPError(400, 'unknown format')
+                return self._json(202, editor.renders.retry(video, sha, fmt))
             if route == '/api/versions/restore':
                 try:
                     return self._json(200, editor.versions.restore(_field(body, 'video', str),

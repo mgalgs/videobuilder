@@ -522,6 +522,7 @@ async function runEdit(op, body) {
     else if (r.commit) toast(el('span', {}, `committed ${r.message} `, el('code', {}, r.commit.slice(0, 10))));
     else toast(`${r.message}\n${r.warning}`, 'warn');
     await refresh(null, true);
+    if (r.changed) parent.postMessage({type: 'videobuilder:edit', video}, location.origin);
     return true;
   } catch (e) {
     toast(`not edited: ${e.message}`, 'err');
@@ -662,6 +663,7 @@ async function loadDraft() {
           draftView = false;
           toast(result.message || result.state);
           await refresh(null, true); await loadNotes();
+          if (action === 'accept') parent.postMessage({type: 'videobuilder:edit', video}, location.origin);
         }
         $('compare').textContent = draftView ? 'Viewing draft · switch to main' : 'Viewing main · switch to draft';
       } catch (e) { panel.append(el('div', {style: 'color:var(--err)'}, e.message)); }

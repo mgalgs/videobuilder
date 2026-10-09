@@ -237,10 +237,13 @@ class DirectorPageRoutes(API):
         tuning = Path('videobuilder/tuning.html').read_text()
         paths = set(re.findall(r"(?:api|json|postJSON|getJSON)\('([a-z][a-z/-]*)'", js+tuning))
         expected = {'project','name','info','frame','video','notes','versions','versions/restore',
-                    'attachments','roll','copy','undo','draft','draft/info','draft/frame',
+                    'attachments','video/retry','roll','copy','undo','draft','draft/info','draft/frame',
                     'draft/accept','draft/drop'}
-        # Dynamic attachment and note ids have their own router patterns.
+        # Dynamic attachment and draft actions have their own router patterns.
         self.assertTrue(paths - {'attachments/', 'draft/'} <= expected, paths - expected)
+        router = Path('videobuilder/editor.py').read_text()
+        for path in paths - {'attachments/', 'draft/'}:
+            self.assertIn("'/api/" + path + "'", router, path)
         self.assertIn("api('attachments/'", js)
         self.assertIn("api('video'", js)
 

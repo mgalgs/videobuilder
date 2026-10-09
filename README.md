@@ -361,8 +361,8 @@ Only the output scratch directory is writable. Rendered MP4s are cached by
 commit and format, with one render running at a time. The newest 20 commits
 per video remain cached. Requests return `202` while queued or rendering,
 `500` with a log tail on failure, and MP4 bytes with byte Range support and
-an ETag when ready. A failed render remains failed until a new commit or
-editor restart.
+an ETag when ready. A failed render can be requeued with the player Retry button or
+`POST /api/video/retry` for a main commit and format.
 
 Notes can use a `time` in seconds; then the matching frame and PNG are saved.
 Omit `time` and `frame` for a general note with no PNG. Upload attachments as
