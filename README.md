@@ -316,11 +316,14 @@ Open `http://127.0.0.1:8100/` and pick a video. The page has:
   back. The undo button reverses the last edit, as one more edit and commit.
 - **Copy.** Click a segment, or a group, to list its `data` strings in the
   side panel. Edit one and save (ctrl+enter): one edit, one commit.
-- **Notes.** Press `n` (or "+ Note at playhead"), type, and pin it. A note
-  keeps its video, format, frame, segment and a PNG of the frame, and the
-  list beside the preview seeks to it when clicked. Notes queue for the configured agent, with one conversation and one linear
-  draft per video. Review the reply and changed files, preview the draft at
-  the same frame and format, then Accept it onto main or Drop it.
+- **Notes.** The current page pins a frame and PNG when you press `n`. The
+  director API also accepts a chat note without a frame, a playhead time, and
+  uploaded reference files. Builder replies are saved with each note. With
+  `auto_land = true` (the default), each successful builder turn becomes one
+  new commit on `main` and a playable MP4 is queued. The director-mode player
+  and chat sheet are separate frontend work; this page remains the timeline UI.
+  Set `auto_land = false` to keep manual Accept/Drop review.
+
 
 **Finding videos.** If the project has a `videobuilder.toml` listing them,
 exactly those:
@@ -346,75 +349,64 @@ pushed. If the project isn't in a git repo, or the edits file already has
 uncommitted changes, the edit is still written, but not committed; the
 editor says so in its header and after the edit.
 
-**Notes and agents.** The default backend is `null` (notes remain queued).
-Use `--agent fake` for a local demo: the fake agent adds an amber bar to the
-film in a draft branch. `--agent command` invokes your own runner, and
-`--agent fork-sandbox` selects a configurable preset for its proposed CLI.
-Fork-sandbox runs have been tested end to end. Configure them in
-`videobuilder.toml`:
+**Director backend.** A version is a first-parent commit on `main`. The
+versions endpoint numbers commits from the root; in a multi-video project it
+lists only commits touching that video's directory. An old version can be
+restored without rewriting history: restore makes a new `main` commit with
+that video's old content. Direct edits carry `Version-kind: edit` and
+`Directed-by` trailers. Builder turns carry `Version-kind: builder`, `Note`,
+and `Directed-by`; restores carry `Version-kind: restore`, `Restores`, and
+`Directed-by`. Commits without trailers appear as `push` versions.
+
+The editor renders the first format after a new `main` commit and renders
+other formats on demand. It uses the video's pinned `python -m videobuilder
+render` in the preview's no-network bwrap sandbox, from a detached worktree.
+Only the output scratch directory is writable. Rendered MP4s are cached by
+commit and format, with one render running at a time. The newest 20 commits
+per video remain cached. Requests return `202` while queued or rendering,
+`500` with a log tail on failure, and MP4 bytes with byte Range support and
+an ETag when ready. A failed render remains failed until a new commit or
+editor restart.
+
+Notes can use a `time` in seconds; then the matching frame and PNG are saved.
+Omit `time` and `frame` for a general note with no PNG. Upload attachments as
+raw bodies, one at a time, then pass their ids in the note's `attachments`
+list. Allowed extensions are PNG/JPEG/WebP/GIF, MP4/MOV/WebM, MP3/WAV/M4A/AAC/
+OGG, PDF, TXT and MD; the editor checks magic bytes and stores sanitized
+names. The default caps are 25 MiB per file, 10 files and 100 MiB per note.
+Unused uploads expire after 24 hours. For fork-sandbox, each note receives
+copies of its attachments at `/attachments`; the builder must copy anything
+used in the video into the video's assets and commit it.
+
+When a builder turn finishes, the editor applies the same scope guard as
+manual Accept. Out-of-scope changes are refused and the draft is reset to
+`main`; the next note tells the builder what was refused. A clean turn is
+rebased onto current `main`, squashed to one version, and the draft advances
+to that version. On a rebase conflict, one automatic rebase request is sent to
+the agent. A second conflict ends in `conflict` with a director-facing message.
+A reply without commits stays `replied`. Listing notes polls runs and advances
+the queue; per-video sessions survive restarts. Manual Accept/Drop routes stay
+available when `auto_land = false`.
+
+The name used for notes, edits and restores comes from `request_hook`, then
+the `vb_name` cookie, then `anonymous`. `/api/name` sets the cookie for one
+year at `/`, so it works across every video in library mode. This is LAN
+trust, not authentication.
 
 ```toml
 [editor]
-allowed_hosts = ["review.example.org"]
-
-[editor.agent]
-backend = "fork-sandbox"  # null | fake | command | fork-sandbox
-executable = "fork-sandbox"
-submit_args = ["run"]
-poll_args = ["status", "--json"]
-extra_args = []
-# For command instead:
-# submit_command = ["my-runner", "submit"]
-# poll_command = ["my-runner", "poll"]
-# For fake: delay = 3 (seconds)
+auto_land = true
+render_jobs = 4             # default: min(4, cpu_count)
+render_keep = 20
+attachment_max_file = 25    # MiB
+attachment_max_files = 10
+attachment_max_message = 100 # MiB
 ```
 
-CLI overrides are `--agent`, `--agent-executable`, `--agent-submit-args`,
-`--agent-poll-args`, `--agent-submit-command`, `--agent-poll-command`
-(the four argv options take JSON arrays), `--agent-context-root`,
-`--agent-context-mount`, `--agent-videobuilder-repo`, and repeatable
-`--agent-extra-arg=VALUE`. `--allow-host NAME` is repeatable and extends the
-configured host list. The bind address and localhost/loopback are always
-allowed. Other Host headers are refused on both GET and POST.
-
-Notes and PNGs stay under `.vb-editor/notes/`. Each video's stable session
-id and current draft live under `.vb-editor/sessions/<slug>/session.json`.
-Listing notes polls and advances queues; restarting the editor resumes
-polling saved handles. Runners must make submission idempotent by note id,
-because a process can stop after submission but before saving the handle.
-Other videos have independent queues. A runner receives a markdown request
-with the frame, format, beat, time, segment, film, image, and directory scope,
-and must continue the supplied draft (or start from main after Accept/Drop).
-
-The generic command contract is `submit_command + [request.json]` →
-`{"handle":"opaque"}`, and `poll_command + [handle]` →
-`{"state":"working","reply":null,"branch":null}` on stdout. Terminal runner
-states are `replied` and `failed`; a reply can include a local draft branch.
-The request JSON includes `project`, `film`, `directory`, `image`, `note_file`,
-`state_dir`, `session`, `draft`, and all note fields. Commands run without a
-shell, with a 60-second timeout. See `videobuilder/agents.py` for the complete
-contract and the small fork-sandbox adapter.
-
-Drafts are checked against their merge base with main before rendering or
-Accept. Changes outside the video directory, dependency pins/lockfiles,
-symlinks and submodules are refused with paths shown inline. Draft previews
-run in a separate Python process with only PATH, temporary HOME, and locale
-variables, under bubblewrap: a read-only checkout, a restricted filesystem,
-and no network or view of other processes. Without a usable bubblewrap
-(common in unprivileged containers) draft previews are refused, because
-draft code could read any file the editor can, credentials included. Opt in
-with `--unsandboxed-previews` (or `unsandboxed_previews = true` under
-`[editor]`) only where that is acceptable, or render previews in a process
-that holds no credentials. The toggle preserves frame and format and shows the
-draft's timeline. Direct edits are available while viewing main.
-
-Accept rebases in a separate worktree, then fast-forwards main. With
-`sync_remote` configured, the editor also pushes main. A dirty main checkout is refused. A rebase conflict is aborted and
-automatically sends “rebase your draft onto main” through the same session.
-Accept and Drop wait until queued/working notes finish. Drop deletes the
-draft branch and preview worktrees, keeping the conversation and session.
-Both decisions record the identity supplied by `request_hook`. Run one
-editor process per state directory; queues advance while the page polls.
+The generic command backend still receives a request JSON and markdown note.
+Fork-sandbox submissions add `--attach-dir` only for notes with attachments.
+A note with a playhead time includes a line such as `At 0:12 (frame 360,
+segment "sizes")`; the final reply line should be `Summary: <one line>`.
 
 **Trust.** Main and draft film code runs in isolated workers, with the checkout
 and installed environment read-only, a scrubbed environment, and no network.
@@ -425,9 +417,8 @@ where a check of a reverse proxy's identity header belongs (the identity
 it returns becomes a note's author). Edits must be JSON POSTs from the
 page's own origin, so another site can't make edits through your browser.
 
-The HTTP API (`/api/project`, `/api/info`, `/api/frame`, `/api/roll`,
-`/api/copy`, `/api/undo`, `/api/notes`) is listed in
-`videobuilder/editor.py`.
+The complete HTTP API, including versions, restore, MP4 Range responses,
+attachments and names, is listed in `videobuilder/editor.py`.
 
 ## Hosting videos
 

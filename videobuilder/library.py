@@ -134,6 +134,7 @@ class Library:
 
     def close(self):
         for editor in self.editors.values():
+            editor.renders.close()
             editor.pool.close()
 
 

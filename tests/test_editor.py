@@ -13,10 +13,15 @@ from tests.test_project import FILM, TempProject, git
 
 
 class API(TempProject):
+    def tearDown(self):
+        self.editor.renders.close()
+        super().tearDown()
+
     def start(self, **kw):
         hook = kw.pop('hook', None)
-        self.editor = Editor(self.root, poll=0, unsandboxed_previews=True, **kw)
+        self.editor = Editor(self.root, poll=0, unsandboxed_previews=True, auto_land=False, **kw)
         self.addCleanup(self.editor.pool.close)
+        self.addCleanup(self.editor.renders.close)
         handler = make_handler(self.editor, hook) if hook else make_handler(self.editor)
         self.httpd = ThreadingHTTPServer(('127.0.0.1', 0), handler)
         self.base = f'http://127.0.0.1:{self.httpd.server_address[1]}'
@@ -119,7 +124,7 @@ class API(TempProject):
         code, n = self.post('/api/notes', {'video': 'promo/film', 'format': '1x1', 'frame': 70, 'text': 'Too fast'})
         self.assertEqual(code, 200, n)
         self.assertEqual((n['video'], n['format'], n['frame'], n['segment'], n['text'], n['state'], n['author']),
-                         ('promo/film', '1x1', 70, 'body', 'Too fast', 'queued', None))
+                         ('promo/film', '1x1', 70, 'body', 'Too fast', 'queued', 'anonymous'))
         png = self.get(f'/api/notes/{n["id"]}.png')
         self.assertEqual((int.from_bytes(png[16:20], 'big'), int.from_bytes(png[20:24], 'big')), (540, 540))
         self.assertTrue((self.root / '.vb-editor' / 'notes' / f'{n["id"]}.json').exists())
