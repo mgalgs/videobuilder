@@ -170,6 +170,8 @@ async function setFormat(format) {
 async function loadPlayer(retry=false) {
   if(!state.video||!state.format)return;
   clearTimeout(state.renderTimer);
+  // visibilitychange treats a non-null timer as "render still pending".
+  state.renderTimer=null;
   state.videoReady=false;
   player.pause();
   player.removeAttribute('src');
