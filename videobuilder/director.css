@@ -873,6 +873,11 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible {
     transform: translateY(0);
   }
 
+  .panel.full {
+    height: calc(100dvh - var(--kb, 0px));
+    border-radius: 0;
+  }
+
   .sheet-head {
     align-items: center;
     padding: 10px 8px 8px 18px;
@@ -895,7 +900,7 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible {
     color: var(--muted);
   }
 
-  #sheet-close {
+  #sheet-close,#sheet-full {
     width: 44px;
     height: 44px;
     background: none;

@@ -296,7 +296,14 @@ function scrubAt(e) {
   const r=$('progress').getBoundingClientRect();
   seekTo((e.clientX-r.left)/r.width)
 }
+function setFullSheet(full) {
+  $('panel').classList.toggle('full', full);
+  $('sheet-full').replaceChildren(icon(full ? 'collapse' : 'expand'));
+  $('sheet-full').setAttribute('aria-pressed', full);
+  $('sheet-full').setAttribute('aria-label', full ? 'Exit full screen' : 'Full screen')
+}
 function closeSheet() {
+  setFullSheet(false);
   $('panel').classList.remove('open');
   $('shade').hidden=true;
   document.activeElement?.blur();
@@ -677,6 +684,7 @@ $('phone-format').onclick=()=> {
   if(formats.length)setFormat(formats[(i+1)%formats.length].name)
 };
 $('rail-chat').onclick=()=>openSheet('chat');
+$('sheet-full').onclick=()=>setFullSheet(!$('panel').classList.contains('full'));
 $('rail-versions').onclick=()=>openSheet('versions');
 $('rail-tune').onclick=async()=> {
   if(await ensureName())openSheet('tune')
