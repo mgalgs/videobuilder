@@ -166,6 +166,12 @@
         <div id="note-list" class="scroll-list" aria-live="polite">
 </div>
         <div id="composer" class="composer">
+          <section id="pending" class="pending" aria-label="Notes not sent yet" hidden>
+            <div class="pending-head">Not sent yet</div>
+            <ul id="pending-list">
+</ul>
+            <button id="send-all" class="accent">Send to the builder</button>
+          </section>
           <div class="composer-extras">
 <button id="timestamp" aria-label="Remove the timestamp from this message">
 </button>
@@ -182,10 +188,10 @@
 </button>
 <input id="file-picker" type="file" multiple accept=".png,.jpg,.jpeg,.webp,.gif,.mp4,.mov,.webm,.mp3,.wav,.m4a,.aac,.ogg,.pdf,.txt,.md" hidden>
 <label class="sr-only" for="message">Message to the builder</label>
-<input id="message" placeholder="Tell the builder what to change…">
-<button id="send" class="round accent" aria-label="Send message">
+<input id="message" placeholder="Note for the builder…">
+<button id="add-note" class="round accent" aria-label="Add to the list">
 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-<path d="M12 19V5M6 11l6-6 6 6">
+<path d="M12 5v14M5 12h14">
 </path>
 </svg>
 </button>

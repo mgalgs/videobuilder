@@ -590,6 +590,86 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible {
   background: var(--accent);
 }
 
+.msg-text {
+  white-space: pre-line;
+}
+
+.pending {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.pending-head {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--muted);
+}
+
+#pending-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-height: 30vh;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.pending-item {
+  display: flex;
+  align-items: center;
+  background: #1d1d22;
+  border: 1px solid #34343c;
+  border-radius: 10px;
+}
+
+.pending-text {
+  flex: 1;
+  min-width: 0;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  background: none;
+  border: 0;
+  color: #fff;
+  text-align: left;
+  overflow-wrap: anywhere;
+}
+
+.pending-time {
+  flex: none;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--accent);
+}
+
+.pending-files {
+  flex: none;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.pending-remove {
+  flex: none;
+  width: 44px;
+  height: 44px;
+  background: none;
+  border: 0;
+  color: var(--muted);
+}
+
+#send-all {
+  min-height: 44px;
+  border: 0;
+  border-radius: 22px;
+  color: #fff;
+  font-weight: 700;
+}
+
 #attachments {
   display: flex;
   flex-wrap: wrap;

@@ -18,6 +18,7 @@ const state = {
   view: 'chat',
   stamp: true,
   files: [],
+  pending: [],
   sending: false,
   versionCursor: null,
   loadingVersions: false,
@@ -333,7 +334,7 @@ function renderNotes() {
       };
       bubble.append(stamp)
     }
-    bubble.append(node('span',null,note.text));
+    bubble.append(node('span','msg-text',note.text));
     for(const attachment of note.attachments||[]) {
       if(attachment.type?.startsWith('image/')) {
         const img=node('img');
@@ -354,7 +355,7 @@ function renderNotes() {
     if(note.reply) {
       const reply=node('div','bubble-row builder');
       const box=node('div','bubble');
-      box.append(node('span','who','Builder'),node('span',null,replyText(note.reply)));
+      box.append(node('span','who','Builder'),node('span','msg-text',replyText(note.reply)));
       reply.append(box);
       list.append(reply)
     }
@@ -527,44 +528,143 @@ function addFiles(files) {
   for(const f of files)state.files.push(f);
   renderFiles()
 }
-async function sendNote() {
+// Notes the director has written but not sent: kept in this browser, per video,
+// so they survive a reload. Not the "queued" note state, which is sent and waiting.
+const pendingKey=()=>`director-pending:${location.pathname}:${state.video}`;
+function savePending() {
+  try {
+    localStorage.setItem(pendingKey(), JSON.stringify(state.pending))
+  } catch (_) {
+  }
+}
+function loadPending() {
+  try {
+    state.pending=JSON.parse(localStorage.getItem(pendingKey()))||[]
+  } catch (_) {
+    state.pending=[]
+  }
+  renderPending()
+}
+function renderPending() {
+  const list=$('pending-list'),n=state.pending.length;
+  $('pending').hidden=!n;
+  list.replaceChildren();
+  state.pending.forEach((item,i)=> {
+    const row=node('li','pending-item'),edit=node('button','pending-text');
+    if(item.time!=null)edit.append(node('span','pending-time',timeLabel(item.time)));
+    edit.append(node('span',null,item.text));
+    const files=item.attachments.length;
+    if(files)edit.append(node('span','pending-files',files===1?'+1 file':`+${files} files`));
+    edit.setAttribute('aria-label',`Edit: ${item.text}`);
+    edit.onclick=()=>editPending(i);
+    const remove=node('button','pending-remove');
+    remove.append(icon('close'));
+    remove.setAttribute('aria-label',`Remove: ${item.text}`);
+    remove.onclick=()=> {
+      state.pending.splice(i,1);
+      savePending();
+      renderPending()
+    };
+    row.append(edit,remove);
+    list.append(row)
+  });
+  $('send-all').textContent=n>1?`Send ${n} notes to the builder`:'Send to the builder'
+}
+function editPending(i) {
+  if($('message').value.trim()||state.files.length) {
+    showError('Add or clear the note you are writing first.');
+    return
+  }
+  const [item]=state.pending.splice(i,1);
+  savePending();
+  renderPending();
+  $('message').value=item.text;
+  state.files=item.attachments;
+  renderFiles();
+  state.stamp=item.time!=null;
+  if(state.stamp&&state.videoReady)player.currentTime=item.time;
+  stampLabel();
+  $('message').focus({preventScroll: true})
+}
+// Uploads File objects; entries already uploaded ({id, name}) pass through.
+async function uploadFiles(files) {
+  const out=[];
+  for(let i=0;i<files.length;i++) {
+    if(files[i].id) {
+      out.push(files[i]);
+      continue
+    }
+    showError(`Uploading ${i+1} of ${files.length}…`);
+    const r=await fetch(api('attachments', {
+      video:state.video,name:files[i].name
+    }), {
+      method:'POST',headers: {
+        'Content-Type':files[i].type||'application/octet-stream'
+      },body:files[i]
+    });
+    const data=await r.json();
+    if(!r.ok)throw Error(data.error||r.statusText);
+    out.push({id:data.id,name:files[i].name})
+  }
+  return out
+}
+async function addPending() {
   if(state.sending)return;
   const text=$('message').value.trim();
   if(!text) {
     $('message').focus({preventScroll: true});
     return
   }
-  if(!await ensureName())return;
   state.sending=true;
-  $('send').disabled=true;
+  $('add-note').disabled=true;
   showError('');
-  const files=[...state.files], noteTime=player.currentTime||0;
+  const time=state.stamp?player.currentTime||0:null;
   try {
-    const ids=[];
-    for(let i=0;i<files.length;i++) {
-      showError(`Uploading ${i+1} of ${files.length}…`);
-      const r=await fetch(api('attachments', {
-        video:state.video,name:files[i].name
-      }), {
-        method:'POST',headers: {
-          'Content-Type':files[i].type||'application/octet-stream'
-        },body:files[i]
-      });
-      const data=await r.json();
-      if(!r.ok)throw Error(data.error||r.statusText);
-      ids.push(data.id)
-    }
-    showError('Sending…');
-    await json('notes',null, {
-      video:state.video,text,format:state.format,...(state.stamp? {
-        time:noteTime
-      }
-      : {
-      }),attachments:ids
-    });
+    const attachments=await uploadFiles([...state.files]);
+    state.pending.push({text,time,attachments});
+    savePending();
+    renderPending();
     $('message').value='';
     state.files=[];
     renderFiles();
+    showError('')
+  }
+  catch(e) {
+    showError(e.message)
+  }
+  finally {
+    state.sending=false;
+    $('add-note').disabled=false
+  }
+}
+// One item goes out as an ordinary note, keeping its pinned frame. Several go
+// out as one numbered note: the builder handles them in one turn, one version.
+function batchBody(items) {
+  const ids=items.flatMap(item=>item.attachments.map(a=>a.id));
+  if(items.length===1) {
+    const [item]=items;
+    return {text:item.text,attachments:ids,...(item.time!=null?{time:item.time}:{})}
+  }
+  const lines=items.map((item,i)=> {
+    const at=item.time!=null?`At ${timeLabel(item.time)}: `:'';
+    const names=item.attachments.map(a=>a.name).join(', ');
+    return `${i+1}. ${at}${item.text}${names?` (attached: ${names})`:''}`
+  });
+  return {text:lines.join('\n'),attachments:ids}
+}
+async function sendPending() {
+  if(state.sending||!state.pending.length)return;
+  if(!await ensureName())return;
+  state.sending=true;
+  $('send-all').disabled=true;
+  showError('Sending…');
+  try {
+    await json('notes',null, {
+      video:state.video,format:state.format,...batchBody(state.pending)
+    });
+    state.pending=[];
+    savePending();
+    renderPending();
     showError('');
     await loadNotes()
   }
@@ -573,7 +673,7 @@ async function sendNote() {
   }
   finally {
     state.sending=false;
-    $('send').disabled=false
+    $('send-all').disabled=false
   }
 }
 function openTuning(target) {
@@ -597,6 +697,7 @@ async function openVideo(video) {
   clearTimeout(state.renderTimer);
   $('video-title').textContent=libName||video;
   $('video-picker').value=video;
+  loadPending();
   try {
     state.info=await json('info', {
       video
@@ -759,11 +860,12 @@ $('file-picker').onchange=e=> {
   addFiles(e.target.files);
   e.target.value=''
 };
-$('send').onclick=sendNote;
+$('add-note').onclick=addPending;
+$('send-all').onclick=sendPending;
 $('message').onkeydown=e=> {
   if(e.key==='Enter'&&!e.shiftKey) {
     e.preventDefault();
-    sendNote()
+    addPending()
   }
 };
 $('video-picker').onchange=e=>openVideo(e.target.value);
