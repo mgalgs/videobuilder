@@ -69,7 +69,7 @@ def render(film, fmt, first, last, marks=None, onion=None, out='motion.png'):
     surface = cairo.ImageSurface(cairo.FORMAT_ARGB32, width, height)
     c = cairo.Context(surface)
     c.set_source_rgb(1, 1, 1); c.paint()
-    left, right, top, bottom = 74, width - 185, 46, 376
+    left, right, top, bottom = 74, width - 185, 58, 376
     speeds = {name: {n: speed(frames[n-1][name], frames[n][name])
                      for n in range(first + 1, last + 1)
                      if name in frames[n-1] and name in frames[n]}
@@ -82,11 +82,14 @@ def render(film, fmt, first, last, marks=None, onion=None, out='motion.png'):
     _text(c, 22, 24, f'{fmt.name}  frames {first}-{last}   speed (px/frame)', 17)
     tl = film.timeline
     if tl:
+        cuts = set(tl.cut_frames())
         for seg in tl.leaves():
             a, z = tl.span(seg)
             if first <= a <= last:
-                c.set_source_rgb(.45, .45, .45); c.set_line_width(1.5)
-                c.move_to(x(a), top); c.line_to(x(a), bottom); c.stroke()
+                # Only hard cuts get a solid line; an overlapped segment start is a transition.
+                c.set_source_rgb(.45, .45, .45)
+                c.set_line_width(1.5 if a in cuts else .8); c.set_dash([] if a in cuts else [3, 3])
+                c.move_to(x(a), top); c.line_to(x(a), bottom); c.stroke(); c.set_dash([])
                 _text(c, x(a)+3, top-13, seg.name, 12)
         beat = tl.grid.frames_per_beat
         for k in range(math.ceil(first / beat), math.floor(last / beat)+1):
@@ -133,10 +136,10 @@ def render(film, fmt, first, last, marks=None, onion=None, out='motion.png'):
                     _text(c, x(n)+5, max(top+13, y(series[n])-11), kind, 10)
         if series:
             n = max(series)
-            c.set_source_rgb(0, 0, 0)
             label_y = labels[name]
-            c.set_line_width(1)
-            c.move_to(x(n), endpoints[name]); c.line_to(right+10, label_y); c.stroke()
+            c.set_source_rgb(.6, .6, .6); c.set_line_width(.8); c.set_dash([1, 3])
+            c.move_to(x(n), endpoints[name]); c.line_to(right+10, label_y); c.stroke(); c.set_dash([])
+            c.set_source_rgb(0, 0, 0)
             _marker(c, i % 8, right+11, label_y)
             _text(c, right+21, label_y+4, name, 12)
         else:
@@ -151,21 +154,27 @@ def render(film, fmt, first, last, marks=None, onion=None, out='motion.png'):
         _text(c, 20, graph_h+17, f'Onion skin: every {onion} frame(s)', 13)
         chosen = list(range(first, last+1, onion))
         if chosen[-1] != last: chosen.append(last)
+        # Frames are opaque, so stacking them would show only the newest. Painting frame i at
+        # alpha w_i / (w_0 + ... + w_i) leaves an exact weighted average, newest weighted most.
+        total = 0
         for i, n in enumerate(chosen):
             cv = film.frame(n, fmt, scale=scale)
+            total += i + 1
             c.set_source_surface(cv.surface, ox, oy)
-            c.paint_with_alpha(.16 + .64*(i+1)/len(chosen))
+            c.paint_with_alpha((i + 1) / total)
         for i, name in enumerate(names):
             points = [(ox+box.cx*scale, oy+box.cy*scale)
                       for n in chosen for box in [frames[n].get(name)] if box]
             if not points: continue
             grey = .08 + (i % 8)*.075
-            c.set_source_rgb(grey, grey, grey)
-            c.set_line_width(2); c.set_dash(styles[i] if i < len(styles) else [i + 5, 3, 2, 3])
-            c.move_to(*points[0])
-            for pt in points[1:]: c.line_to(*pt)
-            c.stroke(); c.set_dash([])
-            for px, py in points: _marker(c, i%8, px, py, 3)
+            for halo in (True, False):  # a white halo keeps the trail visible on dark films
+                c.set_source_rgb(*((1, 1, 1) if halo else (grey, grey, grey)))
+                c.set_line_width(5 if halo else 2)
+                c.set_dash([] if halo else styles[i] if i < len(styles) else [i + 5, 3, 2, 3])
+                c.move_to(*points[0])
+                for pt in points[1:]: c.line_to(*pt)
+                c.stroke(); c.set_dash([])
+                for px, py in points: _marker(c, i%8, px, py, 5 if halo else 3)
     surface.write_to_png(out)
     summary = []
     for name in names:
