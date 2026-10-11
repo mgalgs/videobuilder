@@ -365,8 +365,8 @@ def _ebur(path, filters=''):
     result = subprocess.run(['ffmpeg', '-hide_banner', '-nostats', '-i', str(path), '-map', '0:a:0', '-af', af,
                              '-f', 'null', '-'], capture_output=True, text=True, check=True)
     summary = result.stderr.rsplit('Summary:', 1)[-1]
-    loud = float(re.search(r'Integrated loudness:\s*I:\s*([-\d.]+)', summary).group(1))
-    peak = float(re.search(r'True peak:\s*Peak:\s*([-\d.]+)', summary).group(1))
+    loud = float(re.search(r'Integrated loudness:\s*I:\s*(-?inf|-?[\d.]+)', summary).group(1))
+    peak = float(re.search(r'True peak:\s*Peak:\s*(-?inf|-?[\d.]+)', summary).group(1))
     return loud, peak
 
 
@@ -374,7 +374,7 @@ def _mean_volume(path, filters=''):
     af = f'{filters},volumedetect' if filters else 'volumedetect'
     result = subprocess.run(['ffmpeg', '-hide_banner', '-nostats', '-i', str(path), '-map', '0:a:0', '-af', af,
                              '-f', 'null', '-'], capture_output=True, text=True, check=True)
-    return float(re.search(r'mean_volume:\s*([-\d.]+) dB', result.stderr).group(1))
+    return float(re.search(r'mean_volume:\s*(-?inf|-?[\d.]+) dB', result.stderr).group(1))
 
 
 def loudness(path, audio, r):
