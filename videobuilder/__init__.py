@@ -12,7 +12,7 @@ from .timeline import Grid, Segment, Shot, Timeline, round_half_up, sequence
 from . import edits, layout, text
 
 __all__ = ['Audio', 'Box', 'Canvas', 'FORMATS', 'Film', 'Font', 'Format', 'Grid', 'Image', 'Segment', 'Shot',
-           'Timeline', 'View', 'seg', 'visible', 'hidden', 'touches', 'apart', 'still', 'at_rest_by', 'bezier', 'clamp01', 'critical', 'damped', 'ease_in_expo', 'ease_in_out_quart',
-           'ease_out_back', 'ease_out_expo', 'ease_out_quint', 'edits', 'fr', 'interpolate', 'layout', 'linear', 'load',
-           'load_module', 'log_lerp', 'main', 'per_format', 'rgba', 'round_half_up', 'sequence', 'spring',
-           'spring_at', 'text']
+           'Timeline', 'View', 'apart', 'at_rest_by', 'bezier', 'clamp01', 'critical', 'damped', 'ease_in_expo',
+           'ease_in_out_quart', 'ease_out_back', 'ease_out_expo', 'ease_out_quint', 'edits', 'fr', 'hidden',
+           'interpolate', 'layout', 'linear', 'load', 'load_module', 'log_lerp', 'main', 'per_format', 'rgba',
+           'round_half_up', 'seg', 'sequence', 'spring', 'spring_at', 'still', 'text', 'touches', 'visible']
