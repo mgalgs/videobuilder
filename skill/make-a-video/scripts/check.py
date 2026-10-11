@@ -196,47 +196,15 @@ def _box(b):
 
 
 def motion_events(samples, min_speed=1.0):
-    """Conservative mark motion: >=6 steady steps within 5%, or a full-speed one-frame edge."""
-    events = []
-    for name in {k for frame in samples for k in frame}:
-        steps = []
-        for prev, cur in zip(samples, samples[1:]):
-            if name not in prev or name not in cur:
-                steps.append(None)
-            else:
-                a, b = prev[name], cur[name]
-                steps.append(tuple(y - x for x, y in zip(a, b)))
-        speeds = [math.hypot(*v[:2]) + math.hypot(*v[2:]) if v is not None else 0 for v in steps]
-        start = 0
-        while start < len(steps):
-            if speeds[start] < min_speed:
-                start += 1
-                continue
-            end = start + 1
-            while end < len(steps) and steps[end] is not None and speeds[end] >= min_speed:
-                end += 1
-            run = speeds[start:end]
-            vectors = steps[start:end]
-            straight = all(math.dist(v, vectors[0]) <= 0.05 * max(run) for v in vectors)
-            if len(run) >= 6 and max(run) - min(run) <= 0.05 * max(run) and straight:
-                events.append((name, 'constant rate', start, end))
-            peak = max(run)
-            easing_out = len(run) >= 3 and run[0] > run[1] > run[2] and run[2] <= 0.8 * run[0]
-            easing_in = len(run) >= 3 and run[-3] < run[-2] < run[-1] and run[-3] <= 0.8 * run[-1]
-            if start and speeds[start - 1] <= 0.2 * peak and run[0] >= 0.8 * peak and not easing_out:
-                events.append((name, 'full-speed start', start, start + 1))
-            if end < len(speeds) and speeds[end] <= 0.2 * peak and run[-1] >= 0.8 * peak and not easing_in:
-                events.append((name, 'full-speed stop', end, end + 1))
-            start = end
-    return events
+    from videobuilder.motion import motion_events as events
+    return events(samples, min_speed)
 
 
 def check_motion(film, fmts, r):
+    from videobuilder.motion import sample
     for fmt in fmts:
-        samples = []
-        for n in range(film.frames):
-            samples.append({name: (box.x, box.y, box.w, box.h)
-                            for name, box in film.frame(n, fmt, scale=0.05).marks})
+        samples = [{name: tuple(box) for name, box in marks.items()}
+                   for marks in sample(film, fmt, range(film.frames)).values()]
         for name, kind, a, z in motion_events(samples):
             r.warn(f'{fmt.name}: mark {name!r} {kind} at frames f{a}–f{z}')
 
@@ -485,6 +453,9 @@ def main(argv=None):
     marks(mod, film, fmts, r, a.every)
     if a.motion:
         check_motion(film, fmts, r)
+    from videobuilder.expect import check as check_expectations
+    for fmt in fmts:
+        check_expectations(getattr(mod, 'EXPECT', ()), film, fmt, r, getattr(mod, 'LAYOUTS', {}))
     if a.video is not None:
         if not shutil.which('ffprobe'):
             r.fail('ffprobe not found')

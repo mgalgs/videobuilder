@@ -144,6 +144,7 @@ def beat_pulse(cv, n, box):
     p = beat - math.floor(beat)
     r = 10 + 10 * math.exp(-p * 6)
     cv.rect(box.x - r, box.y - r, 2 * r, 2 * r, ACCENT, radius=r, alpha=0.9)
+    cv.mark('beat', box.x - r, box.y - r, 2 * r, 2 * r)
 
 
 # ---- scenes: each is a pure function of the frame within its segment ----
@@ -269,6 +270,12 @@ def draw(n, cv):
     length = GRID.b(seg.until) - GRID.b(seg.at)
     SCENES[seg.name](cv, f, length, L, frame)
     beat_pulse(cv, n, Box.of(cv).pad(L['pad'] * 0.5))
+
+
+EXPECT = [
+    vb.visible('beat', vb.seg('title'), note='The beat is visible from the first frame.'),
+    vb.visible('beat', vb.seg('end', 'mid'), note='Keep the beat visible through the ending.'),
+]
 
 
 FILM = vb.Film(
