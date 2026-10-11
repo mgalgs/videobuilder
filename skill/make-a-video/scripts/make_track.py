@@ -61,7 +61,7 @@ def synth(bpm, beats, rate=48000, lead=0.0, tail=0.0, loop='minor', voices=('kic
         if 'pad' in voices and k % bar == 0:
             fs = [hz(s) for s in pad]
             length = spb * bar
-            add(t, length, lambda x, fs=fs, L=length: 0.05 * min(1, x / 0.3, (L - x) / 0.3)
+            add(t, length, lambda x, fs=fs, L=length: 0.08 * min(1, x / 0.3, (L - x) / 0.3)
                 * sum(math.sin(2 * math.pi * f * x) for f in fs))
     peak = max(1e-9, max(abs(v) for v in out))
     g = min(1.0, 0.9 / peak)
