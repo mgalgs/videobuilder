@@ -5,6 +5,7 @@ Every frame is drawn on its own (`draw(n, canvas)` is pure), so chunks render
 in any order on any worker.
 """
 import multiprocessing as mp
+import json
 import os
 import subprocess
 import sys
@@ -12,6 +13,17 @@ import tempfile
 import time
 
 from .film import Audio, Film, load  # noqa: F401  (Audio, Film: the old import path)
+
+
+def _loudnorm_values(path, filters, target):
+    cmd = ['ffmpeg', '-hide_banner', '-nostats', '-i', path, '-af',
+           f'{filters},loudnorm=I={target}:TP=-2.2:LRA=11:print_format=json',
+           '-f', 'null', '-']
+    result = subprocess.run(cmd, capture_output=True, text=True, check=True)
+    start = result.stderr.rfind('{')
+    if start < 0:
+        raise RuntimeError('ffmpeg loudnorm returned no measurements')
+    return json.loads(result.stderr[start:result.stderr.index('}', start) + 1])
 
 
 def check_chunk(chunk, fps):
@@ -99,8 +111,16 @@ def render(film, out, format=None, jobs=None, chunk=15, crf=18, frames=None, log
             if au.fade_out_frames:
                 st = (film.frames - 1 - au.fade_out_frames - a) / film.fps
                 fade = f',afade=t=out:st={st:.6f}:d={au.fade_out_frames / film.fps:.6f}'
-            cmd += ['-i', au.path, '-filter_complex',
-                    f'[1:a]atrim=start={trim:.6f},asetpts=PTS-STARTPTS,volume={au.gain_db}dB{fade},apad,atrim=end={dur:.6f}[a]',
+            filters = f'atrim=start={trim:.6f},asetpts=PTS-STARTPTS,volume={au.gain_db}dB{fade},apad,atrim=end={dur:.6f}'
+            if au.loudness is not None:
+                # Tame isolated transients so the integrated target can coexist with AAC peak headroom.
+                filters += ',acompressor=threshold=0.125:ratio=4:attack=5:release=100'
+                measured = _loudnorm_values(au.path, filters, au.loudness)
+                filters += (f',loudnorm=I={au.loudness}:TP=-2.2:LRA=11:'
+                            f'measured_I={measured["input_i"]}:measured_TP={measured["input_tp"]}:'
+                            f'measured_LRA={measured["input_lra"]}:measured_thresh={measured["input_thresh"]}:'
+                            f'offset={measured["target_offset"]}:linear=true')
+            cmd += ['-i', au.path, '-filter_complex', f'[1:a]{filters}[a]',
                     '-map', '0:v', '-map', '[a]', '-c:a', 'aac', '-b:a', '320k', '-ar', '48000']
         cmd += ['-c:v', 'copy', '-movflags', '+faststart', out]
         subprocess.run(cmd, check=True)

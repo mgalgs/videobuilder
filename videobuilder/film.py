@@ -79,6 +79,7 @@ class Audio:
     trim_frames: int | None = None
     gain_db: float = 0.0
     fade_out_frames: int = 0
+    loudness: float | None = -14.0
 
 
 @dataclass

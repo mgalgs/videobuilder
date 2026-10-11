@@ -120,7 +120,7 @@ class AudioFade(unittest.TestCase):
                 w.setnchannels(1), w.setsampwidth(2), w.setframerate(sr)
                 w.writeframes(b''.join(struct.pack('<h', 16000 if (i // 24) % 2 else -16000) for i in range(2 * sr)))
             film = Film(draw=lambda n, cv: None, fps=fps, frames=frames, formats=['1x1'],
-                        audio=Audio(wav, fade_out_frames=k))
+                        audio=Audio(wav, fade_out_frames=k, loudness=None))
             out = os.path.join(tmp, 'x.mp4')
             with open(os.devnull, 'w') as quiet:
                 render(film, out, jobs=1, chunk=15, log=quiet)
