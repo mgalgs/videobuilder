@@ -158,6 +158,33 @@ def cmd_sheet(a):
         print(out)
 
 
+def cmd_motion(a):
+    from .motion_plot import render
+    film = load(a.film)
+    fmt = film.format(a.format)
+    def frame(value, end=False):
+        if value is None:
+            return film.frames - 1 if end else 0
+        try:
+            return int(value)
+        except ValueError:
+            if film.timeline is None:
+                raise SystemExit('segment names require a timeline')
+            try:
+                lo, hi = film.timeline.span(value)
+            except KeyError:
+                raise SystemExit(f'unknown segment {value!r}') from None
+            return hi - 1 if end else lo
+    try:
+        _, _, summary = render(film, fmt, frame(a.start), frame(a.end, True), a.mark, a.onion, a.out)
+    except ValueError as exc:
+        raise SystemExit(str(exc)) from None
+    print(a.out)
+    for name, peak, peak_frame, settled in summary:
+        print(f'{name}: peak {peak:.2f} px/frame at f{peak_frame}; settled ' +
+              (f'by f{settled}' if settled is not None else 'not in range'))
+
+
 def cmd_preview(a):
     from .preview import serve
     serve(a.film, host=a.host, port=a.port, open_browser=a.open)
@@ -248,6 +275,16 @@ def main(argv=None):
     c.add_argument('--overlay', action='store_true')
     c.add_argument('--out')
     c.set_defaults(fn=cmd_sheet)
+
+    m = sub.add_parser('motion', help='render mark speed graph and optional onion skin to PNG')
+    m.add_argument('film')
+    m.add_argument('--format', help='format name (default: first)')
+    m.add_argument('--mark', action='append', help='mark to graph (repeatable; default: all)')
+    m.add_argument('--from', dest='start', help='first frame or segment name')
+    m.add_argument('--to', dest='end', help='last frame or segment name')
+    m.add_argument('--onion', type=int, metavar='N', help='composite every Nth frame')
+    m.add_argument('-o', '--out', default='motion.png')
+    m.set_defaults(fn=cmd_motion)
 
     v = sub.add_parser('preview', help='serve a live preview with hot reload')
     v.add_argument('film')
