@@ -152,11 +152,11 @@ def check(expectations, film, fmt, report, layouts=None):
             if n not in frames:
                 frames.update(sample(film, fmt, [n]))
             missing_names.difference_update(frames[n])
-        for name in sorted(missing_names):
-            report.fail(f'{fmt.name}: mark {name!r} never appears in any frame')
     for e in selected:
         try:
-            ok, detail = evaluate(e, film, fmt, frames, safe)
+            absent = set(e.names) & missing_names
+            ok, detail = ((False, f'mark {sorted(absent)!r} never appears in any frame')
+                          if absent else evaluate(e, film, fmt, frames, safe))
         except (ValueError, KeyError, IndexError) as exc:
             ok, detail = False, str(exc)
         msg = f'{fmt.name}: {e.kind} {e.names!r}: {detail}'

@@ -184,6 +184,7 @@ def picture(cv, f, length, L, frame):
         cv.shadow(*card, radius=radius, dy=18, blur=50, color=(0, 0, 0, 0.45))
         with cv.clip(*card, radius=radius):
             cv.image(PICTURE, *card.cover(PICTURE.w, PICTURE.h, at='center').scaled(zoom))
+        cv.mark('picture_card', *card)
     heading, hw, hh = wrapped('Pictures fit, cover or contain', head, txt_box.w)
     copy, cw, ch = wrapped('Formats are layouts, not crops: each one places this card and this '
                            'paragraph for its own shape, from one source.', body, txt_box.w)
@@ -275,6 +276,7 @@ def draw(n, cv):
 EXPECT = [
     vb.visible('beat', vb.seg('title'), note='The beat is visible from the first frame.'),
     vb.visible('beat', vb.seg('end', 'mid'), note='Keep the beat visible through the ending.'),
+    vb.visible('picture_card', vb.seg('picture', 5), note='Keep the picture card visible.'),
 ]
 
 
