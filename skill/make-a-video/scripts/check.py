@@ -27,6 +27,12 @@ What it checks:
               `TIMELINE.cut_frames()`: a jump off the grid is a warning.
   beats       when the film has audio: where the music's onsets fall against
               the beat grid, and the head_trim that would line them up.
+  loudness    decoded MP4 LUFS, true peak, sub-60 Hz energy and phone-band LUFS.
+  flashes     opposing large luminance changes over >=25% of decoded pixels;
+              WARN if >3 in any one-second window.
+  motion      opt-in --motion: marked-box constant-speed runs and abrupt starts/stops.
+  loop seam   with LOOP = True, compare the last-to-first picture change to
+              adjacent changes; duplicate terminal frames FAIL.
 
 Exit status 1 if any check FAILs. WARN lines are for a human to judge.
 """
@@ -34,6 +40,7 @@ import argparse
 import json
 import math
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -188,8 +195,50 @@ def _box(b):
     return f'({b.x:.0f},{b.y:.0f} {b.w:.0f}x{b.h:.0f})'
 
 
+def motion_events(samples, min_speed=1.0):
+    """Conservative mark motion: >=6 steady steps within 5%, or a full-speed one-frame edge."""
+    events = []
+    for name in {k for frame in samples for k in frame}:
+        steps = []
+        for prev, cur in zip(samples, samples[1:]):
+            if name not in prev or name not in cur:
+                steps.append(None)
+            else:
+                a, b = prev[name], cur[name]
+                steps.append(tuple(y - x for x, y in zip(a, b)))
+        speeds = [math.hypot(*v[:2]) + math.hypot(*v[2:]) if v is not None else 0 for v in steps]
+        start = 0
+        while start < len(steps):
+            if speeds[start] < min_speed:
+                start += 1
+                continue
+            end = start + 1
+            while end < len(steps) and steps[end] is not None and speeds[end] >= min_speed:
+                end += 1
+            run = speeds[start:end]
+            if len(run) >= 6 and max(run) - min(run) <= 0.05 * max(run):
+                events.append((name, 'constant rate', start, end))
+            peak = max(run)
+            if start and speeds[start - 1] <= 0.2 * peak and run[0] >= 0.8 * peak:
+                events.append((name, 'full-speed start', start, start + 1))
+            if end < len(speeds) and speeds[end] <= 0.2 * peak and run[-1] >= 0.8 * peak:
+                events.append((name, 'full-speed stop', end, end + 1))
+            start = end
+    return events
+
+
+def check_motion(film, fmts, r):
+    for fmt in fmts:
+        samples = []
+        for n in range(film.frames):
+            samples.append({name: (box.x, box.y, box.w, box.h)
+                            for name, box in film.frame(n, fmt, scale=0.05).marks})
+        for name, kind, a, z in motion_events(samples):
+            r.warn(f'{fmt.name}: mark {name!r} {kind} at frames f{a}–f{z}')
+
+
 # ---- the rendered video ----
-def probe(path, film, fmt, r):
+def probe(path, film, fmt, r, loop=False):
     out = subprocess.run(['ffprobe', '-v', 'error', '-count_frames', '-show_streams', '-show_format', '-of', 'json',
                           str(path)], capture_output=True, text=True)
     if out.returncode:
@@ -217,6 +266,8 @@ def probe(path, film, fmt, r):
         problems.append(f"fps {num}/{den}, not {film.fps}")
     if frames != film.frames:
         problems.append(f'{frames} frames, not {film.frames}')
+        if loop and frames == film.frames + 1:
+            r.fail(f'{path}: loop rendered frame {film.frames} as well as frame 0')
     if abs(vdur - want) > 0.5 / film.fps:
         problems.append(f'video lasts {vdur:.3f} s, not {want:.3f} s')
     if film.audio is not None:
@@ -239,10 +290,18 @@ def probe(path, film, fmt, r):
         r.ok(desc)
 
 
-def picture_diffs(path, width=96):
+def picture_diffs(path, width=96, frames=None):
     """Mean absolute change, 0-255, between each frame and the one before it
     (index 0 is 0), from a small grey decode of the video."""
-    h = None
+    frames = frames if frames is not None else decoded_gray(path, width)
+    size = len(frames[0]) if frames else 1
+    diffs = [0.0]
+    for prev, cur in zip(frames, frames[1:]):
+        diffs.append(sum(abs(x - y) for x, y in zip(prev, cur)) / size)
+    return diffs
+
+
+def decoded_gray(path, width=96):
     out = subprocess.run(['ffprobe', '-v', 'error', '-select_streams', 'v:0', '-show_entries', 'stream=width,height',
                           '-of', 'csv=p=0', str(path)], capture_output=True, text=True, check=True)
     w0, h0 = (int(x) for x in out.stdout.strip().split(','))
@@ -250,18 +309,80 @@ def picture_diffs(path, width=96):
     raw = subprocess.run(['ffmpeg', '-v', 'error', '-i', str(path), '-vf', f'scale={width}:{h},format=gray',
                           '-f', 'rawvideo', '-'], capture_output=True, check=True).stdout
     size = width * h
-    frames = [raw[i:i + size] for i in range(0, len(raw) - size + 1, size)]
-    diffs = [0.0]
-    for prev, cur in zip(frames, frames[1:]):
-        diffs.append(sum(abs(x - y) for x, y in zip(prev, cur)) / size)
-    return diffs
+    return [raw[i:i + size] for i in range(0, len(raw) - size + 1, size)]
 
 
-def cuts(path, film, r, min_jump=6.0):
+def flash_frames(frames, fps, threshold=0.25):
+    """A flash is a bright/dark reversal of >=25% pixels with >=32/255 change each way."""
+    changes = []
+    for a, b in zip(frames, frames[1:]):
+        size = len(a)
+        changes.append((sum(y - x >= 32 for x, y in zip(a, b)) / size,
+                        sum(x - y >= 32 for x, y in zip(a, b)) / size))
+    events = [n + 2 for n, (up, down) in enumerate(changes[1:])
+              if (up >= threshold and changes[n][1] >= threshold) or
+              (down >= threshold and changes[n][0] >= threshold)]
+    return [n for n in events if sum(n - fps < k <= n for k in events) > 3]
+
+
+def seam_ratio(frames):
+    if len(frames) < 4:
+        return 0.0
+    change = lambda a, b: sum(abs(x - y) for x, y in zip(a, b)) / len(a)
+    seam = change(frames[-1], frames[0])
+    neighbours = [change(frames[i], frames[i + 1]) for i in (0, 1, -3, -2)]
+    return seam / max(1, sorted(neighbours)[len(neighbours) // 2])
+
+
+def picture_safety(path, film, r, loop=False, frames=None):
+    frames = frames if frames is not None else decoded_gray(path)
+    flashes = flash_frames(frames, film.fps)
+    if flashes:
+        r.warn(f'{path}: >3 large opposing luminance flashes in one second at frames {flashes}')
+    if loop and seam_ratio(frames) > 3:
+        r.warn(f'{path}: loop seam f{len(frames)-1}->f0 jumps {seam_ratio(frames):.1f}x neighbouring changes')
+
+
+def _ebur(path, filters=''):
+    af = f'{filters},ebur128=peak=true' if filters else 'ebur128=peak=true'
+    result = subprocess.run(['ffmpeg', '-hide_banner', '-nostats', '-i', str(path), '-map', '0:a:0', '-af', af,
+                             '-f', 'null', '-'], capture_output=True, text=True, check=True)
+    summary = result.stderr.rsplit('Summary:', 1)[-1]
+    loud = float(re.search(r'Integrated loudness:\s*I:\s*([-\d.]+)', summary).group(1))
+    peak = float(re.search(r'True peak:\s*Peak:\s*([-\d.]+)', summary).group(1))
+    return loud, peak
+
+
+def _mean_volume(path, filters=''):
+    af = f'{filters},volumedetect' if filters else 'volumedetect'
+    result = subprocess.run(['ffmpeg', '-hide_banner', '-nostats', '-i', str(path), '-map', '0:a:0', '-af', af,
+                             '-f', 'null', '-'], capture_output=True, text=True, check=True)
+    return float(re.search(r'mean_volume:\s*([-\d.]+) dB', result.stderr).group(1))
+
+
+def loudness(path, audio, r):
+    full, peak = _ebur(path)
+    sub = _mean_volume(path, 'lowpass=f=60')
+    overall = _mean_volume(path)
+    share = 100 * 10 ** ((sub - overall) / 10)
+    band, _ = _ebur(path, 'highpass=f=200,lowpass=f=6000')
+    r.ok(f'{path}: decoded audio {full:.1f} LUFS, true peak {peak:.1f} dBTP; '
+         f'below 60 Hz {share:.1f}% energy, 200 Hz–6 kHz {band:.1f} LUFS ({band - full:+.1f} LU)')
+    if audio.loudness is not None and abs(full - audio.loudness) > 1:
+        r.warn(f'{path}: loudness {full:.1f} LUFS is >1 LU from target {audio.loudness:g}')
+    if peak > -1:
+        r.warn(f'{path}: decoded true peak {peak:.1f} dBTP exceeds -1 dBTP')
+    if share > 50:
+        r.warn(f'{path}: {share:.1f}% of energy is below 60 Hz; check on phone speakers')
+    if band - full < -6:
+        r.warn(f'{path}: phone band is {full - band:.1f} LU below full mix')
+
+
+def cuts(path, film, r, min_jump=6.0, frames=None):
     tl = film.timeline
     if tl is None:
         return
-    d = picture_diffs(path)
+    d = picture_diffs(path, frames=frames)
     grid = set(tl.cut_frames())
     jumps = []
     for n in range(1, len(d)):
@@ -334,6 +455,7 @@ def main(argv=None):
     p.add_argument('--wps', type=float, default=3.0, help='reading speed, words a second (default 3)')
     p.add_argument('--lead', type=float, default=1.0, help='seconds added to every read time (default 1)')
     p.add_argument('--every', type=int, help='check marks on every Nth frame, not just held frames')
+    p.add_argument('--motion', action='store_true', help='draw every frame to check marked-box motion')
     a = p.parse_args(argv)
 
     vb = _import_videobuilder(a.film)
@@ -344,6 +466,8 @@ def main(argv=None):
     storyboard(film, r, a.wps, a.lead)
     print('marks:')
     marks(mod, film, fmts, r, a.every)
+    if a.motion:
+        check_motion(film, fmts, r)
     if a.video is not None:
         if not shutil.which('ffprobe'):
             r.fail('ffprobe not found')
@@ -368,9 +492,13 @@ def main(argv=None):
                 if not path.exists():
                     r.fail(f'{path} does not exist')
                     continue
-                probe(path, film, f, r)
-                cuts(path, film, r)
+                probe(path, film, f, r, getattr(mod, 'LOOP', False))
+                frames = decoded_gray(path)
+                cuts(path, film, r, frames=frames)
+                picture_safety(path, film, r, getattr(mod, 'LOOP', False), frames=frames)
                 beats(path, film, r)
+                if film.audio is not None:
+                    loudness(path, film.audio, r)
     print(f'{r.failed} failed, {r.warned} warnings')
     return 1 if r.failed else 0
 
