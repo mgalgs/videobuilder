@@ -177,3 +177,22 @@ python film.py preview [--port 8000] [--open]
 
 - **Trap:** `render --chunk N` must be a whole number of µs at the fps (ffmpeg
   concat drift); the default 15 is safe at 24/25/30/60 fps.
+
+## Declared frame checks
+
+Put `EXPECT = [...]` beside `FILM`. `check.py` runs each entry in every format by default. Every constructor takes `formats=('9x16',)` to restrict formats and `note='director words'` to print on failure.
+
+```python
+EXPECT = [
+    vb.visible('logo', vb.seg('outro')),                  # present and inside safe area, or frame
+    vb.hidden('logo', vb.seg('intro')),                   # absent on this frame
+    vb.touches('feet', 'pad', vb.seg('land', 3), tolerance=2),
+    vb.apart('logo', 'copy', vb.seg('hold'), min_gap=20),
+    vb.still('headline', (vb.seg('hold', 2), vb.seg('hold', 'end', -1))),
+    vb.at_rest_by('headline', vb.seg('hold', 4), speed=0.5),
+]
+```
+
+A frame is an integer or `vb.seg(name, place='start', offset=0)`. `place` is `start`, `mid`, or `end`; `vb.seg('land', 3)` means three frames after its start, and `end` means the segment's last frame. Ranges include both endpoints. `touches` measures the shortest box-edge gap; small overlap up to its tolerance also passes. `apart` requires the shortest box gap to meet `min_gap`. `still` compares position and size exactly. `at_rest_by` measures translation plus size change in px/frame from the preceding frame through the segment's end. A missing mark fails; even `hidden` requires that mark to occur somewhere in the film.
+
+`python -m videobuilder motion film.py [--format F] [--mark NAME ...] [--from FRAME|SEG --to FRAME|SEG] [--onion N] -o out.png` writes a speed graph with cuts, beats, warning markers, and direct series labels. `--onion N` adds a frame composite every N frames with mark trails. The command prints each mark's peak speed and first frame after which it stays below 0.5 px/frame in the chosen range.

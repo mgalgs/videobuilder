@@ -53,3 +53,19 @@ Name the affected frames in the note: start, beat, peak, hold, exit, and one on 
 | Text moves before it can be read | Hold at least 0.3 s per word plus 0.5 s; keep the text plane stationary. |
 | Everything moves together | Pick one hero; delay secondaries 100–200 ms and reduce travel to 50–70%. |
 | Drift off the beat | Calculate every beat with `GRID.b(k)`; never sum rounded beat lengths. |
+
+## Lock in a director note
+
+After fixing a concrete note, add a module-level `EXPECT` entry that would have caught the old behavior. Copy the director's words into `note=`; `check.py film.py` checks it on every format and prints a FAIL with the note if it regresses. Prefer `vb.seg('outro')`, `vb.seg('land', 3)`, `vb.seg('land', 'end', -1)`, or `vb.seg('hold', 'mid')` over absolute frames, so roll edits keep the check attached to the scene.
+
+```python
+EXPECT = [
+    vb.visible('logo', vb.seg('outro'), note='Show the logo at the start of the outro'),
+    vb.touches('feet', 'pad', vb.seg('land', 3), tolerance=2,
+               note='The feet should meet the landing pad'),
+    vb.at_rest_by('headline', vb.seg('hold', 4), speed=0.5,
+                  note='Let the headline settle before it is read'),
+]
+```
+
+Run `python -m videobuilder motion film.py --from land --to hold --mark feet --onion 3 -o motion.png` before replying to a motion note. Read the speed curve for steady-rate runs, abrupt edges, and a late settle; the onion skin shows the image and marked path. Inspect the affected formats too.

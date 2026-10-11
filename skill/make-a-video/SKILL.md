@@ -69,7 +69,7 @@ format and the numbers. In short:
 4. **Motion per segment**: entrance, hold, exit, and which segments
    overlap (a transition) instead of cutting.
 
-Read `reference/motion.md` when assigning motion numbers; choose one hero move per shot.
+Read `reference/motion.md` when assigning motion numbers, checking a move with `vb motion`, or locking a director note into `EXPECT`; choose one hero move per shot.
 
 ## 3. Scaffold the film
 

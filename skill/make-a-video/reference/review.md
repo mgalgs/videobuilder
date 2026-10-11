@@ -62,3 +62,8 @@ Read each sheet PNG (and `sheet --every 10` for motion):
   are vendored with their licence files.
 - [ ] Report to the user: paths, duration, formats, the storyboard, choices
   and placeholders, and the check output.
+
+## Declared note checks and motion image
+
+- [ ] For each fixed director note, add an `EXPECT` check with the note's words in `note=`. Use `vb.seg(...)` anchors so roll edits keep the check on the intended scene. `check.py` runs these checks by default and any failure is a FAIL.
+- [ ] Before replying to a motion note, render `python -m videobuilder motion film.py --from SEG --to SEG --onion 3 -o motion.png` for the changed range and inspect both the speed graph and onion skin. Use `--mark NAME` to focus on a trajectory.
