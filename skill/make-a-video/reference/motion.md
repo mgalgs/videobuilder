@@ -56,7 +56,7 @@ Name the affected frames in the note: start, beat, peak, hold, exit, and one on 
 
 ## Lock in a director note
 
-After fixing a concrete note, add a module-level `EXPECT` entry that would have caught the old behavior. Copy the director's words into `note=`; `check.py film.py` checks it on every format and prints a FAIL with the note if it regresses. Prefer `vb.seg('outro')`, `vb.seg('land', 3)`, `vb.seg('land', 'end', -1)`, or `vb.seg('hold', 'mid')` over absolute frames, so roll edits keep the check attached to the scene.
+After fixing a concrete note, add a module-level `EXPECT` entry that would have caught the old behavior. Copy the director's words into `note=`; `check.py film.py` checks it on every format and prints a FAIL with the note if it regresses. Prefer `vb.seg('outro')`, `vb.seg('land', 3)`, `vb.seg('land', 'end', -1)` (the last frame), or `vb.seg('hold', 'mid')` over absolute frames, so roll edits keep the check attached to the scene.
 
 ```python
 EXPECT = [

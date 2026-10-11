@@ -26,8 +26,11 @@ def resolve(at, timeline):
         return at
     if not isinstance(at, Anchor) or timeline is None:
         raise ValueError(f'cannot resolve frame {at!r} without a timeline')
-    a, z = timeline.span(at.segment)
-    return {'start': a, 'mid': (a + z - 1) // 2, 'end': z - 1}[at.place] + at.offset
+    try:
+        a, z = timeline.span(at.segment)
+    except KeyError as exc:
+        raise ValueError(f'unknown segment {at.segment!r}') from exc
+    return {'start': a, 'mid': (a + z - 1) // 2, 'end': z}[at.place] + at.offset
 
 
 @dataclass(frozen=True)
@@ -70,6 +73,8 @@ def at_rest_by(mark, frame, speed=0.5, *, formats=None, note=''):
 
 def needed(e, film):
     if e.kind == 'still':
+        if not isinstance(e.at, (tuple, list)) or len(e.at) != 2:
+            raise ValueError('still frames must be a pair of frame anchors')
         a, z = (resolve(x, film.timeline) for x in e.at)
         if a > z:
             raise ValueError('still range is reversed')
@@ -136,14 +141,19 @@ def check(expectations, film, fmt, report, layouts=None):
     safe = Box(*raw) if raw is not None else Box(0, 0, fmt.width, fmt.height)
     selected = [e for e in expectations if e.formats is None or fmt.name in e.formats]
     picks = set()
+    invalid = set()
     for e in selected:
         try:
             picks.update(n for n in needed(e, film) if 0 <= n < film.frames)
         except (ValueError, KeyError, IndexError) as exc:
-            report.fail(f'{fmt.name}: {e.kind} {e.names!r}: {exc}; note={e.note!r}')
+            invalid.add(id(e))
+            msg = f'{fmt.name}: {e.kind} {e.names!r}: {exc}'
+            if e.note:
+                msg += f'; note={e.note!r}'
+            report.fail(msg)
     frames = sample(film, fmt, picks)
     # A hidden mark still needs to exist somewhere: otherwise a typo passes silently.
-    missing_names = {name for e in selected for name in e.names
+    missing_names = {name for e in selected if id(e) not in invalid for name in e.names
                      if not any(name in marks for marks in frames.values())}
     if missing_names:
         for n in range(film.frames):
@@ -153,6 +163,8 @@ def check(expectations, film, fmt, report, layouts=None):
                 frames.update(sample(film, fmt, [n]))
             missing_names.difference_update(frames[n])
     for e in selected:
+        if id(e) in invalid:
+            continue
         try:
             absent = set(e.names) & missing_names
             ok, detail = ((False, f'mark {sorted(absent)!r} never appears in any frame')

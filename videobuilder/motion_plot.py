@@ -21,9 +21,33 @@ def _marker(c, kind, x, y, size=4):
         c.rectangle(x-size, y-size, 2*size, 2*size)
     elif kind == 2:
         c.move_to(x, y-size); c.line_to(x+size, y+size); c.line_to(x-size, y+size); c.close_path()
-    else:
+    elif kind == 3:
         c.move_to(x, y-size); c.line_to(x+size, y); c.line_to(x, y+size); c.line_to(x-size, y); c.close_path()
+    else:
+        points = {4: (3, math.pi/2), 5: (5, -math.pi/2),
+                  6: (6, -math.pi/2), 7: (8, -math.pi/2)}
+        count, angle = points[kind % 8]
+        for j in range(count):
+            radius = size * (.48 if kind % 8 == 7 and j % 2 else 1)
+            px = x + radius * math.cos(angle + 2*math.pi*j/count)
+            py = y + radius * math.sin(angle + 2*math.pi*j/count)
+            if j == 0: c.move_to(px, py)
+            else: c.line_to(px, py)
+        c.close_path()
     c.fill()
+
+
+def _label_positions(endpoints, top, bottom, spacing=17):
+    """Keep labels near their endpoints without letting them collide or leave the plot."""
+    positions = {}
+    ordered = sorted(endpoints.items(), key=lambda item: item[1])
+    for i, (name, endpoint) in enumerate(ordered):
+        positions[name] = max(top, endpoint, positions[ordered[i-1][0]] + spacing if i else top)
+    for i in range(len(ordered)-1, -1, -1):
+        name = ordered[i][0]
+        ceiling = positions[ordered[i+1][0]] - spacing if i+1 < len(ordered) else bottom
+        positions[name] = min(positions[name], ceiling)
+    return positions
 
 
 def render(film, fmt, first, last, marks=None, onion=None, out='motion.png'):
@@ -75,13 +99,18 @@ def render(film, fmt, first, last, marks=None, onion=None, out='motion.png'):
         c.set_source_rgb(.88, .88, .88); c.set_line_width(.7)
         c.move_to(left, y(v)); c.line_to(right, y(v)); c.stroke()
         c.set_source_rgb(.25, .25, .25); _text(c, 7, y(v)+4, f'{v:.1f}', 11)
-    styles = [[], [8, 4], [2, 4], [12, 3, 2, 3]]
+    styles = [[], [8, 4], [2, 4], [12, 3, 2, 3],
+              [4, 3], [10, 3, 2, 3], [2, 2, 7, 2], [14, 3]]
+    endpoints = {name: y(speeds[name][max(speeds[name])]) if speeds[name] else top + 20 + i*17
+                 for i, name in enumerate(names)}
+    labels = _label_positions(endpoints, top + 12, bottom - 9)
     events = motion_events([{name: tuple(box) for name, box in frames[n].items()}
                             for n in range(first, last+1)])
     for i, name in enumerate(names):
         series = speeds[name]
-        c.set_source_rgb(.08 + (i % 4)*.16, .08 + (i % 4)*.16, .08 + (i % 4)*.16)
-        c.set_line_width(2.5); c.set_dash(styles[i % len(styles)])
+        grey = .08 + (i % 8)*.075
+        c.set_source_rgb(grey, grey, grey)
+        c.set_line_width(2.5); c.set_dash(styles[i] if i < len(styles) else [i + 5, 3, 2, 3])
         started = False
         for n in range(first+1, last+1):
             if n not in series:
@@ -91,25 +120,28 @@ def render(film, fmt, first, last, marks=None, onion=None, out='motion.png'):
             else: c.line_to(x(n), y(series[n]))
         if started: c.stroke()
         c.set_dash([])
-        stride = max(1, (last-first)//18)
+        stride = max(len(names) + 1, (last-first)//18)
         for n, v in series.items():
-            if (n-first) % stride == 0 or n == max(series):
-                _marker(c, i % 4, x(n), y(v))
+            if (n-first-i) % stride == 0:
+                _marker(c, i % 8, x(n), y(v))
         for event_name, kind, a, z in events:
             if event_name == name:
                 n = first + a + 1
                 if n in series:
                     c.set_source_rgb(0, 0, 0)
-                    _marker(c, i % 4, x(n), y(series[n]), 7)
+                    _marker(c, i % 8, x(n), y(series[n]), 7)
                     _text(c, x(n)+5, max(top+13, y(series[n])-11), kind, 10)
         if series:
             n = max(series)
             c.set_source_rgb(0, 0, 0)
-            _marker(c, i % 4, right+11, y(series[n])+i*15)
-            _text(c, right+21, y(series[n])+i*15+4, name, 12)
+            label_y = labels[name]
+            c.set_line_width(1)
+            c.move_to(x(n), endpoints[name]); c.line_to(right+10, label_y); c.stroke()
+            _marker(c, i % 8, right+11, label_y)
+            _text(c, right+21, label_y+4, name, 12)
         else:
-            _marker(c, i % 4, right+11, top+20+i*18)
-            _text(c, right+21, top+24+i*18, name, 12)
+            _marker(c, i % 8, right+11, labels[name])
+            _text(c, right+21, labels[name]+4, name, 12)
     c.set_source_rgb(.2, .2, .2)
     _text(c, left, 410, f'f{first}')
     _text(c, right-40, 410, f'f{last}')
@@ -127,12 +159,13 @@ def render(film, fmt, first, last, marks=None, onion=None, out='motion.png'):
             points = [(ox+box.cx*scale, oy+box.cy*scale)
                       for n in chosen for box in [frames[n].get(name)] if box]
             if not points: continue
-            c.set_source_rgb(.04 + (i%4)*.17, .04 + (i%4)*.17, .04 + (i%4)*.17)
-            c.set_line_width(2); c.set_dash(styles[i%4])
+            grey = .08 + (i % 8)*.075
+            c.set_source_rgb(grey, grey, grey)
+            c.set_line_width(2); c.set_dash(styles[i] if i < len(styles) else [i + 5, 3, 2, 3])
             c.move_to(*points[0])
             for pt in points[1:]: c.line_to(*pt)
             c.stroke(); c.set_dash([])
-            for px, py in points: _marker(c, i%4, px, py, 3)
+            for px, py in points: _marker(c, i%8, px, py, 3)
     surface.write_to_png(out)
     summary = []
     for name in names:

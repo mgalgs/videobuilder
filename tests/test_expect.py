@@ -13,6 +13,7 @@ import videobuilder as vb
 from videobuilder import expect
 from videobuilder.edits import Edits, active
 from videobuilder.cli import main
+from videobuilder.motion_plot import _label_positions
 
 
 class Report:
@@ -69,15 +70,29 @@ class Expectations(unittest.TestCase):
 
     def test_anchors_follow_roll_edit(self):
         self.assertEqual(expect.resolve(vb.seg('outro'), self.timeline), 5)
-        self.assertEqual(expect.resolve(vb.seg('intro', 'end', -1), self.timeline), 3)
+        self.assertEqual(expect.resolve(vb.seg('intro', 'end', -1), self.timeline), 4)
         self.assertEqual(expect.resolve(vb.seg('intro', 'mid'), self.timeline), 2)
         edits = Edits('test.edits.toml', {'intro': {'until': 7}})
         with active(edits):
             changed = vb.Timeline(vb.Grid(fps=10, bpm=600),
                                   [vb.Segment('intro', 0, 5), vb.Segment('outro', 5, 10)], end=10)
         self.assertEqual(expect.resolve(vb.seg('outro'), changed), 7)
-        self.assertEqual(expect.resolve(vb.seg('intro', 'end', -1), changed), 5)
+        self.assertEqual(expect.resolve(vb.seg('intro', 'end', -1), changed), 6)
         self.assertEqual(expect.resolve(vb.seg('intro', 'mid'), changed), 3)
+
+    def test_end_anchor_checks_last_frame(self):
+        r = self.check_one(vb.hidden('logo', vb.seg('outro', 'end', -1)))
+        self.assertEqual(len(r.fails), 1)
+        self.assertIn('f9', r.fails[0])
+
+    def test_invalid_anchor_and_range_fail_once(self):
+        for e, detail in ((vb.visible('hero', vb.seg('outr'), note='Keep hero'), "unknown segment 'outr'"),
+                          (vb.still('hero', 5, note='Hold hero'), 'must be a pair')):
+            with self.subTest(detail=detail):
+                r = self.check_one(e)
+                self.assertEqual(len(r.fails), 1)
+                self.assertIn(detail, r.fails[0])
+                self.assertIn(e.note, r.fails[0])
 
     def test_check_script_reports_director_note(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -104,6 +119,15 @@ class Expectations(unittest.TestCase):
                 main(['motion', str(film), '--onion', '2', '-o', str(out)])
             with Image.open(out) as image:
                 self.assertEqual(image.size, (1100, 978))
+
+    def test_motion_labels_stay_near_six_series_ends(self):
+        ends = {'m0': 376, 'm1': 260, 'm2': 144,
+                'm3': 376, 'm4': 260, 'm5': 144}
+        labels = _label_positions(ends, 58, 367)
+        positions = sorted(labels.values())
+        self.assertTrue(all(58 <= p <= 367 for p in positions))
+        self.assertTrue(all(b-a >= 17 for a, b in zip(positions, positions[1:])))
+        self.assertTrue(all(abs(labels[name]-end) <= 17 for name, end in ends.items() if end < 376))
 
 
 if __name__ == '__main__':
