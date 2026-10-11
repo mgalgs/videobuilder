@@ -32,7 +32,7 @@ What it checks:
               WARN if >3 in any one-second window.
   motion      opt-in --motion: marked-box constant-speed runs and abrupt starts/stops.
   loop seam   with LOOP = True, compare the last-to-first picture change to
-              adjacent changes; duplicate terminal frames FAIL.
+              adjacent changes; an extra rendered frame FAILs.
 
 Exit status 1 if any check FAILs. WARN lines are for a human to judge.
 """
@@ -221,9 +221,11 @@ def motion_events(samples, min_speed=1.0):
             if len(run) >= 6 and max(run) - min(run) <= 0.05 * max(run) and straight:
                 events.append((name, 'constant rate', start, end))
             peak = max(run)
-            if start and speeds[start - 1] <= 0.2 * peak and run[0] >= 0.8 * peak:
+            easing_out = len(run) >= 3 and run[0] > run[1] > run[2] and run[2] <= 0.8 * run[0]
+            easing_in = len(run) >= 3 and run[-3] < run[-2] < run[-1] and run[-3] <= 0.8 * run[-1]
+            if start and speeds[start - 1] <= 0.2 * peak and run[0] >= 0.8 * peak and not easing_out:
                 events.append((name, 'full-speed start', start, start + 1))
-            if end < len(speeds) and speeds[end] <= 0.2 * peak and run[-1] >= 0.8 * peak:
+            if end < len(speeds) and speeds[end] <= 0.2 * peak and run[-1] >= 0.8 * peak and not easing_in:
                 events.append((name, 'full-speed stop', end, end + 1))
             start = end
     return events
@@ -324,25 +326,27 @@ def flash_frames(frames, fps, threshold=0.25):
         changes.append((sum(luminance[y] - luminance[x] >= 0.10 for x, y in zip(a, b)) / size,
                         sum(luminance[x] - luminance[y] >= 0.10 for x, y in zip(a, b)) / size))
     events = []
-    n = 1
-    while n < len(changes):
-        up, down = changes[n]
-        if (up >= threshold and changes[n - 1][1] >= threshold) or \
-                (down >= threshold and changes[n - 1][0] >= threshold):
+    pending = None
+    for n, (up, down) in enumerate(changes):
+        direction = 1 if up >= threshold and up >= down else -1 if down >= threshold else 0
+        if not direction:
+            continue
+        if pending and direction != pending[0] and n - pending[1] <= fps:
             events.append(n + 1)
-            n += 2  # One opposing pair is one flash; do not reuse its second edge.
+            pending = None  # One opposing pair is one flash; do not reuse its second edge.
         else:
-            n += 1
+            pending = (direction, n)
     return [n for n in events if sum(n - fps < k <= n for k in events) > 3]
 
 
 def seam_ratio(frames):
     if len(frames) < 4:
-        return 0.0
+        return 1.0
     change = lambda a, b: sum(abs(x - y) for x, y in zip(a, b)) / len(a)
     seam = change(frames[-1], frames[0])
     neighbours = [change(frames[i], frames[i + 1]) for i in (0, 1, -3, -2)]
-    return seam / max(1, sorted(neighbours)[len(neighbours) // 2])
+    typical = sorted(neighbours)[len(neighbours) // 2]
+    return seam / typical if typical > 0 else 1.0
 
 
 def picture_safety(path, film, r, loop=False, frames=None):
@@ -350,8 +354,10 @@ def picture_safety(path, film, r, loop=False, frames=None):
     flashes = flash_frames(frames, film.fps)
     if flashes:
         r.warn(f'{path}: >3 large opposing luminance flashes in one second at frames {flashes}')
-    if loop and seam_ratio(frames) > 3:
-        r.warn(f'{path}: loop seam f{len(frames)-1}->f0 jumps {seam_ratio(frames):.1f}x neighbouring changes')
+    if loop:
+        ratio = seam_ratio(frames)
+        if ratio > 3 or ratio < 1 / 3:
+            r.warn(f'{path}: loop seam f{len(frames)-1}->f0 changes {ratio:.2f}x neighbouring frames')
 
 
 def _ebur(path, filters=''):

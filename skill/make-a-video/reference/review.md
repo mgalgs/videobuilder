@@ -22,12 +22,15 @@ Run before calling a film done. Every box gets checked on every format.
   over half the signal energy is below 60 Hz or the 200 Hz–6 kHz band is
   more than 6 LU quieter than the full mix. Those are phone-speaker flags.
 - [ ] Inspect flash WARN frames: opposing changes of at least 0.10 relative
-  luminance across 25% of the picture, more than 3 in any second. For `LOOP = True`, inspect
-  a seam more than 3× its neighbouring frame changes; an extra frame N FAILs.
+  luminance across 25% of the picture, more than 3 in any second. The opposing
+  changes may have held frames between them. For `LOOP = True`, inspect a seam
+  more than 3× or less than 1/3 of its neighbouring changes; an extra frame N FAILs.
 - [ ] Run `check.py film.py --motion` when motion changes. It redraws every
   frame and warns on six or more marked-box steps within 5% of one speed,
   or a one-frame jump from under 20% to over 80% of the run's peak speed.
-  Still marks and intentional constant rotation are ignored.
+  Decelerating entrances and accelerating exits with at least 20% speed change
+  over their first or last three steps are exempt. Still marks and intentional
+  constant rotation are ignored.
 - [ ] No WARN of a cut landing on an empty frame, or each one deliberate.
 - [ ] Every block of copy, chart and image is marked; with no marks, the
   safe-area check checks nothing (it warns).
