@@ -69,12 +69,16 @@ format and the numbers. In short:
 4. **Motion per segment**: entrance, hold, exit, and which segments
    overlap (a transition) instead of cutting.
 
+Read `reference/motion.md` when assigning motion numbers; choose one hero move per shot.
+
 ## 3. Scaffold the film
 
 ```sh
 mkdir -p assets && cp $SKILL/template/film.py film.py
 PYTHONPATH=$VB python film.py sheet --format all     # it runs as is
 ```
+
+Keep a committed `STYLE.md` beside `film.py`; read it before every director note and add rejected defaults to its bans (`reference/motion.md`).
 
 The template is a working 20 s film in 9:16 and 16:9. Keep its shape and
 replace its content:
@@ -203,7 +207,7 @@ See `reference/music.md`. In short:
 
 ## 8. Review before calling it done
 
-Render, then:
+Review each note at named frames with stills and a sheet; use `check.py --motion` for mark trajectories (`reference/motion.md`). Render, then:
 
 ```sh
 PYTHONPATH=$VB python $SKILL/scripts/check.py film.py --video
