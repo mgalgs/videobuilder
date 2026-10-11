@@ -100,6 +100,10 @@ def _gap(a, b):
     return math.hypot(dx, dy)
 
 
+def _b(box):
+    return f'({box.x:.0f},{box.y:.0f} {box.w:.0f}x{box.h:.0f})'
+
+
 def evaluate(e, film, fmt, frames, safe):
     """Return (passed, detail); frames maps frame numbers to mark dictionaries."""
     ns = needed(e, film)
@@ -115,23 +119,23 @@ def evaluate(e, film, fmt, frames, safe):
     if e.kind == 'hidden':
         n = ns[0]
         b = frames[n].get(e.names[0])
-        return (b is None, f'f{n} mark {e.names[0]!r} ' + ('absent' if b is None else f'box {b} present'))
+        return (b is None, f'f{n} mark {e.names[0]!r} ' + ('absent' if b is None else f'box {_b(b)} present'))
     if e.kind == 'visible':
         n = ns[0]
         b = frames[n][e.names[0]]
-        return safe.contains(b, tolerance=1), f'f{n} mark {e.names[0]!r} box {b}, safe {safe}'
+        return safe.contains(b, tolerance=1), f'f{n} mark {e.names[0]!r} box {_b(b)}, safe {_b(safe)}'
     if e.kind in ('touches', 'apart'):
         n = ns[0]
         a, b = (frames[n][name] for name in e.names)
         gap = _gap(a, b)
         good = -e.value <= gap <= e.value if e.kind == 'touches' else gap >= e.value
-        return good, f'f{n} marks {e.names!r} gap {gap:.2f}px, target {e.value:g}px; boxes {a}, {b}'
+        return good, f'f{n} marks {e.names!r} gap {gap:.2f}px, target {e.value:g}px; boxes {_b(a)}, {_b(b)}'
     speeds = [(n, box_speed(frames[n-1][e.names[0]], frames[n][e.names[0]]))
               for n in ns[1:] if n - 1 in frames and e.names[0] in frames[n-1] and e.names[0] in frames[n]]
     if e.kind == 'still':
         start = frames[ns[0]][e.names[0]]
         moved = [(n, frames[n][e.names[0]]) for n in ns if frames[n][e.names[0]] != start]
-        return not moved, f'f{ns[0]}..f{ns[-1]} mark {e.names[0]!r} box {start}; ' + (f'f{moved[0][0]} box {moved[0][1]}' if moved else 'unchanged')
+        return not moved, f'f{ns[0]}..f{ns[-1]} mark {e.names[0]!r} box {_b(start)}; ' + (f'f{moved[0][0]} box {_b(moved[0][1])}' if moved else 'unchanged')
     bad = [(n, v) for n, v in speeds if v > e.value]
     peak = max((v for _, v in speeds), default=0)
     return not bad, f'f{ns[0]}..f{ns[-1]} mark {e.names[0]!r} speed peak {peak:.2f}px/frame, limit {e.value:g}px/frame' + (f'; f{bad[0][0]} {bad[0][1]:.2f}px/frame' if bad else '')
