@@ -28,7 +28,7 @@ What it checks:
   beats       when the film has audio: where the music's onsets fall against
               the beat grid, and the head_trim that would line them up.
   loudness    decoded MP4 LUFS, true peak, sub-60 Hz energy and phone-band LUFS.
-  flashes     opposing large luminance changes over >=25% of decoded pixels;
+  flashes     opposing >=10% relative-luminance changes over >=25% of decoded pixels;
               WARN if >3 in any one-second window.
   motion      opt-in --motion: marked-box constant-speed runs and abrupt starts/stops.
   loop seam   with LOOP = True, compare the last-to-first picture change to
@@ -216,7 +216,9 @@ def motion_events(samples, min_speed=1.0):
             while end < len(steps) and steps[end] is not None and speeds[end] >= min_speed:
                 end += 1
             run = speeds[start:end]
-            if len(run) >= 6 and max(run) - min(run) <= 0.05 * max(run):
+            vectors = steps[start:end]
+            straight = all(math.dist(v, vectors[0]) <= 0.05 * max(run) for v in vectors)
+            if len(run) >= 6 and max(run) - min(run) <= 0.05 * max(run) and straight:
                 events.append((name, 'constant rate', start, end))
             peak = max(run)
             if start and speeds[start - 1] <= 0.2 * peak and run[0] >= 0.8 * peak:
@@ -313,15 +315,24 @@ def decoded_gray(path, width=96):
 
 
 def flash_frames(frames, fps, threshold=0.25):
-    """A flash is a bright/dark reversal of >=25% pixels with >=32/255 change each way."""
+    """A flash is two opposing >=0.10 linear-luminance changes over >=25% of pixels."""
+    luminance = [((v / 255 + 0.055) / 1.055) ** 2.4 if v > 10 else v / (255 * 12.92)
+                 for v in range(256)]
     changes = []
     for a, b in zip(frames, frames[1:]):
         size = len(a)
-        changes.append((sum(y - x >= 32 for x, y in zip(a, b)) / size,
-                        sum(x - y >= 32 for x, y in zip(a, b)) / size))
-    events = [n + 2 for n, (up, down) in enumerate(changes[1:])
-              if (up >= threshold and changes[n][1] >= threshold) or
-              (down >= threshold and changes[n][0] >= threshold)]
+        changes.append((sum(luminance[y] - luminance[x] >= 0.10 for x, y in zip(a, b)) / size,
+                        sum(luminance[x] - luminance[y] >= 0.10 for x, y in zip(a, b)) / size))
+    events = []
+    n = 1
+    while n < len(changes):
+        up, down = changes[n]
+        if (up >= threshold and changes[n - 1][1] >= threshold) or \
+                (down >= threshold and changes[n - 1][0] >= threshold):
+            events.append(n + 1)
+            n += 2  # One opposing pair is one flash; do not reuse its second edge.
+        else:
+            n += 1
     return [n for n in events if sum(n - fps < k <= n for k in events) > 3]
 
 

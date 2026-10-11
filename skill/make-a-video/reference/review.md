@@ -21,8 +21,8 @@ Run before calling a film done. Every box gets checked on every format.
   `Audio.loudness`, true peak at most -1 dBTP). The checker also warns if
   over half the signal energy is below 60 Hz or the 200 Hz–6 kHz band is
   more than 6 LU quieter than the full mix. Those are phone-speaker flags.
-- [ ] Inspect flash WARN frames: opposing changes of at least 32/255 across
-  25% of the picture, more than 3 in any second. For `LOOP = True`, inspect
+- [ ] Inspect flash WARN frames: opposing changes of at least 0.10 relative
+  luminance across 25% of the picture, more than 3 in any second. For `LOOP = True`, inspect
   a seam more than 3× its neighbouring frame changes; an extra frame N FAILs.
 - [ ] Run `check.py film.py --motion` when motion changes. It redraws every
   frame and warns on six or more marked-box steps within 5% of one speed,

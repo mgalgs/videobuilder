@@ -11,10 +11,11 @@ spec.loader.exec_module(check)
 
 class MotionChecks(unittest.TestCase):
     def test_flashes_need_large_opposing_changes(self):
-        frames = [bytes([v] * 16) for v in (0, 255, 0, 255, 0, 255, 0)]
-        self.assertEqual(check.flash_frames(frames, fps=6), [5, 6])
-        small = [bytes([v] + [0] * 15) for v in (0, 255, 0, 255, 0, 255, 0)]
-        self.assertEqual(check.flash_frames(small, fps=6), [])
+        frames = [bytes([v] * 16) for v in (0, 255, 0, 255, 0, 255, 0, 255, 0)]
+        self.assertEqual(check.flash_frames(frames[:7], fps=10), [])  # three complete flashes
+        self.assertEqual(check.flash_frames(frames, fps=10), [8])
+        small = [bytes([v] + [0] * 15) for v in (0, 255, 0, 255, 0, 255, 0, 255, 0)]
+        self.assertEqual(check.flash_frames(small, fps=10), [])
 
     def test_loop_seam(self):
         good = [bytes([v] * 8) for v in (0, 10, 20, 10)]
