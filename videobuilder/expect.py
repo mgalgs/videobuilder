@@ -106,7 +106,9 @@ def evaluate(e, film, fmt, frames, safe):
     for n in ns:
         if not 0 <= n < film.frames:
             return False, f'f{n} outside film 0..{film.frames - 1}'
-    for n in ns:
+    # at_rest_by is about speed, so only its anchor needs the mark: it may enter or leave around it.
+    required = [resolve(e.at, film.timeline)] if e.kind == 'at_rest_by' else ns
+    for n in required:
         missing = [name for name in e.names if name not in frames[n]]
         if missing and e.kind != 'hidden':
             return False, f'f{n} mark(s) {missing!r} absent'
@@ -125,7 +127,7 @@ def evaluate(e, film, fmt, frames, safe):
         good = -e.value <= gap <= e.value if e.kind == 'touches' else gap >= e.value
         return good, f'f{n} marks {e.names!r} gap {gap:.2f}px, target {e.value:g}px; boxes {a}, {b}'
     speeds = [(n, box_speed(frames[n-1][e.names[0]], frames[n][e.names[0]]))
-              for n in ns[1:] if n - 1 in frames and e.names[0] in frames[n-1]]
+              for n in ns[1:] if n - 1 in frames and e.names[0] in frames[n-1] and e.names[0] in frames[n]]
     if e.kind == 'still':
         start = frames[ns[0]][e.names[0]]
         moved = [(n, frames[n][e.names[0]]) for n in ns if frames[n][e.names[0]] != start]

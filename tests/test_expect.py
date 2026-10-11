@@ -64,6 +64,11 @@ class Expectations(unittest.TestCase):
         self.assertIn('f5', r.fails[0])
         self.assertIn('box', r.fails[0])
 
+    def test_at_rest_by_allows_entering_on_its_anchor(self):
+        r = self.check_one(vb.at_rest_by('logo', vb.seg('outro')))
+        self.assertEqual(r.fails, [])
+        self.assertTrue(self.check_one(vb.at_rest_by('logo', 4)).fails)
+
     def test_missing_name_fails_even_for_hidden(self):
         r = self.check_one(vb.hidden('typo', 0))
         self.assertTrue(any('never appears' in msg for msg in r.fails))
