@@ -353,8 +353,18 @@ def loudness(path, audio, r):
     band, _ = _ebur(path, 'highpass=f=200,lowpass=f=6000')
     r.ok(f'{path}: decoded audio {full:.1f} LUFS, true peak {peak:.1f} dBTP; '
          f'below 60 Hz {share:.1f}% energy, 200 Hz–6 kHz {band:.1f} LUFS ({band - full:+.1f} LU)')
-    if audio.loudness is not None and abs(full - audio.loudness) > 1:
-        r.warn(f'{path}: loudness {full:.1f} LUFS is >1 LU from target {audio.loudness:g}')
+    if audio.loudness is not None and full > audio.loudness + 1:
+        r.warn(f'{path}: loudness {full:.1f} LUFS is >1 LU above target {audio.loudness:g}')
+    elif audio.loudness is not None and full < audio.loudness - 1:
+        # Render caps the gain so the limiter barely works: a peaky track ends
+        # below target with its peaks at the ceiling. Peaks well under it mean
+        # the gain had room left.
+        if peak < -4:
+            r.warn(f'{path}: loudness {full:.1f} LUFS is >1 LU below target {audio.loudness:g} '
+                   f'with peaks at {peak:.1f} dBTP')
+        else:
+            r.ok(f'{path}: loudness {full:.1f} LUFS is below target {audio.loudness:g}: '
+                 f'the track\'s peaks limit the gain')
     if peak > -1:
         r.warn(f'{path}: decoded true peak {peak:.1f} dBTP exceeds -1 dBTP')
     if share > 50:

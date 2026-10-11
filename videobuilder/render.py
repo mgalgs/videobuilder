@@ -19,19 +19,38 @@ from .film import Audio, Film, load  # noqa: F401  (Audio, Film: the old import 
 # Sample-peak ceiling for the limiter. True peak runs above sample peak, and the
 # AAC encode lifts it further; -3 dBFS keeps the decoded MP4 under -1 dBTP.
 PEAK_CEILING_DB = -3.0
+# Most the limiter may take off the loudest peak. Past a dB or two it stops
+# catching transients and compresses the mix, and its release audibly pumps;
+# a track too peaky to reach the target this way stays quieter instead.
+MAX_LIMITING_DB = 1.0
 
 
-def loudness_gain(path, filters, target):
-    """dB to add after `filters` to reach `target` integrated LUFS; 0 for silence."""
+def measure(path, filters):
+    """(integrated LUFS, sample peak dBFS) after `filters`; None for silence."""
     result = subprocess.run(['ffmpeg', '-hide_banner', '-nostats', '-i', path, '-af',
-                             f'{filters},ebur128', '-f', 'null', '-'],
+                             f'{filters},ebur128=peak=sample', '-f', 'null', '-'],
                             capture_output=True, text=True, check=True)
     summary = result.stderr.rsplit('Summary:', 1)[-1]
     loud = float(re.search(r'I:\s*(-?inf|-?[\d.]+) LUFS', summary).group(1))
+    peak = float(re.search(r'Peak:\s*(-?inf|-?[\d.]+) dBFS', summary).group(1))
     # ebur128 reports silence as -70 LUFS: never boost near-silence.
     if not math.isfinite(loud) or loud <= -69:
+        return None
+    return loud, peak
+
+
+def loudness_gain(path, filters, target):
+    """dB to add after `filters` toward `target` integrated LUFS, capped so the
+    limiter takes at most MAX_LIMITING_DB off the loudest peak; 0 for silence."""
+    m = measure(path, filters)
+    if m is None:
         return 0.0
-    return target - loud
+    loud, peak = m
+    cap = PEAK_CEILING_DB + MAX_LIMITING_DB - peak
+    gain = target - loud
+    if gain < cap:  # the limiter shaves a little loudness off; measure again through it
+        gain += target - measure(path, normalise(filters, gain))[0]
+    return min(gain, cap)
 
 
 def normalise(filters, gain):
@@ -138,10 +157,7 @@ def render(film, out, format=None, jobs=None, chunk=15, crf=18, frames=None, log
             if au.loudness is not None:
                 # Measured over the whole film, so a partial render gets the same gain.
                 whole = audio_filters(film, 0, film.frames)
-                gain = loudness_gain(au.path, whole, au.loudness)
-                if gain:  # the limiter shaves loudness off a peaky track; measure again through it
-                    gain += loudness_gain(au.path, normalise(whole, gain), au.loudness)
-                filters = normalise(filters, gain)
+                filters = normalise(filters, loudness_gain(au.path, whole, au.loudness))
             cmd += ['-i', au.path, '-filter_complex', f'[1:a]{filters}[a]',
                     '-map', '0:v', '-map', '[a]', '-c:a', 'aac', '-b:a', '320k', '-ar', '48000']
         cmd += ['-c:v', 'copy', '-movflags', '+faststart', out]

@@ -17,8 +17,9 @@ Run before calling a film done. Every box gets checked on every format.
 - [ ] **WARNs judged.** A picture jump off the cut grid (a flash, a
   segment drawing a frame early or late): look at `still c-1 c c+1`. Music
   off the beat: apply the suggested `head_trim`, or justify it.
-- [ ] With `--video`, inspect decoded MP4 loudness (target within 1 LU of
-  `Audio.loudness`, true peak at most -1 dBTP). The checker also warns if
+- [ ] With `--video`, inspect decoded MP4 loudness (within 1 LU of
+  `Audio.loudness`, or below it with peaks at the ceiling when the track is
+  too peaky to reach it; true peak at most -1 dBTP). The checker also warns if
   over half the signal energy is below 60 Hz or the 200 Hz–6 kHz band is
   more than 6 LU quieter than the full mix. Those are phone-speaker flags.
 - [ ] Inspect flash WARN frames: opposing changes of at least 0.10 relative

@@ -9,7 +9,7 @@ import struct
 import wave
 
 from videobuilder import Audio, Film, Grid, Segment, Timeline
-from videobuilder.render import check_chunk, render
+from videobuilder.render import check_chunk, measure, render
 
 
 class ChunkDriftGuard(unittest.TestCase):
@@ -175,3 +175,26 @@ class Loudness(unittest.TestCase):
         peak = max(range(len(pcm)), key=lambda i: abs(pcm[i]))
         self.assertLess(abs(peak - hit), self.sr // 1000)  # within 1 ms
         self.assertLess(max(abs(v) for v in pcm) / 32768, 10 ** (-1 / 20))  # under -1 dBFS
+
+    def test_peaks_cap_the_gain(self):
+        # The click needs only a little limiting at its cap, so the bed is not
+        # boosted toward -14 LUFS: it comes out about where it went in.
+        hit = self.sr // 2
+        bed = [int(300 * math.sin(2 * math.pi * 440 * i / self.sr)) for i in range(self.sr)]
+        for i in range(hit, hit + 48):
+            bed[i] = 30000 if (i - hit) % 2 == 0 else -30000
+        pcm = self.render_pcm(bed)
+        cap = -3 + 1 - 20 * math.log10(30000 / 32768)
+        quiet = max(abs(v) for v in pcm[self.sr // 10:hit - self.sr // 10])
+        self.assertAlmostEqual(quiet / (300 * 10 ** (cap / 20)), 1, delta=0.15)
+
+    def test_clean_track_reaches_target(self):
+        tone = [int(1000 * math.sin(2 * math.pi * 440 * i / self.sr)) for i in range(self.sr)]
+        pcm = self.render_pcm(tone)
+        with tempfile.TemporaryDirectory() as tmp:
+            wav = os.path.join(tmp, 'out.wav')
+            with wave.open(wav, 'wb') as w:
+                w.setnchannels(1), w.setsampwidth(2), w.setframerate(self.sr)
+                w.writeframes(struct.pack(f'<{len(pcm)}h', *pcm))
+            loud, _ = measure(wav, 'anull')
+        self.assertAlmostEqual(loud, -14, delta=1)
