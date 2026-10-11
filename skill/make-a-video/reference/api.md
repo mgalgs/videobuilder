@@ -157,9 +157,11 @@ if __name__ == '__main__':
 
 - `Audio.trim_frames` defaults to the grid's `head_trim`. The fade is linear
   over the `fade_out_frames` before the last frame.
-- `Audio.loudness=-14.0` normalises the trimmed, gained and faded audio in two
-  passes; `None` keeps fixed `gain_db` only. Render targets -2.2 dBTP before
-  AAC so the decoded MP4 can stay at or below -1 dBTP.
+- `Audio.loudness=-14.0` brings the trimmed, gained and faded audio to that
+  integrated LUFS with one gain, then a lookahead limiter at -3 dBFS catches
+  the transients it pushes over, so the decoded MP4 stays at or below -1 dBTP.
+  The limiter is delay-compensated: hits stay on their frames. `None` keeps
+  the fixed `gain_db` only.
 - `vb.load_module('film.py')` imports a film afresh for a check script; its
   `FILM`, `LAYOUTS` and other names are attributes.
 - Custom size: `vb.Format('4x5', 1080, 1350)` in `formats`.

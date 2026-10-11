@@ -5,8 +5,9 @@ Every frame is drawn on its own (`draw(n, canvas)` is pure), so chunks render
 in any order on any worker.
 """
 import multiprocessing as mp
-import json
+import math
 import os
+import re
 import subprocess
 import sys
 import tempfile
@@ -15,15 +16,43 @@ import time
 from .film import Audio, Film, load  # noqa: F401  (Audio, Film: the old import path)
 
 
-def _loudnorm_values(path, filters, target):
-    cmd = ['ffmpeg', '-hide_banner', '-nostats', '-i', path, '-af',
-           f'{filters},loudnorm=I={target}:TP=-2.2:LRA=11:print_format=json',
-           '-f', 'null', '-']
-    result = subprocess.run(cmd, capture_output=True, text=True, check=True)
-    start = result.stderr.rfind('{')
-    if start < 0:
-        raise RuntimeError('ffmpeg loudnorm returned no measurements')
-    return json.loads(result.stderr[start:result.stderr.index('}', start) + 1])
+# Sample-peak ceiling for the limiter. True peak runs above sample peak, and the
+# AAC encode lifts it further; -3 dBFS keeps the decoded MP4 under -1 dBTP.
+PEAK_CEILING_DB = -3.0
+
+
+def loudness_gain(path, filters, target):
+    """dB to add after `filters` to reach `target` integrated LUFS; 0 for silence."""
+    result = subprocess.run(['ffmpeg', '-hide_banner', '-nostats', '-i', path, '-af',
+                             f'{filters},ebur128', '-f', 'null', '-'],
+                            capture_output=True, text=True, check=True)
+    summary = result.stderr.rsplit('Summary:', 1)[-1]
+    loud = float(re.search(r'I:\s*(-?inf|-?[\d.]+) LUFS', summary).group(1))
+    # ebur128 reports silence as -70 LUFS: never boost near-silence.
+    if not math.isfinite(loud) or loud <= -69:
+        return 0.0
+    return target - loud
+
+
+def normalise(filters, gain):
+    """One gain to the loudness target, then a lookahead limiter that touches only
+    the transients above the ceiling; the body of the mix keeps its dynamics.
+    latency=1 removes the lookahead delay, which would put sound behind picture."""
+    limit = 10 ** (PEAK_CEILING_DB / 20)
+    return (f'{filters},volume={gain:.2f}dB,'
+            f'alimiter=limit={limit:.4f}:attack=5:release=50:level=0:latency=1')
+
+
+def audio_filters(film, a, z):
+    """The ffmpeg filter chain that cuts the film's audio to frames a..z."""
+    au = film.audio
+    trim = (au.trim_frames + a) / film.fps
+    fade = ''
+    if au.fade_out_frames:
+        st = (film.frames - 1 - au.fade_out_frames - a) / film.fps
+        fade = f',afade=t=out:st={st:.6f}:d={au.fade_out_frames / film.fps:.6f}'
+    return (f'atrim=start={trim:.6f},asetpts=PTS-STARTPTS,volume={au.gain_db}dB{fade},'
+            f'apad,atrim=end={(z - a) / film.fps:.6f}')
 
 
 def check_chunk(chunk, fps):
@@ -105,21 +134,14 @@ def render(film, out, format=None, jobs=None, chunk=15, crf=18, frames=None, log
         cmd = ['ffmpeg', '-v', 'error', '-y', '-f', 'concat', '-safe', '0', '-i', listing]
         au = film.audio
         if au:
-            dur = (z - a) / film.fps
-            trim = (au.trim_frames + a) / film.fps
-            fade = ''
-            if au.fade_out_frames:
-                st = (film.frames - 1 - au.fade_out_frames - a) / film.fps
-                fade = f',afade=t=out:st={st:.6f}:d={au.fade_out_frames / film.fps:.6f}'
-            filters = f'atrim=start={trim:.6f},asetpts=PTS-STARTPTS,volume={au.gain_db}dB{fade},apad,atrim=end={dur:.6f}'
+            filters = audio_filters(film, a, z)
             if au.loudness is not None:
-                # Tame isolated transients so the integrated target can coexist with AAC peak headroom.
-                filters += ',acompressor=threshold=0.125:ratio=4:attack=5:release=100'
-                measured = _loudnorm_values(au.path, filters, au.loudness)
-                filters += (f',loudnorm=I={au.loudness}:TP=-2.2:LRA=11:'
-                            f'measured_I={measured["input_i"]}:measured_TP={measured["input_tp"]}:'
-                            f'measured_LRA={measured["input_lra"]}:measured_thresh={measured["input_thresh"]}:'
-                            f'offset={measured["target_offset"]}:linear=true')
+                # Measured over the whole film, so a partial render gets the same gain.
+                whole = audio_filters(film, 0, film.frames)
+                gain = loudness_gain(au.path, whole, au.loudness)
+                if gain:  # the limiter shaves loudness off a peaky track; measure again through it
+                    gain += loudness_gain(au.path, normalise(whole, gain), au.loudness)
+                filters = normalise(filters, gain)
             cmd += ['-i', au.path, '-filter_complex', f'[1:a]{filters}[a]',
                     '-map', '0:v', '-map', '[a]', '-c:a', 'aac', '-b:a', '320k', '-ar', '48000']
         cmd += ['-c:v', 'copy', '-movflags', '+faststart', out]

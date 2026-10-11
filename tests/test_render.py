@@ -1,3 +1,4 @@
+import math
 import os
 import shutil
 import subprocess
@@ -140,3 +141,37 @@ class AudioFade(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+@unittest.skipUnless(shutil.which('ffmpeg'), 'needs ffmpeg')
+class Loudness(unittest.TestCase):
+    sr, fps, frames = 48000, 30, 30
+
+    def render_pcm(self, samples):
+        with tempfile.TemporaryDirectory() as tmp:
+            wav = os.path.join(tmp, 'in.wav')
+            with wave.open(wav, 'wb') as w:
+                w.setnchannels(1), w.setsampwidth(2), w.setframerate(self.sr)
+                w.writeframes(struct.pack(f'<{len(samples)}h', *samples))
+            film = Film(draw=lambda n, cv: None, fps=self.fps, frames=self.frames, formats=['1x1'], audio=Audio(wav))
+            out = os.path.join(tmp, 'x.mp4')
+            with open(os.devnull, 'w') as quiet:
+                render(film, out, jobs=1, chunk=15, log=quiet)
+            raw = subprocess.run(['ffmpeg', '-v', 'error', '-i', out, '-ac', '1', '-ar', str(self.sr),
+                                  '-f', 's16le', '-'], capture_output=True, check=True).stdout
+        return struct.unpack(f'<{len(raw) // 2}h', raw)
+
+    def test_silence_is_not_boosted(self):
+        pcm = self.render_pcm([0] * self.sr)
+        self.assertEqual(max(abs(v) for v in pcm), 0)
+
+    def test_limiter_keeps_hits_on_time(self):
+        # Quiet 440 Hz bed with a loud click at 0.5 s: the click is limited, not moved.
+        hit = self.sr // 2
+        bed = [int(300 * math.sin(2 * math.pi * 440 * i / self.sr)) for i in range(self.sr)]
+        for i in range(hit, hit + 48):
+            bed[i] = 30000 if (i - hit) % 2 == 0 else -30000
+        pcm = self.render_pcm(bed)
+        peak = max(range(len(pcm)), key=lambda i: abs(pcm[i]))
+        self.assertLess(abs(peak - hit), self.sr // 1000)  # within 1 ms
+        self.assertLess(max(abs(v) for v in pcm) / 32768, 10 ** (-1 / 20))  # under -1 dBFS
