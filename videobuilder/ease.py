@@ -51,6 +51,13 @@ def bezier(x1, y1, x2, y2):
     return ease
 
 
+ease_out_expo = bezier(0.16, 1, 0.3, 1)
+ease_out_quint = bezier(0.22, 1, 0.36, 1)
+ease_in_out_quart = bezier(0.76, 0, 0.24, 1)
+ease_in_expo = bezier(0.7, 0, 0.84, 0)
+ease_out_back = bezier(0.34, 1.56, 0.64, 1)
+
+
 def interpolate(x, xs, ys, ease=linear, clamp=True):
     """Piecewise map of `x` over keyframes `xs` -> `ys`, eased per piece."""
     if len(xs) != len(ys) or len(xs) < 2:
@@ -91,6 +98,14 @@ def spring(t, stiffness=100.0, damping=10.0, mass=1.0):
 def critical(stiffness, mass=1.0):
     """Spring params with damping ratio exactly 1: fastest settle, no overshoot."""
     return {'stiffness': stiffness, 'mass': mass, 'damping': 2 * math.sqrt(stiffness * mass)}
+
+
+def damped(ratio, hz=2.0, mass=1.0):
+    """Spring params at damping `ratio`; `hz` is the undamped natural frequency in cycles/s."""
+    if not math.isfinite(ratio) or ratio < 0 or not math.isfinite(hz) or hz <= 0 or not math.isfinite(mass) or mass <= 0:
+        raise ValueError('ratio must be nonnegative; hz and mass must be positive and finite')
+    stiffness = mass * (2 * math.pi * hz) ** 2
+    return {'stiffness': stiffness, 'damping': 2 * ratio * math.sqrt(stiffness * mass), 'mass': mass}
 
 
 def spring_at(frame, fps, **params):

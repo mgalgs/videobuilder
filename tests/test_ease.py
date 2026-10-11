@@ -91,6 +91,12 @@ class SpringParity(unittest.TestCase):
 
 
 class Bezier(unittest.TestCase):
+    def test_presets(self):
+        for name in ('ease_out_expo', 'ease_out_quint', 'ease_in_out_quart', 'ease_in_expo', 'ease_out_back'):
+            curve = getattr(ease, name)
+            self.assertEqual((curve(0), curve(1)), (0, 1))
+        self.assertGreater(max(ease.ease_out_back(i / 100) for i in range(101)), 1)
+
     def test_linear(self):
         f = bezier(0, 0, 1, 1)
         for x in (0, 0.1, 0.25, 0.5, 0.9, 1):
@@ -137,6 +143,14 @@ class Bezier(unittest.TestCase):
 
 
 class Interpolate(unittest.TestCase):
+    def test_damped_ratio(self):
+        import math
+        for ratio in (0.4, 0.7, 1.0):
+            p = ease.damped(ratio, hz=2, mass=1.5)
+            self.assertAlmostEqual(p['damping'] / (2 * math.sqrt(p['stiffness'] * p['mass'])), ratio)
+            if ratio == 1:
+                self.assertEqual(p, ease.critical(p['stiffness'], p['mass']))
+
     def test_pieces_and_clamp(self):
         self.assertEqual(interpolate(5, [0, 10], [0, 100]), 50)
         self.assertEqual(interpolate(-5, [0, 10], [0, 100]), 0)

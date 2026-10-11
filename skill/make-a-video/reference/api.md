@@ -39,7 +39,10 @@ TIMELINE = vb.Timeline(GRID, [
 vb.clamp01(x)
 vb.interpolate(f, [0, 12, 30], [0, 1, 0.5], ease=EASE)   # keyframes, clamped
 EASE = vb.bezier(0.16, 1, 0.3, 1)                          # CSS cubic-bezier
+vb.ease_out_expo(p), vb.ease_out_quint(p), vb.ease_in_out_quart(p)
+vb.ease_in_expo(p), vb.ease_out_back(p)                       # back overshoots 1
 vb.spring_at(f - delay, GRID.fps, stiffness=170, damping=12)   # 0 -> 1, bounces
+vb.spring_at(f, GRID.fps, **vb.damped(0.7, hz=2.0))          # ratio and natural Hz
 vb.spring_at(f, GRID.fps, **vb.critical(140))              # settles, no overshoot
 vb.log_lerp(1.0, 1.3, p)                                   # even-feeling zoom
 ```
