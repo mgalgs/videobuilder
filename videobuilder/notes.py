@@ -259,6 +259,30 @@ class NoteStore:
             state['draft'] = None
             self.save_session(video, state)
 
+    def retry(self, nid, author=None):
+        """Queue a conflicted note again, as a new note that starts from main.
+        The session's draft is cleared: it is the branch that conflicted."""
+        video = self.get(nid)['video']
+        with self.video_lock(video):
+            note = self.get(nid)
+            if note['state'] != 'conflict' or note.get('automatic'):
+                raise ValueError('only a conflicted note can be retried')
+            if note.get('retried'):
+                raise ValueError(f'note already retried as {note["retried"]}')
+            if any(n['state'] not in FINAL for n in self.list(video, refresh=False)):
+                raise ValueError('wait for queued and working notes before retrying')
+            state = self.session(video)
+            state['draft'] = None
+            state.pop('rejection', None)
+            self.save_session(video, state)
+            png = self.image(nid) if note.get('frame') is not None else None
+            context = {k: note[k] for k in ('time', 'beat', 'attachments') if k in note}
+            new = self.add(video, note['format'], note['frame'], note['segment'], note['text'], png,
+                           author=author or note.get('author'), retried_from=nid, **context)
+            note['retried'] = new['id']
+            self._save(note)
+            return new
+
     def delete(self, nid):
         video = self.get(nid)['video']
         with self.video_lock(video):

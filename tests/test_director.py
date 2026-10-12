@@ -92,6 +92,32 @@ class Director(TempProject):
         self.assertEqual(self.editor.notes.get(note['id'])['state'], 'conflict')
         self.assertEqual(len([n for n in self.editor.notes.list(refresh=False) if n.get('automatic')]), 1)
 
+    def test_retry_conflicted_note_on_main(self):
+        self.editor.notes.backend = FakeBackend(delay=0)
+        note = self.post('/api/notes', {'video':'promo/film','text':'Change ending','time':0.4})[1]
+        self.editor.notes.backend.poll(note['handle'])
+        self.film.write_text(self.film.read_text() + '\n# competing main edit\n')
+        git(self.root, 'commit', '-am', 'main changed')
+        self.get('/api/notes')
+        self.editor.notes.list()
+        automatic = next(n for n in self.editor.notes.list(refresh=False) if n.get('automatic'))
+        self.assertEqual(self.post(f'/api/notes/{automatic["id"]}/retry', {})[0], 400)
+        self.assertEqual(self.post('/api/notes/nosuchnote/retry', {})[0], 404)
+        main = git(self.root, 'rev-parse', 'main').strip()
+        code, retried = self.post(f'/api/notes/{note["id"]}/retry', {})
+        self.assertEqual(code, 200)
+        self.assertEqual((retried['text'], retried['frame'], retried['retried_from']),
+                         ('Change ending', note['frame'], note['id']))
+        self.assertEqual(self.editor.notes.get(note['id'])['retried'], retried['id'])
+        self.assertEqual(self.editor.notes.image(retried['id']), self.editor.notes.image(note['id']))
+        markdown = (self.editor.notes.session_dir('promo/film') / (retried['id'] + '.md')).read_text()
+        self.assertIn('draft: None', markdown)
+        self.assertEqual(self.post(f'/api/notes/{note["id"]}/retry', {})[0], 400)
+        self.get('/api/notes')
+        landed = self.editor.notes.get(retried['id'])
+        self.assertEqual(landed['state'], 'landed')
+        self.assertEqual(git(self.root, 'rev-parse', 'main^').strip(), main)
+
     def test_clean_rebase_and_reply_only(self):
         self.editor.notes.backend = FakeBackend(delay=0)
         note = self.post('/api/notes', {'video':'promo/film','text':'Change'})[1]

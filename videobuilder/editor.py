@@ -22,6 +22,9 @@ GET  /api/notes/<id>                 note, including time, attachments,
                                      state and, if landed, version {n,commit}
 GET  /api/notes/<id>.png             pinned frame or 404
 POST /api/notes/<id>/delete          {deleted:id}; active runs cannot be deleted
+POST /api/notes/<id>/retry           200 new note: a conflicted note again, from
+                                     main (the draft is cleared). The new note
+                                     has retried_from, the old one retried.
 POST /api/attachments?video=V&name=F  raw body with Content-Type; 201
                                      {id,name,type,size}; 400 bad type/magic,
                                      413 over file limit
@@ -607,6 +610,12 @@ def make_handler(editor, hook=request_hook):
                 except KeyError:
                     raise HTTPError(404, f'no note {m.group(1)!r}') from None
                 return self._json(200, {'deleted': m.group(1)})
+            m = re.fullmatch(r'/api/notes/([^/]+)/retry', route)
+            if m:
+                try:
+                    return self._json(200, editor.notes.retry(unquote(m.group(1)), identity))
+                except KeyError:
+                    raise HTTPError(404, f'no note {m.group(1)!r}') from None
             raise HTTPError(404, 'not found')
 
     return Handler

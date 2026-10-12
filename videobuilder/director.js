@@ -380,6 +380,14 @@ function renderNotes() {
         ? `These paths were outside this video: ${(note.refused || []).join(', ')}`
         : note.message || replyText(note.reply) || 'Please try again.';
       box.append(node('span','who',title),node('span','problem',detail));
+      if(note.state==='conflict'&&!note.automatic) {
+        if(note.retried)box.append(node('span','state-message','Retried on the latest version below.'));
+        else {
+          const retry=node('button','retry','Retry on latest');
+          retry.onclick=()=>retryNote(note,retry);
+          box.append(retry)
+        }
+      }
       problem.append(box);
       list.append(problem)
     }
@@ -397,6 +405,17 @@ function renderNotes() {
   }
   $('chat-count').textContent=state.notes.length;
   if(atBottom)list.scrollTop=list.scrollHeight
+}
+async function retryNote(note, button) {
+  button.disabled=true;
+  try {
+    await json(`notes/${encodeURIComponent(note.id)}/retry`,null, {});
+    await loadNotes()
+  }
+  catch(e) {
+    button.disabled=false;
+    showError(e.message)
+  }
 }
 async function loadNotes() {
   if(!state.video)return;
