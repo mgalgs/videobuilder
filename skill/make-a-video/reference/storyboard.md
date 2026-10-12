@@ -3,23 +3,33 @@
 Plan on paper first. Changing a storyboard line is cheap; re-timing a drawn
 film is not.
 
-## 1. The grid
+## 1. Time first, then the grid
 
-Pick these before anything else, because every cut is a beat:
+Pacing comes from the content, not from the beat. Time each segment in
+**seconds** first, then snap its cuts to the grid:
+
+1. **How long it needs**: its motion until it settles, plus a short hold
+   (about 0.5–1 s), and never less than its read time (below). That number
+   is the segment's length. A segment that holds still for more than about
+   a second after its last move and its read time is too long.
+2. **Snap**: convert to beats (seconds × BPM / 60) and round each cut to the
+   nearest beat, or half beat. Round to the *nearest*, not up: never pad a
+   segment to a whole bar or a round beat count, and never stretch one to
+   fill the music. The film is as long as its segments add up to.
+
+The grid is what cuts snap to:
 
 - **fps**: 30 unless the brief says otherwise (24 for a filmic feel, 60 for
   fast screen motion).
 - **BPM**: the music's tempo if there's a track (`scripts/tempo.py`).
-  Without one, pick a tempo whose beats make your segment lengths easy:
-  at 30 fps, 120 bpm = 15 frames a beat (2 beats a second), 100 bpm = 18,
-  90 bpm = 20, 150 bpm = 12. Slower tempos give calmer, longer holds.
-- **Length in beats** = seconds × BPM / 60. A 20 s film at 120 bpm is 40
-  beats. Round to a whole bar (4 beats) if the music has bars.
+  Without one, 120 bpm at 30 fps (15 frames a beat, 2 beats a second) snaps
+  finely enough for anything; 100 bpm = 18 frames, 90 = 20, 150 = 12.
 
 ## 2. The storyboard
 
-One line per segment: name, beats, what's on screen, the copy word for word,
-and the motion. For example (an invented 20 s film, 120 bpm, 40 beats):
+One line per segment: name, beats (snapped from its seconds), what's on
+screen, the copy word for word, and the motion. For example (an invented
+20 s film, 120 bpm, 40 beats):
 
 | segment | beats | on screen | copy | motion |
 |---|---|---|---|---|
@@ -43,9 +53,12 @@ Rules of thumb (process, not style):
   brief or audience calls for it). Text entering late in a segment has less
   time: count from when it's legible. A URL, a command or a number reads
   slower than its word count: give it extra time. When copy doesn't fit,
-  cut words before adding beats.
-- **Cuts on beats**: whole beats by default; half beats (`6.5`) for a quick
-  cut. A run of quick cuts is a `group` so one thing can carry across them.
+  cut words before adding beats. Read time is a floor, not a target: count
+  only what the viewer actually reads (a chart key that repeats a label
+  isn't new reading).
+- **Cuts on beats**: snapped to the nearest whole beat by default; half
+  beats (`6.5`) for a quick cut. A run of quick cuts is a `group` so one
+  thing can carry across them.
 - **Overlaps** (`overlap=k`) for transitions: the outgoing segment keeps
   drawing under the incoming one for `k` beats. A hard cut needs none.
 - The hook and the end card carry the brief: what this is, and what to do

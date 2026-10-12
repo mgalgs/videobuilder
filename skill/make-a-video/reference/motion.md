@@ -8,7 +8,7 @@ Use the film's fps: `round(seconds * GRID.fps)` for offsets, and `GRID.b(beat)` 
 |---|---|
 | “Make it pop” | On the beat, scale 1.00 → 1.08 → 1.00 over 6 frames; use `vb.ease_out_back` for a small position or size accent. |
 | “Premium” | Enter with `vb.ease_out_quint` over 0.6–0.9 s; use `vb.damped(0.8)` for objects, `vb.ease_out_quint` for text. Keep the text's scale at or below 1. |
-| “It drags” | Remove a beat or shorten a hold by about 12 frames at 24 fps/120 BPM; move the next cut with `GRID.b(...)`, then recheck read time. |
+| “It drags” | Re-time every segment, not just the one named: measure in seconds when its motion settles and its text is read, add a 0.5–1 s hold, snap that to the nearest beat, and move the cut there. Speed up a move that is itself slow (a spring's `hz`, a long ease). Then recheck read time. |
 | “Too busy” | Keep one hero move per shot. Start secondary motion 100–200 ms later, at 50–70% of the hero's travel. Hold other marks still. |
 | “Looks like AI/generic” | Identify the repeated effect, add it to this film's `STYLE.md` bans, replace it with a move tied to the product or story. |
 | “Abrupt ending” | Add about 36 frames of hold at 30 fps, with at most a 2% camera push; settle any moving object with `vb.damped(0.8)`. |

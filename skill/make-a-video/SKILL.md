@@ -60,12 +60,15 @@ the user when there is one to show. See `reference/storyboard.md` for the
 format and the numbers. In short:
 
 1. **Length and formats** from the brief (default 9:16 and 16:9 if unsaid).
-2. **BPM and fps, first**: the grid drives every cut. 30 fps; a tempo that
-   makes your segment lengths whole or half beats (120 bpm = 15 frames a
-   beat = 2 beats a second). If there's a music track, its tempo wins (§6).
-3. **Segments in beats**: what's on screen, and **every line of copy**,
-   word for word. A segment must last its read time: 1 s plus its words at
-   3 words a second, at least. Cut copy before you stretch time.
+2. **Segments in seconds, from their content**: what's on screen, and
+   **every line of copy**, word for word. Each segment lasts as long as its
+   motion takes to settle plus a short hold (about 0.5–1 s), and at least
+   its read time (1 s plus its words at 3 words a second). Anything longer
+   lingers. Cut copy before you stretch time.
+3. **Then snap to the grid**: 30 fps and the music's tempo (§6), or 120 bpm
+   without music. Round each cut to the *nearest* beat or half beat. Never
+   pad a segment to a round beat count or a bar, or stretch it to fill the
+   music: the timing comes from the content, and the grid only aligns it.
 4. **Motion per segment**: entrance, hold, exit, and which segments
    overlap (a transition) instead of cutting.
 
