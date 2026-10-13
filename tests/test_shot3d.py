@@ -1,31 +1,68 @@
+import sys
 import tempfile
+import threading
+import types
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
-from videobuilder.shot3d import ShotCache
+import videobuilder as vb
+from videobuilder.shot3d import build
 
 
-class ShotCacheTests(unittest.TestCase):
-    def test_cache_is_complete_ordered_and_reusable(self):
+class ClipTests(unittest.TestCase):
+    def test_build_and_seek(self):
         with tempfile.TemporaryDirectory() as root:
-            shot = ShotCache(root, b'scene A', (2, 2), 30, 3)
-            calls = []
+            path = Path(root, 'shot.mp4')
+            size = (16, 16)
 
-            def frames():
-                calls.append(1)
-                for n in range(3):
-                    yield n, bytes([n * 60, 10, 20, 255]) * 4
+            def source():
+                for i in range(12):
+                    yield i, bytes((i * 19, 20, 100, 255)) * (size[0] * size[1])
 
-            self.assertTrue(shot.build(frames))
-            self.assertEqual(shot.image(2)._pil.getpixel((0, 0)), (120, 10, 20, 255))
-            self.assertFalse(shot.build(frames))
-            self.assertEqual(len(calls), 1)
-            self.assertNotEqual(shot.path, ShotCache(root, b'scene B', (2, 2), 30, 3).path)
-            self.assertNotEqual(shot.path, ShotCache(root, b'scene A', (2, 2), 60, 3).path)
+            build(path, source, size, 30, 12)
+            clip = vb.Clip(path)
+            self.assertEqual((clip.frames, clip.fps, clip.size), (12, 30, size))
+            sequential = [clip.frame(i)._pil.tobytes() for i in range(12)]
+            for i in (10, 0, 11, 3, 6):
+                self.assertEqual(clip.frame(i)._pil.tobytes(), sequential[i])
+            for i in (-1, 12):
+                with self.assertRaises(IndexError):
+                    clip.frame(i)
+            clip.close()
 
-    def test_incomplete_stream_is_not_published(self):
+    def test_incomplete_build_does_not_publish(self):
         with tempfile.TemporaryDirectory() as root:
-            shot = ShotCache(root, b'scene', (1, 1), 30, 2)
+            path = Path(root, 'shot.mp4')
             with self.assertRaisesRegex(ValueError, 'expected 2 frames'):
-                shot.build(lambda: iter([(0, bytes([0, 0, 0, 255]))]))
-            self.assertFalse((shot.path / 'complete').exists())
+                build(path, lambda: iter([(0, bytes(16))]), (2, 2), 30, 2)
+            self.assertFalse(path.exists())
+
+
+class AdapterTests(unittest.TestCase):
+    def test_early_close_stops_render_thread(self):
+        from videobuilder.manimgx_shot import frames
+        class Cut(Exception):
+            pass
+        class Frame:
+            repeat = 1
+            def __init__(self, index):
+                self.index = index
+            def pixels(self):
+                return bytes(4)
+        class Scene:
+            def render(self, frames):
+                for i in range(1000):
+                    frames(Frame(i))
+        fake = types.ModuleType('manimgx')
+        fake.config = types.SimpleNamespace()
+        film = types.ModuleType('manimgx.rendering.film')
+        film.Cut = Cut
+        rendering = types.ModuleType('manimgx.rendering')
+        with patch.dict(sys.modules, {'manimgx': fake, 'manimgx.rendering': rendering,
+                                      'manimgx.rendering.film': film}):
+            before = set(threading.enumerate())
+            stream = frames(Scene, (1, 1), 1000, 30)
+            self.assertEqual(next(stream)[0], 0)
+            stream.close()
+            self.assertEqual(set(threading.enumerate()), before)

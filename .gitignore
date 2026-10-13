@@ -6,6 +6,4 @@ dist/
 *.mp4
 *.actual.png
 
-# Pre-rendered optional 3D shots
-.shot3d-cache/
 .venv/

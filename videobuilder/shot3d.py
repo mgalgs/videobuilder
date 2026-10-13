@@ -1,64 +1,52 @@
-"""Small, engine-independent cache for sequentially rendered RGBA shots.
-
-Build explicitly before rendering a film. draw() only reads complete PNGs, so
-arbitrary frame order and parallel workers never launch a renderer.
-"""
-import hashlib
-import json
+"""Encode a sequential RGBA shot as a committed video asset."""
 import os
+from contextlib import suppress
 from pathlib import Path
-import shutil
+import subprocess
 import tempfile
 
-from PIL import Image as PILImage
 
-from .canvas import Image
-
-
-def cache_key(source, size, fps, frames):
-    """Hash source bytes and render parameters; source is a file or bytes."""
-    source = Path(source).read_bytes() if isinstance(source, (str, os.PathLike)) else source
-    spec = json.dumps([list(size), fps, frames], separators=(',', ':')).encode()
-    return hashlib.sha256(source + b'\0' + spec).hexdigest()[:20]
-
-
-class ShotCache:
-    def __init__(self, root, source, size, fps, frames):
-        self.size = tuple(size)
-        self.fps = fps
-        self.frames = frames
-        self.path = Path(root) / cache_key(source, size, fps, frames)
-
-    def build(self, source):
-        """Consume (index, RGBA bytes) in order; publish only a complete shot."""
-        if (self.path / 'complete').exists():
-            return False
-        self.path.parent.mkdir(parents=True, exist_ok=True)
-        tmp = Path(tempfile.mkdtemp(prefix='.shot-', dir=self.path.parent))
+def build(path, source, size, fps, frames, crf=14):
+    """Consume (index, RGBA bytes) in order and atomically publish an MP4."""
+    path = Path(path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    fd, temporary = tempfile.mkstemp(prefix=f'.{path.stem}-', suffix='.mp4', dir=path.parent)
+    os.close(fd)
+    width, height = size
+    command = ['ffmpeg', '-hide_banner', '-loglevel', 'error', '-y',
+               '-f', 'rawvideo', '-pixel_format', 'rgba', '-video_size', f'{width}x{height}',
+               '-framerate', str(fps), '-i', 'pipe:0', '-an', '-c:v', 'libx264',
+               '-preset', 'medium', '-crf', str(crf), '-pix_fmt', 'yuv420p',
+               '-g', '15', '-bf', '0', '-frames:v', str(frames), temporary]
+    process = subprocess.Popen(command, stdin=subprocess.PIPE, stderr=subprocess.DEVNULL)
+    try:
+        expected = 0
+        stream = source()
         try:
-            expected = 0
-            for index, rgba in source():
-                if index != expected or index >= self.frames:
+            for index, rgba in stream:
+                if index != expected or index >= frames:
                     raise ValueError(f'expected frame {expected}, got {index}')
-                image = PILImage.frombytes('RGBA', self.size, rgba)
-                image.save(tmp / f'{index:05d}.png')
+                if len(rgba) != width * height * 4:
+                    raise ValueError(f'frame {index} has {len(rgba)} bytes; expected {width * height * 4}')
+                process.stdin.write(rgba)
                 expected += 1
-            if expected != self.frames:
-                raise ValueError(f'expected {self.frames} frames, got {expected}')
-            (tmp / 'complete').write_text('ok\n')
-            if self.path.exists():
-                shutil.rmtree(self.path)  # incomplete build from an earlier attempt
-            os.replace(tmp, self.path)
         finally:
-            if tmp.exists():
-                shutil.rmtree(tmp)
-        return True
-
-    def image(self, index):
-        if not (self.path / 'complete').exists():
-            raise FileNotFoundError(f'build shot cache first: {self.path}')
-        if not 0 <= index < self.frames:
-            raise IndexError(index)
-        # These frames are usually read once; avoid Image.load's unbounded cache.
-        with PILImage.open(self.path / f'{index:05d}.png') as pil:
-            return Image.from_pil(pil)
+            close = getattr(stream, 'close', None)
+            if close is not None:
+                close()
+        if expected != frames:
+            raise ValueError(f'expected {frames} frames, got {expected}')
+        process.stdin.close()
+        if process.wait() != 0:
+            raise RuntimeError('ffmpeg failed to encode shot')
+        os.replace(temporary, path)
+    except BaseException:
+        process.kill()
+        process.wait()
+        with suppress(BrokenPipeError):
+            process.stdin.close()
+        raise
+    finally:
+        if os.path.exists(temporary):
+            os.unlink(temporary)
+    return path
