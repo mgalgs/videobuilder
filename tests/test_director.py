@@ -118,6 +118,21 @@ class Director(TempProject):
         self.assertEqual(landed['state'], 'landed')
         self.assertEqual(git(self.root, 'rev-parse', 'main^').strip(), main)
 
+    def test_retry_failed_note(self):
+        class Broken(FakeBackend):
+            def submit(self, note):
+                raise RuntimeError('runner down')
+        self.editor.notes.backend = Broken(delay=0)
+        note = self.post('/api/notes', {'video':'promo/film','text':'Change ending'})[1]
+        self.get('/api/notes')
+        self.assertEqual(self.editor.notes.get(note['id'])['state'], 'failed')
+        self.editor.notes.backend = FakeBackend(delay=0)
+        code, retried = self.post(f'/api/notes/{note["id"]}/retry', {})
+        self.assertEqual((code, retried['retried_from']), (200, note['id']))
+        self.get('/api/notes')
+        self.assertEqual(self.editor.notes.get(retried['id'])['state'], 'landed')
+        self.assertEqual(self.post(f'/api/notes/{retried["id"]}/retry', {})[0], 400)
+
     def test_missing_draft_branch_starts_from_main(self):
         state = self.editor.notes.session('promo/film')
         state['draft'] = 'k8s-never-created'

@@ -403,7 +403,7 @@ function renderNotes() {
         ? `These paths were outside this video: ${(note.refused || []).join(', ')}`
         : note.message || replyText(note.reply) || 'Please try again.';
       box.append(node('span','who',title),node('span','problem',detail));
-      if(note.state==='conflict'&&!note.automatic) {
+      if((note.state==='conflict'||note.state==='failed')&&!note.automatic) {
         if(note.retried)box.append(node('span','state-message','Retried on the latest version below.'));
         else {
           const retry=node('button','retry','Retry on latest');
