@@ -55,9 +55,18 @@ async function json(path, params, body) {
       'Content-Type':'application/json'
     },body:JSON.stringify(body)
   });
-  const data=await r.json();
+  const data=await parseJSON(r);
   if(!r.ok)throw Error(data.error||r.statusText);
   return data
+}
+// A proxy answers with HTML while the editor restarts; say so instead of a parse error.
+async function parseJSON(r) {
+  const text=await r.text();
+  try {
+    return JSON.parse(text)
+  } catch (_) {
+    throw Error(`The editor didn't answer (HTTP ${r.status}); it may be restarting. Try again in a moment.`)
+  }
 }
 function showError(error) {
   $('composer-error').textContent=error;
@@ -195,7 +204,7 @@ async function loadPlayer(retry=false) {
     const r=await fetch(url, {headers: {Range: 'bytes=0-0', Accept: 'application/json'}});
     if(url!==videoUrl())return;
     if(r.status===202) {
-      const body=await r.json();
+      const body=await parseJSON(r);
       const position=body.position ? ` · queue position ${body.position}` : '';
       $('render-text').textContent=`Rendering v${v?.n||'…'}…${position}`;
       $('poster').hidden=false;
@@ -203,7 +212,7 @@ async function loadPlayer(retry=false) {
       return
     }
     if(!r.ok) {
-      const body=await r.json();
+      const body=await parseJSON(r);
       throw Error(body.log||body.error||r.statusText)
     }
     if (r.status !== 206) throw Error(`Unexpected video response: ${r.status}`);
@@ -430,8 +439,12 @@ async function loadNotes() {
       renderNotes();
       if(state.notes.some(n=>n.version))loadVersions()
     }
+    // Clear only the poll's own error, never one from a send the director made.
+    if(state.pollError&&$('composer-error').textContent===state.pollError)showError('');
+    state.pollError=null
   }
   catch(e) {
+    state.pollError=e.message;
     showError(e.message)
   }
 }
@@ -660,7 +673,7 @@ async function uploadFiles(files) {
         'Content-Type':files[i].type||'application/octet-stream'
       },body:files[i]
     });
-    const data=await r.json();
+    const data=await parseJSON(r);
     if(!r.ok)throw Error(data.error||r.statusText);
     out.push({id:data.id,name:files[i].name})
   }
@@ -785,7 +798,7 @@ async function init() {
     document.querySelector('.topbar .slash').hidden=true;
   }
   try {
-    const [project,name]=await Promise.all([json('project'),fetch(libMode?'/api/name':'api/name').then(r=>r.json())]);
+    const [project,name]=await Promise.all([json('project'),fetch(libMode?'/api/name':'api/name').then(parseJSON)]);
     state.project=project;
     state.name=name.name;
     updateName();
@@ -892,7 +905,7 @@ async function jsonName(value) {
       name:value
     })
   });
-  const data=await r.json();
+  const data=await parseJSON(r);
   if(!r.ok)throw Error(data.error);
   return data
 }
