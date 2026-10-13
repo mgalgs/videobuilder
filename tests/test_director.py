@@ -118,6 +118,20 @@ class Director(TempProject):
         self.assertEqual(landed['state'], 'landed')
         self.assertEqual(git(self.root, 'rev-parse', 'main^').strip(), main)
 
+    def test_pinned_frame_reaches_the_runner(self):
+        from videobuilder.attachments import FRAME_NAME
+        self.editor.notes.backend = FakeBackend(delay=0)
+        note = self.post('/api/notes', {'video':'promo/film','text':'Muddled','time':0.4})[1]
+        self.get('/api/notes')
+        markdown = (self.editor.notes.session_dir('promo/film') / (note['id'] + '.md')).read_text()
+        self.assertIn(f'image: /attachments/{FRAME_NAME}', markdown)
+        self.assertIn('iterate visually', markdown)
+        staged = self.editor.notes.session_dir('promo/film') / ('attachments-' + note['id']) / FRAME_NAME
+        self.assertEqual(staged.read_bytes(), self.editor.notes.image(note['id']))
+        plain = self.post('/api/notes', {'video':'promo/film','text':'No frame'})[1]
+        markdown = (self.editor.notes.session_dir('promo/film') / (plain['id'] + '.md')).read_text()
+        self.assertIn('image: None', markdown)
+
     def test_retry_failed_note(self):
         class Broken(FakeBackend):
             def submit(self, note):

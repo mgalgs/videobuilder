@@ -199,6 +199,13 @@ class NoteStore:
                                'state_dir': str(self.session_dir(video)),
                                'image': self._path(note['id'], 'png') if note.get('frame') is not None else None}
                     path = self.session_dir(video) / (note['id'] + '.md')
+                    # The runner sees the frame only through /attachments, never at its editor path.
+                    image = payload['image'] if payload['image'] and os.path.isfile(payload['image']) else None
+                    if self.attachments:
+                        payload['attach_dir'] = self.attachments.stage(note, image)
+                        if image:
+                            from .attachments import FRAME_NAME
+                            image = '/attachments/' + FRAME_NAME
                     lines = ['# Review request', '', *([note['rejection']] if note.get('rejection') else []), note['text'], '']
                     if note.get('time') is not None:
                         t = note['time']
@@ -209,8 +216,18 @@ class NoteStore:
                             lines.append(f'- /attachments/{item["name"]} ({item["type"]}, {item["size"]} bytes)')
                         lines += ['Use them as reference. To include one in the video, copy it into the video assets directory and commit it there. Never write into /attachments.', '']
                     for key in ('video', 'film', 'format', 'frame', 'segment', 'beat', 'time', 'image', 'draft'):
-                        lines.append(f"{key}: {payload.get(key)}")
-                    lines += ['', f"Change files only under {payload.get('directory', video)}.",
+                        lines.append(f"{key}: {image if key == 'image' else payload.get(key)}")
+                    lines += ['', '## Look at your work', '',
+                              'You can see images: open a PNG with the Read tool. When `image` is set it is '
+                              'the frame the director was looking at; open it before anything else.',
+                              'For anything about how the video looks, iterate visually: `still` the frames the '
+                              'note is about and open them, change the code, `still` them again and open them, '
+                              'and repeat until the problem is plainly gone when you look, not just in the code. '
+                              'A change you can only see side by side has not fixed it. For motion, '
+                              '`sheet --frames` around the moment.',
+                              'Open your final frames before you reply, and say in the reply what you saw wrong '
+                              'and what it looks like now.',
+                              '', f"Change files only under {payload.get('directory', video)}.",
                               'Commit only changes to the video. Never commit a reply or notes file: '
                               'end with a short answer for the reviewer as your final message, '
                               'and it is shown to them as your reply.',
@@ -218,8 +235,6 @@ class NoteStore:
                               'End your reply with Summary: <one line>.']
                     path.write_text('\n'.join(lines) + '\n', encoding='utf-8')
                     payload['note_file'] = str(path)
-                    if self.attachments:
-                        payload['attach_dir'] = self.attachments.stage(note)
                     note['handle'] = self.backend.submit(payload)
                     note['started'] = time.time()
                     self._save(note)

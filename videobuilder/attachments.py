@@ -17,6 +17,8 @@ TYPES = {'png':'image/png','jpg':'image/jpeg','jpeg':'image/jpeg','webp':'image/
          'mp4':'video/mp4','mov':'video/quicktime','webm':'video/webm','mp3':'audio/mpeg','wav':'audio/wav',
          'm4a':'audio/mp4','aac':'audio/aac','ogg':'audio/ogg','pdf':'application/pdf',
          'txt':'text/plain','md':'text/plain'}
+# Staged after the uploads, so it wins a name clash and the note file stays true.
+FRAME_NAME = 'pinned-frame.png'
 
 
 class Attachments:
@@ -83,15 +85,19 @@ class Attachments:
             out.append(item)
         return out
 
-    def stage(self, note):
+    def stage(self, note, frame=None):
+        """The note's attachments, plus its pinned frame PNG as FRAME_NAME, in one
+        directory for the runner to mount at /attachments; None if there are none."""
         records = note.get('attachments') or []
-        if not records:
+        if not records and not frame:
             return None
         path = self.editor.notes.session_dir(note['video']) / ('attachments-' + note['id'])
         path.mkdir(exist_ok=True)
         for record in records:
             source = self.get(record['id'], note['video'])[1]
             shutil.copyfile(source, path / record['name'])
+        if frame:
+            shutil.copyfile(frame, path / FRAME_NAME)
         return str(path)
 
     def expire(self):
