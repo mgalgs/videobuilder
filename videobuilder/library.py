@@ -18,6 +18,43 @@ def valid_name(name):
             all(PART.fullmatch(p) and not p.endswith('.git') and '..' not in p for p in name.split('/')))
 
 
+_AUTH_STYLE = ('<style>body{font:16px system-ui;background:#181b20;color:#eee;max-width:420px;margin:4rem auto;'
+              'padding:0 1rem}input,button{display:block;width:100%;margin:.4rem 0;padding:.7rem;font-size:16px;'
+              'box-sizing:border-box;border-radius:6px;border:1px solid #333;background:#20242b;color:#eee;'
+              'min-height:44px}button{background:#2d6cdf;border:none;color:#fff;font-weight:600;cursor:pointer}'
+              'a{color:#88cafa}#error{color:#f88;min-height:1.2em}'
+              '@media (max-width:700px){body{margin:2rem auto}}</style>')
+
+
+def signin_page(error=None):
+    return ('<!doctype html><html><head><meta charset="utf-8"><title>Sign in · Video library</title>'
+           '<meta name="viewport" content="width=device-width, initial-scale=1">' + _AUTH_STYLE +
+           '</head><body><h1>Video library</h1><form id="f">'
+           '<label>Username<input name="username" autocomplete="username" required></label>'
+           '<label>Password<input name="password" type="password" autocomplete="current-password" required>'
+           '</label><button>Sign in</button></form><p id="error"></p><p><a href="/signup">Sign up</a></p>'
+           '<script>document.querySelector("#f").onsubmit=async e=>{e.preventDefault();'
+           'const form=new FormData(e.target);const r=await fetch("/api/login",{method:"POST",'
+           'headers:{"Content-Type":"application/json"},body:JSON.stringify(Object.fromEntries(form))});'
+           'if(r.ok)location.href="/";else document.querySelector("#error").textContent=(await r.json()).error};'
+           '</script></body></html>').encode()
+
+
+def signup_page():
+    return ('<!doctype html><html><head><meta charset="utf-8"><title>Sign up · Video library</title>'
+           '<meta name="viewport" content="width=device-width, initial-scale=1">' + _AUTH_STYLE +
+           '</head><body><h1>Video library</h1><form id="f">'
+           '<label>Username<input name="username" autocomplete="username" required></label>'
+           '<label>Password<input name="password" type="password" autocomplete="new-password" required></label>'
+           '<label>Confirm password<input name="confirm" type="password" autocomplete="new-password" required>'
+           '</label><button>Sign up</button></form><p id="error"></p><p><a href="/login">Sign in</a></p>'
+           '<script>document.querySelector("#f").onsubmit=async e=>{e.preventDefault();'
+           'const form=new FormData(e.target);const r=await fetch("/api/signup",{method:"POST",'
+           'headers:{"Content-Type":"application/json"},body:JSON.stringify(Object.fromEntries(form))});'
+           'if(r.ok)location.href="/";else document.querySelector("#error").textContent=(await r.json()).error};'
+           '</script></body></html>').encode()
+
+
 def run(*argv, cwd=None, input=None, env=None):
     result = subprocess.run(argv, cwd=cwd, input=input, env=env, capture_output=True)
     if result.returncode:
@@ -27,7 +64,7 @@ def run(*argv, cwd=None, input=None, env=None):
 
 class Library:
     def __init__(self, root, checkouts=None, state_dir=None, host='127.0.0.1', allowed_hosts=(),
-                 backend=None, agent=None, unsandboxed_previews=False, envs=None):
+                 backend=None, agent=None, unsandboxed_previews=False, envs=None, admins=()):
         self.root = Path(root).resolve()
         self.repos = self.root / 'repos'
         self.checkouts = Path(checkouts or self.root / 'checkouts').resolve()
@@ -43,6 +80,10 @@ class Library:
                             unsandboxed_previews=unsandboxed_previews, environments=environments)
         self.editors = {}
         self.lock = threading.RLock()
+        from .accounts import Accounts
+        from .access import Access
+        self.accounts = Accounts(str(self.state_dir), admins) if admins else None
+        self.access = Access(str(self.state_dir))
 
     def path(self, name):
         if not valid_name(name):
@@ -107,31 +148,57 @@ class Library:
             run('git', '--git-dir', str(target), 'update-ref', '-d', 'refs/vb-source')
         return {'name': name, 'commit': commit, 'from': source, 'source_commit': sha}
 
-    def index(self, host, scheme='http'):
+    def index(self, host, scheme='http', user=None):
+        names = self.names()
+        if self.accounts:
+            names = [n for n in names if self.access.can_access(n, user, self.accounts)]
         groups = {}
-        for name in self.names():
+        for name in names:
             namespace = name.split('/')[0] if '/' in name else 'Videos'
             groups.setdefault(namespace, []).append(name)
         rows = []
-        for group, names in groups.items():
+        for group, group_names in groups.items():
             rows.append(f'<h2>{html.escape(group)}</h2><ul>')
-            for name in names:
+            for name in group_names:
                 encoded = '/'.join(quote(p) for p in name.split('/'))
                 url = f'{scheme}://{host}/git/{encoded}.git'
                 status = (f'<a href="/v/{encoded}/">Open</a>' if self.has_main(name) else 'Empty')
                 rows.append(f'<li><strong>{html.escape(name)}</strong> · {status}<br><code>{html.escape(url)}</code></li>')
             rows.append('</ul>')
+        account_bar = ''
+        body = ''.join(rows)
+        if self.accounts:
+            account_bar = ('<div class="account-bar"><span>Signed in as <strong>' + html.escape(user) +
+                           '</strong></span><button id="sign-out">Sign out</button></div>')
+            if not names:
+                body = (f'<p>No videos shared with you yet — ask the owner to invite '
+                        f'<strong>{html.escape(user)}</strong>.</p>')
+            if self.accounts.is_admin(user):
+                body += ('<h2>New video from…</h2><form id="new"><input name="from" placeholder="Source repo" required>'
+                        '<input name="name" placeholder="New repo" required><button>Create</button></form>'
+                        '<p id="error"></p>')
+        else:
+            body += ('<h2>New video from…</h2><form id="new"><input name="from" placeholder="Source repo" required>'
+                    '<input name="name" placeholder="New repo" required><button>Create</button></form>'
+                    '<p id="error"></p>')
+        script = ('<script>const f=document.querySelector("#new");if(f)f.onsubmit=async e=>{e.preventDefault();'
+                  'const form=new FormData(e.target);const r=await fetch("/api/library/new",{method:"POST",'
+                  'headers:{"Content-Type":"application/json"},body:JSON.stringify(Object.fromEntries(form))});'
+                  'if(r.ok)location.reload();else document.querySelector("#error").textContent=(await r.json()).error;'
+                  '};const o=document.querySelector("#sign-out");if(o)o.onclick=async()=>{'
+                  'await fetch("/api/logout",{method:"POST",headers:{"Content-Type":"application/json"},body:"{}"});'
+                  'location.href="/login"};</script>')
         return ('<!doctype html><html><head><meta charset="utf-8"><title>Video library</title>'
-                '<style>body{font:16px system-ui;background:#181b20;color:#eee;max-width:900px;margin:4rem auto}'
-                'a{color:#88cafa}li{margin:1rem 0}code{color:#bdcaaf}input{margin:.3rem;padding:.5rem}</style>'
-                '</head><body><h1>Video library</h1>' + ''.join(rows) +
-                '<h2>New video from…</h2><form id="new"><input name="from" placeholder="Source repo" required>'
-                '<input name="name" placeholder="New repo" required><button>Create</button></form>'
-                '<p id="error"></p><script>document.querySelector("#new").onsubmit=async e=>{e.preventDefault();'
-                'const form=new FormData(e.target);const r=await fetch("/api/library/new",{method:"POST",'
-                'headers:{"Content-Type":"application/json"},body:JSON.stringify(Object.fromEntries(form))});'
-                'if(r.ok)location.reload();else document.querySelector("#error").textContent=(await r.json()).error;'
-                '};</script></body></html>').encode()
+                '<meta name="viewport" content="width=device-width, initial-scale=1">'
+                '<style>body{font:16px system-ui;background:#181b20;color:#eee;max-width:900px;margin:4rem auto;'
+                'padding:0 1rem}a{color:#88cafa}li{margin:1rem 0}code{color:#bdcaaf}input{margin:.3rem;padding:.5rem}'
+                '.account-bar{display:flex;flex-wrap:wrap;gap:.6rem;align-items:center;justify-content:space-between;'
+                'border-bottom:1px solid #333;padding-bottom:1rem;margin-bottom:1rem}'
+                '.account-bar button{min-height:44px;padding:.5rem 1rem;border-radius:6px;border:1px solid #333;'
+                'background:#20242b;color:#eee}'
+                '@media (max-width:700px){body{margin:2rem auto}}</style>'
+                '</head><body>' + account_bar + '<h1>Video library</h1>' + body + script +
+                '</body></html>').encode()
 
     def tick(self):
         """Advance unfinished notes in every repo, opening an editor only where one is pending."""

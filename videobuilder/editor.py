@@ -57,12 +57,29 @@ GET  /api/draft/frame?video=V&...    isolated draft PNG
 POST /api/draft/accept {video}       manual accept (auto_land=false)
 POST /api/draft/drop {video}         manual drop
 
+Library-only, when the library has accounts (`--admin`):
+GET  /login, /signup                 sign-in / sign-up pages
+POST /api/login {username,password}  200 {name}, Set-Cookie vb_session;
+                                     401 on a bad password or lockout
+POST /api/signup {username,password,confirm}
+                                     200 {name}, Set-Cookie vb_session;
+                                     400 taken/reserved/short/throttled
+POST /api/logout {}                  200 {}; clears vb_session
+GET  /v/<name>/api/access            {owner,collaborators,can_share}
+POST /v/<name>/api/access {action:"invite"|"remove",username}
+                                     owner or admin only (403 otherwise);
+                                     200; 404 inviting an unknown username
+With accounts on, GET /api/name returns the session username and POST
+answers 409; a project the signed-in user cannot access answers 404
+exactly like a non-existent one, on its page, API, frames, video, git.
+
 An edit returns {message,commit,warning,changed,undo}. Notes include `id`,
 `video`, `text`, `format`, `frame`, `segment`, `time`, `attachments`, `author`,
 `state`, `reply`, `branch`, and queue metadata. States are queued, working,
 replied, failed, landed, refused, conflict, accepted, dropped. The identity is
-the request_hook value, then vb_name cookie, then anonymous. Errors otherwise
-return {error}. POSTs require same-origin; all but attachment upload use JSON.
+the session username when accounts are on, else the request_hook value, then
+vb_name cookie, then anonymous. Errors otherwise return {error}. POSTs
+require same-origin; all but attachment upload use JSON.
 
 [editor] config: auto_land=true, render_jobs=min(4,cpu_count), render_keep=20,
 attachment_max_file=25, attachment_max_files=10, attachment_max_message=100
@@ -70,6 +87,7 @@ attachment_max_file=25, attachment_max_files=10, attachment_max_message=100
 network; the checkout is read-only. Fork-sandbox attachment copies are mounted
 read-only at /attachments for only the relevant submission.
 """
+import base64
 import json
 import math
 from http.cookies import SimpleCookie
@@ -99,6 +117,8 @@ from .sync import ForgeSync
 STATE_DIR = '.vb-editor'
 NOTE_SCALE = 0.5  # the size of a note's saved frame
 MAX_BODY = 1 << 20
+# Reachable while signed out, when a library has accounts configured.
+OPEN_ROUTES = {'/healthz', '/login', '/signup', '/api/login', '/api/signup', '/api/logout'}
 
 
 class HTTPError(Exception):
@@ -351,7 +371,7 @@ def _page():
 
 
 def make_handler(editor, hook=request_hook):
-    from .library import Library, git_route, serve_git, valid_name
+    from .library import Library, git_route, serve_git, signin_page, signup_page, valid_name
     library = editor if isinstance(editor, Library) else None
     class Handler(BaseHTTPRequestHandler):
         def parse_request(self):
@@ -397,6 +417,10 @@ def make_handler(editor, hook=request_hook):
                 raise HTTPError(403, 'cross-origin request refused')
 
         def _identity(self, hook_identity):
+            # With accounts on, the session is the only source of identity: the hook's
+            # return value and the vb_name cookie are both ignored (see _handle).
+            if library and library.accounts:
+                return hook_identity
             if hook_identity is not None:
                 return hook_identity
             cookie = SimpleCookie()
@@ -406,6 +430,69 @@ def make_handler(editor, hook=request_hook):
                 return unquote(name.value) if name else None
             except Exception:
                 return None
+
+        def _cookie(self, name):
+            cookie = SimpleCookie()
+            try:
+                cookie.load(self.headers.get('Cookie', ''))
+                field = cookie.get(name)
+                return field.value if field else None
+            except Exception:
+                return None
+
+        def _session_user(self, accounts):
+            return accounts.user_for_token(self._cookie('vb_session'))
+
+        def _basic_auth_user(self, accounts):
+            header = self.headers.get('Authorization', '')
+            if not header.startswith('Basic '):
+                return None
+            try:
+                decoded = base64.b64decode(header[6:]).decode('utf-8')
+            except Exception:
+                return None
+            username, _, password = decoded.partition(':')
+            try:
+                return accounts.verify(username, password)
+            except ValueError:
+                return None
+
+        def _wants_html(self, route, method):
+            """Whether an unauthenticated request should see the sign-in page rather
+            than a JSON 401: a browser navigation (GET), not an API call."""
+            if method != 'GET' or route.startswith('/api/'):
+                return False
+            m = re.fullmatch(r'/v/(.+?)(/api(?:/.*)?|/tuning\.html|/director\.(?:js|css)|/)?', route)
+            if m and m.group(2) and m.group(2).startswith('/api'):
+                return False
+            return True
+
+        def _session_cookie(self, token):
+            secure = '; Secure' if self.headers.get('X-Forwarded-Proto', '').lower() == 'https' else ''
+            return f'vb_session={token}; Path=/; Max-Age={30*24*3600}; HttpOnly; SameSite=Lax{secure}'
+
+        def _access(self, method, name, user):
+            if method == 'GET':
+                record = library.access.get(name)
+                can_share = library.access.can_share(name, user, library.accounts)
+                return self._json(200, {'owner': record['owner'], 'collaborators': record['collaborators'],
+                                        'can_share': can_share})
+            body = self._body()
+            if not library.access.can_share(name, user, library.accounts):
+                raise HTTPError(403, 'only the owner can manage access')
+            action = _field(body, 'action', str)
+            target = _field(body, 'username', str).strip().lower()
+            if action == 'invite':
+                if not library.accounts.exists(target):
+                    raise HTTPError(404, 'no such user')
+                library.access.invite(name, target)
+            elif action == 'remove':
+                library.access.remove(name, target)
+            else:
+                raise HTTPError(400, 'unknown action')
+            record = library.access.get(name)
+            return self._json(200, {'owner': record['owner'], 'collaborators': record['collaborators'],
+                                    'can_share': True})
 
         def _body(self):
             if self.headers.get('Content-Type', '').split(';')[0].strip() != 'application/json':
@@ -428,7 +515,35 @@ def make_handler(editor, hook=request_hook):
             try:
                 identity = hook(self)
                 route = url.path
+                if library and route.startswith('/git/'):
+                    if library.accounts:
+                        git_user = self._basic_auth_user(library.accounts)
+                        if git_user is None:
+                            return self._send(401, b'', 'text/plain; charset=utf-8',
+                                              {'WWW-Authenticate': 'Basic realm="videobuilder"'})
+                        parsed = git_route(route)
+                        if parsed and not library.access.can_access(parsed[0], git_user, library.accounts):
+                            return self._json(404, {'error': 'repository not found'})
+                        identity = git_user
+                    # Git POSTs use its own content types; the JSON and Origin rule is for browser edits.
+                    if serve_git(self, library, method, identity):
+                        return
+                    raise HTTPError(404, 'repository not found')
+                user = None
+                if library and library.accounts:
+                    if route not in OPEN_ROUTES:
+                        user = self._session_user(library.accounts)
+                        if user is None:
+                            if self._wants_html(route, method):
+                                return self._send(200, signin_page(), 'text/html; charset=utf-8')
+                            raise HTTPError(401, 'sign in required')
+                    identity = user
                 if route == '/api/name':
+                    if library and library.accounts:
+                        if method == 'GET':
+                            return self._json(200, {'name': user})
+                        self._body()
+                        raise HTTPError(409, 'your name comes from your login')
                     if method == 'GET':
                         return self._json(200, {'name': self._identity(identity)})
                     body = self._body()
@@ -440,39 +555,73 @@ def make_handler(editor, hook=request_hook):
                                        '; Path=/; Max-Age=31536000; SameSite=Lax'})
                 active = editor
                 if library:
-                    if route.startswith('/git/'):
-                        # Git POSTs use its own content types; the JSON and Origin rule is for browser edits.
-                        if serve_git(self, library, method, identity):
-                            return
-                        raise HTTPError(404, 'repository not found')
                     if route in ('/', '/index.html') and method == 'GET':
                         scheme = self.headers.get('X-Forwarded-Proto', 'http').lower()
-                        page = library.index(self.headers['Host'], scheme if scheme in ('http', 'https') else 'http')
+                        page = library.index(self.headers['Host'], scheme if scheme in ('http', 'https') else 'http',
+                                             user)
                         return self._send(200, page, 'text/html; charset=utf-8')
-                    if route == '/api/library/new' and method == 'POST':
+                    if library.accounts and route == '/login' and method == 'GET':
+                        return self._send(200, signin_page(), 'text/html; charset=utf-8')
+                    if library.accounts and route == '/signup' and method == 'GET':
+                        return self._send(200, signup_page(), 'text/html; charset=utf-8')
+                    if library.accounts and route == '/api/login' and method == 'POST':
                         body = self._body()
                         try:
-                            return self._json(201, library.copied(_field(body, 'from', str),
-                                                                   _field(body, 'name', str)))
+                            username, token = library.accounts.login(_field(body, 'username', str),
+                                                                      _field(body, 'password', str))
+                        except ValueError as exc:
+                            raise HTTPError(401, str(exc)) from None
+                        return self._send(200, json.dumps({'name': username}).encode(), 'application/json',
+                                          {'Set-Cookie': self._session_cookie(token)})
+                    if library.accounts and route == '/api/signup' and method == 'POST':
+                        body = self._body()
+                        if _field(body, 'password', str) != _field(body, 'confirm', str):
+                            raise HTTPError(400, 'passwords do not match')
+                        try:
+                            username, token = library.accounts.signup(_field(body, 'username', str),
+                                                                      _field(body, 'password', str))
                         except ValueError as exc:
                             raise HTTPError(400, str(exc)) from None
+                        return self._send(200, json.dumps({'name': username}).encode(), 'application/json',
+                                          {'Set-Cookie': self._session_cookie(token)})
+                    if library.accounts and route == '/api/logout' and method == 'POST':
+                        self._body()
+                        library.accounts.logout(self._cookie('vb_session'))
+                        return self._send(200, b'{}', 'application/json',
+                                          {'Set-Cookie': 'vb_session=; Path=/; Max-Age=0; SameSite=Lax'})
+                    if route == '/api/library/new' and method == 'POST':
+                        if library.accounts and not library.accounts.is_admin(user):
+                            raise HTTPError(403, 'only an admin may create a project')
+                        body = self._body()
+                        try:
+                            result = library.copied(_field(body, 'from', str), _field(body, 'name', str))
+                        except ValueError as exc:
+                            raise HTTPError(400, str(exc)) from None
+                        if library.accounts:
+                            library.access.set_owner(result['name'], user)
+                        return self._json(201, result)
                     if route != '/healthz':
                         match = re.fullmatch(r'/v/(.+?)(/api(?:/.*)?|/tuning.html|/director\.(?:js|css)|/)?', route)
                         if not match or not valid_name(match.group(1)):
                             raise HTTPError(404, 'not found')
+                        name = match.group(1)
                         if match.group(2) is None and method == 'GET':
                             # The page calls a relative api/, which needs the trailing slash.
                             self.send_response(301)
                             self.send_header('Location', route + '/')
                             self.send_header('Content-Length', '0')
                             return self.end_headers()
+                        if library.accounts and not library.access.can_access(name, user, library.accounts):
+                            raise HTTPError(404, 'repository has no main branch')
                         try:
-                            active = library.editor(match.group(1))
+                            active = library.editor(name)
                         except ValueError as exc:
                             raise HTTPError(404, str(exc)) from None
                         route = match.group(2) or '/'
+                        if library.accounts and route == '/api/access':
+                            return self._access(method, name, user)
                 if method == 'GET':
-                    self._get(route, q, active)
+                    self._get(route, q, active, user)
                 elif route == '/api/attachments':
                     # Same-origin plus validated magic bytes and forced nosniff make raw uploads safe here.
                     self._same_origin()
@@ -499,7 +648,7 @@ def make_handler(editor, hook=request_hook):
         def do_POST(self):
             self._handle('POST')
 
-        def _get(self, route, q, editor):
+        def _get(self, route, q, editor, user=None):
             if route == '/healthz':
                 from . import __version__
                 return self._send(200, ('ok ' + __version__).encode(), 'text/plain; charset=utf-8')
@@ -565,7 +714,10 @@ def make_handler(editor, hook=request_hook):
                 data = editor.drafts.preview(_need(q, 'video'), op, q)
                 return self._send(200, data, 'application/json' if op == 'info' else 'image/png')
             if route == '/api/project':
-                return self._json(200, editor.project_info())
+                info = editor.project_info()
+                if library and library.accounts:
+                    info['user'] = user
+                return self._json(200, info)
             if route == '/api/info':
                 return self._json(200, editor.info(_need(q, 'video')))
             if route == '/api/frame':
@@ -693,10 +845,12 @@ def serve(root, host='127.0.0.1', port=8100, state_dir=None, open_browser=False,
 
 
 def serve_library(root, host='127.0.0.1', port=8100, checkouts=None, state_dir=None, open_browser=False,
-                  hook=request_hook, agent=None, allowed_hosts=(), unsandboxed_previews=False, envs=None):
+                  hook=request_hook, agent=None, allowed_hosts=(), unsandboxed_previews=False, envs=None,
+                  admins=()):
     from .library import Library
     library = Library(root, checkouts=checkouts, state_dir=state_dir, host=host, agent=agent,
-                      allowed_hosts=allowed_hosts, unsandboxed_previews=unsandboxed_previews, envs=envs)
+                      allowed_hosts=allowed_hosts, unsandboxed_previews=unsandboxed_previews, envs=envs,
+                      admins=admins)
     httpd = ThreadingHTTPServer((host, port), make_handler(library, hook))
     httpd.daemon_threads = True
     stop = threading.Event()

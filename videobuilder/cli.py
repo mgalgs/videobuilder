@@ -204,12 +204,18 @@ def cmd_editor(a):
                 raise ValueError('PROJECT and --library cannot be used together')
             if a.sync_remote:
                 raise ValueError('--sync-remote is only for single-project mode')
+            if len(a.admin) != len(a.admin_password_file):
+                raise ValueError('--admin and --admin-password-file must be given the same number of '
+                                 'times, paired in order')
             serve_library(a.library, host=a.host, port=a.port, checkouts=a.checkouts,
                           state_dir=a.state_dir, open_browser=a.open, agent=agent,
-                          allowed_hosts=a.allow_host, unsandboxed_previews=a.unsandboxed_previews, envs=a.envs)
+                          allowed_hosts=a.allow_host, unsandboxed_previews=a.unsandboxed_previews, envs=a.envs,
+                          admins=list(zip(a.admin, a.admin_password_file)))
         else:
             if not a.project:
                 raise ValueError('provide PROJECT or --library DIR')
+            if a.admin or a.admin_password_file:
+                raise ValueError('--admin is only for --library mode')
             serve(a.project, host=a.host, port=a.port, state_dir=a.state_dir, open_browser=a.open,
                   agent=agent, allowed_hosts=a.allow_host, unsandboxed_previews=a.unsandboxed_previews,
                   envs=a.envs, sync_remote=a.sync_remote)
@@ -320,6 +326,10 @@ def main(argv=None):
     d.add_argument('--unsandboxed-previews', action='store_true',
                    help='render drafts without bwrap: draft code can read whatever the editor can')
     d.add_argument('--envs', choices=['pinned', 'current'], help='use video pins or the editor interpreter')
+    d.add_argument('--admin', action='append', default=[],
+                   help='an admin username (repeatable); library mode only, turns on accounts')
+    d.add_argument('--admin-password-file', action='append', default=[],
+                   help="that admin's password, one line, plaintext (repeatable, paired with --admin in order)")
     d.add_argument('--agent', choices=['null', 'fake', 'command', 'fork-sandbox'])
     d.add_argument('--agent-executable')
     for name in ('submit-command', 'poll-command', 'submit-args', 'poll-args'):
