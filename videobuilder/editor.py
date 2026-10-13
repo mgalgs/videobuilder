@@ -82,6 +82,7 @@ from .notes import NoteStore
 from .agents import backend_from_config
 from .drafts import Drafts, git
 from .versions import Versions
+from .render import default_jobs
 from .renders import Renders
 from .attachments import Attachments
 from .workers import Environments, Pool
@@ -152,7 +153,7 @@ class Editor:
                                        _positive(cfg, 'attachment_max_files', 10),
                                        _positive(cfg, 'attachment_max_message', 100) * 1048576)
         self.notes.attachments = self.attachments
-        self.renders = Renders(self, _positive(cfg, 'render_jobs', min(4, os.cpu_count() or 1)),
+        self.renders = Renders(self, _positive(cfg, 'render_jobs', min(4, default_jobs())),
                                _positive(cfg, 'render_keep', 20))
         self.allowed_hosts = {h.lower().rstrip('.') for h in
                               ['localhost', '127.0.0.1', '::1', host, *cfg.get('allowed_hosts', []), *allowed_hosts]}

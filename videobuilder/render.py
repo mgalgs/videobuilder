@@ -25,6 +25,20 @@ PEAK_CEILING_DB = -3.0
 MAX_LIMITING_DB = 1.0
 
 
+def default_jobs(cpu_max='/sys/fs/cgroup/cpu.max'):
+    """Worker processes for this machine or container. Not os.cpu_count(): that
+    is the host's count and ignores a cgroup CPU quota."""
+    jobs = len(os.sched_getaffinity(0)) if hasattr(os, 'sched_getaffinity') else os.cpu_count() or 1
+    try:
+        with open(cpu_max) as fh:
+            quota, period = fh.read().split()[:2]
+        if quota != 'max':
+            jobs = min(jobs, max(1, math.ceil(int(quota) / int(period))))
+    except (OSError, ValueError):
+        pass
+    return jobs
+
+
 def measure(path, filters):
     """(integrated LUFS, sample peak dBFS) after `filters`; None for silence."""
     result = subprocess.run(['ffmpeg', '-hide_banner', '-nostats', '-i', path, '-af',
@@ -112,7 +126,7 @@ def render(film, out, format=None, jobs=None, chunk=15, crf=18, frames=None, log
     a, z = frames or (0, film.frames)
     if not 0 <= a < z <= film.frames:
         raise ValueError(f'frames {a}:{z} outside 0:{film.frames}')
-    jobs = jobs or os.cpu_count()
+    jobs = jobs or default_jobs()
     check_chunk(chunk, film.fps)
     t0 = time.time()
     with tempfile.TemporaryDirectory() as tmp:

@@ -98,9 +98,16 @@ class Drafts:
         film = os.path.relpath(self.editor.project.video(video).path, self.editor.root)
         return dict(project=self.editor.root, film=film, directory=str(PurePosixPath(film).parent))
 
+    def _exists(self, branch):
+        try:
+            branch_tip(self.editor.root, branch)
+            return True
+        except ValueError:
+            return False
+
     def details(self, video):
         branch = self.editor.notes.session(video)['draft']
-        if not branch:
+        if not branch or not self._exists(branch):
             return None
         return inspect(self.editor.root, branch, self.context(video)['directory'])
 
@@ -133,6 +140,11 @@ class Drafts:
     def before_submit(self, video, note, state):
         branch = state.get('draft')
         if not branch:
+            return
+        if not self._exists(branch):
+            # A failed run can report a branch it never created; start from main.
+            state['draft'] = None
+            self.editor.notes.save_session(video, state)
             return
         root = self.editor.root
         tip = branch_tip(root, branch)

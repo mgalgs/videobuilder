@@ -118,6 +118,29 @@ class Director(TempProject):
         self.assertEqual(landed['state'], 'landed')
         self.assertEqual(git(self.root, 'rev-parse', 'main^').strip(), main)
 
+    def test_missing_draft_branch_starts_from_main(self):
+        state = self.editor.notes.session('promo/film')
+        state['draft'] = 'k8s-never-created'
+        self.editor.notes.save_session('promo/film', state)
+        self.assertIsNone(self.get('/api/draft?video=promo/film'))
+        self.editor.notes.backend = FakeBackend(delay=10)
+        note = self.post('/api/notes', {'video':'promo/film','text':'Faster'})[1]
+        markdown = (self.editor.notes.session_dir('promo/film') / (note['id'] + '.md')).read_text()
+        self.assertIn('draft: None', markdown)
+        self.assertIsNone(self.editor.notes.session('promo/film')['draft'])
+
+    def test_render_jobs_follow_cgroup_quota(self):
+        import tempfile
+        from videobuilder.render import default_jobs
+        with tempfile.NamedTemporaryFile('w', suffix='cpu.max') as fh:
+            fh.write('100000 100000\n')
+            fh.flush()
+            self.assertEqual(default_jobs(fh.name), 1)
+        with tempfile.NamedTemporaryFile('w', suffix='cpu.max') as fh:
+            fh.write('max 100000\n')
+            fh.flush()
+            self.assertEqual(default_jobs(fh.name), len(__import__('os').sched_getaffinity(0)))
+
     def test_clean_rebase_and_reply_only(self):
         self.editor.notes.backend = FakeBackend(delay=0)
         note = self.post('/api/notes', {'video':'promo/film','text':'Change'})[1]
