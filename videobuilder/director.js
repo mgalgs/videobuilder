@@ -922,8 +922,38 @@ $('file-picker').onchange=e=> {
 };
 $('add-note').onclick=addPending;
 $('send-all').onclick=sendPending;
+// Ctrl/Cmd+Enter sends the typed note on its own; pending notes stay put.
+async function sendNow() {
+  const text=$('message').value.trim();
+  if(state.sending||!text)return;
+  if(!await ensureName())return;
+  state.sending=true;
+  showError('Sending…');
+  const time=state.stamp?player.currentTime||0:null;
+  try {
+    const attachments=await uploadFiles([...state.files]);
+    await json('notes',null, {
+      video:state.video,format:state.format,...batchBody([{text,time,attachments}])
+    });
+    $('message').value='';
+    state.files=[];
+    renderFiles();
+    showError('');
+    await loadNotes()
+  }
+  catch(e) {
+    showError(e.message)
+  }
+  finally {
+    state.sending=false
+  }
+}
 $('message').onkeydown=e=> {
-  if(e.key==='Enter'&&!e.shiftKey) {
+  if(e.key==='Enter'&&(e.ctrlKey||e.metaKey)) {
+    e.preventDefault();
+    sendNow()
+  }
+  else if(e.key==='Enter'&&!e.shiftKey) {
     e.preventDefault();
     addPending()
   }
