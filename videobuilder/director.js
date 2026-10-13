@@ -1002,6 +1002,21 @@ setInterval(()=> {
 setInterval(()=> {
   if(state.video)loadVersions()
 },15000);
+// /api/project syncs with the forge, so poll the cheap /healthz and refetch the
+// project only when the editor's version changes (a deploy), for the upgrade chip.
+async function checkEditorVersion() {
+  if(document.hidden||!state.project)return;
+  try {
+    const text=await (await fetch('/healthz')).text();
+    const version=text.startsWith('ok ')?text.slice(3).trim():null;
+    if(!version||version===state.project.version)return;
+    state.project=await json('project');
+    renderUpgrade()
+  } catch (_) {
+    // A restarting editor; the next check catches up.
+  }
+}
+setInterval(checkEditorVersion,60000);
 document.addEventListener('visibilitychange', () => {
   if (document.hidden) {
     state.resumeOnVisible=!player.paused;
@@ -1019,6 +1034,7 @@ document.addEventListener('visibilitychange', () => {
   lastNotesPoll=Date.now();
   loadNotes();
   loadVersions();
+  checkEditorVersion();
   if (state.resumeOnVisible && state.videoReady) player.play().catch(()=>{});
   state.resumeOnVisible=false;
 });
