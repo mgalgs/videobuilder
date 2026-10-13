@@ -207,6 +207,27 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible {
   font-size: 28px;
 }
 
+.spinner {
+  width: 20px;
+  height: 20px;
+  border: 2.5px solid #ffffff40;
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: spin .8s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .spinner {
+    animation-duration: 2.4s;
+  }
+}
+
 /* A tall, mostly transparent touch target; the visible bar is its bottom 5px. */
 .progress {
   position: absolute;
@@ -265,12 +286,16 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible {
 }
 
 .watch-controls {
-  width: min(420px,100%);
+  width: min(480px,100%);
   display: flex;
   align-items: center;
   gap: 10px;
   color: #c9c9d1;
   font-size: 13px;
+}
+
+#time-display {
+  white-space: nowrap;
 }
 
 .round {

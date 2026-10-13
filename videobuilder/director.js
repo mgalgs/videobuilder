@@ -177,6 +177,7 @@ async function loadPlayer(retry=false) {
   // visibilitychange treats a non-null timer as "render still pending".
   state.renderTimer=null;
   state.videoReady=false;
+  setPlayState('busy');
   player.pause();
   player.removeAttribute('src');
   player.load();
@@ -193,6 +194,7 @@ async function loadPlayer(retry=false) {
     }
     catch(e) {
       $('render-text').textContent=e.message;
+      setPlayState('play');
       return
     }
   }
@@ -218,6 +220,7 @@ async function loadPlayer(retry=false) {
     if (r.status !== 206) throw Error(`Unexpected video response: ${r.status}`);
     await r.body?.cancel();
     state.videoReady=true;
+    setPlayState('play');
     for(const id of ['rail-save','desktop-save'])$(id).href=url;
     $('poster').hidden=true;
     $('render-status').hidden=true;
@@ -229,7 +232,8 @@ async function loadPlayer(retry=false) {
   catch(e) {
     $('render-text').textContent=e.message;
     $('retry-render').hidden=false;
-    $('poster').hidden=false
+    $('poster').hidden=false;
+    setPlayState('play')
   }
 }
 function playVersion(v,deliberate) {
@@ -261,9 +265,19 @@ function icon(name) {
   return document.querySelector(`#icon-${name}`).content.firstElementChild.cloneNode(true);
 }
 function togglePlay() {
+  if(!state.videoReady)return;
   if(player.paused)player.play().catch(()=> {
   });
   else player.pause()
+}
+// 'busy' while there is no video to play yet (a render is pending), then 'play'/'pause'.
+function setPlayState(mode) {
+  const busy=mode==='busy',label=busy?'Rendering…':mode==='pause'?'Pause video':'Play video';
+  $('play-glyph').hidden=busy||mode==='pause';
+  $('desktop-play').replaceChildren(busy?node('span','spinner'):icon(mode));
+  $('desktop-play').disabled=$('fullscreen').disabled=!state.videoReady;
+  $('desktop-play').setAttribute('aria-label',label);
+  $('tap-player').setAttribute('aria-label',label)
 }
 function setView(view) {
   state.view=view;
@@ -824,18 +838,25 @@ async function init() {
 $('upgrade').onclick=upgradeVideo;
 $('tap-player').onclick=togglePlay;
 $('desktop-play').onclick=togglePlay;
+// The video element itself goes full screen, with the browser's own controls while it is.
+$('fullscreen').onclick=()=> {
+  if(!state.videoReady)return;
+  player.controls=true;
+  player.requestFullscreen().catch(()=> {
+    player.controls=false
+  })
+};
+document.addEventListener('fullscreenchange',()=> {
+  if(!document.fullscreenElement)player.controls=false
+});
 window.addEventListener('resize', resizePlayer);
+// loadPlayer pauses and reloads the element while a render is pending; those events must not
+// replace the spinner.
 player.onpause=()=> {
-  $('play-glyph').hidden=false;
-  $('desktop-play').replaceChildren(icon('play'));
-  $('desktop-play').setAttribute('aria-label','Play video');
-  $('tap-player').setAttribute('aria-label','Play video')
+  if(state.videoReady)setPlayState('play')
 };
 player.onplay=()=> {
-  $('play-glyph').hidden=true;
-  $('desktop-play').replaceChildren(icon('pause'));
-  $('desktop-play').setAttribute('aria-label','Pause video');
-  $('tap-player').setAttribute('aria-label','Pause video')
+  if(state.videoReady)setPlayState('pause')
 };
 player.onvolumechange=()=> {
   $('mute').replaceChildren(icon(player.muted ? 'muted' : 'volume'));
