@@ -64,8 +64,14 @@ class Access:
         with self.lock:
             data = self._load()
             record = data.setdefault(name, {'owner': None, 'owner_uid': None, 'collaborators': []})
-            if username != record['owner'] and not any(c['username'] == username for c in record['collaborators']):
-                record['collaborators'].append({'username': username, 'uid': accounts.uid(username)})
+            uid = accounts.uid(username)
+            is_owner = username == record['owner'] and record.get('owner_uid') == uid
+            # Drop any stale entry for this username (a different, deleted account held
+            # it) so a recreated account can be invited back instead of silently no-oping.
+            record['collaborators'] = [c for c in record['collaborators']
+                                       if c['username'] != username or c['uid'] == uid]
+            if not is_owner and not any(c['username'] == username for c in record['collaborators']):
+                record['collaborators'].append({'username': username, 'uid': uid})
             self._save(data)
 
     def remove(self, name, username):

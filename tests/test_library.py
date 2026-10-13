@@ -411,6 +411,13 @@ class Auth(LibraryFixture, unittest.TestCase):
         self.assertEqual(self.request('/v/acme/launch/api/project', headers={'Cookie': impostor})[0], 404)
         code, access = self.request('/v/acme/launch/api/access', headers={'Cookie': admin})
         self.assertEqual((code, access['collaborators']), (200, []))
+        # The impostor's account still exists under the freed name: re-inviting it
+        # must grant the new account, not silently no-op against the stale entry.
+        self.request('/v/acme/launch/api/access', {'action': 'invite', 'username': 'bob'},
+                     headers={'Content-Type': 'application/json', 'Cookie': admin})
+        self.assertEqual(self.request('/v/acme/launch/api/project', headers={'Cookie': impostor})[0], 200)
+        code, access = self.request('/v/acme/launch/api/access', headers={'Cookie': admin})
+        self.assertEqual((code, access['collaborators']), (200, ['bob']))
 
     def test_note_author_and_directed_by_are_the_username(self):
         from videobuilder.agents import FakeBackend
