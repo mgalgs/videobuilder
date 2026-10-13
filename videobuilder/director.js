@@ -440,6 +440,7 @@ function versionMeta(v) {
   switch(v.kind) {
     case 'builder':return `Builder, from ${who} · ${relative(v.time)}`;
     case 'edit':return `${who}, fine tuning · ${relative(v.time)}`;
+    case 'upgrade':return `${who}, upgraded videobuilder · ${relative(v.time)}`;
     case 'restore': {
       const n = state.versions.find(x => x.commit === v.restores)?.n || '?';
       return `${who}, restored v${n} · ${relative(v.time)}`;
@@ -525,6 +526,44 @@ async function restoreVersion(v) {
   }
   catch(e) {
     toast(e.message)
+  }
+}
+function renderUpgrade() {
+  const button=$('upgrade');
+  const upgrade=state.project?.videos?.find(v=>v.id===state.video)?.upgrade;
+  button.hidden=!upgrade;
+  if(!upgrade)return;
+  button.replaceChildren(node('span',null,`This video uses videobuilder ${upgrade.from} · `),
+                         node('strong',null,`Upgrade to ${upgrade.to}`))
+}
+async function upgradeVideo() {
+  if(!await ensureName())return;
+  const button=$('upgrade');
+  button.disabled=true;
+  try {
+    const result=await json('upgrade',null, {
+      video:state.video
+    });
+    state.project=await json('project');
+    renderUpgrade();
+    await loadVersions();
+    state.deliberate=false;
+    if(state.commit!==result.commit) {
+      state.commit=result.commit;
+      loadPlayer()
+    }
+    toast(`v${result.n} upgrades videobuilder to ${result.to}`)
+  }
+  catch(e) {
+    toast(e.message);
+    // A refusal can mean the pin changed under us; show what the project says now.
+    json('project').then(project=> {
+      state.project=project;
+      renderUpgrade()
+    }).catch(()=> {})
+  }
+  finally {
+    button.disabled=false
   }
 }
 function renderFiles() {
@@ -716,6 +755,7 @@ async function openVideo(video) {
   clearTimeout(state.renderTimer);
   $('video-title').textContent=libName||video;
   $('video-picker').value=video;
+  renderUpgrade();
   loadPending();
   try {
     state.info=await json('info', {
@@ -768,6 +808,7 @@ async function init() {
     toast(e.message)
   }
 }
+$('upgrade').onclick=upgradeVideo;
 $('tap-player').onclick=togglePlay;
 $('desktop-play').onclick=togglePlay;
 window.addEventListener('resize', resizePlayer);
