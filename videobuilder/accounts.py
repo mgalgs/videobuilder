@@ -5,6 +5,14 @@ password hashes (never plaintext, except the admin password files the
 operator supplies), and sessions keyed by the session token's SHA-256, so
 the file never holds a usable token. Login lockout and sign-up throttling
 are in memory and reset on restart.
+
+Each account also gets a random `uid` at creation, stable across restarts,
+that never gets reused even if the username is. Sessions and access grants
+record the uid they were issued to, not just the username, so deleting a
+user's record (by hand, with the editor stopped) invalidates their
+outstanding sessions, and a later sign-up under the same name starts with no
+borrowed access. The file is only read at startup: editing it while the
+editor is running will be overwritten by its next write.
 """
 import hashlib
 import hmac
@@ -77,7 +85,8 @@ class Accounts:
                 raise ValueError(f'admin password file for {name} is empty')
             self.admins.add(name)
             with self.lock:
-                self._data['users'][name] = {**_hash_password(password), 'admin': True}
+                uid = self._data['users'].get(name, {}).get('uid') or secrets.token_hex(16)
+                self._data['users'][name] = {**_hash_password(password), 'admin': True, 'uid': uid}
                 self._save()
 
     def _load(self):
@@ -100,6 +109,14 @@ class Accounts:
     def exists(self, username):
         return isinstance(username, str) and username.lower() in self._data['users']
 
+    def uid(self, username):
+        """The account's stable id, or None if there is no such account. Used to
+        tell a deleted-and-recreated account apart from the one that held a
+        session or an access grant before it was deleted."""
+        username = username.lower() if isinstance(username, str) else ''
+        record = self._data['users'].get(username)
+        return record['uid'] if record else None
+
     def signup(self, username, password):
         """Create an account and sign it in; (username, session token)."""
         now = time.time()
@@ -116,7 +133,7 @@ class Accounts:
         with self.lock:
             if username in self._data['users']:
                 raise ValueError('that username is taken')
-            self._data['users'][username] = _hash_password(password)
+            self._data['users'][username] = {**_hash_password(password), 'uid': secrets.token_hex(16)}
             self._save()
         return username, self.create_session(username)
 
@@ -147,7 +164,8 @@ class Accounts:
         token = secrets.token_hex(32)
         key = hashlib.sha256(token.encode()).hexdigest()
         with self.lock:
-            self._data['sessions'][key] = {'user': username, 'expires': time.time() + SESSION_TTL}
+            self._data['sessions'][key] = {'user': username, 'uid': self.uid(username),
+                                           'expires': time.time() + SESSION_TTL}
             self._save()
         return token
 
@@ -159,7 +177,9 @@ class Accounts:
             session = self._data['sessions'].get(key)
             if not session:
                 return None
-            if session['expires'] < time.time():
+            # A missing or changed uid means the account was deleted (and maybe
+            # recreated under the same name) since this session was issued.
+            if session['expires'] < time.time() or session.get('uid') != self.uid(session['user']):
                 del self._data['sessions'][key]
                 self._save()
                 return None

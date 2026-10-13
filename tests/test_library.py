@@ -384,6 +384,34 @@ class Auth(LibraryFixture, unittest.TestCase):
         code, access = self.request('/v/acme/copy2/api/access', headers={'Cookie': admin})
         self.assertEqual((code, access['owner']), (200, 'mgalgs'))
 
+    def test_deleting_a_user_invalidates_their_outstanding_session(self):
+        _, _, dana = self.signup('dana', 'longenoughpassword')
+        self.assertEqual(self.request('/api/project', headers={'Cookie': dana})[0], 404)
+        # The operator deletes the account by hand (with the editor stopped) and restarts;
+        # simulate that here by dropping the record from the in-memory store a restart
+        # would have reloaded without it. The old cookie must stop working.
+        del self.library.accounts._data['users']['dana']
+        self.library.accounts._save()
+        code, _ = self.request('/api/project', headers={'Cookie': dana})
+        self.assertEqual(code, 401)
+
+    def test_deleted_users_access_does_not_transfer_to_a_reused_name(self):
+        self.seed('acme/launch', film=True)
+        admin = self.admin_login()
+        self.new_project(admin, 'acme/launch', 'acme/launch')
+        _, _, bob = self.signup('bob', 'longenoughpassword')
+        self.request('/v/acme/launch/api/access', {'action': 'invite', 'username': 'bob'},
+                     headers={'Content-Type': 'application/json', 'Cookie': admin})
+        self.assertEqual(self.request('/v/acme/launch/api/project', headers={'Cookie': bob})[0], 200)
+        # The operator deletes bob's account (with the editor stopped) and restarts;
+        # simulate that, then let an unrelated person sign up under the freed name.
+        del self.library.accounts._data['users']['bob']
+        self.library.accounts._save()
+        _, _, impostor = self.signup('bob', 'anotherlongpassword')
+        self.assertEqual(self.request('/v/acme/launch/api/project', headers={'Cookie': impostor})[0], 404)
+        code, access = self.request('/v/acme/launch/api/access', headers={'Cookie': admin})
+        self.assertEqual((code, access['collaborators']), (200, []))
+
     def test_note_author_and_directed_by_are_the_username(self):
         from videobuilder.agents import FakeBackend
         self.seed('acme/launch', film=True)

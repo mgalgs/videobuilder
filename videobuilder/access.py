@@ -1,7 +1,13 @@
 """Per-project access: one JSON file under the library state dir mapping a
 project name to its owner and collaborators, written atomically under a
 lock. A project absent from the file has no recorded owner: an admin is its
-implied owner (every project predating auth, say)."""
+implied owner (every project predating auth, say).
+
+Each grant records the uid of the account it was issued to, not just its
+username (see accounts.Accounts.uid). `get` drops a grant whose holder's
+account no longer exists or was recreated under the same name since the
+grant was made, so deleting an account and letting someone else sign up
+under its old name never hands them the old account's projects."""
 import json
 import os
 import threading
@@ -26,13 +32,19 @@ class Access:
             json.dump(data, fh)
         os.replace(tmp, self.path)
 
-    def get(self, name):
-        return self._load().get(name) or {'owner': None, 'collaborators': []}
+    def get(self, name, accounts):
+        record = self._load().get(name) or {'owner': None, 'collaborators': []}
+        owner = record['owner']
+        if owner is not None and accounts.uid(owner) != record.get('owner_uid'):
+            owner = None
+        collaborators = [c['username'] for c in record['collaborators']
+                         if accounts.uid(c['username']) == c['uid']]
+        return {'owner': owner, 'collaborators': collaborators}
 
-    def set_owner(self, name, owner):
+    def set_owner(self, name, owner, accounts):
         with self.lock:
             data = self._load()
-            data[name] = {'owner': owner, 'collaborators': []}
+            data[name] = {'owner': owner, 'owner_uid': accounts.uid(owner), 'collaborators': []}
             self._save(data)
 
     def can_access(self, name, username, accounts):
@@ -40,26 +52,28 @@ class Access:
             return True
         if username is None:
             return False
-        record = self.get(name)
+        record = self.get(name, accounts)
         return username == record['owner'] or username in record['collaborators']
 
     def can_share(self, name, username, accounts):
         if accounts.is_admin(username):
             return True
-        return username is not None and username == self.get(name)['owner']
+        return username is not None and username == self.get(name, accounts)['owner']
 
-    def invite(self, name, username):
+    def invite(self, name, username, accounts):
         with self.lock:
             data = self._load()
-            record = data.setdefault(name, {'owner': None, 'collaborators': []})
-            if username != record['owner'] and username not in record['collaborators']:
-                record['collaborators'].append(username)
+            record = data.setdefault(name, {'owner': None, 'owner_uid': None, 'collaborators': []})
+            if username != record['owner'] and not any(c['username'] == username for c in record['collaborators']):
+                record['collaborators'].append({'username': username, 'uid': accounts.uid(username)})
             self._save(data)
 
     def remove(self, name, username):
         with self.lock:
             data = self._load()
             record = data.get(name)
-            if record and username in record['collaborators']:
-                record['collaborators'].remove(username)
-                self._save(data)
+            if record:
+                kept = [c for c in record['collaborators'] if c['username'] != username]
+                if len(kept) != len(record['collaborators']):
+                    record['collaborators'] = kept
+                    self._save(data)

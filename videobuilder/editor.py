@@ -473,7 +473,7 @@ def make_handler(editor, hook=request_hook):
 
         def _access(self, method, name, user):
             if method == 'GET':
-                record = library.access.get(name)
+                record = library.access.get(name, library.accounts)
                 can_share = library.access.can_share(name, user, library.accounts)
                 return self._json(200, {'owner': record['owner'], 'collaborators': record['collaborators'],
                                         'can_share': can_share})
@@ -485,12 +485,12 @@ def make_handler(editor, hook=request_hook):
             if action == 'invite':
                 if not library.accounts.exists(target):
                     raise HTTPError(404, 'no such user')
-                library.access.invite(name, target)
+                library.access.invite(name, target, library.accounts)
             elif action == 'remove':
                 library.access.remove(name, target)
             else:
                 raise HTTPError(400, 'unknown action')
-            record = library.access.get(name)
+            record = library.access.get(name, library.accounts)
             return self._json(200, {'owner': record['owner'], 'collaborators': record['collaborators'],
                                     'can_share': True})
 
@@ -598,7 +598,7 @@ def make_handler(editor, hook=request_hook):
                         except ValueError as exc:
                             raise HTTPError(400, str(exc)) from None
                         if library.accounts:
-                            library.access.set_owner(result['name'], user)
+                            library.access.set_owner(result['name'], user, library.accounts)
                         return self._json(201, result)
                     if route != '/healthz':
                         match = re.fullmatch(r'/v/(.+?)(/api(?:/.*)?|/tuning.html|/director\.(?:js|css)|/)?', route)
