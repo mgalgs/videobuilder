@@ -1,18 +1,21 @@
-"""A cached ManimGX shot. Build first: .venv/bin/python examples/shot3d_demo.py --build"""
+"""A committed ManimGX shot. Build: /opt/manimgx/bin/python examples/shot3d_demo.py --build"""
 from pathlib import Path
 import sys
 import time
+import hashlib
 
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 import videobuilder as vb
 from videobuilder import text
-from videobuilder.shot3d import ShotCache
+from videobuilder.shot3d import build as build_shot
 
 HERE = Path(__file__).resolve().parent
 text.register(HERE / 'assets' / 'Cantarell-VF.otf')
 FPS = 30
-SHOT_FRAMES = 150
-SIZE = (1080, 1920)
-CACHE = ShotCache(HERE.parent / '.shot3d-cache', __file__, SIZE, FPS, SHOT_FRAMES)
+SHOT_FRAMES = 60
+SIZE = (720, 1280)
+ASSET = HERE / 'assets' / 'orbit.mp4'
+CLIP = vb.Clip(ASSET) if ASSET.exists() else None
 
 
 def draw(n, cv):
@@ -26,11 +29,13 @@ def draw(n, cv):
         text.draw(cv, 'A 3D study', vb.Font('Cantarell', 51),
                   135, 875, '#84aaa9')
     else:
-        cv.image(CACHE.image(n - 30), 0, 0, cv.width, cv.height)
+        if CLIP is None:
+            raise FileNotFoundError(f'build the shot first: {ASSET}')
+        cv.image(CLIP.frame(n - 30), 0, 0, cv.width, cv.height)
         cv.rect(0, 1580, cv.width, 340, '#0b1020', alpha=0.72)
         text.draw(cv, 'FORM IN MOTION', vb.Font('Cantarell', 72, weight=750),
                   90, 1635, '#f3f2ed')
-        text.draw(cv, 'Rendered once. Ready at any frame.', vb.Font('Cantarell', 40),
+        text.draw(cv, 'Light follows the turning ring.', vb.Font('Cantarell', 40),
                   94, 1740, '#a5d7d0')
 
 
@@ -64,11 +69,17 @@ def build():
                       run_time=SHOT_FRAMES / FPS, rate_func=m.linear)
 
     m.config.background_color = m.ManimColor('#0b1020')
+    def source():
+        hashes = []
+        for index, rgba in frames(Orbital, SIZE, SHOT_FRAMES, FPS):
+            hashes.append(hashlib.sha256(rgba).hexdigest())
+            yield index, rgba
+        print(f'raw frame hashes: {hashlib.sha256("".join(hashes).encode()).hexdigest()}')
+
     start = time.monotonic()
-    built = CACHE.build(lambda: frames(Orbital, SIZE, SHOT_FRAMES, FPS))
+    build_shot(ASSET, source, SIZE, FPS, SHOT_FRAMES)
     elapsed = time.monotonic() - start
-    print(f'cache={CACHE.path} built={built} seconds={elapsed:.2f} '
-          f'per_frame={elapsed / SHOT_FRAMES:.3f}')
+    print(f'asset={ASSET} seconds={elapsed:.2f} per_frame={elapsed / SHOT_FRAMES:.3f}')
 
 
 if __name__ == '__main__' and '--build' in sys.argv:

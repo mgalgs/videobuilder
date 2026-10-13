@@ -93,6 +93,9 @@ vb.rgba(colour)                                  # -> cairo floats for cv.ctx.se
 ```python
 img = vb.Image.load('assets/shot.png')          # decoded once per process; fine inside draw
 pic = vb.Image.from_pil(pil_image)               # generated in code, once, at import
+clip = vb.Clip('assets/orbit.mp4')                # ffmpeg video asset; construct once
+clip.frames, clip.fps, clip.size                 # frame count, rate, (width, height)
+pic = clip.frame(local_frame)                   # random access; IndexError outside clip
 with cv.clip(*box, radius=20):
     cv.image(img, *box.cover(img.w, img.h))      # fill the box, crop the overflow
 cv.image(img, *box.contain(img.w, img.h))        # whole image, letterboxed
