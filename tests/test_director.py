@@ -184,6 +184,86 @@ class Director(TempProject):
         self.assertEqual(self.post('/api/versions/restore', {'video':'promo/film','commit':result['commit']})[1]['changed'], False)
         self.assertEqual(self.get('/api/versions?video=promo/film')['versions'][0]['kind'], 'restore')
 
+    def _pin(self, text, where='promo'):
+        def no_env(target, pin):
+            raise ValueError('no environments in tests')
+        self.editor.envs.builder = no_env
+        (self.root / where / 'requirements.txt').write_text(text)
+        git(self.root, 'add', '-A')
+        git(self.root, 'commit', '-qm', 'pin')
+
+    def test_upgrade_rewrites_only_the_pin(self):
+        from videobuilder import __version__
+        text = ('numpy==1.26\nvideobuilder @ git+https://example.com/vb.git@v0.1.9#egg=videobuilder ; python_version>"3"\n'
+                '# videobuilder@v0.1.9 again\n')
+        self._pin(text)
+        project = self.get('/api/project')
+        self.assertEqual(project['version'], __version__)
+        self.assertEqual(project['videos'][0]['pin'], '0.1.9')
+        self.assertEqual(project['videos'][0]['upgrade'], {'from': '0.1.9', 'to': __version__})
+        old = git(self.root, 'rev-parse', 'main').strip()
+        code, result = self.post('/api/upgrade', {'video': 'promo/film'}, {'Content-Type': 'application/json',
+                                                                         'Cookie': 'vb_name=Dana'})
+        self.assertEqual(code, 200)
+        self.assertEqual((result['from'], result['to']), ('0.1.9', __version__))
+        self.assertEqual(git(self.root, 'rev-parse', 'main^').strip(), old)
+        self.assertEqual(result['commit'], git(self.root, 'rev-parse', 'main').strip())
+        self.assertEqual((self.root / 'promo' / 'requirements.txt').read_text(), text.replace(
+            'vb.git@v0.1.9#', f'vb.git@v{__version__}#'))
+        self.assertEqual(git(self.root, 'show', '--name-only', '--format=', 'main').split(), ['promo/requirements.txt'])
+        self.assertEqual(git(self.root, 'status', '--porcelain'), '')
+        log = git(self.root, 'show', '-s', '--format=%B', 'main')
+        self.assertIn(f'Upgrade videobuilder 0.1.9 → {__version__}', log)
+        self.assertIn('Version-kind: upgrade', log)
+        self.assertIn('Directed-by: Dana', log)
+        latest = self.get('/api/versions?video=promo/film')['versions'][0]
+        self.assertEqual((latest['kind'], latest['commit'], latest['n']), ('upgrade', result['commit'], result['n']))
+        self.assertIsNone(self.get('/api/project')['videos'][0]['upgrade'])
+        code, refused = self.post('/api/upgrade', {'video': 'promo/film'})
+        self.assertEqual(code, 409)
+        self.assertIn('already uses', refused['error'])
+
+    def test_upgrade_equals_pin_and_refusals(self):
+        from videobuilder import __version__
+        self._pin('videobuilder==0.1.9  # pinned\nrich\n')
+        self.assertEqual(self.post('/api/upgrade', {'video': 'promo/film'})[0], 200)
+        self.assertEqual((self.root / 'promo' / 'requirements.txt').read_text(),
+                         f'videobuilder=={__version__}  # pinned\nrich\n')
+        major, minor, patch = map(int, __version__.split('.'))
+        self._pin(f'videobuilder=={major}.{minor}.{patch + 1}\n')
+        code, refused = self.post('/api/upgrade', {'video': 'promo/film'})
+        self.assertEqual(code, 409)
+        self.assertIsNone(self.get('/api/project')['videos'][0]['upgrade'])
+        self._pin('numpy\n')
+        code, refused = self.post('/api/upgrade', {'video': 'promo/film'})
+        self.assertEqual(code, 409)
+        self.assertIn('does not pin', refused['error'])
+        (self.root / 'promo' / 'requirements.txt').unlink()
+        git(self.root, 'commit', '-qam', 'unpin')
+        self.assertEqual(self.post('/api/upgrade', {'video': 'promo/film'})[0], 409)
+        self.assertEqual(git(self.root, 'log', '-1', '--format=%s', 'main').strip(), 'unpin')
+
+    def test_upgrade_refuses_a_shared_pin(self):
+        self._pin('videobuilder==0.1.9\n', where='.')
+        self.assertEqual(self.get('/api/project')['videos'][0]['pin'], '0.1.9')
+        self.assertIsNone(self.get('/api/project')['videos'][0]['upgrade'])
+        main = git(self.root, 'rev-parse', 'main').strip()
+        code, refused = self.post('/api/upgrade', {'video': 'promo/film'})
+        self.assertEqual(code, 409)
+        self.assertIn('shared with other videos; upgrade it by hand', refused['error'])
+        self.assertEqual(git(self.root, 'rev-parse', 'main').strip(), main)
+
+    def test_upgrade_waits_for_running_notes(self):
+        self.editor.notes.backend = FakeBackend(delay=10)
+        self.post('/api/notes', {'video': 'promo/film', 'text': 'Faster'})
+        self._pin('videobuilder==0.1.9\n')
+        main = git(self.root, 'rev-parse', 'main').strip()
+        code, refused = self.post('/api/upgrade', {'video': 'promo/film'})
+        self.assertEqual(code, 409)
+        self.assertIn('queued and working notes', refused['error'])
+        self.assertEqual(git(self.root, 'rev-parse', 'main').strip(), main)
+        self.assertEqual(self.get('/api/project')['videos'][0]['upgrade']['from'], '0.1.9')
+
     def test_name_cookie_and_hook_precedence(self):
         req = urllib.request.Request(self.base + '/api/name', json.dumps({'name':'Dana Lee'}).encode(),
                                      method='POST', headers={'Content-Type':'application/json'})

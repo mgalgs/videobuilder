@@ -62,7 +62,7 @@ class API(TempProject):
         self.assertEqual((p['name'], p['git'], p['backend'], p['error']), ('project', True, 'null', None))
         self.assertEqual(p['videos'], [{'id': 'promo/film', 'path': 'promo/film.py',
                                         'edits': 'promo/film.edits.toml', 'pin': "editor's own",
-                                        'env': 'ready', 'error': None}])
+                                        'env': 'ready', 'error': None, 'upgrade': None}])
         self.assertEqual(p['state_dir'], str(self.root / '.vb-editor'))
         self.assertEqual(git(self.root, 'status', '--porcelain'), '')  # the state dir ignores itself
 

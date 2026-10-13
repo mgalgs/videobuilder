@@ -4,7 +4,8 @@ Single-project routes are `/api/...`; library routes are `/v/<name>/api/...`,
 except `/api/name`, which is shared across the library. `video` is the id from
 `/api/project`. JSON is used for requests and responses except where noted.
 
-GET  /api/project                    project, backend and available videos
+GET  /api/project                    project, backend, editor version and videos;
+                                     videos[].upgrade is {from,to} or null
 GET  /api/info?video=V               timeline, formats, edits and git state
 GET  /api/frame?video=V&frame=N&format=F&scale=S&overlay=1  PNG frame
 POST /api/roll {video,segment,until}  commit a cut edit
@@ -38,6 +39,10 @@ GET  /api/versions?video=V[&limit=50&before=SHA]
 POST /api/video/retry {video,commit,format}  requeue a failed render
 POST /api/versions/restore {video,commit}
                                      200 {commit,changed,n}; 400 foreign sha.
+POST /api/upgrade {video}            commit the video's own requirements.txt pin
+                                     at the editor's version; 200 {commit,n,from,
+                                     to}; 409 while notes run, when already
+                                     current, unpinned or the pin is shared.
 GET  /api/video?video=V&commit=SHA&format=F
                                      commit defaults to main, format to first.
                                      200 MP4 when ready; 206 for one byte Range,
@@ -81,7 +86,7 @@ from . import edits
 from .notes import NoteStore
 from .agents import backend_from_config
 from .drafts import Drafts, git
-from .versions import Versions
+from .versions import Refused, Versions
 from .render import default_jobs
 from .renders import Renders
 from .attachments import Attachments
@@ -227,12 +232,14 @@ class Editor:
         self.refresh(force=True)
         self.main_moved()
         try:
-            videos = [{**v.to_json(self.root), **self.envs.describe(v.path, self.root)}
-                      for v in self.project.videos()]
+            videos = [{**v.to_json(self.root), **self.envs.describe(v.path, self.root),
+                       'upgrade': self.versions.upgrade_info(v.id)} for v in self.project.videos()]
             error = None
         except ValueError as e:
             videos, error = [], str(e)
+        from . import __version__
         return {'name': os.path.basename(self.root), 'root': self.root, 'git': self.project.git is not None,
+                'version': __version__,
                 'backend': self.notes.backend.name, 'state_dir': self.state_dir, 'videos': videos, 'error': error,
                 'sync_error': self.sync_error}
 
@@ -597,6 +604,11 @@ def make_handler(editor, hook=request_hook):
                                                                     _field(body, 'commit', str), identity))
                 except ValueError as exc:
                     raise HTTPError(400, str(exc)) from None
+            if route == '/api/upgrade':
+                try:
+                    return self._json(200, editor.versions.upgrade(_field(body, 'video', str), identity))
+                except Refused as exc:
+                    raise HTTPError(409, str(exc)) from None
             if route in ('/api/draft/accept', '/api/draft/drop'):
                 action = getattr(editor.drafts, route.rsplit('/', 1)[1])
                 return self._json(200, action(_field(body, 'video', str), identity))

@@ -1,9 +1,20 @@
 """First-parent video versions and content-preserving restore commits."""
 import os
-from pathlib import Path
+from pathlib import Path, PurePosixPath
+import re
 import subprocess
 
 from .drafts import git
+from .notes import FINAL
+from .workers import pin_for, pinned_version
+
+
+class Refused(ValueError):
+    """A request that cannot be done in the video's current state (409)."""
+
+
+def _numbers(version):
+    return tuple(map(int, version.split('.')))
 
 
 def trailers(message):
@@ -79,3 +90,66 @@ class Versions:
                 e.sync.after_commit()
             e.render_first(video, commit)
             return {'commit': commit, 'changed': True, 'n': self.number(commit)}
+
+    def upgradable(self, video):
+        """(pin, from, to) when the video's own pin is older than the editor; otherwise
+        raise Refused with the reason."""
+        from . import __version__
+        e = self.editor
+        context = e.drafts.context(video)
+        pin = pin_for(os.path.join(e.root, context['film']), e.root)
+        if pin is None:
+            raise Refused('this video has no requirements.txt pinning videobuilder')
+        old = pinned_version(pin)
+        if old == 'unknown':
+            raise Refused(f'{pin.relative_to(Path(e.root).resolve())} does not pin a videobuilder version')
+        if pin.parent != (Path(e.root) / context['directory']).resolve():
+            raise Refused('this pin is shared with other videos; upgrade it by hand')
+        if _numbers(old) >= _numbers(__version__):
+            raise Refused(f'this video already uses videobuilder {old}; the editor runs {__version__}')
+        return pin, old, __version__
+
+    def upgrade_info(self, video):
+        if self.editor.envs.mode != 'pinned':
+            return None
+        try:
+            _, old, new = self.upgradable(video)
+        except ValueError:
+            return None
+        return {'from': old, 'to': new}
+
+    def upgrade(self, video, author):
+        e = self.editor
+        with e.lock, e.notes.video_lock(video):
+            if any(n['state'] not in FINAL for n in e.notes.list(video, refresh=False)):
+                raise Refused('wait for queued and working notes before upgrading')
+            if e.sync:
+                e.sync.before_commit()
+            pin, old, new = self.upgradable(video)
+            if git(e.root, 'status', '--porcelain'):
+                raise Refused('main checkout has local changes')
+            pin.write_bytes(_repin(pin.read_bytes().decode(), new).encode())
+            relative = str(PurePosixPath(pin.relative_to(Path(e.root).resolve())))
+            git(e.root, 'add', '--', relative)
+            git(e.root, 'commit', '-m', f'Upgrade videobuilder {old} → {new}\n\n'
+                f'Version-kind: upgrade\nDirected-by: {author}', '--', relative)
+            commit = git(e.root, 'rev-parse', 'main')
+            e.project.last.pop(video, None)
+            if e.sync:
+                e.sync.after_commit()
+            e.render_first(video, commit)
+            return {'commit': commit, 'n': self.number(commit), 'from': old, 'to': new}
+
+
+def _repin(text, version):
+    """The requirements text with only the version of its videobuilder pin changed,
+    found the way workers.pinned_version finds it."""
+    lines = text.splitlines(keepends=True)
+    for i, line in enumerate(lines):
+        match = re.match(r'^\s*videobuilder\s*==\s*([0-9]+(?:\.[0-9]+){1,3})\s*(?:#.*)?$', line.rstrip('\r\n'), re.I)
+        if not match and 'videobuilder' in line.lower():
+            match = re.search(r'@v?([0-9]+(?:\.[0-9]+){1,3})(?:\b|$)', line)
+        if match:
+            lines[i] = line[:match.start(1)] + version + line[match.end(1):]
+            return ''.join(lines)
+    raise ValueError('no videobuilder pin to upgrade')
