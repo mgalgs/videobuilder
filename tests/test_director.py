@@ -253,6 +253,14 @@ class Director(TempProject):
         self.assertIn('shared with other videos; upgrade it by hand', refused['error'])
         self.assertEqual(git(self.root, 'rev-parse', 'main').strip(), main)
 
+    def test_upgrade_not_offered_at_the_floor(self):
+        from videobuilder import __version__
+        from videobuilder.versions import MIN_PIN
+        self._pin(f'videobuilder=={MIN_PIN}\n')
+        self.assertIsNone(self.get('/api/project')['videos'][0]['upgrade'])
+        if MIN_PIN != __version__:
+            self.assertEqual(self.post('/api/upgrade', {'video': 'promo/film'})[0], 200)
+
     def test_upgrade_waits_for_running_notes(self):
         self.editor.notes.backend = FakeBackend(delay=10)
         self.post('/api/notes', {'video': 'promo/film', 'text': 'Faster'})

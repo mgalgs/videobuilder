@@ -5,7 +5,8 @@ except `/api/name`, which is shared across the library. `video` is the id from
 `/api/project`. JSON is used for requests and responses except where noted.
 
 GET  /api/project                    project, backend, editor version and videos;
-                                     videos[].upgrade is {from,to} or null
+                                     videos[].upgrade is {from,to} for a pin below
+                                     versions.MIN_PIN, else null
 GET  /api/info?video=V               timeline, formats, edits and git state
 GET  /api/frame?video=V&frame=N&format=F&scale=S&overlay=1  PNG frame
 POST /api/roll {video,segment,until}  commit a cut edit

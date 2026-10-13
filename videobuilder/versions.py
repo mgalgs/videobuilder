@@ -9,6 +9,11 @@ from .notes import FINAL
 from .workers import pin_for, pinned_version
 
 
+# The director is offered an upgrade only below this pin. Raise it when a release
+# fixes rendering for videos already pinned; POST /api/upgrade still works above it.
+MIN_PIN = '0.1.23'
+
+
 class Refused(ValueError):
     """A request that cannot be done in the video's current state (409)."""
 
@@ -110,11 +115,14 @@ class Versions:
         return pin, old, __version__
 
     def upgrade_info(self, video):
+        """The chip's offer: only for an upgradable pin below MIN_PIN."""
         if self.editor.envs.mode != 'pinned':
             return None
         try:
             _, old, new = self.upgradable(video)
         except ValueError:
+            return None
+        if _numbers(old) >= _numbers(MIN_PIN):
             return None
         return {'from': old, 'to': new}
 
