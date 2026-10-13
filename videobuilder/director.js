@@ -989,8 +989,16 @@ $('message').onkeydown=e=> {
   }
   else if(e.key==='Enter'&&!e.shiftKey) {
     e.preventDefault();
-    addPending()
+    if(!$('message').value.trim()&&state.pending.length&&!state.files.length)sendPending();
+    else addPending()
   }
+};
+$('message').onpaste=e=> {
+  const files=[...e.clipboardData?.files||[]];
+  if(!files.length)return;
+  // Office apps put an image beside the text; keep the text pasting as usual.
+  if(!e.clipboardData.getData('text/plain'))e.preventDefault();
+  addFiles(files)
 };
 $('video-picker').onchange=e=>openVideo(e.target.value);
 $('version-list').onscroll=e=> {
