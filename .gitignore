@@ -4,6 +4,7 @@ build/
 dist/
 /out/
 *.mp4
+!examples/assets/*.mp4
 *.actual.png
 
 .venv/

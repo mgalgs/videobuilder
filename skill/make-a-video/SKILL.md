@@ -107,12 +107,6 @@ layout, images, views) with the traps each part hides.
 
 ## 4. Assets
 
-### 3D shots
-
-Build a ManimGX shot as `assets/name.mp4`, commit it, and draw frames with
-`vb.Clip`. Match its frame count to its storyboard segment. See
-`reference/3d.md` for the build command and GPU stop rule.
-
 - **Fonts**: vendor the font files into `assets/` *with their licence*.
   `python $SKILL/scripts/fontinfo.py --ofl /usr/share/fonts/*/*.[ot]tf`
   lists the OFL families on this machine, one line each (`--family NAME`
@@ -139,6 +133,9 @@ Build a ManimGX shot as `assets/name.mp4`, commit it, and draw frames with
   make a PIL image once at import and wrap it with `vb.Image.from_pil`. Seed
   any randomness. No network fetches at render time: anything downloaded is
   vendored first, with its licence.
+- **3D shots**: build a ManimGX shot to `assets/name.mp4`, commit it, and
+  draw its frames with `vb.Clip`. Match its frame count to its storyboard
+  segment. See `reference/3d.md` for the build command and the GPU stop rule.
 - Write `assets/README.md`: each file, where it came from, its licence
   (generated files: the command that made them, and "generated for this film").
 
