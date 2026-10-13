@@ -10,6 +10,8 @@ const state = {
   project: null,
   info: null,
   name: null,
+  user: null,
+  access: null,
   notes: [],
   versions: [],
   format: null,
@@ -281,16 +283,18 @@ function setPlayState(mode) {
 }
 function setView(view) {
   state.view=view;
-  for(const name of ['chat','versions','tune'])$(name+'-view').hidden=name!==view;
+  for(const name of ['chat','versions','tune','share'])$(name+'-view').hidden=name!==view;
   $('sheet-title').textContent= {
-    chat:'Builder chat',versions:'Versions',tune:'Fine tuning'
+    chat:'Builder chat',versions:'Versions',tune:'Fine tuning',share:'Share'
   }
   [view];
   $('tab-chat').classList.toggle('active',view==='chat');
   $('tab-versions').classList.toggle('active',view==='versions');
+  $('tab-share').classList.toggle('active',view==='share');
   $('panel').dataset.view=view;
   if(view==='tune')openTuning('phone-tune-body');
-  if(view==='versions')loadVersions()
+  if(view==='versions')loadVersions();
+  if(view==='share')loadAccess()
 }
 function openSheet(view) {
   setView(view);
@@ -814,8 +818,11 @@ async function init() {
   try {
     const [project,name]=await Promise.all([json('project'),fetch(libMode?'/api/name':'api/name').then(parseJSON)]);
     state.project=project;
+    state.user=project.user||null;
     state.name=name.name;
     updateName();
+    updateAccountBar();
+    if(state.user)loadAccess();
     const videos=project.videos||[];
     const picker=$('video-picker');
     for(const v of videos) {
@@ -931,11 +938,78 @@ async function jsonName(value) {
   return data
 }
 function updateName() {
+  if (state.user) {
+    $('director-name').hidden=true;
+    return
+  }
   $('director-name').replaceChildren();
   if (state.name) $('director-name').append('Directing as ', node('strong', null, state.name));
   else $('director-name').textContent='Set your name';
   $('director-name').setAttribute('aria-label', state.name ? 'Change your name' : 'Set your name');
 }
+function updateAccountBar() {
+  if (!state.user) {
+    $('account-bar').hidden=true;
+    return
+  }
+  $('account-name').textContent=state.user;
+  $('account-bar').hidden=false
+}
+$('account-signout').onclick=async()=> {
+  await fetch(libMode?'/api/logout':'api/logout', {
+    method:'POST',headers: {
+      'Content-Type':'application/json'
+    },body:'{}'
+  });
+  location.href='/login'
+};
+async function loadAccess() {
+  try {
+    state.access=await json('access');
+    renderAccess()
+  }
+  catch(e) {
+    $('share-error').textContent=e.message;
+    $('share-error').hidden=false
+  }
+}
+function renderAccess() {
+  const a=state.access;
+  if(!a)return;
+  $('share-owner').textContent='Owner: '+(a.owner||'(admin)');
+  $('share-list').replaceChildren();
+  for (const name of a.collaborators) {
+    const li=node('li','pending-item');
+    li.append(node('span','pending-text',name));
+    const remove=node('button','pending-remove','✕');
+    remove.setAttribute('aria-label','Remove '+name);
+    remove.onclick=()=>changeAccess('remove',name);
+    li.append(remove);
+    $('share-list').append(li)
+  }
+  $('tab-share').hidden=$('rail-share').hidden=!a.can_share;
+  $('share-username').closest('.composer-row').hidden=!a.can_share
+}
+async function changeAccess(action,username) {
+  $('share-error').hidden=true;
+  try {
+    state.access=await json('access',null, {
+      action,username
+    });
+    renderAccess();
+    if(action==='invite')$('share-username').value=''
+  }
+  catch(e) {
+    $('share-error').textContent=e.message;
+    $('share-error').hidden=false
+  }
+}
+$('share-invite').onclick=()=> {
+  const username=$('share-username').value.trim();
+  if(username)changeAccess('invite',username)
+};
+$('tab-share').onclick=()=>setView('share');
+$('rail-share').onclick=()=>openSheet('share');
 window.addEventListener('message',async e=> {
   if (e.origin!==location.origin || e.data?.type!=='videobuilder:edit' ||
       e.data.video!==state.video) return;

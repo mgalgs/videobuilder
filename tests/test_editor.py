@@ -245,7 +245,7 @@ class DirectorPageRoutes(API):
         paths = set(re.findall(r"(?:api|json|postJSON|getJSON)\('([a-z][a-z/-]*)'", js+tuning))
         expected = {'project','name','info','frame','video','notes','versions','versions/restore',
                     'attachments','video/retry','roll','copy','undo','draft','draft/info','draft/frame',
-                    'draft/accept','draft/drop','upgrade'}
+                    'draft/accept','draft/drop','upgrade','access'}
         # Dynamic attachment and draft actions have their own router patterns.
         self.assertTrue(paths - {'attachments/', 'draft/'} <= expected, paths - expected)
         router = (PKG / 'editor.py').read_text()

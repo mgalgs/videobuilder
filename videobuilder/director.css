@@ -146,6 +146,37 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible {
   color: white;
 }
 
+.account-bar {
+  flex: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 24px;
+  border-bottom: 1px solid #1f1f25;
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+
+.account-bar strong {
+  color: #fff;
+}
+
+.account-bar button {
+  min-height: 44px;
+  padding: 0 14px;
+  border: 1px solid #34343c;
+  border-radius: 18px;
+  background: #1d1d22;
+  color: #fff;
+}
+
+.share-row {
+  padding: 10px 16px 0;
+  color: var(--muted);
+}
+
 .layout {
   min-height: 0;
   flex: 1;

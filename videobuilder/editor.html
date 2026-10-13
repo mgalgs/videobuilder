@@ -30,6 +30,11 @@
     <button id="director-name" class="desktop-only" aria-label="Change your name">Directing as <strong>…</strong>
 </button>
   </header>
+  <div id="account-bar" class="account-bar" hidden>
+<span>Signed in as <strong id="account-name">
+</strong></span>
+<button id="account-signout">Sign out</button>
+</div>
   <main class="layout">
     <section class="watch" aria-label="Video player">
       <div class="player" id="player-box">
@@ -92,6 +97,21 @@
 </span>
 <span>Tune</span>
 </button>
+        <button id="rail-share" aria-label="Share this video" hidden>
+<span class="rail-icon">
+<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+<circle cx="18" cy="5" r="3">
+</circle>
+<circle cx="6" cy="12" r="3">
+</circle>
+<circle cx="18" cy="19" r="3">
+</circle>
+<path d="M8.6 10.6l6.8-3.8M8.6 13.4l6.8 3.8">
+</path>
+</svg>
+</span>
+<span>Share</span>
+</button>
         <a id="rail-save" aria-label="Download this version" download>
 <span class="rail-icon">
 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -151,6 +171,7 @@
       <div class="desktop-tabs desktop-only">
 <button id="tab-chat" class="active">Chat</button>
 <button id="tab-versions">Versions</button>
+<button id="tab-share" hidden>Share</button>
 </div>
       <div class="sheet-head phone-only">
 <div>
@@ -217,6 +238,19 @@
 <p>Optional direct edits. Drag a cut to retime it; edit a line of copy. Each edit saves a version.</p>
 <div id="phone-tune-body">
 </div>
+</div>
+      <div id="share-view" class="panel-view" hidden>
+<p class="versions-intro">Only you and anyone you invite can see this video.</p>
+<div id="share-owner" class="share-row">
+</div>
+<ul id="share-list" class="scroll-list">
+</ul>
+<div class="composer-row">
+<input id="share-username" placeholder="Username to invite" autocomplete="off">
+<button id="share-invite" class="accent">Invite</button>
+</div>
+<p id="share-error" class="composer-error" hidden>
+</p>
 </div>
     </aside>
   </main>
