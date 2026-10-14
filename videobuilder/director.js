@@ -666,7 +666,7 @@ async function loadMusicTracks(sourceId) {
     state.musicSourceId=sourceId;
     state.musicSource=data.source;
     state.musicTracks=data.tracks;
-    $('music-license').textContent=data.source.license;
+    $('music-license').textContent=data.source.name+' · '+data.source.license;
     renderMusicList()
   }
   catch(e) {
