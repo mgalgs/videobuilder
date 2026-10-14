@@ -204,6 +204,26 @@ CATALOG = (
          'Make part of the scene glow as a band of light passes over it'),
         ('cv.ctx path + even-odd fill_rule for the clip', 'cv.image(img, *box) for the dim and lit layers'),
         'skill/make-a-video/reference/api.md', 'hard-light-sweep'),
+    _entry(
+        'comic-halftone', 'Imagery and camera', 'Comic-book halftone',
+        'Dot-fill shading, thick ink outlines, a jittering burst callout.',
+        'A flat-colour shape shaded with a halftone dot fill, a thick ink outline, and a jittering starburst '
+        'callout with a short word -- the dot plate sits a couple of pixels off from the ink, the way an old '
+        'four-colour print misregisters its plates.',
+        ('Give this a comic-book look, dot shading and thick outlines', 'Add a jittering burst callout with a short word',
+         'Let the colour plate sit slightly off from the linework, like an old print'),
+        ('videobuilder.halftone_pattern(pitch, radius, angle=.., colour=..)', 'cv.arc(..., width=..)  # the thick outline'),
+        'skill/make-a-video/reference/api.md', 'comic-halftone'),
+    _entry(
+        'pixel-art-layer', 'Imagery and camera', 'Pixel-art layer',
+        'A scene rendered blocky, 8-bit style, with stepped motion.',
+        'A small scene -- sky, ground, a walking character, a HUD label -- is drawn at a fraction of the '
+        "frame's resolution and scaled back up with blocky nearest-neighbour filtering, its motion held two "
+        'frames at a time for an 8-bit, stop-motion feel; any text drawn into the layer pixelates with it.',
+        ('Render this as retro 8-bit pixel art', 'Make the motion choppier, like an old game, not smooth 30fps',
+         'Keep the on-screen text blocky and pixelated too, not crisp'),
+        ('cv.pixelated(factor)', 'stepped_n = (n // 2) * 2  # 15fps motion on a 30fps film'),
+        'skill/make-a-video/reference/api.md', 'pixel-art-layer'),
     # ---- Timing, sound and formats ----
     _entry(
         'beat-lock', 'Timing, sound and formats', 'Cuts locked to the music',
