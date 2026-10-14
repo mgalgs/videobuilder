@@ -913,6 +913,15 @@ async function uploadFiles(files) {
   }
   return out
 }
+// After a note joins the list, the empty input says how to send it.
+let hintTimer=null;
+function hintSendAgain() {
+  const input=$('message');
+  input.dataset.placeholder ??= input.placeholder;
+  input.placeholder='Hit Enter again to send to the builder';
+  clearTimeout(hintTimer);
+  hintTimer=setTimeout(()=>input.placeholder=input.dataset.placeholder, 5000)
+}
 async function addPending() {
   if(state.sending)return;
   const text=$('message').value.trim();
@@ -930,6 +939,7 @@ async function addPending() {
     savePending();
     renderPending();
     $('message').value='';
+    hintSendAgain();
     state.files=[];
     renderFiles();
     showError('')
