@@ -647,9 +647,9 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible {
   border: 0;
   background: none;
   color: #fff;
-  font-family: inherit;
-  font-size: inherit;
-  font-weight: 700;
+  font-family: system-ui,-apple-system,"Segoe UI",sans-serif;
+  font-size: 13px;
+  font-weight: 600;
   padding: 3px 0;
   min-height: 22px;
 }
