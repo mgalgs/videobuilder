@@ -156,7 +156,9 @@ class Editor:
     and the notes. One lock covers every film load and draw."""
 
     def __init__(self, root, state_dir=None, backend=None, poll=0.25, agent=None, allowed_hosts=(), host='127.0.0.1',
-                 unsandboxed_previews=False, envs=None, env_builder=None, sync_remote=None, environments=None, auto_land=None):
+                 unsandboxed_previews=False, envs=None, env_builder=None, sync_remote=None, environments=None,
+                 auto_land=None, capabilities_dir=None):
+        self.capabilities_dir = capabilities_dir
         self.root = os.path.abspath(root)
         cfg = read_config(self.root)
         state = state_dir or cfg.get('state_dir') or STATE_DIR
@@ -411,6 +413,29 @@ def make_handler(editor, hook=request_hook):
         def _json(self, code, obj):
             self._send(code, json.dumps(obj).encode(), 'application/json')
 
+        def _send_ranged(self, data, ctype, headers):
+            """`data` as a 200, or a byte-range response (206/416) honouring a
+            Range request header: iOS Safari refuses to play an MP4 with no
+            Range support."""
+            rang = self.headers.get('Range')
+            if not rang:
+                return self._send(200, data, ctype, headers)
+            m = re.fullmatch(r'bytes=(\d*)-(\d*)', rang)
+            if not m or (not m[1] and not m[2]):
+                return self._send(416, b'', ctype, {**headers, 'Content-Range': f'bytes */{len(data)}'})
+            if m[1]:
+                start = int(m[1])
+                end = int(m[2]) if m[2] else len(data) - 1
+            else:
+                count = int(m[2])
+                start = max(0, len(data) - count)
+                end = len(data) - 1
+            if start >= len(data) or end < start or (not m[1] and not count):
+                return self._send(416, b'', ctype, {**headers, 'Content-Range': f'bytes */{len(data)}'})
+            end = min(end, len(data) - 1)
+            return self._send(206, data[start:end + 1], ctype,
+                              {**headers, 'Content-Range': f'bytes {start}-{end}/{len(data)}'})
+
         def _same_origin(self):
             origin = self.headers.get('Origin')
             if origin and urlparse(origin).netloc != self.headers.get('Host'):
@@ -461,6 +486,8 @@ def make_handler(editor, hook=request_hook):
             """Whether an unauthenticated request should see the sign-in page rather
             than a JSON 401: a browser navigation (GET), not an API call."""
             if method != 'GET' or route.startswith('/api/'):
+                return False
+            if re.fullmatch(r'/capabilities/[a-z][a-z0-9-]*\.(mp4|jpg)', route):
                 return False
             m = re.fullmatch(r'/v/(.+?)(/api(?:/.*)?|/tuning\.html|/director\.(?:js|css)|/)?', route)
             if m and m.group(2) and m.group(2).startswith('/api'):
@@ -600,7 +627,7 @@ def make_handler(editor, hook=request_hook):
                         if library.accounts:
                             library.access.set_owner(result['name'], user, library.accounts)
                         return self._json(201, result)
-                    if route != '/healthz':
+                    if route != '/healthz' and route != '/capabilities' and not route.startswith('/capabilities/'):
                         match = re.fullmatch(r'/v/(.+?)(/api(?:/.*)?|/tuning.html|/director\.(?:js|css)|/)?', route)
                         if not match or not valid_name(match.group(1)):
                             raise HTTPError(404, 'not found')
@@ -681,21 +708,22 @@ def make_handler(editor, hook=request_hook):
                     return self._json(202, {'state': state['state'], 'position': state['position']})
                 data = editor.renders.path(video, sha, fmt).read_bytes()
                 headers = {'Accept-Ranges': 'bytes', 'ETag': f'"{sha}-{fmt}"'}
-                rang = self.headers.get('Range')
-                if rang:
-                    m = re.fullmatch(r'bytes=(\d*)-(\d*)', rang)
-                    if not m or (not m[1] and not m[2]):
-                        return self._send(416, b'', 'video/mp4', {**headers, 'Content-Range': f'bytes */{len(data)}'})
-                    if m[1]:
-                        start = int(m[1]); end = int(m[2]) if m[2] else len(data) - 1
-                    else:
-                        count = int(m[2]); start = max(0, len(data) - count); end = len(data) - 1
-                    if start >= len(data) or end < start or (not m[1] and not count):
-                        return self._send(416, b'', 'video/mp4', {**headers, 'Content-Range': f'bytes */{len(data)}'})
-                    end = min(end, len(data) - 1)
-                    headers['Content-Range'] = f'bytes {start}-{end}/{len(data)}'
-                    return self._send(206, data[start:end+1], 'video/mp4', headers)
-                return self._send(200, data, 'video/mp4', headers)
+                return self._send_ranged(data, 'video/mp4', headers)
+            if route == '/capabilities':
+                from . import __version__, capabilities
+                return self._send(200, capabilities.page_html(editor.capabilities_dir, __version__),
+                                  'text/html; charset=utf-8')
+            m = re.fullmatch(r'/capabilities/([a-z][a-z0-9-]*)\.(mp4|jpg)', route)
+            if m:
+                from . import capabilities
+                cap_id, kind = m.group(1), m.group(2)
+                path = capabilities.clip_file(editor.capabilities_dir, cap_id, kind)
+                if path is None or not os.path.isfile(path):
+                    raise HTTPError(404, 'capability clip not built')
+                data = open(path, 'rb').read()
+                if kind == 'mp4':
+                    return self._send_ranged(data, 'video/mp4', {'Accept-Ranges': 'bytes'})
+                return self._send(200, data, 'image/jpeg')
             m = re.fullmatch(r'/api/attachments/([0-9a-f]+)', route)
             if m:
                 try:
@@ -809,9 +837,11 @@ def _ticker(tick, stop):
 
 
 def serve(root, host='127.0.0.1', port=8100, state_dir=None, open_browser=False, backend=None,
-          hook=request_hook, agent=None, allowed_hosts=(), unsandboxed_previews=False, envs=None, sync_remote=None):
+          hook=request_hook, agent=None, allowed_hosts=(), unsandboxed_previews=False, envs=None, sync_remote=None,
+          capabilities_dir=None):
     editor = Editor(root, state_dir=state_dir, backend=backend, agent=agent, allowed_hosts=allowed_hosts, host=host,
-                    unsandboxed_previews=unsandboxed_previews, envs=envs, sync_remote=sync_remote)
+                    unsandboxed_previews=unsandboxed_previews, envs=envs, sync_remote=sync_remote,
+                    capabilities_dir=capabilities_dir)
     httpd = ThreadingHTTPServer((host, port), make_handler(editor, hook))
     httpd.daemon_threads = True
     stop_sync = threading.Event()
@@ -846,11 +876,11 @@ def serve(root, host='127.0.0.1', port=8100, state_dir=None, open_browser=False,
 
 def serve_library(root, host='127.0.0.1', port=8100, checkouts=None, state_dir=None, open_browser=False,
                   hook=request_hook, agent=None, allowed_hosts=(), unsandboxed_previews=False, envs=None,
-                  admins=()):
+                  admins=(), capabilities_dir=None):
     from .library import Library
     library = Library(root, checkouts=checkouts, state_dir=state_dir, host=host, agent=agent,
                       allowed_hosts=allowed_hosts, unsandboxed_previews=unsandboxed_previews, envs=envs,
-                      admins=admins)
+                      admins=admins, capabilities_dir=capabilities_dir)
     httpd = ThreadingHTTPServer((host, port), make_handler(library, hook))
     httpd.daemon_threads = True
     stop = threading.Event()

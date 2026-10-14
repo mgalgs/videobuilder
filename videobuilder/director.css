@@ -1092,13 +1092,16 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible {
     color: var(--muted);
   }
 
-  #sheet-close,#sheet-full {
+  #sheet-close,#sheet-full,#sheet-capabilities {
     width: 44px;
     height: 44px;
+    display: grid;
+    place-items: center;
     background: none;
     border: 0;
     color: white;
     font-size: 28px;
+    flex: none;
   }
 
   .scroll-list {

@@ -2,6 +2,7 @@
 set -eu
 : "${LIBRARY_DIR:=/var/tmp/claude-scratch/library}"
 : "${CHECKOUTS_DIR:=/home/editor/src}"
+: "${CAPABILITIES_DIR:=/opt/videobuilder-capabilities}"
 : "${GIT_AUTHOR_NAME:=Video Editor}"
 : "${GIT_AUTHOR_EMAIL:=editor@example.com}"
 mkdir -p "$LIBRARY_DIR" "$CHECKOUTS_DIR"
@@ -16,4 +17,8 @@ if [ -f /run/forge/id_ed25519 ] && [ -f /run/forge/known_hosts ]; then
 fi
 git config --global user.name "$GIT_AUTHOR_NAME"
 git config --global user.email "$GIT_AUTHOR_EMAIL"
+if [ -d "$CAPABILITIES_DIR" ]; then
+    exec python3 -m videobuilder editor --library "$LIBRARY_DIR" --checkouts "$CHECKOUTS_DIR" \
+        --capabilities-dir "$CAPABILITIES_DIR" "$@"
+fi
 exec python3 -m videobuilder editor --library "$LIBRARY_DIR" --checkouts "$CHECKOUTS_DIR" "$@"

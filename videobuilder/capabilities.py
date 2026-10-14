@@ -8,6 +8,7 @@ reads capability text directly.
 
     python -m videobuilder capabilities build --out DIR [--only ID]
 """
+import json
 import os
 
 REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -299,3 +300,194 @@ def build(out_dir, only=None, jobs=None, crf=30, log=None):
         _save_poster(poster_cv, os.path.join(out_dir, entry['id'] + '.jpg'))
         results.append({'id': entry['id'], 'seconds': _time.time() - t0, 'bytes': os.path.getsize(out_mp4)})
     return results
+
+
+# ---- serving: /capabilities, /capabilities/<id>.mp4, /capabilities/<id>.jpg ----
+
+def clip_file(capabilities_dir, id, kind):
+    """The clip ('mp4') or poster ('jpg') path for a catalog id, or None for an
+    unknown id (checked by membership in the fixed catalog, never built from
+    the request string directly) or a dir that isn't configured."""
+    if capabilities_dir is None or id not in _BY_ID:
+        return None
+    return os.path.join(capabilities_dir, f'{id}.{kind}')
+
+
+def available_ids(capabilities_dir):
+    if capabilities_dir is None:
+        return frozenset()
+    return frozenset(e['id'] for e in CATALOG if os.path.exists(clip_file(capabilities_dir, e['id'], 'mp4')))
+
+
+def _esc(s):
+    return (s.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;').replace('"', '&quot;'))
+
+
+_PAGE_STYLE = """
+body{font:16px/1.5 system-ui,sans-serif;background:#181b20;color:#eee;margin:0}
+a{color:#88cafa}
+header{display:flex;align-items:center;gap:14px;padding:18px 24px;border-bottom:1px solid #26262c;
+  position:sticky;top:0;background:#181b20;z-index:2}
+header h1{font-size:20px;margin:0}
+header .version{color:#a9a9b2;font-size:13px}
+header .back{color:#a9a9b2;text-decoration:none;font-weight:600}
+main{max-width:1100px;margin:0 auto;padding:8px 24px 48px}
+h2{font-size:15px;text-transform:uppercase;letter-spacing:.04em;color:#a9a9b2;margin:36px 0 14px}
+.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px}
+@media (max-width:1000px){.grid{grid-template-columns:repeat(3,1fr)}}
+@media (max-width:700px){.grid{grid-template-columns:repeat(2,1fr)}main{padding:8px 14px 48px}}
+.card{display:block;width:100%;text-align:left;background:#141417;border:1px solid #26262c;border-radius:12px;
+  padding:0;overflow:hidden;cursor:pointer;color:inherit;font:inherit;min-height:44px}
+.card:hover,.card:focus-visible{border-color:#e5483b;outline:none}
+.card .thumb{width:100%;aspect-ratio:1/1;background:#0d0d10;display:flex;align-items:center;justify-content:center;
+  color:#5a5d66;font-size:13px;text-align:center;overflow:hidden}
+.card .thumb img{width:100%;height:100%;object-fit:cover;display:block}
+.card .meta{padding:10px 12px 14px}
+.card .meta strong{display:block;font-size:14px;margin-bottom:4px}
+.card .meta span{display:block;font-size:12.5px;color:#a9a9b2}
+#modal{position:fixed;inset:0;background:#000c;display:flex;align-items:center;justify-content:center;
+  padding:24px;z-index:10}
+#modal[hidden]{display:none}
+#modal .box{background:#141417;border-radius:16px;max-width:560px;width:100%;max-height:92vh;overflow:auto;
+  position:relative}
+#modal video{width:100%;aspect-ratio:1/1;background:#000;display:block}
+#modal video[hidden]{display:none}
+#modal .placeholder{width:100%;aspect-ratio:1/1;background:#0d0d10;display:flex;align-items:center;
+  justify-content:center;color:#5a5d66}
+#modal .placeholder[hidden]{display:none}
+#modal .body{padding:20px 22px 26px}
+#modal h3{margin:0 0 6px;font-size:20px}
+#modal .cat{color:#a9a9b2;font-size:13px;margin:0 0 14px}
+#modal .desc{margin:0 0 18px;color:#dcdcdc}
+#modal .prompts{background:#1b1e24;border-radius:10px;padding:14px 16px;margin:0}
+#modal .prompts p{margin:0 0 8px;font-weight:600;font-size:13px;color:#a9a9b2;text-transform:uppercase;
+  letter-spacing:.03em}
+#modal .prompts ul{margin:0;padding-left:20px}
+#modal .prompts li{margin:4px 0;color:#eee}
+#modal .close{position:absolute;top:10px;right:10px;width:36px;height:36px;border-radius:50%;border:0;
+  background:#0006;color:#fff;font-size:18px;cursor:pointer;z-index:1}
+#modal .unmute{position:absolute;bottom:10px;right:10px;min-height:36px;padding:6px 12px;border-radius:8px;
+  border:1px solid #fff5;background:#000a;color:#fff;cursor:pointer}
+@media (max-width:700px){
+  #modal{padding:0}
+  #modal .box{max-width:none;width:100%;height:100%;max-height:none;border-radius:0}
+  #modal video,#modal .placeholder{aspect-ratio:auto;height:50vh}
+}
+"""
+
+_PAGE_SCRIPT = """
+(function(){
+  var data = JSON.parse(document.getElementById('capabilities-data').textContent);
+  var byId = {};
+  data.forEach(function(e){byId[e.id] = e});
+  var modal = document.getElementById('modal');
+  var video = document.getElementById('modal-video');
+  var placeholder = document.getElementById('modal-placeholder');
+  var unmuteBtn = document.getElementById('modal-unmute');
+  var opener = null;
+  function openCard(id){
+    var e = byId[id];
+    if(!e) return;
+    opener = document.querySelector('[data-card="' + id + '"]');
+    document.getElementById('modal-title').textContent = e.title;
+    document.getElementById('modal-cat').textContent = e.category;
+    document.getElementById('modal-desc').textContent = e.description;
+    var ul = document.getElementById('modal-prompts');
+    ul.innerHTML = '';
+    e.prompts.forEach(function(p){
+      var li = document.createElement('li');
+      li.textContent = p;
+      ul.appendChild(li);
+    });
+    if(e.available){
+      video.src = '/capabilities/' + id + '.mp4';
+      video.poster = '/capabilities/' + id + '.jpg';
+      video.muted = true;
+      video.hidden = false;
+      placeholder.hidden = true;
+      unmuteBtn.hidden = !e.unmute;
+      unmuteBtn.textContent = 'Unmute';
+      video.play().catch(function(){});
+    } else {
+      video.hidden = true;
+      video.removeAttribute('src');
+      placeholder.hidden = false;
+      unmuteBtn.hidden = true;
+    }
+    modal.hidden = false;
+    document.getElementById('modal-close').focus();
+  }
+  function closeModal(){
+    if(modal.hidden) return;
+    modal.hidden = true;
+    video.pause();
+    video.removeAttribute('src');
+    video.load();
+    if(opener) opener.focus();
+  }
+  document.querySelectorAll('[data-card]').forEach(function(btn){
+    btn.addEventListener('click', function(){openCard(btn.getAttribute('data-card'))});
+  });
+  document.getElementById('modal-close').addEventListener('click', closeModal);
+  modal.addEventListener('click', function(e){if(e.target === modal) closeModal()});
+  unmuteBtn.addEventListener('click', function(){
+    video.muted = !video.muted;
+    unmuteBtn.textContent = video.muted ? 'Unmute' : 'Mute';
+  });
+  document.addEventListener('keydown', function(e){
+    if(e.key === 'Escape') closeModal();
+  });
+})();
+"""
+
+
+def page_html(capabilities_dir, version):
+    """The /capabilities page: a card grid grouped by category, generated from
+    CATALOG, plus a modal that plays the clip and shows the longer text. Cards
+    for a capability with no built clip (`capabilities_dir` unset, or missing
+    that id's mp4) show a quiet "clip not built" placeholder instead of a
+    player; the page still lists every capability's text either way."""
+    built = available_ids(capabilities_dir)
+    cards = []
+    for category in categories():
+        cards.append(f'<h2>{_esc(category)}</h2><div class="grid">')
+        for e in CATALOG:
+            if e['category'] != category:
+                continue
+            thumb = (f'<img src="/capabilities/{e["id"]}.jpg" alt="" loading="lazy">' if e['id'] in built
+                    else '<span>clip not built</span>')
+            cards.append(
+                f'<button class="card" type="button" data-card="{_esc(e["id"])}">'
+                f'<span class="thumb">{thumb}</span>'
+                f'<span class="meta"><strong>{_esc(e["title"])}</strong><span>{_esc(e["card"])}</span></span>'
+                f'</button>')
+        cards.append('</div>')
+    data = [{'id': e['id'], 'title': e['title'], 'category': e['category'], 'description': e['description'],
+            'prompts': list(e['prompts']), 'available': e['id'] in built, 'unmute': e['id'] == 'beat-lock'}
+           for e in CATALOG]
+    body = ''.join(cards)
+    html = (
+        '<!doctype html><html lang="en"><head><meta charset="utf-8">'
+        '<title>Capabilities · videobuilder</title>'
+        '<meta name="viewport" content="width=device-width, initial-scale=1">'
+        f'<style>{_PAGE_STYLE}</style></head><body>'
+        '<header><a class="back" href="/" aria-label="Back">&larr;</a>'
+        '<h1>Capabilities</h1>'
+        f'<span class="version">videobuilder v{_esc(version)}</span></header>'
+        f'<main>{body}</main>'
+        '<div id="modal" hidden role="dialog" aria-modal="true" aria-labelledby="modal-title">'
+        '<div class="box">'
+        '<button class="close" id="modal-close" aria-label="Close">&times;</button>'
+        '<video id="modal-video" autoplay loop muted playsinline hidden></video>'
+        '<div class="placeholder" id="modal-placeholder"><span>clip not built</span></div>'
+        '<button class="unmute" id="modal-unmute" hidden>Unmute</button>'
+        '<div class="body">'
+        '<h3 id="modal-title"></h3><p class="cat" id="modal-cat"></p>'
+        '<p class="desc" id="modal-desc"></p>'
+        '<div class="prompts"><p>What to tell the builder</p><ul id="modal-prompts"></ul></div>'
+        '</div></div></div>'
+        f'<script id="capabilities-data" type="application/json">{json.dumps(data)}</script>'
+        f'<script>{_PAGE_SCRIPT}</script>'
+        '</body></html>'
+    )
+    return html.encode()

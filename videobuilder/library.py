@@ -64,7 +64,8 @@ def run(*argv, cwd=None, input=None, env=None):
 
 class Library:
     def __init__(self, root, checkouts=None, state_dir=None, host='127.0.0.1', allowed_hosts=(),
-                 backend=None, agent=None, unsandboxed_previews=False, envs=None, admins=()):
+                 backend=None, agent=None, unsandboxed_previews=False, envs=None, admins=(), capabilities_dir=None):
+        self.capabilities_dir = capabilities_dir
         self.root = Path(root).resolve()
         self.repos = self.root / 'repos'
         self.checkouts = Path(checkouts or self.root / 'checkouts').resolve()
@@ -197,7 +198,9 @@ class Library:
                 '.account-bar button{min-height:44px;padding:.5rem 1rem;border-radius:6px;border:1px solid #333;'
                 'background:#20242b;color:#eee}'
                 '@media (max-width:700px){body{margin:2rem auto}}</style>'
-                '</head><body>' + account_bar + '<h1>Video library</h1>' + body + script +
+                '</head><body>' + account_bar +
+                '<h1>Video library <a href="/capabilities" style="font-size:.5em">Capabilities</a></h1>' +
+                body + script +
                 '</body></html>').encode()
 
     def tick(self):
