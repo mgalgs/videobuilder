@@ -6,6 +6,7 @@ area (ascent + descent) is centred in it.
 """
 import os
 import logging
+from contextlib import contextmanager
 from dataclasses import dataclass
 from functools import lru_cache
 
@@ -110,6 +111,20 @@ def _font_options():
 
 _OPTIONS = _font_options()
 _scratch = cairo.Context(cairo.ImageSurface(cairo.FORMAT_ARGB32, 1, 1))
+
+
+@contextmanager
+def antialias(mode):
+    """All text drawn within the block renders with cairo antialias `mode`
+    instead of the usual `ANTIALIAS_GRAY` -- for a pixel-art layer, where
+    glyphs must come out as hard-edged blocks like everything else in it,
+    not smoothed."""
+    prev = _OPTIONS.get_antialias()
+    _OPTIONS.set_antialias(mode)
+    try:
+        yield
+    finally:
+        _OPTIONS.set_antialias(prev)
 
 
 def _layout(ctx, text, font):

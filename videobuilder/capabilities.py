@@ -212,7 +212,7 @@ CATALOG = (
         'four-colour print misregisters its plates.',
         ('Give this a comic-book look, dot shading and thick outlines', 'Add a jittering burst callout with a short word',
          'Let the colour plate sit slightly off from the linework, like an old print'),
-        ('videobuilder.halftone_pattern(pitch, radius, angle=.., colour=..)', 'cv.arc(..., width=..)  # the thick outline'),
+        ('videobuilder.halftone_pattern(pitch, radius, angle=.., color=..)', 'cv.arc(..., width=..)  # the thick outline'),
         'skill/make-a-video/reference/api.md', 'comic-halftone'),
     _entry(
         'pixel-art-layer', 'Imagery and camera', 'Pixel-art layer',

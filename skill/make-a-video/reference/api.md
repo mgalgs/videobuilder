@@ -73,7 +73,7 @@ cv.ctx                                           # raw cairo context, for paths,
 vb.rgba(colour)                                  # -> cairo floats for cv.ctx.set_source_rgba(*...)
 with cv.pixelated(8) as px:                      # body draws into px at 1/8 resolution,
     px.rect(...); text.draw(px, ...)             # painted back nearest-neighbour: blocky pixel art
-ctx.set_source(vb.halftone_pattern(14, 5, angle=0.4, colour='#000'))   # a repeating dot fill
+ctx.set_source(vb.halftone_pattern(14, 5, angle=0.4, color='#000'))   # a repeating dot fill
 ctx.paint()                                      # (a cairo pattern; use within a clip to fill a shape)
 ```
 
@@ -82,7 +82,7 @@ ctx.paint()                                      # (a cairo pattern; use within 
   resolution over the region (default the whole frame) and painted back with
   nearest-neighbour filtering. Any text or image drawn into it pixelates too. A film
   that never calls it renders exactly as before.
-- `vb.halftone_pattern(pitch, radius, angle=0, colour='#000')`: a cairo pattern of
+- `vb.halftone_pattern(pitch, radius, angle=0, color='#000')`: a cairo pattern of
   repeating dots (a Ben-Day halftone fill), `pitch` px between centres. There is no
   image-to-halftone conversion, only this generated dot fill.
 

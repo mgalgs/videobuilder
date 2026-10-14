@@ -23,7 +23,7 @@ from videobuilder import Box, paths, text  # noqa: E402
 
 LOOP = True
 FPS = 30
-START, TAIL = 6, 6
+START, TAIL = 4, 4
 
 BOX_W, BOX_H = 230, 150
 Y_TOP = 380
@@ -48,27 +48,30 @@ ARROW1_HEAD = [(BOX2_X - 18, MID_Y - 12), (BOX2_X + 3, MID_Y), (BOX2_X - 18, MID
 ARROW2_SHAFT = [(BOX2_X + BOX_W, MID_Y), (BOX3_X, MID_Y)]
 ARROW2_HEAD = [(BOX3_X - 18, MID_Y - 12), (BOX3_X + 3, MID_Y), (BOX3_X - 18, MID_Y + 12)]
 
-LABEL_F = _kit.font(22, 650)
+LABEL_F = _kit.font(44, 650)
 
 BANDS = (
-    dict(name='box1', dur=20, label=('Input', BOX1_X, Y_TOP + BOX_H + 26),
+    dict(name='box1', dur=9, label=('Input', BOX1_X, Y_TOP + BOX_H + 26),
          strokes=(('box1', BOX1, True), ('icon1', ICON1, False))),
-    dict(name='arrow1', dur=14, label=None,
+    dict(name='arrow1', dur=6, label=None,
          strokes=(('arrow1-shaft', ARROW1_SHAFT, False), ('arrow1-head', ARROW1_HEAD, False))),
-    dict(name='box2', dur=20, label=('Process', BOX2_X, Y_TOP + BOX_H + 26),
+    dict(name='box2', dur=9, label=('Process', BOX2_X, Y_TOP + BOX_H + 26),
          strokes=(('box2', BOX2, True),)),
-    dict(name='arrow2', dur=14, label=None,
+    dict(name='arrow2', dur=6, label=None,
          strokes=(('arrow2-shaft', ARROW2_SHAFT, False), ('arrow2-head', ARROW2_HEAD, False))),
-    dict(name='box3', dur=20, label=('Done', BOX3_X, Y_TOP + BOX_H + 26),
+    dict(name='box3', dur=9, label=('Done', BOX3_X, Y_TOP + BOX_H + 26),
          strokes=(('box3', BOX3, True), ('icon2', ICON2, False))),
-    dict(name='pullback', dur=20, label=None, strokes=()),
+    dict(name='pullback', dur=9, label=None, strokes=()),
 )
 CUM = [0]
 for _b in BANDS:
     CUM.append(CUM[-1] + _b['dur'])
 FORWARD_TOTAL = CUM[-1]
-HOLD = 30
+HOLD = 12
 TOTAL = START + FORWARD_TOTAL + HOLD + FORWARD_TOTAL + TAIL
+
+# The box labels sit inside the diagram's own content area by construction.
+OVERLAP_OK = {('diagram', 'label-box1'), ('diagram', 'label-box2'), ('diagram', 'label-box3')}
 
 # Hand jitter, deterministic per stroke, baked in once at import: every
 # frame that draws a stroke draws the same wobble, not a new one.
@@ -146,15 +149,31 @@ def draw(n, cv):
                 continue
             frac = 1.0 if i < band_i else local
             for name, _, _ in b['strokes']:
+                # reveal() already appends the closing point when frac reaches 1
+                # and closed=True; stroking it as open avoids a chord back to the
+                # start corner while the stroke is still only partly drawn on.
                 revealed = paths.reveal(JITTERED[name], frac, closed=CLOSED[name])
-                paths.draw(cv, revealed, _kit.INK, width=6, closed=CLOSED[name])
+                paths.draw(cv, revealed, _kit.INK, width=6, closed=False)
             if b['label']:
                 word, lx, ly = b['label']
                 label_p = vb.clamp01((frac - 0.6) / 0.4)
                 if i < band_i:
                     label_p = 1.0
                 if label_p > 0.01:
-                    text.draw(cv, [word], LABEL_F, lx, ly, _kit.ACCENT, alpha=label_p)
+                    local_box = text.draw(cv, [word], LABEL_F, lx, ly, _kit.ACCENT, alpha=label_p)
+                    # The tracking camera can leave an earlier band's label outside
+                    # the frame while it follows a later stroke; only mark it when
+                    # it actually lands on screen, so checks don't flag content
+                    # nobody can see.
+                    corners = [(local_box.x, local_box.y), (local_box.right, local_box.y),
+                               (local_box.x, local_box.bottom), (local_box.right, local_box.bottom)]
+                    screen_pts = [(content.cx + (wx - cam[0]) * cam[2], content.cy + (wy - cam[1]) * cam[2])
+                                  for wx, wy in corners]
+                    sx0, sy0 = min(p[0] for p in screen_pts), min(p[1] for p in screen_pts)
+                    sx1, sy1 = max(p[0] for p in screen_pts), max(p[1] for p in screen_pts)
+                    screen_box = Box(sx0, sy0, sx1 - sx0, sy1 - sy0)
+                    if screen_box.intersects(Box.of(cv)):
+                        cv.mark(f"label-{b['name']}", *local_box)
 
 
 FILM = vb.Film(draw=draw, fps=FPS, frames=TOTAL, formats=(_kit.FORMAT,), background=_kit.BG,

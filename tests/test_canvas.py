@@ -1,3 +1,4 @@
+import hashlib
 import unittest
 
 import videobuilder as vb
@@ -94,11 +95,15 @@ class Pixelated(unittest.TestCase):
             self.assertEqual((sub.width, sub.height), (80, 80))
 
     def test_a_film_not_using_it_is_unchanged(self):
+        """Pinned against a hash taken before `pixelated` existed, not just
+        against a second canvas drawn with the identical calls -- that would
+        pass even if both outputs had drifted together."""
         cv = Canvas(100, 100, '#000')
         cv.rect(10, 10, 40, 40, '#fff')
-        other = Canvas(100, 100, '#000')
-        other.rect(10, 10, 40, 40, '#fff')
-        self.assertEqual(cv.bgra(), other.bgra())
+        cv.outline(5, 5, 90, 90, '#0f0', width=3)
+        cv.line(0, 50, 100, 50, '#f00', width=2)
+        digest = hashlib.sha256(cv.bgra()).hexdigest()
+        self.assertEqual(digest, 'afa7d22efb28ca5e390dd0c7f0ebe08cc51237ef7fcaafdccb061d924fc78412')
 
 
 class Halftone(unittest.TestCase):

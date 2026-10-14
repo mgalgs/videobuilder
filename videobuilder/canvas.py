@@ -357,9 +357,17 @@ class Canvas:
         not be a whole number."""
         w = self.width if w is None else w
         h = self.height if h is None else h
-        sub = Canvas(w, h, background=background, scale=1.0 / factor, format=self.format)
+        # Oversize the sub-canvas to a whole number of device pixels (ceil, not
+        # round) so it fully covers (w, h) after scaling back up -- a plain
+        # round can land short, leaving an unpainted strip at the right/bottom
+        # edge when w/factor or h/factor isn't a whole number.
+        from . import text as _text  # deferred: text imports from this module
+        px_w, px_h = math.ceil(w / factor), math.ceil(h / factor)
+        sub = Canvas(px_w * factor, px_h * factor, background=background, scale=1.0 / factor, format=self.format)
+        sub.ctx.set_antialias(cairo.ANTIALIAS_NONE)
         try:
-            yield sub
+            with _text.antialias(cairo.ANTIALIAS_NONE):
+                yield sub
         finally:
             sub.surface.flush()
             c = self.ctx
@@ -368,7 +376,8 @@ class Canvas:
             c.scale(factor, factor)
             c.set_source_surface(sub.surface, 0, 0)
             c.get_source().set_filter(cairo.FILTER_NEAREST)
-            c.rectangle(0, 0, sub.surface.get_width(), sub.surface.get_height())
+            # Clip to the requested region, not the (possibly oversized) sub-canvas.
+            c.rectangle(0, 0, w / factor, h / factor)
             c.clip()
             c.paint()
             c.restore()

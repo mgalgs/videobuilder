@@ -340,7 +340,7 @@ What videobuilder can already do, with a worked example for each. Reach for one 
 - "Let the colour plate sit slightly off from the linework, like an old print"
 
 **How to build it:**
-- `videobuilder.halftone_pattern(pitch, radius, angle=.., colour=..)`
+- `videobuilder.halftone_pattern(pitch, radius, angle=.., color=..)`
 - `cv.arc(..., width=..)  # the thick outline`
 - Read `skill/make-a-video/reference/api.md`.
 

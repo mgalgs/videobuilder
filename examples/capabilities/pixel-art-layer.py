@@ -27,7 +27,7 @@ from videobuilder import Box, text  # noqa: E402
 LOOP = True
 FPS = 30
 STEP = 2            # hold each pose this many 30fps frames -> 15fps motion
-CYCLE_STEPS = 16     # poses in one walk cycle
+CYCLE_STEPS = 36     # poses in one walk cycle
 CYCLE = CYCLE_STEPS * STEP
 PERIOD = CYCLE
 

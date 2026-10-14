@@ -21,11 +21,11 @@ from videobuilder import Box, paths, text  # noqa: E402
 LOOP = True
 FPS = 30
 AXES_HOLD = 6     # frames of empty axes before the lines start
-DRAW = 44         # frames for both lines to draw on
+DRAW = 36         # frames for both lines to draw on
 CALLOUT = 20      # frames for the callout to animate in
-HOLD = 26         # frames holding the finished, called-out chart
+HOLD = 20         # frames holding the finished, called-out chart
 RETRACT_CALLOUT = 10
-RETRACT_LINES = 26
+RETRACT_LINES = 20
 TAIL = 6          # rest frames on empty axes again
 
 T_DRAW = AXES_HOLD + DRAW
@@ -44,11 +44,14 @@ WEEKS = ('W1', 'W2', 'W3', 'W4', 'W5', 'W6')
 PLAN = (1.0, 1.3, 1.5, 1.7, 1.8, 2.0)
 ACTUAL = (1.0, 1.4, 1.9, 2.3, 2.9, 3.6)
 AXIS_MAX = 4.0
-HERO_LABEL = '3.6x plan'
+HERO_LABEL = f'{ACTUAL[-1] / PLAN[-1]:.1f}x plan'
+LABEL_WEEK = 4  # W5: the two lines are well separated here, clear of the W6 callout
 
 # The two series share one plot area by construction, so their bounding
-# boxes overlap; the dot sits on the hero line it calls out.
-OVERLAP_OK = {('plan-line', 'hero-line'), ('hero-line', 'callout-dot'), ('plan-line', 'callout-dot')}
+# boxes overlap; the dot sits on the hero line it calls out, and the
+# direct series labels sit over both lines by the same construction.
+OVERLAP_OK = {('plan-line', 'hero-line'), ('hero-line', 'callout-dot'), ('plan-line', 'callout-dot'),
+              ('plan-line', 'plan-label'), ('hero-line', 'plan-label'), ('hero-line', 'actual-label')}
 
 
 def bbox(points):
@@ -107,14 +110,23 @@ def draw(n, cv):
         cv.mark('plan-line', *bbox(plan_rev))
         cv.mark('hero-line', *bbox(hero_rev))
 
+        # Direct labels on each line -- colour-blind safety: the two series
+        # must not be told apart by grey-vs-accent hue alone.
+        series_label_p = vb.clamp01((draw_frac - 0.75) / 0.25)
+        if series_label_p > 0.01:
+            px, py = plan_pts[LABEL_WEEK]
+            hx, hy = hero_pts[LABEL_WEEK]
+            _kit.text_marked(cv, 'plan-label', ['Plan'], CAT_F, px - 18, py - 28, _kit.MUTED, alpha=series_label_p)
+            _kit.text_marked(cv, 'actual-label', ['Actual'], CAT_F, hx - 20, hy - 28, _kit.ACCENT, alpha=series_label_p)
+
     if n < T_DRAW:
         callout_p = 0.0
     elif n < T_CALLOUT:
         callout_p = vb.interpolate(n, [T_DRAW, T_CALLOUT], [0, 1], ease=vb.ease_out_back)
-    elif n < T_RC:
+    elif n < T_HOLD:
         callout_p = 1.0
-    elif n < T_HOLD + RETRACT_CALLOUT:
-        callout_p = vb.interpolate(n, [T_HOLD, T_HOLD + RETRACT_CALLOUT], [1, 0], ease=vb.ease_in_expo)
+    elif n < T_RC:
+        callout_p = vb.interpolate(n, [T_HOLD, T_RC], [1, 0], ease=vb.ease_in_expo)
     else:
         callout_p = 0.0
 
