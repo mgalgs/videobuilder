@@ -92,6 +92,7 @@ class Notes(unittest.TestCase):
         md = (store.session_dir('promo/film') / (note['id'] + '.md')).read_text()
         self.assertIn('ask the director 1 to 3 short questions', md)
         self.assertNotIn('Do not ask clarifying questions', md)
+        self.assertIn('unless you are asking clarifying questions', md)  # no Summary line conflict
 
         reply = 'Quick check before building:\n\n```questions\n' + json.dumps(
             {'questions': [{'text': 'Light or dark logo?', 'choices': ['Light', 'Dark']}]}) + '\n```\n'
@@ -102,6 +103,8 @@ class Notes(unittest.TestCase):
         md2 = (store.session_dir('promo/film') / (followup['id'] + '.md')).read_text()
         self.assertIn('Do not ask clarifying questions', md2)
         self.assertNotIn('ask the director 1 to 3 short questions', md2)
+        self.assertIn('End your reply with Summary: <one line>.', md2)
+        self.assertNotIn('unless you are asking clarifying questions', md2)
 
     def test_a_no_questions_note_never_shows_a_stray_block(self):
         # A backend that ignores the no-questions instruction must not leak the raw
@@ -152,6 +155,15 @@ class Questions(unittest.TestCase):
     def test_a_missing_block_falls_back_to_an_ordinary_reply(self):
         self.assertIsNone(parse_questions('Just a plain reply, no questions here.'))
         self.assertIsNone(parse_questions(None))
+
+    def test_trailing_text_after_the_block_falls_back_to_an_ordinary_reply(self):
+        # The note file tells an asking builder to end with the block and skip the
+        # Summary line (see notes.py); a reply that appends one anyway is malformed,
+        # not a questions reply with extra trailing text.
+        reply = ('Quick check:\n\n```questions\n' + json.dumps(
+            {'questions': [{'text': 'Light or dark logo?', 'choices': ['Light', 'Dark']}]}) +
+            '\n```\n\nSummary: asked about the logo.')
+        self.assertIsNone(parse_questions(reply))
 
 
 if __name__ == '__main__':

@@ -21,8 +21,11 @@ must be idempotent by note id to tolerate a crash before saving the handle.
 A reply whose final content is a ```questions fenced JSON block (see
 parse_questions) lands the note in the `questions` state instead of `replied`,
 with the parsed list in note['questions'] and any lead-in text as its reply.
-Nothing is committed and no version is produced. `answer()` turns it into a
-follow-up note that continues the same draft and is marked not to ask again.
+A builder that asked is told to commit nothing, so ordinarily no version is
+produced; if it committed anyway, those commits land right away exactly as an
+ordinary reply's would, and the note keeps its `questions` for display. `answer()`
+turns the note into a follow-up note that continues the same draft and is marked
+not to ask again.
 """
 import hashlib
 from pathlib import Path
@@ -270,7 +273,8 @@ class NoteStore:
                         lines += ['Use them as reference. To include one in the video, copy it into the video assets directory and commit it there. Never write into /attachments.', '']
                     for key in ('video', 'film', 'format', 'frame', 'segment', 'beat', 'time', 'image', 'draft'):
                         lines.append(f"{key}: {image if key == 'image' else payload.get(key)}")
-                    if note.get('no_questions') or note.get('automatic'):
+                    asking_enabled = not (note.get('no_questions') or note.get('automatic'))
+                    if not asking_enabled:
                         lines += ['', '## No more questions', '',
                                   'This note already settles any open choice (either with answers, or by asking '
                                   'you to use your best judgement). Do not ask clarifying questions about it: '
@@ -286,9 +290,10 @@ class NoteStore:
                                   '2 to 4 short choices or leave it as free text. End your reply with a line '
                                   'containing only ```questions, then one line of JSON {"questions": '
                                   '[{"text": "...", "choices": ["...", "..."]}]} (omit or empty "choices" for '
-                                  'free text), then a line containing only ```. You may put one short line of '
-                                  'plain text before the block as a lead-in. If the note is already clear '
-                                  'enough, never ask: just build it as usual.']
+                                  'free text), then a line containing only ```, and nothing after it: if you '
+                                  'ask, that block is the very end of your reply, with no Summary line. You may '
+                                  'put one short line of plain text before the block as a lead-in. If the note '
+                                  'is already clear enough, never ask: just build it as usual.']
                     lines += ['', '## Look at your work', '',
                               'Before each distinct step of your work, write one line in your own message '
                               'that starts with "Step: " and says what you are about to do and why, in plain '
@@ -311,7 +316,10 @@ class NoteStore:
                               'end with a short answer for the reviewer as your final message, '
                               'and it is shown to them as your reply.',
                               'Continue the supplied draft, or start from main when draft is null.',
-                              'End your reply with Summary: <one line>.']
+                              'End your reply with Summary: <one line> — unless you are asking clarifying '
+                              'questions instead of building, in which case end with the ```questions block '
+                              'as described above and do not add a Summary line.'
+                              if asking_enabled else 'End your reply with Summary: <one line>.']
                     path.write_text('\n'.join(lines) + '\n', encoding='utf-8')
                     payload['note_file'] = str(path)
                     note['handle'] = self.backend.submit(payload)
@@ -342,7 +350,10 @@ class NoteStore:
                         state['draft'] = status.branch
                         self.save_session(video, state)
                     self._save(note)
-                    if status.state == 'replied' and self.on_reply:
+                    # A run that asked but committed anyway still lands those commits right away,
+                    # exactly as an ordinary reply would; the questions stay on the note for display.
+                    if self.on_reply and (status.state == 'replied'
+                                           or (status.state == 'questions' and status.branch)):
                         self.on_reply(video, note)
                 except Exception as e:
                     note['poll_error'] = str(e)
@@ -415,6 +426,11 @@ class NoteStore:
             new = self.add(video, note['format'], note['frame'], note['segment'], text, png,
                            author=author or note.get('author'), answered_from=nid, no_questions=True, **context)
             note['answered'] = new['id']
+            # Recorded here, not reconstructed from the follow-up's text later: that text is free-form
+            # (the original note's own words may coincidentally match) and the follow-up can be deleted.
+            note['answered_build'] = bool(build)
+            if not build:
+                note['answered_answers'] = [a.strip() for a in answers]
             self._save(note)
             return new
 

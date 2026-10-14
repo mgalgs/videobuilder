@@ -94,8 +94,9 @@ An edit returns {message,commit,warning,changed,undo}. Notes include `id`,
 `video`, `text`, `format`, `frame`, `segment`, `time`, `attachments`, `author`,
 `state`, `reply`, `branch`, and queue metadata. States are queued, working,
 replied, failed, landed, refused, conflict, accepted, dropped, questions. A
-`questions` note also carries `questions`: [{text,choices}], `choices` empty
-for free text; its `reply`, if any, is a short lead-in, never the raw block.
+note that asked carries `questions`: [{text,choices}], `choices` empty for
+free text, even once landed or answered; its `reply`, if any, is a short
+lead-in, never the raw block.
 The identity is the session username when accounts are on, else the
 request_hook value, then vb_name cookie, then anonymous. Errors otherwise
 return {error}. POSTs require same-origin; all but attachment upload use JSON.

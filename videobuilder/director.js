@@ -439,15 +439,9 @@ function renderStepsToggle(note) {
   return wrap
 }
 function questionAnswered(note) {
-  // Reconstructs the summary from the follow-up note's own text, so it survives a reload.
   if(!note.answered)return null;
-  const followup=state.notes.find(n=>n.id===note.answered);
-  const text=followup?followup.text:'';
-  if(text.includes('do not ask questions'))return [];
-  const pairs=[],re=/Q: ([^\n]+)\nA: ([^\n]+)/g;
-  let m;
-  while((m=re.exec(text)))pairs.push([m[1],m[2]]);
-  return pairs
+  if(note.answered_build)return [];
+  return note.questions.map((q,i)=>[q.text,(note.answered_answers||[])[i]])
 }
 function renderQuestionsCard(note) {
   const wrap=node('div','questions-wrap'),card=node('div','questions-card'),answered=questionAnswered(note);
@@ -471,9 +465,12 @@ function renderQuestionsCard(note) {
       const row=node('div','choice-row'),other=node('input','question-input other-input');
       other.type='text';
       other.placeholder='Type your answer';
-      other.hidden=true;
+      const matched=q.choices.includes(answers[i]);
+      const isOther=!!answers[i]&&!matched;
+      other.hidden=!isOther;
+      if(isOther)other.value=answers[i];
       for(const choice of q.choices) {
-        const chip=node('button','choice-chip',choice);
+        const chip=node('button','choice-chip'+(choice===answers[i]?' active':''),choice);
         chip.type='button';
         chip.onclick=()=> {
           answers[i]=choice;
@@ -484,7 +481,7 @@ function renderQuestionsCard(note) {
         };
         row.append(chip)
       }
-      const otherChip=node('button','choice-chip other','Other…');
+      const otherChip=node('button','choice-chip other'+(isOther?' active':''),'Other…');
       otherChip.type='button';
       otherChip.onclick=()=> {
         row.querySelectorAll('.choice-chip').forEach(c=>c.classList.remove('active'));
@@ -505,6 +502,7 @@ function renderQuestionsCard(note) {
       const input=node('input','question-input');
       input.type='text';
       input.placeholder='Your answer';
+      input.value=answers[i]||'';
       input.oninput=()=> {
         answers[i]=input.value.trim();
         refresh()
@@ -515,7 +513,7 @@ function renderQuestionsCard(note) {
   });
   const actions=node('div','questions-actions');
   send=node('button','questions-send','Send answers');
-  send.disabled=true;
+  send.disabled=answers.some(a=>!a.trim());
   send.onclick=()=>sendAnswers(note,send,answers);
   const buildBtn=node('button','questions-build','Just build it');
   buildBtn.onclick=()=>sendAnswers(note,buildBtn,null);

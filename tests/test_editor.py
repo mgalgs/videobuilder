@@ -163,7 +163,10 @@ class API(TempProject):
         self.assertIn('Dark', followup['text'])
         self.assertIn('Keep it short', followup['text'])
         self.assertTrue(followup['no_questions'])
-        self.assertEqual(self.get(f'/api/notes/{note["id"]}')['answered'], followup['id'])
+        original = self.get(f'/api/notes/{note["id"]}')
+        self.assertEqual(original['answered'], followup['id'])
+        self.assertEqual(original['answered_answers'], ['Dark', 'Keep it short'])
+        self.assertFalse(original['answered_build'])
 
         code, err = self.post(f'/api/notes/{note["id"]}/answer', {'answers': ['Dark', 'x']})
         self.assertEqual(code, 409, err)
@@ -187,6 +190,7 @@ class API(TempProject):
         self.assertEqual(code, 200, followup)
         self.assertIn('Build it with your best judgement; do not ask questions.', followup['text'])
         self.assertTrue(followup['no_questions'])
+        self.assertTrue(self.get(f'/api/notes/{note["id"]}')['answered_build'])
 
     def test_state_dir_is_configurable(self):
         state = Path(self.tmp.name, 'elsewhere')

@@ -11,6 +11,36 @@ from tests.test_project import TempProject
 from tests.test_project import git
 from videobuilder.agents import FakeBackend
 from videobuilder.editor import Editor
+from videobuilder.notes import AgentBackend, AgentStatus
+
+
+class AskAndCommitBackend(AgentBackend):
+    """A builder that asks a question but, against instructions, commits a change
+    anyway: used to check that those commits still land like an ordinary reply's."""
+    name = 'fake'
+
+    def submit(self, note):
+        root = note['project']
+        branch = note['draft'] or 'vb-draft/ask-' + note['id']
+        work = Path(note['state_dir']) / 'ask-work'
+        if not note['draft']:
+            git(root, 'branch', branch, 'main')
+        git(root, 'worktree', 'add', str(work), branch)
+        try:
+            film = work / note['film']
+            film.write_text(film.read_text() + '\n# committed while asking\n')
+            git(work, 'add', '--', note['film'])
+            git(work, '-c', 'user.name=Demo agent', '-c', 'user.email=agent@example.com',
+                'commit', '-qm', 'agent: committed while asking')
+        finally:
+            git(root, 'worktree', 'remove', '--force', str(work))
+        self.branch = branch
+        return 'handle'
+
+    def poll(self, handle):
+        reply = 'Quick check:\n\n```questions\n' + json.dumps(
+            {'questions': [{'text': 'Light or dark logo?', 'choices': ['Light', 'Dark']}]}) + '\n```\n'
+        return AgentStatus('replied', reply, self.branch)
 
 
 class Director(TempProject):
@@ -89,6 +119,18 @@ class Director(TempProject):
         self.editor.notes.tick()
         self.assertEqual(self.editor.notes.get(note['id'])['state'], 'landed')
         self.assertEqual(self.editor.notes.pending(), [])
+
+    def test_a_questions_reply_with_a_branch_still_lands(self):
+        self.editor.notes.backend = AskAndCommitBackend()
+        old = git(self.root, 'rev-parse', 'main').strip()
+        note = self.post('/api/notes', {'video': 'promo/film', 'text': 'Make the logo pop'})[1]
+        self.editor.notes.tick()
+        stored = self.editor.notes.get(note['id'])
+        self.assertEqual(stored['state'], 'landed')
+        self.assertEqual(stored['questions'], [{'text': 'Light or dark logo?', 'choices': ['Light', 'Dark']}])
+        new = git(self.root, 'rev-parse', 'main').strip()
+        self.assertNotEqual(old, new)
+        self.assertEqual(stored['version']['commit'], new)
 
     def test_multi_commit_turn_is_one_version(self):
         self.editor.notes.backend = FakeBackend(delay=0, commits=3)
