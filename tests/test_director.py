@@ -98,6 +98,43 @@ class Director(TempProject):
         self.editor.notes._save(stored)
         self.assertTrue(self.get(f'/api/notes/{note["id"]}/log')['done'])
 
+    def test_log_route_uses_live_bytes_for_a_cluster_run_then_prefers_landed_files(self):
+        class PeekBackend(AgentBackend):
+            name = 'fork-sandbox'
+
+            def __init__(self):
+                self.calls = []
+
+            def submit(self, note):
+                return 'handle'
+
+            def poll(self, handle):
+                return AgentStatus('working')
+
+            def peek(self, handle, file=None, after=0):
+                self.calls.append((handle, file, after))
+                return (json.dumps({'type': 'assistant', 'message': {'role': 'assistant',
+                        'content': [{'type': 'text', 'text': 'Working on it live'}]}}).encode() + b'\n',
+                        'events.jsonl', 999)
+
+        backend = PeekBackend()
+        self.editor.notes.backend = backend
+        note = self.post('/api/notes', {'video': 'promo/film', 'text': 'Change'})[1]
+        stored = self.editor.notes.get(note['id'])
+        handle_dir = self.editor.notes.session_dir('promo/film') / 'cluster-run'
+        stored['handle'] = str(handle_dir)
+        stored['state'] = 'working'
+        self.editor.notes._save(stored)
+        data = self.get(f'/api/notes/{note["id"]}/log')
+        self.assertEqual([e['text'] for e in data['entries']], ['Building', 'Working on it live'])
+        self.assertEqual(len(backend.calls), 1)
+        handle_dir.mkdir()
+        (handle_dir / 'events.jsonl').write_text(json.dumps(
+            {'type': 'assistant', 'message': {'role': 'assistant',
+             'content': [{'type': 'text', 'text': 'Landed from file'}]}}) + '\n')
+        landed = self.get(f'/api/notes/{note["id"]}/log')
+        self.assertEqual([e['text'] for e in landed['entries']], ['Building', 'Landed from file'])
+
     def test_log_route_unknown_note_is_404(self):
         with self.assertRaises(urllib.error.HTTPError) as caught:
             self.get('/api/notes/does-not-exist/log')

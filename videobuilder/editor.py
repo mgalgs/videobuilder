@@ -809,7 +809,8 @@ def make_handler(editor, hook=request_hook):
                 except ValueError:
                     raise HTTPError(400, 'after must be an integer') from None
                 show_cost = not (library and library.accounts) or library.accounts.is_admin(user)
-                entries = read_feed(note.get('handle'), editor.root, show_cost)
+                peek = editor.notes.backend.peek if note['state'] == 'working' and hasattr(editor.notes.backend, 'peek') else None
+                entries = read_feed(note.get('handle'), editor.root, show_cost, peek)
                 return self._json(200, {'entries': entries[after:], 'next': len(entries),
                                         'done': note['state'] in FINAL})
             m = re.fullmatch(r'/api/notes/([^/]+?)(\.png)?', route)
