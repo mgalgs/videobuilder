@@ -30,7 +30,8 @@ const state = {
   musicSourceId: null,
   musicSource: null,
   musicTracks: [],
-  musicPlayingId: null
+  musicPlayingId: null,
+  steps: {}
 };
 const player = $('player');
 const timeLabel = s => {
@@ -348,6 +349,87 @@ function closeSheet() {
 function attachmentUrl(id) {
   return api('attachments/'+encodeURIComponent(id))
 }
+// The note's "Show steps" feed: a redacted-free, formatted read of its builder
+// transcript (see transcript.py), polled every 3s while expanded and not yet
+// in a final state. state.steps[note.id].el is the live body element, kept so
+// a poll can refresh just that feed without the full note-list re-render.
+function renderStepsFeed(note) {
+  const data=state.steps[note.id];
+  if(!data||!data.el)return;
+  const body=data.el,atBottom=body.scrollHeight-body.scrollTop-body.clientHeight<40;
+  body.replaceChildren();
+  if(!data.entries.length) {
+    body.append(node('p','steps-empty','No steps recorded'));
+    return
+  }
+  let current=null;
+  for(const entry of data.entries) {
+    if(entry.kind==='leg') {
+      body.append(node('div','steps-leg',entry.text));
+      current=null;
+      continue
+    }
+    if(entry.kind==='step') {
+      const row=node('div','steps-step'),head=node('button','steps-step-head',entry.text);
+      const details=node('div','steps-step-details');
+      details.hidden=true;
+      head.setAttribute('aria-expanded','false');
+      head.onclick=()=> {
+        details.hidden=!details.hidden;
+        head.setAttribute('aria-expanded',String(!details.hidden))
+      };
+      row.append(head,details);
+      body.append(row);
+      current=details;
+      continue
+    }
+    (current||body).append(node('div','steps-'+entry.kind,entry.text))
+  }
+  if(atBottom)body.scrollTop=body.scrollHeight
+}
+async function loadSteps(note) {
+  const data=state.steps[note.id];
+  if(!data||data.loading)return;
+  data.loading=true;
+  try {
+    const result=await json(`notes/${encodeURIComponent(note.id)}/log`, {
+      after:data.next
+    });
+    data.entries.push(...result.entries);
+    data.next=result.next;
+    data.done=result.done
+  }
+  catch(e) {
+    // keep what we have; the next poll tries again
+  }
+  finally {
+    data.loading=false;
+    if(data.open)renderStepsFeed(note)
+  }
+}
+function renderStepsToggle(note) {
+  const data=state.steps[note.id]||(state.steps[note.id]= {
+    open:false,entries:[],next:0,done:false,loading:false
+  });
+  const wrap=node('div','steps-wrap'),toggle=node('button','steps-toggle',data.open?'Hide steps':'Show steps');
+  toggle.setAttribute('aria-expanded',String(data.open));
+  const body=node('div','steps-body');
+  body.hidden=!data.open;
+  data.el=body;
+  toggle.onclick=()=> {
+    data.open=!data.open;
+    toggle.textContent=data.open?'Hide steps':'Show steps';
+    toggle.setAttribute('aria-expanded',String(data.open));
+    body.hidden=!data.open;
+    if(data.open) {
+      renderStepsFeed(note);
+      if(!data.done)loadSteps(note)
+    }
+  };
+  if(data.open)renderStepsFeed(note);
+  wrap.append(toggle,body);
+  return wrap
+}
 function renderNotes() {
   const list=$('note-list'),atBottom=list.scrollHeight-list.scrollTop-list.clientHeight<80;
   list.replaceChildren();
@@ -384,6 +466,7 @@ function renderNotes() {
     }
     row.append(bubble);
     list.append(row);
+    if(note.handle)list.append(renderStepsToggle(note));
     if(note.reply) {
       const reply=node('div','bubble-row builder');
       const box=node('div','bubble');
@@ -909,6 +992,7 @@ async function openVideo(video) {
   state.versions=[];
   state.notes=[];
   state.versionCursor=null;
+  state.steps={};
   clearTimeout(state.renderTimer);
   $('video-title').textContent=libName||video;
   $('video-picker').value=video;
@@ -1239,6 +1323,13 @@ setInterval(()=> {
 setInterval(()=> {
   if(state.video)loadVersions()
 },15000);
+setInterval(()=> {
+  if(document.hidden)return;
+  for(const note of state.notes) {
+    const data=state.steps[note.id];
+    if(data&&data.open&&!data.done)loadSteps(note)
+  }
+},3000);
 // /api/project syncs with the forge, so poll the cheap /healthz and refetch the
 // project only when the editor's version changes (a deploy), for the upgrade chip.
 async function checkEditorVersion() {
