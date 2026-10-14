@@ -288,5 +288,8 @@ def opener(proxy_port):
 def chromium_proxy_args(proxy_port):
     """The --proxy-server/--proxy-bypass-list flags that route every request
     Chromium makes -- navigation, redirects and subresources alike -- through
-    the guard, with the bypass list disabled so nothing goes direct."""
-    return [f'--proxy-server=127.0.0.1:{proxy_port}', '--proxy-bypass-list=<-loopback>']
+    the guard, with the bypass list disabled so nothing goes direct. WebRTC
+    ignores --proxy-server by default and sends UDP (STUN/ICE) straight to
+    whatever address a page names, so it is disabled separately."""
+    return [f'--proxy-server=127.0.0.1:{proxy_port}', '--proxy-bypass-list=<-loopback>',
+            '--force-webrtc-ip-handling-policy=disable_non_proxied_udp']

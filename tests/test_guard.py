@@ -194,6 +194,7 @@ class ChromiumArgs(unittest.TestCase):
         args = guard.chromium_proxy_args(12345)
         self.assertIn('--proxy-server=127.0.0.1:12345', args)
         self.assertIn('--proxy-bypass-list=<-loopback>', args)
+        self.assertIn('--force-webrtc-ip-handling-policy=disable_non_proxied_udp', args)
 
 
 if __name__ == '__main__':
