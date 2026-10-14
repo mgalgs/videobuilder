@@ -85,9 +85,8 @@ class Button:
     def draw(self, cv, box, name):
         _kit.rect_marked(cv, name, box.x, box.y, box.w, box.h, _kit.INK, radius=14)
         lines = text.wrap(self.label, self.font, box.w)
-        bw, bh = text.block_size(lines, self.font)
-        text.draw(cv, lines, self.font, box.x + (box.w - bw) / 2, box.y + (box.h - bh) / 2, _kit.BG,
-                  align='center', width=box.w)
+        bh = text.block_size(lines, self.font)[1]
+        text.draw(cv, lines, self.font, box.x, box.y + (box.h - bh) / 2, _kit.BG, align='center', width=box.w)
 
 
 BLOCKS = (

@@ -342,7 +342,7 @@ h2{font-size:15px;text-transform:uppercase;letter-spacing:.04em;color:#a9a9b2;ma
 .card .thumb{width:100%;aspect-ratio:1/1;background:#0d0d10;display:flex;align-items:center;justify-content:center;
   color:#5a5d66;font-size:13px;text-align:center;overflow:hidden}
 .card .thumb img{width:100%;height:100%;object-fit:cover;display:block}
-.card .meta{padding:10px 12px 14px}
+.card .meta{display:block;padding:10px 12px 14px}
 .card .meta strong{display:block;font-size:14px;margin-bottom:4px}
 .card .meta span{display:block;font-size:12.5px;color:#a9a9b2}
 #modal{position:fixed;inset:0;background:#000c;display:flex;align-items:center;justify-content:center;
