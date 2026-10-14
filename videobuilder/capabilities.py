@@ -81,6 +81,27 @@ CATALOG = (
          "Keep the outgoing segment visible while the next one arrives"),
         ('vb.Segment(..., overlap=k)', 'Timeline.live(n) -> Shots back to front', 'Shot.exit'),
         'skill/make-a-video/reference/api.md', 'overlap-transitions'),
+    _entry(
+        'drawn-on-diagram', 'Motion', 'Drawn-on diagram',
+        'A whiteboard diagram drawn stroke by stroke, pen tracked by camera.',
+        'A small whiteboard diagram -- boxes, arrows, an icon, handwritten-looking labels -- draws on stroke by '
+        'stroke with a little hand jitter, the camera tracking the pen across a board bigger than the frame, '
+        'ending in a pull-back that shows the whole board at once.',
+        ('Draw this diagram on stroke by stroke, like a whiteboard', 'Track the camera on the pen as it draws, then pull back',
+         'Give the lines a bit of hand-drawn wobble, not perfectly straight'),
+        ('videobuilder.paths.reveal(points, fraction)', 'videobuilder.paths.jitter(points, seed)',
+         'cv.layer(dx=.., dy=.., scale=..)  # the tracking camera'),
+        'skill/make-a-video/reference/api.md', 'drawn-on-diagram'),
+    _entry(
+        'shape-morph', 'Motion', 'Shape morph',
+        'One outline smoothly becomes the next, not a cut.',
+        'A circle turns into a document icon and back, its outline resampled to match point for point and '
+        'interpolated with a smooth ease while its colour travels along -- one idea turning into the next '
+        'instead of a hard cut between two shapes.',
+        ("Don't cut between these icons, morph one into the other", 'Turn the circle into the document shape smoothly',
+         'Let the colour shift as the shape changes, not just the outline'),
+        ('videobuilder.paths.morph(a, b, t, closed=True)', 'videobuilder.paths.draw(cv, points, colour, fill=True)'),
+        'skill/make-a-video/reference/api.md', 'shape-morph'),
     # ---- Type and data ----
     _entry(
         'kinetic-typography', 'Type and data', 'Kinetic typography',
@@ -118,6 +139,16 @@ CATALOG = (
          'Sweep the gauge in on the beat'),
         ('cv.arc(cx, cy, r, a0, a1, colour, width=...)', 'cv.sector(...)', 'vb.spring_at drives the sweep angle'),
         'skill/make-a-video/reference/api.md', 'gauges-and-rings'),
+    _entry(
+        'line-chart-callout', 'Type and data', 'Self-drawing line chart with a callout',
+        'Axes first, the line draws itself on, then one point is called out.',
+        'Honest axes appear first, then every series draws itself on along its own path -- the background '
+        'series in grey, only the hero series in colour -- and once it lands, one callout (a dot, a leader '
+        'line and a short label) points at the single point that matters.',
+        ('Draw the axes first, then let the line draw itself on', 'Keep the other lines grey, only highlight the hero line',
+         'Call out the final point with a dot and a short label'),
+        ('videobuilder.paths.reveal(points, fraction)', 'videobuilder.paths.draw(cv, points, colour, width=...)'),
+        'skill/make-a-video/reference/api.md', 'line-chart-callout'),
     # ---- Imagery and camera ----
     _entry(
         'camera-on-a-screenshot', 'Imagery and camera', 'Camera on a screenshot',
@@ -164,6 +195,15 @@ CATALOG = (
          'Composite the 3D clip behind the headline'),
         ('vb.Clip(path)', 'clip.frame(local_frame)', 'cv.image(clip.frame(n), x, y, w, h)'),
         'skill/make-a-video/reference/3d.md', 'orbit-3d'),
+    _entry(
+        'hard-light-sweep', 'Imagery and camera', 'Hard-light sweep',
+        'A hard-edged band of light sweeps across the shot.',
+        'A dim, shadowed version of the scene sits underneath a warm, lit version clipped to a hard-edged band '
+        '-- a slanted shaft of light with window-mullion bars cut out of it -- that sweeps across the frame.',
+        ('Sweep a hard beam of sunlight across this shot', 'Add a dramatic light sweep, like light through a window',
+         'Make part of the scene glow as a band of light passes over it'),
+        ('cv.ctx path + even-odd fill_rule for the clip', 'cv.image(img, *box) for the dim and lit layers'),
+        'skill/make-a-video/reference/api.md', 'hard-light-sweep'),
     # ---- Timing, sound and formats ----
     _entry(
         'beat-lock', 'Timing, sound and formats', 'Cuts locked to the music',
