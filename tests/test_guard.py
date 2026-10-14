@@ -42,6 +42,12 @@ class CheckAddress(unittest.TestCase):
         self.refused('100.127.255.255')
         self.allowed('100.128.0.0')
 
+    def test_ipv4_mapped_ipv6_literals_classified_as_ipv4(self):
+        self.refused('::ffff:100.64.0.1')  # CGNAT, mapped -- not caught by IPv6 is_private
+        self.refused('::ffff:10.0.0.1')
+        self.refused('::ffff:127.0.0.1')
+        self.allowed('::ffff:93.184.216.34')
+
 
 class CheckPort(unittest.TestCase):
     def test_only_80_and_443_allowed(self):

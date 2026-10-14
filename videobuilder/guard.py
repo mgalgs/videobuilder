@@ -36,6 +36,12 @@ def check_address(ip, allow_loopback=False):
     public, routable address. `allow_loopback` is a test-only escape hatch for
     exercising the guard against a fixture server on 127.0.0.1; production
     code must never pass it."""
+    # An IPv4-mapped IPv6 literal (::ffff:a.b.c.d) is the same address as
+    # a.b.c.d; classify it as IPv4 so the CGNAT check below (which Python's
+    # own is_private does not cover, mapped or not) actually sees it.
+    mapped = getattr(ip, 'ipv4_mapped', None)
+    if mapped is not None:
+        ip = mapped
     if ip.is_loopback:
         if allow_loopback:
             return ip

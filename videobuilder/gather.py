@@ -259,5 +259,13 @@ def write_attachments(store, video, pages, errors, reserved_files=0, reserved_by
     if limit_hit:
         lines.append('')
         lines.append('Some gathered attachments were skipped: the note attachment limit was reached.')
-    index = store.upload(video, 'gathered-pages.md', 'text/plain', '\n'.join(lines).encode('utf-8'))
+    index_data = '\n'.join(lines).encode('utf-8')
+    # The index is itself an attachment: it must fit the same combined-set budget as
+    # everything else, or the note ends up with max_files+1 attachments (or over
+    # max_message) despite every check above passing.
+    fits_files = max_files is None or reserved_files + spent_files + 1 <= max_files
+    fits_bytes = max_message is None or reserved_bytes + spent_bytes + len(index_data) <= max_message
+    if not (fits_files and fits_bytes):
+        return ids
+    index = store.upload(video, 'gathered-pages.md', 'text/plain', index_data)
     return [index['id'], *ids]

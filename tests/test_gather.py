@@ -187,13 +187,34 @@ class WriteAttachments(unittest.TestCase):
         self.assertIn('Some gathered attachments were skipped', index_body)
 
     def test_stays_within_the_stores_message_size_budget(self):
-        store = self.FakeStore(max_message=10)
-        pages = [dict(url='http://x/1', title='One', text='hi', desktop_png=b'd' * 8, phone_png=b'p' * 8)]
+        # Large enough that the index (a couple hundred bytes) still fits after the
+        # phone screenshot is skipped, so this exercises the skip message without
+        # also tripping the "no room for the index itself" case below.
+        store = self.FakeStore(max_message=2300)
+        pages = [dict(url='http://x/1', title='One', text='hi', desktop_png=b'd' * 2000, phone_png=b'p' * 2000)]
         ids = gather.write_attachments(store, 'film', pages, [], reserved_bytes=0)
-        sizes = [len(u[3]) for u in store.uploads[:-1]]
-        self.assertLessEqual(sum(sizes), 10)
+        self.assertLessEqual(sum(len(u[3]) for u in store.uploads), 2300)
         index_body = store.uploads[-1][3].decode()
         self.assertIn('attachment limit reached', index_body)
+
+    def test_index_itself_skipped_rather_than_exceeding_max_files(self):
+        # The director's own uploads already spent the whole file budget: there is no
+        # slot left even for the index, so it must not be uploaded unconditionally.
+        store = self.FakeStore(max_files=3)
+        pages = [dict(url='http://x/1', title='One', text='hi', desktop_png=b'd', phone_png=b'p')]
+        ids = gather.write_attachments(store, 'film', pages, [], reserved_files=3)
+        self.assertEqual(store.uploads, [])
+        self.assertEqual(ids, [])
+
+    def test_index_itself_skipped_rather_than_exceeding_max_message(self):
+        # Page attachments alone already spend the whole byte budget; the index
+        # markdown itself must not be uploaded on top of that.
+        store = self.FakeStore(max_message=8)
+        pages = [dict(url='http://x/1', title='One', text='', desktop_png=b'd' * 8, phone_png=None)]
+        ids = gather.write_attachments(store, 'film', pages, [], reserved_bytes=0)
+        names = [u[1] for u in store.uploads]
+        self.assertNotIn('gathered-pages.md', names)
+        self.assertEqual(len(ids), len(store.uploads))
 
 
 if __name__ == '__main__':
