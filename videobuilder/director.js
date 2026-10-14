@@ -277,7 +277,7 @@ function setPlayState(mode) {
   const busy=mode==='busy',label=busy?'Rendering…':mode==='pause'?'Pause video':'Play video';
   $('play-glyph').hidden=busy||mode==='pause';
   $('desktop-play').replaceChildren(busy?node('span','spinner'):icon(mode));
-  $('desktop-play').disabled=$('fullscreen').disabled=!state.videoReady;
+  $('desktop-play').disabled=$('fullscreen').disabled=$('rail-fullscreen').disabled=!state.videoReady;
   $('desktop-play').setAttribute('aria-label',label);
   $('tap-player').setAttribute('aria-label',label)
 }
@@ -846,13 +846,20 @@ $('upgrade').onclick=upgradeVideo;
 $('tap-player').onclick=togglePlay;
 $('desktop-play').onclick=togglePlay;
 // The video element itself goes full screen, with the browser's own controls while it is.
-$('fullscreen').onclick=()=> {
+// iPhone Safari has no element requestFullscreen, only the video's own webkitEnterFullscreen.
+function enterFullscreen() {
   if(!state.videoReady)return;
+  if(!player.requestFullscreen) {
+    player.webkitEnterFullscreen?.();
+    return
+  }
   player.controls=true;
   player.requestFullscreen().catch(()=> {
     player.controls=false
   })
-};
+}
+$('fullscreen').onclick=enterFullscreen;
+$('rail-fullscreen').onclick=enterFullscreen;
 document.addEventListener('fullscreenchange',()=> {
   if(!document.fullscreenElement)player.controls=false
 });
