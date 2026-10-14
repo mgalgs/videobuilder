@@ -31,8 +31,8 @@ CATALOG = (
         'The named motion tokens, compared side by side.',
         "Five named easing curves — videobuilder's motion tokens — each sliding a chip into place on its own "
         'row, so their character is easy to tell apart: a fast settle, a restrained glide, a small overshoot.',
-        ("Ease this in with ease_out_expo", "Use a restrained entrance (ease_out_quint), nothing bouncy",
-         "Give the exit ease_in_expo and make it quicker than the entrance"),
+        ("Ease this in fast, then let it settle gently", "Use a restrained entrance, nothing bouncy",
+         "Make the exit quicker than the entrance, and a little brisker"),
         ('vb.ease_out_expo', 'vb.ease_out_quint', 'vb.ease_in_out_quart', 'vb.ease_out_back', 'vb.ease_in_expo',
          'vb.interpolate(f, keys, values, ease=...)'),
         'skill/make-a-video/reference/motion.md', 'eased-entrances'),
@@ -41,8 +41,8 @@ CATALOG = (
         'One spring, three damping ratios: firm to playful.',
         'The same spring drop at three damping ratios — 1.0 (no bounce), 0.6 (restrained) and 0.3 (playful) — '
         'landing side by side so the difference in character is visible, not just described.',
-        ('Drop this in with a playful spring, a bit of bounce', 'Use a firm, no-overshoot settle (critical damping)',
-         'Make the bounce more cartoonish — lower the damping ratio'),
+        ('Drop this in with a playful spring, a bit of bounce', 'Use a firm landing, no bounce',
+         'Make it bouncier, more cartoonish'),
         ('vb.spring_at(f, fps, **vb.damped(ratio, hz=2.0))', 'vb.critical(stiffness)'),
         'skill/make-a-video/reference/motion.md', 'springs-with-character'),
     _entry(
@@ -75,10 +75,10 @@ CATALOG = (
     _entry(
         'overlap-transitions', 'Motion', 'Overlap transitions',
         'One segment slides over the outgoing one — no hard cut.',
-        'Instead of a hard cut, the next segment starts on its own beat while the one before it keeps drawing '
-        'underneath for a few more frames: a transition, built from `Segment(overlap=k)`, not a crossfade bolted on.',
-        ('Transition between these, not a hard cut', 'Slide the end card in over the previous scene (overlap 1 beat)',
-         "Keep the outgoing segment visible while the next one arrives"),
+        'Instead of a hard cut, the next scene starts on its own beat while the one before it keeps drawing '
+        'underneath for a few more frames: a transition built into the timeline itself, not a crossfade bolted on.',
+        ('Transition between these, not a hard cut', 'Slide the end card in over the previous scene, overlapping for a beat',
+         "Keep the previous scene visible while the next one arrives"),
         ('vb.Segment(..., overlap=k)', 'Timeline.live(n) -> Shots back to front', 'Shot.exit'),
         'skill/make-a-video/reference/api.md', 'overlap-transitions'),
     _entry(
@@ -108,7 +108,7 @@ CATALOG = (
         'Balanced wrapping, word-by-word reveal, live weight.',
         'A headline wraps with balanced line breaks, reveals word by word, and its variable-font weight itself '
         'animates in — all real text layout, not an image of text.',
-        ('Reveal this headline word by word, balanced wrapping', 'Animate the weight in as it lands (thin to bold)',
+        ('Reveal this headline word by word, with neatly balanced line breaks', 'Animate the weight in as it lands, thin to bold',
          'Make the type itself the motion here'),
         ('text.wrap(copy, font, width, balance=True)', 'vb.Font(..., weight=interpolated)', 'text.draw'),
         'skill/make-a-video/reference/api.md', 'kinetic-typography'),
@@ -163,7 +163,7 @@ CATALOG = (
         'redrawn-product-ui', 'Imagery and camera', 'Redrawn product UI',
         'A crisp vector screen, redrawn from measured blocks.',
         'A product screen redrawn as vector shapes and real text instead of a captured bitmap: crisp at any '
-        'size, built from measured blocks stacked with `Box.stack`.',
+        'size, built from measured blocks stacked edge to edge.',
         ('Redraw this screen instead of using a screenshot', "Rebuild the settings panel as crisp vector UI",
          'Keep this sharp at every size — redraw it, don\'t capture it'),
         ('Box.stack(heights, gap=..., align="top")', 'cv.rect / cv.outline / text.draw for each block'),
@@ -182,15 +182,15 @@ CATALOG = (
         'Cairo paths and gradients, seeded so they repeat.',
         'A procedural pattern drawn straight from cairo paths and a gradient, from a seeded random source so the '
         'same look renders the same way every time — no stock art, no network.',
-        ('Generate a background pattern, not a stock image', 'Use a seeded procedural pattern so it renders identically',
+        ('Generate a background pattern, not a stock image', 'Use a generated pattern that renders exactly the same every time',
          'Draw this as paths and a gradient, not a bitmap'),
         ('cv.ctx  # raw cairo Context', 'cairo.LinearGradient / RadialGradient', 'random.Random(seed)'),
         'skill/make-a-video/reference/api.md', 'generated-art'),
     _entry(
         'orbit-3d', 'Imagery and camera', '3D shots',
         'A pre-rendered 3D clip, composited like any other image.',
-        'A ManimGX 3D render (built offline, once) plays back as an ordinary clip inside the film — the same '
-        '`cv.image` call as any other picture, just fed a frame from a 3D shot instead of a PNG.',
+        'A pre-rendered 3D render (built offline, once) plays back as an ordinary clip inside the film, composited '
+        'exactly like any other picture, just fed a frame from a 3D shot instead of a still image.',
         ('Open on a 3D shot of the product, then cut to the UI', 'Use the orbiting 3D render as the opening shot',
          'Composite the 3D clip behind the headline'),
         ('vb.Clip(path)', 'clip.frame(local_frame)', 'cv.image(clip.frame(n), x, y, w, h)'),
@@ -247,10 +247,10 @@ CATALOG = (
     _entry(
         'seamless-loops', 'Timing, sound and formats', 'Seamless loops',
         'A clip built to play forever with no visible seam.',
-        'A continuously looping shot — phase driven purely by `n % length`, so the state at the last frame and '
+        'A continuously looping shot, its motion driven by a repeating cycle, so the state at the last frame and '
         'the state at frame 0 are mathematically the same point in the cycle, not just visually close.',
         ('Make this loop seamlessly', 'This needs to play on repeat with no jump at the seam',
-         'Drive the motion from a phase that wraps, so it loops cleanly'),
+         'Drive the motion in a cycle that wraps around cleanly, with no jump at the seam'),
         ('phase = (n % length) / length', 'vb.linear for phase/rotation', 'LOOP = True  # tells check.py to grade the seam'),
         'skill/make-a-video/reference/motion.md', 'seamless-loops'),
 )

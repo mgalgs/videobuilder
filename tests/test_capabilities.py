@@ -29,6 +29,15 @@ class Catalog(unittest.TestCase):
             self.assertNotIn(e['id'], seen)
             seen.add(e['id'])
 
+    def test_prompts_are_plain_language_not_api_names(self):
+        """'What to tell the builder' is spoken by a non-technical director:
+        no prompt should read like code (an underscore name, or `vb.`)."""
+        for e in capabilities.CATALOG:
+            for p in e['prompts']:
+                with self.subTest(id=e['id'], prompt=p):
+                    self.assertNotIn('_', p)
+                    self.assertNotIn('vb.', p)
+
     def test_every_demo_draws_first_middle_last_frame(self):
         for e in capabilities.CATALOG:
             with self.subTest(id=e['id']):
