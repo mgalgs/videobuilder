@@ -120,6 +120,33 @@ def _surface(pil):
     return cairo.ImageSurface.create_for_data(data, fmt, w, h, w * 4)
 
 
+@lru_cache(maxsize=64)
+def _dot_tile(pitch, radius, color):
+    size = max(1, round(pitch))
+    surf = cairo.ImageSurface(cairo.FORMAT_ARGB32, size, size)
+    ctx = cairo.Context(surf)
+    ctx.set_source_rgba(*rgba(color))
+    ctx.arc(size / 2, size / 2, radius, 0, 2 * math.pi)
+    ctx.fill()
+    return surf
+
+
+def halftone_pattern(pitch, radius, angle=0.0, color='#000'):
+    """A cairo pattern of repeating dots (a Ben-Day halftone fill): `pitch` px
+    between dot centres, `radius` px dot radius, `angle` radians of rotation,
+    `color`. Use it as raw cairo source: `cv.ctx.set_source(vb.halftone_pattern(...))`
+    then `cv.ctx.fill()` or `.paint()` within a clip -- there is no image-to-halftone
+    conversion, only this generated dot fill."""
+    pat = cairo.SurfacePattern(_dot_tile(pitch, radius, color))
+    pat.set_extend(cairo.EXTEND_REPEAT)
+    pat.set_filter(cairo.FILTER_GOOD)
+    if angle:
+        m = cairo.Matrix()
+        m.rotate(angle)
+        pat.set_matrix(m)
+    return pat
+
+
 @lru_cache(maxsize=256)
 def _shadow_mask(w, h, radius, blur, spread):
     """Blurred alpha of a rounded box, padded so the blur has room. Returns (surface, pad)."""
@@ -317,6 +344,33 @@ class Canvas:
         try:
             yield self
         finally:
+            c.restore()
+
+    @contextmanager
+    def pixelated(self, factor, x=0.0, y=0.0, w=None, h=None, background=None):
+        """A group drawn at 1/`factor` resolution over the region (x, y, w, h)
+        (default the whole frame) and painted back with nearest-neighbour
+        filtering: a blocky pixel-art look. The body draws with the *yielded*
+        Canvas (not `self`), in the same logical coordinates as that region,
+        so a film not using this draws exactly as before; any text or image
+        drawn into it pixelates along with everything else. `factor` need
+        not be a whole number."""
+        w = self.width if w is None else w
+        h = self.height if h is None else h
+        sub = Canvas(w, h, background=background, scale=1.0 / factor, format=self.format)
+        try:
+            yield sub
+        finally:
+            sub.surface.flush()
+            c = self.ctx
+            c.save()
+            c.translate(x, y)
+            c.scale(factor, factor)
+            c.set_source_surface(sub.surface, 0, 0)
+            c.get_source().set_filter(cairo.FILTER_NEAREST)
+            c.rectangle(0, 0, sub.surface.get_width(), sub.surface.get_height())
+            c.clip()
+            c.paint()
             c.restore()
 
     # ---- output ----

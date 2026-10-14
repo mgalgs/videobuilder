@@ -1,7 +1,7 @@
 import unittest
 
 import videobuilder as vb
-from videobuilder import Canvas, rgba
+from videobuilder import Canvas, halftone_pattern, rgba
 
 
 def px(cv, x, y):
@@ -69,6 +69,51 @@ class Strokes(unittest.TestCase):
         cv.line(0, 50.5, 100, 50.5, (0, 255, 0), width=1)
         self.assertEqual(px(cv, 50, 50), (0, 255, 0, 255))
         self.assertEqual(px(cv, 50, 49), (0, 0, 0, 0))
+
+
+class Pixelated(unittest.TestCase):
+    def test_output_is_blocky(self):
+        """A shape with a boundary that doesn't land on a block edge still
+        comes out with every factor x factor block a single flat colour:
+        the body draws at a reduced resolution, then nearest-neighbour
+        upscales, instead of drawing smooth vector edges at full size."""
+        cv = Canvas(80, 80, '#000')
+        factor = 8
+        with cv.pixelated(factor) as sub:
+            sub.fill('#000')
+            sub.rect(0, 0, 37, 80, '#fff')   # a boundary mid-block, not on an 8px line
+        for by in range(80 // factor):
+            for bx in range(80 // factor):
+                colors = {px(cv, bx * factor + dx, by * factor + dy)
+                          for dx in range(factor) for dy in range(factor)}
+                self.assertEqual(len(colors), 1, f'block ({bx},{by}) is not flat: {colors}')
+
+    def test_body_draws_in_the_outer_coordinate_space(self):
+        cv = Canvas(80, 80, '#000')
+        with cv.pixelated(8) as sub:
+            self.assertEqual((sub.width, sub.height), (80, 80))
+
+    def test_a_film_not_using_it_is_unchanged(self):
+        cv = Canvas(100, 100, '#000')
+        cv.rect(10, 10, 40, 40, '#fff')
+        other = Canvas(100, 100, '#000')
+        other.rect(10, 10, 40, 40, '#fff')
+        self.assertEqual(cv.bgra(), other.bgra())
+
+
+class Halftone(unittest.TestCase):
+    def test_fills_with_dots_at_the_pitch(self):
+        cv = Canvas(100, 100, '#000')
+        pitch, radius = 20, 7
+        cv.ctx.set_source(halftone_pattern(pitch, radius, color='#fff'))
+        cv.ctx.paint()
+        # Dot centres sit at (pitch/2, pitch/2) plus whole multiples of pitch.
+        for k in (0, 1, 2):
+            x = y = pitch // 2 + k * pitch
+            self.assertEqual(px(cv, x, y), (255, 255, 255, 255))
+        # Exactly between two dot centres (a tile corner) is background.
+        self.assertEqual(px(cv, 0, 0), (0, 0, 0, 255))
+        self.assertEqual(px(cv, pitch, 0), (0, 0, 0, 255))
 
 
 if __name__ == '__main__':
