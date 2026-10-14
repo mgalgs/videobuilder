@@ -231,6 +231,11 @@ def cmd_frames(a):
         raise SystemExit(str(e)) from None
 
 
+def cmd_capabilities(a):
+    from . import capabilities
+    sys.stdout.write(capabilities.sheet_markdown())
+
+
 def cmd_edit(a):
     from . import edits
     try:
@@ -339,6 +344,11 @@ def main(argv=None):
     d.add_argument('--agent-context-mount', help='where the agent sees --agent-context-root')
     d.add_argument('--agent-videobuilder-repo', help='videobuilder git URL, for == pins')
     d.set_defaults(fn=cmd_editor)
+
+    cap = sub.add_parser('capabilities', help="the capabilities catalog's builder sheet")
+    capsub = cap.add_subparsers(dest='capabilities_cmd', required=True)
+    caps = capsub.add_parser('sheet', help='print the generated builder sheet (redirect it to the committed file)')
+    caps.set_defaults(fn=cmd_capabilities)
 
     f = sub.add_parser('frames', help='hash fixed example keyframes in every format')
     f.add_argument('--hash', action='store_true', required=True)

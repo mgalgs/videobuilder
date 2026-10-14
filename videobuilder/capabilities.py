@@ -205,3 +205,48 @@ def categories():
         if e['category'] not in seen:
             seen.append(e['category'])
     return tuple(seen)
+
+
+# ---- the builder-facing sheet (skill/make-a-video/reference/capabilities.md) ----
+
+SHEET_PATH = os.path.join('skill', 'make-a-video', 'reference', 'capabilities.md')
+_REGEN_CMD = 'python -m videobuilder capabilities sheet > ' + SHEET_PATH
+
+
+def sheet_markdown():
+    """The builder-facing reference generated from CATALOG. Regenerate with
+    `_REGEN_CMD`; tests/test_capabilities.py fails if the committed file drifts
+    from this."""
+    lines = [
+        '<!-- GENERATED from videobuilder/capabilities.py by `sheet_markdown()`. Do not hand-edit;',
+        f'     regenerate with `{_REGEN_CMD}` after changing the catalog. -->',
+        '# Capabilities catalog',
+        '',
+        'What videobuilder can already do, with a worked example for each. Reach for one of these '
+        'before inventing an effect. Adding a capability later means adding one entry to `CATALOG` in '
+        '`videobuilder/capabilities.py` and one demo film beside the others in `examples/capabilities/`; '
+        'this file and the `/capabilities` page are both generated from that single catalog.',
+        '',
+    ]
+    for category in categories():
+        lines.append(f'## {category}')
+        lines.append('')
+        for e in CATALOG:
+            if e['category'] != category:
+                continue
+            lines.append(f"### {e['title']}")
+            lines.append('')
+            lines.append(f"**What it looks like:** {e['card']} {e['description']}")
+            lines.append('')
+            lines.append('**When to use it:** reach for this when a director says something like:')
+            for p in e['prompts']:
+                lines.append(f'- "{p}"')
+            lines.append('')
+            lines.append('**How to build it:**')
+            for api in e['apis']:
+                lines.append(f'- `{api}`')
+            lines.append(f"- Read `{e['doc']}`.")
+            lines.append('')
+            lines.append(f"**Worked example:** `{e['demo']}` — read it before writing something similar from scratch.")
+            lines.append('')
+    return '\n'.join(lines) + '\n'

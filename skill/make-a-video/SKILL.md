@@ -74,6 +74,8 @@ format and the numbers. In short:
 
 Read `reference/motion.md` when assigning motion numbers, checking a move with `vb motion`, or locking a director note into `EXPECT`; choose one hero move per shot.
 
+While planning, read `reference/capabilities.md`: the catalog of what videobuilder can already do, each entry with a worked example film to read. Reach for one of these before inventing an effect.
+
 ## 3. Scaffold the film
 
 ```sh
