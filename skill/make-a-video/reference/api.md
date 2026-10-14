@@ -71,7 +71,46 @@ with cv.clip(*box, radius=24): ...
 cv.mark('name', *box)                            # tag content for checks (records the moved box)
 cv.ctx                                           # raw cairo context, for paths, arcs, gradients
 vb.rgba(colour)                                  # -> cairo floats for cv.ctx.set_source_rgba(*...)
+with cv.pixelated(8) as px:                      # body draws into px at 1/8 resolution,
+    px.rect(...); text.draw(px, ...)             # painted back nearest-neighbour: blocky pixel art
+ctx.set_source(vb.halftone_pattern(14, 5, angle=0.4, colour='#000'))   # a repeating dot fill
+ctx.paint()                                      # (a cairo pattern; use within a clip to fill a shape)
 ```
+
+- `cv.pixelated(factor, x=0, y=0, w=None, h=None, background=None)`: a group, in the
+  style of `layer`/`clip`, drawn with the *yielded* Canvas (not `cv`) at 1/`factor`
+  resolution over the region (default the whole frame) and painted back with
+  nearest-neighbour filtering. Any text or image drawn into it pixelates too. A film
+  that never calls it renders exactly as before.
+- `vb.halftone_pattern(pitch, radius, angle=0, colour='#000')`: a cairo pattern of
+  repeating dots (a Ben-Day halftone fill), `pitch` px between centres. There is no
+  image-to-halftone conversion, only this generated dot fill.
+
+## Paths: partial reveal, resampling and morphing
+
+```python
+from videobuilder import paths
+paths.length(points, closed=False)                       # total arc length
+paths.reveal(points, fraction, closed=False)              # the leading fraction, by arc length
+paths.resample(points, n, closed=False)                   # n points evenly spaced by arc length
+paths.morph(a, b, t, closed=False, n=None)                # a resampled/aligned lerp between two shapes
+paths.jitter(points, seed, amount=1.0, wander=0.3)        # deterministic seeded hand-wobble
+paths.draw(cv, points, colour, width=2, closed=False, fill=False, alpha=1.0)   # draw the point list
+```
+
+- Pure geometry on point lists (`[(x, y), ...]`, film px); nothing here keeps a cairo
+  path around. `paths.draw` is the one function that touches a canvas.
+- `reveal`: for a self-drawing line or a stroke-by-stroke diagram, `paths.draw(cv,
+  paths.reveal(points, shot.f / total_frames), colour, width=4)`.
+- `morph`: both shapes are resampled to the same point count (`n`, default the
+  longer of the two); for a closed shape, `b` is rotated to the start point (and
+  reversed if its winding differs) that best matches `a`'s, so corresponding points
+  travel the short way round instead of visibly twisting. Ease `t` yourself (a
+  bezier, or `6t^5 - 15t^4 + 10t^3` for a very soft start/stop) before calling it.
+- `jitter`: bake it in once at import (`JITTERED = paths.jitter(points, seed=3)`),
+  not per frame, so the same stroke wobbles the same way every frame it's drawn.
+- **Trap:** `resample`/`morph` take a plain list of `(x, y)` tuples, not a `Box` or
+  a cairo path; build the point list yourself (a rect's corners, a circle's samples).
 
 - Arc/sector angles are radians from the positive x axis, increasing clockwise
   in canvas coordinates (Cairo convention). `0` to `2 * math.pi` makes a circle.

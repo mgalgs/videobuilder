@@ -11,9 +11,9 @@ What videobuilder can already do, with a worked example for each. Reach for one 
 **What it looks like:** The named motion tokens, compared side by side. Five named easing curves — videobuilder's motion tokens — each sliding a chip into place on its own row, so their character is easy to tell apart: a fast settle, a restrained glide, a small overshoot.
 
 **When to use it:** reach for this when a director says something like:
-- "Ease this in with ease_out_expo"
-- "Use a restrained entrance (ease_out_quint), nothing bouncy"
-- "Give the exit ease_in_expo and make it quicker than the entrance"
+- "Ease this in fast, then let it settle gently"
+- "Use a restrained entrance, nothing bouncy"
+- "Make the exit quicker than the entrance, and a little brisker"
 
 **How to build it:**
 - `vb.ease_out_expo`
@@ -32,8 +32,8 @@ What videobuilder can already do, with a worked example for each. Reach for one 
 
 **When to use it:** reach for this when a director says something like:
 - "Drop this in with a playful spring, a bit of bounce"
-- "Use a firm, no-overshoot settle (critical damping)"
-- "Make the bounce more cartoonish — lower the damping ratio"
+- "Use a firm landing, no bounce"
+- "Make it bouncier, more cartoonish"
 
 **How to build it:**
 - `vb.spring_at(f, fps, **vb.damped(ratio, hz=2.0))`
@@ -94,12 +94,12 @@ What videobuilder can already do, with a worked example for each. Reach for one 
 
 ### Overlap transitions
 
-**What it looks like:** One segment slides over the outgoing one — no hard cut. Instead of a hard cut, the next segment starts on its own beat while the one before it keeps drawing underneath for a few more frames: a transition, built from `Segment(overlap=k)`, not a crossfade bolted on.
+**What it looks like:** One segment slides over the outgoing one — no hard cut. Instead of a hard cut, the next scene starts on its own beat while the one before it keeps drawing underneath for a few more frames: a transition built into the timeline itself, not a crossfade bolted on.
 
 **When to use it:** reach for this when a director says something like:
 - "Transition between these, not a hard cut"
-- "Slide the end card in over the previous scene (overlap 1 beat)"
-- "Keep the outgoing segment visible while the next one arrives"
+- "Slide the end card in over the previous scene, overlapping for a beat"
+- "Keep the previous scene visible while the next one arrives"
 
 **How to build it:**
 - `vb.Segment(..., overlap=k)`
@@ -109,6 +109,39 @@ What videobuilder can already do, with a worked example for each. Reach for one 
 
 **Worked example:** `examples/capabilities/overlap-transitions.py` — read it before writing something similar from scratch.
 
+### Drawn-on diagram
+
+**What it looks like:** A whiteboard diagram drawn stroke by stroke, pen tracked by camera. A small whiteboard diagram -- boxes, arrows, an icon, handwritten-looking labels -- draws on stroke by stroke with a little hand jitter, the camera tracking the pen across a board bigger than the frame, ending in a pull-back that shows the whole board at once.
+
+**When to use it:** reach for this when a director says something like:
+- "Draw this diagram on stroke by stroke, like a whiteboard"
+- "Track the camera on the pen as it draws, then pull back"
+- "Give the lines a bit of hand-drawn wobble, not perfectly straight"
+
+**How to build it:**
+- `videobuilder.paths.reveal(points, fraction)`
+- `videobuilder.paths.jitter(points, seed)`
+- `cv.layer(dx=.., dy=.., scale=..)  # the tracking camera`
+- Read `skill/make-a-video/reference/api.md`.
+
+**Worked example:** `examples/capabilities/drawn-on-diagram.py` — read it before writing something similar from scratch.
+
+### Shape morph
+
+**What it looks like:** One outline smoothly becomes the next, not a cut. A circle turns into a document icon and back, its outline resampled to match point for point and interpolated with a smooth ease while its colour travels along -- one idea turning into the next instead of a hard cut between two shapes.
+
+**When to use it:** reach for this when a director says something like:
+- "Don't cut between these icons, morph one into the other"
+- "Turn the circle into the document shape smoothly"
+- "Let the colour shift as the shape changes, not just the outline"
+
+**How to build it:**
+- `videobuilder.paths.morph(a, b, t, closed=True)`
+- `videobuilder.paths.draw(cv, points, colour, fill=True)`
+- Read `skill/make-a-video/reference/api.md`.
+
+**Worked example:** `examples/capabilities/shape-morph.py` — read it before writing something similar from scratch.
+
 ## Type and data
 
 ### Kinetic typography
@@ -116,8 +149,8 @@ What videobuilder can already do, with a worked example for each. Reach for one 
 **What it looks like:** Balanced wrapping, word-by-word reveal, live weight. A headline wraps with balanced line breaks, reveals word by word, and its variable-font weight itself animates in — all real text layout, not an image of text.
 
 **When to use it:** reach for this when a director says something like:
-- "Reveal this headline word by word, balanced wrapping"
-- "Animate the weight in as it lands (thin to bold)"
+- "Reveal this headline word by word, with neatly balanced line breaks"
+- "Animate the weight in as it lands, thin to bold"
 - "Make the type itself the motion here"
 
 **How to build it:**
@@ -178,6 +211,22 @@ What videobuilder can already do, with a worked example for each. Reach for one 
 
 **Worked example:** `examples/capabilities/gauges-and-rings.py` — read it before writing something similar from scratch.
 
+### Self-drawing line chart with a callout
+
+**What it looks like:** Axes first, the line draws itself on, then one point is called out. Honest axes appear first, then every series draws itself on along its own path -- the background series in grey, only the hero series in colour -- and once it lands, one callout (a dot, a leader line and a short label) points at the single point that matters.
+
+**When to use it:** reach for this when a director says something like:
+- "Draw the axes first, then let the line draw itself on"
+- "Keep the other lines grey, only highlight the hero line"
+- "Call out the final point with a dot and a short label"
+
+**How to build it:**
+- `videobuilder.paths.reveal(points, fraction)`
+- `videobuilder.paths.draw(cv, points, colour, width=...)`
+- Read `skill/make-a-video/reference/api.md`.
+
+**Worked example:** `examples/capabilities/line-chart-callout.py` — read it before writing something similar from scratch.
+
 ## Imagery and camera
 
 ### Camera on a screenshot
@@ -199,7 +248,7 @@ What videobuilder can already do, with a worked example for each. Reach for one 
 
 ### Redrawn product UI
 
-**What it looks like:** A crisp vector screen, redrawn from measured blocks. A product screen redrawn as vector shapes and real text instead of a captured bitmap: crisp at any size, built from measured blocks stacked with `Box.stack`.
+**What it looks like:** A crisp vector screen, redrawn from measured blocks. A product screen redrawn as vector shapes and real text instead of a captured bitmap: crisp at any size, built from measured blocks stacked edge to edge.
 
 **When to use it:** reach for this when a director says something like:
 - "Redraw this screen instead of using a screenshot"
@@ -237,7 +286,7 @@ What videobuilder can already do, with a worked example for each. Reach for one 
 
 **When to use it:** reach for this when a director says something like:
 - "Generate a background pattern, not a stock image"
-- "Use a seeded procedural pattern so it renders identically"
+- "Use a generated pattern that renders exactly the same every time"
 - "Draw this as paths and a gradient, not a bitmap"
 
 **How to build it:**
@@ -250,7 +299,7 @@ What videobuilder can already do, with a worked example for each. Reach for one 
 
 ### 3D shots
 
-**What it looks like:** A pre-rendered 3D clip, composited like any other image. A ManimGX 3D render (built offline, once) plays back as an ordinary clip inside the film — the same `cv.image` call as any other picture, just fed a frame from a 3D shot instead of a PNG.
+**What it looks like:** A pre-rendered 3D clip, composited like any other image. A pre-rendered 3D render (built offline, once) plays back as an ordinary clip inside the film, composited exactly like any other picture, just fed a frame from a 3D shot instead of a still image.
 
 **When to use it:** reach for this when a director says something like:
 - "Open on a 3D shot of the product, then cut to the UI"
@@ -264,6 +313,54 @@ What videobuilder can already do, with a worked example for each. Reach for one 
 - Read `skill/make-a-video/reference/3d.md`.
 
 **Worked example:** `examples/capabilities/orbit-3d.py` — read it before writing something similar from scratch.
+
+### Hard-light sweep
+
+**What it looks like:** A hard-edged band of light sweeps across the shot. A dim, shadowed version of the scene sits underneath a warm, lit version clipped to a hard-edged band -- a slanted shaft of light with window-mullion bars cut out of it -- that sweeps across the frame.
+
+**When to use it:** reach for this when a director says something like:
+- "Sweep a hard beam of sunlight across this shot"
+- "Add a dramatic light sweep, like light through a window"
+- "Make part of the scene glow as a band of light passes over it"
+
+**How to build it:**
+- `cv.ctx path + even-odd fill_rule for the clip`
+- `cv.image(img, *box) for the dim and lit layers`
+- Read `skill/make-a-video/reference/api.md`.
+
+**Worked example:** `examples/capabilities/hard-light-sweep.py` — read it before writing something similar from scratch.
+
+### Comic-book halftone
+
+**What it looks like:** Dot-fill shading, thick ink outlines, a jittering burst callout. A flat-colour shape shaded with a halftone dot fill, a thick ink outline, and a jittering starburst callout with a short word -- the dot plate sits a couple of pixels off from the ink, the way an old four-colour print misregisters its plates.
+
+**When to use it:** reach for this when a director says something like:
+- "Give this a comic-book look, dot shading and thick outlines"
+- "Add a jittering burst callout with a short word"
+- "Let the colour plate sit slightly off from the linework, like an old print"
+
+**How to build it:**
+- `videobuilder.halftone_pattern(pitch, radius, angle=.., colour=..)`
+- `cv.arc(..., width=..)  # the thick outline`
+- Read `skill/make-a-video/reference/api.md`.
+
+**Worked example:** `examples/capabilities/comic-halftone.py` — read it before writing something similar from scratch.
+
+### Pixel-art layer
+
+**What it looks like:** A scene rendered blocky, 8-bit style, with stepped motion. A small scene -- sky, ground, a walking character, a HUD label -- is drawn at a fraction of the frame's resolution and scaled back up with blocky nearest-neighbour filtering, its motion held two frames at a time for an 8-bit, stop-motion feel; any text drawn into the layer pixelates with it.
+
+**When to use it:** reach for this when a director says something like:
+- "Render this as retro 8-bit pixel art"
+- "Make the motion choppier, like an old game, not smooth 30fps"
+- "Keep the on-screen text blocky and pixelated too, not crisp"
+
+**How to build it:**
+- `cv.pixelated(factor)`
+- `stepped_n = (n // 2) * 2  # 15fps motion on a 30fps film`
+- Read `skill/make-a-video/reference/api.md`.
+
+**Worked example:** `examples/capabilities/pixel-art-layer.py` — read it before writing something similar from scratch.
 
 ## Timing, sound and formats
 
@@ -302,12 +399,12 @@ What videobuilder can already do, with a worked example for each. Reach for one 
 
 ### Seamless loops
 
-**What it looks like:** A clip built to play forever with no visible seam. A continuously looping shot — phase driven purely by `n % length`, so the state at the last frame and the state at frame 0 are mathematically the same point in the cycle, not just visually close.
+**What it looks like:** A clip built to play forever with no visible seam. A continuously looping shot, its motion driven by a repeating cycle, so the state at the last frame and the state at frame 0 are mathematically the same point in the cycle, not just visually close.
 
 **When to use it:** reach for this when a director says something like:
 - "Make this loop seamlessly"
 - "This needs to play on repeat with no jump at the seam"
-- "Drive the motion from a phase that wraps, so it loops cleanly"
+- "Drive the motion in a cycle that wraps around cleanly, with no jump at the seam"
 
 **How to build it:**
 - `phase = (n % length) / length`

@@ -42,6 +42,8 @@ UI feedback: 100–200 ms. UI moves: 200–500 ms. Hero reveals: 600–900 ms. S
 
 Create `STYLE.md` beside `film.py` and commit it with the video. Record palette and font choices, safe-area and contrast rules, signature motion tokens, camera rules, and effects the director rejected. Read it before every note and add one line whenever the director rejects a default. Unless a brief explicitly calls for them, ban glow, floating decorative particles, every element fading in together, fade-and-slide-up on every element, centred-everything layouts, moving text while read, and purple/blue gradients.
 
+Mesh gradients, glass (frosted, translucent) cards and gradient text are each fine on their own, but together they read as an AI-template look -- use at most one per film. A deep blue-to-purple palette reads as generic AI output; tie the palette to the brand or subject instead.
+
 ## Review a note at frames
 
 Name the affected frames in the note: start, beat, peak, hold, exit, and one on either side of a problem. Render `python film.py still 83 84 85 --overlay` and `python film.py sheet --frames 0,24,48,72`; inspect each format. Run `check.py film.py --video` for flashes, loop seam, audio and beat checks, and `check.py film.py --motion` for mark trajectories. Judge WARNs against the stills before replying with frame numbers and the exact change.

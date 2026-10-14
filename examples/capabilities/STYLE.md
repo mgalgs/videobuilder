@@ -67,3 +67,16 @@ Any chart or diagram with more than one series carries a direct label on
 each bar/sector/line (not colour alone) and, where two series could be
 confused by hue, a distinct shape or stroke style as well (filled vs.
 outlined, circle vs. triangle).
+
+## Style-card exceptions
+
+A style card whose whole point is a different look (comic-halftone,
+pixel-art-layer) may define its own palette of at most 5 colours inside its
+demo instead of `_kit`'s, under the same contrast (>= 4.5:1 for small text)
+and colour-blind (hue separation, not lightness alone) rules.
+
+Six capability demos -- shape-morph, line-chart-callout, hard-light-sweep,
+drawn-on-diagram, comic-halftone, pixel-art-layer -- are after
+[huashu-art-motion](https://github.com/alchaincyf/huashu-art-motion) (MIT):
+the techniques, reimplemented here in this project's own code, palettes and
+words, not its code, text or palettes.
