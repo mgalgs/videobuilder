@@ -5,16 +5,22 @@ with a demo film that proves it. This is the single source for both the
 below and checked for drift by tests/test_capabilities.py). Add a capability
 by adding one entry here and one demo film at its `demo` path; nothing else
 reads capability text directly.
+
+    python -m videobuilder capabilities build --out DIR [--only ID]
 """
 import os
 
 REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 
-def _entry(id, category, title, card, description, prompts, apis, doc, demo):
+def _entry(id, category, title, card, description, prompts, apis, doc, demo, poster=None):
     return {'id': id, 'category': category, 'title': title, 'card': card, 'description': description,
             'prompts': tuple(prompts), 'apis': tuple(apis), 'doc': doc,
-            'demo': f'examples/capabilities/{demo}.py'}
+            'demo': f'examples/capabilities/{demo}.py',
+            # The poster frame: None picks the demo's middle frame (every demo is built to be
+            # settled there by its own enter/hold/exit or periodic-phase convention), overridden
+            # here only where that default lands somewhere less telling than another frame.
+            'poster': poster}
 
 
 CATALOG = (
@@ -64,7 +70,7 @@ CATALOG = (
         ('Give this hop some anticipation and squash and stretch', 'Make the landing squash, then settle with follow-through',
          'This motion feels flat; add some character to it'),
         ('vb.interpolate', 'vb.spring_at(f, fps, **vb.damped(0.22, hz=2.2))  # follow-through', 'frame-level timing in reference/motion.md'),
-        'skill/make-a-video/reference/motion.md', 'character-motion'),
+        'skill/make-a-video/reference/motion.md', 'character-motion', poster=42),  # squashed, landing, not round
     _entry(
         'overlap-transitions', 'Motion', 'Overlap transitions',
         'One segment slides over the outgoing one — no hard cut.',
@@ -120,7 +126,7 @@ CATALOG = (
         ('Pan and zoom across this screenshot, pin the navbar', 'Push in on the pricing table, then pan down',
          'Keep the header pinned while the camera scrolls the page'),
         ('cv.view(img, box, center=, scale=, radius=)', 'vb.log_lerp(a, b, p)  # even zoom', 'view.pin(src, y=box.y)'),
-        'skill/make-a-video/reference/api.md', 'camera-on-a-screenshot'),
+        'skill/make-a-video/reference/api.md', 'camera-on-a-screenshot', poster=0),  # the full-dashboard frame
     _entry(
         'redrawn-product-ui', 'Imagery and camera', 'Redrawn product UI',
         'A crisp vector screen, redrawn from measured blocks.',
@@ -250,3 +256,46 @@ def sheet_markdown():
             lines.append(f"**Worked example:** `{e['demo']}` — read it before writing something similar from scratch.")
             lines.append('')
     return '\n'.join(lines) + '\n'
+
+
+# ---- building the clips and posters ----
+
+def _save_poster(cv, path, quality=82):
+    from PIL import Image
+    cv.surface.flush()
+    w, h = cv.surface.get_width(), cv.surface.get_height()
+    im = Image.frombuffer('RGBA', (w, h), bytes(cv.surface.get_data()), 'raw', 'BGRA', cv.surface.get_stride(), 1)
+    im.convert('RGB').save(path, 'JPEG', quality=quality)
+
+
+def build(out_dir, only=None, jobs=None, crf=30, log=None):
+    """Render every catalog demo (or just the ids in `only`) to `<out_dir>/<id>.mp4`
+    (H.264, yuv420p, faststart, audio only where the demo has it) and
+    `<out_dir>/<id>.jpg` (a poster from the demo's middle frame — every demo is
+    built to be mid-clip-settled by its own enter/hold/exit or periodic-phase
+    convention, see examples/capabilities/STYLE.md). Returns a list of
+    {id, seconds, bytes} for the ones built, in catalog order."""
+    import sys as _sys
+    import time as _time
+    from . import film as _film
+    from .render import render as _render
+    log = log or _sys.stderr
+    if only is not None:
+        unknown = set(only) - set(ids())
+        if unknown:
+            raise ValueError(f'unknown capability id(s): {", ".join(sorted(unknown))}')
+    entries = [e for e in CATALOG if only is None or e['id'] in only]
+    os.makedirs(out_dir, exist_ok=True)
+    results = []
+    for entry in entries:
+        path = os.path.join(REPO_ROOT, entry['demo'])
+        film = _film.load(path)
+        fmt = film.formats[0]
+        out_mp4 = os.path.join(out_dir, entry['id'] + '.mp4')
+        t0 = _time.time()
+        _render(film, out_mp4, fmt, jobs=jobs, crf=crf, log=log)
+        poster_n = entry['poster'] if entry['poster'] is not None else film.frames // 2
+        poster_cv = film.frame(poster_n, fmt)
+        _save_poster(poster_cv, os.path.join(out_dir, entry['id'] + '.jpg'))
+        results.append({'id': entry['id'], 'seconds': _time.time() - t0, 'bytes': os.path.getsize(out_mp4)})
+    return results

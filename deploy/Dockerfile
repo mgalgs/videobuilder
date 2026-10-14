@@ -32,6 +32,13 @@ USER root
 RUN python3 -m unittest discover -s . -t . && \
     python3 -m videobuilder frames --hash --check deploy/frames.sha256 examples/tour.py examples/benchmark.py
 
+# The capabilities page's clips and posters render here, from exactly this image's
+# videobuilder, so a built clip can never show something the running version can't do.
+FROM runtime AS capabilities
+USER root
+RUN python3 -m videobuilder capabilities build --out /opt/videobuilder-capabilities
+
 FROM runtime
 COPY --from=gated /opt/videobuilder/deploy/Dockerfile /opt/videobuilder/deploy/Dockerfile
+COPY --from=capabilities /opt/videobuilder-capabilities /opt/videobuilder-capabilities
 USER 1000:1000

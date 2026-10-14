@@ -233,7 +233,20 @@ def cmd_frames(a):
 
 def cmd_capabilities(a):
     from . import capabilities
-    sys.stdout.write(capabilities.sheet_markdown())
+    if a.capabilities_cmd == 'sheet':
+        sys.stdout.write(capabilities.sheet_markdown())
+        return
+    try:
+        results = capabilities.build(a.out, only=set(a.only) if a.only else None, jobs=a.jobs, crf=a.crf)
+    except ValueError as e:
+        raise SystemExit(str(e)) from None
+    total = 0.0
+    largest = 0
+    for r in results:
+        total += r['seconds']
+        largest = max(largest, r['bytes'])
+        print(f"{r['id']}: {r['seconds']:.1f}s, {r['bytes'] / 1024:.0f} KiB")
+    print(f"{len(results)} clip(s) built in {total:.1f}s total; largest clip {largest / 1024:.0f} KiB")
 
 
 def cmd_edit(a):
@@ -345,8 +358,14 @@ def main(argv=None):
     d.add_argument('--agent-videobuilder-repo', help='videobuilder git URL, for == pins')
     d.set_defaults(fn=cmd_editor)
 
-    cap = sub.add_parser('capabilities', help="the capabilities catalog's builder sheet")
+    cap = sub.add_parser('capabilities', help="the capabilities catalog's clips and builder sheet")
     capsub = cap.add_subparsers(dest='capabilities_cmd', required=True)
+    capb = capsub.add_parser('build', help='render every demo to <out>/<id>.mp4 and <id>.jpg (or just --only ids)')
+    capb.add_argument('--out', required=True, help='output directory')
+    capb.add_argument('--only', action='append', help='build only this capability id (repeatable)')
+    capb.add_argument('--jobs', type=int, help='worker processes (default: CPU count)')
+    capb.add_argument('--crf', type=int, default=30, help='x264 quality (default 30: small clips over sharpness)')
+    capb.set_defaults(fn=cmd_capabilities)
     caps = capsub.add_parser('sheet', help='print the generated builder sheet (redirect it to the committed file)')
     caps.set_defaults(fn=cmd_capabilities)
 
