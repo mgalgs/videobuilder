@@ -750,7 +750,10 @@ def make_handler(editor, hook=request_hook):
                             raise HTTPError(400, 'start must be "blank" or "copy"')
                         try:
                             if start == 'copy':
-                                result = {**library.copied(_field(body, 'from', str), name), 'video': None}
+                                source = _field(body, 'from', str)
+                                if library.accounts and not library.access.can_access(source, user, library.accounts):
+                                    raise HTTPError(404, 'repository has no main branch')
+                                result = {**library.copied(source, name), 'video': None}
                             else:
                                 result = library.create_blank(name)
                         except ValueError as exc:

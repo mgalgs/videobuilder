@@ -499,6 +499,21 @@ class Auth(LibraryFixture, unittest.TestCase):
         code, access = self.request('/v/acme/dana-video/api/access', headers={'Cookie': dana})
         self.assertEqual((code, access['owner']), (200, 'dana'))
 
+    def test_copy_start_refuses_a_source_the_user_cannot_access(self):
+        # Unlike /api/library/new (admin-only, so admins always have access to
+        # the source), start:"copy" on /api/videos/new is open to any signed-in
+        # user and must not let them copy a private project they have no access to.
+        self.seed('secret/private', film=True)
+        admin = self.admin_login()
+        self.new_project(admin, 'secret/private', 'secret/private')
+        _, _, dana = self.signup('dana', 'longenoughpassword')
+        self.assertEqual(self.request('/v/secret/private/api/project', headers={'Cookie': dana})[0], 404)
+        code, result = self.request('/api/videos/new', {'name': 'dana/stolen', 'start': 'copy',
+                                                         'from': 'secret/private'},
+                                    headers={'Content-Type': 'application/json', 'Cookie': dana})
+        self.assertEqual(code, 404, result)
+        self.assertFalse(self.library.path('dana/stolen').exists())
+
     def test_anonymous_cannot_start_a_video(self):
         code, _ = self.request('/api/videos/new', {'name': 'acme/anon-video', 'start': 'blank'})
         self.assertEqual(code, 401)
