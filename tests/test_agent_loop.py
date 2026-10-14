@@ -10,10 +10,12 @@ from unittest.mock import patch
 
 from tests.test_project import TempProject, git
 from tests.test_notes import FakeAgent
+from videobuilder import agents, transcript
 from videobuilder.agents import CommandBackend, FakeBackend, ForkSandboxBackend
 from videobuilder.drafts import inspect, child_environment
 from videobuilder.editor import Editor
 from videobuilder.notes import NoteStore, AgentStatus
+from videobuilder.transcript import read_feed
 
 
 class Queue(TempProject):
@@ -185,6 +187,66 @@ print("garbage", file=sys.stderr)
         backend = ForkSandboxBackend(str(script), extra_args=['--k8s'])
         with self.assertRaisesRegex(ValueError, 'unparseable'):
             backend.peek('/run/example')
+
+    def test_peek_timeout_raises(self):
+        script = self._peek_script('''import time
+time.sleep(1)
+''')
+        backend = ForkSandboxBackend(str(script), extra_args=['--k8s'])
+        with patch.object(agents, '_PEEK_TIMEOUT', 0.05):
+            with self.assertRaisesRegex(ValueError, 'timed out'):
+                backend.peek('/run/example')
+
+    def test_read_feed_through_real_backend_follows_file_and_after_across_polls(self):
+        """read_feed's live cache, driven by a real subprocess backend (not a
+        hand-fed FakePeek), must hand back exactly the file/after the
+        previous `peek` call returned -- including across a leg change."""
+        first = json.dumps({'type': 'assistant',
+                             'message': {'content': [{'type': 'text', 'text': 'Looking at the frame now.'}]}})
+        second = json.dumps({'type': 'assistant',
+                              'message': {'content': [{'type': 'text', 'text': 'Step: next'}]}})
+        script = self._peek_script(f'''import sys
+args = sys.argv[1:]
+after = args[args.index("--after") + 1]
+file = args[args.index("--file") + 1] if "--file" in args else None
+responses = {{
+    (None, "0"): ({first!r}, "events.jsonl", 40),
+    ("events.jsonl", "40"): ({second!r}, "events-review-1.jsonl", 5),
+}}
+key = (file, after)
+if key not in responses:
+    print(f"unexpected call file={{file}} after={{after}}", file=sys.stderr)
+    sys.exit(1)
+text, name, next_offset = responses[key]
+sys.stdout.write(text + chr(10))
+print(f"peek: file={{name}} next={{next_offset}}", file=sys.stderr)
+''')
+        backend = ForkSandboxBackend(str(script), extra_args=['--k8s'])
+        handle = '/fake/handle/' + self.id()
+        self.addCleanup(transcript._drop_live, handle)
+        with patch.object(transcript, '_LIVE_POLL_INTERVAL', 0):
+            with self.assertNoLogs('videobuilder.transcript', level='WARNING'):
+                read_feed(handle, peek=backend.peek)
+                entries = read_feed(handle, peek=backend.peek)
+        self.assertEqual([e['text'] for e in entries if e['kind'] == 'leg'], ['Building', 'Review 1'])
+        self.assertEqual([e['text'] for e in entries if e['kind'] == 'text'], ['Looking at the frame now.'])
+        self.assertEqual([e['text'] for e in entries if e['kind'] == 'step'], ['next'])
+
+    def test_failing_peek_through_real_backend_is_logged_once(self):
+        script = self._peek_script('''import sys
+print("boom: unreachable cluster", file=sys.stderr)
+sys.exit(1)
+''')
+        backend = ForkSandboxBackend(str(script), extra_args=['--k8s'])
+        handle = '/fake/handle/' + self.id()
+        self.addCleanup(transcript._drop_live, handle)
+        with patch.object(transcript, '_LIVE_POLL_INTERVAL', 0):
+            with self.assertLogs('videobuilder.transcript', level='WARNING') as captured:
+                first = read_feed(handle, peek=backend.peek)
+                second = read_feed(handle, peek=backend.peek)
+        self.assertEqual(first, [])
+        self.assertEqual(second, [])
+        self.assertEqual(len(captured.records), 1)
 
 
 class DraftLoop(TempProject):
