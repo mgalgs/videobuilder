@@ -94,6 +94,31 @@ class FormatterTests(unittest.TestCase):
         ])
         self.assertEqual([e['text'] for e in entries if e['kind'] == 'leg'], ['Building', 'Review 1', 'Fix 1'])
 
+    def test_step_lines_become_their_own_kind_with_details_following(self):
+        step_one = {'type': 'text', 'text': 'Step: tighten the logo entrance in the intro to 12 frames'}
+        step_two = {'type': 'text', 'text': '  Step: brighten the close so it reads on a phone  '}
+        lines = [
+            assistant(TEXT),            # a detail before any step: unaffected
+            assistant(step_one),
+            assistant(TOOL_EDIT),       # a detail of the first step
+            assistant(step_two),
+            assistant(TOOL_GREP),       # a detail of the second step
+        ]
+        entries = format_transcript([('Building', lines)], project_root='/proj')
+        kinds = [(e['kind'], e['text']) for e in entries]
+        self.assertEqual(kinds, [
+            ('leg', 'Building'),
+            ('text', 'Looking at the frame now.'),
+            ('step', 'tighten the logo entrance in the intro to 12 frames'),
+            ('tool', 'Edit promo/film.py'),
+            ('step', 'brighten the close so it reads on a phone'),
+            ('tool', 'Grep FILM ='),
+        ])
+
+    def test_leg_with_no_step_lines_is_unaffected(self):
+        entries = format_transcript([('Building', [assistant(TEXT), assistant(TOOL_READ)])])
+        self.assertEqual([e['kind'] for e in entries], ['leg', 'text', 'tool'])
+
     def test_empty_leg_produces_no_header(self):
         entries = format_transcript([('Building', [assistant(TEXT)]), ('Review 1', [])])
         self.assertEqual([e['text'] for e in entries if e['kind'] == 'leg'], ['Building'])

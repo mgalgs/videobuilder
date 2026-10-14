@@ -218,6 +218,10 @@ class NoteStore:
                     for key in ('video', 'film', 'format', 'frame', 'segment', 'beat', 'time', 'image', 'draft'):
                         lines.append(f"{key}: {image if key == 'image' else payload.get(key)}")
                     lines += ['', '## Look at your work', '',
+                              'Before each distinct step of your work, write one line in your own message '
+                              'that starts with "Step: " and says what you are about to do and why, in plain '
+                              'words for the director (for example, "Step: tighten the logo entrance in the '
+                              'intro to 12 frames"). One line per step, never inside a tool call.',
                               'You can see images: open a PNG with the Read tool. When `image` is set it is '
                               'the frame the director was looking at; open it before anything else.',
                               'For anything about how the video looks, iterate visually: `still` the frames the '

@@ -25,6 +25,11 @@ items (never shown). That shape is not a stable contract -- another harness
 line that doesn't parse, or doesn't look like that, is skipped silently
 rather than raising.
 
+A text item whose stripped text starts with "Step: " (see notes.py, which
+asks the builder for one of these per distinct step of its work) becomes its
+own entry of kind "step", holding the text after that prefix; every entry
+that follows it, up to the next step or leg header, is that step's detail.
+
 Everything here is pure except `read_feed`, which does the file I/O; the
 formatting it delegates to (`format_transcript`) takes already-read lines,
 with no I/O of its own. The feed is shown only to people with access to the
@@ -195,6 +200,9 @@ def _result_line(result, show_cost):
     return ' · '.join(parts) if parts else None
 
 
+STEP_PREFIX = 'Step: '
+
+
 def _assistant_entries(message, project_root):
     content = message.get('content') if isinstance(message, dict) else None
     if not isinstance(content, list):
@@ -204,9 +212,15 @@ def _assistant_entries(message, project_root):
         if not isinstance(item, dict):
             continue
         if item.get('type') == 'text' and isinstance(item.get('text'), str):
-            text = _collapse(item['text'])
-            if text:
-                entries.append({'kind': 'text', 'text': text})
+            stripped = item['text'].strip()
+            if stripped.startswith(STEP_PREFIX):
+                text = _collapse(stripped[len(STEP_PREFIX):])
+                if text:
+                    entries.append({'kind': 'step', 'text': text})
+            else:
+                text = _collapse(item['text'])
+                if text:
+                    entries.append({'kind': 'text', 'text': text})
         elif item.get('type') == 'tool_use':
             entries.append({'kind': 'tool', 'text': _tool_line(item.get('name'), item.get('input'), project_root)})
         # tool_result, thinking, and anything else a line might carry: never shown.
