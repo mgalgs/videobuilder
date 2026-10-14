@@ -220,8 +220,11 @@ class NoteStore:
                     lines += ['', '## Look at your work', '',
                               'Before each distinct step of your work, write one line in your own message '
                               'that starts with "Step: " and says what you are about to do and why, in plain '
-                              'words for the director (for example, "Step: tighten the logo entrance in the '
-                              'intro to 12 frames"). One line per step, never inside a tool call.',
+                              'words for the director (for example, "Step: make the logo arrive faster in the '
+                              'intro"). One line per step, never inside a tool call.',
+                              'The director is a creator, not a programmer. In every Step line and in your '
+                              'reply, describe what changes on screen in plain language: no file names, function '
+                              'or parameter names, code, frame counts or easing names.',
                               'You can see images: open a PNG with the Read tool. When `image` is set it is '
                               'the frame the director was looking at; open it before anything else.',
                               'For anything about how the video looks, iterate visually: `still` the frames the '
