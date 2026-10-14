@@ -455,6 +455,16 @@ function renderQuestionsCard(note) {
     wrap.append(card);
     return wrap
   }
+  if(note.state!=='questions') {
+    card.append(node('strong','questions-done','Asked, but built it anyway'));
+    for(const q of note.questions) {
+      const row=node('div','questions-summary-row');
+      row.append(node('span','questions-summary-q',q.text));
+      card.append(row)
+    }
+    wrap.append(card);
+    return wrap
+  }
   const answers=state.pendingAnswers[note.id]||(state.pendingAnswers[note.id]=note.questions.map(()=>''));
   let send;
   const refresh=()=>send.disabled=answers.some(a=>!a.trim());
@@ -578,7 +588,7 @@ function renderNotes() {
       reply.append(box);
       list.append(reply)
     }
-    if(note.state==='questions')list.append(renderQuestionsCard(note));
+    if(note.questions)list.append(renderQuestionsCard(note));
     if(['queued','working'].includes(note.state)) {
       const working=node('div','bubble-row builder'),box=node('div','bubble');
       box.append(node('span','who','Builder'));

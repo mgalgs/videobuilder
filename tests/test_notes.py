@@ -106,6 +106,20 @@ class Notes(unittest.TestCase):
         self.assertIn('End your reply with Summary: <one line>.', md2)
         self.assertNotIn('unless you are asking clarifying questions', md2)
 
+    def test_retry_carries_no_questions_forward(self):
+        agent = FakeAgent()
+        store = NoteStore(self.dir, agent)
+        note = store.add('promo/film', '16x9', 0, None, 'Build it with your best judgement; do not ask questions.',
+                         b'', no_questions=True)
+        agent.states[note['handle']] = AgentStatus('failed', 'could not apply')
+        failed = store.list('promo/film')[0]
+        self.assertEqual(failed['state'], 'failed')
+        retried = store.retry(failed['id'])
+        self.assertTrue(retried.get('no_questions'))
+        md = (store.session_dir('promo/film') / (retried['id'] + '.md')).read_text()
+        self.assertIn('No more questions', md)
+        self.assertNotIn('Ask first if truly unclear', md)
+
     def test_a_no_questions_note_never_shows_a_stray_block(self):
         # A backend that ignores the no-questions instruction must not leak the raw
         # block into the reply, and must not put the note back into questions state.
