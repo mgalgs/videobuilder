@@ -206,17 +206,29 @@ def crawl(links, max_pages=MAX_PAGES, time_budget=TIME_BUDGET, page_timeout=PAGE
     return pages, errors
 
 
-def write_attachments(store, video, pages, errors):
+def write_attachments(store, video, pages, errors, reserved_files=0, reserved_bytes=0):
     """Upload each page's text and screenshots as ordinary note attachments
     plus one index attachment listing every page, and return the attachment
     ids (index first). A single oversized file (bigger than the store's own
-    per-file limit -- not expected at these screenshot sizes) is skipped and
-    noted in the index rather than failing the whole gather: that is the one
-    case the brief allows raising a limit for, and this takes the
-    conservative side of that instead, to avoid quietly growing a
-    deployment's configured limits from a single request."""
+    per-file limit -- not expected at these screenshot sizes) has that limit
+    raised just for this upload, noted in the index: the one case the brief
+    allows raising a limit for.
+
+    `reserved_files`/`reserved_bytes` are the count and size of attachments
+    the note already carries (e.g. the director's own uploads), so the
+    store's overall `max_files`/`max_message` budget -- shared with every
+    other note -- is honored for the combined set, not just the pages
+    gathered here. Once that budget (minus one slot reserved for the index
+    itself) is spent, remaining page attachments are skipped and noted
+    rather than silently exceeding it."""
+    max_files = getattr(store, 'max_files', None)
+    max_message = getattr(store, 'max_message', None)
+    budget_files = None if max_files is None else max(0, max_files - reserved_files - 1)
+    budget_bytes = None if max_message is None else max(0, max_message - reserved_bytes)
     ids = []
     lines = ['# Gathered pages', '']
+    spent_files = spent_bytes = 0
+    limit_hit = False
     for n, page in enumerate(pages, 1):
         lines.append(f"{n}. {page['title'] or '(untitled)'} -- {page['url']}")
         for label, name, ctype, data in (
@@ -225,14 +237,27 @@ def write_attachments(store, video, pages, errors):
                 ('phone screenshot', f'page-{n}-phone.png', 'image/png', page['phone_png'])):
             if not data:
                 continue
+            if ((budget_files is not None and spent_files >= budget_files) or
+                    (budget_bytes is not None and spent_bytes + len(data) > budget_bytes)):
+                lines.append(f'   {label}: skipped (attachment limit reached)')
+                limit_hit = True
+                continue
+            max_file = getattr(store, 'max_file', None)
+            oversize = max_file is not None and len(data) > max_file
             try:
-                record = store.upload(video, name, ctype, data)
+                record = store.upload(video, name, ctype, data, allow_oversize=oversize)
             except ValueError as exc:
                 lines.append(f'   {label}: skipped ({exc})')
                 continue
+            spent_files += 1
+            spent_bytes += record['size']
+            suffix = ' (file size limit raised to fit)' if oversize else ''
             ids.append(record['id'])
-            lines.append(f"   {label}: {record['name']}")
+            lines.append(f"   {label}: {record['name']}{suffix}")
     for url, reason in errors:
         lines.append(f'- skipped {url}: {reason}')
+    if limit_hit:
+        lines.append('')
+        lines.append('Some gathered attachments were skipped: the note attachment limit was reached.')
     index = store.upload(video, 'gathered-pages.md', 'text/plain', '\n'.join(lines).encode('utf-8'))
     return [index['id'], *ids]

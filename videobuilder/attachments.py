@@ -28,10 +28,10 @@ class Attachments:
         self.root = Path(editor.state_dir) / 'attachments'
         self.root.mkdir(parents=True, exist_ok=True)
 
-    def upload(self, video, name, ctype, data):
+    def upload(self, video, name, ctype, data, allow_oversize=False):
         self.editor.project.video(video)
         self.expire()
-        if len(data) > self.max_file:
+        if not allow_oversize and len(data) > self.max_file:
             raise ValueError('attachment exceeds file size limit')
         name = re.sub(r'[^A-Za-z0-9._-]', '_', Path(name.replace('\\', '/')).name).lstrip('.') or 'file'
         ext = name.rsplit('.', 1)[-1].lower()

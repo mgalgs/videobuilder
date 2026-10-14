@@ -133,10 +133,18 @@ class Crawl(GatherFixture):
 
 class WriteAttachments(unittest.TestCase):
     class FakeStore:
-        def __init__(self):
+        def __init__(self, max_file=None, max_files=None, max_message=None):
             self.uploads = []
+            if max_file is not None:
+                self.max_file = max_file
+            if max_files is not None:
+                self.max_files = max_files
+            if max_message is not None:
+                self.max_message = max_message
 
-        def upload(self, video, name, ctype, data):
+        def upload(self, video, name, ctype, data, allow_oversize=False):
+            if not allow_oversize and getattr(self, 'max_file', None) is not None and len(data) > self.max_file:
+                raise ValueError('attachment exceeds file size limit')
             self.uploads.append((video, name, ctype, data))
             return {'id': f'id{len(self.uploads)}', 'name': name, 'type': ctype, 'size': len(data)}
 
@@ -155,6 +163,37 @@ class WriteAttachments(unittest.TestCase):
         index_body = index_upload[3].decode()
         self.assertIn('One', index_body)
         self.assertIn('skip', index_body)
+
+    def test_oversize_file_has_its_limit_raised_and_said_so(self):
+        store = self.FakeStore(max_file=200)
+        pages = [dict(url='http://x/1', title='One', text='hello', desktop_png=b'd' * 300, phone_png=None)]
+        ids = gather.write_attachments(store, 'film', pages, [])
+        names = [u[1] for u in store.uploads]
+        self.assertIn('page-1.txt', names)
+        self.assertIn('page-1-desktop.png', names)  # over max_file, but uploaded anyway
+        index_body = store.uploads[-1][3].decode()
+        self.assertIn('file size limit raised to fit', index_body)
+
+    def test_stays_within_the_stores_file_count_budget(self):
+        store = self.FakeStore(max_files=3)
+        pages = [dict(url=f'http://x/{n}', title=f'P{n}', text='hi', desktop_png=b'd', phone_png=b'p')
+                 for n in range(1, 4)]
+        # budget: 3 max_files - 1 reserved - 1 index slot = 1 page attachment fits
+        ids = gather.write_attachments(store, 'film', pages, [], reserved_files=1)
+        self.assertEqual(len(store.uploads), 2)  # one page attachment plus the index
+        self.assertEqual(len(ids), 2)
+        index_body = store.uploads[-1][3].decode()
+        self.assertIn('attachment limit reached', index_body)
+        self.assertIn('Some gathered attachments were skipped', index_body)
+
+    def test_stays_within_the_stores_message_size_budget(self):
+        store = self.FakeStore(max_message=10)
+        pages = [dict(url='http://x/1', title='One', text='hi', desktop_png=b'd' * 8, phone_png=b'p' * 8)]
+        ids = gather.write_attachments(store, 'film', pages, [], reserved_bytes=0)
+        sizes = [len(u[3]) for u in store.uploads[:-1]]
+        self.assertLessEqual(sum(sizes), 10)
+        index_body = store.uploads[-1][3].decode()
+        self.assertIn('attachment limit reached', index_body)
 
 
 if __name__ == '__main__':

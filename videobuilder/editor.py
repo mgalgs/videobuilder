@@ -417,7 +417,9 @@ class Editor:
             from . import gather
             try:
                 pages, gather_errors = gather.crawl([link.strip() for link in links])
-                gathered = gather.write_attachments(self.attachments, vid, pages, gather_errors)
+                gathered = gather.write_attachments(self.attachments, vid, pages, gather_errors,
+                                                    reserved_files=len(attachments),
+                                                    reserved_bytes=sum(a['size'] for a in attachments))
                 attachments = attachments + [{k: self.attachments.get(i, vid)[0][k]
                                               for k in ('id', 'name', 'type', 'size')} for i in gathered]
             except Exception as exc:
