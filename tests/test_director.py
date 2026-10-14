@@ -46,6 +46,42 @@ class Director(TempProject):
         self.assertEqual(versions[0]['commit'], new)
         self.assertEqual(versions[0]['n'], versions[1]['n'] + 1)
 
+    def test_log_route_pages_entries_and_reports_done(self):
+        note = self.post('/api/notes', {'video': 'promo/film', 'text': 'Change'})[1]
+        stored = self.editor.notes.get(note['id'])
+        handle_dir = self.editor.notes.session_dir('promo/film') / 'run'
+        handle_dir.mkdir()
+        (handle_dir / 'events.jsonl').write_text(json.dumps(
+            {'type': 'assistant', 'message': {'role': 'assistant',
+             'content': [{'type': 'text', 'text': 'Looking at it'}]}}) + '\n')
+        stored['handle'] = str(handle_dir)
+        stored['state'] = 'working'
+        self.editor.notes._save(stored)
+        data = self.get(f'/api/notes/{note["id"]}/log')
+        self.assertEqual([e['text'] for e in data['entries']], ['Building', 'Looking at it'])
+        self.assertEqual(data['next'], 2)
+        self.assertFalse(data['done'])
+        paged = self.get(f'/api/notes/{note["id"]}/log?after=1')
+        self.assertEqual([e['text'] for e in paged['entries']], ['Looking at it'])
+        self.assertEqual(paged['next'], 2)
+        stored['state'] = 'landed'
+        self.editor.notes._save(stored)
+        self.assertTrue(self.get(f'/api/notes/{note["id"]}/log')['done'])
+
+    def test_log_route_unknown_note_is_404(self):
+        with self.assertRaises(urllib.error.HTTPError) as caught:
+            self.get('/api/notes/does-not-exist/log')
+        with caught.exception:
+            self.assertEqual(caught.exception.code, 404)
+
+    def test_log_route_with_no_handle_is_empty(self):
+        note = self.post('/api/notes', {'video': 'promo/film', 'text': 'Change'})[1]
+        stored = self.editor.notes.get(note['id'])
+        stored['handle'] = None
+        self.editor.notes._save(stored)
+        self.assertEqual(self.get(f'/api/notes/{note["id"]}/log'),
+                         {'entries': [], 'next': 0, 'done': False})
+
     def test_tick_lands_without_a_page_poll(self):
         self.editor.notes.backend = FakeBackend(delay=0)
         note = self.post('/api/notes', {'video':'promo/film','text':'Highlight'})[1]

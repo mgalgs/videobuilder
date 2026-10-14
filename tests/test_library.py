@@ -433,6 +433,44 @@ class Auth(LibraryFixture, unittest.TestCase):
         log = self.git('show', '-s', '--format=%B', 'HEAD', cwd=self.library.checkouts / 'acme--launch').stdout
         self.assertIn('Directed-by: mgalgs', log)
 
+    def test_log_route_refuses_a_non_collaborator(self):
+        self.seed('acme/launch', film=True)
+        admin = self.admin_login()
+        self.new_project(admin, 'acme/launch', 'acme/launch')
+        code, note = self.request('/v/acme/launch/api/notes', {'video': 'promo/film', 'text': 'Hi'},
+                                  headers={'Content-Type': 'application/json', 'Cookie': admin})
+        self.assertEqual(code, 200, note)
+        _, _, dana = self.signup('dana', 'longenoughpassword')
+        code, _ = self.request(f'/v/acme/launch/api/notes/{note["id"]}/log', headers={'Cookie': dana})
+        self.assertEqual(code, 404)
+
+    def test_log_route_hides_cost_from_a_non_admin_collaborator(self):
+        self.seed('acme/launch', film=True)
+        admin = self.admin_login()
+        self.new_project(admin, 'acme/launch', 'acme/launch')
+        _, _, bob = self.signup('bob', 'longenoughpassword')
+        self.request('/v/acme/launch/api/access', {'action': 'invite', 'username': 'bob'},
+                     headers={'Content-Type': 'application/json', 'Cookie': admin})
+        code, note = self.request('/v/acme/launch/api/notes', {'video': 'promo/film', 'text': 'Hi'},
+                                  headers={'Content-Type': 'application/json', 'Cookie': admin})
+        self.assertEqual(code, 200, note)
+        editor = self.library.editor('acme/launch')
+        stored = editor.notes.get(note['id'])
+        handle_dir = editor.notes.session_dir('promo/film') / 'run'
+        handle_dir.mkdir()
+        (handle_dir / 'events.jsonl').write_text(json.dumps(
+            {'type': 'result', 'num_turns': 2, 'duration_ms': 1000, 'total_cost_usd': 4.5}) + '\n')
+        stored['handle'] = str(handle_dir)
+        editor.notes._save(stored)
+        code, as_bob = self.request(f'/v/acme/launch/api/notes/{note["id"]}/log', headers={'Cookie': bob})
+        self.assertEqual(code, 200)
+        code, as_admin = self.request(f'/v/acme/launch/api/notes/{note["id"]}/log', headers={'Cookie': admin})
+        self.assertEqual(code, 200)
+        bob_result = next(e for e in as_bob['entries'] if e['kind'] == 'result')
+        admin_result = next(e for e in as_admin['entries'] if e['kind'] == 'result')
+        self.assertEqual(bob_result['text'], '2 turns · 1s')
+        self.assertEqual(admin_result['text'], '2 turns · 1s · $4.50')
+
     def test_api_name_reflects_login(self):
         _, _, dana = self.signup('dana', 'longenoughpassword')
         self.assertEqual(self.request('/api/name', headers={'Cookie': dana})[1], {'name': 'dana'})

@@ -23,6 +23,10 @@ POST /api/notes {video,text,format?,time?,attachments?:[id...]}
 GET  /api/notes/<id>                 note, including time, attachments,
                                      state and, if landed, version {n,commit}
 GET  /api/notes/<id>.png             pinned frame or 404
+GET  /api/notes/<id>/log?after=N     {entries:[...from N],next,done}; a feed of
+                                     the builder's steps, [] with no transcript
+                                     yet; cost in a result entry is admin-only
+                                     when accounts are on
 POST /api/notes/<id>/delete          {deleted:id}; active runs cannot be deleted
 POST /api/notes/<id>/retry           200 new note: a conflicted or failed note
                                      again, from main (the draft is cleared).
@@ -110,8 +114,9 @@ from importlib import resources
 from urllib.parse import parse_qs, unquote, urlparse
 
 from . import edits
-from .notes import NoteStore
+from .notes import NoteStore, FINAL
 from .agents import backend_from_config
+from .transcript import read_feed
 from .drafts import Drafts, git
 from .versions import Refused, Versions
 from .render import default_jobs
@@ -783,6 +788,21 @@ def make_handler(editor, hook=request_hook):
                 return self._send(200, png, 'image/png')
             if route == '/api/notes':
                 return self._json(200, {'notes': editor.notes.list(q.get('video'))})
+            m = re.fullmatch(r'/api/notes/([^/]+)/log', route)
+            if m:
+                nid = unquote(m.group(1))
+                try:
+                    note = editor.notes.get(nid)
+                except KeyError:
+                    raise HTTPError(404, f'no note {nid!r}') from None
+                try:
+                    after = max(0, int(q.get('after', 0)))
+                except ValueError:
+                    raise HTTPError(400, 'after must be an integer') from None
+                show_cost = not (library and library.accounts) or library.accounts.is_admin(user)
+                entries = read_feed(note.get('handle'), editor.root, show_cost)
+                return self._json(200, {'entries': entries[after:], 'next': len(entries),
+                                        'done': note['state'] in FINAL})
             m = re.fullmatch(r'/api/notes/([^/]+?)(\.png)?', route)
             if m:
                 nid = unquote(m.group(1))
