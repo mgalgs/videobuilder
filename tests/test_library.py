@@ -256,6 +256,64 @@ class HostedGit(LibraryFixture, unittest.TestCase):
         self.assertEqual(self.request('/v/acme/empty/')[0], 404)
         self.assertEqual(self.request('/api/library/new', {'from': 'acme/empty', 'name': 'another'})[0], 400)
 
+    def test_blank_start_has_one_commit_pinned_to_the_editors_version(self):
+        from videobuilder import __version__
+        code, result = self.request('/api/videos/new', {'name': 'acme/blank', 'start': 'blank'})
+        self.assertEqual((code, result['video']), (201, 'film'))
+        clone = self.root / 'blank-clone'
+        self.git('clone', self.url('acme/blank'), str(clone))
+        self.assertEqual(self.git('rev-list', '--count', 'main', cwd=clone).stdout.strip(), '1')
+        self.assertEqual((clone / 'requirements.txt').read_text(), f'videobuilder=={__version__}\n')
+        self.assertTrue((clone / 'film.py').is_file())
+        # The new video is actually buildable: Project discovers it as a real video.
+        code, info = self.request('/v/acme/blank/api/project')
+        self.assertEqual((code, [v['id'] for v in info['videos']]), (200, ['film']))
+
+    def test_blank_start_refuses_an_existing_name(self):
+        self.request('/api/videos/new', {'name': 'acme/dup', 'start': 'blank'})
+        code, err = self.request('/api/videos/new', {'name': 'acme/dup', 'start': 'blank'})
+        self.assertEqual(code, 400)
+
+    def test_copy_start_still_works_through_the_new_route(self):
+        self.seed('acme/launch', film=True)
+        code, result = self.request('/api/videos/new', {'name': 'acme/copy', 'start': 'copy', 'from': 'acme/launch'})
+        self.assertEqual((code, result['video']), (201, None))
+        clone = self.root / 'copy-clone'
+        self.git('clone', self.url('acme/copy'), str(clone))
+        self.assertEqual(self.git('rev-list', '--count', 'main', cwd=clone).stdout.strip(), '1')
+
+    def test_first_note_carries_description_attachments_and_a_gathering_failure_line(self):
+        from videobuilder.agents import FakeBackend
+        self.request('/api/videos/new', {'name': 'acme/scratch', 'start': 'blank'})
+        self.library.editor('acme/scratch').notes.backend = FakeBackend(delay=0)
+        import urllib.request
+        req = urllib.request.Request(self.base + '/v/acme/scratch/api/attachments?video=film&name=brief.txt',
+                                     data=b'notes for the builder', method='POST',
+                                     headers={'Content-Type': 'text/plain'})
+        with urllib.request.urlopen(req, timeout=20) as r:
+            attach = json.loads(r.read())
+        code, note = self.request('/v/acme/scratch/api/videos/first-note', {
+            'description': 'A marketing video for the launch.',
+            'attachments': [attach['id']],
+            'links': ['http://127.0.0.1:1/unreachable'],
+        })
+        self.assertEqual(code, 200, note)
+        self.assertIn('A marketing video for the launch.', note['text'])
+        self.assertIn('Some pages were not gathered', note['text'])
+        names = {a['name'] for a in note['attachments']}
+        self.assertIn('brief.txt', names)
+        self.assertIn('gathered-pages.md', names)
+        self.assertEqual(note['state'], 'queued')
+
+    def test_first_note_without_links_queues_immediately(self):
+        from videobuilder.agents import FakeBackend
+        self.request('/api/videos/new', {'name': 'acme/no-links', 'start': 'blank'})
+        self.library.editor('acme/no-links').notes.backend = FakeBackend(delay=0)
+        code, note = self.request('/v/acme/no-links/api/videos/first-note', {'description': 'Simple brief.'})
+        self.assertEqual(code, 200, note)
+        self.assertIn('Simple brief.', note['text'])
+        self.assertEqual(note['attachments'], [])
+
 
 class Auth(LibraryFixture, unittest.TestCase):
     """Accounts, sessions and per-project access on a library with --admin."""
@@ -414,6 +472,21 @@ class Auth(LibraryFixture, unittest.TestCase):
         self.assertEqual(code, 201)
         code, access = self.request('/v/acme/copy2/api/access', headers={'Cookie': admin})
         self.assertEqual((code, access['owner']), (200, 'mgalgs'))
+
+    def test_any_signed_in_user_starts_a_video_and_owns_it(self):
+        # Unlike /api/library/new (admin-only, above), /api/videos/new -- the New Video
+        # page's own route -- is open to any signed-in user, who becomes its owner.
+        _, _, dana = self.signup('dana', 'longenoughpassword')
+        code, result = self.request('/api/videos/new', {'name': 'acme/dana-video', 'start': 'blank'},
+                                    headers={'Content-Type': 'application/json', 'Cookie': dana})
+        self.assertEqual(code, 201, result)
+        code, access = self.request('/v/acme/dana-video/api/access', headers={'Cookie': dana})
+        self.assertEqual((code, access['owner']), (200, 'dana'))
+
+    def test_anonymous_cannot_start_a_video(self):
+        code, _ = self.request('/api/videos/new', {'name': 'acme/anon-video', 'start': 'blank'})
+        self.assertEqual(code, 401)
+        self.assertFalse(self.library.path('acme/anon-video').exists())
 
     def test_deleting_a_user_invalidates_their_outstanding_session(self):
         _, _, dana = self.signup('dana', 'longenoughpassword')

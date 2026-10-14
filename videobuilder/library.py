@@ -156,6 +156,36 @@ class Library:
             run('git', '--git-dir', str(target), 'update-ref', '-d', 'refs/vb-source')
         return {'name': name, 'commit': commit, 'from': source, 'source_commit': sha}
 
+    def create_blank(self, name):
+        """A new repo at `name` (refusing an existing one, like `copied`) with
+        one commit: the minimal film and requirements.txt a video needs to be
+        built by the builder, pinned to this editor's own videobuilder
+        version the way an existing video's requirements.txt pins one (see
+        workers.pinned_version). Nothing film-specific: v1 is the builder's
+        job."""
+        from . import __version__
+        target = self.create(name)
+        film = (
+            "import videobuilder as vb\n\n"
+            "T = vb.Timeline(vb.Grid(fps=30, bpm=120), [\n"
+            "    vb.Segment('intro', 0, 8, dict(title='New video')),\n"
+            "], end=8)\n\n\n"
+            "def draw(n, cv):\n"
+            "    cv.rect(0, 0, cv.width, cv.height, '#101418')\n\n\n"
+            "FILM = vb.Film(draw=draw, timeline=T, formats=('9x16', '16x9'))\n"
+        ).encode()
+        requirements = f'videobuilder=={__version__}\n'.encode()
+        env = {**os.environ, 'GIT_AUTHOR_NAME': 'Video Editor', 'GIT_AUTHOR_EMAIL': 'editor@example.com',
+               'GIT_COMMITTER_NAME': 'Video Editor', 'GIT_COMMITTER_EMAIL': 'editor@example.com'}
+        film_blob = run('git', '--git-dir', str(target), 'hash-object', '-w', '--stdin', input=film).decode()
+        req_blob = run('git', '--git-dir', str(target), 'hash-object', '-w', '--stdin', input=requirements).decode()
+        tree_input = f'100644 blob {film_blob}\tfilm.py\n100644 blob {req_blob}\trequirements.txt\n'.encode()
+        tree = run('git', '--git-dir', str(target), 'mktree', input=tree_input).decode()
+        commit = run('git', '--git-dir', str(target), 'commit-tree', tree,
+                    input=b'Start a new video\n', env=env).decode()
+        run('git', '--git-dir', str(target), 'update-ref', 'refs/heads/main', commit)
+        return {'name': name, 'commit': commit, 'video': 'film'}
+
     def index(self, host, scheme='http', user=None):
         names = self.names()
         if self.accounts:
