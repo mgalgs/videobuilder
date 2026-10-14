@@ -687,6 +687,123 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible {
   font-size: 13px;
 }
 
+.questions-wrap {
+  align-self: flex-start;
+  max-width: 92%;
+}
+
+.questions-card {
+  background: #1c1c21;
+  border: 1px solid #2c2c33;
+  border-radius: 12px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.question {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.question-text {
+  font-size: 13px;
+  font-weight: 700;
+  color: #fff;
+}
+
+.choice-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.choice-chip {
+  border: 1px solid #3a3a42;
+  background: transparent;
+  color: #c9c9d1;
+  padding: 0 14px;
+  border-radius: 18px;
+  min-height: 44px;
+  font-weight: 700;
+}
+
+.choice-chip.active {
+  background: #fff;
+  color: #111;
+  border-color: #fff;
+}
+
+.choice-chip.other {
+  border-style: dashed;
+}
+
+.question-input {
+  width: 100%;
+  box-sizing: border-box;
+  min-height: 44px;
+  border: 1px solid #34343c;
+  border-radius: 10px;
+  background: #1d1d22;
+  color: #fff;
+  padding: 0 12px;
+  /* Under 16px, iOS Safari zooms the page in when the field takes focus. */
+  font-size: 16px;
+}
+
+.questions-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.questions-send {
+  border: 0;
+  border-radius: 18px;
+  background: #fff;
+  color: #111;
+  min-height: 44px;
+  padding: 0 16px;
+  font-weight: 700;
+}
+
+.questions-send:disabled {
+  opacity: .4;
+}
+
+.questions-build {
+  border: 1px solid #3a3a42;
+  border-radius: 18px;
+  background: transparent;
+  color: #c9c9d1;
+  min-height: 44px;
+  padding: 0 16px;
+  font-weight: 700;
+}
+
+.questions-done {
+  color: #8fd9c7;
+  font-size: 13px;
+}
+
+.questions-summary-row {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 13px;
+}
+
+.questions-summary-q {
+  color: #8a8a93;
+}
+
+.questions-summary-a {
+  color: #fff;
+  font-weight: 600;
+}
+
 .ready-row strong {
   flex: 1;
 }

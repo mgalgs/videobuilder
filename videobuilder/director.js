@@ -31,7 +31,8 @@ const state = {
   musicSource: null,
   musicTracks: [],
   musicPlayingId: null,
-  steps: {}
+  steps: {},
+  pendingAnswers: {}
 };
 const player = $('player');
 const timeLabel = s => {
@@ -437,6 +438,104 @@ function renderStepsToggle(note) {
   wrap.append(toggle,body);
   return wrap
 }
+function questionAnswered(note) {
+  // Reconstructs the summary from the follow-up note's own text, so it survives a reload.
+  if(!note.answered)return null;
+  const followup=state.notes.find(n=>n.id===note.answered);
+  const text=followup?followup.text:'';
+  if(text.includes('do not ask questions'))return [];
+  const pairs=[],re=/Q: ([^\n]+)\nA: ([^\n]+)/g;
+  let m;
+  while((m=re.exec(text)))pairs.push([m[1],m[2]]);
+  return pairs
+}
+function renderQuestionsCard(note) {
+  const wrap=node('div','questions-wrap'),card=node('div','questions-card'),answered=questionAnswered(note);
+  if(answered) {
+    card.append(node('strong','questions-done',answered.length?'Answered':'Asked to use best judgement'));
+    for(const [q,a] of answered) {
+      const row=node('div','questions-summary-row');
+      row.append(node('span','questions-summary-q',q),node('span','questions-summary-a',a));
+      card.append(row)
+    }
+    wrap.append(card);
+    return wrap
+  }
+  const answers=state.pendingAnswers[note.id]||(state.pendingAnswers[note.id]=note.questions.map(()=>''));
+  let send;
+  const refresh=()=>send.disabled=answers.some(a=>!a.trim());
+  note.questions.forEach((q,i)=> {
+    const block=node('div','question');
+    block.append(node('div','question-text',q.text));
+    if(q.choices&&q.choices.length) {
+      const row=node('div','choice-row'),other=node('input','question-input other-input');
+      other.type='text';
+      other.placeholder='Type your answer';
+      other.hidden=true;
+      for(const choice of q.choices) {
+        const chip=node('button','choice-chip',choice);
+        chip.type='button';
+        chip.onclick=()=> {
+          answers[i]=choice;
+          row.querySelectorAll('.choice-chip').forEach(c=>c.classList.remove('active'));
+          chip.classList.add('active');
+          other.hidden=true;
+          refresh()
+        };
+        row.append(chip)
+      }
+      const otherChip=node('button','choice-chip other','Other…');
+      otherChip.type='button';
+      otherChip.onclick=()=> {
+        row.querySelectorAll('.choice-chip').forEach(c=>c.classList.remove('active'));
+        otherChip.classList.add('active');
+        other.hidden=false;
+        other.focus();
+        answers[i]=other.value.trim();
+        refresh()
+      };
+      other.oninput=()=> {
+        answers[i]=other.value.trim();
+        refresh()
+      };
+      row.append(otherChip);
+      block.append(row,other)
+    }
+    else {
+      const input=node('input','question-input');
+      input.type='text';
+      input.placeholder='Your answer';
+      input.oninput=()=> {
+        answers[i]=input.value.trim();
+        refresh()
+      };
+      block.append(input)
+    }
+    card.append(block)
+  });
+  const actions=node('div','questions-actions');
+  send=node('button','questions-send','Send answers');
+  send.disabled=true;
+  send.onclick=()=>sendAnswers(note,send,answers);
+  const buildBtn=node('button','questions-build','Just build it');
+  buildBtn.onclick=()=>sendAnswers(note,buildBtn,null);
+  actions.append(send,buildBtn);
+  card.append(actions);
+  wrap.append(card);
+  return wrap
+}
+async function sendAnswers(note, button, answers) {
+  button.disabled=true;
+  try {
+    await json(`notes/${encodeURIComponent(note.id)}/answer`,null,answers?{answers}:{build:true});
+    delete state.pendingAnswers[note.id];
+    await loadNotes()
+  }
+  catch(e) {
+    button.disabled=false;
+    showError(e.message)
+  }
+}
 function renderNotes() {
   const list=$('note-list'),atBottom=list.scrollHeight-list.scrollTop-list.clientHeight<80;
   list.replaceChildren();
@@ -481,6 +580,7 @@ function renderNotes() {
       reply.append(box);
       list.append(reply)
     }
+    if(note.state==='questions')list.append(renderQuestionsCard(note));
     if(['queued','working'].includes(note.state)) {
       const working=node('div','bubble-row builder'),box=node('div','bubble');
       box.append(node('span','who','Builder'));
