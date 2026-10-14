@@ -25,7 +25,12 @@ const state = {
   versionCursor: null,
   loadingVersions: false,
   renderTimer: null,
-  resumeOnVisible: false
+  resumeOnVisible: false,
+  musicSources: [],
+  musicSourceId: null,
+  musicSource: null,
+  musicTracks: [],
+  musicPlayingId: null
 };
 const player = $('player');
 const timeLabel = s => {
@@ -617,6 +622,127 @@ function addFiles(files) {
   for(const f of files)state.files.push(f);
   renderFiles()
 }
+async function loadMusicSources() {
+  try {
+    state.musicSources=await json('music/sources')
+  }
+  catch(e) {
+    state.musicSources=[]
+  }
+  $('music-button').hidden=!state.musicSources.length
+}
+function openMusicPicker() {
+  $('music-error').hidden=true;
+  $('music-dialog').hidden=false;
+  $('music-shade').hidden=false;
+  if(!state.musicSourceId)state.musicSourceId=state.musicSources[0]?.id;
+  renderMusicSourceSelect();
+  loadMusicTracks(state.musicSourceId)
+}
+function closeMusicPicker() {
+  $('music-dialog').hidden=true;
+  $('music-shade').hidden=true;
+  $('music-preview').pause()
+}
+function renderMusicSourceSelect() {
+  const select=$('music-source');
+  select.hidden=state.musicSources.length<2;
+  select.replaceChildren();
+  for(const s of state.musicSources) {
+    const opt=node('option',null,s.name);
+    opt.value=s.id;
+    select.append(opt)
+  }
+  select.value=state.musicSourceId
+}
+async function loadMusicTracks(sourceId) {
+  $('music-list').replaceChildren();
+  $('music-license').textContent='Loading…';
+  $('music-error').hidden=true;
+  try {
+    const data=await json('music/tracks', {
+      source:sourceId
+    });
+    state.musicSourceId=sourceId;
+    state.musicSource=data.source;
+    state.musicTracks=data.tracks;
+    $('music-license').textContent=data.source.license;
+    renderMusicList()
+  }
+  catch(e) {
+    $('music-license').textContent='';
+    $('music-error').textContent=e.message;
+    $('music-error').hidden=false
+  }
+}
+function musicMatches(track,query) {
+  const words=query.toLowerCase().split(/\s+/).filter(Boolean);
+  const haystack=[track.title,...track.tags].join(' ').toLowerCase();
+  return words.every(w=>haystack.includes(w))
+}
+function renderMusicList() {
+  const query=$('music-search').value.trim();
+  const list=$('music-list');
+  list.replaceChildren();
+  const tracks=state.musicTracks.filter(t=>!query||musicMatches(t,query));
+  const audio=$('music-preview');
+  for(const track of tracks) {
+    const row=node('div','music-row'),play=node('button','music-play');
+    const playing=state.musicPlayingId===track.id&&!audio.paused;
+    play.append(icon(playing?'pause':'play'));
+    play.setAttribute('aria-label',`${playing?'Pause':'Preview'} ${track.title}`);
+    play.onclick=()=>toggleMusicPreview(track);
+    const info=node('div','music-info');
+    info.append(node('span','music-title',track.title));
+    if(track.tags.length) {
+      const tags=node('div','music-tags');
+      for(const tag of track.tags)tags.append(node('span','music-tag',tag));
+      info.append(tags)
+    }
+    const useWrap=node('div','music-use'),use=node('button',null,'Use');
+    use.onclick=()=>useMusicTrack(track,use);
+    useWrap.append(use,node('span',null,state.musicSource?.license||''));
+    row.append(play,info,node('span','music-duration',track.duration!=null?timeLabel(track.duration):''),useWrap);
+    list.append(row)
+  }
+  if(!tracks.length)list.append(node('p','music-empty',state.musicTracks.length?'No tracks match.':'No tracks.'))
+}
+function toggleMusicPreview(track) {
+  const audio=$('music-preview');
+  if(state.musicPlayingId===track.id&&!audio.paused) {
+    audio.pause();
+    return
+  }
+  state.musicPlayingId=track.id;
+  audio.src=track.audio_url;
+  audio.play().catch(()=> {
+  })
+}
+async function useMusicTrack(track,button) {
+  button.disabled=true;
+  $('music-error').hidden=true;
+  try {
+    const record=await json('music/attach',null, {
+      video:state.video,source:state.musicSourceId,track:track.id
+    });
+    addFiles([record]);
+    closeMusicPicker()
+  }
+  catch(e) {
+    $('music-error').textContent=e.message;
+    $('music-error').hidden=false;
+    button.disabled=false
+  }
+}
+$('music-button').onclick=openMusicPicker;
+$('music-close').onclick=closeMusicPicker;
+$('music-shade').onclick=closeMusicPicker;
+$('music-search').oninput=renderMusicList;
+$('music-source').onchange=e=>loadMusicTracks(e.target.value);
+$('music-preview').onplay=$('music-preview').onpause=$('music-preview').onended=()=> {
+  if($('music-preview').paused)state.musicPlayingId=null;
+  if(!$('music-dialog').hidden)renderMusicList()
+};
 // Notes the director has written but not sent: kept in this browser, per video,
 // so they survive a reload. Not the "queued" note state, which is sent and waiting.
 const pendingKey=()=>`director-pending:${location.pathname}:${state.video}`;
@@ -823,6 +949,7 @@ async function init() {
     updateName();
     updateAccountBar();
     if(state.user)loadAccess();
+    loadMusicSources();
     const videos=project.videos||[];
     const picker=$('video-picker');
     for(const v of videos) {

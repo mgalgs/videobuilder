@@ -248,6 +248,16 @@
 </path>
 </svg>
 </button>
+<button id="music-button" class="round" aria-label="Add music from a library" hidden>
+<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+<path d="M9 18V5l12-2v13">
+</path>
+<circle cx="6" cy="18" r="3">
+</circle>
+<circle cx="18" cy="16" r="3">
+</circle>
+</svg>
+</button>
 <input id="file-picker" type="file" multiple accept=".png,.jpg,.jpeg,.webp,.gif,.mp4,.mov,.webm,.mp3,.wav,.m4a,.aac,.ogg,.pdf,.txt,.md" hidden>
 <label class="sr-only" for="message">Message to the builder</label>
 <input id="message" placeholder="Note for the builder…" title="Enter adds it to the list · Ctrl+Enter sends it now">
@@ -289,6 +299,29 @@
   </main>
   <div id="toast" role="status" hidden>
 </div>
+  <div id="music-shade" class="music-shade" hidden>
+</div>
+  <div id="music-dialog" class="music-dialog" role="dialog" aria-modal="true" aria-label="Music library" hidden>
+    <div class="music-head">
+<select id="music-source" aria-label="Music source" hidden>
+</select>
+<span id="music-license">
+</span>
+<button id="music-close" aria-label="Close music library">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+<path d="M6 6l12 12M18 6L6 18">
+</path>
+</svg>
+</button>
+</div>
+    <input id="music-search" placeholder="Search title or tags…" aria-label="Search music">
+    <div id="music-list" class="scroll-list">
+</div>
+    <p id="music-error" class="composer-error" hidden>
+</p>
+    <audio id="music-preview" preload="none">
+</audio>
+  </div>
 </div>
 <template id="icon-play">
 <svg width="30" height="30" viewBox="0 0 24 24" fill="currentColor" stroke="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
