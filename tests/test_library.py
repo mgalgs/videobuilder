@@ -244,6 +244,22 @@ class HostedGit(LibraryFixture, unittest.TestCase):
         page = self.request('/', headers={'X-Forwarded-Proto': 'https'})[1]
         self.assertIn(b'https://127.0.0.1:', page)
 
+    def test_library_page_shows_a_new_video_button_and_card_per_video(self):
+        self.seed('acme/launch')
+        page = self.request('/')[1]
+        self.assertIn(b'New video', page)
+        self.assertIn(b'href="/new"', page)
+        self.assertIn(b'lib-card', page)
+        self.assertIn(b'acme/launch', page)
+
+    def test_new_video_page_is_reachable_without_accounts(self):
+        code, page = self.request('/new')
+        self.assertEqual(code, 200)
+        self.assertIn(b'id="new-video"', page)
+        self.assertIn(b'name="start"', page)
+        self.assertIn(b'name="description"', page)
+        self.assertIn(b'name="links"', page)
+
     def test_repos_share_one_env_cache(self):
         self.seed('acme/launch')
         self.request('/api/library/new', {'from': 'acme/launch', 'name': 'acme/promo'})
@@ -487,6 +503,15 @@ class Auth(LibraryFixture, unittest.TestCase):
         code, _ = self.request('/api/videos/new', {'name': 'acme/anon-video', 'start': 'blank'})
         self.assertEqual(code, 401)
         self.assertFalse(self.library.path('acme/anon-video').exists())
+
+    def test_new_video_page_requires_sign_in_with_accounts_on(self):
+        code, page, _ = self.request_full('/new')
+        self.assertEqual(code, 200)
+        self.assertIn(b'Sign in', page)
+        _, _, dana = self.signup('dana', 'longenoughpassword')
+        code, page = self.request('/new', headers={'Cookie': dana})
+        self.assertEqual(code, 200)
+        self.assertIn(b'id="new-video"', page)
 
     def test_deleting_a_user_invalidates_their_outstanding_session(self):
         _, _, dana = self.signup('dana', 'longenoughpassword')

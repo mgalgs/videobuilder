@@ -78,6 +78,22 @@ GET  /api/draft/frame?video=V&...    isolated draft PNG
 POST /api/draft/accept {video}       manual accept (auto_land=false)
 POST /api/draft/drop {video}         manual drop
 
+Library-only (not single-project mode), open to any signed-in user (or
+everyone, without accounts):
+GET  /new                             the New Video page
+POST /api/videos/new {name,start:"blank"|"copy",from?}
+                                     201 {name,commit,video}; video is the
+                                     sole video's id for "blank", null for
+                                     "copy"; 400 invalid/existing name
+POST /v/<name>/api/videos/first-note {description?,attachments?:[id...],
+                                      links?:[url...]}
+                                     200 note: the video's first note, built
+                                     from the brief, the already-uploaded
+                                     attachments and any gathered pages (see
+                                     gather.py); still queues with whatever
+                                     was gathered and a line on what failed
+                                     when gathering only partly succeeds
+
 Library-only, when the library has accounts (`--admin`):
 GET  /login, /signup                 sign-in / sign-up pages
 POST /api/login {username,password}  200 {name}, Set-Cookie vb_session;
@@ -681,6 +697,10 @@ def make_handler(editor, hook=request_hook):
                         return self._send(200, signin_page(), 'text/html; charset=utf-8')
                     if library.accounts and route == '/signup' and method == 'GET':
                         return self._send(200, signup_page(), 'text/html; charset=utf-8')
+                    if route == '/new' and method == 'GET':
+                        names = [n for n in library.names()
+                                if not library.accounts or library.access.can_access(n, user, library.accounts)]
+                        return self._send(200, library.new_video_page(names), 'text/html; charset=utf-8')
                     if library.accounts and route == '/api/login' and method == 'POST':
                         body = self._body()
                         try:

@@ -32,7 +32,8 @@ const state = {
   musicTracks: [],
   musicPlayingId: null,
   steps: {},
-  pendingAnswers: {}
+  pendingAnswers: {},
+  gathering: false
 };
 const player = $('player');
 const timeLabel = s => {
@@ -637,8 +638,53 @@ function renderNotes() {
       list.append(ready)
     }
   }
+  if(state.gathering) {
+    const row=node('div','bubble-row builder'),box=node('div','bubble');
+    box.append(node('span','who','Builder'));
+    const dots=node('span','dots');
+    for(let i=0;i<3;i++)dots.append(node('i','dot'));
+    box.append(dots,node('span','state-message','Gathering pages…'));
+    row.append(box);
+    list.append(row)
+  }
   $('chat-count').textContent=state.notes.length;
   if(atBottom)list.scrollTop=list.scrollHeight
+}
+async function maybeStartVideo() {
+  if(!libMode||!state.video)return;
+  const key=`vb-first-note:${libName}`;
+  let raw;
+  try {
+    raw=sessionStorage.getItem(key)
+  }
+  catch(_) {
+    raw=null
+  }
+  if(!raw)return;
+  try {
+    sessionStorage.removeItem(key)
+  }
+  catch(_) {
+  }
+  let payload;
+  try {
+    payload=JSON.parse(raw)
+  }
+  catch(_) {
+    return
+  }
+  state.gathering=true;
+  renderNotes();
+  try {
+    await json('videos/first-note',null,payload)
+  }
+  catch(e) {
+    toast(e.message)
+  }
+  finally {
+    state.gathering=false;
+    await loadNotes()
+  }
 }
 async function retryNote(note, button) {
   button.disabled=true;
@@ -1142,7 +1188,8 @@ async function openVideo(video) {
     state.format=formats.find(f=>f.name===saved)?.name || preferred || formats[0]?.name;
     renderFormats();
     await loadVersions();
-    await loadNotes()
+    await loadNotes();
+    await maybeStartVideo()
   }
   catch(e) {
     toast(e.message)
