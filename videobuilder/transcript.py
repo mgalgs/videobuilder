@@ -1,4 +1,4 @@
-"""A note's builder transcript, read and redacted into a director feed.
+"""A note's builder transcript, read into a director feed.
 
 A note's `handle` (see notes.py and agents.py) is its fork-sandbox run
 directory. The run writes its transcript as JSONL files there, one per leg:
@@ -26,8 +26,12 @@ line that doesn't parse, or doesn't look like that, is skipped silently
 rather than raising.
 
 Everything here is pure except `read_feed`, which does the file I/O; the
-formatting it delegates to (`format_transcript`) takes already-read lines
-and a redaction pass, with no I/O of its own.
+formatting it delegates to (`format_transcript`) takes already-read lines,
+with no I/O of its own. The feed is shown only to people with access to the
+project (who can already read the note's text and attachments), so this is
+about readability, not secrecy: it never shows a tool's raw output, a
+`thinking` block, a system event, the input of a tool it doesn't recognise,
+or file contents written by Write/Edit (the path only).
 """
 import json
 import os
@@ -131,8 +135,8 @@ def _read_lines(files):
 
 
 def read_feed(handle, project_root=None, show_cost=True):
-    """The redacted feed for a note's run directory `handle`: [] for a falsy
-    or missing handle, or one with no transcript yet."""
+    """The feed for a note's run directory `handle`: [] for a falsy or
+    missing handle, or one with no transcript yet."""
     if not handle:
         return []
     return format_transcript(_read_lines(discover(handle)), project_root, show_cost)
@@ -211,8 +215,8 @@ def _assistant_entries(message, project_root):
 
 def format_transcript(legs, project_root=None, show_cost=True):
     """`legs`, an ordered `[(header, [raw line, ...]), ...]` of already-read
-    transcript lines, to a flat list of feed entries `{kind, text}`, fully
-    redacted. Pure: no file access, no network."""
+    transcript lines, to a flat list of feed entries `{kind, text}`. Pure:
+    no file access, no network."""
     entries = []
     for header, lines in legs:
         if not lines:
@@ -233,48 +237,4 @@ def format_transcript(legs, project_root=None, show_cost=True):
                 if text:
                     entries.append({'kind': 'result', 'text': text})
             # system, user (tool_result), and any other event type: never shown.
-    for entry in entries:
-        entry['text'] = redact(entry['text'])
     return entries
-
-
-# --- Redaction -------------------------------------------------------------
-
-_SENSITIVE_NAME = (
-    'TOKEN', 'KEY', 'SECRET', 'PASSWORD', 'PASSWD', 'CREDENTIAL',
-)
-
-
-def _redact_name_value(text):
-    def repl(m):
-        name, value = m.group(1), m.group(2)
-        if any(word in name.upper() for word in _SENSITIVE_NAME):
-            return f'{name}=[redacted]'
-        return m.group(0)
-    return re.sub(r'\b([A-Za-z_][A-Za-z0-9_]*)=(\S+)', repl, text)
-
-
-# Named, independent patterns: add one as a one-line entry. Applied in order,
-# each over the output of the one before.
-REDACTIONS = [
-    ('name-value', _redact_name_value),
-    ('anthropic-key', lambda t: re.sub(r'\bsk-ant-[A-Za-z0-9_-]{10,}\b', '[redacted]', t)),
-    ('openai-key', lambda t: re.sub(r'\bsk-[A-Za-z0-9]{20,}\b', '[redacted]', t)),
-    ('github-token', lambda t: re.sub(r'\b(?:ghp|gho|github_pat)_[A-Za-z0-9_]{10,}\b', '[redacted]', t)),
-    ('slack-token', lambda t: re.sub(r'\bxox[abp]-[A-Za-z0-9-]{10,}\b', '[redacted]', t)),
-    ('aws-key', lambda t: re.sub(r'\bAKIA[A-Z0-9]{12,}\b', '[redacted]', t)),
-    ('jwt', lambda t: re.sub(r'\beyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\b', '[redacted]', t)),
-    ('bearer-token', lambda t: re.sub(r'(?i)\bBearer\s+[A-Za-z0-9._-]+', 'Bearer [redacted]', t)),
-    ('long-secret', lambda t: re.sub(r'(?i)([=:]\s*|\btoken\s+)([A-Za-z0-9+/_-]{32,}={0,2})', r'\1[redacted]', t)),
-    ('home-path', lambda t: re.sub(r'/home/[^/\s]+', '~', t)),
-]
-
-
-def redact(text):
-    """`text` with anything that looks like a secret replaced by
-    "[redacted]", and any `/home/<user>` prefix replaced by "~"."""
-    if not isinstance(text, str):
-        return text
-    for _, apply in REDACTIONS:
-        text = apply(text)
-    return text

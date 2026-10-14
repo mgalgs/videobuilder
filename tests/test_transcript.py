@@ -1,11 +1,11 @@
-"""The builder transcript reader, formatter and redaction (videobuilder/transcript.py)."""
+"""The builder transcript reader and formatter (videobuilder/transcript.py)."""
 import json
 import os
 import tempfile
 import unittest
 from pathlib import Path
 
-from videobuilder.transcript import discover, format_transcript, read_feed, redact
+from videobuilder.transcript import discover, format_transcript, read_feed
 
 
 def line(obj):
@@ -179,58 +179,6 @@ class DiscoveryTests(unittest.TestCase):
             self.assertIsInstance(entries, list)
         finally:
             transcript.MAX_BYTES = original
-
-
-class RedactionTests(unittest.TestCase):
-    def test_anthropic_key(self):
-        self.assertEqual(redact('key is sk-ant-abc123def456ghi789'), 'key is [redacted]')
-
-    def test_openai_key(self):
-        self.assertEqual(redact('export OPENAI=sk-abcdefghijklmnopqrstuvwx'), 'export OPENAI=[redacted]')
-
-    def test_github_token(self):
-        self.assertEqual(redact('token ghp_abcdefghijklmnopqrstuv'), 'token [redacted]')
-        self.assertEqual(redact('token github_pat_abcdefghijklmnopqrstuv'), 'token [redacted]')
-
-    def test_slack_token(self):
-        self.assertEqual(redact('xoxb-123456-abcdefghijklmnop'), '[redacted]')
-
-    def test_aws_key(self):
-        self.assertEqual(redact('AKIA' + 'Q' * 16), '[redacted]')
-
-    def test_jwt(self):
-        jwt = 'eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.dQw4w9WgXcQ_abc123'
-        self.assertEqual(redact(f'Authorization: {jwt}'), 'Authorization: [redacted]')
-
-    def test_bearer_token(self):
-        self.assertEqual(redact('curl -H "Authorization: Bearer abc.def-123_xyz"'),
-                         'curl -H "Authorization: Bearer [redacted]"')
-
-    def test_long_hex_or_base64_after_equals_colon_or_token(self):
-        self.assertEqual(redact('export X=' + 'a1b2' * 8), 'export X=[redacted]')
-        self.assertEqual(redact('digest: ' + 'A1b2'.ljust(32, 'z')), 'digest: [redacted]')
-        self.assertEqual(redact('token ' + 'Zz19' * 8), 'token [redacted]')
-        self.assertEqual(redact('short=abc123'), 'short=abc123')
-
-    def test_name_equals_value_rule(self):
-        self.assertEqual(redact('ANTHROPIC_API_KEY=sk-ant-xyz'), 'ANTHROPIC_API_KEY=[redacted]')
-        self.assertEqual(redact('DB_PASSWORD=hunter2'), 'DB_PASSWORD=[redacted]')
-        self.assertEqual(redact('my_secret_token=zzz'), 'my_secret_token=[redacted]')
-        self.assertEqual(redact('FORMAT=1x1'), 'FORMAT=1x1')
-
-    def test_bash_command_with_api_key_env_assignment(self):
-        text = 'ANTHROPIC_API_KEY=sk-ant-xyz some-command --flag'
-        result = redact(text)
-        self.assertNotIn('sk-ant-xyz', result)
-        self.assertNotIn('ANTHROPIC_API_KEY=sk', result)
-        self.assertIn('[redacted]', result)
-
-    def test_home_path(self):
-        self.assertEqual(redact('/home/mitch/clone/videobuilder/film.py'), '~/clone/videobuilder/film.py')
-
-    def test_non_string_passthrough(self):
-        self.assertIsNone(redact(None))
-        self.assertEqual(redact(42), 42)
 
 
 if __name__ == '__main__':
