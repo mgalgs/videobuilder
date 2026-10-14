@@ -164,9 +164,14 @@ function renderFormats() {
 function resizePlayer() {
   const f=formatInfo();
   if (!f) return;
-  const availableHeight=Math.max(200, window.innerHeight - 280);
-  const width=Math.min(420, availableHeight * f.width / f.height);
-  $('player-box').style.setProperty('--player-width', `${width}px`);
+  // Fill the watch column, leaving the controls and the collapsed tuning
+  // bar in view (16px is .watch's gap). Phone CSS ignores --player-width.
+  const watch=document.querySelector('.watch');
+  const below=document.querySelector('.watch-controls').offsetHeight
+    + $('desktop-tune-toggle').offsetHeight + 2 + 2 * 16;
+  const availableHeight=Math.max(200, watch.clientHeight - below);
+  const width=Math.min(watch.clientWidth, availableHeight * f.width / f.height);
+  $('player-box').style.setProperty('--player-width', `${Math.floor(width)}px`);
 }
 async function setFormat(format) {
   if(format===state.format)return;
