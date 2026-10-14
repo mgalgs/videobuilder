@@ -170,14 +170,12 @@ class Questions(unittest.TestCase):
         self.assertIsNone(parse_questions('Just a plain reply, no questions here.'))
         self.assertIsNone(parse_questions(None))
 
-    def test_trailing_text_after_the_block_falls_back_to_an_ordinary_reply(self):
-        # The note file tells an asking builder to end with the block and skip the
-        # Summary line (see notes.py); a reply that appends one anyway is malformed,
-        # not a questions reply with extra trailing text.
+    def test_trailing_text_after_the_block_is_dropped(self):
         reply = ('Quick check:\n\n```questions\n' + json.dumps(
             {'questions': [{'text': 'Light or dark logo?', 'choices': ['Light', 'Dark']}]}) +
             '\n```\n\nSummary: asked about the logo.')
-        self.assertIsNone(parse_questions(reply))
+        self.assertEqual(parse_questions(reply),
+                         ('Quick check:', [{'text': 'Light or dark logo?', 'choices': ['Light', 'Dark']}]))
 
 
 if __name__ == '__main__':

@@ -18,7 +18,7 @@ Per-video session.json survives both decisions. The runner owns any additional
 session files. See agents.py for the external command protocol. Submission
 must be idempotent by note id to tolerate a crash before saving the handle.
 
-A reply whose final content is a ```questions fenced JSON block (see
+A reply that carries a ```questions fenced JSON block (see
 parse_questions) lands the note in the `questions` state instead of `replied`,
 with the parsed list in note['questions'] and any lead-in text as its reply.
 A builder that asked is told to commit nothing, so ordinarily no version is
@@ -49,15 +49,18 @@ LEAD_IN_MAX = 300
 
 
 def parse_questions(reply):
-    """A builder reply's trailing ```questions fenced block, strictly
+    """A builder reply's last ```questions fenced block, strictly
     validated: (lead_in, questions), each question a dict `text` plus
     `choices` (empty for free text, else 2-4 short strings), or None for a
     missing or malformed block, which is then an ordinary reply."""
     if not reply:
         return None
-    m = re.search(r'```questions[ \t]*\r?\n(.*?)\r?\n```[ \t]*\r?\n?\s*\Z', reply, re.S)
-    if not m:
+    # The last block wins, and text after it (a habitual Summary line) is dropped:
+    # a model that strays from "nothing after the block" must not leak raw JSON.
+    matches = list(re.finditer(r'```questions[ \t]*\r?\n(.*?)\r?\n```[ \t]*(?:\r?\n|\Z)', reply, re.S))
+    if not matches:
         return None
+    m = matches[-1]
     try:
         data = json.loads(m.group(1))
     except ValueError:
