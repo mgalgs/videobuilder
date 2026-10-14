@@ -135,6 +135,25 @@ class Director(TempProject):
         landed = self.get(f'/api/notes/{note["id"]}/log')
         self.assertEqual([e['text'] for e in landed['entries']], ['Building', 'Landed from file'])
 
+    def test_log_route_restarts_a_cursor_counted_on_the_other_source(self):
+        note = self.post('/api/notes', {'video': 'promo/film', 'text': 'Change'})[1]
+        stored = self.editor.notes.get(note['id'])
+        handle_dir = self.editor.notes.session_dir('promo/film') / 'cluster-run'
+        handle_dir.mkdir()
+        (handle_dir / 'events.jsonl').write_text(json.dumps(
+            {'type': 'assistant', 'message': {'role': 'assistant',
+             'content': [{'type': 'text', 'text': 'Landed from file'}]}}) + '\n')
+        stored['handle'] = str(handle_dir)
+        self.editor.notes._save(stored)
+        # A client that counted 5 live entries must not get files' entries[5:].
+        moved = self.get(f'/api/notes/{note["id"]}/log?after=5&source=live')
+        self.assertTrue(moved['reset'])
+        self.assertEqual(moved['source'], 'files')
+        self.assertEqual([e['text'] for e in moved['entries']], ['Building', 'Landed from file'])
+        same = self.get(f'/api/notes/{note["id"]}/log?after=1&source=files')
+        self.assertFalse(same['reset'])
+        self.assertEqual([e['text'] for e in same['entries']], ['Landed from file'])
+
     def test_log_route_unknown_note_is_404(self):
         with self.assertRaises(urllib.error.HTTPError) as caught:
             self.get('/api/notes/does-not-exist/log')
@@ -147,7 +166,7 @@ class Director(TempProject):
         stored['handle'] = None
         self.editor.notes._save(stored)
         self.assertEqual(self.get(f'/api/notes/{note["id"]}/log'),
-                         {'entries': [], 'next': 0, 'done': False})
+                         {'entries': [], 'next': 0, 'done': False, 'source': 'live', 'reset': False})
 
     def test_tick_lands_without_a_page_poll(self):
         self.editor.notes.backend = FakeBackend(delay=0)

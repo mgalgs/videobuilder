@@ -248,6 +248,12 @@ def _live_legs(key, handle, peek):
         return [(_header(name), list(lines)) for name, lines in entry.legs if name is not None]
 
 
+def feed_source(handle):
+    """"files" once `discover` finds transcript files for `handle`, else "live"
+    (read_feed then builds from peek's bytes, if it is given one)."""
+    return 'files' if handle and discover(handle) else 'live'
+
+
 def read_feed(handle, project_root=None, show_cost=True, peek=None):
     """The feed for a note's run directory `handle`: [] for a falsy or
     missing handle, or one with no transcript yet. `peek`, if given, fetches

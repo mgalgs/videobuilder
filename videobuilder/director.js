@@ -400,11 +400,15 @@ async function loadSteps(note) {
   if(!data||data.loading)return;
   data.loading=true;
   try {
-    const result=await json(`notes/${encodeURIComponent(note.id)}/log`, {
-      after:data.next
-    });
+    const result=await json(`notes/${encodeURIComponent(note.id)}/log`,
+      data.source?{after:data.next,source:data.source}:{after:data.next});
+    if(result.reset) {
+      data.entries=[];
+      data.openSteps=null
+    }
     data.entries.push(...result.entries);
     data.next=result.next;
+    data.source=result.source;
     data.done=result.done
   }
   catch(e) {

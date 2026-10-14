@@ -23,10 +23,14 @@ POST /api/notes {video,text,format?,time?,attachments?:[id...]}
 GET  /api/notes/<id>                 note, including time, attachments,
                                      state and, if landed, version {n,commit}
 GET  /api/notes/<id>.png             pinned frame or 404
-GET  /api/notes/<id>/log?after=N     {entries:[...from N],next,done}; a feed of
-                                     the builder's steps, [] with no transcript
-                                     yet; cost in a result entry is admin-only
-                                     when accounts are on
+GET  /api/notes/<id>/log?after=N&source=S
+                                     {entries:[...from N],next,done,source,reset};
+                                     a feed of the builder's steps, [] with no
+                                     transcript yet; cost in a result entry is
+                                     admin-only when accounts are on. source is
+                                     "live" or "files"; when S (the source the
+                                     client's cursor counted) differs, the feed
+                                     restarts from 0 with reset true
 POST /api/notes/<id>/delete          {deleted:id}; active runs cannot be deleted
 POST /api/notes/<id>/retry           200 new note: a conflicted or failed note
                                      again, from main (the draft is cleared).
@@ -125,7 +129,7 @@ from urllib.parse import parse_qs, unquote, urlparse
 from . import edits
 from .notes import NoteStore, FINAL
 from .agents import backend_from_config
-from .transcript import read_feed
+from .transcript import feed_source, read_feed
 from .drafts import Drafts, git
 from .versions import Refused, Versions
 from .render import default_jobs
@@ -810,9 +814,16 @@ def make_handler(editor, hook=request_hook):
                     raise HTTPError(400, 'after must be an integer') from None
                 show_cost = not (library and library.accounts) or library.accounts.is_admin(user)
                 peek = editor.notes.backend.peek if note['state'] == 'working' and hasattr(editor.notes.backend, 'peek') else None
+                source = feed_source(note.get('handle'))
                 entries = read_feed(note.get('handle'), editor.root, show_cost, peek)
+                # The live feed is not a prefix of the collected one (peek can miss
+                # lines), so a client whose cursor counted the other source restarts.
+                reset = q.get('source', source) != source
+                if reset:
+                    after = 0
                 return self._json(200, {'entries': entries[after:], 'next': len(entries),
-                                        'done': note['state'] in FINAL})
+                                        'done': note['state'] in FINAL, 'source': source,
+                                        'reset': reset})
             m = re.fullmatch(r'/api/notes/([^/]+?)(\.png)?', route)
             if m:
                 nid = unquote(m.group(1))
