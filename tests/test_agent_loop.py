@@ -128,6 +128,64 @@ else:
         run.return_value = json.dumps(dict(state='replied', reply='== result: success · 2 turns · $1 ==\ndone\n'))
         self.assertEqual(backend.poll('/run/example').reply, 'done\n')
 
+    def _peek_script(self, body):
+        script = self.root / 'peek.py'
+        script.write_text('#!/usr/bin/env python3\n' + body)
+        os.chmod(script, 0o755)
+        return script
+
+    def test_non_cluster_backend_has_no_peek(self):
+        backend = ForkSandboxBackend('runner', ['start'], ['query', '--json'], ['--local'])
+        self.assertFalse(hasattr(backend, 'peek'))
+
+    def test_peek_argv_and_status_line_parsing(self):
+        script = self._peek_script('''import sys
+assert sys.argv[1:3] == ["k8s", "peek"], sys.argv
+sys.stdout.write("some transcript bytes")
+sys.stdout.flush()
+print("peek: file=events.jsonl next=42", file=sys.stderr)
+''')
+        backend = ForkSandboxBackend(str(script), extra_args=['--k8s'])
+        data, file, next_offset = backend.peek('/run/example')
+        self.assertEqual((data, file, next_offset), (b'some transcript bytes', 'events.jsonl', 42))
+
+    def test_peek_follows_file_and_after_across_polls(self):
+        calls_log = self.root / 'calls.log'
+        script = self._peek_script(f'''import sys
+with open({str(calls_log)!r}, 'a') as fh:
+    fh.write(repr(sys.argv[1:]) + chr(10))
+print("peek: file=events-review-1.jsonl next=99", file=sys.stderr)
+''')
+        backend = ForkSandboxBackend(str(script), extra_args=['--k8s'])
+        backend.peek('/run/example', file='events.jsonl', after=10)
+        calls = [eval(line) for line in calls_log.read_text().splitlines()]
+        self.assertEqual(calls, [['k8s', 'peek', '/run/example', '--after', '10', '--file', 'events.jsonl']])
+
+    def test_peek_silent_empty_exit_is_not_an_error(self):
+        script = self._peek_script('''import sys
+sys.exit(0)
+''')
+        backend = ForkSandboxBackend(str(script), extra_args=['--k8s'])
+        data, file, next_offset = backend.peek('/run/example', file='events.jsonl', after=7)
+        self.assertEqual((data, file, next_offset), (b'', 'events.jsonl', 7))
+
+    def test_peek_nonzero_exit_raises_with_reason(self):
+        script = self._peek_script('''import sys
+print("boom: unreachable cluster", file=sys.stderr)
+sys.exit(1)
+''')
+        backend = ForkSandboxBackend(str(script), extra_args=['--k8s'])
+        with self.assertRaisesRegex(ValueError, 'unreachable cluster'):
+            backend.peek('/run/example')
+
+    def test_peek_unparseable_status_line_raises(self):
+        script = self._peek_script('''import sys
+print("garbage", file=sys.stderr)
+''')
+        backend = ForkSandboxBackend(str(script), extra_args=['--k8s'])
+        with self.assertRaisesRegex(ValueError, 'unparseable'):
+            backend.peek('/run/example')
+
 
 class DraftLoop(TempProject):
     def tearDown(self):

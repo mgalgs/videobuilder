@@ -43,13 +43,37 @@ project (who can already read the note's text and attachments), so this is
 about readability, not secrecy: it never shows a tool's raw output, a
 `thinking` block, a system event, the input of a tool it doesn't recognise,
 or file contents written by Write/Edit (the path only).
+
+Before `discover` finds any file for a handle (a cluster run only lands its
+transcript at collect time), `read_feed` can be given `peek`, a callable
+`peek(handle, file, after) -> (bytes, file, next)` matching a backend's own
+`peek` method (see agents.ForkSandboxBackend) -- live transcript bytes fetched
+mid-run. Those bytes are kept in an in-memory cache, one entry per handle,
+shared by every poller: at most one `peek` call per handle every
+`_LIVE_POLL_INTERVAL` seconds, with concurrent pollers serialised on the same
+entry and reusing its last result. A handle's cache is dropped as soon as
+`discover` finds real files for it (those win outright, and are never mixed
+with live bytes), or after `_LIVE_IDLE_TTL` seconds with no poller. A `peek`
+failure (raised exception) is logged once per handle, not on every poll, and
+the feed just shows whatever live bytes it already has.
 """
 import json
+import logging
 import os
 import re
+import threading
+import time
 from pathlib import Path
 
 MAX_BYTES = 16 * 1024 * 1024
+PEEK_MAX = 32 * 1024  # fork-sandbox k8s peek's own default cap, used to tell
+                       # a truncated over-long line apart from a line that's
+                       # simply still being written
+
+_LIVE_POLL_INTERVAL = 2.0
+_LIVE_IDLE_TTL = 10 * 60
+
+_logger = logging.getLogger(__name__)
 
 _FILE_NAME = re.compile(r'events(-[A-Za-z0-9_-]+)?\.jsonl')
 _COMPOSED = re.compile(r'events-s(\d+)-([a-z]+)-(\d+)')
@@ -145,12 +169,100 @@ def _read_lines(files):
     return legs
 
 
-def read_feed(handle, project_root=None, show_cost=True):
+class _LiveEntry:
+    def __init__(self):
+        self.lock = threading.Lock()
+        self.legs = []          # [[file name, [decoded line, ...]], ...], in poll order
+        self.pending = b''      # bytes of the current trailing line, not yet newline-terminated
+        self.oversized = False  # True while discarding the remainder of an over-long line
+        self.current_file = None
+        self.next_offset = 0
+        self.total_bytes = 0
+        self.last_poll = 0.0
+        self.last_used = time.time()
+        self.error_logged = False
+
+
+_live_lock = threading.Lock()
+_live_entries = {}
+
+
+def _live_entry(key):
+    with _live_lock:
+        cutoff = time.time() - _LIVE_IDLE_TTL
+        for stale in [k for k, e in _live_entries.items() if k != key and e.last_used < cutoff]:
+            del _live_entries[stale]
+        entry = _live_entries.get(key)
+        if entry is None:
+            entry = _live_entries[key] = _LiveEntry()
+        return entry
+
+
+def _drop_live(key):
+    with _live_lock:
+        _live_entries.pop(key, None)
+
+
+def _absorb_peek(entry, data, file, next_offset):
+    if file != entry.current_file:
+        entry.legs.append([file, []])
+        entry.pending, entry.oversized = b'', False
+        entry.current_file = file
+    entry.next_offset = next_offset
+    if not data:
+        return
+    entry.total_bytes += len(data)
+    if entry.oversized:
+        if b'\n' not in data:
+            return
+        _, data = data.split(b'\n', 1)
+        entry.oversized = False
+        if not data:
+            return
+    if len(data) >= PEEK_MAX and b'\n' not in data:
+        entry.pending, entry.oversized = b'', True
+        return
+    lines = (entry.pending + data).split(b'\n')
+    entry.pending = lines.pop()
+    entry.legs[-1][1].extend(raw.decode('utf-8', errors='replace') for raw in lines)
+
+
+def _live_legs(key, handle, peek):
+    """[(header, [raw line, ...]), ...] for `handle`'s live cache, polling
+    `peek` at most once every `_LIVE_POLL_INTERVAL` seconds and only while
+    under `MAX_BYTES`; concurrent callers share one entry's lock, so only one
+    of them ever actually calls `peek` for a given poll."""
+    entry = _live_entry(key)
+    with entry.lock:
+        entry.last_used = time.time()
+        if entry.last_used - entry.last_poll >= _LIVE_POLL_INTERVAL and entry.total_bytes < MAX_BYTES:
+            entry.last_poll = entry.last_used
+            try:
+                data, file, next_offset = peek(handle, entry.current_file, entry.next_offset)
+                _absorb_peek(entry, data, file, next_offset)
+                entry.error_logged = False
+            except Exception as e:
+                if not entry.error_logged:
+                    _logger.warning('live transcript peek failed for %s: %s', key, e)
+                    entry.error_logged = True
+        return [(_header(name), list(lines)) for name, lines in entry.legs if name is not None]
+
+
+def read_feed(handle, project_root=None, show_cost=True, peek=None):
     """The feed for a note's run directory `handle`: [] for a falsy or
-    missing handle, or one with no transcript yet."""
+    missing handle, or one with no transcript yet. `peek`, if given, fetches
+    live bytes (see module docstring) while `discover` finds nothing; once it
+    finds real files, those win and any live cache for `handle` is dropped."""
     if not handle:
         return []
-    return format_transcript(_read_lines(discover(handle)), project_root, show_cost)
+    key = str(handle)
+    files = discover(handle)
+    if files:
+        _drop_live(key)
+        return format_transcript(_read_lines(files), project_root, show_cost)
+    if peek is None:
+        return []
+    return format_transcript(_live_legs(key, handle, peek), project_root, show_cost)
 
 
 def _relative(path, root):

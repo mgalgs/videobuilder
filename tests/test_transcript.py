@@ -2,9 +2,13 @@
 import json
 import os
 import tempfile
+import threading
+import time
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
+from videobuilder import transcript
 from videobuilder.transcript import discover, format_transcript, read_feed
 
 
@@ -226,6 +230,140 @@ class DiscoveryTests(unittest.TestCase):
             self.assertIsInstance(entries, list)
         finally:
             transcript.MAX_BYTES = original
+
+
+class FakePeek:
+    """A scripted peek(handle, file, after) -> (bytes, file, next): each call
+    pops the next canned response, or raises it if it's an Exception."""
+    def __init__(self, *responses):
+        self.responses = list(responses)
+        self.calls = []
+
+    def __call__(self, handle, file, after):
+        self.calls.append((handle, file, after))
+        response = self.responses.pop(0)
+        if isinstance(response, Exception):
+            raise response
+        return response
+
+
+class LiveFeedTests(unittest.TestCase):
+    def setUp(self):
+        transcript._live_entries.clear()
+        self.handle = '/fake/handle/' + self.id()
+
+    def test_live_bytes_used_while_no_files_exist(self):
+        peek = FakePeek((assistant(TEXT).encode() + b'\n', 'events.jsonl', 70))
+        entries = read_feed(self.handle, peek=peek)
+        self.assertEqual([e['text'] for e in entries], ['Building', 'Looking at the frame now.'])
+        self.assertEqual(len(peek.calls), 1)
+
+    def test_no_peek_given_is_an_empty_feed(self):
+        self.assertEqual(read_feed(self.handle), [])
+
+    def test_leg_change_starts_a_new_leg_and_keeps_the_old_ones_entries(self):
+        with patch.object(transcript, '_LIVE_POLL_INTERVAL', 0):
+            peek = FakePeek(
+                (assistant(TEXT).encode() + b'\n', 'events.jsonl', 10),
+                (assistant(TOOL_READ).encode() + b'\n', 'events-review-1.jsonl', 10))
+            read_feed(self.handle, peek=peek)
+            entries = read_feed(self.handle, peek=peek, project_root='/proj')
+        self.assertEqual([e['text'] for e in entries if e['kind'] == 'leg'], ['Building', 'Review 1'])
+        self.assertEqual([e['text'] for e in entries if e['kind'] == 'text'], ['Looking at the frame now.'])
+        self.assertEqual([e['text'] for e in entries if e['kind'] == 'tool'], ['Read promo/film.py'])
+
+    def test_partial_line_is_held_until_complete(self):
+        with patch.object(transcript, '_LIVE_POLL_INTERVAL', 0):
+            full = assistant(TEXT).encode() + b'\n'
+            peek = FakePeek((full[:20], 'events.jsonl', 20), (full[20:], 'events.jsonl', len(full)))
+            first = read_feed(self.handle, peek=peek)
+            self.assertEqual(first, [])  # the leg's only line is still incomplete: no header shown yet
+            second = read_feed(self.handle, peek=peek)
+        self.assertEqual([e['text'] for e in second], ['Building', 'Looking at the frame now.'])
+
+    def test_cut_over_long_line_is_dropped(self):
+        oversized = assistant({'type': 'text', 'text': 'x' * 100}).encode() + b'\n'
+        good = assistant(TEXT).encode() + b'\n'
+        cap = 40
+        with patch.object(transcript, '_LIVE_POLL_INTERVAL', 0), patch.object(transcript, 'PEEK_MAX', cap):
+            peek = FakePeek(
+                (oversized[:cap], 'events.jsonl', cap),             # capped at PEEK_MAX, no newline: oversized
+                (oversized[cap:], 'events.jsonl', len(oversized)),  # the rest of the dropped line, up to its \n
+                (good, 'events.jsonl', len(oversized) + len(good)))
+            read_feed(self.handle, peek=peek)
+            read_feed(self.handle, peek=peek)
+            entries = read_feed(self.handle, peek=peek)
+        self.assertEqual([e['text'] for e in entries], ['Building', 'Looking at the frame now.'])
+
+    def test_second_poll_within_throttle_window_reuses_cache(self):
+        peek = FakePeek((assistant(TEXT).encode() + b'\n', 'events.jsonl', 10))
+        first = read_feed(self.handle, peek=peek)
+        second = read_feed(self.handle, peek=peek)
+        self.assertEqual(first, second)
+        self.assertEqual(len(peek.calls), 1)
+
+    def test_concurrent_polls_for_one_handle_run_only_one_peek(self):
+        peek = FakePeek((b'', None, 0))
+        results = []
+        lock = threading.Lock()
+        def worker():
+            result = read_feed(self.handle, peek=peek)
+            with lock:
+                results.append(result)
+        threads = [threading.Thread(target=worker) for _ in range(5)]
+        for t in threads:
+            t.start()
+        for t in threads:
+            t.join(5)
+        self.assertEqual(len(results), 5)
+        self.assertEqual(len(peek.calls), 1)
+
+    def test_discover_finding_files_drops_the_live_cache(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            handle = Path(tmp)
+            peek = FakePeek((assistant({'type': 'text', 'text': 'live only, must not survive'}).encode() + b'\n',
+                              'events.jsonl', 50))
+            live_entries = read_feed(handle, peek=peek)
+            self.assertEqual([e['text'] for e in live_entries if e['kind'] == 'text'],
+                              ['live only, must not survive'])
+            self.assertIn(str(handle), transcript._live_entries)
+            (handle / 'events.jsonl').write_text(assistant(TEXT) + '\n')
+            entries = read_feed(handle, peek=peek)
+        self.assertEqual([e['text'] for e in entries if e['kind'] == 'text'], ['Looking at the frame now.'])
+        self.assertNotIn(str(handle), transcript._live_entries)
+
+    def test_failing_peek_is_logged_once_and_feed_keeps_working(self):
+        with patch.object(transcript, '_LIVE_POLL_INTERVAL', 0):
+            peek = FakePeek(
+                (assistant(TEXT).encode() + b'\n', 'events.jsonl', 10),
+                ValueError('cluster unreachable'),
+                ValueError('cluster unreachable'))
+            with self.assertLogs('videobuilder.transcript', level='WARNING') as captured:
+                first = read_feed(self.handle, peek=peek)
+                second = read_feed(self.handle, peek=peek)
+                third = read_feed(self.handle, peek=peek)
+        self.assertEqual([e['text'] for e in first], ['Building', 'Looking at the frame now.'])
+        self.assertEqual(second, first)
+        self.assertEqual(third, first)
+        self.assertEqual(len(captured.records), 1)
+
+    def test_live_feed_matches_collected_feed_for_the_same_bytes(self):
+        lines = [assistant(TEXT), assistant(TOOL_READ), RESULT]
+        raw = ('\n'.join(lines) + '\n').encode()
+        with tempfile.TemporaryDirectory() as tmp:
+            (Path(tmp) / 'events.jsonl').write_text(raw.decode())
+            collected = read_feed(Path(tmp), project_root='/proj')
+        cuts = sorted({10, len(raw) // 2, len(raw)})
+        chunks, start = [], 0
+        for cut in cuts:
+            chunks.append(raw[start:cut])
+            start = cut
+        with patch.object(transcript, '_LIVE_POLL_INTERVAL', 0):
+            peek = FakePeek(*[(chunk, 'events.jsonl', cut) for chunk, cut in zip(chunks, cuts)])
+            entries = None
+            for _ in chunks:
+                entries = read_feed(self.handle, project_root='/proj', peek=peek)
+        self.assertEqual(entries, collected)
 
 
 if __name__ == '__main__':

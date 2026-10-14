@@ -16,6 +16,17 @@ when a draft exists; without it the run starts from main); status --json RUN pri
 the status above, optionally reply_file (otherwise RUN/outbox/reply.md).
 executable, submit_args, poll_args, extra_args are configurable argv lists
 (executable is a string). No shell expansion is performed.
+
+When extra_args carries --k8s (the backend is running notes as cluster jobs
+via `fork-sandbox run --k8s`), ForkSandboxBackend also gains `peek(handle,
+file=None, after=0)`, calling the read-only `<executable> k8s peek <handle>
+--after AFTER [--file FILE]`: stdout is raw transcript bytes, and the last
+stderr line, `peek: file=<name> next=<offset>`, is parsed into the (bytes,
+name, offset) triple `transcript.read_feed` polls with (see its module
+docstring). A silent, empty exit 0 (pod or transcript not there yet) is not
+an error: it's reported back as no new bytes at the same file/offset. A
+non-cluster backend (no --k8s) never gets a `peek` attribute at all, so
+`hasattr(backend, 'peek')` is how a caller tells the two apart.
 """
 import fcntl
 import json
@@ -75,6 +86,10 @@ def source_pin(pin, fallback):
     return version, fallback, "v" + version
 
 
+_PEEK_TIMEOUT = 10
+_PEEK_STATUS = re.compile(r'^peek:\s*file=(\S+)\s+next=(\d+)\s*$')
+
+
 class ForkSandboxBackend(AgentBackend):
     name = 'fork-sandbox'
 
@@ -89,6 +104,8 @@ class ForkSandboxBackend(AgentBackend):
         self.videobuilder_repo = videobuilder_repo
         if self.context_root and not self.context_root.is_relative_to(CONTEXT_STAGING_ROOT):
             raise ValueError(f"editor.agent.context_root must be under {CONTEXT_STAGING_ROOT}")
+        if '--k8s' in self.extra_args:
+            self.peek = self._peek
 
     def _context(self, note):
         pin = pin_for(Path(note['project']) / note['film'], note['project'])
@@ -132,6 +149,30 @@ class ForkSandboxBackend(AgentBackend):
         if reply:
             reply = re.sub(r'^== result:[^\n]*==\n+', '', reply)
         return AgentStatus(data['state'], reply, data.get('branch'))
+
+    def _peek(self, handle, file=None, after=0):
+        """Live transcript bytes for an in-flight cluster run (see the class
+        docstring): (bytes, file name, next offset). Only present when the
+        backend runs with --k8s."""
+        argv = [self.executable, 'k8s', 'peek', str(handle), '--after', str(after)]
+        if file:
+            argv += ['--file', file]
+        try:
+            result = subprocess.run(argv, capture_output=True, timeout=_PEEK_TIMEOUT)
+        except subprocess.TimeoutExpired:
+            raise ValueError(f'fork-sandbox k8s peek timed out after {_PEEK_TIMEOUT}s') from None
+        if result.returncode:
+            reason = result.stderr.decode('utf-8', 'replace').strip().splitlines()
+            raise ValueError(f'fork-sandbox k8s peek exited {result.returncode}: '
+                              f'{reason[-1] if reason else "no output"}')
+        stderr = result.stderr.decode('utf-8', 'replace').strip()
+        if not stderr and not result.stdout:
+            return b'', file, after  # pod/transcript not there yet: not an error, just nothing new
+        status = stderr.splitlines()[-1] if stderr else ''
+        m = _PEEK_STATUS.match(status)
+        if not m:
+            raise ValueError(f'fork-sandbox k8s peek: unparseable status line {status!r}')
+        return result.stdout, m.group(1), int(m.group(2))
 
 
 class FakeBackend(AgentBackend):
