@@ -119,6 +119,19 @@ class FormatterTests(unittest.TestCase):
         entries = format_transcript([('Building', [assistant(TEXT), assistant(TOOL_READ)])])
         self.assertEqual([e['kind'] for e in entries], ['leg', 'text', 'tool'])
 
+    def test_paths_relativize_to_the_leg_s_own_cwd_not_project_root(self):
+        system_init = line({'type': 'system', 'subtype': 'init', 'cwd': '/sandbox/clone/proj'})
+        lines = [system_init, assistant({'type': 'tool_use', 'name': 'Read',
+                                          'input': {'file_path': '/sandbox/clone/proj/promo/film.py'}})]
+        entries = format_transcript([('Building', lines)], project_root='/home/op/proj')
+        tool = next(e for e in entries if e['kind'] == 'tool')
+        self.assertEqual(tool['text'], 'Read promo/film.py')
+
+    def test_leg_without_cwd_falls_back_to_project_root(self):
+        entries = format_transcript([('Building', [assistant(TOOL_READ)])], project_root='/proj')
+        tool = next(e for e in entries if e['kind'] == 'tool')
+        self.assertEqual(tool['text'], 'Read promo/film.py')
+
     def test_empty_leg_produces_no_header(self):
         entries = format_transcript([('Building', [assistant(TEXT)]), ('Review 1', [])])
         self.assertEqual([e['text'] for e in entries if e['kind'] == 'leg'], ['Building'])
@@ -140,6 +153,15 @@ class DiscoveryTests(unittest.TestCase):
         self._write(self.handle, 'events-fix-1.jsonl', [{'type': 'result'}])
         headers = [h for h, _ in discover(self.handle)]
         self.assertEqual(headers, ['Building', 'Review 1', 'Fix 1'])
+
+    def test_review_and_fix_rounds_interleave_by_round(self):
+        self._write(self.handle, 'events.jsonl', [{'type': 'result'}])
+        self._write(self.handle, 'events-review-1.jsonl', [{'type': 'result'}])
+        self._write(self.handle, 'events-fix-1.jsonl', [{'type': 'result'}])
+        self._write(self.handle, 'events-review-2.jsonl', [{'type': 'result'}])
+        self._write(self.handle, 'events-fix-2.jsonl', [{'type': 'result'}])
+        headers = [h for h, _ in discover(self.handle)]
+        self.assertEqual(headers, ['Building', 'Review 1', 'Fix 1', 'Review 2', 'Fix 2'])
 
     def test_evidence_fallback_when_handle_has_nothing(self):
         evidence = self.handle / 'evidence'

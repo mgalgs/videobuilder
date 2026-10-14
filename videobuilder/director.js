@@ -362,29 +362,31 @@ function renderStepsFeed(note) {
     body.append(node('p','steps-empty','No steps recorded'));
     return
   }
+  const open=data.openSteps||(data.openSteps=new Set());
   let current=null;
-  for(const entry of data.entries) {
+  data.entries.forEach((entry,i)=> {
     if(entry.kind==='leg') {
       body.append(node('div','steps-leg',entry.text));
       current=null;
-      continue
+      return
     }
     if(entry.kind==='step') {
       const row=node('div','steps-step'),head=node('button','steps-step-head',entry.text);
       const details=node('div','steps-step-details');
-      details.hidden=true;
-      head.setAttribute('aria-expanded','false');
+      details.hidden=!open.has(i);
+      head.setAttribute('aria-expanded',String(!details.hidden));
       head.onclick=()=> {
         details.hidden=!details.hidden;
-        head.setAttribute('aria-expanded',String(!details.hidden))
+        head.setAttribute('aria-expanded',String(!details.hidden));
+        if(details.hidden)open.delete(i);else open.add(i)
       };
       row.append(head,details);
       body.append(row);
       current=details;
-      continue
+      return
     }
     (current||body).append(node('div','steps-'+entry.kind,entry.text))
-  }
+  });
   if(atBottom)body.scrollTop=body.scrollHeight
 }
 async function loadSteps(note) {

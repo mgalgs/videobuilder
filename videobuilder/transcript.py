@@ -25,6 +25,12 @@ items (never shown). That shape is not a stable contract -- another harness
 line that doesn't parse, or doesn't look like that, is skipped silently
 rather than raising.
 
+A tool's absolute paths are made relative to the leg's own working
+directory -- the `cwd` of its `system` init event, which is where the
+builder's fork-sandbox clone actually lives, not the caller-supplied
+`project_root` -- falling back to `project_root` when a leg carries no such
+event.
+
 A text item whose stripped text starts with "Step: " (see notes.py, which
 asks the builder for one of these per distinct step of its work) becomes its
 own entry of kind "step", holding the text after that prefix; every entry
@@ -65,7 +71,7 @@ def _order_key(name):
         return (2, int(m.group(1)), 0, name)
     m = _PLAIN_FIX.fullmatch(stem)
     if m:
-        return (3, int(m.group(1)), 0, name)
+        return (2, int(m.group(1)), 1, name)
     return (4, 0, 0, name)
 
 
@@ -227,6 +233,20 @@ def _assistant_entries(message, project_root):
     return entries
 
 
+def _leg_root(lines, fallback):
+    """The leg's own working directory, from its `system` init event's `cwd`
+    (a builder leg runs in its own fork-sandbox clone, not under
+    `project_root`), or `fallback` if the leg carries none."""
+    for line in lines:
+        try:
+            event = json.loads(line)
+        except ValueError:
+            continue
+        if isinstance(event, dict) and event.get('type') == 'system' and isinstance(event.get('cwd'), str):
+            return event['cwd']
+    return fallback
+
+
 def format_transcript(legs, project_root=None, show_cost=True):
     """`legs`, an ordered `[(header, [raw line, ...]), ...]` of already-read
     transcript lines, to a flat list of feed entries `{kind, text}`. Pure:
@@ -236,6 +256,7 @@ def format_transcript(legs, project_root=None, show_cost=True):
         if not lines:
             continue
         entries.append({'kind': 'leg', 'text': header})
+        root = _leg_root(lines, project_root)
         for line in lines:
             try:
                 event = json.loads(line)
@@ -245,7 +266,7 @@ def format_transcript(legs, project_root=None, show_cost=True):
                 continue
             kind = event.get('type')
             if kind == 'assistant':
-                entries.extend(_assistant_entries(event.get('message'), project_root))
+                entries.extend(_assistant_entries(event.get('message'), root))
             elif kind == 'result':
                 text = _result_line(event, show_cost)
                 if text:
