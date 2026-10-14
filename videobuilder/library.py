@@ -64,7 +64,8 @@ def run(*argv, cwd=None, input=None, env=None):
 
 class Library:
     def __init__(self, root, checkouts=None, state_dir=None, host='127.0.0.1', allowed_hosts=(),
-                 backend=None, agent=None, unsandboxed_previews=False, envs=None, admins=(), capabilities_dir=None):
+                 backend=None, agent=None, unsandboxed_previews=False, envs=None, admins=(), capabilities_dir=None,
+                 music_sources=None):
         self.capabilities_dir = capabilities_dir
         self.root = Path(root).resolve()
         self.repos = self.root / 'repos'
@@ -78,7 +79,8 @@ class Library:
         # Names can't start with '.', so '.shared' never collides with a repo's state dir.
         environments = Environments(self.state_dir / '.shared', envs or 'pinned')
         self.options = dict(backend=backend, agent=agent, allowed_hosts=allowed_hosts, host=host,
-                            unsandboxed_previews=unsandboxed_previews, environments=environments)
+                            unsandboxed_previews=unsandboxed_previews, environments=environments,
+                            music_sources=music_sources)
         self.editors = {}
         self.lock = threading.RLock()
         from .accounts import Accounts

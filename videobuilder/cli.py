@@ -210,7 +210,8 @@ def cmd_editor(a):
             serve_library(a.library, host=a.host, port=a.port, checkouts=a.checkouts,
                           state_dir=a.state_dir, open_browser=a.open, agent=agent,
                           allowed_hosts=a.allow_host, unsandboxed_previews=a.unsandboxed_previews, envs=a.envs,
-                          admins=list(zip(a.admin, a.admin_password_file)), capabilities_dir=a.capabilities_dir)
+                          admins=list(zip(a.admin, a.admin_password_file)), capabilities_dir=a.capabilities_dir,
+                          music_sources=a.music_sources)
         else:
             if not a.project:
                 raise ValueError('provide PROJECT or --library DIR')
@@ -218,7 +219,8 @@ def cmd_editor(a):
                 raise ValueError('--admin is only for --library mode')
             serve(a.project, host=a.host, port=a.port, state_dir=a.state_dir, open_browser=a.open,
                   agent=agent, allowed_hosts=a.allow_host, unsandboxed_previews=a.unsandboxed_previews,
-                  envs=a.envs, sync_remote=a.sync_remote, capabilities_dir=a.capabilities_dir)
+                  envs=a.envs, sync_remote=a.sync_remote, capabilities_dir=a.capabilities_dir,
+                  music_sources=a.music_sources)
     except ValueError as e:
         raise SystemExit(f'editor: {e}') from None
 
@@ -358,6 +360,8 @@ def main(argv=None):
     d.add_argument('--agent-videobuilder-repo', help='videobuilder git URL, for == pins')
     d.add_argument('--capabilities-dir', help='a directory of pre-built capability clips/posters '
                    '(from `videobuilder capabilities build`), served at /capabilities')
+    d.add_argument('--music-sources', help='a TOML file of pluggable music sources for the director '
+                   "(see README); with none given, the director shows no music picker")
     d.set_defaults(fn=cmd_editor)
 
     cap = sub.add_parser('capabilities', help="the capabilities catalog's clips and builder sheet")

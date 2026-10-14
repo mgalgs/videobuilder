@@ -335,7 +335,8 @@ class Auth(LibraryFixture, unittest.TestCase):
         self.new_project(admin, 'acme/launch', 'acme/launch')
         _, _, outsider = self.signup('outsider', 'longenoughpassword')
         for path in ('/v/acme/launch/', '/v/acme/launch/api/project',
-                     '/v/acme/launch/director.js', '/v/acme/launch/tuning.html'):
+                     '/v/acme/launch/director.js', '/v/acme/launch/tuning.html',
+                     '/v/acme/launch/api/music/sources'):
             self.assertEqual(self.request(path, headers={'Cookie': outsider})[0], 404, path)
         code, _, headers = self.request_full('/git/acme/launch.git/info/refs?service=git-receive-pack',
                                               headers={'Authorization': 'Basic ' + base64.b64encode(

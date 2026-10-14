@@ -374,6 +374,59 @@ Unused uploads expire after 24 hours. For fork-sandbox, each note receives
 copies of its attachments at `/attachments`; the builder must copy anything
 used in the video into the video's assets and commit it.
 
+**Music sources.** Pass `--music-sources FILE` (works in both single-project and
+`--library` mode) to add a music button beside the composer's attach button. It
+opens a picker over a configured music library: search, preview, and attach a
+track to the note being written, the same way an uploaded file attaches. With
+no `--music-sources`, there is no button and nothing changes. The module knows
+nothing about any particular service; whoever deploys the editor configures
+real sources separately. `FILE` is TOML with a list of sources, each needing `id`
+(kebab-case), `name` (shown in the picker) and `license` (a free-text label,
+e.g. `"CC BY-NC 4.0"`, shown in the picker's header and next to each track's Use
+button — videos never credit it; the editor adds no attribution anywhere), and
+either a mapping source, fetched as JSON over HTTP:
+
+```toml
+[[sources]]
+id = "example-library"
+name = "Example Library"
+license = "CC BY-NC 4.0"
+url = "https://music.example.com/api/tracks.json"
+[sources.fields]
+tracks = "tracks"            # dotted path to the list; "" for a top-level list
+id = "id"
+title = "title"
+audio_url = "download_url"
+tags = "tags"                # optional
+duration = "length_ms"       # optional
+duration_unit = "ms"         # "ms" or "s" (default "s")
+```
+
+or an entry-point source, a Python callable that fetches and normalises its
+own tracks:
+
+```toml
+[[sources]]
+id = "example-catalog"
+name = "Example Catalog"
+license = "Public domain"
+entry_point = "example_catalog.music:list_tracks"
+```
+
+`list_tracks(source_config)` is called with that source's own TOML table and
+returns an iterable of `{id, title, audio_url}` dicts, plus optional `tags`
+(a list of strings) and `duration` (seconds). A source must be exactly one of
+these two kinds; a bad file, including a source missing `license`, is a
+startup error naming the problem. A track missing `id`, `title` or
+`audio_url`, or whose `audio_url` isn't http(s), is skipped rather than
+breaking the list. The track list is fetched with a timeout and a size cap and
+cached per source for ten minutes; a refetch failure serves the stale list
+when there is one. There is no upstream search, so the picker filters the
+cached list itself. Attaching a track fetches its `audio_url` server-side and
+stores it through the same attachment store as an upload — the picker never
+tells the server a URL to fetch, only a source and track id it already has
+cached.
+
 When a builder turn finishes, the editor applies the same scope guard as
 manual Accept. Out-of-scope changes are refused and the draft is reset to
 `main`; the next note tells the builder what was refused. A clean turn is
@@ -519,6 +572,7 @@ python -m videobuilder editor --library DIR [--checkouts DIR2] [--state-dir DIR3
 - `editor`, `project` and `notes`: the editor, finding a project's videos and
   committing edits, and review notes with their `AgentBackend`.
 - `edits`: direct edits, `<film>.edits.toml`: `roll`, `set_copy` and `rollable`.
+- `music`: pluggable `--music-sources` for the director's music picker.
 
 ## Known traps
 

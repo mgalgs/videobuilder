@@ -33,6 +33,13 @@ POST /api/attachments?video=V&name=F  raw body with Content-Type; 201
                                      413 over file limit
 GET  /api/attachments/<id>          stored bytes, nosniff, CSP sandbox;
                                      image/video/audio inline, others download
+GET  /api/music/sources              [{id,name,license}]; [] with none configured
+GET  /api/music/tracks?source=S      {source:{id,name,license},tracks:[...]};
+                                     404 unknown source, 502 on an upstream fetch
+                                     failure with no cache to fall back on
+POST /api/music/attach {video,source,track}
+                                     200 {id,name,type,size}, the same shape an
+                                     upload returns; 404 unknown source/track
 GET  /api/versions?video=V[&limit=50&before=SHA]
                                      {versions:[{n,commit,summary,kind,
                                      author,directed_by,note,restores,time,
@@ -109,7 +116,8 @@ from .drafts import Drafts, git
 from .versions import Refused, Versions
 from .render import default_jobs
 from .renders import Renders
-from .attachments import Attachments
+from .attachments import Attachments, TYPES
+from .music import FetchError, MusicLibrary, TooLarge, extension_for, fetch_binary
 from .workers import Environments, Pool
 from .project import Project, read_config
 from .sync import ForgeSync
@@ -157,8 +165,9 @@ class Editor:
 
     def __init__(self, root, state_dir=None, backend=None, poll=0.25, agent=None, allowed_hosts=(), host='127.0.0.1',
                  unsandboxed_previews=False, envs=None, env_builder=None, sync_remote=None, environments=None,
-                 auto_land=None, capabilities_dir=None):
+                 auto_land=None, capabilities_dir=None, music_sources=None):
         self.capabilities_dir = capabilities_dir
+        self.music = MusicLibrary.from_file(music_sources) if music_sources else None
         self.root = os.path.abspath(root)
         cfg = read_config(self.root)
         state = state_dir or cfg.get('state_dir') or STATE_DIR
@@ -735,6 +744,19 @@ def make_handler(editor, hook=request_hook):
                                   {'Content-Security-Policy': 'sandbox',
                                    'Content-Disposition': ('inline' if inline else 'attachment') +
                                    '; filename="' + meta['name'] + '"'})
+            if route == '/api/music/sources':
+                return self._json(200, editor.music.list_sources() if editor.music else [])
+            if route == '/api/music/tracks':
+                if not editor.music:
+                    raise HTTPError(404, 'no music sources configured')
+                try:
+                    source, tracks = editor.music.list_tracks(_need(q, 'source'))
+                except KeyError:
+                    raise HTTPError(404, 'unknown music source') from None
+                except FetchError as exc:
+                    raise HTTPError(502, str(exc)) from None
+                return self._json(200, {'source': {'id': source.id, 'name': source.name, 'license': source.license},
+                                        'tracks': tracks})
             if route == '/api/draft':
                 return self._json(200, editor.drafts.details(_need(q, 'video')))
             if route in ('/api/draft/info', '/api/draft/frame'):
@@ -794,6 +816,33 @@ def make_handler(editor, hook=request_hook):
             if route in ('/api/draft/accept', '/api/draft/drop'):
                 action = getattr(editor.drafts, route.rsplit('/', 1)[1])
                 return self._json(200, action(_field(body, 'video', str), identity))
+            if route == '/api/music/attach':
+                if not editor.music:
+                    raise HTTPError(404, 'no music sources configured')
+                video = _field(body, 'video', str)
+                editor.project.video(video)
+                try:
+                    source, track = editor.music.track(_field(body, 'source', str), _field(body, 'track', str))
+                except KeyError:
+                    raise HTTPError(404, 'unknown music source') from None
+                except FetchError as exc:
+                    raise HTTPError(502, str(exc)) from None
+                if track is None:
+                    raise HTTPError(404, 'unknown track') from None
+                try:
+                    data, content_type = fetch_binary(track['audio_url'], editor.attachments.max_file)
+                except TooLarge:
+                    raise HTTPError(413, 'attachment exceeds file size limit') from None
+                except FetchError as exc:
+                    raise HTTPError(502, f'could not fetch track audio: {exc}') from None
+                ext = extension_for(content_type, track['audio_url'])
+                if ext is None:
+                    raise HTTPError(400, 'unsupported audio type for this track')
+                try:
+                    record = editor.attachments.upload(video, f"{track['title']}.{ext}", TYPES[ext], data)
+                except ValueError as exc:
+                    raise HTTPError(400, str(exc)) from None
+                return self._json(201, record)
             if route in ('/api/roll', '/api/copy', '/api/undo'):
                 return self._json(200, editor.edit(_field(body, 'video', str), route[5:], body, identity))
             if route == '/api/notes':
@@ -838,10 +887,10 @@ def _ticker(tick, stop):
 
 def serve(root, host='127.0.0.1', port=8100, state_dir=None, open_browser=False, backend=None,
           hook=request_hook, agent=None, allowed_hosts=(), unsandboxed_previews=False, envs=None, sync_remote=None,
-          capabilities_dir=None):
+          capabilities_dir=None, music_sources=None):
     editor = Editor(root, state_dir=state_dir, backend=backend, agent=agent, allowed_hosts=allowed_hosts, host=host,
                     unsandboxed_previews=unsandboxed_previews, envs=envs, sync_remote=sync_remote,
-                    capabilities_dir=capabilities_dir)
+                    capabilities_dir=capabilities_dir, music_sources=music_sources)
     httpd = ThreadingHTTPServer((host, port), make_handler(editor, hook))
     httpd.daemon_threads = True
     stop_sync = threading.Event()
@@ -876,11 +925,11 @@ def serve(root, host='127.0.0.1', port=8100, state_dir=None, open_browser=False,
 
 def serve_library(root, host='127.0.0.1', port=8100, checkouts=None, state_dir=None, open_browser=False,
                   hook=request_hook, agent=None, allowed_hosts=(), unsandboxed_previews=False, envs=None,
-                  admins=(), capabilities_dir=None):
+                  admins=(), capabilities_dir=None, music_sources=None):
     from .library import Library
     library = Library(root, checkouts=checkouts, state_dir=state_dir, host=host, agent=agent,
                       allowed_hosts=allowed_hosts, unsandboxed_previews=unsandboxed_previews, envs=envs,
-                      admins=admins, capabilities_dir=capabilities_dir)
+                      admins=admins, capabilities_dir=capabilities_dir, music_sources=music_sources)
     httpd = ThreadingHTTPServer((host, port), make_handler(library, hook))
     httpd.daemon_threads = True
     stop = threading.Event()
