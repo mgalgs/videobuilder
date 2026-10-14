@@ -23,6 +23,7 @@ import re
 import tempfile
 import subprocess
 import time
+from dataclasses import asdict
 from pathlib import Path
 
 from .notes import AgentBackend, AgentStatus, NullBackend
@@ -136,13 +137,18 @@ class ForkSandboxBackend(AgentBackend):
 class FakeBackend(AgentBackend):
     """Persistent demo runner: after delay, append a scripted Python change.
     change defaults to a visible background tint overlay, inside the film.
+    Pass `questions` (a list of {"text", "choices"} dicts, 1-3 of them) to make
+    it ask instead of building: it replies with a ```questions block and
+    commits nothing, as a real builder would when a note is unclear.
     """
     name = 'fake'
 
-    def __init__(self, delay=3, change=None, commits=1, extra_path=None):
+    def __init__(self, delay=3, change=None, commits=1, extra_path=None, questions=None, lead_in=None):
         self.delay = delay
         self.commits = commits
         self.extra_path = extra_path
+        self.questions = questions
+        self.lead_in = lead_in if lead_in is not None else 'Quick check before I start:'
         self.change = change or ('\n_original_draw = FILM.draw\n'
                                 'def _draft_draw(n, cv):\n'
                                 '    _original_draw(n, cv)\n'
@@ -164,6 +170,12 @@ class FakeBackend(AgentBackend):
         if time.time() < data['ready']:
             return AgentStatus('working')
         note = data['note']
+        if self.questions:
+            reply = f'{self.lead_in}\n\n```questions\n{json.dumps({"questions": self.questions})}\n```\n'
+            result = AgentStatus('replied', reply, None)
+            data['result'] = asdict(result)
+            path.write_text(json.dumps(data))
+            return result
         root = note['project']
         branch = note['draft'] or 'vb-draft/' + note['session'] + '-' + note['id']
         work = Path(note['state_dir']) / 'fake-work'
@@ -187,7 +199,6 @@ class FakeBackend(AgentBackend):
         finally:
             git(root, 'worktree', 'remove', '--force', str(work))
         result = AgentStatus('replied', 'Added an amber bar at the top of the frame for review.', branch)
-        from dataclasses import asdict
         data['result'] = asdict(result)
         path.write_text(json.dumps(data))
         return result

@@ -1,10 +1,11 @@
 """Review notes: the store, the AgentBackend interface and the null backend."""
+import json
 import os
 import tempfile
 import unittest
 from pathlib import Path
 
-from videobuilder.notes import AgentBackend, AgentStatus, NoteStore, NullBackend
+from videobuilder.notes import AgentBackend, AgentStatus, NoteStore, NullBackend, parse_questions
 
 
 class FakeAgent(AgentBackend):
@@ -83,6 +84,74 @@ class Notes(unittest.TestCase):
         n = NoteStore(self.dir, Down()).add('v', '16x9', 0, None, 'hello', b'')
         self.assertEqual((n['state'], n['handle']), ('failed', None))
         self.assertIn('unreachable', n['reply'])
+
+    def test_note_file_asks_by_default_then_not_after_an_answer(self):
+        agent = FakeAgent()
+        store = NoteStore(self.dir, agent)
+        note = store.add('promo/film', '16x9', 0, None, 'Make it punchier', b'')
+        md = (store.session_dir('promo/film') / (note['id'] + '.md')).read_text()
+        self.assertIn('ask the director 1 to 3 short questions', md)
+        self.assertNotIn('Do not ask clarifying questions', md)
+
+        reply = 'Quick check before building:\n\n```questions\n' + json.dumps(
+            {'questions': [{'text': 'Light or dark logo?', 'choices': ['Light', 'Dark']}]}) + '\n```\n'
+        agent.states[note['handle']] = AgentStatus('replied', reply, None)
+        self.assertEqual(store.list('promo/film')[0]['state'], 'questions')
+
+        followup = store.answer(note['id'], False, ['Dark'])
+        md2 = (store.session_dir('promo/film') / (followup['id'] + '.md')).read_text()
+        self.assertIn('Do not ask clarifying questions', md2)
+        self.assertNotIn('ask the director 1 to 3 short questions', md2)
+
+    def test_a_no_questions_note_never_shows_a_stray_block(self):
+        # A backend that ignores the no-questions instruction must not leak the raw
+        # block into the reply, and must not put the note back into questions state.
+        agent = FakeAgent()
+        store = NoteStore(self.dir, agent)
+        note = store.add('promo/film', '16x9', 0, None, 'Make it punchier', b'', no_questions=True)
+        reply = 'Done.\n\n```questions\n' + json.dumps(
+            {'questions': [{'text': 'Light or dark logo?', 'choices': ['Light', 'Dark']}]}) + '\n```\n'
+        agent.states[note['handle']] = AgentStatus('replied', reply, 'notes/branch')
+        got = store.list('promo/film')[0]
+        self.assertEqual(got['state'], 'replied')
+        self.assertEqual(got['reply'], 'Done.')
+        self.assertNotIn('questions', got)
+
+
+class Questions(unittest.TestCase):
+    def test_a_valid_block_with_choice_and_free_text(self):
+        reply = ('Here is a quick check.\n\n```questions\n' + json.dumps({'questions': [
+            {'text': 'Light or dark logo?', 'choices': ['Light', 'Dark']},
+            {'text': 'Any specific line of copy?'},
+        ]}) + '\n```\n')
+        lead_in, questions = parse_questions(reply)
+        self.assertEqual(lead_in, 'Here is a quick check.')
+        self.assertEqual(questions, [{'text': 'Light or dark logo?', 'choices': ['Light', 'Dark']},
+                                     {'text': 'Any specific line of copy?', 'choices': []}])
+
+    def test_malformed_json_falls_back_to_an_ordinary_reply(self):
+        self.assertIsNone(parse_questions('```questions\nnot json\n```\n'))
+
+    def test_zero_or_four_questions_is_invalid(self):
+        self.assertIsNone(parse_questions('```questions\n' + json.dumps({'questions': []}) + '\n```\n'))
+        four = [{'text': f'Q{i}'} for i in range(4)]
+        self.assertIsNone(parse_questions('```questions\n' + json.dumps({'questions': four}) + '\n```\n'))
+
+    def test_one_or_five_choices_is_invalid(self):
+        one = [{'text': 'Q', 'choices': ['A']}]
+        self.assertIsNone(parse_questions('```questions\n' + json.dumps({'questions': one}) + '\n```\n'))
+        five = [{'text': 'Q', 'choices': ['A', 'B', 'C', 'D', 'E']}]
+        self.assertIsNone(parse_questions('```questions\n' + json.dumps({'questions': five}) + '\n```\n'))
+
+    def test_overlong_strings_are_invalid(self):
+        long_text = [{'text': 'x' * 500}]
+        self.assertIsNone(parse_questions('```questions\n' + json.dumps({'questions': long_text}) + '\n```\n'))
+        long_choice = [{'text': 'Q', 'choices': ['ok', 'y' * 200]}]
+        self.assertIsNone(parse_questions('```questions\n' + json.dumps({'questions': long_choice}) + '\n```\n'))
+
+    def test_a_missing_block_falls_back_to_an_ordinary_reply(self):
+        self.assertIsNone(parse_questions('Just a plain reply, no questions here.'))
+        self.assertIsNone(parse_questions(None))
 
 
 if __name__ == '__main__':

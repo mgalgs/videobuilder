@@ -112,7 +112,7 @@ class Drafts:
         return inspect(self.editor.root, branch, self.context(video)['directory'])
 
     def _idle(self, video):
-        if any(n['state'] not in ('replied', 'failed', 'accepted', 'dropped')
+        if any(n['state'] not in ('replied', 'failed', 'accepted', 'dropped', 'questions')
                for n in self.editor.notes.list(video, refresh=False)):
             raise ValueError('wait for queued and working notes before changing the draft')
 

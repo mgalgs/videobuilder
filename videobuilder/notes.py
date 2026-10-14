@@ -17,18 +17,71 @@ the next note after replied/failed. accepted/dropped are reviewer decisions.
 Per-video session.json survives both decisions. The runner owns any additional
 session files. See agents.py for the external command protocol. Submission
 must be idempotent by note id to tolerate a crash before saving the handle.
+
+A reply whose final content is a ```questions fenced JSON block (see
+parse_questions) lands the note in the `questions` state instead of `replied`,
+with the parsed list in note['questions'] and any lead-in text as its reply.
+Nothing is committed and no version is produced. `answer()` turns it into a
+follow-up note that continues the same draft and is marked not to ask again.
 """
 import hashlib
 from pathlib import Path
 import json
 import os
+import re
 import secrets
 import threading
 import time
 from dataclasses import asdict, dataclass
 
-STATES = ('queued', 'working', 'replied', 'failed', 'accepted', 'dropped', 'landed', 'refused', 'conflict')
-FINAL = ('replied', 'failed', 'accepted', 'dropped', 'landed', 'refused', 'conflict')
+STATES = ('queued', 'working', 'replied', 'failed', 'accepted', 'dropped', 'landed', 'refused', 'conflict',
+         'questions')
+FINAL = ('replied', 'failed', 'accepted', 'dropped', 'landed', 'refused', 'conflict', 'questions')
+
+QUESTIONS_MAX = 3
+CHOICES_MIN, CHOICES_MAX = 2, 4
+TEXT_MAX = 200
+CHOICE_MAX = 60
+LEAD_IN_MAX = 300
+
+
+def parse_questions(reply):
+    """A builder reply's trailing ```questions fenced block, strictly
+    validated: (lead_in, questions), each question a dict `text` plus
+    `choices` (empty for free text, else 2-4 short strings), or None for a
+    missing or malformed block, which is then an ordinary reply."""
+    if not reply:
+        return None
+    m = re.search(r'```questions[ \t]*\r?\n(.*?)\r?\n```[ \t]*\r?\n?\s*\Z', reply, re.S)
+    if not m:
+        return None
+    try:
+        data = json.loads(m.group(1))
+    except ValueError:
+        return None
+    if not isinstance(data, dict) or not isinstance(data.get('questions'), list):
+        return None
+    questions = data['questions']
+    if not 1 <= len(questions) <= QUESTIONS_MAX:
+        return None
+    parsed = []
+    for q in questions:
+        if not isinstance(q, dict):
+            return None
+        text = q.get('text')
+        if not isinstance(text, str) or not text.strip() or len(text) > TEXT_MAX:
+            return None
+        choices = q.get('choices') or []
+        if not isinstance(choices, list):
+            return None
+        if choices:
+            if not CHOICES_MIN <= len(choices) <= CHOICES_MAX:
+                return None
+            if not all(isinstance(c, str) and c.strip() and len(c) <= CHOICE_MAX for c in choices):
+                return None
+        parsed.append({'text': text.strip(), 'choices': [c.strip() for c in choices]})
+    lead_in = reply[:m.start()].strip()[:LEAD_IN_MAX]
+    return lead_in, parsed
 
 
 @dataclass
@@ -217,6 +270,25 @@ class NoteStore:
                         lines += ['Use them as reference. To include one in the video, copy it into the video assets directory and commit it there. Never write into /attachments.', '']
                     for key in ('video', 'film', 'format', 'frame', 'segment', 'beat', 'time', 'image', 'draft'):
                         lines.append(f"{key}: {image if key == 'image' else payload.get(key)}")
+                    if note.get('no_questions') or note.get('automatic'):
+                        lines += ['', '## No more questions', '',
+                                  'This note already settles any open choice (either with answers, or by asking '
+                                  'you to use your best judgement). Do not ask clarifying questions about it: '
+                                  'go ahead and build it.']
+                    else:
+                        lines += ['', '## Ask first if truly unclear', '',
+                                  'Before doing any work, check whether this note leaves open a choice that '
+                                  'would substantially change the result, and that nothing already here (this '
+                                  'note, the pinned frame, any attachments, or the video itself) settles. If so, '
+                                  'stop and ask the director 1 to 3 short questions instead of building: ask '
+                                  'before changing anything, and commit nothing. Keep each question short, in '
+                                  'plain language (never a file, function or parameter name), and either give it '
+                                  '2 to 4 short choices or leave it as free text. End your reply with a line '
+                                  'containing only ```questions, then one line of JSON {"questions": '
+                                  '[{"text": "...", "choices": ["...", "..."]}]} (omit or empty "choices" for '
+                                  'free text), then a line containing only ```. You may put one short line of '
+                                  'plain text before the block as a lead-in. If the note is already clear '
+                                  'enough, never ask: just build it as usual.']
                     lines += ['', '## Look at your work', '',
                               'Before each distinct step of your work, write one line in your own message '
                               'that starts with "Step: " and says what you are about to do and why, in plain '
@@ -254,6 +326,16 @@ class NoteStore:
                     if status.branch and state['draft'] and status.branch != state['draft']:
                         status = AgentStatus('failed', 'Runner returned a different draft branch; '
                                              'continue ' + state['draft'])
+                    parsed = parse_questions(status.reply) if status.state == 'replied' else None
+                    if parsed:
+                        # Strip the raw block from what's shown even when asking is disabled: a backend
+                        # that ignores the no-questions instruction must not leak it into the reply.
+                        lead_in, questions = parsed
+                        if note.get('no_questions') or note.get('automatic'):
+                            status = AgentStatus('replied', lead_in or None, status.branch)
+                        else:
+                            note['questions'] = questions
+                            status = AgentStatus('questions', lead_in or None, status.branch)
                     note.update(asdict(status))
                     note.pop('poll_error', None)
                     if status.branch:
@@ -302,6 +384,37 @@ class NoteStore:
             new = self.add(video, note['format'], note['frame'], note['segment'], note['text'], png,
                            author=author or note.get('author'), retried_from=nid, **context)
             note['retried'] = new['id']
+            self._save(note)
+            return new
+
+    def answer(self, nid, build, answers, author=None):
+        """Create a follow-up note from a note waiting on questions: built with
+        the director's `answers` (one string per question, in order) or, when
+        `build` is true, on the builder's best judgement. Continues the same
+        draft (nothing went wrong, unlike retry) and is marked not to ask
+        again."""
+        video = self.get(nid)['video']
+        with self.video_lock(video):
+            note = self.get(nid)
+            if note['state'] != 'questions':
+                raise ValueError('note is not waiting on questions')
+            if note.get('answered'):
+                raise ValueError(f'note already answered as {note["answered"]}')
+            if build:
+                text = note['text'] + '\n\nBuild it with your best judgement; do not ask questions.'
+            else:
+                questions = note.get('questions') or []
+                if (not isinstance(answers, list) or len(answers) != len(questions)
+                        or not all(isinstance(a, str) and a.strip() for a in answers)):
+                    raise ValueError('answers must be a nonempty string per question')
+                parts = [note['text']]
+                parts += [f"Q: {q['text']}\nA: {a.strip()}" for q, a in zip(questions, answers)]
+                text = '\n\n'.join(parts)
+            png = self.image(nid) if note.get('frame') is not None else None
+            context = {k: note[k] for k in ('time', 'beat', 'attachments') if k in note}
+            new = self.add(video, note['format'], note['frame'], note['segment'], text, png,
+                           author=author or note.get('author'), answered_from=nid, no_questions=True, **context)
+            note['answered'] = new['id']
             self._save(note)
             return new
 

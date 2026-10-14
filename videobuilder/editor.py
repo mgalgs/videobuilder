@@ -32,6 +32,12 @@ POST /api/notes/<id>/retry           200 new note: a conflicted or failed note
                                      again, from main (the draft is cleared).
                                      The new note has retried_from, the old one
                                      retried.
+POST /api/notes/<id>/answer {answers:[...]} or {build:true}
+                                     200 new note continuing the same draft,
+                                     marked not to ask again; the old note gets
+                                     `answered`. 404 unknown note; 409 the note
+                                     is not waiting on questions, or was
+                                     already answered.
 POST /api/attachments?video=V&name=F  raw body with Content-Type; 201
                                      {id,name,type,size}; 400 bad type/magic,
                                      413 over file limit
@@ -87,10 +93,12 @@ exactly like a non-existent one, on its page, API, frames, video, git.
 An edit returns {message,commit,warning,changed,undo}. Notes include `id`,
 `video`, `text`, `format`, `frame`, `segment`, `time`, `attachments`, `author`,
 `state`, `reply`, `branch`, and queue metadata. States are queued, working,
-replied, failed, landed, refused, conflict, accepted, dropped. The identity is
-the session username when accounts are on, else the request_hook value, then
-vb_name cookie, then anonymous. Errors otherwise return {error}. POSTs
-require same-origin; all but attachment upload use JSON.
+replied, failed, landed, refused, conflict, accepted, dropped, questions. A
+`questions` note also carries `questions`: [{text,choices}], `choices` empty
+for free text; its `reply`, if any, is a short lead-in, never the raw block.
+The identity is the session username when accounts are on, else the
+request_hook value, then vb_name cookie, then anonymous. Errors otherwise
+return {error}. POSTs require same-origin; all but attachment upload use JSON.
 
 [editor] config: auto_land=true, render_jobs=min(4,cpu_count), render_keep=20,
 attachment_max_file=25, attachment_max_files=10, attachment_max_message=100
@@ -883,6 +891,19 @@ def make_handler(editor, hook=request_hook):
                     return self._json(200, editor.notes.retry(unquote(m.group(1)), identity))
                 except KeyError:
                     raise HTTPError(404, f'no note {m.group(1)!r}') from None
+            m = re.fullmatch(r'/api/notes/([^/]+)/answer', route)
+            if m:
+                build = body.get('build') is True
+                answers = body.get('answers')
+                if not build and (not isinstance(answers, list) or not all(isinstance(a, str) for a in answers)):
+                    raise HTTPError(400, 'answers must be a list of strings')
+                try:
+                    return self._json(200, editor.notes.answer(unquote(m.group(1)), build,
+                                                               None if build else answers, identity))
+                except KeyError:
+                    raise HTTPError(404, f'no note {m.group(1)!r}') from None
+                except ValueError as exc:
+                    raise HTTPError(409, str(exc)) from None
             raise HTTPError(404, 'not found')
 
     return Handler

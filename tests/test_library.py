@@ -444,6 +444,24 @@ class Auth(LibraryFixture, unittest.TestCase):
         code, _ = self.request(f'/v/acme/launch/api/notes/{note["id"]}/log', headers={'Cookie': dana})
         self.assertEqual(code, 404)
 
+    def test_answer_route_refuses_a_non_collaborator(self):
+        from videobuilder.agents import FakeBackend
+        self.seed('acme/launch', film=True)
+        admin = self.admin_login()
+        self.new_project(admin, 'acme/launch', 'acme/launch')
+        editor = self.library.editor('acme/launch')
+        editor.notes.backend = FakeBackend(delay=0, questions=[{'text': 'Light or dark logo?',
+                                                                 'choices': ['Light', 'Dark']}])
+        code, note = self.request('/v/acme/launch/api/notes', {'video': 'promo/film', 'text': 'Make it pop'},
+                                  headers={'Content-Type': 'application/json', 'Cookie': admin})
+        self.assertEqual(code, 200, note)
+        self.request(f'/v/acme/launch/api/notes', headers={'Cookie': admin})
+        self.assertEqual(editor.notes.get(note['id'])['state'], 'questions')
+        _, _, dana = self.signup('dana', 'longenoughpassword')
+        code, _ = self.request(f'/v/acme/launch/api/notes/{note["id"]}/answer', {'answers': ['Dark']},
+                               headers={'Content-Type': 'application/json', 'Cookie': dana})
+        self.assertEqual(code, 404)
+
     def test_log_route_hides_cost_from_a_non_admin_collaborator(self):
         self.seed('acme/launch', film=True)
         admin = self.admin_login()

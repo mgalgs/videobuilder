@@ -140,6 +140,54 @@ class API(TempProject):
         self.assertEqual(len(self.get('/api/notes')['notes']), 1)
         self.assertEqual(git(self.root, 'status', '--porcelain'), '')  # notes stay out of git
 
+    def test_questions_state_and_answer_route(self):
+        from videobuilder.agents import FakeBackend
+        git(self.root, 'branch', '-M', 'main')
+        self.editor.notes.backend = FakeBackend(delay=0, questions=[
+            {'text': 'Light or dark logo?', 'choices': ['Light', 'Dark']},
+            {'text': 'Any specific tagline?'}])
+        code, note = self.post('/api/notes', dict(video='promo/film', frame=0, text='Make the logo pop'))
+        self.assertEqual(code, 200, note)
+        self.get('/api/notes')
+        stored = self.get(f'/api/notes/{note["id"]}')
+        self.assertEqual(stored['state'], 'questions')
+        self.assertEqual(stored['questions'], [{'text': 'Light or dark logo?', 'choices': ['Light', 'Dark']},
+                                               {'text': 'Any specific tagline?', 'choices': []}])
+        self.assertNotIn('```questions', stored['reply'] or '')
+        self.assertNotIn('version', stored)
+
+        code, followup = self.post(f'/api/notes/{note["id"]}/answer',
+                                   {'answers': ['Dark', 'Keep it short']})
+        self.assertEqual(code, 200, followup)
+        self.assertIn('Light or dark logo?', followup['text'])
+        self.assertIn('Dark', followup['text'])
+        self.assertIn('Keep it short', followup['text'])
+        self.assertTrue(followup['no_questions'])
+        self.assertEqual(self.get(f'/api/notes/{note["id"]}')['answered'], followup['id'])
+
+        code, err = self.post(f'/api/notes/{note["id"]}/answer', {'answers': ['Dark', 'x']})
+        self.assertEqual(code, 409, err)
+
+        code, err = self.post('/api/notes/does-not-exist/answer', {'build': True})
+        self.assertEqual(code, 404, err)
+
+        code, note2 = self.post('/api/notes', dict(video='promo/film', frame=0, text='Not waiting'))
+        self.editor.notes.get(note2['id'])  # still queued behind the backend's single-flight slot
+        code, err = self.post(f'/api/notes/{note2["id"]}/answer', {'build': True})
+        self.assertEqual(code, 409, err)
+
+    def test_answer_just_build_it(self):
+        from videobuilder.agents import FakeBackend
+        git(self.root, 'branch', '-M', 'main')
+        self.editor.notes.backend = FakeBackend(delay=0, questions=[{'text': 'Light or dark logo?',
+                                                                      'choices': ['Light', 'Dark']}])
+        note = self.post('/api/notes', dict(video='promo/film', frame=0, text='Make the logo pop'))[1]
+        self.get('/api/notes')
+        code, followup = self.post(f'/api/notes/{note["id"]}/answer', {'build': True})
+        self.assertEqual(code, 200, followup)
+        self.assertIn('Build it with your best judgement; do not ask questions.', followup['text'])
+        self.assertTrue(followup['no_questions'])
+
     def test_state_dir_is_configurable(self):
         state = Path(self.tmp.name, 'elsewhere')
         self.start(state_dir=str(state))
