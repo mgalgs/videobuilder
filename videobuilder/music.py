@@ -200,14 +200,14 @@ class Source:
                 raise FetchError(f'{self.url}: {exc}') from None
         try:
             results = self.func(self.config)
+            out = []
+            for item in results:
+                if isinstance(item, dict):
+                    finalized = finalize_track(item)
+                    if finalized:
+                        out.append(finalized)
         except Exception as exc:
             raise FetchError(f'{self.entry_point}: {exc}') from None
-        out = []
-        for item in results:
-            if isinstance(item, dict):
-                finalized = finalize_track(item)
-                if finalized:
-                    out.append(finalized)
         return out
 
 

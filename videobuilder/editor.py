@@ -38,7 +38,7 @@ GET  /api/music/tracks?source=S      {source:{id,name,license},tracks:[...]};
                                      404 unknown source, 502 on an upstream fetch
                                      failure with no cache to fall back on
 POST /api/music/attach {video,source,track}
-                                     200 {id,name,type,size}, the same shape an
+                                     201 {id,name,type,size}, the same shape an
                                      upload returns; 404 unknown source/track
 GET  /api/versions?video=V[&limit=50&before=SHA]
                                      {versions:[{n,commit,summary,kind,
@@ -165,9 +165,12 @@ class Editor:
 
     def __init__(self, root, state_dir=None, backend=None, poll=0.25, agent=None, allowed_hosts=(), host='127.0.0.1',
                  unsandboxed_previews=False, envs=None, env_builder=None, sync_remote=None, environments=None,
-                 auto_land=None, capabilities_dir=None, music_sources=None):
+                 auto_land=None, capabilities_dir=None, music_sources=None, music=None):
         self.capabilities_dir = capabilities_dir
-        self.music = MusicLibrary.from_file(music_sources) if music_sources else None
+        # `music`, a pre-parsed MusicLibrary, is how library mode shares one cache and one
+        # startup parse across projects (see Library.__init__); `music_sources`, a path
+        # parsed here, is for single-project mode, where there is only one Editor anyway.
+        self.music = music if music is not None else (MusicLibrary.from_file(music_sources) if music_sources else None)
         self.root = os.path.abspath(root)
         cfg = read_config(self.root)
         state = state_dir or cfg.get('state_dir') or STATE_DIR

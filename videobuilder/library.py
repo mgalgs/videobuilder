@@ -78,9 +78,13 @@ class Library:
         from .workers import Environments
         # Names can't start with '.', so '.shared' never collides with a repo's state dir.
         environments = Environments(self.state_dir / '.shared', envs or 'pinned')
+        from .music import MusicLibrary
+        # Parsed once here, not per-project, so a bad file is a startup error and every
+        # project shares one cache instead of fetching and importing per project.
+        music = MusicLibrary.from_file(music_sources) if music_sources else None
         self.options = dict(backend=backend, agent=agent, allowed_hosts=allowed_hosts, host=host,
                             unsandboxed_previews=unsandboxed_previews, environments=environments,
-                            music_sources=music_sources)
+                            music=music)
         self.editors = {}
         self.lock = threading.RLock()
         from .accounts import Accounts

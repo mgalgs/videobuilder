@@ -20,6 +20,19 @@ def _entry_point_tracks(config):
     ]
 
 
+_flaky_calls = []
+
+
+def _flaky_entry_point_tracks(config):
+    """A generator entry-point that succeeds once and raises on a later call, used by
+    test_stale_cache_served_when_a_generator_entry_point_raises below. Its body only runs
+    once iterated, so the raise happens inside the caller's `for` loop, not the call."""
+    _flaky_calls.append(None)
+    if len(_flaky_calls) > 1:
+        raise RuntimeError('upstream down')
+    yield {'id': '1', 'title': 'Flaky One', 'audio_url': 'http://example.com/1.mp3'}
+
+
 class _JSONServer:
     """A local http.server serving one fixed JSON body, so tests never touch the network."""
 
@@ -245,6 +258,25 @@ class EntryPointSource(unittest.TestCase):
         self.assertEqual(source.name, 'Catalog')
         self.assertEqual([t['id'] for t in tracks], ['1'])
         self.assertEqual(tracks[0]['duration'], 12.0)
+
+    def test_stale_cache_served_when_a_generator_entry_point_raises(self):
+        _flaky_calls.clear()
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        path = Path(tmp.name, 'music.toml')
+        path.write_text('''
+            [[sources]]
+            id = "catalog"
+            name = "Catalog"
+            license = "Public domain"
+            entry_point = "tests.test_music:_flaky_entry_point_tracks"
+        ''')
+        lib = MusicLibrary.from_file(path)
+        _, first = lib.list_tracks('catalog')
+        self.assertEqual([t['id'] for t in first], ['1'])
+        lib._cache['catalog']['at'] -= music.CACHE_TTL + 1  # force a refetch
+        _, second = lib.list_tracks('catalog')  # the generator raises; the stale list is served
+        self.assertEqual(second, first)
 
 
 if __name__ == '__main__':

@@ -335,6 +335,12 @@ class Music(API):
             self.get('/api/music/tracks?source=x')
         e.exception.close()
         self.assertEqual(e.exception.code, 404)
+        with urllib.request.urlopen(self.base + '/', timeout=20) as response:
+            html = response.read()
+        self.assertIn(b'id="music-button"', html)
+        self.assertIn(b'hidden', html.split(b'id="music-button"', 1)[1].split(b'>', 1)[0])
+        js = (PKG / 'director.js').read_text()
+        self.assertIn("$('music-button').hidden=!state.musicSources.length", js)
 
     def test_sources_and_tracks_listing(self):
         self._configure()
