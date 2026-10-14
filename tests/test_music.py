@@ -1,0 +1,251 @@
+"""The music module: config loading, field mapping, entry points, fetching."""
+import json
+import tempfile
+import threading
+import unittest
+from http.server import BaseHTTPRequestHandler, HTTPServer
+from pathlib import Path
+
+from videobuilder import music
+from videobuilder.music import MusicLibrary
+
+
+def _entry_point_tracks(config):
+    """A fake entry-point source, used by test_entry_point_source below."""
+    assert config['id'] == 'catalog'
+    return [
+        {'id': '1', 'title': 'Catalog One', 'audio_url': 'http://example.com/1.mp3', 'tags': ['calm'], 'duration': 12},
+        {'id': 'skip-me', 'title': 'No url'},  # missing audio_url: skipped
+        {'id': '2', 'title': 'Catalog Two', 'audio_url': 'ftp://example.com/2.mp3'},  # not http(s): skipped
+    ]
+
+
+class _JSONServer:
+    """A local http.server serving one fixed JSON body, so tests never touch the network."""
+
+    def __init__(self, body, content_type='application/json'):
+        self.body = body
+        self.failing = False
+        outer = self
+        class Handler(BaseHTTPRequestHandler):
+            def do_GET(self):
+                if outer.failing:
+                    self.send_response(500)
+                    self.end_headers()
+                    return
+                data = outer.body if isinstance(outer.body, bytes) else json.dumps(outer.body).encode()
+                self.send_response(200)
+                self.send_header('Content-Type', content_type)
+                self.send_header('Content-Length', str(len(data)))
+                self.end_headers()
+                self.wfile.write(data)
+            def log_message(self, *a):
+                pass
+        self.httpd = HTTPServer(('127.0.0.1', 0), Handler)
+        self.url = f'http://127.0.0.1:{self.httpd.server_address[1]}/tracks.json'
+        self.thread = threading.Thread(target=self.httpd.serve_forever, daemon=True)
+        self.thread.start()
+
+    def close(self):
+        self.httpd.shutdown()
+        self.httpd.server_close()
+
+
+class Config(unittest.TestCase):
+    """Startup validation of a --music-sources TOML file."""
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        self.path = Path(self.tmp.name, 'music.toml')
+
+    def write(self, text):
+        self.path.write_text(text)
+        return self.path
+
+    def test_both_url_and_entry_point_is_an_error(self):
+        self.write('''
+            [[sources]]
+            id = "dual"
+            name = "Dual"
+            license = "CC0"
+            url = "https://music.example.com/tracks.json"
+            entry_point = "tests.test_music:_entry_point_tracks"
+            [sources.fields]
+            id = "id"
+            title = "title"
+            audio_url = "audio_url"
+        ''')
+        with self.assertRaises(ValueError) as e:
+            MusicLibrary.from_file(self.path)
+        self.assertIn('not both', str(e.exception))
+
+    def test_neither_url_nor_entry_point_is_an_error(self):
+        self.write('''
+            [[sources]]
+            id = "neither"
+            name = "Neither"
+            license = "CC0"
+        ''')
+        with self.assertRaises(ValueError):
+            MusicLibrary.from_file(self.path)
+
+    def test_missing_license_is_an_error(self):
+        self.write('''
+            [[sources]]
+            id = "nolicense"
+            name = "No License"
+            entry_point = "tests.test_music:_entry_point_tracks"
+        ''')
+        with self.assertRaises(ValueError) as e:
+            MusicLibrary.from_file(self.path)
+        self.assertIn('license', str(e.exception))
+
+    def test_bad_toml_names_the_problem(self):
+        self.write('not valid toml [[[')
+        with self.assertRaises(ValueError) as e:
+            MusicLibrary.from_file(self.path)
+        self.assertIn(str(self.path), str(e.exception))
+
+    def test_duplicate_id_is_an_error(self):
+        self.write('''
+            [[sources]]
+            id = "dup"
+            name = "A"
+            license = "CC0"
+            entry_point = "tests.test_music:_entry_point_tracks"
+            [[sources]]
+            id = "dup"
+            name = "B"
+            license = "CC0"
+            entry_point = "tests.test_music:_entry_point_tracks"
+        ''')
+        with self.assertRaises(ValueError) as e:
+            MusicLibrary.from_file(self.path)
+        self.assertIn('duplicate', str(e.exception))
+
+    def test_bad_entry_point_is_an_error(self):
+        self.write('''
+            [[sources]]
+            id = "bad"
+            name = "Bad"
+            license = "CC0"
+            entry_point = "tests.test_music:nonexistent_function"
+        ''')
+        with self.assertRaises(ValueError):
+            MusicLibrary.from_file(self.path)
+
+
+class MappingSource(unittest.TestCase):
+    """Fetching and normalising a JSON mapping source, over a local http.server."""
+
+    def _library(self, body, fields, url=None):
+        self.server = _JSONServer(body)
+        self.addCleanup(self.server.close)
+        return MusicLibrary.from_file(self._write(url or self.server.url, fields))
+
+    def _write(self, url, fields):
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        path = Path(tmp.name, 'music.toml')
+        field_lines = '\n'.join(f'{k} = {json.dumps(v)}' for k, v in fields.items())
+        path.write_text(f'''
+            [[sources]]
+            id = "lib"
+            name = "Library"
+            license = "CC BY-NC 4.0"
+            url = "{url}"
+            [sources.fields]
+            {field_lines}
+        ''')
+        return path
+
+    def test_nested_paths_and_duration_ms(self):
+        body = {'data': {'tracks': [
+            {'meta': {'id': 't1'}, 'title': 'One', 'tags': ['calm', 'piano'], 'length_ms': 90500,
+             'files': {'mp3': 'http://example.com/one.mp3'}},
+        ]}}
+        lib = self._library(body, {'tracks': 'data.tracks', 'id': 'meta.id', 'title': 'title',
+                                   'audio_url': 'files.mp3', 'tags': 'tags', 'duration': 'length_ms',
+                                   'duration_unit': 'ms'})
+        source, tracks = lib.list_tracks('lib')
+        self.assertEqual(source.license, 'CC BY-NC 4.0')
+        self.assertEqual(tracks, [{'id': 't1', 'title': 'One', 'tags': ['calm', 'piano'], 'duration': 90.5,
+                                   'audio_url': 'http://example.com/one.mp3'}])
+
+    def test_duration_unit_seconds_is_the_default(self):
+        body = {'tracks': [{'id': 't1', 'title': 'One', 'audio_url': 'http://example.com/one.mp3', 'duration': 12.5}]}
+        lib = self._library(body, {'tracks': 'tracks', 'id': 'id', 'title': 'title', 'audio_url': 'audio_url',
+                                   'duration': 'duration'})
+        _, tracks = lib.list_tracks('lib')
+        self.assertEqual(tracks[0]['duration'], 12.5)
+
+    def test_top_level_list(self):
+        body = [{'id': 't1', 'title': 'One', 'audio_url': 'http://example.com/one.mp3'}]
+        lib = self._library(body, {'tracks': '', 'id': 'id', 'title': 'title', 'audio_url': 'audio_url'})
+        _, tracks = lib.list_tracks('lib')
+        self.assertEqual([t['id'] for t in tracks], ['t1'])
+
+    def test_skips_incomplete_tracks_and_non_http_urls(self):
+        body = {'tracks': [
+            {'id': 't1', 'title': 'One', 'audio_url': 'http://example.com/one.mp3'},
+            {'id': 't2', 'audio_url': 'http://example.com/two.mp3'},  # no title
+            {'title': 'No id', 'audio_url': 'http://example.com/three.mp3'},  # no id
+            {'id': 't4', 'title': 'No url'},  # no audio_url
+            {'id': 't5', 'title': 'Not http', 'audio_url': 'file:///etc/passwd'},
+        ]}
+        lib = self._library(body, {'tracks': 'tracks', 'id': 'id', 'title': 'title', 'audio_url': 'audio_url'})
+        _, tracks = lib.list_tracks('lib')
+        self.assertEqual([t['id'] for t in tracks], ['t1'])
+
+    def test_cache_and_stale_on_failure(self):
+        body = {'tracks': [{'id': 't1', 'title': 'One', 'audio_url': 'http://example.com/one.mp3'}]}
+        lib = self._library(body, {'tracks': 'tracks', 'id': 'id', 'title': 'title', 'audio_url': 'audio_url'})
+        _, first = lib.list_tracks('lib')
+        self.server.failing = True
+        _, second = lib.list_tracks('lib')  # still fresh: no refetch at all
+        self.assertEqual(first, second)
+        lib._cache['lib']['at'] -= music.CACHE_TTL + 1  # force a refetch
+        _, stale = lib.list_tracks('lib')  # the refetch fails; the old list is served
+        self.assertEqual(stale, first)
+
+    def test_fetch_failure_with_no_cache_raises(self):
+        self.server = _JSONServer({'tracks': []})
+        self.addCleanup(self.server.close)
+        self.server.failing = True
+        lib = MusicLibrary.from_file(self._write(self.server.url, {'tracks': 'tracks', 'id': 'id', 'title': 'title',
+                                                                    'audio_url': 'audio_url'}))
+        with self.assertRaises(music.FetchError):
+            lib.list_tracks('lib')
+
+    def test_unknown_source_is_a_key_error(self):
+        self.server = _JSONServer({'tracks': []})
+        self.addCleanup(self.server.close)
+        lib = MusicLibrary.from_file(self._write(self.server.url, {'tracks': 'tracks', 'id': 'id', 'title': 'title',
+                                                                    'audio_url': 'audio_url'}))
+        with self.assertRaises(KeyError):
+            lib.list_tracks('nope')
+
+
+class EntryPointSource(unittest.TestCase):
+    def test_entry_point_source(self):
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        path = Path(tmp.name, 'music.toml')
+        path.write_text('''
+            [[sources]]
+            id = "catalog"
+            name = "Catalog"
+            license = "Public domain"
+            entry_point = "tests.test_music:_entry_point_tracks"
+        ''')
+        lib = MusicLibrary.from_file(path)
+        self.assertEqual(lib.list_sources(), [{'id': 'catalog', 'name': 'Catalog', 'license': 'Public domain'}])
+        source, tracks = lib.list_tracks('catalog')
+        self.assertEqual(source.name, 'Catalog')
+        self.assertEqual([t['id'] for t in tracks], ['1'])
+        self.assertEqual(tracks[0]['duration'], 12.0)
+
+
+if __name__ == '__main__':
+    unittest.main()
