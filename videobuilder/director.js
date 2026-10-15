@@ -27,6 +27,7 @@ const state = {
   loadingVersions: false,
   renderTimer: null,
   resumeOnVisible: false,
+  signedOut: false,
   musicSources: [],
   musicSourceId: null,
   musicSource: null,
@@ -67,7 +68,8 @@ async function json(path, params, body) {
     },body:JSON.stringify(body)
   });
   const data=await parseJSON(r);
-  if(!r.ok)throw Error(data.error||r.statusText);
+  if(!r.ok)throw httpError(r,data);
+  if(state.signedOut)clearSignedOut();
   return data
 }
 // A proxy answers with HTML while the editor restarts; say so instead of a parse error.
@@ -78,6 +80,41 @@ async function parseJSON(r) {
   } catch (_) {
     throw Error(`The editor didn't answer (HTTP ${r.status}); it may be restarting. Try again in a moment.`)
   }
+}
+// A session can expire while the tab sits open: the note being typed, queued or sent
+// must survive that, so a 401 shows a banner (never a redirect, which would drop it)
+// and the usual polling stops until a request succeeds again.
+const SIGNED_OUT_MESSAGE="You’ve been signed out. Sign in again to keep going; your note is kept.";
+function handleSignedOut() {
+  if(state.signedOut)return;
+  state.signedOut=true;
+  $('signed-out-banner').hidden=false
+}
+function clearSignedOut() {
+  state.signedOut=false;
+  $('signed-out-banner').hidden=true
+}
+function httpError(r, data) {
+  if(r.status===401) {
+    handleSignedOut();
+    return Error(SIGNED_OUT_MESSAGE)
+  }
+  return Error(data.log||data.error||r.statusText)
+}
+// Called when the tab regains focus: the sign-in link opens in a new tab, so this
+// one's draft was never touched; once a session exists again, polling resumes.
+async function resumeFromSignedOut() {
+  if(!state.signedOut)return;
+  try {
+    await json('name')
+  }
+  catch(_) {
+    return
+  }
+  lastNotesPoll=Date.now();
+  loadNotes();
+  loadVersions();
+  checkEditorVersion()
 }
 function showError(error) {
   $('composer-error').textContent=error;
@@ -233,7 +270,7 @@ async function loadPlayer(retry=false) {
     }
     if(!r.ok) {
       const body=await parseJSON(r);
-      throw Error(body.log||body.error||r.statusText)
+      throw httpError(r,body)
     }
     if (r.status !== 206) throw Error(`Unexpected video response: ${r.status}`);
     await r.body?.cancel();
@@ -1028,7 +1065,7 @@ async function uploadFiles(files) {
       },body:files[i]
     });
     const data=await parseJSON(r);
-    if(!r.ok)throw Error(data.error||r.statusText);
+    if(!r.ok)throw httpError(r,data);
     out.push({id:data.id,name:files[i].name})
   }
   return out
@@ -1292,7 +1329,7 @@ async function jsonName(value) {
     })
   });
   const data=await parseJSON(r);
-  if(!r.ok)throw Error(data.error);
+  if(!r.ok)throw httpError(r,data);
   return data
 }
 function updateName() {
@@ -1457,16 +1494,16 @@ setInterval(()=> {
   const fast=!document.hidden && (
     state.notes.some(n=>['gathering','queued','working'].includes(n.state)) ||
     window.innerWidth>700 || $('panel').classList.contains('open'));
-  if(state.video&&Date.now()-lastNotesPoll>=(fast?3000:15000)) {
+  if(state.video&&!state.signedOut&&Date.now()-lastNotesPoll>=(fast?3000:15000)) {
     lastNotesPoll=Date.now();
     loadNotes();
   }
 },1000);
 setInterval(()=> {
-  if(state.video)loadVersions()
+  if(state.video&&!state.signedOut)loadVersions()
 },15000);
 setInterval(()=> {
-  if(document.hidden)return;
+  if(document.hidden||state.signedOut)return;
   for(const note of state.notes) {
     const data=state.steps[note.id];
     if(data&&data.open&&!data.done)loadSteps(note)
@@ -1475,7 +1512,7 @@ setInterval(()=> {
 // /api/project syncs with the forge, so poll the cheap /healthz and refetch the
 // project only when the editor's version changes (a deploy), for the upgrade chip.
 async function checkEditorVersion() {
-  if(document.hidden||!state.project)return;
+  if(document.hidden||!state.project||state.signedOut)return;
   try {
     const text=await (await fetch('/healthz')).text();
     const version=text.startsWith('ok ')?text.slice(3).trim():null;
@@ -1495,6 +1532,10 @@ document.addEventListener('visibilitychange', () => {
       clearTimeout(state.renderTimer);
       state.renderTimer=setTimeout(()=>loadPlayer(),15000);
     }
+    return;
+  }
+  if (state.signedOut) {
+    resumeFromSignedOut();
     return;
   }
   if (state.renderTimer) {

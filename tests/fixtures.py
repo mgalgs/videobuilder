@@ -13,6 +13,7 @@ import os
 import subprocess
 import tempfile
 import threading
+import time
 import unittest
 from unittest import mock
 import urllib.error
@@ -463,6 +464,51 @@ class Auth(AccountMixin, LibraryFixture, unittest.TestCase):
         code, _, headers = self.request_full('/git/acme/launch.git/info/refs?service=git-receive-pack')
         self.assertEqual(code, 401)
         self.assertEqual(headers['WWW-Authenticate'], 'Basic realm="videobuilder"')
+
+    def _expire(self, cookie):
+        """Makes a session cookie from login()/signup() look like it expired
+        while the director tab sat open, rather than one that was never set."""
+        import hashlib
+        token = cookie.split('=', 1)[1]
+        key = hashlib.sha256(token.encode()).hexdigest()
+        self.library.accounts._data['sessions'][key]['expires'] = time.time() - 1
+        self.library.accounts._save()
+
+    def test_expired_session_on_video_api_route_is_401_json_not_signin_page(self):
+        self.seed('acme/launch', film=True)
+        cookie = self.admin_login()
+        self._expire(cookie)
+        code, body, headers = self.request_full('/v/acme/launch/api/project', headers={'Cookie': cookie})
+        self.assertEqual(code, 401)
+        self.assertEqual(headers.get_content_type(), 'application/json')
+        self.assertEqual(body, {'error': 'sign in required'})
+
+    def test_expired_session_on_a_page_route_still_shows_signin(self):
+        cookie = self.admin_login()
+        self._expire(cookie)
+        code, page, headers = self.request_full('/', headers={'Cookie': cookie})
+        self.assertEqual(code, 200)
+        self.assertEqual(headers.get_content_type(), 'text/html')
+        self.assertIn(b'Sign in', page)
+
+    def test_a_401_mid_send_loses_nothing_and_a_resend_does_not_duplicate(self):
+        # Models what the director does on a 401: the failed send must not have
+        # queued a half-done note, and the same text, resent after signing back
+        # in, must land as exactly one note -- never zero, never two.
+        self.seed('acme/launch', film=True)
+        cookie = self.admin_login()
+        self._expire(cookie)
+        note_body = {'video': 'promo/film', 'text': 'Make the logo pop'}
+        code, body = self.request('/v/acme/launch/api/notes', note_body, headers={
+            'Content-Type': 'application/json', 'Cookie': cookie})
+        self.assertEqual(code, 401, body)
+        fresh = self.admin_login()
+        code, note = self.request('/v/acme/launch/api/notes', note_body, headers={
+            'Content-Type': 'application/json', 'Cookie': fresh})
+        self.assertEqual(code, 200, note)
+        code, listing = self.request('/v/acme/launch/api/notes?video=promo/film', headers={'Cookie': fresh})
+        self.assertEqual(code, 200)
+        self.assertEqual(len(listing['notes']), 1)
 
     def test_header_identity_is_ignored_without_a_session(self):
         self.seed('acme/launch', film=True)
