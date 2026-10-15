@@ -459,7 +459,22 @@ attachment_zip_max_members = 50         # members kept from a .zip
 attachment_zip_max_unpacked_bytes = 300 # MiB, total decompressed size
 start_video_attachment_max_files = 50   # replaces attachment_max_files for New video's first note
 start_video_attachment_max_message = 300 # MiB, replaces attachment_max_message for that note
+# account_daily_note_cap = 20            # unset by default: no cap on new notes per account per day
+# account_daily_cost_cap_usd = 5         # unset by default: no cap on recorded cost per account per day
 ```
+
+Each builder run can report what it cost (`cost_usd`) and the tokens it used,
+stored on the note once the run is final; a backend that never reports them
+leaves both null, not zero. Only admin accounts see cost, in the notes API,
+the director and `GET /api/usage` (403 for anyone else, 401 signed out); with
+no accounts configured, nobody is gated and everyone sees it, the same way
+the builder's live log already shows cost (see `/api/notes/<id>/log` above).
+`account_daily_note_cap` and `account_daily_cost_cap_usd` each cap one
+account to that many new notes, or that much recorded cost, over a rolling
+24 hours; hitting either refuses a new note with 429 and a plain-language
+message naming when the account can send another. Admin accounts are never
+capped; where there are no accounts at all, nobody is exempt, so a cap set
+there binds everyone, including the operator.
 
 The generic command backend still receives a request JSON and markdown note.
 Fork-sandbox submissions add `--attach-dir` only for notes with attachments.

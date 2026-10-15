@@ -58,6 +58,9 @@ const node = (tag, className, text) => {
 };
 // Replies stored before the runner stripped its "== result: ... ==" banner.
 const replyText = reply => reply && reply.replace(/^== result:[^\n]*==\n+/, '');
+// cost_usd/tokens are stripped entirely for a non-admin (see video_api.py), so the
+// field's mere presence on a note, even when null (not yet known), means an admin is viewing.
+const costLabel = cost => cost==null ? 'cost unknown' : `≈ $${cost.toFixed(2)}`;
 // ---- Networking: fetch/json, errors and toasts ----
 async function json(path, params, body) {
   const r=await fetch(api(path,params),body===undefined? {
@@ -636,6 +639,7 @@ function renderNotes() {
         const label=s.kind==='cannot'?'Couldn\'t do: ':'Rough edges: ';
         box.append(node('span','shortfall-line',label+s.what))
       }
+      if('cost_usd' in note)box.append(node('span','note-cost',costLabel(note.cost_usd)));
       reply.append(box);
       list.append(reply)
     }
@@ -685,7 +689,23 @@ function renderNotes() {
     }
   }
   $('chat-count').textContent=state.notes.length;
+  renderVideoCost();
   if(atBottom)list.scrollTop=list.scrollHeight
+}
+// An admin-only running total for the open video: visible only when at least one
+// note carries cost_usd at all, since that field is stripped entirely otherwise.
+function renderVideoCost() {
+  const costed=state.notes.filter(n=>'cost_usd' in n);
+  const el=$('video-cost');
+  if(!costed.length) {
+    el.hidden=true;
+    return
+  }
+  const known=costed.filter(n=>n.cost_usd!=null);
+  const total=known.reduce((sum,n)=>sum+n.cost_usd,0);
+  const unknown=costed.length-known.length;
+  el.textContent=`≈ $${total.toFixed(2)}`+(unknown?` (+${unknown} unknown)`:'');
+  el.hidden=false
 }
 async function retryNote(note, button) {
   button.disabled=true;

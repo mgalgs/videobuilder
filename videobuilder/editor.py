@@ -15,14 +15,30 @@ POST /api/undo {video}                commit the inverse edit
 GET  /api/name                       {name: string|null}
 POST /api/name {name}                 200 {name}, Set-Cookie vb_name (Path=/,
                                      one year, SameSite=Lax); 400 invalid name
-GET  /api/notes[?video=V]            {notes:[...]}, oldest first; advances runs
+GET  /api/notes[?video=V]            {notes:[...]}, oldest first; advances runs.
+                                     notes[].cost_usd/tokens (see POST below)
+                                     are admin-only when accounts are on,
+                                     stripped entirely for anyone else
 POST /api/notes {video,text,format?,time?,attachments?:[id...]}
                                      200 note; `time` is seconds, optional.
                                      Legacy `frame` also works. Without either,
                                      frame/time are null and there is no PNG.
+                                     429 {error} once the author's account has
+                                     hit account_daily_note_cap or
+                                     account_daily_cost_cap_usd, naming in plain
+                                     language when they can send another; never
+                                     for an admin account
 GET  /api/notes/<id>                 note, including time, attachments,
-                                     state and, if landed, version {n,commit}
+                                     state and, if landed, version {n,commit}.
+                                     cost_usd (a number, or null when unknown)
+                                     and tokens report what the run cost and
+                                     used, once final; both admin-only when
+                                     accounts are on, stripped otherwise
 GET  /api/notes/<id>.png             pinned frame or 404
+GET  /api/usage                      admin-only (403 otherwise; 401 signed out)
+                                     when accounts are on, else open: per-account
+                                     and per-video {cost_usd,notes,unknown_cost}
+                                     over the last 24 hours, 7 days and 30 days
 GET  /api/notes/<id>/log?after=N&source=S
                                      {entries:[...from N],next,done,source,reset};
                                      a feed of the builder's steps, [] with no
@@ -41,7 +57,9 @@ POST /api/notes/<id>/answer {answers:[...]} or {build:true}
                                      marked not to ask again; the old note gets
                                      `answered`. 404 unknown note; 409 the note
                                      is not waiting on questions, or was
-                                     already answered.
+                                     already answered; 429 as POST /api/notes
+                                     above (the follow-up note is its own note,
+                                     so it is capped the same way).
 POST /api/attachments?video=V&name=F  raw body with Content-Type; 201
                                      {id,name,type,size}; 400 bad type/magic,
                                      413 over file limit. name ending in .zip
@@ -101,7 +119,8 @@ POST /v/<name>/api/videos/first-note {description?,attachments?:[id...],
                                      attachments and any gathered pages (see
                                      gather.py); still queues with whatever
                                      was gathered and a line on what failed
-                                     when gathering only partly succeeds
+                                     when gathering only partly succeeds; 429
+                                     as POST /api/notes above
 
 Library-only, when the library has accounts (`--admin`):
 GET  /login, /signup                 sign-in / sign-up pages
@@ -167,11 +186,21 @@ video page creates, since a zip of assets can easily outgrow an ordinary
 note's attachment budget. Film code and MP4 rendering run in bwrap with no
 network; the checkout is read-only. Fork-sandbox attachment copies are mounted
 read-only at /attachments for only the relevant submission.
+
+account_daily_note_cap and account_daily_cost_cap_usd (unset by default,
+meaning no cap) each limit one account to that many new notes, or that much
+recorded cost, per rolling 24 hours; an admin account is never capped, and
+cost still in flight (not yet final) doesn't count toward the cost cap,
+since it isn't known yet -- the note cap covers that gap. Hitting either cap
+refuses a new note (an ordinary one, a video's first note, or a follow-up
+from answering a question) with 429.
 """
+import calendar
 import math
 import os
 import sys
 import threading
+import time
 from http.server import ThreadingHTTPServer
 from importlib import resources
 
@@ -235,6 +264,7 @@ class Editor:
     def __init__(self, root, state_dir=None, backend=None, agent=None, allowed_hosts=(), host='127.0.0.1',
                  unsandboxed_previews=False, envs=None, env_builder=None, sync_remote=None, environments=None,
                  auto_land=None, capabilities_dir=None, music_sources=None, music=None,
+                 account_daily_note_cap=None, account_daily_cost_cap_usd=None,
                  trust_repo_config=True):
         self.capabilities_dir = capabilities_dir
         # `music`, a pre-parsed MusicLibrary, is how library mode shares one cache and one
@@ -274,6 +304,12 @@ class Editor:
                                        _positive(cfg, 'start_video_attachment_max_files', 50),
                                        _positive(cfg, 'start_video_attachment_max_message', 300) * 1048576)
         self.notes.attachments = self.attachments
+        self.account_daily_note_cap = _optional_positive(
+            account_daily_note_cap if account_daily_note_cap is not None else cfg.get('account_daily_note_cap'),
+            'account_daily_note_cap', int)
+        self.account_daily_cost_cap_usd = _optional_positive(
+            account_daily_cost_cap_usd if account_daily_cost_cap_usd is not None
+            else cfg.get('account_daily_cost_cap_usd'), 'account_daily_cost_cap_usd', (int, float))
         self.renders = Renders(self, _positive(cfg, 'render_jobs', min(4, default_jobs())),
                                _positive(cfg, 'render_keep', 20))
         self.allowed_hosts = {h.lower().rstrip('.') for h in
@@ -390,7 +426,66 @@ class Editor:
             print(f'[editor] {result["warning"]}', file=sys.stderr, flush=True)
         return result
 
-    def add_note(self, body, author):
+    DAY_SECONDS = 24 * 3600
+
+    @staticmethod
+    def _note_created(note):
+        return calendar.timegm(time.strptime(note['created'], '%Y-%m-%dT%H:%M:%SZ'))
+
+    def check_note_cap(self, author, is_admin):
+        """Refuse a new note with HTTPError(429) once `author`'s account has hit
+        account_daily_note_cap or account_daily_cost_cap_usd over the trailing
+        24 hours; a no-op when neither is configured, or for an admin account.
+        Cost still in flight is unknown, so it never counts toward the cost cap
+        -- the note cap covers that gap."""
+        if is_admin or (self.account_daily_note_cap is None and self.account_daily_cost_cap_usd is None):
+            return
+        cutoff = time.time() - self.DAY_SECONDS
+        mine = ((self._note_created(n), n) for n in self.notes.list(refresh=False) if n.get('author') == author)
+        window = sorted(((created, n) for created, n in mine if created >= cutoff), key=lambda t: t[0])
+        if not window:
+            return
+        cost = sum(n['cost_usd'] for _, n in window
+                  if isinstance(n.get('cost_usd'), (int, float)) and not isinstance(n.get('cost_usd'), bool))
+        over_count = self.account_daily_note_cap is not None and len(window) >= self.account_daily_note_cap
+        over_cost = self.account_daily_cost_cap_usd is not None and cost >= self.account_daily_cost_cap_usd
+        if over_count or over_cost:
+            resets_at = window[0][0] + self.DAY_SECONDS
+            when = time.strftime('%Y-%m-%d %H:%M UTC', time.gmtime(resets_at))
+            raise HTTPError(429, f"You've reached today's limit for new notes. You can send more after {when}.")
+
+    USAGE_WINDOWS = (('last_24h', 24 * 3600), ('last_7d', 7 * 24 * 3600), ('last_30d', 30 * 24 * 3600))
+
+    def usage(self):
+        """Per-account and per-video totals -- cost, note count, and how many
+        notes had no recorded cost -- over each of USAGE_WINDOWS, from every
+        note this editor has ever stored. A note still in flight (or one
+        whose backend never reported a cost) counts toward `notes` but not
+        `cost_usd`, and adds to `unknown_cost` instead."""
+        now = time.time()
+        accounts, videos = {}, {}
+        for note in self.notes.list(refresh=False):
+            age = now - self._note_created(note)
+            cost = note.get('cost_usd')
+            known = isinstance(cost, (int, float)) and not isinstance(cost, bool)
+            for bucket, key in ((accounts, note.get('author')), (videos, note.get('video'))):
+                if key is None:
+                    continue
+                totals = bucket.setdefault(key, {label: {'cost_usd': 0.0, 'notes': 0, 'unknown_cost': 0}
+                                                 for label, _ in self.USAGE_WINDOWS})
+                for label, seconds in self.USAGE_WINDOWS:
+                    if age > seconds:
+                        continue
+                    entry = totals[label]
+                    entry['notes'] += 1
+                    if known:
+                        entry['cost_usd'] = round(entry['cost_usd'] + cost, 6)
+                    else:
+                        entry['unknown_cost'] += 1
+        return {'accounts': accounts, 'videos': videos}
+
+    def add_note(self, body, author, is_admin=False):
+        self.check_note_cap(author, is_admin)
         vid = _field(body, 'video', str)
         s = self.session(vid)
         timestamp = body.get('time')
@@ -428,7 +523,7 @@ class Editor:
         except ValueError as e:
             raise HTTPError(400, str(e)) from None
 
-    def start_video(self, body, author):
+    def start_video(self, body, author, is_admin=False):
         """The first note for a video just started from scratch: the
         director's brief, their uploaded files (already attached to this
         video, same as any note's) and, for any given links, the gathered
@@ -439,6 +534,7 @@ class Editor:
         run for up to about two minutes -- happens in the background; this
         call returns as soon as the note exists, so the director page opens
         immediately instead of waiting on the crawl."""
+        self.check_note_cap(author, is_admin)
         videos = self.project.videos()
         if not videos:
             raise HTTPError(409, 'this project has no video to build yet')
@@ -518,6 +614,17 @@ def _positive(cfg, name, default):
     value = cfg.get(name, default)
     if isinstance(value, bool) or not isinstance(value, int) or value < 1:
         raise ValueError(f'editor.{name} must be a positive integer')
+    return value
+
+
+def _optional_positive(value, name, kind):
+    """`value` if it is a positive `kind` (int, or (int, float) for a dollar
+    amount); None if unset (the default, meaning no cap)."""
+    if value is None:
+        return None
+    if isinstance(value, bool) or not isinstance(value, kind) or value <= 0:
+        article = 'a positive integer' if kind is int else 'a positive number'
+        raise ValueError(f'editor.{name} must be {article}')
     return value
 
 
@@ -626,11 +733,14 @@ def serve(root, host='127.0.0.1', port=8100, state_dir=None, open_browser=False,
 
 def serve_library(root, host='127.0.0.1', port=8100, checkouts=None, state_dir=None, open_browser=False,
                   hook=request_hook, agent=None, allowed_hosts=(), unsandboxed_previews=False, envs=None,
-                  admins=(), capabilities_dir=None, music_sources=None):
+                  admins=(), capabilities_dir=None, music_sources=None,
+                  account_daily_note_cap=None, account_daily_cost_cap_usd=None):
     from .library import Library
     library = Library(root, checkouts=checkouts, state_dir=state_dir, host=host, agent=agent,
                       allowed_hosts=allowed_hosts, unsandboxed_previews=unsandboxed_previews, envs=envs,
-                      admins=admins, capabilities_dir=capabilities_dir, music_sources=music_sources)
+                      admins=admins, capabilities_dir=capabilities_dir, music_sources=music_sources,
+                      account_daily_note_cap=account_daily_note_cap,
+                      account_daily_cost_cap_usd=account_daily_cost_cap_usd)
     httpd = ThreadingHTTPServer((host, port), make_handler(library, hook))
     httpd.daemon_threads = True
     stop = threading.Event()

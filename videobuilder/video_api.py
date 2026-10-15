@@ -146,8 +146,32 @@ def _get_frame(self, route, q, editor, user):
     return self._send(200, png, 'image/png')
 
 
+def _is_admin(self, user):
+    """Whether `user` should see cost: there is no accounts system to gate it
+    (single-project mode, or a library with none configured), or they are one
+    of its admins."""
+    return not (self.library and self.library.accounts) or self.library.accounts.is_admin(user)
+
+
+def _is_admin_account(self, user):
+    """Whether `user` is an actual admin account, for the daily cap bypass:
+    unlike `_is_admin` above, this is false with no accounts system at all --
+    a cap configured there has no admin to exempt, so it binds everyone."""
+    return bool(self.library and self.library.accounts and self.library.accounts.is_admin(user))
+
+
+_COST_FIELDS = ('cost_usd', 'tokens')
+
+
+def _strip_cost(note):
+    return {k: v for k, v in note.items() if k not in _COST_FIELDS}
+
+
 def _get_notes(self, route, q, editor, user):
-    return self._json(200, {'notes': editor.notes.list(q.get('video'))})
+    notes = editor.notes.list(q.get('video'))
+    if not _is_admin(self, user):
+        notes = [_strip_cost(n) for n in notes]
+    return self._json(200, {'notes': notes})
 
 
 def _get_note_log(self, route, q, editor, user, note_id):
@@ -160,7 +184,7 @@ def _get_note_log(self, route, q, editor, user, note_id):
         after = max(0, int(q.get('after', 0)))
     except ValueError:
         raise HTTPError(400, 'after must be an integer') from None
-    show_cost = not (self.library and self.library.accounts) or self.library.accounts.is_admin(user)
+    show_cost = _is_admin(self, user)
     peek = editor.notes.backend.peek if note['state'] == 'working' and hasattr(editor.notes.backend, 'peek') else None
     source = feed_source(note.get('handle'))
     entries = read_feed(note.get('handle'), editor.root, show_cost, peek)
@@ -179,9 +203,16 @@ def _get_note(self, route, q, editor, user, note_id, png_suffix):
     try:
         if png_suffix:
             return self._send(200, editor.notes.image(nid), 'image/png')
-        return self._json(200, editor.notes.current(nid))
+        note = editor.notes.current(nid)
+        return self._json(200, note if _is_admin(self, user) else _strip_cost(note))
     except KeyError:
         raise HTTPError(404, f'no note {nid!r}') from None
+
+
+def _get_usage(self, route, q, editor, user):
+    if not _is_admin(self, user):
+        raise HTTPError(403, 'admin only')
+    return self._json(200, editor.usage())
 
 
 GET_ROUTES = [
@@ -201,12 +232,13 @@ GET_ROUTES = [
     ('/api/info', _get_info),
     ('/api/frame', _get_frame),
     ('/api/notes', _get_notes),
+    ('/api/usage', _get_usage),
     (re.compile(r'/api/notes/([^/]+)/log'), _get_note_log),
     (re.compile(r'/api/notes/([^/]+?)(\.png)?'), _get_note),
 ]
 
 
-def _post_video_retry(self, route, body, identity, editor):
+def _post_video_retry(self, route, body, identity, editor, user):
     video = _field(body, 'video', str)
     sha = _field(body, 'commit', str)
     fmt = _field(body, 'format', str)
@@ -218,7 +250,7 @@ def _post_video_retry(self, route, body, identity, editor):
     return self._json(202, editor.renders.retry(video, sha, fmt))
 
 
-def _post_versions_restore(self, route, body, identity, editor):
+def _post_versions_restore(self, route, body, identity, editor, user):
     try:
         return self._json(200, editor.versions.restore(_field(body, 'video', str),
                                                         _field(body, 'commit', str), identity))
@@ -226,19 +258,19 @@ def _post_versions_restore(self, route, body, identity, editor):
         raise HTTPError(400, str(exc)) from None
 
 
-def _post_upgrade(self, route, body, identity, editor):
+def _post_upgrade(self, route, body, identity, editor, user):
     try:
         return self._json(200, editor.versions.upgrade(_field(body, 'video', str), identity))
     except Refused as exc:
         raise HTTPError(409, str(exc)) from None
 
 
-def _post_draft_action(self, route, body, identity, editor):
+def _post_draft_action(self, route, body, identity, editor, user):
     action = getattr(editor.drafts, route.rsplit('/', 1)[1])
     return self._json(200, action(_field(body, 'video', str), identity))
 
 
-def _post_music_attach(self, route, body, identity, editor):
+def _post_music_attach(self, route, body, identity, editor, user):
     if not editor.music:
         raise HTTPError(404, 'no music sources configured')
     video = _field(body, 'video', str)
@@ -267,19 +299,19 @@ def _post_music_attach(self, route, body, identity, editor):
     return self._json(201, record)
 
 
-def _post_edit(self, route, body, identity, editor):
+def _post_edit(self, route, body, identity, editor, user):
     return self._json(200, editor.edit(_field(body, 'video', str), route[5:], body, identity))
 
 
-def _post_notes(self, route, body, identity, editor):
-    return self._json(200, editor.add_note(body, identity))
+def _post_notes(self, route, body, identity, editor, user):
+    return self._json(200, editor.add_note(body, identity, _is_admin_account(self, user)))
 
 
-def _post_first_note(self, route, body, identity, editor):
-    return self._json(200, editor.start_video(body, identity))
+def _post_first_note(self, route, body, identity, editor, user):
+    return self._json(200, editor.start_video(body, identity, _is_admin_account(self, user)))
 
 
-def _post_note_delete(self, route, body, identity, editor, note_id):
+def _post_note_delete(self, route, body, identity, editor, user, note_id):
     try:
         editor.notes.delete(unquote(note_id))
     except KeyError:
@@ -287,18 +319,19 @@ def _post_note_delete(self, route, body, identity, editor, note_id):
     return self._json(200, {'deleted': note_id})
 
 
-def _post_note_retry(self, route, body, identity, editor, note_id):
+def _post_note_retry(self, route, body, identity, editor, user, note_id):
     try:
         return self._json(200, editor.notes.retry(unquote(note_id), identity))
     except KeyError:
         raise HTTPError(404, f'no note {note_id!r}') from None
 
 
-def _post_note_answer(self, route, body, identity, editor, note_id):
+def _post_note_answer(self, route, body, identity, editor, user, note_id):
     build = body.get('build') is True
     answers = body.get('answers')
     if not build and (not isinstance(answers, list) or not all(isinstance(a, str) for a in answers)):
         raise HTTPError(400, 'answers must be a list of strings')
+    editor.check_note_cap(identity, _is_admin_account(self, user))
     try:
         return self._json(200, editor.notes.answer(unquote(note_id), build,
                                                    None if build else answers, identity))
@@ -331,9 +364,9 @@ class VideoAPIHandler:
                 return handler(self, route, q, editor, user, *groups)
         raise HTTPError(404, 'not found')
 
-    def _post(self, route, body, identity, editor):
+    def _post(self, route, body, identity, editor, user=None):
         for pattern, handler in POST_ROUTES:
             groups = _match(route, pattern)
             if groups is not None:
-                return handler(self, route, body, identity, editor, *groups)
+                return handler(self, route, body, identity, editor, user, *groups)
         raise HTTPError(404, 'not found')

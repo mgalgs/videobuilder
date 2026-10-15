@@ -24,7 +24,7 @@ def valid_name(name):
 class Library:
     def __init__(self, root, checkouts=None, state_dir=None, host='127.0.0.1', allowed_hosts=(),
                  backend=None, agent=None, unsandboxed_previews=False, envs=None, admins=(), capabilities_dir=None,
-                 music_sources=None):
+                 music_sources=None, account_daily_note_cap=None, account_daily_cost_cap_usd=None):
         self.capabilities_dir = capabilities_dir
         self.root = Path(root).resolve()
         self.repos = self.root / 'repos'
@@ -43,7 +43,8 @@ class Library:
         music = MusicLibrary.from_file(music_sources) if music_sources else None
         self.options = dict(backend=backend, agent=agent, allowed_hosts=allowed_hosts, host=host,
                             unsandboxed_previews=unsandboxed_previews, environments=environments,
-                            music=music)
+                            music=music, account_daily_note_cap=account_daily_note_cap,
+                            account_daily_cost_cap_usd=account_daily_cost_cap_usd)
         self.editors = {}
         self.lock = threading.RLock()
         from .accounts import Accounts

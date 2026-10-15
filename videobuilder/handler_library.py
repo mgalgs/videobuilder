@@ -217,7 +217,7 @@ class LibraryHandler:
                                                        self.headers.get('Content-Type', ''), body_bytes)
                     self._json(201, record)
             else:
-                self._post(route, self._body(), identity or 'anonymous', active)
+                self._post(route, self._body(), identity or 'anonymous', active, user)
         except (BrokenPipeError, ConnectionResetError):
             pass
         except (ValueError, KeyError) as e:

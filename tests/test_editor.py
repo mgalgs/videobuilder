@@ -10,7 +10,9 @@ from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
 from unittest import mock
 
+from videobuilder.editor import Editor
 from tests.fixtures import API
+from tests.test_project import TempProject
 
 
 class Command(unittest.TestCase):
@@ -19,6 +21,39 @@ class Command(unittest.TestCase):
         with self.assertRaises(SystemExit) as e:
             main(['editor', '/nonexistent/project'])
         self.assertIn('not a directory', str(e.exception))
+
+
+class AccountCapConfigKeys(TempProject):
+    def _editor(self, state_dir, **kw):
+        editor = Editor(self.root, state_dir=state_dir, unsandboxed_previews=True, auto_land=False, **kw)
+        self.addCleanup(editor.pool.close)
+        self.addCleanup(editor.renders.close)
+        return editor
+
+    def test_unset_by_default(self):
+        editor = self._editor('state-defaults')
+        self.assertIsNone(editor.account_daily_note_cap)
+        self.assertIsNone(editor.account_daily_cost_cap_usd)
+
+    def test_configured_in_videobuilder_toml(self):
+        (self.root / 'videobuilder.toml').write_text(
+            '[editor]\n'
+            'account_daily_note_cap = 3\n'
+            'account_daily_cost_cap_usd = 1.5\n')
+        editor = self._editor('state-configured')
+        self.assertEqual(editor.account_daily_note_cap, 3)
+        self.assertEqual(editor.account_daily_cost_cap_usd, 1.5)
+
+    def test_explicit_kwarg_overrides_the_toml(self):
+        (self.root / 'videobuilder.toml').write_text('[editor]\naccount_daily_note_cap = 3\n')
+        editor = self._editor('state-override', account_daily_note_cap=9)
+        self.assertEqual(editor.account_daily_note_cap, 9)
+
+    def test_rejects_a_non_positive_cap(self):
+        with self.assertRaisesRegex(ValueError, 'account_daily_note_cap'):
+            self._editor('state-bad-note-cap', account_daily_note_cap=0)
+        with self.assertRaisesRegex(ValueError, 'account_daily_cost_cap_usd'):
+            self._editor('state-bad-cost-cap', account_daily_cost_cap_usd=-1)
 
 
 PKG = Path(__file__).resolve().parents[1] / 'videobuilder'

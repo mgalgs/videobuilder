@@ -307,6 +307,19 @@ class HostedGit(LibraryFixture, unittest.TestCase):
         self.assertIn('Simple brief.', note['text'])
         self.assertEqual(note['attachments'], [])
 
+    def test_first_note_cap_refuses_once_reached(self):
+        # No accounts here: nobody is exempt, so a configured cap binds the one caller.
+        from videobuilder.agents import FakeBackend
+        self.request('/api/videos/new', {'name': 'acme/capped', 'start': 'blank'})
+        editor = self.library.editor('acme/capped')
+        editor.notes.backend = FakeBackend(delay=0)
+        editor.account_daily_note_cap = 1
+        code, note = self.request('/v/acme/capped/api/videos/first-note', {'description': 'First.'})
+        self.assertEqual(code, 200, note)
+        code, data, _ = self.request_full('/v/acme/capped/api/videos/first-note', {'description': 'Second.'})
+        self.assertEqual(code, 429)
+        self.assertIn("today's limit", data['error'])
+
     def test_first_note_refuses_malformed_links(self):
         self.request('/api/videos/new', {'name': 'acme/bad-links', 'start': 'blank'})
         # A non-string element must be refused with 400, not crash with a 500 when
