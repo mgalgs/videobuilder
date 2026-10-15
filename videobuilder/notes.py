@@ -414,6 +414,7 @@ class NoteStore:
             sources = self.sources.list(video) if self.sources else []
             any_ready = any(s.get('preview_ready') for s in sources)
             if self.attachments:
+                self.attachments.expire()
                 payload['attach_dir'] = self.attachments.stage(note, image, force=any_ready)
                 if image:
                     from .attachments import FRAME_NAME

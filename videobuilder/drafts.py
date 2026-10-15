@@ -165,8 +165,12 @@ class Drafts:
                 e.notes.update(note, state='refused', refused=detail['refused'])
                 git(e.root, 'update-ref', 'refs/heads/' + branch, git(e.root, 'rev-parse', 'main'), detail['tip'])
                 state = e.notes.session(video)
-                state['rejection'] = 'Your previous change was not kept: it touched ' + ', '.join(
-                    x.split(':', 1)[0] for x in detail['refused']) + ', which are outside this video.'
+                # Each entry is already "path: reason(s)" (see inspect()); using the
+                # reason inspect() actually computed, instead of a fixed "outside this
+                # video" that's wrong for e.g. a sources/ file inside the video's own
+                # directory, tells the next builder what to actually fix.
+                state['rejection'] = ('Your previous change was not kept: it touched '
+                                      + '; '.join(detail['refused']) + '.')
                 e.notes.save_session(video, state)
                 return {'state': 'refused', 'refused': detail['refused']}
             main = git(e.root, 'rev-parse', 'refs/heads/main')

@@ -2,9 +2,12 @@
 member gets, on top of the existing single-upload tests in test_director.py."""
 import io
 import json
+import os
+from pathlib import Path
 import re
 import stat
 import struct
+import time
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -226,3 +229,26 @@ class ZipConfigKeys(TempProject):
         self.assertEqual(editor.attachments.zip_max_unpacked, 3 * 1048576)
         self.assertEqual(editor.attachments.start_video_max_files, 4)
         self.assertEqual(editor.attachments.start_video_max_message, 5 * 1048576)
+
+
+class StagedDirectoryExpiry(fixtures.API):
+    """Attachments.stage() makes a per-note `attachments-<id>` directory under
+    the video's session dir; nothing used to ever remove it, and NoteStore._submit
+    now makes one for nearly every note on a video with a ready source (force=True),
+    not just ones with their own attachments or a pinned frame. expire() sweeps
+    these the same way it already sweeps the attachment blobs under self.root: by
+    age, not by whether the note that made it is done."""
+
+    def test_old_staged_directory_is_swept_fresh_one_is_not(self):
+        old_note = self.post('/api/notes', {'video': 'promo/film', 'text': 'Old'})[1]
+        old_dir = Path(self.editor.attachments.stage(old_note, force=True))
+        self.assertTrue(old_dir.is_dir())
+        stale = time.time() - 90000
+        os.utime(old_dir, (stale, stale))
+
+        fresh_note = self.post('/api/notes', {'video': 'promo/film', 'text': 'Fresh'})[1]
+        fresh_dir = Path(self.editor.attachments.stage(fresh_note, force=True))
+
+        self.editor.attachments.expire()
+        self.assertFalse(old_dir.exists())
+        self.assertTrue(fresh_dir.is_dir())

@@ -1778,6 +1778,10 @@ setInterval(()=> {
     if(data&&data.open&&!data.done)loadSteps(note)
   }
 },3000);
+setInterval(()=> {
+  if(document.hidden||state.signedOut||state.view!=='sources')return;
+  if((state.sources||[]).some(s=>!s.preview_ready))loadSources()
+},3000);
 // /api/project syncs with the forge, so poll the cheap /healthz and refetch the
 // project only when the editor's version changes (a deploy), for the upgrade chip.
 async function checkEditorVersion() {

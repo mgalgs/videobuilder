@@ -105,16 +105,25 @@ class Sources:
         self.max_total = max_total
         self.root = Path(editor.state_dir) / 'sources'
         self.root.mkdir(parents=True, exist_ok=True)
+        # Scratch space for a preview build in progress (see _build_preview); on the
+        # same filesystem as self.root so the finished file can be moved into place
+        # with a rename, not a copy. Created up front, not lazily inside the build
+        # thread, so its presence under self.root is never a race for a caller that
+        # snapshots self.root's own entries (e.g. a traversal test).
+        self._tmp_dir = self.root / '.building'
+        self._tmp_dir.mkdir(exist_ok=True)
         self._locks = {}
         self._locks_guard = threading.Lock()
 
     def _lock(self, video, name):
-        """One lock per (video, name), so `delete()` and the background preview
-        build (see `_build_preview`) can never interleave on the same source's
-        own directory -- without it, a delete mid-build can race the build's
-        own `preview/` subdirectory coming into existence and fail with
-        ENOTEMPTY, or a caption added mid-build can be clobbered by the stale
-        meta the build re-saves once it's done."""
+        """One lock per (video, name), guarding the small read-modify-write
+        windows where `delete()`, `add_caption()` and `_build_preview()`'s own
+        publish step touch this source's meta.json -- never the length of an
+        ffmpeg encode, which `_build_preview` runs unlocked precisely so a
+        concurrent `delete()` doesn't wait minutes for it. Without the lock, a
+        caption added while a build is publishing could be saved from a copy
+        of meta read before the build's own save, clobbering its
+        preview_ready=True with a stale False."""
         key = (video, name)
         with self._locks_guard:
             return self._locks.setdefault(key, threading.Lock())
@@ -264,7 +273,7 @@ class Sources:
         return self.public(meta)
 
     def add_caption(self, video, name, filename, data):
-        meta = self.get(video, name)
+        self.get(video, name)  # validates `name` and that the source exists
         ext = _basename(filename).rsplit('.', 1)[-1].lower() if '.' in _basename(filename) else ''
         if ext not in CAPTION_EXTS:
             raise ValueError('caption files must be .vtt or .srt')
@@ -277,6 +286,10 @@ class Sources:
         d = self._dir(video, name)
         caption_name = f'{name}.{ext}'
         with self._lock(video, name):
+            # Re-read inside the lock: a background preview build (see _build_preview)
+            # may be publishing preview_ready=True right now, and saving the meta this
+            # method read before taking the lock would clobber that with a stale copy.
+            meta = self.get(video, name)
             if meta.get('caption'):
                 (d / meta['caption']).unlink(missing_ok=True)
             (d / caption_name).write_bytes(data)
@@ -359,42 +372,56 @@ class Sources:
 
     def _build_preview(self, video, name):
         """Encode this source's preview copy (see the module docstring) off the
-        request thread, holding this source's lock the whole time (so a
-        concurrent delete() either finishes first -- then the `get()` below
-        raises KeyError and this is a no-op -- or waits for this to finish).
-        Any failure -- a bad probe, ffmpeg erroring out -- just leaves
-        `preview_ready` False; nothing here is fatal to the upload that
-        already succeeded."""
+        request thread. The encode itself -- minutes, for a large source --
+        runs without this source's lock held, and writes to a scratch file
+        under `_tmp_dir`, never into the source's own directory: that's what
+        lets a concurrent delete() of this exact source rmtree that directory
+        without racing this encode's own file creation inside it (the lock
+        alone isn't enough for that -- it only keeps the two from touching
+        meta.json at the same instant, not from touching the filesystem at
+        the same time). The lock is taken only afterward, briefly, to publish
+        the result: get() inside it either sees the source is still there
+        (and this publishes to it) or that delete() already won (KeyError,
+        and this is a no-op, the finished scratch file discarded). Any
+        failure -- a bad probe, ffmpeg erroring out, the source vanishing
+        mid-encode -- just leaves `preview_ready` False; nothing here is
+        fatal to the upload that already succeeded."""
+        try:
+            meta = self.get(video, name)
+        except KeyError:
+            return
+        dims = _preview_dims(meta.get('width'), meta.get('height'))
+        if dims is None:
+            return
+        width, height = dims
+        src = self._dir(video, name) / f"{meta['name']}.{meta['ext']}"
+        tmp = self._tmp_dir / ('.tmp-' + secrets.token_hex(8))
+        audio = ['-c:a', 'aac', '-ac', '2', '-b:a', '96k'] if meta.get('has_audio') else ['-an']
+        # -f mp4 forces an MP4 container regardless of the destination name's extension,
+        # so a .mov or .webm source still gets an MP4-inside preview copy (see the module
+        # docstring) -- ffmpeg would otherwise infer the container from that extension.
+        command = ['ffmpeg', '-y', '-i', str(src), '-vf', f'scale={width}:{height}', '-c:v', 'libx264',
+                  '-pix_fmt', 'yuv420p', *audio, '-movflags', '+faststart', '-f', 'mp4', str(tmp)]
+        try:
+            result = subprocess.run(command, capture_output=True)
+        except OSError:
+            result = None
+        if result is None or result.returncode or not tmp.is_file():
+            tmp.unlink(missing_ok=True)
+            return
         with self._lock(video, name):
             try:
                 meta = self.get(video, name)
             except KeyError:
+                tmp.unlink(missing_ok=True)
                 return
-            dims = _preview_dims(meta.get('width'), meta.get('height'))
-            if dims is None:
-                return
-            width, height = dims
-            src = self._dir(video, name) / f"{meta['name']}.{meta['ext']}"
             preview_dir = self._dir(video, name) / PREVIEW_DIRNAME
             try:
                 preview_dir.mkdir(exist_ok=True)
+                tmp.rename(preview_dir / f"{meta['name']}.{meta['ext']}")
             except OSError:
-                return
-            tmp = preview_dir / ('.tmp-' + secrets.token_hex(8))
-            audio = ['-c:a', 'aac', '-ac', '2', '-b:a', '96k'] if meta.get('has_audio') else ['-an']
-            # -f mp4 forces an MP4 container regardless of the destination name's extension,
-            # so a .mov or .webm source still gets an MP4-inside preview copy (see the module
-            # docstring) -- ffmpeg would otherwise infer the container from that extension.
-            command = ['ffmpeg', '-y', '-i', str(src), '-vf', f'scale={width}:{height}', '-c:v', 'libx264',
-                      '-pix_fmt', 'yuv420p', *audio, '-movflags', '+faststart', '-f', 'mp4', str(tmp)]
-            try:
-                result = subprocess.run(command, capture_output=True)
-            except OSError:
-                result = None
-            if result is None or result.returncode or not tmp.is_file():
                 tmp.unlink(missing_ok=True)
                 return
-            tmp.rename(preview_dir / f"{meta['name']}.{meta['ext']}")
             meta['preview_ready'] = True
             self._save(video, name, meta)
 

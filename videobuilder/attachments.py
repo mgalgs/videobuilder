@@ -213,3 +213,16 @@ class Attachments:
                     shutil.rmtree(path.parent)
             except (ValueError, KeyError):
                 continue
+        # Per-note staging directories made by stage(): nothing else ever removes them,
+        # and NoteStore._submit now makes one for nearly every note on a video with a
+        # ready source (force=True), not just the ones that carry attachments or a frame.
+        # Swept by age, the same as the attachment blobs above -- not by whether the note
+        # that made it is still in flight, so a submission left inspectable for debugging
+        # survives at least a day.
+        sessions_root = Path(self.editor.notes.dir).parent / 'sessions'
+        for path in sessions_root.glob('*/attachments-*'):
+            try:
+                if time.time() - path.stat().st_mtime >= 86400:
+                    shutil.rmtree(path)
+            except OSError:
+                continue

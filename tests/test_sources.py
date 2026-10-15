@@ -172,6 +172,44 @@ class DirectUpload(fixtures.API):
         with self.assertRaises(KeyError):
             self.editor.sources.delete('promo/film', 'interview')
 
+    @staticmethod
+    def _slow_ffmpeg(delay):
+        """A subprocess.run stand-in that sleeps before any ffmpeg call, so a
+        test can reliably land an operation while the background preview
+        build (see Sources._build_preview) is still encoding."""
+        real_run = subprocess.run
+
+        def slow_run(cmd, **kw):
+            if cmd and cmd[0] == 'ffmpeg':
+                time.sleep(delay)
+            return real_run(cmd, **kw)
+        return slow_run
+
+    def test_add_caption_mid_build_does_not_clobber_preview_ready(self):
+        # The caption's own meta read used to happen before the lock; saving that
+        # stale copy once the lock was free could overwrite preview_ready=True
+        # (set by the build, which finished while this held the lock) with a
+        # stale False, leaving the source permanently stuck as "Preparing...".
+        with mock.patch('videobuilder.sources.subprocess.run', side_effect=self._slow_ffmpeg(0.5)):
+            self._upload(name='interview')
+            time.sleep(0.1)  # the background build is now inside the slowed ffmpeg call
+            self.editor.sources.add_caption('promo/film', 'interview', 'cc.vtt', b'WEBVTT\n')
+            self._wait_for_preview('interview')
+        final = self.editor.sources.get('promo/film', 'interview')
+        self.assertTrue(final['preview_ready'])
+        self.assertEqual(final['caption'], 'interview.vtt')
+
+    def test_delete_does_not_wait_for_the_whole_encode(self):
+        # delete() used to take the same lock _build_preview held for the entire
+        # ffmpeg encode, so deleting a source mid-build waited for the encode
+        # (minutes, for a large source) instead of returning right away.
+        with mock.patch('videobuilder.sources.subprocess.run', side_effect=self._slow_ffmpeg(1)):
+            self._upload(name='interview')
+            time.sleep(0.2)  # the background build is now inside the slowed ffmpeg call
+            started = time.monotonic()
+            self.editor.sources.delete('promo/film', 'interview')
+            self.assertLess(time.monotonic() - started, 0.5)
+
     def test_name_traversal_is_refused_everywhere_not_just_in_the_filename(self):
         # 'name' here models what a URL path segment like /api/sources/../delete
         # hands the store directly: `[^/]+` in the route regex lets '..' and '.'

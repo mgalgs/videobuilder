@@ -301,6 +301,29 @@ class DraftLoop(TempProject):
         preview = self.editor.drafts._worktree('promo/film', self.editor.drafts.details('promo/film')['tip'])
         self.assertTrue((preview / 'promo' / 'sources' / 'interview.mp4').is_file())
 
+    def test_rejection_reason_for_a_sources_file_names_the_actual_rule(self):
+        # A sources/ file sits inside the video's own directory, so the auto-landing
+        # rejection text used to call it "outside this video" -- wrong, and silent
+        # about the rule (never commit anything under sources/) actually broken.
+        note = self.draft()
+        self.assertEqual(note['state'], 'replied')
+        work = Path(self.tmp.name) / 'bad-work'
+        git(self.root, 'worktree', 'add', str(work), note['branch'])
+        target = work / 'promo' / 'sources' / 'x.mp4'
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text('not a real video')
+        # -f: a real sources/ commit wouldn't normally get past the git exclude
+        # sources.sync() anchors for this video, but the guard must still refuse
+        # one that does, and name the right reason, not just "outside this video".
+        git(work, 'add', '-f', '--', 'promo/sources/x.mp4')
+        git(work, '-c', 'user.name=t', '-c', 'user.email=t@example.com', 'commit', '-qm', 'bad commit')
+        git(self.root, 'worktree', 'remove', '--force', str(work))
+        self.editor.drafts.accept('promo/film', None, note)
+        self.assertEqual(self.editor.notes.get(note['id'])['state'], 'refused')
+        rejection = self.editor.notes.session('promo/film')['rejection']
+        self.assertIn('promo/sources/x.mp4: source video, never committed', rejection)
+        self.assertNotIn('outside this video', rejection)
+
     def test_note_with_no_sources_has_a_byte_identical_prompt(self):
         with_no_sources = self.draft()
         md = (self.editor.notes.session_dir('promo/film') / (with_no_sources['id'] + '.md')).read_text()
