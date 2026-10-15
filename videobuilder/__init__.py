@@ -11,6 +11,7 @@ from .cli import film_main as main
 from .text import Font
 from .timeline import Grid, Segment, Shot, Timeline, round_half_up, sequence
 from . import edits, layout, paths, text
+from . import captions
 
 __all__ = ['Audio', 'Box', 'Canvas', 'Clip', 'FORMATS', 'Film', 'Font', 'Format', 'Grid', 'Image', 'Segment', 'Shot',
            'Timeline', 'View', 'apart', 'at_rest_by', 'bezier', 'clamp01', 'critical', 'damped', 'ease_in_expo',
