@@ -12,19 +12,43 @@ from .canvas import Image
 from .film import Sound
 
 
+def _rotation_degrees(stream):
+    """The rotation (0/90/180/270) ffmpeg will auto-rotate this stream's decoded
+    frames by: the display-matrix side data a phone writes (mov/mp4's tkhd
+    matrix, surfaced by ffprobe as `side_data_list[].rotation`), falling back
+    to the older plain `rotate` tag some files still carry instead."""
+    for side_data in stream.get('side_data_list') or ():
+        if 'rotation' in side_data:
+            return int(side_data['rotation']) % 360
+    tag = (stream.get('tags') or {}).get('rotate')
+    if tag is not None:
+        return int(tag) % 360
+    return 0
+
+
+def _displayed_size(stream):
+    """(width, height) of this stream's frames as displayed -- after the
+    rotation ffmpeg applies on decode -- swapping the coded dimensions at
+    +-90/270."""
+    width, height = stream['width'], stream['height']
+    if _rotation_degrees(stream) in (90, 270):
+        return height, width
+    return width, height
+
+
 class Clip:
     """A video file with random frame access. Keep one decoder open per process."""
 
     def __init__(self, path):
         self.path = os.fspath(path)
         result = subprocess.run(['ffprobe', '-v', 'error', '-select_streams', 'v:0',
-                                 '-show_entries', 'stream=width,height,avg_frame_rate,nb_frames',
-                                 '-of', 'json', self.path], capture_output=True, text=True, check=True)
+                                 '-show_streams', '-of', 'json', self.path],
+                                capture_output=True, text=True, check=True)
         streams = json.loads(result.stdout)['streams']
         if not streams:
             raise ValueError(f'no video stream: {self.path}')
         stream = streams[0]
-        self.size = (stream['width'], stream['height'])
+        self.size = _displayed_size(stream)
         self.fps = Fraction(stream['avg_frame_rate'])
         if self.fps <= 0:
             raise ValueError(f'unknown frame rate: {self.path}')
@@ -52,9 +76,18 @@ class Clip:
     def _start(self, index):
         self.close()
         timestamp = f'{float(index / self.fps):.9f}'
+        # The `fps` filter resamples a variable-rate source onto this clip's own
+        # constant grid (frame i at i/self.fps), the same way ffmpeg would if asked
+        # to render the source at a fixed rate: it holds the last decoded frame
+        # until the next output slot, rather than assuming evenly-spaced input. A
+        # CFR source already sits on that exact grid, so this is a no-op for it.
+        # Rotation needs no filter of its own: ffmpeg auto-rotates on decode from
+        # the stream's own display-matrix side data (ahead of this filter, same as
+        # any other -vf), which is also how `self.size` already accounts for it.
+        fps_filter = f'fps=fps={self.fps.numerator}/{self.fps.denominator}:round=down'
         self._decoder = subprocess.Popen(
             ['ffmpeg', '-v', 'error', '-ss', timestamp, '-i', self.path,
-             '-map', '0:v:0', '-f', 'rawvideo', '-pix_fmt', 'rgb24',
+             '-map', '0:v:0', '-vf', fps_filter, '-f', 'rawvideo', '-pix_fmt', 'rgb24',
              '-fps_mode', 'passthrough', 'pipe:1'], stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
         self._next = index
         self._pid = os.getpid()
