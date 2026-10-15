@@ -138,6 +138,12 @@ class ZipUpload(fixtures.API):
         real = PNG + b'\x00' * 500000
         self._refused_with_no_attachments_written(_lying_size_zip('bomb.png', real), 'corrupt')
 
+    def test_a_damaged_deflate_stream_is_refused_cleanly(self):
+        data = bytearray(_zip_bytes([('a.png', PNG * 50)]))
+        start = data.find(b'PK\x03\x04') + 30 + len('a.png')
+        data[start:start + 8] = b'\xff' * 8
+        self._refused_with_no_attachments_written(bytes(data), 'corrupt')
+
     def test_not_a_zip_file_at_all(self):
         self._refused_with_no_attachments_written(b'this is not a zip file', 'not a valid zip')
 

@@ -8,6 +8,7 @@ import shutil
 import stat
 import time
 import zipfile
+import zlib
 
 MAGIC = {
     'png': (b'\x89PNG\r\n\x1a\n',), 'jpg': (b'\xff\xd8\xff',), 'jpeg': (b'\xff\xd8\xff',),
@@ -140,7 +141,9 @@ class Attachments:
                         raise ValueError('a file in the zip exceeds the attachment size limit')
                     if len(buf) > remaining:
                         raise ValueError('the zip exceeds the total unpacked size limit')
-        except zipfile.BadZipFile as exc:
+        # A damaged stream raises zlib.error or EOFError, an unsupported method
+        # NotImplementedError; none of them is BadZipFile, and each must stay a 400.
+        except (zipfile.BadZipFile, zlib.error, EOFError, NotImplementedError) as exc:
             raise ValueError(f'{basename} is corrupt or its size is wrong') from exc
         return bytes(buf)
 
