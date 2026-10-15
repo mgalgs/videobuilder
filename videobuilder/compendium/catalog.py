@@ -239,6 +239,16 @@ def _save_poster(cv, path, quality=82):
     im.convert('RGB').save(path, 'JPEG', quality=quality)
 
 
+def _poster_frame(film):
+    """70% into the shot live at the middle frame: a recipe's middle often lands
+    on a step's first frame, before anything in it has entered."""
+    mid = film.frames // 2
+    if film.timeline is None:
+        return mid
+    shot = film.timeline.live(mid)[-1]
+    return min(film.frames - 1, mid - shot.f + int(shot.length * 0.7))
+
+
 def _render_one(film, out_dir, id, jobs, crf, log):
     import time
     from ..render import render as _render
@@ -248,7 +258,7 @@ def _render_one(film, out_dir, id, jobs, crf, log):
         out_mp4 = os.path.join(out_dir, name + '.mp4')
         t0 = time.time()
         _render(film, out_mp4, fmt, jobs=jobs, crf=crf, log=log)
-        _save_poster(film.frame(film.frames // 2, fmt), os.path.join(out_dir, name + '.jpg'))
+        _save_poster(film.frame(_poster_frame(film), fmt), os.path.join(out_dir, name + '.jpg'))
         results.append({'id': name, 'seconds': time.time() - t0, 'bytes': os.path.getsize(out_mp4)})
     return results
 
