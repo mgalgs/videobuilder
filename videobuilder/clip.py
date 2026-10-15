@@ -1,12 +1,15 @@
 """Frame-accurate, bounded-memory video asset reader using system ffmpeg."""
+from dataclasses import dataclass
 from fractions import Fraction
 import json
+import math
 import os
 import subprocess
 
 from PIL import Image as PILImage
 
 from .canvas import Image
+from .film import Sound
 
 
 class Clip:
@@ -77,6 +80,39 @@ class Clip:
         self._next += 1
         return Image.from_pil(PILImage.frombytes('RGB', self.size, b''.join(chunks)))
 
+    def frame_at(self, seconds):
+        """The source frame shown at `seconds` into this clip."""
+        return math.floor(seconds * self.fps)
+
     def __del__(self):
         if getattr(self, '_decoder', None) is not None:
             self.close()
+
+
+@dataclass
+class Footage:
+    """Ties a timeline segment to a point `start` into a source clip, so the
+    picture and its `Sound` stay in sync without working out the arithmetic
+    twice. Build one with `footage`.
+
+    `seconds_at(f)`: the source second to show at film frame `f` (feed it to
+    `Clip.frame_at`). `sound(path, **kw)`: the matching `Sound`, starting at
+    the same source second this segment does.
+    """
+    at: int
+    frames: int
+    start: float
+    fps: int
+
+    def seconds_at(self, f):
+        return self.start + (f - self.at) / self.fps
+
+    def sound(self, path, **kw):
+        return Sound(path, at=self.at, start=self.start, frames=self.frames, **kw)
+
+
+def footage(timeline, segment, start):
+    """`Footage` for `segment` of `timeline` (a Segment or its name), starting
+    `start` seconds into a source clip."""
+    a, z = timeline.span(segment)
+    return Footage(at=a, frames=z - a, start=start, fps=timeline.grid.fps)

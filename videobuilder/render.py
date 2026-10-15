@@ -13,7 +13,7 @@ import sys
 import tempfile
 import time
 
-from .film import Audio, Film, load  # noqa: F401  (Audio, Film: the old import path)
+from .film import Audio, DEFAULT_LOUDNESS, Film, load  # noqa: F401  (Audio, Film: the old import path)
 
 
 # Sample-peak ceiling for the limiter. True peak runs above sample peak, and the
@@ -39,18 +39,47 @@ def default_jobs(cpu_max='/sys/fs/cgroup/cpu.max'):
     return jobs
 
 
-def measure(path, filters):
-    """(integrated LUFS, sample peak dBFS) after `filters`; None for silence."""
-    result = subprocess.run(['ffmpeg', '-hide_banner', '-nostats', '-i', path, '-af',
-                             f'{filters},ebur128=peak=sample', '-f', 'null', '-'],
-                            capture_output=True, text=True, check=True)
-    summary = result.stderr.rsplit('Summary:', 1)[-1]
+def _parse_summary(stderr):
+    summary = stderr.rsplit('Summary:', 1)[-1]
     loud = float(re.search(r'I:\s*(-?inf|-?[\d.]+) LUFS', summary).group(1))
     peak = float(re.search(r'Peak:\s*(-?inf|-?[\d.]+) dBFS', summary).group(1))
     # ebur128 reports silence as -70 LUFS: never boost near-silence.
     if not math.isfinite(loud) or loud <= -69:
         return None
     return loud, peak
+
+
+def measure(path, filters):
+    """(integrated LUFS, sample peak dBFS) after `filters`; None for silence."""
+    result = subprocess.run(['ffmpeg', '-hide_banner', '-nostats', '-i', path, '-af',
+                             f'{filters},ebur128=peak=sample', '-f', 'null', '-'],
+                            capture_output=True, text=True, check=True)
+    return _parse_summary(result.stderr)
+
+
+def measure_graph(inputs, graph, label):
+    """Like `measure`, over a filter_complex `graph` (ending in `[label]`) fed by
+    `inputs`, for a mix of several files rather than one."""
+    cmd = ['ffmpeg', '-hide_banner', '-nostats']
+    for p in inputs:
+        cmd += ['-i', p]
+    cmd += ['-filter_complex', f'{graph};[{label}]ebur128=peak=sample[__measure]',
+            '-map', '[__measure]', '-f', 'null', '-']
+    result = subprocess.run(cmd, capture_output=True, text=True, check=True)
+    return _parse_summary(result.stderr)
+
+
+def limiter_suffix(gain):
+    """`gain`, then a lookahead limiter that touches only the transients above the
+    ceiling; the body of the mix keeps its dynamics. latency=1 removes the
+    lookahead delay, which would put sound behind picture."""
+    limit = 10 ** (PEAK_CEILING_DB / 20)
+    return f'volume={gain:.2f}dB,alimiter=limit={limit:.4f}:attack=5:release=50:level=0:latency=1'
+
+
+def normalise(filters, gain):
+    """`filters`, then one gain to the loudness target through `limiter_suffix`."""
+    return f'{filters},{limiter_suffix(gain)}'
 
 
 def loudness_gain(path, filters, target):
@@ -67,13 +96,18 @@ def loudness_gain(path, filters, target):
     return min(gain, cap)
 
 
-def normalise(filters, gain):
-    """One gain to the loudness target, then a lookahead limiter that touches only
-    the transients above the ceiling; the body of the mix keeps its dynamics.
-    latency=1 removes the lookahead delay, which would put sound behind picture."""
-    limit = 10 ** (PEAK_CEILING_DB / 20)
-    return (f'{filters},volume={gain:.2f}dB,'
-            f'alimiter=limit={limit:.4f}:attack=5:release=50:level=0:latency=1')
+def loudness_gain_graph(inputs, graph, label, target):
+    """Like `loudness_gain`, over a filter_complex `graph` fed by `inputs`."""
+    m = measure_graph(inputs, graph, label)
+    if m is None:
+        return 0.0
+    loud, peak = m
+    cap = PEAK_CEILING_DB + MAX_LIMITING_DB - peak
+    gain = target - loud
+    if gain < cap:
+        g2 = f'{graph};[{label}]{limiter_suffix(gain)}[__gained]'
+        gain += target - measure_graph(inputs, g2, '__gained')[0]
+    return min(gain, cap)
 
 
 def audio_filters(film, a, z):
@@ -86,6 +120,101 @@ def audio_filters(film, a, z):
         fade = f',afade=t=out:st={st:.6f}:d={au.fade_out_frames / film.fps:.6f}'
     return (f'atrim=start={trim:.6f},asetpts=PTS-STARTPTS,volume={au.gain_db}dB{fade},'
             f'apad,atrim=end={(z - a) / film.fps:.6f}')
+
+
+def ensure_has_audio(paths):
+    """Raise a clear ValueError for any path with no audio stream, rather than
+    letting ffmpeg mux in silence for it."""
+    for p in dict.fromkeys(paths):  # unique, order-preserving
+        result = subprocess.run(['ffprobe', '-v', 'error', '-select_streams', 'a:0', '-show_entries',
+                                 'stream=index', '-of', 'csv=p=0', p], capture_output=True, text=True)
+        if not result.stdout.strip():
+            raise ValueError(f'{p}: no audio stream')
+
+
+def duck_envelope_expr(sounds, fps, offset):
+    """An ffmpeg eval expression, 0..1, that is 1 while any sound plays (ramping
+    over its fade frames) and 0 elsewhere: a deterministic function of the
+    sounds' spans, evaluated at `t` seconds from film frame `offset`."""
+    terms = []
+    for s in sounds:
+        t0 = (s.at - offset) / fps
+        t1 = (s.at + s.frames - offset) / fps
+        fade_in = max(s.fade_in_frames / fps, 1e-6)
+        fade_out = max(s.fade_out_frames / fps, 1e-6)
+        rise = f'clip((t-{t0:.6f})/{fade_in:.6f},0,1)'
+        fall = f'clip(({t1:.6f}-t)/{fade_out:.6f},0,1)'
+        terms.append(f'min({rise},{fall})')
+    expr = terms[0]
+    for t in terms[1:]:
+        expr = f'max({expr},{t})'
+    return expr
+
+
+def music_chain(film, a, z, idx):
+    """The filter_complex statement for the film's music over frames a..z, input
+    `idx`, ducked under any sound when `Audio.duck_db` is set."""
+    au = film.audio
+    filt = audio_filters(film, a, z)
+    if au.duck_db and film.sounds:
+        envelope = duck_envelope_expr(film.sounds, film.fps, a)
+        gain_expr = f'pow(10,({au.duck_db}*({envelope}))/20)'
+        filt += f",volume=eval=frame:volume='{gain_expr}'"
+    return f'[{idx}:a]{filt}[music]', 'music'
+
+
+def sound_chain(sound, a, z, fps, idx):
+    """The filter_complex statement placing `sound` at its frame in a..z, input
+    `idx`; None when its span doesn't reach into a..z at all."""
+    ds, de = max(sound.at, a), min(sound.at + sound.frames, z)
+    if de <= ds:
+        return None
+    src_start = sound.start + (ds - sound.at) / fps
+    dur = (de - ds) / fps
+    delay_ms = round((ds - a) * 1000 / fps)
+    fades = []
+    if ds == sound.at and sound.fade_in_frames:
+        fades.append(f'afade=t=in:st=0:d={sound.fade_in_frames / fps:.6f}')
+    if de == sound.at + sound.frames and sound.fade_out_frames:
+        st = max(dur - sound.fade_out_frames / fps, 0)
+        fades.append(f'afade=t=out:st={st:.6f}:d={sound.fade_out_frames / fps:.6f}')
+    fade = (',' + ','.join(fades)) if fades else ''
+    label = f's{idx}'
+    chain = (f'[{idx}:a]atrim=start={src_start:.6f}:end={src_start + dur:.6f},asetpts=PTS-STARTPTS'
+             f'{fade},volume={sound.gain_db}dB,adelay={delay_ms}:all=1,'
+             f'apad,atrim=end={(z - a) / fps:.6f}[{label}]')
+    return chain, label
+
+
+def mix_graph(film, a, z, start_idx=0):
+    """(inputs, filter_complex graph, output label) mixing the film's music and
+    sounds over frames a..z, before any final gain and limiting. `start_idx` is
+    the ffmpeg input index of the first file this graph refers to (1 when a
+    video is `-i`'d first, as in the final render; 0 for a standalone measure)."""
+    au = film.audio
+    inputs, chains, labels = [], [], []
+    idx = start_idx
+    if au:
+        chain, label = music_chain(film, a, z, idx)
+        inputs.append(au.path), chains.append(chain), labels.append(label)
+        idx += 1
+    for s in film.sounds:
+        branch = sound_chain(s, a, z, film.fps, idx)
+        if branch is None:
+            continue
+        chain, label = branch
+        inputs.append(s.path), chains.append(chain), labels.append(label)
+        idx += 1
+    if not labels:
+        chains.append(f'anullsrc=channel_layout=stereo:sample_rate=48000,atrim=end={(z - a) / film.fps:.6f}[mix0]')
+        labels = ['mix0']
+    if len(labels) > 1:
+        joined = ''.join(f'[{l}]' for l in labels)
+        chains.append(f'{joined}amix=inputs={len(labels)}:normalize=0:dropout_transition=0[mix]')
+        mix_label = 'mix'
+    else:
+        mix_label = labels[0]
+    return inputs, ';'.join(chains), mix_label
 
 
 def check_chunk(chunk, fps):
@@ -166,7 +295,21 @@ def render(film, out, format=None, jobs=None, chunk=15, crf=18, frames=None, log
             fh.writelines(f"file '{t[2]}'\n" for t in tasks)
         cmd = ['ffmpeg', '-v', 'error', '-y', '-f', 'concat', '-safe', '0', '-i', listing]
         au = film.audio
-        if au:
+        if film.sounds:
+            ensure_has_audio(s.path for s in film.sounds)
+            graph_inputs, graph, label = mix_graph(film, a, z, start_idx=1)
+            target = au.loudness if au else DEFAULT_LOUDNESS
+            if target is not None:
+                # Measured over the whole film, so a partial render gets the same gain.
+                whole_inputs, whole_graph, whole_label = mix_graph(film, 0, film.frames)
+                gain = loudness_gain_graph(whole_inputs, whole_graph, whole_label, target)
+                suffix = limiter_suffix(gain)
+            else:
+                suffix = 'anull'
+            cmd += [f for p in graph_inputs for f in ('-i', p)]
+            cmd += ['-filter_complex', f'{graph};[{label}]{suffix}[a]',
+                    '-map', '0:v', '-map', '[a]', '-c:a', 'aac', '-b:a', '320k', '-ar', '48000']
+        elif au:
             filters = audio_filters(film, a, z)
             if au.loudness is not None:
                 # Measured over the whole film, so a partial render gets the same gain.

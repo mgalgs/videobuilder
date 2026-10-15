@@ -63,6 +63,12 @@ def as_format(f):
         raise ValueError(f'unknown format {f!r}; known: {", ".join(FORMATS)}') from None
 
 
+# The mix's default integrated-loudness target, shared by Audio.loudness (for a
+# film with music) and by a film with sounds but no music (which has no Audio to
+# carry an override): one knob, not two.
+DEFAULT_LOUDNESS = -14.0
+
+
 @dataclass
 class Audio:
     """A music track, muxed in by `render`.
@@ -74,12 +80,39 @@ class Audio:
     silent from the start of the last frame: gain 1 at frame `frames - 1 - k`
     and 0 at `frames - 1`. Remotion's `interpolate(f, [D - m, D - 1], [1, 0])`
     is `fade_out_frames=m - 1`.
+    `loudness`: when the film also has `sounds`, this is the target for the
+    whole mix (music plus sounds), not just the music.
+    `duck_db`: how far the music drops while any `Sound` plays (e.g. -12); 0
+    (the default) means no ducking. The drop ramps over a few frames at each
+    edge of a sound's span, as a gain envelope computed from the sounds'
+    spans, not a sidechain compressor reacting to the actual signal.
     """
     path: str
     trim_frames: int | None = None
     gain_db: float = 0.0
     fade_out_frames: int = 0
-    loudness: float | None = -14.0
+    loudness: float | None = DEFAULT_LOUDNESS
+    duck_db: float = 0.0
+
+
+@dataclass
+class Sound:
+    """Footage's own audio: a clip's sound, placed on the film's timeline
+    alongside the music (see `videobuilder.clip.footage` for building this and
+    its matching picture together from a timeline segment).
+
+    `at`: the film frame it starts on. `start`: seconds into the source file.
+    `frames`: its length in film frames; clipped to the film's own range.
+    `fade_in_frames`/`fade_out_frames`: a short linear ramp at each edge, so a
+    cut into or out of the sound doesn't click.
+    """
+    path: str
+    at: int
+    start: float
+    frames: int
+    gain_db: float = 0.0
+    fade_in_frames: int = 3
+    fade_out_frames: int = 3
 
 
 @dataclass
@@ -95,6 +128,7 @@ class Film:
     formats: tuple = ('16x9',)
     background: str | tuple | None = '#000000'
     audio: Audio | None = None
+    sounds: tuple = ()
     timeline: Timeline | None = None
     # Frames worth reviewing, as frame numbers or (frame, label) pairs: the
     # default frames of `sheet`, labelled. Checks can walk them too.
@@ -125,6 +159,13 @@ class Film:
         if self.audio is not None and self.audio.trim_frames is None:
             trim = self.timeline.grid.head_trim if self.timeline is not None else 0
             self.audio = replace(self.audio, trim_frames=trim)
+        clipped = []
+        for s in self.sounds:
+            a, z = max(0, s.at), min(self.frames, s.at + s.frames)
+            if z <= a:
+                continue
+            clipped.append(replace(s, at=a, start=s.start + (a - s.at) / self.fps, frames=z - a))
+        self.sounds = tuple(clipped)
 
     def format(self, name=None):
         """The `Format` called `name` (default: the film's first)."""

@@ -3,7 +3,7 @@ import tempfile
 import textwrap
 import unittest
 
-from videobuilder import FORMATS, Film, Format, Grid, Segment, Timeline, load
+from videobuilder import FORMATS, Audio, Film, Format, Grid, Segment, Sound, Timeline, load
 
 
 def noop(n, cv):
@@ -82,6 +82,29 @@ class Loading(unittest.TestCase):
                 fh.write(src.format(13))
             os.utime(p, ns=(st.st_atime_ns, st.st_mtime_ns))  # the edit lands within the same second
             self.assertEqual(load(p).frames, 13)
+
+
+class Sounds(unittest.TestCase):
+    def test_defaults(self):
+        s = Sound('x.wav', at=10, start=1.5, frames=20)
+        self.assertEqual((s.gain_db, s.fade_in_frames, s.fade_out_frames), (0, 3, 3))
+        self.assertEqual(Audio('x.wav').duck_db, 0)
+
+    def test_fully_inside_is_untouched(self):
+        film = Film(draw=noop, fps=30, frames=100, sounds=(Sound('x.wav', at=10, start=2.0, frames=20),))
+        self.assertEqual(film.sounds, (Sound('x.wav', at=10, start=2.0, frames=20),))
+
+    def test_clipped_to_the_films_range(self):
+        # Starts before frame 0: the head is cut, and the source start moves with it.
+        film = Film(draw=noop, fps=30, frames=50, sounds=(Sound('x.wav', at=-10, start=2.0, frames=20),))
+        self.assertEqual(film.sounds, (Sound('x.wav', at=0, start=2.0 + 10 / 30, frames=10),))
+        # Runs past the last frame: the tail is cut, the source start is untouched.
+        film = Film(draw=noop, fps=30, frames=15, sounds=(Sound('x.wav', at=10, start=2.0, frames=20),))
+        self.assertEqual(film.sounds, (Sound('x.wav', at=10, start=2.0, frames=5),))
+
+    def test_entirely_outside_is_dropped(self):
+        film = Film(draw=noop, fps=30, frames=10, sounds=(Sound('x.wav', at=20, start=0, frames=5),))
+        self.assertEqual(film.sounds, ())
 
 
 if __name__ == '__main__':
