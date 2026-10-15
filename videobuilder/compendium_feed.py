@@ -170,8 +170,8 @@ header h1{font-size:16px;margin:0;margin-right:auto}
 #feed{flex:1;min-height:0;overflow-y:auto;scroll-snap-type:y mandatory}
 .item{height:100%;scroll-snap-align:start;display:flex;flex-direction:column;
   align-items:center;justify-content:center;padding:16px;box-sizing:border-box;border-bottom:1px solid #141417}
-.item .player{position:relative;max-height:62%;max-width:92%;background:#000;border-radius:14px;overflow:hidden}
-.item video{display:block;max-height:62vh;max-width:92vw}
+.item .player{position:relative;flex:none;max-width:92%;background:#000;border-radius:14px;overflow:hidden}
+.item video{display:block;max-height:46vh;max-height:46dvh;max-width:92vw}
 .item .placeholder{width:280px;height:498px;background:#141417;display:flex;align-items:center;
   justify-content:center;color:#5a5d66;border-radius:14px}
 .item .meta{max-width:92vw;margin-top:14px;text-align:center}
