@@ -66,8 +66,13 @@ def _card(cv, d, side, page, accent, enter_f, shift=(0.0, 0.0)):
             cv.mark(f'kicker-{side}', *kb)
         if number is not None:
             p = _rise(enter_f, 1)
-            nf = kit.font(L['num'], 800, tracking=-0.04)
             label = f'{abs(round(number)):02d}'
+            # Glyph widths differ between hosts' fontconfig sans-serif; fit, don't assume.
+            size = L['num']
+            nf = kit.font(size, 800, tracking=-0.04)
+            while size > 48 and text.measure(label, nf) > s.w:
+                size -= 8
+                nf = kit.font(size, 800, tracking=-0.04)
             line_c = kit.mix(page, ink, 0.4)
             if L['num_at'] == 'top':
                 nb = u.outline_text(cv, label, nf, s.x - 4, s.y + 72 + (1 - p) * 60, line_c,
