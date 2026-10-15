@@ -33,6 +33,13 @@ docstring). A silent, empty exit 0 (pod or transcript not there yet) is not
 an error: it's reported back as no new bytes at the same file/offset. A
 non-cluster backend (no --k8s) never gets a `peek` attribute at all, so
 `hasattr(backend, 'peek')` is how a caller tells the two apart.
+
+ForkSandboxBackend also has `compendium_source(note)`, the pinned videobuilder's
+compendium directory if it has one, or None if context_root isn't configured or
+the pin predates the compendium -- NoteStore._submit calls it (via `getattr`,
+the same optional-attribute pattern as `peek`) to decide whether the builder's
+prompt gets the "Start from the compendium" section. Other backends simply
+don't have the attribute, which reads as "can't tell" there too.
 """
 import fcntl
 import json
@@ -114,7 +121,11 @@ class ForkSandboxBackend(AgentBackend):
         if '--k8s' in self.extra_args:
             self.peek = self._peek
 
-    def _context(self, note):
+    def _stage(self, note):
+        """Make sure note['project']'s pinned videobuilder version is cloned under
+        context_root, and return its directory (<context_root>/vNNN, holding a
+        `videobuilder` checkout). Idempotent: a second call for an already-staged
+        pin just checks the clone is there."""
         pin = pin_for(Path(note['project']) / note['film'], note['project'])
         if pin is None:
             raise ValueError('agent source staging needs a videobuilder requirements.txt pin')
@@ -131,12 +142,32 @@ class ForkSandboxBackend(AgentBackend):
                     if result.returncode:
                         raise ValueError('could not stage pinned videobuilder: ' + result.stderr.strip())
                     Path(temporary).rename(target)
+        return target
+
+    def _context(self, note):
+        target = self._stage(note)
         mount = self.context_mount or str(target)
         with open(note['note_file'], 'a', encoding='utf-8') as fh:
             fh.write(f"\nPinned videobuilder source: {mount}/videobuilder\n"
                      f"Use PYTHONPATH={mount}/videobuilder to render this video.\n"
                      f"Read {mount}/videobuilder/skill/make-a-video/SKILL.md.\n")
         return target
+
+    def compendium_source(self, note):
+        """Path to the staged pinned videobuilder's compendium package that this
+        note will render with, or None when there's nothing staged to check
+        (no context_root configured) or the pinned version predates the
+        compendium -- either way, "can't tell" rather than an error (see
+        NoteStore._submit, which calls this before the note's prompt is
+        written, well before this backend actually stages anything for real)."""
+        if not self.context_root:
+            return None
+        try:
+            target = self._stage(note)
+        except ValueError:
+            return None
+        compendium = target / 'videobuilder' / 'compendium'
+        return compendium if compendium.is_dir() else None
 
     def submit(self, note):
         context = self._context(note) if self.context_root else None

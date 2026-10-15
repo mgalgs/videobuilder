@@ -203,13 +203,18 @@ class NullBackend(AgentBackend):
 class NoteStore:
     """Notes on disk under `dir`, submitted to `backend` as they are added."""
 
-    def __init__(self, dir, backend=None, context=None, before_submit=None, on_reply=None, attachments=None):
+    def __init__(self, dir, backend=None, context=None, before_submit=None, on_reply=None, attachments=None,
+                compendium_for_builder=False, compendium_votes=None):
         self.dir = os.path.abspath(dir)
         self.backend = backend or NullBackend()
         self.lock = threading.RLock()
         self.video_locks = {}
         self.context = context or (lambda video: {})
         self.before_submit, self.on_reply, self.attachments = before_submit, on_reply, attachments
+        # compendium_for_builder is the [editor] kill switch for the bake-off (see
+        # prompt._compendium_lines); compendium_votes, when set, is a zero-arg callable
+        # returning {id: "up"|"down"} (see CompendiumVotes.current).
+        self.compendium_for_builder, self.compendium_votes = compendium_for_builder, compendium_votes
 
     def video_lock(self, video):
         with self.lock:
@@ -405,7 +410,11 @@ class NoteStore:
                 if image:
                     from .attachments import FRAME_NAME
                     image = '/attachments/' + FRAME_NAME
-            path.write_text(prompt.render(note, payload, image), encoding='utf-8')
+            compendium_source = getattr(self.backend, 'compendium_source', None) if self.compendium_for_builder else None
+            compendium = bool(compendium_source(payload)) if compendium_source else False
+            votes = self.compendium_votes() if compendium and self.compendium_votes else None
+            path.write_text(prompt.render(note, payload, image, compendium=compendium, votes=votes),
+                            encoding='utf-8')
             payload['note_file'] = str(path)
             note['handle'] = self.backend.submit(payload)
             note['started'] = time.time()

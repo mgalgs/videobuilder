@@ -121,6 +121,68 @@ class AgentSource(unittest.TestCase):
             pin.write_text('videobuilder==0.1.2\n')
             self.assertEqual(source_pin(pin, str(repo)), ('0.1.2', str(repo), 'v0.1.2'))
 
+class CompendiumSource(unittest.TestCase):
+    def _staged(self, base, version, with_compendium):
+        """A fake pinned videobuilder repo tagged `version`, with or without a
+        `compendium/` package at its root, plus a project pinned to it. Returns
+        (backend, payload) ready for backend.compendium_source(payload)."""
+        repo = base / f'videobuilder-{version}.git'
+        call(base, 'init', '--bare', '-q', str(repo))
+        src = base / f'src-{version}'
+        src.mkdir()
+        call(src, 'init', '-q')
+        call(src, 'config', 'user.name', 'Test')
+        call(src, 'config', 'user.email', 'test@example.com')
+        if with_compendium:
+            (src / 'compendium').mkdir()
+            (src / 'compendium' / '__init__.py').write_text('')
+        (src / 'README').write_text('seed')
+        call(src, 'add', '.')
+        call(src, 'commit', '-qm', 'source')
+        call(src, 'tag', version)
+        call(src, 'remote', 'add', 'origin', str(repo))
+        call(src, 'push', '-q', 'origin', version)
+        project = base / f'project-{version}'
+        (project / 'a').mkdir(parents=True)
+        (project / 'a' / 'film.py').write_text(FILM)
+        pin = project / 'a' / 'requirements.txt'
+        pin.write_text(f'videobuilder @ git+file://{repo}@{version}\n')
+        payload = dict(project=str(project), film='a/film.py', state_dir=str(base))
+        return payload
+
+    def test_present_when_the_staged_pin_has_a_compendium(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            base = Path(tmp)
+            payload = self._staged(base, 'v1.0.0', with_compendium=True)
+            with patch('videobuilder.agents.CONTEXT_STAGING_ROOT', base / 'forks'):
+                backend = ForkSandboxBackend(context_root=base / 'forks' / 'context')
+                result = backend.compendium_source(payload)
+            self.assertEqual(result, base / 'forks' / 'context' / 'v1.0.0' / 'videobuilder' / 'compendium')
+            self.assertTrue(result.is_dir())
+
+    def test_none_when_the_staged_pin_predates_the_compendium(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            base = Path(tmp)
+            payload = self._staged(base, 'v0.9.0', with_compendium=False)
+            with patch('videobuilder.agents.CONTEXT_STAGING_ROOT', base / 'forks'):
+                backend = ForkSandboxBackend(context_root=base / 'forks' / 'context')
+                self.assertIsNone(backend.compendium_source(payload))
+
+    def test_none_without_a_context_root_configured(self):
+        backend = ForkSandboxBackend()
+        self.assertIsNone(backend.compendium_source(dict(project='/nope', film='a/film.py', state_dir='/nope')))
+
+    def test_none_when_the_backend_cannot_stage_at_all(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            base = Path(tmp)
+            (base / 'project' / 'a').mkdir(parents=True)
+            (base / 'project' / 'a' / 'film.py').write_text(FILM)  # no requirements.txt pin
+            with patch('videobuilder.agents.CONTEXT_STAGING_ROOT', base / 'forks'):
+                backend = ForkSandboxBackend(context_root=base / 'forks' / 'context')
+                payload = dict(project=str(base / 'project'), film='a/film.py', state_dir=str(base))
+                self.assertIsNone(backend.compendium_source(payload))
+
+
 class DeploymentYaml(unittest.TestCase):
     def test_example_parses_and_is_restricted(self):
         try:

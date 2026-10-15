@@ -2,12 +2,37 @@
 import json
 
 
-def render(note, payload, image):
+def _compendium_lines(votes):
+    lines = ['## Start from the compendium', '',
+             'Before drawing a shot by hand, list the compendium: run `python -m videobuilder '
+             'compendium index --json` against this videobuilder and skim what is there. When a '
+             'component or recipe fits the note, fill its slots and glue it into the film the way '
+             '`recipes.py` and `catalog.py` do, instead of drawing it yourself. Draw by hand only '
+             'where nothing in the compendium fits, or where the note asks for something no '
+             'component does.']
+    if votes:
+        down = sorted(id for id, vote in votes.items() if vote == 'down')
+        up = sorted(id for id, vote in votes.items() if vote == 'up')
+        if down:
+            lines.append('Do not use: ' + ', '.join(down) + '.')
+        if up:
+            lines.append('Prefer these: ' + ', '.join(up) + '.')
+    lines.append('Name every compendium id you actually used as the last line of your commit '
+                 'message: `Compendium: <id>, <id>` (or `Compendium: none` if you drew everything '
+                 'by hand). Never mention components or ids anywhere in your reply to the director '
+                 '— that line is for the commit message only.')
+    return lines
+
+
+def render(note, payload, image, compendium=False, votes=None):
     """The exact text written to `<state>/sessions/<slug>/<note-id>.md`, the file
     the submitted payload's `note_file` points the builder at. `payload` is the
     note merged with its context and session fields (see NoteStore._submit);
     `image` is the frame path exposed to the runner (through /attachments), or
-    None.
+    None. `compendium` is whether this video's videobuilder has a compendium to
+    point the builder at; `votes` is {id: "up"|"down"} for its components and
+    recipes (only up/down -- see CompendiumVotes.current), or falsy for no
+    votes at all.
     """
     lines = ['# Review request', '', *([note['rejection']] if note.get('rejection') else []), note['text'], '']
     if note.get('time') is not None:
@@ -69,6 +94,8 @@ def render(note, payload, image):
               '"..."}]} ("kind" is "cannot" or "weak", "what" a short plain-language phrase '
               'naming the thing asked for, not the workaround; 1 to 5 of them), then a line '
               'containing only ```. Add this block only when a reply actually falls short.']
+    if compendium:
+        lines += ['', *_compendium_lines(votes)]
     lines += ['', '## Look at your work', '',
               'Before each distinct step of your work, write one line in your own message '
               'that starts with "Step: " and says what you are about to do and why, in plain '

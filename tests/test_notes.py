@@ -282,6 +282,65 @@ class Notes(unittest.TestCase):
         self.assertNotIn('questions', got)
 
 
+class CompendiumAgent(FakeAgent):
+    """A FakeAgent that can tell the note store what its staged source's
+    compendium directory is (or isn't) -- the optional-attribute interface
+    NoteStore._submit checks with getattr, same as ForkSandboxBackend's."""
+
+    def __init__(self, compendium_dir):
+        super().__init__()
+        self.compendium_dir = compendium_dir
+
+    def compendium_source(self, note):
+        return self.compendium_dir
+
+
+class CompendiumForBuilder(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.dir = Path(self.tmp.name, 'notes')
+
+    def tearDown(self):
+        self.tmp.cleanup()
+
+    def _md(self, store):
+        note = store.add('promo/film', '16x9', 0, None, 'Make it punchier', b'')
+        return (store.session_dir('promo/film') / (note['id'] + '.md')).read_text()
+
+    def test_section_appears_when_the_backend_has_a_compendium_and_the_switch_is_on(self):
+        agent = CompendiumAgent('/staged/videobuilder/compendium')
+        store = NoteStore(self.dir, agent, compendium_for_builder=True, compendium_votes=lambda: {'a': 'up'})
+        md = self._md(store)
+        self.assertIn('## Start from the compendium', md)
+        self.assertIn('Prefer these: a.', md)
+
+    def test_section_omitted_when_the_backend_cannot_tell(self):
+        store = NoteStore(self.dir, FakeAgent(), compendium_for_builder=True, compendium_votes=lambda: {'a': 'up'})
+        self.assertNotIn('Start from the compendium', self._md(store))
+
+    def test_section_omitted_when_the_backends_pin_predates_the_compendium(self):
+        store = NoteStore(self.dir, CompendiumAgent(None), compendium_for_builder=True,
+                          compendium_votes=lambda: {'a': 'up'})
+        self.assertNotIn('Start from the compendium', self._md(store))
+
+    def test_switch_off_omits_the_section_even_with_a_compendium(self):
+        agent = CompendiumAgent('/staged/videobuilder/compendium')
+        store = NoteStore(self.dir, agent, compendium_for_builder=False, compendium_votes=lambda: {'a': 'up'})
+        self.assertNotIn('Start from the compendium', self._md(store))
+
+    def test_default_is_off_with_no_explicit_switch(self):
+        store = NoteStore(self.dir, CompendiumAgent('/staged/videobuilder/compendium'))
+        self.assertNotIn('Start from the compendium', self._md(store))
+
+    def test_no_votes_configured_still_shows_the_section_without_vote_lines(self):
+        agent = CompendiumAgent('/staged/videobuilder/compendium')
+        store = NoteStore(self.dir, agent, compendium_for_builder=True)
+        md = self._md(store)
+        self.assertIn('Start from the compendium', md)
+        self.assertNotIn('Prefer these', md)
+        self.assertNotIn('Do not use', md)
+
+
 class Questions(unittest.TestCase):
     def test_a_valid_block_with_choice_and_free_text(self):
         reply = ('Here is a quick check.\n\n```questions\n' + json.dumps({'questions': [
