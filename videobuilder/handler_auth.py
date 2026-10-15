@@ -1,13 +1,20 @@
-"""Identity: the session cookie, git Basic auth, API keys, and the one
-resolver used for every `/v/<name>` route. See editor.py's module docstring
-for the precedence (hook -> git Basic/key -> Bearer key or session cookie
--> library routes)."""
+"""Identity: the session cookie, git Basic auth, API keys and the hook/
+vb_name fallback, all decided by the one resolver below, `resolve_identity`,
+for every route including git. Its precedence: hook() runs first in
+`LibraryHandler._handle` and can refuse the request outright (git included);
+then, for a `/git/...` route, Basic auth with a password or a `vbk_` key;
+then, for everything else, when the library has accounts and the route is
+not in OPEN_ROUTES, a Bearer key or the session cookie (judged alone -- a
+request carrying Authorization is never combined with a cookie); otherwise
+(no accounts, or an open route) the hook's value, falling back to the
+vb_name cookie."""
 import base64
 import re
 from http.cookies import SimpleCookie
-from urllib.parse import parse_qs, unquote
+from urllib.parse import parse_qs, unquote, urlparse
 
 from .editor import OPEN_ROUTES, HTTPError
+from .library import git_route
 from .pages import signin_page
 
 
@@ -27,10 +34,10 @@ def _attributed(username, key):
 
 class AuthHandler:
     def _identity(self, hook_identity):
-        # With accounts on, the session is the only source of identity: the hook's
-        # return value and the vb_name cookie are both ignored (see _handle).
-        if self.library and self.library.accounts:
-            return hook_identity
+        """The hook's value, falling back to the vb_name cookie. Used only by
+        resolve_identity, for the no-accounts (or open-route) case: with
+        accounts on, the session is the only source of identity, decided
+        there instead."""
         if hook_identity is not None:
             return hook_identity
         cookie = SimpleCookie()
@@ -74,14 +81,34 @@ class AuthHandler:
             return False
         return True
 
-    def resolve_identity(self, route, method, video_name, video_subroute, identity):
-        """Resolves the user and the attributed identity for a library request
-        (not a git one, handled earlier in `_handle`). Returns (user, identity),
-        or None if a sign-in page was already sent and there is nothing further
-        to do. With no accounts configured, returns (None, identity) unchanged:
-        every other identity source (the hook, vb_name) still applies via
-        `_identity`, called separately where a plain name is needed."""
+    def resolve_identity(self, route, method, video_name, video_subroute, hook_identity):
+        """Resolves the user, the attributed identity, and the key (if any)
+        for every request -- see the module docstring for the precedence.
+        Returns (user, identity, key), or None if a response (a git 401/404,
+        or a sign-in page) was already sent and there is nothing further to
+        do."""
+        if self.library and route.startswith('/git/'):
+            library = self.library
+            if not library.accounts:
+                return None, hook_identity, None
+            git_user = self._basic_auth_user(library.accounts)
+            if git_user is None:
+                self._send(401, b'', 'text/plain; charset=utf-8',
+                          {'WWW-Authenticate': 'Basic realm="videobuilder"'})
+                return None
+            parsed = git_route(route)
+            if parsed and not library.access.can_access(parsed[0], git_user, library.accounts):
+                self._json(404, {'error': 'repository not found'})
+                return None
+            if self._key and parsed:
+                if not _key_in_scope(self._key, parsed[0]):
+                    self._json(404, {'error': 'repository not found'})
+                    return None
+                if self._key['mode'] == 'read' and _git_is_push(parsed[1], urlparse(self.path).query):
+                    raise HTTPError(403, 'this key is read-only')
+            return git_user, _attributed(git_user, self._key), self._key
         user = None
+        identity = hook_identity
         if self.library and self.library.accounts:
             if route not in OPEN_ROUTES:
                 auth = self.headers.get('Authorization', '')
@@ -108,4 +135,6 @@ class AuthHandler:
                         return None
                     raise HTTPError(401, 'sign in required')
             identity = _attributed(user, self._key)
-        return user, identity
+        else:
+            identity = self._identity(hook_identity)
+        return user, identity, self._key

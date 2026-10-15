@@ -7,8 +7,7 @@ import traceback
 from urllib.parse import parse_qs, quote, unquote, urlparse
 
 from .editor import HTTPError, _field, _need
-from .handler_auth import _attributed, _git_is_push, _key_in_scope
-from .library import git_route, serve_git, valid_name
+from .library import serve_git, valid_name
 from .pages import account_page, signin_page, signup_page
 
 
@@ -46,20 +45,10 @@ class LibraryHandler:
             identity = self.hook(self)
             route = url.path
             if library and route.startswith('/git/'):
-                if library.accounts:
-                    git_user = self._basic_auth_user(library.accounts)
-                    if git_user is None:
-                        return self._send(401, b'', 'text/plain; charset=utf-8',
-                                          {'WWW-Authenticate': 'Basic realm="videobuilder"'})
-                    parsed = git_route(route)
-                    if parsed and not library.access.can_access(parsed[0], git_user, library.accounts):
-                        return self._json(404, {'error': 'repository not found'})
-                    if self._key and parsed:
-                        if not _key_in_scope(self._key, parsed[0]):
-                            return self._json(404, {'error': 'repository not found'})
-                        if self._key['mode'] == 'read' and _git_is_push(parsed[1], url.query):
-                            raise HTTPError(403, 'this key is read-only')
-                    identity = _attributed(git_user, self._key)
+                resolved = self.resolve_identity(route, method, None, None, identity)
+                if resolved is None:
+                    return
+                _, identity, _ = resolved
                 # Git POSTs use its own content types; the JSON and Origin rule is for browser edits.
                 if serve_git(self, library, method, identity):
                     return
@@ -75,7 +64,7 @@ class LibraryHandler:
             resolved = self.resolve_identity(route, method, video_name, video_subroute, identity)
             if resolved is None:
                 return
-            user, identity = resolved
+            user, identity, _ = resolved
             if route == '/api/name':
                 if library and library.accounts:
                     if method == 'GET':
@@ -83,7 +72,7 @@ class LibraryHandler:
                     self._body()
                     raise HTTPError(409, 'your name comes from your login')
                 if method == 'GET':
-                    return self._json(200, {'name': self._identity(identity)})
+                    return self._json(200, {'name': identity})
                 body = self._body()
                 name = _field(body, 'name', str).strip()
                 if not 1 <= len(name) <= 40 or any(ord(c) < 32 or ord(c) == 127 for c in name):
@@ -219,7 +208,7 @@ class LibraryHandler:
                                                    self.headers.get('Content-Type', ''), self.rfile.read(n))
                 self._json(201, record)
             else:
-                self._post(route, self._body(), self._identity(identity) or 'anonymous', active)
+                self._post(route, self._body(), identity or 'anonymous', active)
         except (BrokenPipeError, ConnectionResetError):
             pass
         except (ValueError, KeyError) as e:
