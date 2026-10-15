@@ -38,6 +38,17 @@ class StarterCardsOnPages(unittest.TestCase):
         self.assertIn('class="starters">', page)
         self.assertNotIn('starters hero', page)
 
+    def test_empty_library_leads_with_the_showcase_when_it_is_built(self):
+        page = pages.index([], True, 'dana', 'example.com', showcase=True).decode()
+        self.assertIn('id="showcase"', page)
+        self.assertLess(page.index('id="showcase"'), page.index('class="starters hero"'))
+        self.assertNotIn('autoplay', page)
+
+    def test_showcase_is_absent_once_a_video_exists_or_when_unbuilt(self):
+        with_video = pages.index([('acme/launch', True)], False, None, 'example.com', showcase=True).decode()
+        self.assertNotIn('id="showcase"', with_video)
+        self.assertNotIn('id="showcase"', pages.index([], False, None, 'example.com').decode())
+
     def test_new_video_page_has_all_six_cards_wired_to_their_prompt(self):
         page = pages.new_video_page(['acme/launch']).decode()
         for s in STARTERS:
@@ -87,6 +98,7 @@ class InlineScriptsParse(unittest.TestCase):
 
     def test_index_page_scripts_parse(self):
         self._check(pages.index([('acme/launch', True)], True, 'dana', 'example.com'))
+        self._check(pages.index([], True, 'dana', 'example.com', showcase=True))
 
     def test_new_video_page_scripts_parse(self):
         self._check(pages.new_video_page(['acme/launch']))

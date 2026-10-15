@@ -316,8 +316,32 @@ def _starter_section_html(hero, as_link):
            f'<div class="starter-grid">{cards}</div></section>')
 
 
-def index(names, accounts_enabled, user, host, scheme='http'):
-    """`names`: [(name, has_main), ...], already access-filtered and in order."""
+SHOWCASE_STYLE = (
+    '.showcase{margin:0 0 1.5rem}'
+    '.showcase h2{font-size:1rem;color:#a9a9b2;margin:0 0 .6rem;text-transform:none;letter-spacing:0}'
+    '.showcase video{display:block;width:100%;max-width:720px;max-height:70vh;border-radius:10px;'
+    'background:#0d0d10;cursor:pointer}'
+    '.showcase p{font-size:.85rem;color:#a9a9b2;margin:.5rem 0 0}'
+)
+
+
+def _showcase_section_html():
+    # The 9:16 cut for portrait screens is picked in JS, not with <source media>,
+    # which older Safari and Firefox ignore.
+    return ('<section class="showcase" aria-label="Showcase"><h2>What it can make</h2>'
+            '<video id="showcase" poster="/capabilities/showcase-16x9.jpg" muted playsinline loop '
+            'preload="none" aria-label="Showcase: every capability in one film"></video>'
+            '<p>Tap to play. Every shot is something the builder can do for you; '
+            '<a href="/capabilities">see them one by one</a>.</p></section>'
+            '<script>(()=>{const v=document.getElementById("showcase");'
+            'const f=matchMedia("(orientation:portrait)").matches?"showcase-9x16":"showcase-16x9";'
+            'v.poster="/capabilities/"+f+".jpg";v.src="/capabilities/"+f+".mp4";'
+            'v.onclick=()=>{if(v.paused)v.play().catch(()=>{});else v.pause()}})()</script>')
+
+
+def index(names, accounts_enabled, user, host, scheme='http', showcase=False):
+    """`names`: [(name, has_main), ...], already access-filtered and in order.
+    `showcase`: the reel is built, so a library with no videos leads with it."""
     groups = {}
     for name, _ in names:
         namespace = name.split('/')[0] if '/' in name else 'Videos'
@@ -349,6 +373,8 @@ def index(names, accounts_enabled, user, host, scheme='http'):
             body = (f'<p>No videos shared with you yet — ask the owner to invite '
                     f'<strong>{html.escape(user)}</strong>.</p>')
     starters = _starter_section_html(hero, as_link=True)
+    if hero and showcase:
+        starters = _showcase_section_html() + starters
     new_video = '<a class="btn btn-primary new-video" href="/new">+ New video</a>' if can_create else ''
     script = ('<script>'
               'for(const b of document.querySelectorAll(".lib-copy"))b.onclick=async()=>{'
@@ -359,7 +385,7 @@ def index(names, accounts_enabled, user, host, scheme='http'):
               'location.href="/login"};</script>')
     return ('<!doctype html><html><head><meta charset="utf-8"><title>Video library</title>'
             '<meta name="viewport" content="width=device-width, initial-scale=1">'
-            '<style>' + LIBRARY_STYLE + STARTER_STYLE + '</style>'
+            '<style>' + LIBRARY_STYLE + STARTER_STYLE + SHOWCASE_STYLE + '</style>'
             '</head><body><div class="lib-page">' + account_bar +
             '<header class="lib-header"><h1>Video library</h1>' + new_video +
             '<a class="caps-link" href="/capabilities">Capabilities</a></header>' +

@@ -201,7 +201,9 @@ class Library:
         names = self.names()
         if self.accounts:
             names = [n for n in names if self.access.can_access(n, user, self.accounts)]
-        return pages.index([(n, self.has_main(n)) for n in names], self.accounts is not None, user, host, scheme)
+        from .capabilities import showcase_available
+        return pages.index([(n, self.has_main(n)) for n in names], self.accounts is not None, user, host, scheme,
+                           showcase=showcase_available(self.capabilities_dir))
 
     def new_video_page(self, names=None):
         return pages.new_video_page(names if names is not None else self.names())
