@@ -49,7 +49,9 @@ class DirectorPageRoutes(API):
                     'videos/first-note'}
         # Dynamic attachment and draft actions have their own router patterns.
         self.assertTrue(paths - {'attachments/', 'draft/'} <= expected, paths - expected)
-        router = (PKG / 'editor.py').read_text()
+        # The route literals live wherever make_handler's pieces do now, not all in editor.py.
+        router = ''.join((PKG / name).read_text() for name in
+                         ('editor.py', 'handler_library.py', 'video_api.py'))
         for path in paths - {'attachments/', 'draft/'}:
             self.assertIn("'/api/" + path + "'", router, path)
         self.assertIn("api('attachments/'", js)

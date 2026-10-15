@@ -1,0 +1,339 @@
+"""The per-video `/api/...` routes: a GET table and a POST table, each a list
+of (pattern, handler) walked in order. A pattern is a literal route string,
+a tuple of literal routes, or a compiled regex matched with `.fullmatch`
+(its capture groups are passed to the handler). Order matters no less than
+it did in the original if-chain: keep it exactly as found there."""
+import os
+import re
+from importlib import resources
+from urllib.parse import unquote
+
+from .attachments import TYPES
+from .editor import HTTPError, _field, _need, _page
+from .gitutil import git
+from .music import FetchError, TooLarge, extension_for, fetch_binary
+from .notes import FINAL
+from .transcript import feed_source, read_feed
+from .versions import Refused
+
+
+def _match(route, pattern):
+    if isinstance(pattern, str):
+        return () if route == pattern else None
+    if isinstance(pattern, tuple):
+        return () if route in pattern else None
+    m = pattern.fullmatch(route)
+    return m.groups() if m else None
+
+
+def _get_healthz(self, route, q, editor, user):
+    from . import __version__
+    return self._send(200, ('ok ' + __version__).encode(), 'text/plain; charset=utf-8')
+
+
+def _get_index(self, route, q, editor, user):
+    return self._send(200, _page(), 'text/html; charset=utf-8')
+
+
+def _get_static(self, route, q, editor, user):
+    kind = ('text/html; charset=utf-8' if route.endswith('.html')
+           else 'text/javascript; charset=utf-8' if route.endswith('.js') else 'text/css; charset=utf-8')
+    return self._send(200, resources.files(__package__).joinpath(route[1:]).read_bytes(), kind)
+
+
+def _get_versions(self, route, q, editor, user):
+    editor.main_moved()
+    try:
+        return self._json(200, editor.versions.history(_need(q, 'video'), int(q.get('limit', 50)), q.get('before')))
+    except ValueError as exc:
+        raise HTTPError(400, str(exc)) from None
+
+
+def _get_video(self, route, q, editor, user):
+    editor.main_moved()
+    video = _need(q, 'video')
+    editor.project.video(video)
+    sha = q.get('commit') or git(editor.root, 'rev-parse', 'main')
+    if sha not in git(editor.root, 'rev-list', '--first-parent', 'main').splitlines():
+        raise HTTPError(400, 'commit is not on main')
+    formats = [f['name'] for f in editor.info(video)['formats']]
+    fmt = q.get('format') or formats[0]
+    if fmt not in formats:
+        raise HTTPError(400, 'unknown format')
+    state = editor.renders.request(video, sha, fmt)
+    if state['state'] == 'failed':
+        return self._json(500, {'error': state['error'], 'log': state['log']})
+    if state['state'] != 'ready':
+        return self._json(202, {'state': state['state'], 'position': state['position']})
+    data = editor.renders.path(video, sha, fmt).read_bytes()
+    headers = {'Accept-Ranges': 'bytes', 'ETag': f'"{sha}-{fmt}"'}
+    return self._send_ranged(data, 'video/mp4', headers)
+
+
+def _get_capabilities(self, route, q, editor, user):
+    from . import __version__, capabilities
+    return self._send(200, capabilities.page_html(editor.capabilities_dir, __version__), 'text/html; charset=utf-8')
+
+
+def _get_capability_clip(self, route, q, editor, user, cap_id, kind):
+    from . import capabilities
+    path = capabilities.clip_file(editor.capabilities_dir, cap_id, kind)
+    if path is None or not os.path.isfile(path):
+        raise HTTPError(404, 'capability clip not built')
+    data = open(path, 'rb').read()
+    if kind == 'mp4':
+        return self._send_ranged(data, 'video/mp4', {'Accept-Ranges': 'bytes'})
+    return self._send(200, data, 'image/jpeg')
+
+
+def _get_attachment(self, route, q, editor, user, attachment_id):
+    try:
+        meta, path = editor.attachments.get(attachment_id)
+    except KeyError:
+        raise HTTPError(404, 'attachment not found') from None
+    inline = meta['type'].startswith(('image/', 'video/', 'audio/'))
+    return self._send(200, path.read_bytes(), meta['type'],
+                      {'Content-Security-Policy': 'sandbox',
+                       'Content-Disposition': ('inline' if inline else 'attachment') +
+                       '; filename="' + meta['name'] + '"'})
+
+
+def _get_music_sources(self, route, q, editor, user):
+    return self._json(200, editor.music.list_sources() if editor.music else [])
+
+
+def _get_music_tracks(self, route, q, editor, user):
+    if not editor.music:
+        raise HTTPError(404, 'no music sources configured')
+    try:
+        source, tracks = editor.music.list_tracks(_need(q, 'source'))
+    except KeyError:
+        raise HTTPError(404, 'unknown music source') from None
+    except FetchError as exc:
+        raise HTTPError(502, str(exc)) from None
+    return self._json(200, {'source': {'id': source.id, 'name': source.name, 'license': source.license},
+                            'tracks': tracks})
+
+
+def _get_draft(self, route, q, editor, user):
+    return self._json(200, editor.drafts.details(_need(q, 'video')))
+
+
+def _get_draft_preview(self, route, q, editor, user):
+    op = route.rsplit('/', 1)[1]
+    data = editor.drafts.preview(_need(q, 'video'), op, q)
+    return self._send(200, data, 'application/json' if op == 'info' else 'image/png')
+
+
+def _get_project(self, route, q, editor, user):
+    info = editor.project_info()
+    if self.library and self.library.accounts:
+        info['user'] = user
+    return self._json(200, info)
+
+
+def _get_info(self, route, q, editor, user):
+    return self._json(200, editor.info(_need(q, 'video')))
+
+
+def _get_frame(self, route, q, editor, user):
+    s = editor.session(_need(q, 'video'))
+    try:
+        png = s.request('frame', frame=int(q.get('frame', 0)), format=q.get('format') or None,
+                        scale=float(q.get('scale', 0.5)), overlay=q.get('overlay') in ('1', 'true'))
+    except ValueError as e:
+        raise HTTPError(400, str(e)) from None
+    return self._send(200, png, 'image/png')
+
+
+def _get_notes(self, route, q, editor, user):
+    return self._json(200, {'notes': editor.notes.list(q.get('video'))})
+
+
+def _get_note_log(self, route, q, editor, user, note_id):
+    nid = unquote(note_id)
+    try:
+        note = editor.notes.get(nid)
+    except KeyError:
+        raise HTTPError(404, f'no note {nid!r}') from None
+    try:
+        after = max(0, int(q.get('after', 0)))
+    except ValueError:
+        raise HTTPError(400, 'after must be an integer') from None
+    show_cost = not (self.library and self.library.accounts) or self.library.accounts.is_admin(user)
+    peek = editor.notes.backend.peek if note['state'] == 'working' and hasattr(editor.notes.backend, 'peek') else None
+    source = feed_source(note.get('handle'))
+    entries = read_feed(note.get('handle'), editor.root, show_cost, peek)
+    # The live feed is not a prefix of the collected one (peek can miss
+    # lines), so a client whose cursor counted the other source restarts.
+    reset = q.get('source', source) != source
+    if reset:
+        after = 0
+    return self._json(200, {'entries': entries[after:], 'next': len(entries),
+                            'done': note['state'] in FINAL, 'source': source,
+                            'reset': reset})
+
+
+def _get_note(self, route, q, editor, user, note_id, png_suffix):
+    nid = unquote(note_id)
+    try:
+        if png_suffix:
+            return self._send(200, editor.notes.image(nid), 'image/png')
+        return self._json(200, editor.notes.current(nid))
+    except KeyError:
+        raise HTTPError(404, f'no note {nid!r}') from None
+
+
+GET_ROUTES = [
+    ('/healthz', _get_healthz),
+    (('/', '/index.html'), _get_index),
+    (('/tuning.html', '/director.js', '/director.css'), _get_static),
+    ('/api/versions', _get_versions),
+    ('/api/video', _get_video),
+    ('/capabilities', _get_capabilities),
+    (re.compile(r'/capabilities/([a-z][a-z0-9-]*)\.(mp4|jpg)'), _get_capability_clip),
+    (re.compile(r'/api/attachments/([0-9a-f]+)'), _get_attachment),
+    ('/api/music/sources', _get_music_sources),
+    ('/api/music/tracks', _get_music_tracks),
+    ('/api/draft', _get_draft),
+    (('/api/draft/info', '/api/draft/frame'), _get_draft_preview),
+    ('/api/project', _get_project),
+    ('/api/info', _get_info),
+    ('/api/frame', _get_frame),
+    ('/api/notes', _get_notes),
+    (re.compile(r'/api/notes/([^/]+)/log'), _get_note_log),
+    (re.compile(r'/api/notes/([^/]+?)(\.png)?'), _get_note),
+]
+
+
+def _post_video_retry(self, route, body, identity, editor):
+    video = _field(body, 'video', str)
+    sha = _field(body, 'commit', str)
+    fmt = _field(body, 'format', str)
+    editor.project.video(video)
+    if sha not in git(editor.root, 'rev-list', '--first-parent', 'main').splitlines():
+        raise HTTPError(400, 'commit is not on main')
+    if fmt not in [f['name'] for f in editor.info(video)['formats']]:
+        raise HTTPError(400, 'unknown format')
+    return self._json(202, editor.renders.retry(video, sha, fmt))
+
+
+def _post_versions_restore(self, route, body, identity, editor):
+    try:
+        return self._json(200, editor.versions.restore(_field(body, 'video', str),
+                                                        _field(body, 'commit', str), identity))
+    except ValueError as exc:
+        raise HTTPError(400, str(exc)) from None
+
+
+def _post_upgrade(self, route, body, identity, editor):
+    try:
+        return self._json(200, editor.versions.upgrade(_field(body, 'video', str), identity))
+    except Refused as exc:
+        raise HTTPError(409, str(exc)) from None
+
+
+def _post_draft_action(self, route, body, identity, editor):
+    action = getattr(editor.drafts, route.rsplit('/', 1)[1])
+    return self._json(200, action(_field(body, 'video', str), identity))
+
+
+def _post_music_attach(self, route, body, identity, editor):
+    if not editor.music:
+        raise HTTPError(404, 'no music sources configured')
+    video = _field(body, 'video', str)
+    editor.project.video(video)
+    try:
+        source, track = editor.music.track(_field(body, 'source', str), _field(body, 'track', str))
+    except KeyError:
+        raise HTTPError(404, 'unknown music source') from None
+    except FetchError as exc:
+        raise HTTPError(502, str(exc)) from None
+    if track is None:
+        raise HTTPError(404, 'unknown track') from None
+    try:
+        data, content_type = fetch_binary(track['audio_url'], editor.attachments.max_file)
+    except TooLarge:
+        raise HTTPError(413, 'attachment exceeds file size limit') from None
+    except FetchError as exc:
+        raise HTTPError(502, f'could not fetch track audio: {exc}') from None
+    ext = extension_for(content_type, track['audio_url'])
+    if ext is None:
+        raise HTTPError(400, 'unsupported audio type for this track')
+    try:
+        record = editor.attachments.upload(video, f"{track['title']}.{ext}", TYPES[ext], data)
+    except ValueError as exc:
+        raise HTTPError(400, str(exc)) from None
+    return self._json(201, record)
+
+
+def _post_edit(self, route, body, identity, editor):
+    return self._json(200, editor.edit(_field(body, 'video', str), route[5:], body, identity))
+
+
+def _post_notes(self, route, body, identity, editor):
+    return self._json(200, editor.add_note(body, identity))
+
+
+def _post_first_note(self, route, body, identity, editor):
+    return self._json(200, editor.start_video(body, identity))
+
+
+def _post_note_delete(self, route, body, identity, editor, note_id):
+    try:
+        editor.notes.delete(unquote(note_id))
+    except KeyError:
+        raise HTTPError(404, f'no note {note_id!r}') from None
+    return self._json(200, {'deleted': note_id})
+
+
+def _post_note_retry(self, route, body, identity, editor, note_id):
+    try:
+        return self._json(200, editor.notes.retry(unquote(note_id), identity))
+    except KeyError:
+        raise HTTPError(404, f'no note {note_id!r}') from None
+
+
+def _post_note_answer(self, route, body, identity, editor, note_id):
+    build = body.get('build') is True
+    answers = body.get('answers')
+    if not build and (not isinstance(answers, list) or not all(isinstance(a, str) for a in answers)):
+        raise HTTPError(400, 'answers must be a list of strings')
+    try:
+        return self._json(200, editor.notes.answer(unquote(note_id), build,
+                                                   None if build else answers, identity))
+    except KeyError:
+        raise HTTPError(404, f'no note {note_id!r}') from None
+    except ValueError as exc:
+        raise HTTPError(409, str(exc)) from None
+
+
+POST_ROUTES = [
+    ('/api/video/retry', _post_video_retry),
+    ('/api/versions/restore', _post_versions_restore),
+    ('/api/upgrade', _post_upgrade),
+    (('/api/draft/accept', '/api/draft/drop'), _post_draft_action),
+    ('/api/music/attach', _post_music_attach),
+    (('/api/roll', '/api/copy', '/api/undo'), _post_edit),
+    ('/api/notes', _post_notes),
+    ('/api/videos/first-note', _post_first_note),
+    (re.compile(r'/api/notes/([^/]+)/delete'), _post_note_delete),
+    (re.compile(r'/api/notes/([^/]+)/retry'), _post_note_retry),
+    (re.compile(r'/api/notes/([^/]+)/answer'), _post_note_answer),
+]
+
+
+class VideoAPIHandler:
+    def _get(self, route, q, editor, user=None):
+        for pattern, handler in GET_ROUTES:
+            groups = _match(route, pattern)
+            if groups is not None:
+                return handler(self, route, q, editor, user, *groups)
+        raise HTTPError(404, 'not found')
+
+    def _post(self, route, body, identity, editor):
+        for pattern, handler in POST_ROUTES:
+            groups = _match(route, pattern)
+            if groups is not None:
+                return handler(self, route, body, identity, editor, *groups)
+        raise HTTPError(404, 'not found')
