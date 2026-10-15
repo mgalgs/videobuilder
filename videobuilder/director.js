@@ -1524,6 +1524,8 @@ async function checkEditorVersion() {
   }
 }
 setInterval(checkEditorVersion,60000);
+// A sign-in window beside this one never hides it, so focus must also wake it.
+window.addEventListener('focus', resumeFromSignedOut);
 document.addEventListener('visibilitychange', () => {
   if (document.hidden) {
     state.resumeOnVisible=!player.paused;
