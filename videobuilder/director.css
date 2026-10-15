@@ -1263,6 +1263,154 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible {
   font-weight: 700;
 }
 
+#source-list {
+  padding: 16px 16px 0;
+}
+
+.source-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: #1d1d22;
+  border: 1px solid #2c2c33;
+  border-radius: 12px;
+  padding: 8px 10px;
+}
+
+.source-poster {
+  flex: none;
+  width: 56px;
+  height: 56px;
+  border-radius: 8px;
+  background: #000;
+  object-fit: cover;
+}
+
+.source-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.source-name {
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.source-meta {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.source-delete {
+  flex: none;
+  min-height: 44px;
+  padding: 0 12px;
+  border: 1px solid #4a4a52;
+  border-radius: 16px;
+  background: transparent;
+  color: #ffb4ad;
+  font-size: 12px;
+}
+
+.source-empty {
+  color: var(--muted);
+  font-size: 13px;
+  margin: 0;
+}
+
+.source-pending {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 16px 0;
+}
+
+.source-caption-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+#source-caption-button {
+  min-height: 44px;
+  padding: 0 14px;
+  border: 1px solid #34343c;
+  border-radius: 18px;
+  background: #1d1d22;
+  color: #fff;
+}
+
+#source-caption-name {
+  font-size: 12px;
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+
+.source-progress {
+  position: relative;
+  height: 28px;
+  border-radius: 14px;
+  background: #1d1d22;
+  overflow: hidden;
+}
+
+#source-upload-fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 0;
+  background: var(--accent);
+}
+
+#source-upload-label {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+#sources-view .composer-row {
+  padding: 12px 16px 16px;
+}
+
+#source-player {
+  width: 100%;
+  max-height: 50vh;
+  background: #000;
+}
+
+.source-player-marks {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px 0;
+  font-size: 13px;
+}
+
+.source-player-marks button {
+  min-height: 40px;
+  padding: 0 12px;
+  border: 1px solid #34343c;
+  border-radius: 16px;
+  background: #1d1d22;
+  color: #fff;
+}
+
+.source-player-marks span {
+  color: var(--muted);
+}
+
+#source-player-name {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
 @media (max-width:700px) {
   .desktop-only {
     display: none !important;

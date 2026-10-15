@@ -34,7 +34,10 @@ const state = {
   musicTracks: [],
   musicPlayingId: null,
   steps: {},
-  pendingAnswers: {}
+  pendingAnswers: {},
+  sources: [],
+  sourcePending: null,
+  sourcePlayer: null
 };
 const player = $('player');
 const timeLabel = s => {
@@ -341,17 +344,19 @@ function setPlayState(mode) {
 }
 function setView(view) {
   state.view=view;
-  for(const name of ['chat','versions','tune','share'])$(name+'-view').hidden=name!==view;
+  for(const name of ['chat','versions','tune','sources','share'])$(name+'-view').hidden=name!==view;
   $('sheet-title').textContent= {
-    chat:'Builder chat',versions:'Versions',tune:'Fine tuning',share:'Share'
+    chat:'Builder chat',versions:'Versions',tune:'Fine tuning',sources:'Sources',share:'Share'
   }
   [view];
   $('tab-chat').classList.toggle('active',view==='chat');
   $('tab-versions').classList.toggle('active',view==='versions');
+  $('tab-sources').classList.toggle('active',view==='sources');
   $('tab-share').classList.toggle('active',view==='share');
   $('panel').dataset.view=view;
   if(view==='tune')openTuning('phone-tune-body');
   if(view==='versions')loadVersions();
+  if(view==='sources')loadSources();
   if(view==='share')loadAccess()
 }
 function openSheet(view) {
@@ -1021,6 +1026,235 @@ $('music-preview').onplay=$('music-preview').onpause=$('music-preview').onended=
   if($('music-preview').paused)state.musicPlayingId=null;
   if(!$('music-dialog').hidden)renderMusicList()
 };
+// ---- Source videos: upload, list, pick a span, delete ----
+// m:ss, or h:mm:ss past an hour -- distinct from timeLabel, which never shows hours.
+function sourceClock(seconds) {
+  seconds=Math.max(0,Math.floor(seconds||0));
+  const h=Math.floor(seconds/3600),m=Math.floor((seconds%3600)/60),s=seconds%60;
+  return (h?`${h}:${String(m).padStart(2,'0')}`:`${m}`)+':'+String(s).padStart(2,'0')
+}
+function sourceUrl(name) {
+  return api('sources/'+encodeURIComponent(name), {
+    video:state.video
+  })
+}
+async function loadSources() {
+  try {
+    const data=await json('sources', {
+      video:state.video
+    });
+    state.sources=data.sources;
+    $('source-error').hidden=true;
+    renderSources()
+  }
+  catch(e) {
+    $('source-error').textContent=e.message;
+    $('source-error').hidden=false
+  }
+}
+function renderSources() {
+  const list=$('source-list');
+  list.replaceChildren();
+  for(const s of state.sources) {
+    const row=node('div','source-row');
+    const poster=document.createElement('video');
+    poster.className='source-poster';
+    poster.muted=true;
+    poster.playsInline=true;
+    poster.preload='metadata';
+    poster.src=sourceUrl(s.name)+'#t=0.1';
+    row.append(poster);
+    const info=node('div','source-info');
+    info.append(node('span','source-name',s.name));
+    const meta=[sourceClock(s.duration)];
+    if(s.width&&s.height)meta.push(`${s.width}×${s.height}`);
+    meta.push(s.has_audio?'audio':'no audio');
+    if(s.caption)meta.push('caption');
+    info.append(node('span','source-meta',meta.join(' · ')));
+    row.append(info);
+    const del=node('button','source-delete','Delete');
+    del.setAttribute('aria-label','Delete '+s.name);
+    del.onclick=e=> {
+      e.stopPropagation();
+      confirmDeleteSource(del,s.name)
+    };
+    row.append(del);
+    row.onclick=()=>openSourcePlayer(s);
+    list.append(row)
+  }
+  if(!state.sources.length)list.append(node('p','source-empty','No source videos yet.'))
+}
+let deleteConfirmTimer=null;
+function confirmDeleteSource(button,name) {
+  if(button.dataset.confirm) {
+    deleteSource(name);
+    return
+  }
+  button.dataset.confirm='1';
+  button.textContent='Really delete?';
+  clearTimeout(deleteConfirmTimer);
+  deleteConfirmTimer=setTimeout(()=> {
+    button.dataset.confirm='';
+    button.textContent='Delete'
+  },3000)
+}
+async function deleteSource(name) {
+  try {
+    await json('sources/'+encodeURIComponent(name)+'/delete',null, {
+      video:state.video
+    });
+    await loadSources()
+  }
+  catch(e) {
+    $('source-error').textContent=e.message;
+    $('source-error').hidden=false
+  }
+}
+function xhrUpload(path,params,file,onProgress) {
+  return new Promise((resolve,reject)=> {
+    const xhr=new XMLHttpRequest();
+    xhr.open('POST',api(path,params));
+    xhr.setRequestHeader('Content-Type',file.type||'application/octet-stream');
+    xhr.upload.onprogress=e=> {
+      if(e.lengthComputable)onProgress(e.loaded/e.total)
+    };
+    xhr.onload=()=> {
+      let data=null;
+      try {
+        data=JSON.parse(xhr.responseText)
+      } catch (_) {
+      }
+      if(xhr.status>=200&&xhr.status<300&&data)resolve(data);
+      else reject(Error((data&&(data.error||data.log))||`upload failed (HTTP ${xhr.status})`))
+    };
+    xhr.onerror=()=>reject(Error('upload failed: a network error interrupted it'));
+    xhr.send(file)
+  })
+}
+$('source-add-button').onclick=()=>$('source-file-picker').click();
+$('source-file-picker').onchange=e=> {
+  const file=e.target.files[0];
+  e.target.value='';
+  if(!file)return;
+  state.sourcePending= {
+    file,captionFile:null
+  };
+  $('source-name').value=file.name.replace(/\.[^.]+$/,'');
+  $('source-caption-name').textContent='';
+  $('source-upload-progress').hidden=true;
+  $('source-upload-fill').style.width='0%';
+  $('source-pending').hidden=false;
+  $('source-error').hidden=true
+};
+$('source-caption-button').onclick=()=>$('source-caption-picker').click();
+$('source-caption-picker').onchange=e=> {
+  const file=e.target.files[0];
+  e.target.value='';
+  if(!file||!state.sourcePending)return;
+  state.sourcePending.captionFile=file;
+  $('source-caption-name').textContent=file.name
+};
+$('source-cancel').onclick=()=> {
+  state.sourcePending=null;
+  $('source-pending').hidden=true
+};
+async function uploadCaption(name,file) {
+  const r=await fetch(api('sources/'+encodeURIComponent(name)+'/caption', {
+    video:state.video,filename:file.name
+  }), {
+    method:'POST',headers: {
+      'Content-Type':file.type||'text/vtt'
+    },body:file
+  });
+  const data=await parseJSON(r);
+  if(!r.ok)throw httpError(r,data)
+}
+$('source-upload-button').onclick=async()=> {
+  const pending=state.sourcePending;
+  if(!pending)return;
+  const name=$('source-name').value.trim();
+  $('source-error').hidden=true;
+  $('source-upload-progress').hidden=false;
+  $('source-upload-button').disabled=true;
+  try {
+    const params= {
+      video:state.video,filename:pending.file.name,...(name? {
+        name
+      }:{
+      })
+    };
+    const record=await xhrUpload('sources',params,pending.file,frac=> {
+      $('source-upload-fill').style.width=`${Math.round(frac*100)}%`;
+      $('source-upload-label').textContent=`Uploading… ${Math.round(frac*100)}%`
+    });
+    if(pending.captionFile)await uploadCaption(record.name,pending.captionFile);
+    state.sourcePending=null;
+    $('source-pending').hidden=true;
+    await loadSources()
+  }
+  catch(e) {
+    $('source-error').textContent=e.message;
+    $('source-error').hidden=false
+  }
+  finally {
+    $('source-upload-button').disabled=false
+  }
+};
+function updateAddToNoteEnabled() {
+  const sp=state.sourcePlayer;
+  $('source-add-to-note').disabled=!(sp&&sp.start!=null&&sp.end!=null)
+}
+function openSourcePlayer(source) {
+  state.sourcePlayer= {
+    name:source.name,start:null,end:null
+  };
+  $('source-player-name').textContent=source.name;
+  $('source-player').src=sourceUrl(source.name);
+  $('source-start-label').textContent='–';
+  $('source-end-label').textContent='–';
+  $('source-player-error').hidden=true;
+  updateAddToNoteEnabled();
+  $('source-player-dialog').hidden=false;
+  $('source-player-shade').hidden=false
+}
+function closeSourcePlayer() {
+  $('source-player-dialog').hidden=true;
+  $('source-player-shade').hidden=true;
+  $('source-player').pause();
+  $('source-player').removeAttribute('src');
+  $('source-player').load();
+  state.sourcePlayer=null
+}
+$('source-mark-start').onclick=()=> {
+  const sp=state.sourcePlayer;
+  if(!sp)return;
+  sp.start=$('source-player').currentTime;
+  $('source-start-label').textContent=sourceClock(sp.start);
+  updateAddToNoteEnabled()
+};
+$('source-mark-end').onclick=()=> {
+  const sp=state.sourcePlayer;
+  if(!sp)return;
+  sp.end=$('source-player').currentTime;
+  $('source-end-label').textContent=sourceClock(sp.end);
+  updateAddToNoteEnabled()
+};
+function insertAtCursor(el,text) {
+  const start=el.selectionStart??el.value.length,end=el.selectionEnd??el.value.length;
+  el.value=el.value.slice(0,start)+text+el.value.slice(end);
+  const pos=start+text.length;
+  el.selectionStart=el.selectionEnd=pos;
+  el.focus()
+}
+$('source-add-to-note').onclick=()=> {
+  const sp=state.sourcePlayer;
+  if(!sp||sp.start==null||sp.end==null)return;
+  const [a,b]=sp.start<=sp.end?[sp.start,sp.end]:[sp.end,sp.start];
+  insertAtCursor($('message'),`use ${sourceClock(a)}–${sourceClock(b)} from ${sp.name} `);
+  closeSourcePlayer()
+};
+$('source-player-close').onclick=closeSourcePlayer;
+$('source-player-shade').onclick=closeSourcePlayer;
 // Notes the director has written but not sent: kept in this browser, per video,
 // so they survive a reload. Not the "queued" note state, which is sent and waiting.
 // ---- Pending notes: drafted locally, batched before sending ----
@@ -1437,6 +1671,8 @@ $('share-invite').onclick=()=> {
 };
 $('tab-share').onclick=()=>setView('share');
 $('rail-share').onclick=()=>openSheet('share');
+$('tab-sources').onclick=()=>setView('sources');
+$('rail-sources').onclick=()=>openSheet('sources');
 // ---- Composer wiring: drag/drop, paste, keyboard shortcuts ----
 window.addEventListener('message',async e=> {
   if (e.origin!==location.origin || e.data?.type!=='videobuilder:edit' ||

@@ -1,6 +1,7 @@
 """Server-rendered HTML in pages.py: the starter catalogue and the inline
 scripts' basic syntax (extracted and run through `node --check`, since
 there's no build step to catch a typo otherwise)."""
+from importlib import resources
 import re
 import shutil
 import subprocess
@@ -131,3 +132,10 @@ class InlineScriptsParse(unittest.TestCase):
     def test_signin_and_signup_pages_scripts_parse(self):
         self._check(pages.signin_page())
         self._check(pages.signup_page())
+
+    def test_editor_page_director_js_parses(self):
+        # editor.html's own JS is all in director.js (a <script src>, not inline): checked as
+        # a whole file, which also covers the Sources panel's upload/list/player wiring.
+        script = resources.files('videobuilder').joinpath('director.js').read_bytes()
+        result = subprocess.run(['node', '--check', '-'], input=script, capture_output=True)
+        self.assertEqual(result.returncode, 0, result.stderr.decode())

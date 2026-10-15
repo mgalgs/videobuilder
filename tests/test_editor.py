@@ -179,16 +179,18 @@ class DirectorPageRoutes(API):
         expected = {'project','name','info','frame','video','notes','versions','versions/restore',
                     'attachments','video/retry','roll','copy','undo','draft','draft/info','draft/frame',
                     'draft/accept','draft/drop','upgrade','access','music/sources','music/tracks','music/attach',
-                    'videos/first-note'}
-        # Dynamic attachment and draft actions have their own router patterns.
-        self.assertTrue(paths - {'attachments/', 'draft/'} <= expected, paths - expected)
+                    'videos/first-note','sources'}
+        # Dynamic attachment, draft and source actions have their own router patterns.
+        self.assertTrue(paths - {'attachments/', 'draft/', 'sources/'} <= expected, paths - expected)
         # The route literals live wherever make_handler's pieces do now, not all in editor.py.
         router = ''.join((PKG / name).read_text() for name in
                          ('editor.py', 'handler_library.py', 'video_api.py'))
-        for path in paths - {'attachments/', 'draft/'}:
+        for path in paths - {'attachments/', 'draft/', 'sources/'}:
             self.assertIn("'/api/" + path + "'", router, path)
         self.assertIn("api('attachments/'", js)
         self.assertIn("api('video'", js)
+        self.assertIn("api('sources/'", js)
+        self.assertIn("json('sources'", js)
 
     def test_signed_out_handling_pins_resume_probe_banner_and_draft_order(self):
         # A session can expire while the director tab sits open: the 401 handler

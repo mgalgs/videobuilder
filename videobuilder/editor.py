@@ -81,6 +81,25 @@ POST /api/attachments?video=V&name=F  raw body with Content-Type; 201
                                      (member count, per-file, total unpacked)
 GET  /api/attachments/<id>          stored bytes, nosniff, CSP sandbox;
                                      image/video/audio inline, others download
+GET  /api/sources?video=V            {sources:[{name,ext,size,duration,width,
+                                     height,has_audio,caption,created}...]};
+                                     persists until deleted, unlike an
+                                     attachment
+POST /api/sources?video=V&filename=F[&name=N]  raw body with Content-Type,
+                                     streamed to disk as it arrives; name
+                                     defaults to filename's stem, sanitized
+                                     to a slug unique per video; 201 the
+                                     source record above; 400 not mp4/mov/
+                                     webm, bad magic bytes, no video stream,
+                                     or the name is already taken; 413 over
+                                     the per-file or per-video-total limit,
+                                     nothing left on disk either way
+POST /api/sources/<name>/caption?video=V&filename=F  raw .vtt/.srt body; 201
+                                     the updated source record; 400 wrong
+                                     extension, not UTF-8, or too large
+GET  /api/sources/<name>?video=V     stored bytes, ranged, for the picker's
+                                     player; 404 unknown
+POST /api/sources/<name>/delete {video}  200 {deleted:name}; 404 unknown
 GET  /api/music/sources              [{id,name,license}]; [] with none configured
 GET  /api/music/tracks?source=S      {source:{id,name,license},tracks:[...]};
                                      404 unknown source, 502 on an upstream fetch
@@ -202,16 +221,25 @@ to the server log. POSTs require same-origin; all but attachment upload use JSON
 attachment_max_file=25, attachment_max_files=10, attachment_max_message=100,
 attachment_zip_max_bytes=200, attachment_zip_max_members=50,
 attachment_zip_max_unpacked_bytes=300, start_video_attachment_max_files=50,
-start_video_attachment_max_message=300, compendium_for_builder=true (the size
+start_video_attachment_max_message=300, source_max_mb=2048,
+source_max_total_mb=8192, compendium_for_builder=true (the size
 values are MiB). The
 attachment_zip_* limits bound a single `.zip` upload (its own compressed
 size, how many of its members become attachments, and their total
 decompressed size); the start_video_attachment_max_* limits replace
 attachment_max_files/attachment_max_message only for the first note a New
 video page creates, since a zip of assets can easily outgrow an ordinary
-note's attachment budget. Film code and MP4 rendering run in bwrap with no
+note's attachment budget. source_max_mb/source_max_total_mb (see sources.py)
+are the per-file and per-video-total limits for POST /api/sources; in
+`--library` mode a hosted repo can't set either (not in REPO_CONFIG_KEYS),
+so use --source-max-mb/--source-max-total-mb on the command line instead.
+Film code and MP4 rendering run in bwrap with no
 network; the checkout is read-only. Fork-sandbox attachment copies are mounted
-read-only at /attachments for only the relevant submission.
+read-only at /attachments for only the relevant submission; its source videos
+(see sources.py) are hardlinked, read-only, at sources/<name>.<ext> relative
+to each video's own directory -- in the project's own checkout and every
+draft-preview/render worktree directly, and via a reused --sources-dir for a
+backend (such as ForkSandboxBackend) that forks the project elsewhere.
 
 account_daily_note_cap and account_daily_cost_cap_usd (unset by default,
 meaning no cap) each limit one account to that many new notes, or that much
