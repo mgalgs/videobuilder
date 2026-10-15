@@ -293,3 +293,26 @@ class Draw(unittest.TestCase):
             self.assertIsNone(captions.draw(cv, TALK, t))
             self.assertEqual(cv.marks, [])
             self.assertEqual(bytes(cv.surface.get_data()), before)
+
+
+class DocExample(unittest.TestCase):
+    DOC = Path(__file__).resolve().parent.parent / 'skill' / 'make-a-video' / 'reference' / 'captions.md'
+
+    def test_the_reference_example_runs(self):
+        blocks = re.findall(r'```python\n(.*?)```', self.DOC.read_text(), re.S)
+        example = next(b for b in blocks if 'vb.Film(' in b)
+        import tempfile
+        with tempfile.TemporaryDirectory() as d:
+            path = Path(d) / 'film.py'
+            path.write_text(example)
+            film = vb.load(str(path))
+        self.assertEqual(film.frames, 150)
+        for f in film.formats:
+            self.assertEqual(film.frame(15, f).marks, [])  # before the clip starts
+            cv = film.frame(round(2.6 * 30), f)  # film 2.6 s = source 2.1 s, 'sort of gorilla looking.'
+            (name, box), = cv.marks
+            self.assertEqual(name, 'caption')
+            self.assertTrue(vb.captions.safe_area(cv).contains(box))
+        # in the film's clock, 'gorilla' starts 0.5 s later than in the source
+        line = film.draw.__globals__['TRACK'].line_at(2.7, vb.captions.default_font(cv), 900)
+        self.assertIn('gorilla', line.text)
