@@ -6,3 +6,4 @@ __pycache__
 *.actual.png
 outbox
 .env*
+!examples/assets/*.mp4
