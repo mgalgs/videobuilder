@@ -111,14 +111,22 @@ def _chart(cv, inner, f, st):
         x = plot.x + plot.w * k / 11
         text.draw(cv, lab, SMALL, x - (0 if k == 0 else text.measure(lab, SMALL)), plot.bottom + 10, MUTED)
     t = vb.ease_in_out_quart(vb.clamp01((f - LINE_DRAW[0]) / (LINE_DRAW[1] - LINE_DRAW[0])))
+    ends = []
     for name, values, colour in reversed(SERIES):
         pts = paths.resample([(plot.x + plot.w * i / 11, plot.bottom - plot.h * v / YMAX)
                               for i, v in enumerate(values)], 120)
         if t > 0:
             paths.draw(cv, paths.reveal(pts, t), colour, width=6 if colour == ACCENT else 3)
-            if st.wide and t >= 1 and colour != ACCENT:
-                ex, ey = pts[-1]
-                text.draw(cv, name, SMALL, ex + 12, ey - 14 + (8 if name == 'To-do app' else -2), MUTED)
+            if colour != ACCENT:
+                ends.append((pts[-1][1], name, pts[-1][0]))
+    if st.wide and t >= 1:
+        # the grey lines end close together in the short tile: centre each label on its
+        # line's end, then spread the pair about their midpoint until they clear each other
+        lh = text.line_height(SMALL)
+        (ya, na, ex), (yb, nb, _) = sorted(ends)
+        push = max(0.0, lh + 2 - (yb - ya)) / 2
+        for y, name in ((ya - push, na), (yb + push, nb)):
+            text.draw(cv, name, SMALL, ex + 12, y - lh / 2, MUTED)
     k = kit.prog(f, *CALLOUT, vb.ease_out_back)
     if k <= 0:
         return None
@@ -127,8 +135,20 @@ def _chart(cv, inner, f, st):
     cv.arc(px, py, 19 * k, 0, 2 * math.pi, ACCENT, width=3, alpha=0.5)
     lab_f = kit.font(30, 750)
     num_f = kit.mono(28, 600)
+    if st.wide:
+        # the 16:9 tile is short and the hero line climbs steeply under the end point,
+        # so the callout goes on one line, level with the point and well left of the climb
+        gap = 14
+        lw, nw = text.measure('Launch week', lab_f), text.measure('48k users', num_f)
+        bw, bh = lw + gap + nw, text.line_height(lab_f)
+        lx, ly = px - bw - 120, py - bh / 2 - 6
+        cv.line(px - 22, py, lx + bw + 10, ly + bh / 2, INK, width=2, alpha=vb.clamp01(k))
+        with cv.layer(opacity=vb.clamp01(k)):
+            text.draw(cv, 'Launch week', lab_f, lx, ly, INK)
+            text.draw(cv, '48k users', num_f, lx + lw + gap, ly + (bh - text.line_height(num_f)) / 2, ACCENT)
+        return Box(lx, ly, bw, bh)
     bw = max(text.measure('Launch week', lab_f), text.measure('48k users', num_f))
-    lx, ly = px - bw - pick(st, 70, 60), py + 12
+    lx, ly = px - bw - 60, py + 12
     cv.line(px - 14, py + 6, lx + bw + 8, ly + 18, INK, width=2, alpha=vb.clamp01(k))
     with cv.layer(opacity=vb.clamp01(k)):
         text.draw(cv, 'Launch week', lab_f, lx, ly, INK)

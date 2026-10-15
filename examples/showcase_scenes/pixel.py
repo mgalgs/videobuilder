@@ -99,12 +99,18 @@ def pixel_clear(cv, s, st):
         px.rect(fx + 14, floor - 300 + (1 - rise) * 200, 110, 70, ACCENT)
         hop = abs(math.sin(n / 5)) * 60
         _lumi(px, w * 0.42, floor - hop, 0, hop > 10)
-        f = kit.font(min(110, w * 0.11), 900)
-        word = 'STAGE CLEAR!'
-        tw = text.measure(word, f)
+        # 9:16 stacks the title on two lines so the glyphs stay big enough to survive
+        # the 1/8 grid; an ink outline keeps it off the sun and the clouds behind it
+        f = kit.font(min(110, w * 0.11) if st.wide else w * 0.19, 900)
+        words = ['STAGE CLEAR!'] if st.wide else ['STAGE', 'CLEAR!']
         y = h * 0.1
-        text.draw(px, word, f, w / 2 - tw / 2 + 8, y + 8, PIX_INK)
-        text.draw(px, word, f, w / 2 - tw / 2, y, '#ffffff' if (n // 4) % 2 else SUN)
+        fill = '#ffffff' if (n // 4) % 2 else SUN
+        for i, word in enumerate(words):
+            wx, wy = w / 2 - text.measure(word, f) / 2, y + i * text.line_height(f) * 0.9
+            text.draw(px, word, f, wx + 2 * PIXEL, wy + 2 * PIXEL, PIX_INK)
+            for dx, dy in ((-1, -1), (0, -1), (1, -1), (-1, 0), (1, 0), (-1, 1), (0, 1), (1, 1)):
+                text.draw(px, word, f, wx + dx * PIXEL, wy + dy * PIXEL, PIX_INK)
+            text.draw(px, word, f, wx, wy, fill)
         for i in range(7):   # star bits bursting out
             a = 2 * math.pi * i / 7
             r = 60 + n * 9
