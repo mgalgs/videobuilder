@@ -26,12 +26,12 @@ RULE = '#9fb3c8'
 
 # Per format: page box (x, y-anchor share, width), item size, closing sizes/lines, closing beside the page or below.
 LAYOUT = {
-    '16x9': dict(page_w=500, item=(30, 28, 26, 23), close=(64, 56, 48, 40, 34), close_lines=4, beside=True,
+    '16x9': dict(page_w=500, item=(30, 28, 26, 23), close=(56, 50, 44, 38, 34, 30), close_lines=2, beside=True,
                  tilt=-1.6, box=30, gap=24, pad=34, head=17),
     '9x16': dict(page_w=464, item=(36, 33, 30, 27, 25), close=(72, 64, 56, 48, 40), close_lines=3, beside=False,
                  tilt=-1.2, box=34, gap=40, pad=40, head=19),
-    '1x1': dict(page_w=456, item=(27, 25, 23, 21, 19), close=(46, 40, 34, 30, 26), close_lines=2, beside=False,
-                tilt=-1.0, box=25, gap=16, pad=26, head=15),
+    '1x1': dict(page_w=456, item=(25, 23, 21, 19), close=(46, 40, 34, 30, 26), close_lines=2, beside=False,
+                tilt=-1.0, box=23, gap=12, pad=22, head=14),
 }
 
 
@@ -105,10 +105,11 @@ def draw(cv, shot):
         px, py = s.x, s.y + (s.h - ph) / 2
         cx, cy = px + pw + 48, s.cy - ch / 2
     else:
-        block = ph + 44 + ch + 14
+        under = 44 if H > W else 30
+        block = ph + under + ch + 14
         top = s.y + (s.h - block) * (0.40 if H > W else 0.5)
         px, py = s.cx - pw / 2, top
-        cx, cy = s.x + (s.w - cw) / 2 if H <= W else s.x + 8, top + ph + 44
+        cx, cy = s.x + (s.w - cw) / 2 if H <= W else s.x + 8, top + ph + under
 
     # ---- the page slaps down, on twos ----
     fs = _step(f)
