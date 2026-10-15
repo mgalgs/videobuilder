@@ -47,6 +47,11 @@ TEXT_MAX = 200
 CHOICE_MAX = 60
 LEAD_IN_MAX = 300
 
+# The crawl's own cap is about two minutes (gather.TIME_BUDGET); a `gathering` note
+# older than this had its background thread die before finishing -- an editor
+# restart, redeploy or crash -- and is recovered rather than left stuck forever.
+GATHER_STALE_SECONDS = 10 * 60
+
 
 def parse_questions(reply):
     """A builder reply's last ```questions fenced block, strictly
@@ -189,7 +194,7 @@ class NoteStore:
         nid = time.strftime('%Y%m%dT%H%M%S', time.gmtime(now)) + f'{int(now % 1 * 1e6):06d}Z-{secrets.token_hex(3)}'
         note = {'id': nid, 'video': video, 'format': format, 'frame': None, 'segment': None,
                 'text': (text or '').strip() or 'Starting this video…', 'author': author,
-                'created': time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime(now)),
+                'created': time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime(now)), 'gather_started': now,
                 'attachments': attachments or [], **context, 'backend': self.backend.name, 'handle': None,
                 **asdict(AgentStatus('gathering'))}
         with self.video_lock(video):
@@ -286,10 +291,18 @@ class NoteStore:
             if note['state'] in FINAL:
                 continue
             if note['state'] == 'gathering':
-                # Still being filled in by the background crawl: stop here, the same
-                # way an in-flight note blocks the rest, so a note added while the
-                # brief is gathering waits for it instead of jumping the queue.
-                return
+                if time.time() - note.get('gather_started', 0) <= GATHER_STALE_SECONDS:
+                    # Still being filled in by the background crawl: stop here, the same
+                    # way an in-flight note blocks the rest, so a note added while the
+                    # brief is gathering waits for it instead of jumping the queue.
+                    return
+                # The thread that was going to call finish_gathering is gone (the
+                # editor restarted, redeployed or crashed mid-crawl): queue the note
+                # as-is rather than leaving this video blocked forever.
+                note['text'] = (note['text'].strip() + '\n\nSome pages were not gathered: the crawl was '
+                                'interrupted (likely an editor restart) before it finished.').strip()
+                note.update(**asdict(AgentStatus('queued')))
+                self._save(note)
             state = self.session(video)
             if not note['handle']:
                 try:

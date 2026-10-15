@@ -5,6 +5,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
+import videobuilder.notes as notes_module
 from videobuilder.notes import AgentBackend, AgentStatus, NoteStore, NullBackend, parse_questions
 
 
@@ -84,6 +85,40 @@ class Notes(unittest.TestCase):
         n = NoteStore(self.dir, Down()).add('v', '16x9', 0, None, 'hello', b'')
         self.assertEqual((n['state'], n['handle']), ('failed', None))
         self.assertIn('unreachable', n['reply'])
+
+    def test_a_stuck_gathering_note_recovers_after_a_restart_and_unblocks_the_queue(self):
+        agent = FakeAgent()
+        store = NoteStore(self.dir, agent)
+        gathering = store.start_gathering('promo/film', '16x9', text='Brief for the video')
+        # A fresh NoteStore on the same directory stands in for the editor restarting
+        # mid-crawl: the thread that would have called finish_gathering is gone for good.
+        restarted = NoteStore(self.dir, agent)
+        followup = restarted.add('promo/film', '16x9', None, None, 'A second note', None)
+        self.assertEqual(restarted.get(followup['id'])['state'], 'queued')
+        self.assertIsNone(restarted.get(followup['id'])['handle'])  # waits behind gathering
+
+        # Not yet stale: still stuck, same as while the crawl is genuinely running.
+        self.assertEqual(restarted.list('promo/film')[0]['state'], 'gathering')
+
+        old_stale = notes_module.GATHER_STALE_SECONDS
+        notes_module.GATHER_STALE_SECONDS = 0
+        try:
+            restarted.tick()
+        finally:
+            notes_module.GATHER_STALE_SECONDS = old_stale
+
+        recovered = restarted.get(gathering['id'])
+        self.assertNotEqual(recovered['state'], 'gathering')
+        self.assertIn('Brief for the video', recovered['text'])
+        self.assertIn('interrupted', recovered['text'])
+        self.assertIsNotNone(recovered['handle'])
+        self.assertEqual(agent.submitted[-1]['text'], recovered['text'])
+
+        # Once the recovered note finishes, the follow-up that was waiting behind it
+        # is dispatched too: the video is unblocked for good, not just for one poll.
+        agent.states[recovered['handle']] = AgentStatus('replied', 'Done', 'notes/branch')
+        restarted.tick()
+        self.assertEqual(restarted.get(followup['id'])['handle'], 'h2')
 
     def test_note_file_asks_by_default_then_not_after_an_answer(self):
         agent = FakeAgent()
