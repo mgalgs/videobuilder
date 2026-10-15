@@ -66,6 +66,7 @@ cv.arc(cx, cy, r, a0, a1, colour, width=2, alpha=1)  # stroke, butt ends
 cv.sector(cx, cy, r, a0, a1, colour, alpha=1)        # filled pie slice
 cv.image(img, *box, alpha=1)                     # stretched to the box
 cv.shadow(*box, radius=24, dy=18, blur=50, color=(0, 0, 0, 0.4))   # draw before the box
+cv.shape_shadow(points, dx=4, dy=10, blur=18, color=(0, 0, 0, 0.4))  # same, following any closed outline
 with cv.layer(opacity=0.5, dx=0, dy=40, scale=1.0): ...   # group: fades, moves, scales together
 with cv.clip(*box, radius=24): ...
 cv.mark('name', *box)                            # tag content for checks (records the moved box)
@@ -75,6 +76,9 @@ with cv.pixelated(8) as px:                      # body draws into px at 1/8 res
     px.rect(...); text.draw(px, ...)             # painted back nearest-neighbour: blocky pixel art
 ctx.set_source(vb.halftone_pattern(14, 5, angle=0.4, color='#000'))   # a repeating dot fill
 ctx.paint()                                      # (a cairo pattern; use within a clip to fill a shape)
+ctx.set_source(vb.paper_grain(cv.width, cv.height, seed=1))   # paper texture, mid-grey centred:
+ctx.set_operator(cairo.OPERATOR_SOFT_LIGHT); ctx.paint_with_alpha(0.5)   # lightens and darkens
+ctx.set_operator(cairo.OPERATOR_OVER)            # put the operator back afterwards
 ```
 
 - `cv.pixelated(factor, x=0, y=0, w=None, h=None, background=None)`: a group, in the
@@ -85,6 +89,17 @@ ctx.paint()                                      # (a cairo pattern; use within 
 - `vb.halftone_pattern(pitch, radius, angle=0, color='#000')`: a cairo pattern of
   repeating dots (a Ben-Day halftone fill), `pitch` px between centres. There is no
   image-to-halftone conversion, only this generated dot fill.
+- `cv.shape_shadow(points, dx=0, dy=0, blur=0, color=(0, 0, 0, 0.5))`: `cv.shadow` for
+  a closed point list instead of a box (a torn scrap, a cut-out's outline), so a lift
+  shadow follows the real shape. Its blurred mask is made once per shape and `blur` and
+  cached: keep `points` fixed and move the piece with a `layer` or a cairo transform,
+  not by rebuilding the points each frame, or every frame pays for a fresh blur.
+- `vb.paper_grain(width, height, seed=0)`: a cairo pattern of paper texture (fine
+  grain, short fibres, a faint mottle) in grey centred on 128, generated once per size
+  and seed and cached; it tiles beyond its size. Paint it with
+  `cairo.OPERATOR_SOFT_LIGHT` (128 leaves the colour alone) within a clip for one
+  piece, or over the whole frame. Painting it full-frame costs ~10 ms at 720×720: for a
+  static backdrop, draw backdrop and grain once into a cached surface instead.
 
 ## Paths: partial reveal, resampling and morphing
 
@@ -95,6 +110,7 @@ paths.reveal(points, fraction, closed=False)              # the leading fraction
 paths.resample(points, n, closed=False)                   # n points evenly spaced by arc length
 paths.morph(a, b, t, closed=False, n=None)                # a resampled/aligned lerp between two shapes
 paths.jitter(points, seed, amount=1.0, wander=0.3)        # deterministic seeded hand-wobble
+paths.torn(points, seed, amount=4.0, step=2.5, closed=True)   # a torn-paper edge, seeded
 paths.draw(cv, points, colour, width=2, closed=False, fill=False, alpha=1.0)   # draw the point list
 ```
 
@@ -109,6 +125,11 @@ paths.draw(cv, points, colour, width=2, closed=False, fill=False, alpha=1.0)   #
   bezier, or `6t^5 - 15t^4 + 10t^3` for a very soft start/stop) before calling it.
 - `jitter`: bake it in once at import (`JITTERED = paths.jitter(points, seed=3)`),
   not per frame, so the same stroke wobbles the same way every frame it's drawn.
+- `torn`: resamples the outline every ~`step` px and pushes each point in or out along
+  the edge's normal by up to `amount` px of seeded fractal noise (a broad wander, smaller
+  bites, a fine fibre fuzz), so the edge reads torn rather than zig-zag; a closed
+  outline's noise wraps with no seam, `closed=False` tears an open line. Bake it in at
+  import like `jitter`. Pair it with `cv.shape_shadow` for a scrap lifted off the wall.
 - **Trap:** `resample`/`morph` take a plain list of `(x, y)` tuples, not a `Box` or
   a cairo path; build the point list yourself (a rect's corners, a circle's samples).
 
