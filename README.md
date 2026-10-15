@@ -377,6 +377,27 @@ Unused uploads expire after 24 hours. For fork-sandbox, each note receives
 copies of its attachments at `/attachments`; the builder must copy anything
 used in the video into the video's assets and commit it.
 
+**Source videos.** A video's own footage -- a podcast or hearing clip, say --
+persists until deleted, instead of expiring like an attachment: upload it
+once from the video's **Sources** panel (`POST /api/sources?video=V&filename=F`,
+streamed, plus an optional caption with `POST /api/sources/<name>/caption`),
+then write a note such as "use 0:32 to 0:47 from interview" and the builder
+cuts that span, sound included unless the note says otherwise. `mp4`, `mov`
+and `webm` are accepted, checked by magic bytes and then probed to make sure
+there is a video stream; a name is a slug, unique per video, defaulting to
+the file's stem. `GET /api/sources?video=V` lists them, `GET
+/api/sources/<name>?video=V` streams one back for the picker's player (byte
+Range included), and `POST /api/sources/<name>/delete` removes it. Limits are
+enforced as the upload streams in, never after it's buffered:
+`--source-max-mb` (library mode) / `source_max_mb` (single-project, default
+2048 MiB) per file, `--source-max-total-mb` / `source_max_total_mb` (default
+8192 MiB) per video. Every source lands, read-only, at `sources/<name>.<ext>`
+relative to its video's own directory -- the editor's own previews and
+renders see it there with no extra step, and a fork-sandbox run gets a
+`--sources-dir` pointing a reused, flat copy at the same relative path. The
+builder's prompt lists each source (name, duration, resolution, audio) when
+a video has any; with none, the prompt is unchanged.
+
 **Music sources.** Pass `--music-sources FILE` (works in both single-project and
 `--library` mode) to add a music button beside the composer's attach button. It
 opens a picker over a configured music library: search, preview, and attach a
@@ -459,6 +480,8 @@ attachment_zip_max_members = 50         # members kept from a .zip
 attachment_zip_max_unpacked_bytes = 300 # MiB, total decompressed size
 start_video_attachment_max_files = 50   # replaces attachment_max_files for New video's first note
 start_video_attachment_max_message = 300 # MiB, replaces attachment_max_message for that note
+source_max_mb = 2048                     # MiB, a single source video upload
+source_max_total_mb = 8192               # MiB, one video's total source-video storage
 # account_daily_note_cap = 20            # unset by default: no cap on new notes per account per day
 # account_daily_cost_cap_usd = 5         # unset by default: no cap on recorded cost per account per day
 compendium_for_builder = true            # tell the builder about videobuilder/compendium/ and its votes
@@ -495,7 +518,10 @@ exempt, so a cap set there binds everyone, including the operator.
 In `--library` mode, a hosted repo's own config can't set these two keys (see
 below), so set library-wide defaults with `--account-daily-note-cap N` and
 `--account-daily-cost-cap-usd X` on the command line instead; both are
-refused outside `--library`, and unset still means no cap. An admin can also
+refused outside `--library`, and unset still means no cap. Source-video
+limits work the same way: `--source-max-mb`/`--source-max-total-mb` in
+`--library` mode (refused outside it), `source_max_mb`/`source_max_total_mb`
+in `[editor]` for single-project mode. An admin can also
 give one account its own override from `/account`'s **Usage limits** section
 (visible to admins only), or `POST /api/admin/limits
 {user,kind:"default"|"custom"|"unlimited",notes?,cost_usd?}`: `"default"`
@@ -507,7 +533,8 @@ routes are admin-only (403 for anyone else, 401 signed out) and the override
 is stored with the account, so it survives a restart.
 
 The generic command backend still receives a request JSON and markdown note.
-Fork-sandbox submissions add `--attach-dir` only for notes with attachments.
+Fork-sandbox submissions add `--attach-dir` only for notes with attachments,
+and `--sources-dir` only for a video that has source videos.
 A note with a playhead time includes a line such as `At 0:12 (frame 360,
 segment "sizes")`; the final reply line should be `Summary: <one line>`.
 
