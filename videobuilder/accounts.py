@@ -51,6 +51,20 @@ KEY_MODES = ('read', 'write')
 KEY_LABEL_MAX = 40
 KEY_LAST_USED_FLUSH = 3600  # flush a key's last_used to disk at most this often
 
+LIMIT_KINDS = ('default', 'custom', 'unlimited')
+DEFAULT_LIMIT = {'kind': 'default', 'notes': None, 'cost_usd': None}
+
+
+def _validated_limit_value(value, name, kind):
+    """`value` if it is null or a positive `kind` (int, or (int, float) for a
+    dollar amount); raises ValueError otherwise."""
+    if value is None:
+        return None
+    if isinstance(value, bool) or not isinstance(value, kind) or value <= 0:
+        article = 'a positive integer' if kind is int else 'a positive number'
+        raise ValueError(f'{name} must be null or {article}')
+    return value
+
 
 def valid_label(label):
     return (isinstance(label, str) and 1 <= len(label) <= KEY_LABEL_MAX and
@@ -142,6 +156,48 @@ class Accounts:
         username = username.lower() if isinstance(username, str) else ''
         record = self._data['users'].get(username)
         return record['uid'] if record else None
+
+    def get_limit(self, username):
+        """`username`'s own daily-cap override ({kind, notes, cost_usd}), or
+        None for an unknown or deleted account. An existing account with no
+        override of its own gets DEFAULT_LIMIT (kind "default"): the
+        library-wide caps apply to it."""
+        username = username.lower() if isinstance(username, str) else ''
+        if not self.exists(username):
+            return None
+        return self._data.get('limits', {}).get(username, DEFAULT_LIMIT)
+
+    def set_limit(self, username, kind, notes=None, cost_usd=None):
+        """Set or clear `username`'s override; returns the resulting limit
+        (see get_limit). `kind` is "default" (clears any override), "custom"
+        (notes/cost_usd each cap that one thing, or None for no cap on it) or
+        "unlimited" (no cap at all, notes/cost_usd must be left unset)."""
+        username = username.lower() if isinstance(username, str) else ''
+        if not self.exists(username):
+            raise ValueError('no such account')
+        if kind not in LIMIT_KINDS:
+            raise ValueError('kind must be "default", "custom" or "unlimited"')
+        if kind == 'custom':
+            notes = _validated_limit_value(notes, 'notes', int)
+            cost_usd = _validated_limit_value(cost_usd, 'cost_usd', (int, float))
+        elif notes is not None or cost_usd is not None:
+            raise ValueError('notes and cost_usd are only valid with kind "custom"')
+        with self.lock:
+            if kind == 'default':
+                self._data.setdefault('limits', {}).pop(username, None)
+            else:
+                self._data.setdefault('limits', {})[username] = {'kind': kind, 'notes': notes, 'cost_usd': cost_usd}
+            self._save()
+        return self.get_limit(username)
+
+    def list_accounts(self):
+        """Every account -- name, whether it's an admin, and its limit (see
+        get_limit) -- sorted by name, for the admin-only limits API."""
+        with self.lock:
+            names = sorted(self._data['users'])
+            limits = self._data.get('limits', {})
+            return [{'name': name, 'admin': name in self.admins, 'limit': limits.get(name, DEFAULT_LIMIT)}
+                    for name in names]
 
     def signup(self, username, password):
         """Create an account and sign it in; (username, session token)."""

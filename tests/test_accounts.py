@@ -222,5 +222,78 @@ class KeysTest(unittest.TestCase):
         self.assertEqual(self.accounts._key_flushed[digest], much_later)
 
 
+class LimitsTest(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        self.state = Path(self.tmp.name)
+        self.accounts = Accounts(str(self.state))
+        self.accounts.signup('dana', 'longenoughpassword')
+
+    def test_default_with_no_override(self):
+        self.assertEqual(self.accounts.get_limit('dana'), {'kind': 'default', 'notes': None, 'cost_usd': None})
+
+    def test_unknown_or_deleted_account_has_no_limit_record(self):
+        self.assertIsNone(self.accounts.get_limit('nosuchuser'))
+        del self.accounts._data['users']['dana']
+        self.accounts._save()
+        self.assertIsNone(self.accounts.get_limit('dana'))
+
+    def test_custom_either_half_optional(self):
+        self.assertEqual(self.accounts.set_limit('dana', 'custom', 5, 1.5),
+                         {'kind': 'custom', 'notes': 5, 'cost_usd': 1.5})
+        self.assertEqual(self.accounts.get_limit('dana'), {'kind': 'custom', 'notes': 5, 'cost_usd': 1.5})
+        self.assertEqual(self.accounts.set_limit('dana', 'custom', None, 1.5)['notes'], None)
+        self.assertEqual(self.accounts.set_limit('dana', 'custom', 5, None)['cost_usd'], None)
+
+    def test_unlimited_then_back_to_default(self):
+        self.assertEqual(self.accounts.set_limit('dana', 'unlimited'),
+                         {'kind': 'unlimited', 'notes': None, 'cost_usd': None})
+        self.assertEqual(self.accounts.set_limit('dana', 'default'),
+                         {'kind': 'default', 'notes': None, 'cost_usd': None})
+
+    def test_survives_a_reload_from_disk(self):
+        self.accounts.set_limit('dana', 'custom', 3, None)
+        reloaded = Accounts(str(self.state))
+        self.assertEqual(reloaded.get_limit('dana'), {'kind': 'custom', 'notes': 3, 'cost_usd': None})
+
+    def test_rejects_unknown_account(self):
+        with self.assertRaisesRegex(ValueError, 'no such account'):
+            self.accounts.set_limit('nosuchuser', 'custom', 1, None)
+
+    def test_rejects_bad_kind(self):
+        with self.assertRaisesRegex(ValueError, 'kind'):
+            self.accounts.set_limit('dana', 'bogus')
+        with self.assertRaisesRegex(ValueError, 'kind'):
+            self.accounts.set_limit('dana', None)
+
+    def test_rejects_numbers_with_default_or_unlimited(self):
+        with self.assertRaisesRegex(ValueError, 'only valid with kind "custom"'):
+            self.accounts.set_limit('dana', 'default', 5, None)
+        with self.assertRaisesRegex(ValueError, 'only valid with kind "custom"'):
+            self.accounts.set_limit('dana', 'unlimited', None, 1.5)
+
+    def test_rejects_non_positive_or_non_numeric_custom_values(self):
+        for bad in (0, -1, 'five', True, False):
+            with self.subTest(bad=bad):
+                with self.assertRaisesRegex(ValueError, 'notes'):
+                    self.accounts.set_limit('dana', 'custom', bad, None)
+        for bad in (0, -1.5, 'five', True):
+            with self.subTest(bad=bad):
+                with self.assertRaisesRegex(ValueError, 'cost_usd'):
+                    self.accounts.set_limit('dana', 'custom', None, bad)
+
+    def test_list_accounts_includes_admin_flag_and_limit(self):
+        path = self.state / 'admin-pass'
+        path.write_text('adminsecret1\n')
+        accounts = Accounts(str(self.state), [('mgalgs', str(path))])
+        accounts.set_limit('dana', 'unlimited')
+        listed = {a['name']: a for a in accounts.list_accounts()}
+        self.assertEqual(listed['mgalgs']['admin'], True)
+        self.assertEqual(listed['mgalgs']['limit'], {'kind': 'default', 'notes': None, 'cost_usd': None})
+        self.assertEqual(listed['dana']['admin'], False)
+        self.assertEqual(listed['dana']['limit'], {'kind': 'unlimited', 'notes': None, 'cost_usd': None})
+
+
 if __name__ == '__main__':
     unittest.main()
