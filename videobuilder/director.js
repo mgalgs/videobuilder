@@ -627,10 +627,11 @@ function renderNotes() {
     row.append(bubble);
     list.append(row);
     if(note.handle)list.append(renderStepsToggle(note));
-    if(note.reply) {
+    if(note.reply||note.shortfalls?.length) {
       const reply=node('div','bubble-row builder');
       const box=node('div','bubble');
-      box.append(node('span','who','Builder'),node('span','msg-text',replyText(note.reply)));
+      box.append(node('span','who','Builder'));
+      if(note.reply)box.append(node('span','msg-text',replyText(note.reply)));
       for(const s of note.shortfalls||[]) {
         const label=s.kind==='cannot'?'Couldn\'t do: ':'Rough edges: ';
         box.append(node('span','shortfall-line',label+s.what))
