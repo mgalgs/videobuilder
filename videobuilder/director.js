@@ -964,16 +964,21 @@ function renderMusicList() {
     play.setAttribute('aria-label',`${playing?'Pause':'Preview'} ${track.title}`);
     play.onclick=()=>toggleMusicPreview(track);
     const info=node('div','music-info');
-    info.append(node('span','music-title',track.title));
+    const head=node('div','music-title-line');
+    head.append(node('span','music-title',track.title));
+    if(track.duration!=null)head.append(node('span','music-duration',timeLabel(track.duration)));
+    info.append(head);
     if(track.tags.length) {
       const tags=node('div','music-tags');
-      for(const tag of track.tags)tags.append(node('span','music-tag',tag));
+      // Every tag here is a music tag; the "music/" prefix is noise in this list.
+      for(const tag of track.tags)tags.append(node('span','music-tag',tag.replace(/^music\//,'')));
       info.append(tags)
     }
+    // The licence is shown once, in the dialog's header, not on every row.
     const useWrap=node('div','music-use'),use=node('button',null,'Use');
     use.onclick=()=>useMusicTrack(track,use);
-    useWrap.append(use,node('span',null,state.musicSource?.license||''));
-    row.append(play,info,node('span','music-duration',track.duration!=null?timeLabel(track.duration):''),useWrap);
+    useWrap.append(use);
+    row.append(play,info,useWrap);
     list.append(row)
   }
   if(!tracks.length)list.append(node('p','music-empty',state.musicTracks.length?'No tracks match.':'No tracks.'))
