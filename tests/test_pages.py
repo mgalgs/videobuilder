@@ -46,6 +46,13 @@ class StarterCardsOnPages(unittest.TestCase):
         self.assertIn('id="files-field"', page)
         self.assertIn('id="links-field"', page)
 
+    def test_new_video_page_has_the_order_step_markup_hidden_by_default(self):
+        page = pages.new_video_page(['acme/launch']).decode()
+        self.assertIn('<div id="order-step" hidden>', page)
+        self.assertIn('id="order-list"', page)
+        self.assertIn('id="order-others"', page)
+        self.assertIn('id="order-start"', page)
+
 
 @unittest.skipUnless(shutil.which('node'), 'node is not available in this environment')
 class InlineScriptsParse(unittest.TestCase):

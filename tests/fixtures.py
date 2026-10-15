@@ -573,6 +573,28 @@ class Auth(AccountMixin, LibraryFixture, unittest.TestCase):
         self.assertEqual(code, 404)
         self.assertNotIn(b'acme/launch', self.request('/', headers={'Cookie': outsider})[1])
 
+    def test_attachment_route_is_gated_by_project_access_not_just_a_valid_id(self):
+        # The attachment id itself carries no access check (see Attachments.get called with
+        # video=None from _get_attachment); what actually protects it is the same `/v/<name>`
+        # project-access gate every other project route goes through, checked before the
+        # per-project Editor (and so its own attachments store) is even reached.
+        self.seed('acme/launch', film=True)
+        admin = self.admin_login()
+        self.new_project(admin, 'acme/launch', 'acme/launch')
+        req = urllib.request.Request(
+            self.base + '/v/acme/launch/api/attachments?video=promo/film&name=shot.png',
+            data=b'\x89PNG\r\n\x1a\n' + b'0123456789', method='POST',
+            headers={'Content-Type': 'image/png', 'Cookie': admin})
+        with urllib.request.urlopen(req, timeout=20) as r:
+            uploaded = json.loads(r.read())
+        code, body, headers = self.request_full('/v/acme/launch/api/attachments/' + uploaded['id'],
+                                                 headers={'Cookie': admin})
+        self.assertEqual(code, 200)
+        _, _, outsider = self.signup('outsider', 'longenoughpassword')
+        code, body, headers = self.request_full('/v/acme/launch/api/attachments/' + uploaded['id'],
+                                                 headers={'Cookie': outsider})
+        self.assertEqual(code, 404)
+
     def test_invite_grants_and_remove_revokes_next_request(self):
         self.seed('acme/launch', film=True)
         admin = self.admin_login()

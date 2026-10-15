@@ -317,6 +317,36 @@ class HostedGit(LibraryFixture, unittest.TestCase):
         code, err = self.request('/v/acme/bad-links/api/videos/first-note', {'links': 'https://a.example'})
         self.assertEqual(code, 400, err)
 
+    def _upload_png(self, project, name):
+        import urllib.request
+        req = urllib.request.Request(
+            self.base + f'/v/{project}/api/attachments?video=film&name=' + name,
+            data=b'\x89PNG\r\n\x1a\n' + b'0123456789', method='POST', headers={'Content-Type': 'image/png'})
+        with urllib.request.urlopen(req, timeout=20) as r:
+            return json.loads(r.read())['id']
+
+    def test_first_note_brief_and_attachments_reflect_the_chosen_image_order(self):
+        self.request('/api/videos/new', {'name': 'acme/ordered', 'start': 'blank'})
+        # Uploaded in filename order, but the creator's chosen order (sent as `attachments`) is b, a, c.
+        a = self._upload_png('acme/ordered', 'a.png')
+        b = self._upload_png('acme/ordered', 'b.png')
+        c = self._upload_png('acme/ordered', 'c.png')
+        code, note = self.request('/v/acme/ordered/api/videos/first-note', {
+            'description': 'A tour of the launch.', 'attachments': [b, a, c]})
+        self.assertEqual(code, 200, note)
+        self.assertEqual([x['name'] for x in note['attachments']], ['b.png', 'a.png', 'c.png'])
+        self.assertIn('A tour of the launch.\n\nUse the attached images in this order:\n'
+                      '1. b.png\n2. a.png\n3. c.png\n\n'
+                      'Keep this order unless the brief above says otherwise.', note['text'])
+
+    def test_first_note_with_one_image_has_no_order_list_in_the_brief(self):
+        self.request('/api/videos/new', {'name': 'acme/single-image', 'start': 'blank'})
+        only = self._upload_png('acme/single-image', 'only.png')
+        code, note = self.request('/v/acme/single-image/api/videos/first-note', {
+            'description': 'Just one shot.', 'attachments': [only]})
+        self.assertEqual(code, 200, note)
+        self.assertNotIn('Use the attached images in this order', note['text'])
+
 
 class Keys(AccountMixin, KeyMixin, LibraryFixture, unittest.TestCase):
     """Per-account API keys: git over HTTP, the video API, scope, mode and attribution."""
