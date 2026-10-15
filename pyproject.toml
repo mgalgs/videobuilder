@@ -21,7 +21,7 @@ dependencies = [
 videobuilder = "videobuilder.cli:main"
 
 [tool.setuptools]
-packages = ["videobuilder"]
+packages = ["videobuilder", "videobuilder.compendium", "videobuilder.compendium.components"]
 
 [tool.setuptools.package-data]
 videobuilder = ["*.html", "*.js", "*.css"]

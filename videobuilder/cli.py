@@ -251,6 +251,24 @@ def cmd_capabilities(a):
     print(f"{len(results)} clip(s) built in {total:.1f}s total; largest clip {largest / 1024:.0f} KiB")
 
 
+def cmd_compendium(a):
+    from . import compendium
+    if a.compendium_cmd == 'index':
+        sys.stdout.write(compendium.index_json() if a.json else compendium.index_markdown())
+        return
+    try:
+        results = compendium.build(a.out, only=set(a.only) if a.only else None, jobs=a.jobs, crf=a.crf)
+    except (ValueError, KeyError) as e:
+        raise SystemExit(str(e)) from None
+    total = 0.0
+    largest = 0
+    for r in results:
+        total += r['seconds']
+        largest = max(largest, r['bytes'])
+        print(f"{r['id']}: {r['seconds']:.1f}s, {r['bytes'] / 1024:.0f} KiB")
+    print(f"{len(results)} clip(s) built in {total:.1f}s total; largest clip {largest / 1024:.0f} KiB")
+
+
 def cmd_edit(a):
     from . import edits
     try:
@@ -374,6 +392,18 @@ def main(argv=None):
     capb.set_defaults(fn=cmd_capabilities)
     caps = capsub.add_parser('sheet', help='print the generated builder sheet (redirect it to the committed file)')
     caps.set_defaults(fn=cmd_capabilities)
+
+    comp = sub.add_parser('compendium', help='the compendium: pre-built components and reference recipes')
+    compsub = comp.add_subparsers(dest='compendium_cmd', required=True)
+    compi = compsub.add_parser('index', help='list every component and recipe, markdown or --json')
+    compi.add_argument('--json', action='store_true')
+    compi.set_defaults(fn=cmd_compendium)
+    compb = compsub.add_parser('build', help='render every component sample and recipe to <out>/<id>-<format>.mp4/.jpg')
+    compb.add_argument('--out', required=True, help='output directory')
+    compb.add_argument('--only', action='append', help='build only this component or recipe id (repeatable)')
+    compb.add_argument('--jobs', type=int, help='worker processes (default: CPU count)')
+    compb.add_argument('--crf', type=int, default=30, help='x264 quality (default 30: small clips over sharpness)')
+    compb.set_defaults(fn=cmd_compendium)
 
     f = sub.add_parser('frames', help='hash fixed example keyframes in every format')
     f.add_argument('--hash', action='store_true', required=True)
