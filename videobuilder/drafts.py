@@ -158,8 +158,7 @@ class Drafts:
             if detail['refused']:
                 if not auto:
                     raise ValueError('Draft refused:\n' + '\n'.join(detail['refused']))
-                note.update(state='refused', refused=detail['refused'])
-                e.notes._save(note)
+                e.notes.update(note, state='refused', refused=detail['refused'])
                 git(e.root, 'update-ref', 'refs/heads/' + branch, git(e.root, 'rev-parse', 'main'), detail['tip'])
                 state = e.notes.session(video)
                 state['rejection'] = 'Your previous change was not kept: it touched ' + ', '.join(
@@ -187,10 +186,9 @@ class Drafts:
                     git(work, 'rebase', '--abort')
                     if auto and note.get('automatic'):
                         original = e.notes.get(note['retry_for'])
-                        original.update(state='conflict', message='Draft still conflicts with main after one automatic rebase request.')
-                        e.notes._save(original)
-                        note.update(state='conflict', message=original['message'])
-                        e.notes._save(note)
+                        e.notes.update(original, state='conflict',
+                                      message='Draft still conflicts with main after one automatic rebase request.')
+                        e.notes.update(note, state='conflict', message=original['message'])
                         return {'state': 'conflict', 'message': original['message']}
                     previous = note if auto else e.notes.list(video, refresh=False)[-1]
                     retry = e.notes.add(video, previous['format'], previous['frame'], previous['segment'],
@@ -227,12 +225,10 @@ class Drafts:
                 if e.sync:
                     e.sync.after_commit()
                 if auto:
-                    note.update(state='landed', version={'n': e.versions.number(tip), 'commit': tip})
-                    e.notes._save(note)
+                    e.notes.update(note, state='landed', version={'n': e.versions.number(tip), 'commit': tip})
                     if note.get('retry_for'):
                         original = e.notes.get(note['retry_for'])
-                        original.update(state='landed', version=note['version'])
-                        e.notes._save(original)
+                        e.notes.update(original, state='landed', version=note['version'])
                 else:
                     e.notes.resolve(video, branch, 'accepted', author)
                 e.project.last.pop(video, None)

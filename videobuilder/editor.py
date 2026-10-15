@@ -282,8 +282,7 @@ class Editor:
             try:
                 self.drafts.accept(video, note.get('author'), note)
             except ValueError as exc:
-                note.update(state='conflict', message=str(exc))
-                self.notes._save(note)
+                self.notes.update(note, state='conflict', message=str(exc))
 
     def main_moved(self):
         if not self.project.git:

@@ -157,6 +157,15 @@ class NoteStore:
     def _save(self, note):
         write_json_atomic(self._path(note['id'], 'json'), note, newline=True, indent=1, ensure_ascii=False)
 
+    def update(self, note, **changes):
+        """The one public way to change a stored note: applies `changes` to `note`
+        in place and persists it, holding its video's lock as every internal
+        mutation does."""
+        with self.video_lock(note['video']):
+            note.update(**changes)
+            self._save(note)
+        return note
+
     def add(self, video, format, frame, segment, text, png, author=None, **context):
         """Store a new note with its frame's PNG bytes, submit it, and return it."""
         if not isinstance(text, str) or not text.strip():
