@@ -7,6 +7,7 @@ catalog.
     python -m videobuilder compendium build --out DIR [--only ID ...]
 """
 import json
+import math
 import os
 
 import videobuilder as vb
@@ -45,29 +46,65 @@ def recipe_ids():
 
 # ---- building a Film from one component's preview, or a whole recipe ----
 
+def _read_time_frames(grid, values, wps=3.0, lead=1.0):
+    """Frames long enough for `skill/make-a-video/scripts/check.py`'s own
+    read-time check (`lead` seconds plus `wps` words a second), counting
+    words the same way it does: every string slot value, joined."""
+    words = sum(len(v.split()) for v in values.values() if isinstance(v, str) and v)
+    return math.ceil(grid.fps * (lead + words / wps))
+
+
 def component_film(component, values=None):
-    """A small `Film` previewing `component`: one segment, `values` (default:
-    the component's own sample) filled in, timed at the compendium's default
-    tempo for its own midpoint beat length."""
+    """A small `Film` previewing `component`: `values` (default: the
+    component's own sample) filled in, timed at the compendium's default
+    tempo for its own midpoint beat length (or longer, if its sample copy
+    needs more than that to read).
+
+    A `transition` component has no neighbouring shot to preview it with, so
+    it gets two segments of its own instead of one: `from` holds alone, then
+    `to` takes over and overlaps `from` for its own entire length -- a real
+    `Segment(overlap=...)`, the same shape `build_recipe_film` gives it
+    between two real neighbours, not a one-off for the preview alone. Both
+    carry the full sample, so either one read alone still has enough time
+    for all of it."""
     values = component.validate(component.sample if values is None else values)
-    beats = (component.beats[0] + component.beats[1]) / 2
     grid = kit.GRID
-    timeline = vb.Timeline(grid, [vb.Segment(component.id, 0, beats, data=values)], end=beats)
+    lo, hi = component.beats
+    if component.kind == 'transition':
+        phase_frames = max(grid.b((lo + hi) / 4), _read_time_frames(grid, values))
+        from_until = math.ceil(phase_frames / grid.frames_per_beat * 2) / 2  # the half-beat grid, rounded up
+        beats = from_until + phase_frames / grid.frames_per_beat
+        segments = [
+            vb.Segment('from', 0, from_until, data=values),
+            vb.Segment('to', from_until, beats, data=values, overlap=beats - from_until),
+        ]
+    else:
+        frames = max(grid.b((lo + hi) / 2), _read_time_frames(grid, values))
+        beats = frames / grid.frames_per_beat
+        segments = [vb.Segment(component.id, 0, beats, data=values)]
+    timeline = vb.Timeline(grid, segments, end=beats)
 
     def draw(n, cv):
-        component.draw(cv, timeline.live(n)[-1])
+        shots = timeline.live(n)
+        if component.kind == 'transition':
+            component.draw(cv, shots)
+        else:
+            component.draw(cv, shots[-1])
 
     fmts = tuple(kit.FORMATS[name] for name in component.formats)
     return vb.Film(draw=draw, timeline=timeline, formats=fmts, background=kit.BG)
 
 
 def build_recipe_film(recipe):
-    """Recipe -> an ordinary `videobuilder.Film`: its steps laid out as hard
-    cuts on `recipe.bpm`'s grid, each a `Segment` whose `data` is that step's
-    validated slot values, dispatched to its component's own `draw`."""
+    """Recipe -> an ordinary `videobuilder.Film`: its steps laid out in order
+    on `recipe.bpm`'s grid, each a `Segment` whose `data` is that step's
+    validated slot values, dispatched to its component's own `draw`. A
+    `transition` step overlaps the one before it for its own full length
+    (`Segment(overlap=...)`), rather than cutting to it, and is handed every
+    shot live during that overlap (outgoing, then itself)."""
     grid = vb.Grid(fps=30, bpm=recipe.bpm)
     segments = []
-    draw_map = {}
+    comp_map = {}
     at = 0.0
     for i, step in enumerate(recipe.steps):
         comp = get(step.component)
@@ -80,14 +117,19 @@ def build_recipe_film(recipe):
                 raise ValueError(f"recipe {recipe.id!r}: format {fmt!r} isn't supported by {step.component}")
         values = comp.validate(step.slots)
         name = f'{i:02d}-{step.component}'
-        segments.append(vb.Segment(name, at, at + step.beats, data=values))
-        draw_map[name] = comp.draw
+        overlap = step.beats if comp.kind == 'transition' else 0
+        segments.append(vb.Segment(name, at, at + step.beats, data=values, overlap=overlap))
+        comp_map[name] = comp
         at += step.beats
     timeline = vb.Timeline(grid, segments, end=at)
 
     def draw(n, cv):
-        shot = timeline.live(n)[-1]
-        draw_map[shot.name](cv, shot)
+        shots = timeline.live(n)
+        comp = comp_map[shots[-1].name]
+        if comp.kind == 'transition':
+            comp.draw(cv, shots)
+        else:
+            comp.draw(cv, shots[-1])
 
     fmts = tuple(kit.FORMATS[name] for name in recipe.formats)
     return vb.Film(draw=draw, timeline=timeline, formats=fmts, background=kit.BG)
@@ -182,7 +224,7 @@ def index_markdown():
         lines.append(f"- formats: {', '.join(r.formats)}")
         lines.append('- steps:')
         for s in r.steps:
-            lines.append(f'  - `{s.component}` ({s.beats:g} beats): {s.slots}')
+            lines.append(f'  - `{s.component}` ({s.beats:g} beats): {_jsonify(s.slots)}')
         lines.append('')
     return '\n'.join(lines) + '\n'
 

@@ -2,6 +2,8 @@
 recipes, the index, and `compendium build`."""
 import json
 import os
+import subprocess
+import sys
 import tempfile
 import unittest
 from pathlib import Path
@@ -11,6 +13,8 @@ from videobuilder import compendium
 from videobuilder.compendium.schema import KINDS, SlotError
 
 ROOT = Path(__file__).resolve().parent.parent
+CHECK = ROOT / 'skill' / 'make-a-video' / 'scripts' / 'check.py'
+ENV = {**os.environ, 'PYTHONPATH': str(ROOT) + os.pathsep + os.environ.get('PYTHONPATH', '')}
 
 
 class Catalog(unittest.TestCase):
@@ -139,9 +143,22 @@ class SlotValidation(unittest.TestCase):
         self.assertIn('headline', msg)
         self.assertIn('required', msg)
 
-    def test_missing_optional_slot_falls_back_to_the_sample(self):
+    def test_missing_optional_color_slot_falls_back_to_the_sample(self):
+        """`color`/`palette` are a style default, so they keep falling back
+        to the component's own sample (unlike every other type: see the next
+        test) when a builder leaves them out."""
         out = self.c.validate({'headline': 'ok'})
         self.assertEqual(out['accent'], self.c.sample['accent'])
+
+    def test_missing_optional_text_slot_is_empty_not_the_sample(self):
+        """A builder who fills only the required slots must not get the
+        sample's placeholder copy in their film (end-card's sample line3,
+        say) -- an optional non-colour slot left out is empty, not borrowed
+        from the sample."""
+        end_card = compendium.get('end-card')
+        out = end_card.validate({'headline': 'ok'})
+        self.assertEqual(out['line2'], '')
+        self.assertNotEqual(out['line2'], end_card.sample['line2'])
 
     def test_bad_color_is_rejected(self):
         with self.assertRaises(SlotError):
@@ -158,6 +175,18 @@ class SlotValidation(unittest.TestCase):
         from videobuilder.compendium.schema import check_value
         with self.assertRaises(SlotError):
             check_value('x', slot, [compendium.kit.sample_photo()])
+
+    def test_bar_chart_series_enforces_bar_count(self):
+        bar = compendium.get('bar-chart')
+        with self.assertRaises(SlotError):
+            bar.validate({'title': 't', 'series': [1.0]})
+
+    def test_bar_chart_handles_an_all_zero_series(self):
+        """A series whose values are all 0 must not crash the draw (there is
+        no largest value to scale the axis against)."""
+        bar = compendium.get('bar-chart')
+        film = compendium.component_film(bar, {'title': 't', 'series': [('a', 0), ('b', 0)]})
+        film.frame(film.frames - 1, film.formats[0], scale=0.1)
 
 
 class Index(unittest.TestCase):
@@ -179,6 +208,44 @@ class Index(unittest.TestCase):
         data = compendium.index_data()
         self.assertEqual(json.loads(compendium.index_json()), data)
         self.assertEqual(json.loads(json.dumps(data)), data)
+
+
+class Check(unittest.TestCase):
+    """Every preview must pass the same review check the showcase and
+    capability demos do (`tests/test_capabilities.py` runs it the same way):
+    storyboard read times, and marks in the safe area with none overlapping,
+    skipping frames mid-overlap-transition by design."""
+
+    def _run(self, source):
+        with tempfile.TemporaryDirectory() as d:
+            film_path = Path(d) / 'film.py'
+            film_path.write_text(source)
+            return subprocess.run([sys.executable, str(CHECK), str(film_path)],
+                                  capture_output=True, text=True, env=ENV)
+
+    @staticmethod
+    def _overlap_ok(components):
+        pairs = {p for c in components for p in c.overlap_ok}
+        return f'OVERLAP_OK = {pairs!r}\n' if pairs else ''
+
+    def test_every_component_preview_passes_check(self):
+        for c in compendium.CATALOG:
+            with self.subTest(id=c.id):
+                src = ('import videobuilder.compendium as compendium\n\n'
+                      f'FILM = compendium.component_film(compendium.get({c.id!r}))\n'
+                      f'{self._overlap_ok([c])}')
+                result = self._run(src)
+                self.assertIn('0 failed', result.stdout, result.stdout + result.stderr)
+
+    def test_every_recipe_passes_check(self):
+        for r in compendium.RECIPES:
+            with self.subTest(id=r.id):
+                comps = [compendium.get(s.component) for s in r.steps]
+                src = ('import videobuilder.compendium as compendium\n\n'
+                      f'FILM = compendium.build_recipe_film(compendium.get_recipe({r.id!r}))\n'
+                      f'{self._overlap_ok(comps)}')
+                result = self._run(src)
+                self.assertIn('0 failed', result.stdout, result.stdout + result.stderr)
 
 
 class Build(unittest.TestCase):

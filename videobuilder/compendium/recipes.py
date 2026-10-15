@@ -20,7 +20,7 @@ PRODUCT_TEASER = Recipe(
             'value': 3.1, 'label': 'faster deploys this quarter', 'suffix': 'x'}),
         RecipeStep('bar-chart', 4, {
             'title': 'Deploys a day', 'series': [('Before', 2.0), ('Staging', 5.0), ('Now', 9.0)], 'accent': TEAL}),
-        RecipeStep('end-card', 4, {
+        RecipeStep('end-card', 5, {
             'headline': 'Ship it today', 'line2': 'Try it on your next release.', 'accent': ACCENT}),
     ),
 )
@@ -39,7 +39,7 @@ EXPLAINER = Recipe(
         RecipeStep('bar-chart', 5, {
             'title': 'Time to ship', 'series': [('Manual', 6.0), ('Scripted', 3.0), ('Automated', 1.0)]}),
         RecipeStep('stat-counter', 4, {'value': 92, 'label': 'fewer manual steps', 'suffix': '%'}),
-        RecipeStep('end-card', 4, {
+        RecipeStep('end-card', 5, {
             'headline': 'That is the whole flow', 'line2': 'No new dependencies, no new steps.', 'accent': TEAL}),
     ),
 )

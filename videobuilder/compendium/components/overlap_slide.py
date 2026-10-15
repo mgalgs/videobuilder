@@ -1,10 +1,12 @@
 """Transition: overlap slide. One card holds, then the next slides up over it
--- a transition built from `Timeline`/`Segment(overlap=...)`, the same
-mechanism an ordinary film uses for a hard cut, not a crossfade bolted on.
+-- built on the timeline's own `Segment(overlap=...)`, the same mechanism an
+ordinary film uses for a hard cut, not a crossfade (or a private timeline)
+bolted on.
 
 Ported and generalised from `examples/capabilities/overlap-transitions.py`.
-Draws its own from/to pair (there is no neighbouring shot to receive), the
-way that capability demo draws its own cards A and B.
+Draws its own labelled from/to pair, the way that capability demo draws its
+own cards A and B, but -- unlike the demo, which never has a "before" to
+receive -- as the real outgoing and incoming shots of the film it sits in.
 """
 import videobuilder as vb
 from videobuilder import text
@@ -13,46 +15,35 @@ from .. import kit
 from ..schema import Component, Slot
 
 
-def _inner_timeline(length):
-    """A private two-segment Timeline sized to exactly `length` frames: `from`
-    holds, `to` starts partway through and overlaps the last third of `from`.
-    A `Grid` with one frame per beat lets beats double as frame counts."""
-    grid = vb.Grid(fps=30, bpm=30 * 60)
-    to_len = max(2, round(length * 0.55))
-    overlap = max(1, min(to_len - 1, round(length * 0.22)))
-    from_until = length - to_len + overlap
-    segments = [
-        vb.Segment('from', 0, from_until),
-        vb.Segment('to', from_until, length, overlap=overlap),
-    ]
-    return vb.Timeline(grid, segments, end=length)
+def _card(cv, box, letter_f, y, label, color, mark):
+    cv.rect(box.x, y, box.w, box.h, kit.LINE, radius=20)
+    cv.outline(box.x, y, box.w, box.h, color, width=4, radius=20)
+    cv.mark(f'card-{mark}', box.x, y, box.w, box.h)
+    lines = text.wrap(label, letter_f, box.w)
+    _, lh = text.block_size(lines, letter_f)
+    letter_box = text.draw(cv, lines, letter_f, box.x, y + (box.h - lh) / 2, kit.INK,
+                           align='center', width=box.w)
+    cv.mark(f'label-{mark}', *letter_box)
 
 
-def draw(cv, shot):
+def draw(cv, shots):
+    """`shots` is this frame's `Timeline.live(n)`: just the outgoing shot
+    before the transition starts (holds at rest), or (outgoing, this
+    transition's own shot) while it overlaps the one before it -- in a real
+    film as much as in its own preview (see `catalog.component_film`)."""
     cv.fill(kit.BG)
+    shot = shots[-1]
     data = shot.data
-    tl = _inner_timeline(shot.length)
     box = kit.safe(cv, 72)
     letter_f = kit.font(96, 700)
-    for inner in tl.live(min(shot.f, shot.length - 1)):
-        is_from = inner.name == 'from'
-        label = data['from_label'] if is_from else data['to_label']
-        color = data['from_color'] if is_from else data['to_color']
-        if inner.exit is not None:
-            y = box.y  # the outgoing card holds still while covered
-        elif inner.segment.overlap:
-            p = vb.clamp01(inner.f / max(1, tl.grid.b(inner.segment.overlap)))
-            y = box.y + box.h * (1 - vb.ease_in_out_quart(p))
-        else:
-            y = box.y
-        cv.rect(box.x, y, box.w, box.h, kit.LINE, radius=20)
-        cv.outline(box.x, y, box.w, box.h, color, width=4, radius=20)
-        cv.mark(f'card-{inner.name}', box.x, y, box.w, box.h)
-        lines = text.wrap(label, letter_f, box.w)
-        _, lh = text.block_size(lines, letter_f)
-        letter_box = text.draw(cv, lines, letter_f, box.x, y + (box.h - lh) / 2, kit.INK,
-                               align='center', width=box.w)
-        cv.mark(f'label-{inner.name}', *letter_box)
+    _card(cv, box, letter_f, box.y, data['from_label'], data['from_color'], 'from')
+    if len(shots) == 1:
+        return
+
+    frames_per_beat = shot.length / (shot.segment.until - shot.segment.at)
+    overlap_frames = max(1, round(frames_per_beat * shot.segment.overlap))
+    p = vb.clamp01(vb.interpolate(shot.f, [0, overlap_frames], [0, 1], ease=vb.ease_in_out_quart))
+    _card(cv, box, letter_f, box.y + box.h * (1 - p), data['to_label'], data['to_color'], 'to')
 
 
 COMPONENT = Component(
@@ -70,4 +61,5 @@ COMPONENT = Component(
     ),
     sample={'from_label': 'Before', 'to_label': 'After', 'from_color': kit.ACCENT, 'to_color': kit.TEAL},
     draw=draw,
+    overlap_ok=(('card-from', 'label-from'), ('card-to', 'label-to')),
 )

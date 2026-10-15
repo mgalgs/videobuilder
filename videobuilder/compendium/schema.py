@@ -6,14 +6,22 @@ builds one `Component`. Its `draw(cv, shot)` is called the way a showcase
 scene is: `shot` is a `videobuilder.Shot` (one segment of an ordinary
 `Timeline`), `shot.data` holds the slot values already validated and
 defaulted by `Component.validate`, and `shot.f` / `shot.length` give its
-timing in frames. A `transition` component is the same shape; it happens to
-draw a from/to pair of its own, the way `examples/capabilities/
-overlap-transitions.py` does, rather than receiving neighbouring shots.
+timing in frames. A `transition` component is called differently: its
+`draw(cv, shots)` takes `Timeline.live(n)` itself (one shot normally, two
+while it overlaps the shot before it, outgoing first) built on the
+timeline's own `Segment(overlap=...)`, the mechanism `examples/capabilities/
+overlap-transitions.py` uses, not a parallel timeline of its own.
 """
 from dataclasses import dataclass, field
 
 KINDS = ('title', 'data', 'images', 'transition', 'ending')
 TYPES = ('text', 'image', 'images', 'color', 'palette', 'series', 'number')
+
+# An optional slot a builder leaves out falls back to this, not to the
+# component's sample value -- otherwise sample copy (or a sample image)
+# leaks into a real film. `color`/`palette` are the exception: those are
+# kept on a style default instead (see `Component.validate`).
+_EMPTY_DEFAULTS = {'text': '', 'image': None, 'images': (), 'number': None, 'series': None}
 
 
 class SlotError(ValueError):
@@ -91,6 +99,10 @@ def check_value(component_id, slot, value):
                     fail(f'has a bad series item {item!r}; use (label, number)')
             elif not _is_number(item):
                 fail(f'has a bad series item {item!r}; use a number or (label, number)')
+        if slot.min_count is not None and len(value) < slot.min_count:
+            fail(f'has {len(value)} items; needs at least {slot.min_count}')
+        if slot.max_count is not None and len(value) > slot.max_count:
+            fail(f'has {len(value)} items; needs at most {slot.max_count}')
     elif slot.type == 'image':
         from ..canvas import Image
         if not isinstance(value, Image):
@@ -108,7 +120,12 @@ def check_value(component_id, slot, value):
 class Component:
     """A compendium component: metadata, typed slots, a sample filling for
     every slot (licence-clean, so it previews with nothing supplied), and the
-    drawing itself."""
+    drawing itself.
+
+    `overlap_ok`: pairs of `canvas.mark` names this component draws one
+    inside the other on purpose (a label inside its own card, say) --
+    `skill/make-a-video/scripts/check.py`'s own `OVERLAP_OK`, for whoever
+    builds a film (or a preview) from this component to pass through."""
     id: str
     kind: str
     description: str
@@ -118,6 +135,7 @@ class Component:
     slots: tuple
     sample: dict
     draw: object  # draw(cv, shot) -> None
+    overlap_ok: tuple = ()
 
     def __post_init__(self):
         if self.kind not in KINDS:
@@ -134,9 +152,11 @@ class Component:
 
     def validate(self, values):
         """`values`, checked and defaulted: unknown slots and missing required
-        slots raise `SlotError`; a slot left out otherwise falls back to the
-        component's sample value, so a partially-filled component still
-        renders. Returns a new dict naming every slot."""
+        slots raise `SlotError`; a slot left out otherwise falls back to an
+        empty default for its type (so sample copy never leaks into a real
+        film), except `color`/`palette`, which fall back to the component's
+        own sample so a partially-filled component still looks styled.
+        Returns a new dict naming every slot."""
         known = {s.name for s in self.slots}
         unknown = set(values) - known
         if unknown:
@@ -147,8 +167,10 @@ class Component:
                 out[slot.name] = check_value(self.id, slot, values[slot.name])
             elif slot.required:
                 raise SlotError(f"{self.id}: slot '{slot.name}' is required ({slot.hint})")
-            else:
+            elif slot.type in ('color', 'palette'):
                 out[slot.name] = self.sample.get(slot.name)
+            else:
+                out[slot.name] = _EMPTY_DEFAULTS[slot.type]
         return out
 
 

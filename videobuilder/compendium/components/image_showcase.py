@@ -12,13 +12,17 @@ from ..schema import Component, Slot
 
 ENTER = 16
 STAGGER = 8
+# A few frames' head start so the first panel already has something on
+# screen on a hard cut's very first frame (check.py flags a cut landing on
+# an empty frame as not reading on the beat).
+HEAD_START = 4
 
 PANELS = ('cover', 'contain')
 
 
 def _panel_p(i, n):
-    enter_n = n - i * STAGGER
-    if enter_n < 0:
+    enter_n = n - i * STAGGER + HEAD_START
+    if enter_n <= 0:
         return 0.0
     if enter_n < ENTER:
         return vb.interpolate(enter_n, [0, ENTER], [0, 1], ease=vb.ease_out_quint)

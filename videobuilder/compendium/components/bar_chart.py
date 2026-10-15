@@ -19,7 +19,8 @@ def _axis_max(data, series):
     given = data.get('axis_max')
     if given:
         return given
-    return 1.2 * max(v for _, v in series)
+    peak = max((v for _, v in series), default=0)
+    return 1.2 * peak if peak > 0 else 1.0
 
 
 def _bar_p(i, n):
@@ -59,7 +60,7 @@ def draw(cv, shot):
         p = _bar_p(i, shot.f)
         if p <= 0.02:
             continue
-        h = min(plot.h, value * p / axis_max * plot.h)
+        h = min(plot.h, max(0.0, value) * p / axis_max * plot.h)
         y = baseline_y - h
         hero = i == len(series) - 1
         fill = data['accent'] if hero else kit.LINE
@@ -84,7 +85,8 @@ COMPONENT = Component(
     slots=(
         Slot('title', 'text', True, 'The chart\'s title.', max_length=40),
         Slot('series', 'series', True,
-             '2 to 6 bars, in order, as (label, number) pairs; the last one is the hero bar.'),
+             '2 to 6 bars, in order, as (label, number) pairs; the last one is the hero bar.',
+             min_count=2, max_count=6),
         Slot('axis_max', 'number', False, 'Chart ceiling; defaults to 1.2x the largest value.'),
         Slot('accent', 'color', False, 'Colour of the hero (last) bar.'),
     ),
