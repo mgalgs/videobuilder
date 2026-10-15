@@ -1,5 +1,7 @@
 """The make-a-video skill's template film and scripts work against this checkout."""
 import os
+import re
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -169,6 +171,29 @@ class Skill(unittest.TestCase):
     def test_doctor_passes_here(self):
         out = script('doctor.py', cwd=ROOT)
         self.assertIn('all good', out.stdout)
+
+    @unittest.skipUnless(shutil.which('ffmpeg'), 'needs ffmpeg')
+    def test_footage_reference_example_runs(self):
+        doc = (SKILL / 'reference' / 'footage.md').read_text()
+        example = re.findall(r'```python\n(.*?)```', doc, re.DOTALL)[-1]
+        with tempfile.TemporaryDirectory() as d:
+            Path(d, 'assets').mkdir()
+            script('make_track.py', '--bpm', 120, '--beats', 4, '--out', 'assets/music.wav', cwd=d)
+            subprocess.run(['ffmpeg', '-v', 'error', '-y', '-f', 'lavfi',
+                            '-i', 'testsrc=size=32x32:rate=30:duration=14', '-f', 'lavfi',
+                            '-i', 'sine=frequency=300:duration=14', '-shortest',
+                            os.path.join(d, 'assets', 'interview.mp4')], check=True)
+            film = Path(d, 'film.py')
+            film.write_text(
+                "from pathlib import Path\n"
+                "import videobuilder as vb\n"
+                "TIMELINE = vb.Timeline(vb.Grid(fps=30, bpm=120), [vb.Segment('interview', 0, 2)], end=2)\n"
+                + example)
+            from videobuilder import load
+            f = load(str(film))
+            self.assertEqual(f.frames, 30)
+            self.assertEqual(len(f.sounds), 1)
+            f.frame(10)
 
 
 if __name__ == '__main__':
