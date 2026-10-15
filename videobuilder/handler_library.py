@@ -220,6 +220,19 @@ class LibraryHandler:
                         return self.end_headers()
                     if library.accounts and not library.access.can_access(name, user, library.accounts):
                         raise HTTPError(404, 'repository has no main branch')
+                    if video_subroute == '/api/thumbnail' and method == 'GET' and name not in library.editors:
+                        # Every card's lazy <img> hits this: answer from disk, without
+                        # opening (and so cloning, and spinning up the render-poll thread
+                        # of) an Editor that isn't open already, for a video nobody may
+                        # ever look at. Falls through to the normal path below only when
+                        # that can't be answered unambiguously (library.thumbnails).
+                        from .thumbnails import AMBIGUOUS, from_state_dir
+                        flat = name.replace('/', '--')
+                        data = from_state_dir(library.state_dir / flat, library.path(name))
+                        if data is not AMBIGUOUS:
+                            if data is None:
+                                raise HTTPError(404, 'no render yet')
+                            return self._send(200, data, 'image/jpeg')
                     try:
                         active = library.editor(name)
                     except ValueError as exc:

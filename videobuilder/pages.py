@@ -421,7 +421,9 @@ LIB_DETAIL_SCRIPT = (
     'for(const b of document.querySelectorAll(".lib-card"))'
     'b.onclick=()=>openDetail(Number(b.dataset.idx));'
     'document.querySelector(".lib-detail-close").onclick=()=>dialog.close();'
-    'dialog.addEventListener("click",e=>{if(e.target===dialog)dialog.close()});'
+    'dialog.addEventListener("click",e=>{'
+    'const r=dialog.getBoundingClientRect();'
+    'if(e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom)dialog.close()});'
     'document.getElementById("lib-detail-copy").onclick=async()=>{'
     'const btn=document.getElementById("lib-detail-copy");'
     'const ok=await copyText(document.getElementById("lib-detail-url"));'
@@ -474,8 +476,11 @@ def index(entries, accounts_enabled, user, host, scheme='http', showcase=False):
     if hero and showcase:
         starters = _showcase_section_html() + starters
     new_video = '<a class="btn btn-primary new-video" href="/new">+ New video</a>' if can_create else ''
-    # </script> inside a commit subject must not close the data block early.
-    cards_json = json.dumps(cards).replace('</', '<\\/')
+    # A commit subject holding e.g. "<!--<script>" must not push the tokenizer into
+    # the script-data double-escaped state, where a literal </script> no longer closes
+    # this block: escape every '<' (and '>', '&' along with it) as a \u escape.
+    cards_json = (json.dumps(cards).replace('<', '\\u003c').replace('>', '\\u003e')
+                 .replace('&', '\\u0026'))
     script = ('<script>'
               'const o=document.querySelector("#sign-out");if(o)o.onclick=async()=>{'
               'await fetch("/api/logout",{method:"POST",headers:{"Content-Type":"application/json"},body:"{}"});'
