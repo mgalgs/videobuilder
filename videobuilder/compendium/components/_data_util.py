@@ -37,7 +37,7 @@ def num(v, decimals=None, signed=False):
                 return f'{sign}{body}{suffix}'
         return f'>{sign}999T'
     if decimals is None:
-        decimals = 0 if float(a).is_integer() or a >= 100 else (1 if a >= 1 else 2)
+        decimals = 0 if float(a).is_integer() or a >= 100 else (1 if abs(round(a, 1) - a) < 1e-9 else 2)
     out = f'{a:,.{decimals}f}'
     return sign + out
 
@@ -50,7 +50,7 @@ def decimals_of(*values):
         a = abs(v)
         if a >= 1e4 or float(a).is_integer():
             continue
-        best = max(best, 1 if a >= 1 else 2)
+        best = max(best, 1 if abs(round(a, 1) - a) < 1e-9 else 2)
     return best
 
 
