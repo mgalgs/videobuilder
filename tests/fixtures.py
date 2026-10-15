@@ -33,7 +33,7 @@ class API(TempProject):
 
     def start(self, **kw):
         hook = kw.pop('hook', None)
-        self.editor = Editor(self.root, poll=0, unsandboxed_previews=True, auto_land=False, **kw)
+        self.editor = Editor(self.root, unsandboxed_previews=True, auto_land=False, **kw)
         self.addCleanup(self.editor.pool.close)
         self.addCleanup(self.editor.renders.close)
         handler = make_handler(self.editor, hook) if hook else make_handler(self.editor)

@@ -156,7 +156,7 @@ from http.server import ThreadingHTTPServer
 from importlib import resources
 
 from . import edits
-from .notes import NoteStore, FINAL
+from .notes import NoteStore
 from .agents import backend_from_config
 from .drafts import Drafts, git
 from .pages import account_page
@@ -212,7 +212,7 @@ class Editor:
     """The project being edited: its videos, a preview Session per open video,
     and the notes. One lock covers every film load and draw."""
 
-    def __init__(self, root, state_dir=None, backend=None, poll=0.25, agent=None, allowed_hosts=(), host='127.0.0.1',
+    def __init__(self, root, state_dir=None, backend=None, agent=None, allowed_hosts=(), host='127.0.0.1',
                  unsandboxed_previews=False, envs=None, env_builder=None, sync_remote=None, environments=None,
                  auto_land=None, capabilities_dir=None, music_sources=None, music=None,
                  trust_repo_config=True):
@@ -253,7 +253,6 @@ class Editor:
                                _positive(cfg, 'render_keep', 20))
         self.allowed_hosts = {h.lower().rstrip('.') for h in
                               ['localhost', '127.0.0.1', '::1', host, *cfg.get('allowed_hosts', []), *allowed_hosts]}
-        self.poll = poll
         try:
             self._seen_main = git(self.root, 'rev-parse', '--verify', 'refs/heads/main') if self.project.git else None
         except ValueError:

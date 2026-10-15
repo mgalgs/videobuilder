@@ -63,10 +63,6 @@ def guarded(root, branch, directory):
     return result
 
 
-def child_environment(home):
-    return {'PATH': os.defpath, 'HOME': str(home), 'LANG': 'C.UTF-8', 'LC_ALL': 'C.UTF-8'}
-
-
 class Drafts:
     def __init__(self, editor):
         self.editor = editor

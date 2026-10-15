@@ -12,10 +12,11 @@ from tests.test_project import TempProject, git
 from tests.test_notes import FakeAgent
 from videobuilder import agents, transcript
 from videobuilder.agents import CommandBackend, FakeBackend, ForkSandboxBackend
-from videobuilder.drafts import inspect, child_environment
+from videobuilder.drafts import inspect
 from videobuilder.editor import Editor
 from videobuilder.notes import NoteStore, AgentStatus
 from videobuilder.transcript import read_feed
+from videobuilder.workers import child_environment
 
 
 class Queue(TempProject):
@@ -257,7 +258,7 @@ class DraftLoop(TempProject):
     def setUp(self):
         super().setUp()
         git(self.root, 'branch', '-M', 'main')
-        self.editor = Editor(self.root, backend=FakeBackend(delay=0), poll=0, unsandboxed_previews=True, auto_land=False)
+        self.editor = Editor(self.root, backend=FakeBackend(delay=0), unsandboxed_previews=True, auto_land=False)
         self.addCleanup(self.editor.pool.close)
         self.addCleanup(self.editor.renders.close)
 
