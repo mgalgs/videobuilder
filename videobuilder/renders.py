@@ -116,7 +116,9 @@ class Renders:
                     python, '-m', 'videobuilder', 'render', str(film), '--format', fmt,
                     '--out', str(home / output.name.removesuffix('.partial')), '--jobs', str(self.jobs)])
                 with tempfile.TemporaryFile() as log:
-                    proc = subprocess.Popen(command, cwd=home, env=child_environment(home, source),
+                    # cwd is the film's own directory (see workers.Worker.__init__), so a plain
+                    # relative `sources/<name>.<ext>` resolves the same way in a render as in a preview.
+                    proc = subprocess.Popen(command, cwd=film.parent, env=child_environment(home, source),
                                             stdout=log, stderr=log, start_new_session=True)
                     try:
                         while proc.poll() is None:

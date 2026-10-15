@@ -13,7 +13,7 @@ directory, for a backend that can't share the editor's filesystem.
 import hashlib
 import json
 import os
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 import re
 import secrets
 import shutil
@@ -75,16 +75,18 @@ class Sources:
         self.max_total = max_total
         self.root = Path(editor.state_dir) / 'sources'
         self.root.mkdir(parents=True, exist_ok=True)
-        self._exclude_checkout()
 
-    def _exclude_checkout(self):
-        """Ignore every video's `sources/` directory in the project's own git
-        checkout via `.git/info/exclude`, without touching tracked files or
-        the repo's own .gitignore. A no-op outside a git repo, or if the
-        pattern is already there (also covers any worktree, since
-        `info/exclude` is shared repo-wide)."""
+    def _exclude_checkout(self, rel_dir):
+        """Ignore this one video's `sources/` directory in the project's own git
+        checkout via `.git/info/exclude`, without touching tracked files or the
+        repo's own .gitignore. The entry is anchored to this video's own directory
+        (`/<rel_dir>/sources/`), not a bare `sources/`, so it can't also match an
+        unrelated `sources/` directory the creator has elsewhere in the repo. A
+        no-op outside a git repo, or if the pattern is already there (also covers
+        any worktree, since `info/exclude` is shared repo-wide)."""
         if not self.editor.project.git:
             return
+        pattern = '/' + PurePosixPath(rel_dir).as_posix() + '/sources/'
         try:
             info_dir = Path(subprocess.run(
                 ['git', 'rev-parse', '--git-common-dir'], cwd=self.editor.root,
@@ -95,11 +97,11 @@ class Sources:
             info_dir.mkdir(parents=True, exist_ok=True)
             exclude = info_dir / 'exclude'
             existing = exclude.read_text() if exclude.exists() else ''
-            if 'sources/' not in existing.splitlines():
+            if pattern not in existing.splitlines():
                 with open(exclude, 'a') as fh:
                     if existing and not existing.endswith('\n'):
                         fh.write('\n')
-                    fh.write('sources/\n')
+                    fh.write(pattern + '\n')
         except (OSError, subprocess.CalledProcessError):
             pass
 
@@ -264,6 +266,7 @@ class Sources:
             rel_dir = video_path.parent.relative_to(self.editor.root)
         except ValueError:
             return
+        self._exclude_checkout(rel_dir)
         dest_dir = (Path(root) if root is not None else Path(self.editor.root)) / rel_dir / 'sources'
         wanted = {}
         for meta in self.list(video):

@@ -219,7 +219,21 @@ class CheckoutStaging(fixtures.API):
         self.assertEqual(linked.stat().st_ino, (self.editor.sources._dir('promo/film', 'interview')
                                                 / 'interview.mp4').stat().st_ino)
         self.assertEqual(git(self.root, 'status', '--porcelain'), '')
-        self.assertIn('sources/', (self.root / '.git' / 'info' / 'exclude').read_text())
+        exclude = (self.root / '.git' / 'info' / 'exclude').read_text()
+        self.assertIn('/promo/sources/', exclude.splitlines())
+
+    def test_exclude_entry_is_anchored_to_the_video_dir_not_any_sources_dir(self):
+        # A bare `sources/` would also match an unrelated `sources/` directory
+        # elsewhere in the creator's repo; the entry must be anchored to this
+        # video's own directory.
+        self.editor.sources.sync('promo/film')
+        exclude = (self.root / '.git' / 'info' / 'exclude').read_text().splitlines()
+        self.assertNotIn('sources/', exclude)
+        other = self.root / 'unrelated' / 'sources'
+        other.mkdir(parents=True)
+        (other / 'keep.txt').write_text('not excluded')
+        self.assertEqual(git(self.root, 'status', '--porcelain', '--ignored=matching', '--', 'unrelated').strip(),
+                         '?? unrelated/')
 
     def test_sync_removes_a_stale_link_after_delete(self):
         self.editor.sources.sync('promo/film')
@@ -268,17 +282,14 @@ class CheckoutStaging(fixtures.API):
         self.assertIsNone(self.editor.sources.stage_dir('promo/film'))
 
     def test_draft_preview_renders_a_source_with_vb_clip(self):
-        # film.py/clip.py resolving the plain relative path `sources/interview.mp4` against
-        # the film's own directory (rather than the worker's cwd) is the framework round's
-        # job (see footage.md), not this one's; this test proves the half this round owns --
-        # that the hardlinked file is really there, real content, readable in the sandbox --
-        # via the one resolution that already works today, __file__-relative.
+        # The plain relative path a note-driven builder is told to use (prompt.py), with no
+        # framework helper: it resolves because the worker's cwd is the film's own directory
+        # (workers.Worker.__init__), the same directory sources.sync() hardlinks sources into.
         self.editor.sources.sync('promo/film')
         self.film.write_text(
-            "import os\n"
             "import videobuilder as vb\n"
             "T = vb.Timeline(vb.Grid(fps=10, bpm=120), [vb.Segment('tiny', 0, 1)], end=1)\n"
-            "_clip = vb.Clip(os.path.join(os.path.dirname(__file__), 'sources', 'interview.mp4'))\n"
+            "_clip = vb.Clip('sources/interview.mp4')\n"
             "def draw(n, cv):\n"
             "    cv.rect(0, 0, cv.width, cv.height, '#101418')\n"
             "    cv.image(_clip.frame(0), 0, 0, cv.width, cv.height)\n"
