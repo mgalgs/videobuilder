@@ -683,3 +683,9 @@ set `[editor.agent] videobuilder_repo` to the source repository URL.
 `--agent-context-mount` and `--agent-videobuilder-repo` set the same three
 keys from the command line, so a deployment can keep them out of the
 project repo.
+
+## Licence
+
+videobuilder is released under the MIT licence; see `LICENSE`. The fonts in
+`examples/assets/` are not: each is under the SIL Open Font License 1.1, with
+its licence file beside it, as `examples/assets/README.md` lists.
