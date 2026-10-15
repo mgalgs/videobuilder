@@ -227,13 +227,13 @@ CATALOG = (
     _entry(
         'paper-collage', 'Imagery and camera', 'Paper collage',
         'Torn-paper headlines, cut-paper objects, a stamp, and a rip-open transition.',
-        'The paper-cutout explainer look popularised by Vox: a grey-beige paper wall under still window light, '
+        'The editorial paper-cutout explainer look: a grey-beige paper wall under still window light, '
         'a headline printed on a torn scrap, a cut-paper object whose soft shadow follows its outline, '
         'hand-drawn marks and a red rubber stamp, all moving in stop-motion steps -- then the wall rips open '
         'from the middle, its flaps curling back to reveal one accent colour with the next scene pasted on it. '
         'Objects are drawn shapes or images you supply, never generated.',
-        ('Make this look like a Vox-style paper collage explainer', 'Put each headline on a torn strip of paper',
-         'Rip the paper open to get to the next scene', 'Stamp NO PROOF across it in red',
+        ('Make this look like a paper collage explainer, all torn paper and cut-outs',
+         'Put each headline on a torn strip of paper', 'Rip the paper open to get to the next scene', 'Stamp NO PROOF across it in red',
          'Make the paper pieces move like stop-motion, a bit choppy'),
         ('paths.torn(outline, seed, amount=5)  # a torn edge, baked once at import',
          'cv.shape_shadow(points, dx=.., dy=.., blur=..)  # a lift shadow that follows the shape',
