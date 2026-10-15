@@ -93,7 +93,35 @@ class Library:
                 self.editors[name] = Editor(checkout, state_dir=self.state_dir / flat,
                                             sync_remote='origin', trust_repo_config=False,
                                             **self.options)
+                self.editors[name].library = self
             return self.editors[name]
+
+    def account_notes(self):
+        """Every note across every project, tagged with its project's name, read
+        straight off each project's notes directory the way `tick` does -- without
+        opening an Editor for one that isn't already open -- so a cap check or a
+        usage total sees every project an account has used, not just whichever one
+        is serving the current request."""
+        from .notes import NoteStore
+        for name in self.names():
+            store = self.editors[name].notes if name in self.editors else None
+            if store is None:
+                notes_dir = self.state_dir / name.replace('/', '--') / 'notes'
+                if not notes_dir.is_dir():
+                    continue
+                store = NoteStore(notes_dir)
+            for note in store.list(refresh=False):
+                yield name, note
+
+    def usage(self):
+        """Per-account and per-video totals across the whole library -- see
+        Editor.usage, which this mirrors for the library-wide `/api/usage` route."""
+        from .editor import _account_key, _usage_totals
+        has_accounts = bool(self.accounts)
+        entries = ((_account_key(n.get('author'), has_accounts),
+                   f'{proj}/{n["video"]}' if n.get('video') else None, n)
+                  for proj, n in self.account_notes())
+        return _usage_totals(entries)
 
     def copied(self, source, name):
         if not valid_name(source) or not valid_name(name):

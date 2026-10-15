@@ -303,12 +303,17 @@ def _post_edit(self, route, body, identity, editor, user):
     return self._json(200, editor.edit(_field(body, 'video', str), route[5:], body, identity))
 
 
+def _note_response(self, user, note):
+    return note if _is_admin(self, user) else _strip_cost(note)
+
+
 def _post_notes(self, route, body, identity, editor, user):
-    return self._json(200, editor.add_note(body, identity, _is_admin_account(self, user)))
+    return self._json(200, _note_response(self, user, editor.add_note(body, identity, _is_admin_account(self, user))))
 
 
 def _post_first_note(self, route, body, identity, editor, user):
-    return self._json(200, editor.start_video(body, identity, _is_admin_account(self, user)))
+    return self._json(200, _note_response(self, user, editor.start_video(body, identity,
+                                                                          _is_admin_account(self, user))))
 
 
 def _post_note_delete(self, route, body, identity, editor, user, note_id):
@@ -320,8 +325,9 @@ def _post_note_delete(self, route, body, identity, editor, user, note_id):
 
 
 def _post_note_retry(self, route, body, identity, editor, user, note_id):
+    editor.check_note_cap(identity, _is_admin_account(self, user))
     try:
-        return self._json(200, editor.notes.retry(unquote(note_id), identity))
+        return self._json(200, _note_response(self, user, editor.notes.retry(unquote(note_id), identity)))
     except KeyError:
         raise HTTPError(404, f'no note {note_id!r}') from None
 
@@ -333,8 +339,8 @@ def _post_note_answer(self, route, body, identity, editor, user, note_id):
         raise HTTPError(400, 'answers must be a list of strings')
     editor.check_note_cap(identity, _is_admin_account(self, user))
     try:
-        return self._json(200, editor.notes.answer(unquote(note_id), build,
-                                                   None if build else answers, identity))
+        return self._json(200, _note_response(self, user, editor.notes.answer(
+            unquote(note_id), build, None if build else answers, identity)))
     except KeyError:
         raise HTTPError(404, f'no note {note_id!r}') from None
     except ValueError as exc:

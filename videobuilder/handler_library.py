@@ -176,6 +176,13 @@ class LibraryHandler:
                     if library.accounts:
                         library.access.set_owner(result['name'], user, library.accounts)
                     return self._json(201, result)
+                if route == '/api/usage' and method == 'GET':
+                    # Shared across the library like /api/name, not per-video: an
+                    # account's spending isn't scoped to one project.
+                    from .video_api import _is_admin
+                    if not _is_admin(self, user):
+                        raise HTTPError(403, 'admin only')
+                    return self._json(200, library.usage())
                 if route != '/healthz' and route != '/capabilities' and not route.startswith('/capabilities/'):
                     if video_name is None:
                         raise HTTPError(404, 'not found')

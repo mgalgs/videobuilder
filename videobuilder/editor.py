@@ -1,8 +1,9 @@
 """HTTP editor and director-mode API (stdlib only).
 
 Single-project routes are `/api/...`; library routes are `/v/<name>/api/...`,
-except `/api/name`, which is shared across the library. `video` is the id from
-`/api/project`. JSON is used for requests and responses except where noted.
+except `/api/name` and `/api/usage`, which are shared across the library.
+`video` is the id from `/api/project`. JSON is used for requests and
+responses except where noted.
 
 GET  /api/project                    project, backend, editor version and videos;
                                      videos[].upgrade is {from,to} for a pin below
@@ -26,8 +27,10 @@ POST /api/notes {video,text,format?,time?,attachments?:[id...]}
                                      429 {error} once the author's account has
                                      hit account_daily_note_cap or
                                      account_daily_cost_cap_usd, naming in plain
-                                     language when they can send another; never
-                                     for an admin account
+                                     language (the server's local time) when
+                                     they can send another; never for an admin
+                                     account. The returned note's cost_usd/
+                                     tokens are admin-only like GET below
 GET  /api/notes/<id>                 note, including time, attachments,
                                      state and, if landed, version {n,commit}.
                                      cost_usd (a number, or null when unknown)
@@ -38,7 +41,11 @@ GET  /api/notes/<id>.png             pinned frame or 404
 GET  /api/usage                      admin-only (403 otherwise; 401 signed out)
                                      when accounts are on, else open: per-account
                                      and per-video {cost_usd,notes,unknown_cost}
-                                     over the last 24 hours, 7 days and 30 days
+                                     over the last 24 hours, 7 days and 30 days,
+                                     across every project in the library (an
+                                     account's own notes, by username -- a
+                                     key's notes count toward the account it
+                                     belongs to, same as the cap below)
 GET  /api/notes/<id>/log?after=N&source=S
                                      {entries:[...from N],next,done,source,reset};
                                      a feed of the builder's steps, [] with no
@@ -189,13 +196,17 @@ read-only at /attachments for only the relevant submission.
 
 account_daily_note_cap and account_daily_cost_cap_usd (unset by default,
 meaning no cap) each limit one account to that many new notes, or that much
-recorded cost, per rolling 24 hours; an admin account is never capped, and
-cost still in flight (not yet final) doesn't count toward the cost cap,
-since it isn't known yet -- the note cap covers that gap. Hitting either cap
-refuses a new note (an ordinary one, a video's first note, or a follow-up
-from answering a question) with 429.
+recorded cost, per rolling 24 hours, across every project in the library (not
+just the one the note is being added to) and by account rather than by key --
+a key's notes count toward the account it belongs to, so a key cannot be used
+to get a second allowance. An admin account is never capped, and cost still
+in flight (not yet final) doesn't count toward the cost cap, since it isn't
+known yet -- the note cap covers that gap. Hitting either cap refuses a new
+note (an ordinary one, a video's first note, a retry, or a follow-up from
+answering a question) with 429.
 """
 import calendar
+import datetime
 import math
 import os
 import sys
@@ -310,6 +321,10 @@ class Editor:
         self.account_daily_cost_cap_usd = _optional_positive(
             account_daily_cost_cap_usd if account_daily_cost_cap_usd is not None
             else cfg.get('account_daily_cost_cap_usd'), 'account_daily_cost_cap_usd', (int, float))
+        # Set by Library.editor() for a library-hosted repo, so a cap or a usage total
+        # can see every project the account has used, not just this one (see
+        # Library.account_notes). None in single-project mode, where this is the only one.
+        self.library = None
         self.renders = Renders(self, _positive(cfg, 'render_jobs', min(4, default_jobs())),
                                _positive(cfg, 'render_keep', 20))
         self.allowed_hosts = {h.lower().rstrip('.') for h in
@@ -428,20 +443,20 @@ class Editor:
 
     DAY_SECONDS = 24 * 3600
 
-    @staticmethod
-    def _note_created(note):
-        return calendar.timegm(time.strptime(note['created'], '%Y-%m-%dT%H:%M:%SZ'))
-
     def check_note_cap(self, author, is_admin):
         """Refuse a new note with HTTPError(429) once `author`'s account has hit
         account_daily_note_cap or account_daily_cost_cap_usd over the trailing
         24 hours; a no-op when neither is configured, or for an admin account.
         Cost still in flight is unknown, so it never counts toward the cost cap
-        -- the note cap covers that gap."""
+        -- the note cap covers that gap. In a library, an account's notes aren't
+        scoped to this one project (Library.account_notes supplies every project's)."""
         if is_admin or (self.account_daily_note_cap is None and self.account_daily_cost_cap_usd is None):
             return
         cutoff = time.time() - self.DAY_SECONDS
-        mine = ((self._note_created(n), n) for n in self.notes.list(refresh=False) if n.get('author') == author)
+        has_accounts = bool(self.library and self.library.accounts)
+        account = _account_key(author, has_accounts)
+        notes = (n for _, n in self.library.account_notes()) if self.library else self.notes.list(refresh=False)
+        mine = ((_note_created(n), n) for n in notes if _account_key(n.get('author'), has_accounts) == account)
         window = sorted(((created, n) for created, n in mine if created >= cutoff), key=lambda t: t[0])
         if not window:
             return
@@ -451,38 +466,25 @@ class Editor:
         over_cost = self.account_daily_cost_cap_usd is not None and cost >= self.account_daily_cost_cap_usd
         if over_count or over_cost:
             resets_at = window[0][0] + self.DAY_SECONDS
-            when = time.strftime('%Y-%m-%d %H:%M UTC', time.gmtime(resets_at))
+            when = _plain_local_time(resets_at)
             raise HTTPError(429, f"You've reached today's limit for new notes. You can send more after {when}.")
-
-    USAGE_WINDOWS = (('last_24h', 24 * 3600), ('last_7d', 7 * 24 * 3600), ('last_30d', 30 * 24 * 3600))
 
     def usage(self):
         """Per-account and per-video totals -- cost, note count, and how many
-        notes had no recorded cost -- over each of USAGE_WINDOWS, from every
-        note this editor has ever stored. A note still in flight (or one
-        whose backend never reported a cost) counts toward `notes` but not
+        notes had no recorded cost -- over each of USAGE_WINDOWS. In a library,
+        this spans every project the account has used (Library.account_notes),
+        since an account's spending isn't scoped to one project; otherwise it's
+        just this editor's own notes. A note still in flight (or one whose
+        backend never reported a cost) counts toward `notes` but not
         `cost_usd`, and adds to `unknown_cost` instead."""
-        now = time.time()
-        accounts, videos = {}, {}
-        for note in self.notes.list(refresh=False):
-            age = now - self._note_created(note)
-            cost = note.get('cost_usd')
-            known = isinstance(cost, (int, float)) and not isinstance(cost, bool)
-            for bucket, key in ((accounts, note.get('author')), (videos, note.get('video'))):
-                if key is None:
-                    continue
-                totals = bucket.setdefault(key, {label: {'cost_usd': 0.0, 'notes': 0, 'unknown_cost': 0}
-                                                 for label, _ in self.USAGE_WINDOWS})
-                for label, seconds in self.USAGE_WINDOWS:
-                    if age > seconds:
-                        continue
-                    entry = totals[label]
-                    entry['notes'] += 1
-                    if known:
-                        entry['cost_usd'] = round(entry['cost_usd'] + cost, 6)
-                    else:
-                        entry['unknown_cost'] += 1
-        return {'accounts': accounts, 'videos': videos}
+        has_accounts = bool(self.library and self.library.accounts)
+        if self.library:
+            entries = ((_account_key(n.get('author'), has_accounts),
+                       f'{proj}/{n["video"]}' if n.get('video') else None, n)
+                      for proj, n in self.library.account_notes())
+        else:
+            entries = ((n.get('author'), n.get('video'), n) for n in self.notes.list(refresh=False))
+        return _usage_totals(entries)
 
     def add_note(self, body, author, is_admin=False):
         self.check_note_cap(author, is_admin)
@@ -608,6 +610,66 @@ class Editor:
 
         threading.Thread(target=gather_then_queue, daemon=True).start()
         return note
+
+
+def _note_created(note):
+    return calendar.timegm(time.strptime(note['created'], '%Y-%m-%dT%H:%M:%SZ'))
+
+
+def _account_key(identity, has_accounts):
+    """The bare account behind an attributed identity ('bob (ci)' -> 'bob'),
+    so a cap or a usage total isn't split by which key or session made a
+    note. Only safe when accounts are on: usernames and key labels can never
+    contain '(' (see accounts.USERNAME and accounts.valid_label), so this
+    split is unambiguous there. With no accounts system, identity is free
+    text (the hook value or vb_name cookie) and is compared exactly instead."""
+    if has_accounts and identity:
+        return identity.split(' (', 1)[0]
+    return identity
+
+
+USAGE_WINDOWS = (('last_24h', 24 * 3600), ('last_7d', 7 * 24 * 3600), ('last_30d', 30 * 24 * 3600))
+
+
+def _usage_totals(entries):
+    """Buckets (account_key, video_key, note) triples into the {accounts,
+    videos} shape Editor.usage and Library.usage both return, over each of
+    USAGE_WINDOWS."""
+    now = time.time()
+    accounts, videos = {}, {}
+    for account_key, video_key, note in entries:
+        age = now - _note_created(note)
+        cost = note.get('cost_usd')
+        known = isinstance(cost, (int, float)) and not isinstance(cost, bool)
+        for bucket, key in ((accounts, account_key), (videos, video_key)):
+            if key is None:
+                continue
+            totals = bucket.setdefault(key, {label: {'cost_usd': 0.0, 'notes': 0, 'unknown_cost': 0}
+                                             for label, _ in USAGE_WINDOWS})
+            for label, seconds in USAGE_WINDOWS:
+                if age > seconds:
+                    continue
+                entry = totals[label]
+                entry['notes'] += 1
+                if known:
+                    entry['cost_usd'] = round(entry['cost_usd'] + cost, 6)
+                else:
+                    entry['unknown_cost'] += 1
+    return {'accounts': accounts, 'videos': videos}
+
+
+def _plain_local_time(ts):
+    """`ts`, a resets-at timestamp always within 24h of now, in plain words
+    and the server's local time ('3:15 PM today'), per the 429 body the
+    director shows as-is -- not UTC, which isn't local for an outside creator."""
+    now_local, when_local = datetime.datetime.now(), datetime.datetime.fromtimestamp(ts)
+    clock = when_local.strftime('%I:%M %p').lstrip('0')
+    delta_days = (when_local.date() - now_local.date()).days
+    if delta_days <= 0:
+        return f'{clock} today'
+    if delta_days == 1:
+        return f'{clock} tomorrow'
+    return f"{clock} on {when_local.strftime('%B')} {when_local.day}"
 
 
 def _positive(cfg, name, default):

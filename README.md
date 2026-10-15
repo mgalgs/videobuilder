@@ -471,10 +471,13 @@ no accounts configured, nobody is gated and everyone sees it, the same way
 the builder's live log already shows cost (see `/api/notes/<id>/log` above).
 `account_daily_note_cap` and `account_daily_cost_cap_usd` each cap one
 account to that many new notes, or that much recorded cost, over a rolling
-24 hours; hitting either refuses a new note with 429 and a plain-language
-message naming when the account can send another. Admin accounts are never
-capped; where there are no accounts at all, nobody is exempt, so a cap set
-there binds everyone, including the operator.
+24 hours, across every project in the library and by account rather than by
+key (a key's notes count toward the account it belongs to); hitting either
+refuses a new note -- an ordinary one, a video's first note, a retry, or a
+follow-up from answering a question -- with 429 and a plain-language message,
+in the server's local time, naming when the account can send another. Admin
+accounts are never capped; where there are no accounts at all, nobody is
+exempt, so a cap set there binds everyone, including the operator.
 
 The generic command backend still receives a request JSON and markdown note.
 Fork-sandbox submissions add `--attach-dir` only for notes with attachments.

@@ -898,6 +898,165 @@ class Auth(AccountMixin, LibraryFixture, unittest.TestCase):
         self.assertEqual(code, 429)
         self.assertIn("today's limit", data['error'])
 
+    def test_daily_note_cap_counts_every_project_in_the_library(self):
+        # A cap on one project must bind the account everywhere, not just there --
+        # otherwise "New video" is a free reset for anyone who hits it.
+        from videobuilder.agents import FakeBackend
+        self.seed('acme/launch', film=True)
+        admin = self.admin_login()
+        self.new_project(admin, 'acme/launch', 'acme/launch')
+        _, _, bob = self.signup('bob', 'longenoughpassword')
+        self.request('/v/acme/launch/api/access', {'action': 'invite', 'username': 'bob'},
+                     headers={'Content-Type': 'application/json', 'Cookie': admin})
+        launch = self.library.editor('acme/launch')
+        launch.notes.backend = FakeBackend(delay=0)
+        launch.account_daily_note_cap = 2
+        bob_headers = {'Content-Type': 'application/json', 'Cookie': bob}
+        for _ in range(2):
+            code, note = self.request('/v/acme/launch/api/notes', {'video': 'promo/film', 'text': 'Hi'},
+                                      headers=bob_headers)
+            self.assertEqual(code, 200, note)
+        code, created = self.request('/api/videos/new', {'name': 'bob/second', 'start': 'blank'},
+                                     headers=bob_headers)
+        self.assertEqual(code, 201, created)
+        second = self.library.editor('bob/second')
+        second.notes.backend = FakeBackend(delay=0)
+        second.account_daily_note_cap = 2
+        code, data, _ = self.request_full('/v/bob/second/api/videos/first-note', {'description': 'Hi'},
+                                          headers=bob_headers)
+        self.assertEqual(code, 429)
+        self.assertIn("today's limit", data['error'])
+        # An admin stays exempt in a brand-new project too.
+        admin_headers = {'Content-Type': 'application/json', 'Cookie': admin}
+        code, created = self.request('/api/videos/new', {'name': 'admin/second', 'start': 'blank'},
+                                     headers=admin_headers)
+        self.assertEqual(code, 201, created)
+        third = self.library.editor('admin/second')
+        third.notes.backend = FakeBackend(delay=0)
+        third.account_daily_note_cap = 2
+        code, note, _ = self.request_full('/v/admin/second/api/videos/first-note', {'description': 'Hi'},
+                                          headers=admin_headers)
+        self.assertEqual(code, 200, note)
+
+    def test_daily_note_cap_counts_a_keys_notes_toward_its_account(self):
+        # A key is attributed as "bob (ci)", a different string from the cookie
+        # session "bob" -- the cap must still treat them as the same account.
+        from videobuilder.agents import FakeBackend
+        self.seed('acme/launch', film=True)
+        admin = self.admin_login()
+        self.new_project(admin, 'acme/launch', 'acme/launch')
+        _, _, bob = self.signup('bob', 'longenoughpassword')
+        self.request('/v/acme/launch/api/access', {'action': 'invite', 'username': 'bob'},
+                     headers={'Content-Type': 'application/json', 'Cookie': admin})
+        editor = self.library.editor('acme/launch')
+        editor.notes.backend = FakeBackend(delay=0)
+        editor.account_daily_note_cap = 2
+        bob_headers = {'Content-Type': 'application/json', 'Cookie': bob}
+        for _ in range(2):
+            code, note = self.request('/v/acme/launch/api/notes', {'video': 'promo/film', 'text': 'Hi'},
+                                      headers=bob_headers)
+            self.assertEqual(code, 200, note)
+        code, key = self.request('/api/account/keys', {'label': 'ci', 'mode': 'write'},
+                                 headers={'Content-Type': 'application/json', 'Cookie': bob})
+        self.assertEqual(code, 201, key)
+        key_headers = {'Content-Type': 'application/json', 'Authorization': 'Bearer ' + key['secret']}
+        code, data, _ = self.request_full('/v/acme/launch/api/notes', {'video': 'promo/film', 'text': 'Hi'},
+                                          headers=key_headers)
+        self.assertEqual(code, 429)
+        self.assertIn("today's limit", data['error'])
+
+    def test_note_retry_is_capped_too(self):
+        from videobuilder.agents import FakeBackend
+        self.seed('acme/launch', film=True)
+        admin = self.admin_login()
+        self.new_project(admin, 'acme/launch', 'acme/launch')
+        _, _, bob = self.signup('bob', 'longenoughpassword')
+        self.request('/v/acme/launch/api/access', {'action': 'invite', 'username': 'bob'},
+                     headers={'Content-Type': 'application/json', 'Cookie': admin})
+        editor = self.library.editor('acme/launch')
+        editor.notes.backend = FakeBackend(delay=0)
+        bob_headers = {'Content-Type': 'application/json', 'Cookie': bob}
+        code, note = self.request('/v/acme/launch/api/notes', {'video': 'promo/film', 'text': 'Hi'},
+                                  headers=bob_headers)
+        self.assertEqual(code, 200, note)
+        editor.notes.update(editor.notes.get(note['id']), state='failed')
+        editor.account_daily_note_cap = 1  # the failed note already fills the cap
+        code, data, _ = self.request_full(f'/v/acme/launch/api/notes/{note["id"]}/retry', {},
+                                          headers=bob_headers)
+        self.assertEqual(code, 429)
+        self.assertIn("today's limit", data['error'])
+
+    def test_post_note_responses_hide_cost_from_a_non_admin(self):
+        from videobuilder.agents import FakeBackend
+        self.seed('acme/launch', film=True)
+        admin = self.admin_login()
+        self.new_project(admin, 'acme/launch', 'acme/launch')
+        _, _, bob = self.signup('bob', 'longenoughpassword')
+        self.request('/v/acme/launch/api/access', {'action': 'invite', 'username': 'bob'},
+                     headers={'Content-Type': 'application/json', 'Cookie': admin})
+        editor = self.library.editor('acme/launch')
+        editor.notes.backend = FakeBackend(delay=0, cost_usd=1.23)
+        code, note = self.request('/v/acme/launch/api/notes', {'video': 'promo/film', 'text': 'Hi'},
+                                  headers={'Content-Type': 'application/json', 'Cookie': bob})
+        self.assertEqual(code, 200, note)
+        self.assertNotIn('cost_usd', note)
+        self.assertNotIn('tokens', note)
+        code, admin_note = self.request('/v/acme/launch/api/notes', {'video': 'promo/film', 'text': 'Hi'},
+                                        headers={'Content-Type': 'application/json', 'Cookie': admin})
+        self.assertEqual(code, 200, admin_note)
+        self.assertIn('cost_usd', admin_note)
+
+    def test_usage_route_is_shared_across_the_library(self):
+        from videobuilder.agents import FakeBackend
+        self.seed('acme/launch', film=True)
+        admin = self.admin_login()
+        self.new_project(admin, 'acme/launch', 'acme/launch')
+        _, _, bob = self.signup('bob', 'longenoughpassword')
+        launch = self.library.editor('acme/launch')
+        launch.notes.backend = FakeBackend(delay=0, cost_usd=2.5)
+        admin_headers = {'Content-Type': 'application/json', 'Cookie': admin}
+        code, note = self.request('/v/acme/launch/api/notes', {'video': 'promo/film', 'text': 'Hi'},
+                                  headers=admin_headers)
+        self.assertEqual(code, 200, note)
+        self.request('/v/acme/launch/api/notes?video=promo/film', headers={'Cookie': admin})  # force poll
+        code, created = self.request('/api/videos/new', {'name': 'acme/second', 'start': 'blank'},
+                                     headers=admin_headers)
+        self.assertEqual(code, 201, created)
+        second = self.library.editor('acme/second')
+        second.notes.backend = FakeBackend(delay=0, cost_usd=1.5)
+        code, note2 = self.request('/v/acme/second/api/videos/first-note', {'description': 'Hi'},
+                                   headers=admin_headers)
+        self.assertEqual(code, 200, note2)
+        self.request('/v/acme/second/api/notes?video=film', headers={'Cookie': admin})  # force poll
+        # The bare route, shared across the library like /api/name -- not /v/<name>/api/usage.
+        code, usage = self.request('/api/usage', headers={'Cookie': admin})
+        self.assertEqual(code, 200)
+        self.assertAlmostEqual(usage['accounts']['mgalgs']['last_24h']['cost_usd'], 4.0)
+        self.assertEqual(usage['accounts']['mgalgs']['last_24h']['notes'], 2)
+        code, _ = self.request('/api/usage', headers={'Cookie': bob})
+        self.assertEqual(code, 403)
+
+    def test_daily_note_cap_message_is_in_local_time_not_utc(self):
+        from videobuilder.agents import FakeBackend
+        self.seed('acme/launch', film=True)
+        admin = self.admin_login()
+        self.new_project(admin, 'acme/launch', 'acme/launch')
+        _, _, bob = self.signup('bob', 'longenoughpassword')
+        self.request('/v/acme/launch/api/access', {'action': 'invite', 'username': 'bob'},
+                     headers={'Content-Type': 'application/json', 'Cookie': admin})
+        editor = self.library.editor('acme/launch')
+        editor.notes.backend = FakeBackend(delay=0)
+        editor.account_daily_note_cap = 1
+        bob_headers = {'Content-Type': 'application/json', 'Cookie': bob}
+        code, note = self.request('/v/acme/launch/api/notes', {'video': 'promo/film', 'text': 'Hi'},
+                                  headers=bob_headers)
+        self.assertEqual(code, 200, note)
+        code, data, _ = self.request_full('/v/acme/launch/api/notes', {'video': 'promo/film', 'text': 'Hi'},
+                                          headers=bob_headers)
+        self.assertEqual(code, 429)
+        self.assertNotIn('UTC', data['error'])
+        self.assertRegex(data['error'], r'after \d{1,2}:\d{2} (AM|PM) (today|tomorrow)')
+
     def test_api_name_reflects_login(self):
         _, _, dana = self.signup('dana', 'longenoughpassword')
         self.assertEqual(self.request('/api/name', headers={'Cookie': dana})[1], {'name': 'dana'})
