@@ -1,5 +1,5 @@
 """videobuilder: a small framework for code-made films (cairo + Pango + ffmpeg)."""
-__version__ = '0.1.41'
+__version__ = '0.1.42'
 from .canvas import Canvas, Image, View, halftone_pattern, rgba
 from .clip import Clip
 from .ease import (bezier, clamp01, critical, damped, ease_in_expo, ease_in_out_quart, ease_out_back,
