@@ -145,10 +145,24 @@ class API(TempProject):
             except urllib.error.HTTPError as e:
                 with e:
                     return e.code
-        self.assertEqual(status(b'{"pad": "' + b'a' * (MAX_BODY + 1) + b'"}'), 413)
         self.assertEqual(status(b'{not json'), 400)
         self.assertEqual(status(b'[1, 2, 3]'), 400)
         self.assertEqual(status(b'"a string"'), 400)
+
+        # 413 is decided from Content-Length alone, before the body is read: claim one
+        # over the limit without actually sending it (over a real socket, the server
+        # would otherwise answer before the client finishes writing a 1MiB+ body).
+        import http.client
+        host, _, port = self.base.removeprefix('http://').partition(':')
+        conn = http.client.HTTPConnection(host, int(port), timeout=20)
+        self.addCleanup(conn.close)
+        conn.putrequest('POST', '/api/roll')
+        conn.putheader('Content-Type', 'application/json')
+        conn.putheader('Content-Length', str(MAX_BODY + 1))
+        conn.endheaders()
+        response = conn.getresponse()
+        self.assertEqual(response.status, 413)
+        response.read()
 
     def test_note_id_path_traversal_refused_through_the_http_route(self):
         for bad in ('..', '..%2fescape', '%2e%2e%2fescape'):
