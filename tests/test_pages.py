@@ -14,6 +14,10 @@ from videobuilder.capabilities import CATALOG
 from videobuilder.starters import STARTERS
 
 
+def _entry(name, has_main=True, updated=None, subject=None):
+    return {'name': name, 'has_main': has_main, 'updated': updated, 'subject': subject}
+
+
 class StarterCatalogue(unittest.TestCase):
     def test_six_starters_with_distinct_ids(self):
         self.assertEqual(len(STARTERS), 6)
@@ -37,7 +41,7 @@ class StarterCardsOnPages(unittest.TestCase):
             self.assertIn(s['title'], page)
 
     def test_library_page_is_a_compact_row_once_a_video_exists(self):
-        page = pages.index([('acme/launch', True)], False, None, 'example.com').decode()
+        page = pages.index([_entry('acme/launch')], False, None, 'example.com').decode()
         self.assertIn('class="starters">', page)
         self.assertNotIn('starters hero', page)
 
@@ -49,7 +53,7 @@ class StarterCardsOnPages(unittest.TestCase):
         self.assertIn(' controls ', page)   # the native controls carry full screen, iPhone included
 
     def test_showcase_is_absent_once_a_video_exists_or_when_unbuilt(self):
-        with_video = pages.index([('acme/launch', True)], False, None, 'example.com', showcase=True).decode()
+        with_video = pages.index([_entry('acme/launch')], False, None, 'example.com', showcase=True).decode()
         self.assertNotIn('id="showcase"', with_video)
         self.assertNotIn('id="showcase"', pages.index([], False, None, 'example.com').decode())
 
@@ -108,7 +112,7 @@ class InlineScriptsParse(unittest.TestCase):
             self.assertEqual(result.returncode, 0, result.stderr.decode())
 
     def test_index_page_scripts_parse(self):
-        self._check(pages.index([('acme/launch', True)], True, 'dana', 'example.com'))
+        self._check(pages.index([_entry('acme/launch')], True, 'dana', 'example.com'))
         self._check(pages.index([], True, 'dana', 'example.com', showcase=True))
 
     def test_new_video_page_scripts_parse(self):

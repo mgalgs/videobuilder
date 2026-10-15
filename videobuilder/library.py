@@ -77,6 +77,20 @@ class Library:
         return path.is_dir() and git(None, 'show-ref', '--verify', '--quiet', 'refs/heads/main',
                                      git_dir=path, hooks=False, check=False).returncode == 0
 
+    def last_commit(self, name):
+        """(unix seconds, subject) of main's newest commit, straight off the bare
+        repo -- one cheap `git log`, cheap enough to run for every card when the
+        library page is built. None without a main branch to read."""
+        result = git(None, 'log', '-1', '--format=%ct%x1f%s', 'main',
+                     git_dir=self.path(name), hooks=False, check=False)
+        if result.returncode or not result.stdout.strip():
+            return None
+        ts, _, subject = result.stdout.strip().partition('\x1f')
+        try:
+            return int(ts), subject
+        except ValueError:
+            return None
+
     def create(self, name):
         path = self.path(name)
         with self.lock:
@@ -203,7 +217,14 @@ class Library:
         if self.accounts:
             names = [n for n in names if self.access.can_access(n, user, self.accounts)]
         from .capabilities import showcase_available
-        return pages.index([(n, self.has_main(n)) for n in names], self.accounts is not None, user, host, scheme,
+        entries = []
+        for n in names:
+            has_main = self.has_main(n)
+            commit = self.last_commit(n) if has_main else None
+            entries.append({'name': n, 'has_main': has_main,
+                            'updated': commit[0] if commit else None,
+                            'subject': commit[1] if commit else None})
+        return pages.index(entries, self.accounts is not None, user, host, scheme,
                            showcase=showcase_available(self.capabilities_dir))
 
     def new_video_page(self, names=None):

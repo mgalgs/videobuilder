@@ -4,6 +4,8 @@ import http.client
 import json
 import os
 from pathlib import Path
+import re
+import shutil
 import subprocess
 import tempfile
 import threading
@@ -230,6 +232,39 @@ class HostedGit(LibraryFixture, unittest.TestCase):
         self.assertIn(b'Empty', self.request('/')[1])
         self.assertEqual(self.request('/v/acme/empty/')[0], 404)
         self.assertEqual(self.request('/api/library/new', {'from': 'acme/empty', 'name': 'another'})[0], 400)
+
+    @unittest.skipUnless(shutil.which('ffmpeg') and shutil.which('ffprobe'), 'needs ffmpeg/ffprobe')
+    def test_library_page_cards_for_a_render_no_render_and_no_main_mix(self):
+        self.seed('acme/launch', film=True)
+        self.seed('acme/draft', film=True)
+        self.assertEqual(self.request('/git/acme/empty.git/info/refs?service=git-receive-pack',
+                                      headers={'User-Agent': 'git/2.50.0'})[0], 200)
+        editor = self.library.editor('acme/launch')
+        sha = self.git('rev-parse', 'main', cwd=self.library.checkouts / 'acme--launch').stdout.strip()
+        render_path = editor.renders.path('promo/film', sha, '16x9')
+        render_path.parent.mkdir(parents=True, exist_ok=True)
+        subprocess.run(['ffmpeg', '-y', '-f', 'lavfi', '-i', 'color=c=green:s=320x180:d=4:r=5',
+                        '-pix_fmt', 'yuv420p', str(render_path)], check=True, capture_output=True)
+
+        code, data = self.request('/v/acme/launch/api/thumbnail')
+        self.assertEqual(code, 200)
+        self.assertEqual(data[:3], b'\xff\xd8\xff')
+        self.assertEqual(self.request('/v/acme/draft/api/thumbnail')[0], 404)
+
+        page = self.request('/')[1].decode()
+        self.assertNotIn('lib-git', page)  # the git URL no longer shows on the card itself
+        blob = re.search(r'<script type="application/json" id="lib-data">(.*?)</script>', page, re.S).group(1)
+        by_name = {c['name']: c for c in json.loads(blob)}
+        self.assertEqual(set(by_name), {'acme/launch', 'acme/draft', 'acme/empty'})
+        self.assertTrue(by_name['acme/launch']['hasMain'])
+        self.assertTrue(by_name['acme/draft']['hasMain'])
+        self.assertFalse(by_name['acme/empty']['hasMain'])
+        self.assertIsNone(by_name['acme/empty']['updated'])
+        self.assertIsNone(by_name['acme/empty']['subject'])
+        self.assertIsNotNone(by_name['acme/launch']['updated'])
+        self.assertEqual(by_name['acme/launch']['subject'], 'first')
+        self.assertIn('/v/acme/launch/api/thumbnail', page)
+        self.assertIn('/v/acme/draft/api/thumbnail', page)
 
     def test_blank_start_has_one_commit_pinned_to_the_editors_version(self):
         from videobuilder import __version__

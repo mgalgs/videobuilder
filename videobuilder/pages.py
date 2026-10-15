@@ -3,6 +3,7 @@ video page and the account page. Each took a `Library` method before; here
 they take whatever plain data they need, so they have no dependency on
 `Library` itself."""
 import html
+import json
 import time
 from urllib.parse import quote
 
@@ -62,17 +63,37 @@ LIBRARY_STYLE = (
     '#sign-out{min-height:44px;padding:.5rem 1rem;border-radius:8px;border:1px solid #26262c;background:#141417;'
     'color:#fff}'
     'h2{font-size:1rem;color:#a9a9b2;margin:1.5rem 0 .5rem;text-transform:uppercase;letter-spacing:.04em}'
-    '.lib-grid{display:flex;flex-direction:column;gap:.75rem}'
-    '.lib-card{border:1px solid #26262c;border-radius:10px;padding:.75rem .9rem;background:#141417;min-width:0}'
-    '.lib-card-top{display:flex;align-items:center;justify-content:space-between;gap:.6rem;min-width:0}'
-    '.lib-name{overflow-wrap:anywhere;min-width:0}'
+    '.lib-grid{display:flex;flex-wrap:wrap;gap:.75rem;list-style:none;margin:0;padding:0}'
+    '.lib-grid li{flex:0 0 min(200px,45vw);min-width:140px}'
+    '.lib-card{display:flex;flex-direction:column;gap:.4rem;width:100%;border:1px solid #26262c;'
+    'border-radius:10px;padding:.6rem;background:#141417;color:#fff;text-align:left;cursor:pointer;'
+    'min-height:44px;font:inherit;box-sizing:border-box}'
+    '.lib-poster{position:relative;display:block;aspect-ratio:16/9;border-radius:6px;overflow:hidden;'
+    'background:#20242b}'
+    '.lib-poster-fallback{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;'
+    'padding:.5rem;text-align:center;font-size:.8rem;color:#a9a9b2;overflow-wrap:anywhere}'
+    '.lib-poster img{position:relative;display:block;width:100%;height:100%;object-fit:cover}'
+    '.lib-title{font-weight:600;font-size:.9rem;overflow-wrap:anywhere}'
     '.lib-empty{color:#a9a9b2}'
-    '.lib-git{display:flex;align-items:center;gap:.5rem;margin-top:.5rem;min-width:0}'
-    '.lib-url{flex:1 1 auto;min-width:0;overflow-wrap:anywhere;word-break:break-all;font-size:.8rem;color:#bdcaaf;'
-    'user-select:all}'
     '.lib-copy{flex:0 0 auto;min-height:36px;padding:.3rem .6rem;border-radius:6px;border:1px solid #26262c;'
     'background:#0d0d10;color:#fff;font-size:.8rem}'
-    '@media (max-width:480px){.lib-page{padding:.75rem .75rem 2.5rem}.lib-card-top{flex-wrap:wrap}}'
+    '@media (max-width:480px){.lib-page{padding:.75rem .75rem 2.5rem}}'
+)
+
+LIB_DETAIL_STYLE = (
+    '.lib-detail{position:relative;border:1px solid #26262c;border-radius:12px;background:#141417;color:#fff;'
+    'padding:1.25rem 1rem 1rem;max-width:420px;width:92vw;box-sizing:border-box}'
+    '.lib-detail::backdrop{background:rgba(0,0,0,.6)}'
+    '.lib-detail h2{margin:0 1.5rem .2rem 0;font-size:1.1rem;overflow-wrap:anywhere}'
+    '.lib-detail-close{position:absolute;top:.6rem;right:.6rem;min-height:36px;min-width:36px;'
+    'border-radius:8px;border:1px solid #26262c;background:#0d0d10;color:#fff;font-size:1.1rem;'
+    'line-height:1;cursor:pointer}'
+    '.lib-detail-project{color:#a9a9b2;margin:0 0 .9rem}'
+    '#lib-detail-open{margin:0 0 .9rem}'
+    '.lib-detail-git{display:flex;align-items:center;gap:.5rem;margin:0 0 .9rem;min-width:0}'
+    '#lib-detail-url{flex:1 1 auto;min-width:0;overflow-wrap:anywhere;word-break:break-all;font-size:.8rem;'
+    'color:#bdcaaf;user-select:all}'
+    '#lib-detail-meta p{margin:.4rem 0;font-size:.85rem;color:#c9c9cf}'
 )
 
 STARTER_STYLE = (
@@ -338,57 +359,135 @@ def _showcase_section_html():
             'v.poster="/capabilities/"+f+".jpg";v.src="/capabilities/"+f+".mp4"})()</script>')
 
 
-def index(names, accounts_enabled, user, host, scheme='http', showcase=False):
-    """`names`: [(name, has_main), ...], already access-filtered and in order.
-    `showcase`: the reel is built, so a library with no videos leads with it."""
+_LIB_DETAIL_HTML = (
+    '<dialog id="lib-detail" class="lib-detail">'
+    '<button type="button" class="lib-detail-close" aria-label="Close">&times;</button>'
+    '<h2 id="lib-detail-name"></h2>'
+    '<p class="lib-detail-project" id="lib-detail-project"></p>'
+    '<p id="lib-detail-open"></p>'
+    '<div class="lib-detail-git"><code id="lib-detail-url"></code>'
+    '<button class="lib-copy" type="button" id="lib-detail-copy">Copy</button></div>'
+    '<div id="lib-detail-meta">'
+    '<p>Last updated: <span id="lib-detail-updated"></span></p>'
+    '<p>Latest change: <span id="lib-detail-subject"></span></p>'
+    '</div>'
+    '</dialog>'
+)
+
+LIB_DETAIL_SCRIPT = (
+    '<script>'
+    '(function(){'
+    'const data=JSON.parse(document.getElementById("lib-data").textContent);'
+    'const dialog=document.getElementById("lib-detail");'
+    'function relTime(sec){'
+    'let v=Date.now()/1000-sec,unit="second";'
+    'const units=[[60,"second"],[60,"minute"],[24,"hour"],[7,"day"],[4.345,"week"],[12,"month"],[Infinity,"year"]];'
+    'for(const[n,u]of units){if(v<n){unit=u;break}v/=n}'
+    'const n=Math.max(1,Math.round(v));'
+    'return n+" "+unit+(n===1?"":"s")+" ago"}'
+    'async function copyText(el){const s=el.textContent;'
+    'try{await navigator.clipboard.writeText(s);return true}catch(_){}'
+    'const r=document.createRange();r.selectNodeContents(el);const sel=getSelection();'
+    'sel.removeAllRanges();sel.addRange(r);'
+    'try{return document.execCommand("copy")}catch(_){return false}}'
+    'function openDetail(idx){'
+    'const d=data[idx];'
+    'document.getElementById("lib-detail-name").textContent=d.leaf;'
+    'document.getElementById("lib-detail-project").textContent="Project: "+d.project;'
+    'const openEl=document.getElementById("lib-detail-open");'
+    'openEl.textContent="";'
+    'if(d.hasMain){'
+    'const a=document.createElement("a");'
+    'a.className="btn btn-primary";'
+    'a.href="/v/"+d.name.split("/").map(encodeURIComponent).join("/")+"/";'
+    'a.textContent="Open in editor";'
+    'openEl.appendChild(a)'
+    '}else{'
+    'const span=document.createElement("span");'
+    'span.className="lib-empty";span.textContent="Empty";'
+    'openEl.appendChild(span)}'
+    'document.getElementById("lib-detail-url").textContent=d.url;'
+    'const copyBtn=document.getElementById("lib-detail-copy");'
+    'copyBtn.textContent="Copy";'
+    'const meta=document.getElementById("lib-detail-meta");'
+    'if(d.updated){'
+    'meta.hidden=false;'
+    'const updatedEl=document.getElementById("lib-detail-updated");'
+    'updatedEl.textContent=relTime(d.updated);'
+    'updatedEl.title=new Date(d.updated*1000).toISOString();'
+    'document.getElementById("lib-detail-subject").textContent=d.subject||""'
+    '}else{meta.hidden=true}'
+    'dialog.showModal()}'
+    'for(const b of document.querySelectorAll(".lib-card"))'
+    'b.onclick=()=>openDetail(Number(b.dataset.idx));'
+    'document.querySelector(".lib-detail-close").onclick=()=>dialog.close();'
+    'dialog.addEventListener("click",e=>{if(e.target===dialog)dialog.close()});'
+    'document.getElementById("lib-detail-copy").onclick=async()=>{'
+    'const btn=document.getElementById("lib-detail-copy");'
+    'const ok=await copyText(document.getElementById("lib-detail-url"));'
+    'btn.textContent=ok?"Copied":"Selected \\u2014 press Ctrl+C";'
+    'setTimeout(()=>{btn.textContent="Copy"},2000)}'
+    '})();'
+    '</script>'
+)
+
+
+def index(entries, accounts_enabled, user, host, scheme='http', showcase=False):
+    """`entries`: [{name, has_main, updated, subject}, ...], already
+    access-filtered and in order; `updated` (unix seconds) and `subject` are
+    None without a main branch. `showcase`: the reel is built, so a library
+    with no videos leads with it."""
     groups = {}
-    for name, _ in names:
-        namespace = name.split('/')[0] if '/' in name else 'Videos'
-        groups.setdefault(namespace, []).append(name)
-    has_main = dict(names)
+    for e in entries:
+        group = e['name'].split('/')[0] if '/' in e['name'] else 'Videos'
+        groups.setdefault(group, []).append(e)
     rows = []
-    for group, group_names in groups.items():
-        rows.append(f'<h2>{html.escape(group)}</h2><div class="lib-grid">')
-        for name in group_names:
+    cards = []
+    for group, group_entries in groups.items():
+        rows.append(f'<h2>{html.escape(group)}</h2><ul class="lib-grid">')
+        for e in group_entries:
+            name = e['name']
+            leaf = name.split('/', 1)[1] if '/' in name else name
             encoded = '/'.join(quote(p) for p in name.split('/'))
             url = f'{scheme}://{host}/git/{encoded}.git'
-            open_or_empty = (f'<a class="btn" href="/v/{encoded}/">Open</a>' if has_main[name]
-                             else '<span class="lib-empty">Empty</span>')
-            rows.append('<div class="lib-card"><div class="lib-card-top">'
-                       f'<strong class="lib-name">{html.escape(name)}</strong>{open_or_empty}</div>'
-                       f'<div class="lib-git"><code class="lib-url">{html.escape(url)}</code>'
-                       f'<button class="lib-copy" type="button" data-url="{html.escape(url)}" '
-                       'aria-label="Copy git URL">Copy</button></div></div>')
-        rows.append('</div>')
+            idx = len(cards)
+            cards.append({'name': name, 'leaf': leaf, 'project': group, 'url': url,
+                         'hasMain': e['has_main'], 'updated': e['updated'], 'subject': e['subject']})
+            rows.append(f'<li><button type="button" class="lib-card" data-idx="{idx}">'
+                       f'<span class="lib-poster"><span class="lib-poster-fallback">{html.escape(leaf)}</span>'
+                       f'<img src="/v/{encoded}/api/thumbnail" alt="" loading="lazy" '
+                       'onerror="this.style.display=\'none\'"></span>'
+                       f'<span class="lib-title">{html.escape(leaf)}</span></button></li>')
+        rows.append('</ul>')
     account_bar = ''
     body = ''.join(rows)
     can_create = bool(user) if accounts_enabled else True
-    hero = not names
+    hero = not entries
     if accounts_enabled:
         account_bar = ('<div class="account-bar"><span>Signed in as <strong>' + html.escape(user) +
                        '</strong> · <a href="/account">API keys</a></span>'
                        '<button id="sign-out">Sign out</button></div>')
-        if not names:
+        if not entries:
             body = (f'<p>No videos shared with you yet — ask the owner to invite '
                     f'<strong>{html.escape(user)}</strong>.</p>')
     starters = _starter_section_html(hero, as_link=True)
     if hero and showcase:
         starters = _showcase_section_html() + starters
     new_video = '<a class="btn btn-primary new-video" href="/new">+ New video</a>' if can_create else ''
+    # </script> inside a commit subject must not close the data block early.
+    cards_json = json.dumps(cards).replace('</', '<\\/')
     script = ('<script>'
-              'for(const b of document.querySelectorAll(".lib-copy"))b.onclick=async()=>{'
-              'try{await navigator.clipboard.writeText(b.dataset.url);const t=b.textContent;'
-              'b.textContent="Copied";setTimeout(()=>b.textContent=t,1200)}catch(_){}};'
               'const o=document.querySelector("#sign-out");if(o)o.onclick=async()=>{'
               'await fetch("/api/logout",{method:"POST",headers:{"Content-Type":"application/json"},body:"{}"});'
-              'location.href="/login"};</script>')
+              'location.href="/login"};</script>'
+              f'<script type="application/json" id="lib-data">{cards_json}</script>' + LIB_DETAIL_SCRIPT)
     return ('<!doctype html><html><head><meta charset="utf-8"><title>Video library</title>'
             '<meta name="viewport" content="width=device-width, initial-scale=1">'
-            '<style>' + LIBRARY_STYLE + STARTER_STYLE + SHOWCASE_STYLE + '</style>'
+            '<style>' + LIBRARY_STYLE + LIB_DETAIL_STYLE + STARTER_STYLE + SHOWCASE_STYLE + '</style>'
             '</head><body><div class="lib-page">' + account_bar +
             '<header class="lib-header"><h1>Video library</h1>' + new_video +
             '<a class="caps-link" href="/capabilities">Capabilities</a></header>' +
-            starters + body + script +
+            starters + body + _LIB_DETAIL_HTML + script +
             '</div></body></html>').encode()
 
 

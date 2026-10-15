@@ -128,6 +128,12 @@ GET  /api/video?video=V&commit=SHA&format=F
                                      ETag "<sha>-<format>", Accept-Ranges bytes;
                                      416 unsatisfiable; 202 {state,position}
                                      while queued/rendering; 500 {error,log}.
+GET  /api/thumbnail                   a small JPEG poster frame grabbed from
+                                     the project's first video's latest
+                                     finished render on main, for the library
+                                     grid; 404 with nothing rendered yet.
+                                     Never renders or waits on ffmpeg beyond
+                                     grabbing that one frame.
 GET  /api/draft?video=V              manual draft detail or null
 GET  /api/draft/info?video=V         isolated draft info
 GET  /api/draft/frame?video=V&...    isolated draft PNG
@@ -413,6 +419,8 @@ class Editor:
         self.library = None
         self.renders = Renders(self, _positive(cfg, 'render_jobs', min(4, default_jobs())),
                                _positive(cfg, 'render_keep', 20))
+        from .thumbnails import Thumbnails
+        self.thumbnails = Thumbnails(self)
         self.allowed_hosts = {h.lower().rstrip('.') for h in
                               ['localhost', '127.0.0.1', '::1', host, *cfg.get('allowed_hosts', []), *allowed_hosts]}
         try:

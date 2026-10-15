@@ -1,6 +1,9 @@
 """Director API and automatic version integration."""
 import json
+import shutil
+import subprocess
 import time
+import unittest
 import urllib.error
 import urllib.request
 from pathlib import Path
@@ -9,6 +12,7 @@ from unittest.mock import patch
 from tests import fixtures
 from tests.test_project import TempProject
 from tests.test_project import git
+from videobuilder import thumbnails
 from videobuilder.agents import FakeBackend
 from videobuilder.editor import Editor
 from videobuilder.notes import AgentBackend, AgentStatus
@@ -646,6 +650,42 @@ FILM = vb.Film(draw=draw, timeline=T, formats=('1x1',))
         while self.editor.renders.state('promo/film', sha, '1x1')['state'] != 'ready' and time.monotonic() < deadline:
             time.sleep(0.01)
         self.assertEqual(path.read_bytes(), b'retried')
+
+    def test_thumbnail_404s_with_nothing_rendered_yet(self):
+        req = urllib.request.Request(self.base + '/api/thumbnail')
+        with self.assertRaises(urllib.error.HTTPError) as caught:
+            urllib.request.urlopen(req)
+        with caught.exception:
+            self.assertEqual(caught.exception.code, 404)
+
+    @unittest.skipUnless(shutil.which('ffmpeg') and shutil.which('ffprobe'), 'needs ffmpeg/ffprobe')
+    def test_thumbnail_grabs_a_frame_and_caches_it(self):
+        sha = git(self.root, 'rev-parse', 'main').strip()
+        path = self.editor.renders.path('promo/film', sha, '16x9')
+        path.parent.mkdir(parents=True, exist_ok=True)
+        subprocess.run(['ffmpeg', '-y', '-f', 'lavfi', '-i', 'color=c=blue:s=320x180:d=4:r=5',
+                        '-pix_fmt', 'yuv420p', str(path)], check=True, capture_output=True)
+        with patch('videobuilder.thumbnails._grab_frame', wraps=thumbnails._grab_frame) as spy:
+            data = self.get('/api/thumbnail')
+            self.assertEqual(data[:3], b'\xff\xd8\xff')  # JPEG magic
+            again = self.get('/api/thumbnail')
+        self.assertEqual(again, data)
+        self.assertEqual(spy.call_count, 1)  # the second request never re-runs ffmpeg
+
+    @unittest.skipUnless(shutil.which('ffmpeg') and shutil.which('ffprobe'), 'needs ffmpeg/ffprobe')
+    def test_thumbnail_survives_its_render_being_evicted(self):
+        sha = git(self.root, 'rev-parse', 'main').strip()
+        path = self.editor.renders.path('promo/film', sha, '16x9')
+        path.parent.mkdir(parents=True, exist_ok=True)
+        subprocess.run(['ffmpeg', '-y', '-f', 'lavfi', '-i', 'color=c=red:s=320x180:d=4:r=5',
+                        '-pix_fmt', 'yuv420p', str(path)], check=True, capture_output=True)
+        data = self.get('/api/thumbnail')
+        self.editor.renders.keep = 1
+        (self.root / 'README.md').write_text('next')
+        git(self.root, 'commit', '-am', 'next')
+        self.editor.renders.evict('promo/film')
+        self.assertFalse(path.exists())  # the render itself is gone
+        self.assertEqual(self.get('/api/thumbnail'), data)  # the cached thumbnail still serves
 
     def test_video_and_retry_refuse_a_commit_not_on_main(self):
         git(self.root, 'checkout', '-b', 'side')

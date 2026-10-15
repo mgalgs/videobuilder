@@ -640,6 +640,35 @@ class Auth(AccountMixin, LibraryFixture, unittest.TestCase):
         code = self.request('/v/acme/launch/api/sources?video=promo/film', headers={'Cookie': admin})[0]
         self.assertEqual(code, 200)
 
+    def test_thumbnail_route_is_gated_exactly_like_other_video_routes(self):
+        # Same /v/<name> access gate as everything else: signed out never
+        # reaches the project (401), an authenticated outsider is turned away
+        # the same way every other project route is (404), and the project's
+        # own editor reaches the thumbnail endpoint itself (no render yet, so
+        # 404 for a different reason -- "not found" either way, never a leak).
+        self.seed('acme/launch', film=True)
+        admin = self.admin_login()
+        self.new_project(admin, 'acme/launch', 'acme/launch')
+        _, _, outsider = self.signup('outsider', 'longenoughpassword')
+        self.assertEqual(self.request('/v/acme/launch/api/thumbnail')[0], 401)
+        self.assertEqual(self.request('/v/acme/launch/api/thumbnail', headers={'Cookie': outsider})[0], 404)
+        self.assertEqual(self.request('/v/acme/launch/api/thumbnail', headers={'Cookie': admin})[0], 404)
+
+    @unittest.skipUnless(shutil.which('ffmpeg') and shutil.which('ffprobe'), 'needs ffmpeg/ffprobe')
+    def test_thumbnail_route_serves_the_poster_frame_for_editor_access(self):
+        self.seed('acme/launch', film=True)
+        admin = self.admin_login()
+        self.new_project(admin, 'acme/launch', 'acme/launch')
+        editor = self.library.editor('acme/launch')
+        sha = self.git('rev-parse', 'main', cwd=self.library.checkouts / 'acme--launch').stdout.strip()
+        render_path = editor.renders.path('promo/film', sha, '16x9')
+        render_path.parent.mkdir(parents=True, exist_ok=True)
+        subprocess.run(['ffmpeg', '-y', '-f', 'lavfi', '-i', 'color=c=yellow:s=320x180:d=4:r=5',
+                        '-pix_fmt', 'yuv420p', str(render_path)], check=True, capture_output=True)
+        code, data = self.request('/v/acme/launch/api/thumbnail', headers={'Cookie': admin})
+        self.assertEqual(code, 200)
+        self.assertEqual(data[:3], b'\xff\xd8\xff')
+
     @unittest.skipUnless(shutil.which('ffmpeg') and shutil.which('ffprobe'), 'needs ffmpeg/ffprobe')
     def test_editor_access_reaches_upload_preview_caption_and_delete_for_sources(self):
         # The flip side of the gating test above: the project's own editor must

@@ -70,6 +70,19 @@ def _get_video(self, route, q, editor, user):
     return self._send_ranged(data, 'video/mp4', headers)
 
 
+def _get_thumbnail(self, route, q, editor, user):
+    try:
+        videos = editor.project.videos()
+    except ValueError:
+        videos = []
+    if not videos:
+        raise HTTPError(404, 'no video in this project')
+    data = editor.thumbnails.get(videos[0].id)
+    if data is None:
+        raise HTTPError(404, 'no render yet')
+    return self._send(200, data, 'image/jpeg')
+
+
 def _get_capabilities(self, route, q, editor, user):
     from . import __version__, capabilities
     return self._send(200, capabilities.page_html(editor.capabilities_dir, __version__), 'text/html; charset=utf-8')
@@ -264,6 +277,7 @@ GET_ROUTES = [
     (('/tuning.html', '/director.js', '/director.css'), _get_static),
     ('/api/versions', _get_versions),
     ('/api/video', _get_video),
+    ('/api/thumbnail', _get_thumbnail),
     ('/capabilities', _get_capabilities),
     (re.compile(r'/capabilities/([a-z][a-z0-9-]*)\.(mp4|jpg)'), _get_capability_clip),
     ('/compendium', _get_compendium),
