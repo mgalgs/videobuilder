@@ -29,7 +29,7 @@ sys.path.insert(0, str(HERE))
 
 import videobuilder as vb  # noqa: E402
 from videobuilder import capabilities  # noqa: E402
-from showcase_scenes import data, imagery, kit, motion, paper  # noqa: E402
+from showcase_scenes import data, imagery, kit, motion, paper, timing  # noqa: E402
 from showcase_scenes.kit import ACCENT, BG, INK, MUTED  # noqa: E402
 
 GRID = kit.GRID
@@ -291,22 +291,15 @@ def end(cv, s, st):
         y += lh + 10
 
 
-# ---- placeholder card, for a shot not drawn yet ----
-def placeholder(cv, s, st):
-    cv.fill(BG)
-    title = TAGS.get(s.name, s.name)
-    kit.write_centered(cv, 'placeholder', title, kit.font(kit.pick(st, 72, 64), 800), st.content.cx,
-                       st.content.cy, INK, st.content.w * 0.9)
-
-
-SCENES = {'hook-1': hook, 'hook-2': hook, 'hook-3': hook, 'title': title, 'end': end, **motion.SCENES, **data.SCENES, **imagery.SCENES, **paper.SCENES}
+SCENES = {'hook-1': hook, 'hook-2': hook, 'hook-3': hook, 'title': title, 'end': end,
+          **motion.SCENES, **data.SCENES, **imagery.SCENES, **paper.SCENES, **timing.SCENES}
 
 
 def draw(n, cv):
     st = kit.stage(cv)
     live = TIMELINE.live(n)
     for s in live:
-        SCENES.get(s.name, placeholder)(cv, s, st)
+        SCENES[s.name](cv, s, st)
     front = live[-1]
     title = TAGS.get(front.name)
     if title:

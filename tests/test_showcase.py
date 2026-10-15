@@ -33,6 +33,11 @@ class Showcase(unittest.TestCase):
             with self.subTest(id=e['id']):
                 self.assertEqual(self.mod.TAGS[self.mod.SHOTS[e['id']]], e['title'])
 
+    def test_every_segment_is_drawn(self):
+        for seg in self.timeline.leaves():
+            with self.subTest(segment=seg.name):
+                self.assertIn(seg.name, self.mod.SCENES)
+
     def test_two_formats_at_the_catalog_build_size(self):
         self.assertEqual([(f.name, f.width, f.height) for f in self.film.formats],
                          [('16x9', 1280, 720), ('9x16', 720, 1280)])
