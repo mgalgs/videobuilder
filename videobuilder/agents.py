@@ -17,8 +17,9 @@ is the current linear branch (null after Accept/Drop). Runners must honor it.
 ForkSandboxBackend is deliberately isolated here: run --resume STATE
 [--base DRAFT] [extra_args] PROJECT NOTE prints a run directory (--base only
 when a draft exists; without it the run starts from main); status --json RUN prints
-the status above, optionally reply_file (otherwise RUN/outbox/reply.md) and
-cost_usd/tokens (see CommandBackend above; same meaning, same optionality).
+the status above, optionally reply_file (otherwise RUN/outbox/reply.md),
+total_cost_usd (every leg; cost_usd, the first leg's, is the fallback) and
+usage (token counts); a missing or malformed value is recorded as null.
 executable, submit_args, poll_args, extra_args are configurable argv lists
 (executable is a string). No shell expansion is performed.
 
@@ -154,7 +155,14 @@ class ForkSandboxBackend(AgentBackend):
                 reply = path.read_text(encoding='utf-8')
         if reply:
             reply = re.sub(r'^== result:[^\n]*==\n+', '', reply)
-        return AgentStatus(data['state'], reply, data.get('branch'), data.get('cost_usd'), data.get('tokens'))
+        # total_cost_usd spans every leg of the run (review and fix legs too);
+        # cost_usd is the first leg's alone. Token counts are under `usage`.
+        cost = data.get('total_cost_usd', data.get('cost_usd'))
+        if isinstance(cost, bool) or not isinstance(cost, (int, float)):
+            cost = None
+        tokens = data.get('usage', data.get('tokens'))
+        return AgentStatus(data['state'], reply, data.get('branch'), cost,
+                           tokens if isinstance(tokens, dict) else None)
 
     def _peek(self, handle, file=None, after=0):
         """Live transcript bytes for an in-flight cluster run (see the class

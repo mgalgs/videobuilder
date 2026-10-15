@@ -131,6 +131,20 @@ else:
         run.return_value = json.dumps(dict(state='replied', reply='== result: success · 2 turns · $1 ==\ndone\n'))
         self.assertEqual(backend.poll('/run/example').reply, 'done\n')
 
+    @patch('videobuilder.agents.run')
+    def test_fork_sandbox_cost_and_tokens_from_status_json(self, run):
+        backend = ForkSandboxBackend('runner', ['start'], ['query', '--json'])
+        usage = {'input_tokens': 402, 'output_tokens': 107528, 'total_tokens': 40172222}
+        run.return_value = json.dumps(dict(state='replied', reply='done', cost_usd=10.13,
+                                           total_cost_usd=15.39, usage=usage))
+        status = backend.poll('/run/example')
+        self.assertEqual((status.cost_usd, status.tokens), (15.39, usage))
+        run.return_value = json.dumps(dict(state='replied', reply='done', cost_usd=2.5))
+        self.assertEqual((backend.poll('/run/example').cost_usd, backend.poll('/run/example').tokens), (2.5, None))
+        run.return_value = json.dumps(dict(state='replied', reply='done', total_cost_usd='n/a', usage=[1, 2]))
+        status = backend.poll('/run/example')
+        self.assertEqual((status.cost_usd, status.tokens), (None, None))
+
     def _peek_script(self, body):
         script = self.root / 'peek.py'
         script.write_text('#!/usr/bin/env python3\n' + body)
