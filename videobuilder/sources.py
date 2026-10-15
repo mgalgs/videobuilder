@@ -12,18 +12,28 @@ copy instead (see `stage_for_builder`). `sync()` hardlinks the full-quality
 set into a checkout (the project's own, or a draft/render worktree) and
 removes stale links.
 
-The preview copy is built off the request thread, right after an upload
-passes its probe (`stream_upload` starts it and returns without waiting):
-same frame rate as the source (a frame number then means the same moment in
-either file), short side at most PREVIEW_MAX_SIDE px, stereo AAC around 96
-kbps. `meta['preview_ready']` flips to True once it exists; a source deleted
-or an ffmpeg failure just leaves it False forever, since nothing else polls
-for it.
+The preview copy is queued from the request thread, right after an upload
+passes its probe (`stream_upload` enqueues it and returns without waiting),
+and built by a single background worker per `Sources` instance -- one encode
+at a time, never one thread per upload. Builds queued this way, or found
+pending at startup (see `__init__`), share that same worker and so still
+run one at a time: a frame number in the preview means the same source
+moment it does in the original (same frame rate, forced constant even for a
+variable-rate source -- see `.clip._displayed_size`/`Clip`), short side at
+most PREVIEW_MAX_SIDE px, `-preset veryfast`/`crf 28` (this runs in the same
+process that serves the creator's own previews, so it stays cheap), stereo
+AAC around 96 kbps. `meta['preview_ready']` flips to True once it exists; a
+source deleted or an ffmpeg failure just leaves it False forever -- except
+that every `Sources.__init__` (so every editor start) re-queues a build for
+any source still not ready, which is also when a scratch file left by a
+build interrupted mid-encode gets swept up.
 """
 import hashlib
+from fractions import Fraction
 import json
 import os
 from pathlib import Path, PurePosixPath
+import queue
 import re
 import secrets
 import shutil
@@ -32,6 +42,7 @@ import threading
 import time
 
 from .attachments import TYPES, _validate_content
+from .clip import _displayed_size
 
 EXTS = ('mp4', 'mov', 'webm')
 CAPTION_EXTS = ('vtt', 'srt')
@@ -75,11 +86,18 @@ def _basename(name):
 
 
 def probe(path):
-    """(duration, width, height, has_audio) of the video at `path`; raises
-    ValueError if ffprobe can't read it, or it has no video stream."""
+    """(duration, width, height, has_audio) of the video at `path` -- width and
+    height are the size as displayed, after ffmpeg's own auto-rotation (see
+    `.clip._displayed_size`), matching what `vb.Clip` reports for the same
+    file. Raises ValueError if ffprobe can't read it, or it has no video
+    stream. Entries aren't restricted with `-show_entries` here (beyond
+    picking the two top-level sections): ffprobe's entry filter doesn't
+    recurse into a nested field like `side_data_list`, so asking for it by
+    name back silently returns empty objects instead of the rotation it
+    holds."""
     result = subprocess.run(
-        ['ffprobe', '-v', 'error', '-show_entries', 'stream=codec_type,width,height:format=duration',
-         '-of', 'json', str(path)], capture_output=True, text=True)
+        ['ffprobe', '-v', 'error', '-show_format', '-show_streams', '-of', 'json', str(path)],
+        capture_output=True, text=True)
     if result.returncode:
         raise ValueError('could not read this video file')
     try:
@@ -95,7 +113,22 @@ def probe(path):
         duration = float((data.get('format') or {}).get('duration') or 0)
     except (TypeError, ValueError):
         duration = 0.0
-    return duration, video.get('width'), video.get('height'), has_audio
+    if video.get('width') and video.get('height'):
+        width, height = _displayed_size(video)
+    else:
+        width, height = video.get('width'), video.get('height')
+    return duration, width, height, has_audio
+
+
+def _avg_fps(path):
+    """The average frame rate ffprobe reports for `path`'s first video stream,
+    as an exact Fraction -- the same rate `vb.Clip` reports, so a frame
+    number means the same source moment in the preview copy as it does in
+    the original."""
+    result = subprocess.run(
+        ['ffprobe', '-v', 'error', '-select_streams', 'v:0', '-show_entries', 'stream=avg_frame_rate',
+         '-of', 'json', str(path)], capture_output=True, text=True, check=True)
+    return Fraction(json.loads(result.stdout)['streams'][0]['avg_frame_rate'])
 
 
 class Sources:
@@ -112,8 +145,32 @@ class Sources:
         # snapshots self.root's own entries (e.g. a traversal test).
         self._tmp_dir = self.root / '.building'
         self._tmp_dir.mkdir(exist_ok=True)
+        for stale in self._tmp_dir.iterdir():
+            stale.unlink(missing_ok=True)
         self._locks = {}
         self._locks_guard = threading.Lock()
+        # One background worker per editor process, building queued previews one at
+        # a time (see the module docstring) rather than a thread per upload.
+        self._build_queue = queue.Queue()
+        threading.Thread(target=self._build_worker, daemon=True).start()
+        # Recovery for a restart mid-encode: a source left with preview_ready False
+        # has nothing else polling for it, so without this it would stay that way
+        # forever. Scoped to videos the project still knows about -- a source's own
+        # directory name is an irreversible hash of its video id (see _video_dir),
+        # so this is the only way back to the (video, name) pair `get`/`_build_preview`
+        # need.
+        for video in self.editor.project.videos():
+            for meta in self.list(video.id):
+                if not meta.get('preview_ready'):
+                    self._build_queue.put((video.id, meta['name']))
+
+    def _build_worker(self):
+        while True:
+            job = self._build_queue.get()
+            try:
+                self._build_preview(*job)
+            finally:
+                self._build_queue.task_done()
 
     def _lock(self, video, name):
         """One lock per (video, name), guarding the small read-modify-write
@@ -269,7 +326,7 @@ class Sources:
                     has_audio=has_audio, caption=None, created=time.time(), preview_ready=False)
         self._save(video, slug, meta)
         self.sync(video)
-        threading.Thread(target=self._build_preview, args=(video, slug), daemon=True).start()
+        self._build_queue.put((video, slug))
         return self.public(meta)
 
     def add_caption(self, video, name, filename, data):
@@ -371,21 +428,23 @@ class Sources:
         return self._dir(video, name) / PREVIEW_DIRNAME / f"{meta['name']}.{meta['ext']}"
 
     def _build_preview(self, video, name):
-        """Encode this source's preview copy (see the module docstring) off the
-        request thread. The encode itself -- minutes, for a large source --
-        runs without this source's lock held, and writes to a scratch file
-        under `_tmp_dir`, never into the source's own directory: that's what
-        lets a concurrent delete() of this exact source rmtree that directory
-        without racing this encode's own file creation inside it (the lock
-        alone isn't enough for that -- it only keeps the two from touching
-        meta.json at the same instant, not from touching the filesystem at
-        the same time). The lock is taken only afterward, briefly, to publish
-        the result: get() inside it either sees the source is still there
-        (and this publishes to it) or that delete() already won (KeyError,
-        and this is a no-op, the finished scratch file discarded). Any
-        failure -- a bad probe, ffmpeg erroring out, the source vanishing
-        mid-encode -- just leaves `preview_ready` False; nothing here is
-        fatal to the upload that already succeeded."""
+        """Encode this source's preview copy (see the module docstring) on the
+        background build worker, one at a time with every other queued build.
+        The encode itself -- minutes, for a large source -- runs without this
+        source's lock held, and writes to a scratch file under `_tmp_dir`,
+        never into the source's own directory: that's what lets a concurrent
+        delete() of this exact source rmtree that directory without racing
+        this encode's own file creation inside it (the lock alone isn't
+        enough for that -- it only keeps the two from touching meta.json at
+        the same instant, not from touching the filesystem at the same
+        time). The lock is taken only afterward, briefly, to publish the
+        result: get() inside it either sees the source is still there (and
+        this publishes to it) or that delete() already won (KeyError, and
+        this is a no-op, the finished scratch file discarded). Any failure --
+        a bad probe, ffmpeg erroring out, the source vanishing mid-encode --
+        just leaves `preview_ready` False; nothing here is fatal to the
+        upload that already succeeded (and a later Sources.__init__ queues
+        it again)."""
         try:
             meta = self.get(video, name)
         except KeyError:
@@ -395,12 +454,21 @@ class Sources:
             return
         width, height = dims
         src = self._dir(video, name) / f"{meta['name']}.{meta['ext']}"
+        try:
+            fps = _avg_fps(src)
+        except (subprocess.CalledProcessError, IndexError, KeyError, ValueError, ZeroDivisionError):
+            return
         tmp = self._tmp_dir / ('.tmp-' + secrets.token_hex(8))
         audio = ['-c:a', 'aac', '-ac', '2', '-b:a', '96k'] if meta.get('has_audio') else ['-an']
+        # Forcing the same constant rate Clip reports for the source (even when the
+        # source itself is variable-rate) is what keeps a frame number meaning the
+        # same moment in the preview as in the original -- see the module docstring.
+        vf = f'scale={width}:{height},fps=fps={fps.numerator}/{fps.denominator}:round=down'
         # -f mp4 forces an MP4 container regardless of the destination name's extension,
         # so a .mov or .webm source still gets an MP4-inside preview copy (see the module
         # docstring) -- ffmpeg would otherwise infer the container from that extension.
-        command = ['ffmpeg', '-y', '-i', str(src), '-vf', f'scale={width}:{height}', '-c:v', 'libx264',
+        command = ['ffmpeg', '-y', '-i', str(src), '-vf', vf, '-c:v', 'libx264',
+                  '-preset', 'veryfast', '-crf', '28',
                   '-pix_fmt', 'yuv420p', *audio, '-movflags', '+faststart', '-f', 'mp4', str(tmp)]
         try:
             result = subprocess.run(command, capture_output=True)

@@ -5,6 +5,7 @@ import json
 import shutil
 import subprocess
 import tempfile
+import threading
 import time
 import unittest
 import urllib.error
@@ -13,7 +14,7 @@ from pathlib import Path
 from unittest import mock
 
 from videobuilder.editor import Editor
-from videobuilder.sources import CAPTION_MAX_BYTES, PREVIEW_MAX_SIDE, TooLarge
+from videobuilder.sources import CAPTION_MAX_BYTES, PREVIEW_MAX_SIDE, Sources, TooLarge
 from tests import fixtures
 from tests.test_project import TempProject, git
 
@@ -274,6 +275,48 @@ class DirectUpload(fixtures.API):
         preview = self._wait_for_preview(record['name'])
         self.editor.sources.delete('promo/film', record['name'])
         self.assertFalse(preview.exists())
+
+    def test_restart_rebuilds_a_pending_preview_and_sweeps_stale_scratch(self):
+        # An editor restart mid-encode (every release restarts it) used to leave
+        # preview_ready stuck False forever, since nothing else polled for it.
+        self._upload(name='interview')
+        self._wait_for_preview('interview')
+        meta = self.editor.sources.get('promo/film', 'interview')
+        meta['preview_ready'] = False
+        self.editor.sources._save('promo/film', 'interview', meta)
+        stale = self.editor.sources._tmp_dir / '.tmp-leftover'
+        stale.write_bytes(b'leftover scratch from an interrupted build')
+
+        fresh = Sources(self.editor, self.editor.sources.max_file, self.editor.sources.max_total)
+        self.assertFalse(stale.exists())
+        deadline = time.monotonic() + 10
+        while not fresh.get('promo/film', 'interview')['preview_ready']:
+            if time.monotonic() > deadline:
+                self.fail('preview was never rebuilt after a fresh Sources was constructed')
+            time.sleep(0.05)
+
+    def test_builds_run_one_at_a_time_not_concurrently(self):
+        in_flight = []
+        max_seen = [0]
+        lock = threading.Lock()
+        real_run = subprocess.run
+
+        def tracking_run(cmd, **kw):
+            if cmd and cmd[0] == 'ffmpeg':
+                with lock:
+                    in_flight.append(1)
+                    max_seen[0] = max(max_seen[0], len(in_flight))
+                time.sleep(0.3)
+                with lock:
+                    in_flight.pop()
+            return real_run(cmd, **kw)
+
+        with mock.patch('videobuilder.sources.subprocess.run', side_effect=tracking_run):
+            self._upload(name='first')
+            self._upload(name='second')
+            self._wait_for_preview('first')
+            self._wait_for_preview('second')
+        self.assertEqual(max_seen[0], 1)
 
 
 @unittest.skipUnless(FFMPEG, 'needs ffmpeg/ffprobe')

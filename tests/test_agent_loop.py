@@ -363,6 +363,11 @@ class DraftLoop(TempProject):
     def test_source_still_preparing_is_listed_but_not_staged(self):
         with patch('videobuilder.sources.Sources._build_preview', lambda self, video, name: None):
             self._upload_source('alpha')
+            # The build itself now runs on a background worker (one encode at a time,
+            # see Sources._build_worker), not a thread started with this patched method
+            # already bound -- wait for it to actually run the no-op while still patched,
+            # or the real _build_preview would run once this `with` block exits instead.
+            self.editor.sources._build_queue.join()
         note = self.draft()
         attach_dir = self.editor.notes.session_dir('promo/film') / ('attachments-' + note['id'])
         self.assertFalse((attach_dir / 'sources' / 'alpha.mp4').exists())
