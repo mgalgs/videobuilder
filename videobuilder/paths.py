@@ -150,6 +150,65 @@ def jitter(points, seed, amount=1.0, wander=0.3):
     return out
 
 
+# Torn-edge noise: (wavelength px, share of `amount`) per octave -- a broad
+# wander, smaller bites and a fine fibre fuzz, falling off roughly as 1/f.
+_TORN_OCTAVES = ((70.0, 0.50), (26.0, 0.28), (9.0, 0.15), (3.2, 0.07))
+
+
+def _value_noise(rnd, total, wavelength, closed):
+    """A smooth seeded 1-D noise over arc length 0..`total`, in [-1, 1]: random
+    values at knots `wavelength` apart, eased between with a smoothstep. A
+    closed path's knots wrap, so the noise meets itself at the seam."""
+    if closed:
+        k = max(1, round(total / wavelength))
+        knots = [rnd.uniform(-1, 1) for _ in range(k)]
+        step = total / k
+    else:
+        k = max(1, math.ceil(total / wavelength))
+        knots = [rnd.uniform(-1, 1) for _ in range(k + 1)]
+        step = total / k if total else 1.0
+
+    def at(s):
+        u = s / step
+        i = math.floor(u)
+        t = u - i
+        t = t * t * (3 - 2 * t)
+        a, b = (knots[i % k], knots[(i + 1) % k]) if closed else (knots[min(i, k)], knots[min(i + 1, k)])
+        return a + (b - a) * t
+    return at
+
+
+def torn(points, seed, amount=4.0, step=2.5, closed=True):
+    """`points` with a torn-paper edge: resampled every ~`step` px by arc
+    length, then each point pushed in or out along the edge's normal by a
+    seeded fractal noise -- a broad wander, smaller bites and a fine fibre
+    fuzz layered together, so the edge reads as torn rather than zig-zag.
+    `amount`: px of the largest push. Deterministic for a given `seed`; bake
+    it in once at import, like `jitter`, not per frame. `closed`: a shape's
+    outline (the noise wraps round with no seam) or an open tear line."""
+    pts = list(points)
+    total = length(pts, closed)
+    if len(pts) < 2 or total == 0:
+        return pts
+    n = max(3 if closed else 2, round(total / step) + (0 if closed else 1))
+    pts = resample(pts, n, closed)
+    rnd = random.Random(seed)
+    octaves = [(_value_noise(rnd, total, wl, closed), share * amount) for wl, share in _TORN_OCTAVES]
+    hop = total / (n if closed else n - 1)
+    out = []
+    for i, (x, y) in enumerate(pts):
+        if closed:
+            (px, py), (nx, ny) = pts[i - 1], pts[(i + 1) % n]
+        else:
+            (px, py), (nx, ny) = pts[max(i - 1, 0)], pts[min(i + 1, n - 1)]
+        tx, ty = nx - px, ny - py
+        d = math.hypot(tx, ty) or 1.0
+        s = i * hop
+        push = sum(noise(s) * a for noise, a in octaves)
+        out.append((x + ty / d * push, y - tx / d * push))
+    return out
+
+
 def draw(cv, points, color, width=2, closed=False, fill=False, alpha=1.0):
     """Draw a point list onto `cv` as one path: straight hops between
     consecutive points. `fill`: filled solid (closing the path regardless of

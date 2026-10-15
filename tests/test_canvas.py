@@ -2,7 +2,8 @@ import hashlib
 import unittest
 
 import videobuilder as vb
-from videobuilder import Canvas, halftone_pattern, rgba
+from videobuilder import Canvas, halftone_pattern, paper_grain, rgba
+from videobuilder.canvas import _grain_surface, _shape_shadow_mask
 
 
 def px(cv, x, y):
@@ -119,6 +120,74 @@ class Halftone(unittest.TestCase):
         # Exactly between two dot centres (a tile corner) is background.
         self.assertEqual(px(cv, 0, 0), (0, 0, 0, 255))
         self.assertEqual(px(cv, pitch, 0), (0, 0, 0, 255))
+
+
+class ShapeShadow(unittest.TestCase):
+    TRIANGLE = [(10, 10), (90, 10), (10, 90)]
+
+    def test_follows_the_shape_not_its_box(self):
+        cv = Canvas(100, 100, '#fff')
+        cv.shape_shadow(self.TRIANGLE, color=(0, 0, 0, 1.0))
+        self.assertEqual(px(cv, 25, 25), (0, 0, 0, 255))        # inside the triangle
+        self.assertEqual(px(cv, 80, 80), (255, 255, 255, 255))  # inside its box, outside the shape
+
+    def test_offset_and_blur(self):
+        cv = Canvas(100, 100, '#fff')
+        cv.shape_shadow(self.TRIANGLE, dx=5, dy=5, blur=10, color=(0, 0, 0, 1.0))
+        self.assertLess(px(cv, 30, 30)[0], 40)                   # deep inside: near full
+        edge = px(cv, 10, 40)[0]                                 # the shape's own edge, now 5px inside
+        self.assertTrue(40 < edge < 255, edge)                   # soft, not a hard step
+        self.assertEqual(px(cv, 95, 95), (255, 255, 255, 255))
+
+    def test_moves_with_the_transform_and_reuses_its_mask(self):
+        _shape_shadow_mask.cache_clear()
+        cv = Canvas(200, 100, '#fff')
+        cv.ctx.translate(100, 0)
+        cv.shape_shadow(self.TRIANGLE, blur=4, color=(0, 0, 0, 1.0))
+        cv.shape_shadow(self.TRIANGLE, blur=4, color=(0, 0, 0, 1.0))
+        self.assertEqual(px(cv, 125, 25), (0, 0, 0, 255))
+        self.assertEqual(px(cv, 25, 25), (255, 255, 255, 255))
+        info = _shape_shadow_mask.cache_info()
+        self.assertEqual((info.misses, info.hits), (1, 1))
+
+    def test_box_shadow_is_unchanged(self):
+        """`shadow` now shares its A8 conversion with `shape_shadow`; pinned against
+        a hash taken before that change."""
+        cv = Canvas(120, 100, '#fff')
+        cv.shadow(20, 20, 60, 40, radius=10, dx=4, dy=8, blur=12, spread=2, color=(0, 0, 0, 0.6))
+        cv.rect(20, 20, 60, 40, '#36c', radius=10)
+        digest = hashlib.sha256(cv.bgra()).hexdigest()
+        self.assertEqual(digest, 'c3761fc627c9f63b9be503d34ee1161e17f4ce738d4f6c54bdbffc6787e60bc6')
+
+
+class PaperGrain(unittest.TestCase):
+    def grey(self, seed, size=(64, 48)):
+        surf = _grain_surface(*size, seed)
+        surf.flush()
+        data = bytes(surf.get_data())
+        return [data[i] for i in range(0, len(data), 4)]   # blue channel; the texture is grey
+
+    def test_deterministic_per_seed_and_cached(self):
+        self.assertEqual(self.grey(1), self.grey(1))
+        self.assertNotEqual(self.grey(1), self.grey(2))
+        self.assertIs(_grain_surface(64, 48, 1), _grain_surface(64, 48, 1))
+
+    def test_centred_on_mid_grey_with_texture(self):
+        g = self.grey(3, (256, 256))
+        mean = sum(g) / len(g)
+        self.assertLess(abs(mean - 128), 6)
+        self.assertGreater(max(g) - min(g), 60)
+
+    def test_soft_light_keeps_the_colour_on_average(self):
+        import cairo
+        cv = Canvas(64, 48, '#808080')
+        cv.ctx.set_source(paper_grain(64, 48, seed=4))
+        cv.ctx.set_operator(cairo.OPERATOR_SOFT_LIGHT)
+        cv.ctx.paint()
+        data = cv.bgra()
+        reds = [data[i + 2] for i in range(0, len(data), 4)]
+        self.assertLess(abs(sum(reds) / len(reds) - 128), 8)
+        self.assertGreater(len(set(reds)), 10)
 
 
 if __name__ == '__main__':

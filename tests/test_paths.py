@@ -130,5 +130,40 @@ class Jitter(unittest.TestCase):
             self.assertAlmostEqual(y0, y1)
 
 
+class Torn(unittest.TestCase):
+    LINE = [(0, 0), (300, 0)]
+
+    def test_deterministic_per_seed(self):
+        self.assertEqual(paths.torn(self.LINE, 4, closed=False), paths.torn(self.LINE, 4, closed=False))
+        self.assertNotEqual(paths.torn(self.LINE, 4, closed=False), paths.torn(self.LINE, 5, closed=False))
+
+    def test_pushes_along_the_normal_within_amount(self):
+        out = paths.torn(self.LINE, 7, amount=5, step=2.5, closed=False)
+        self.assertEqual(len(out), 121)
+        ys = [y for _, y in out]
+        self.assertLessEqual(max(abs(y) for y in ys), 5 + 1e-9)
+        self.assertGreater(max(ys) - min(ys), 2)
+        xs = [x for x, _ in out]
+        self.assertEqual(xs, sorted(xs))   # pushed sideways only, never folded back
+
+    def test_ragged_not_zigzag(self):
+        """Neighbouring points move together: a tear, not a saw tooth."""
+        ys = [y for _, y in paths.torn(self.LINE, 8, amount=6, closed=False)]
+        self.assertLess(max(abs(a - b) for a, b in zip(ys, ys[1:])), 6 * 0.35)
+
+    def test_closed_outline_has_no_seam(self):
+        r = 100
+        circle = [(r * math.cos(2 * math.pi * k / 90), r * math.sin(2 * math.pi * k / 90)) for k in range(90)]
+        out = paths.torn(circle, 9, amount=6, step=3)
+        dev = [math.hypot(x, y) - r for x, y in out]
+        hops = [abs(a - b) for a, b in zip(dev, dev[1:] + dev[:1])]   # the wrap-around hop included
+        self.assertLess(max(hops), 6 * 0.35)
+        self.assertLessEqual(max(abs(d) for d in dev), 6 + 0.1)
+
+    def test_amount_zero_is_the_resampled_input(self):
+        out = paths.torn(self.LINE, 1, amount=0, step=10, closed=False)
+        self.assertEqual(out, paths.resample(self.LINE, 31))
+
+
 if __name__ == '__main__':
     unittest.main()

@@ -5,11 +5,12 @@ Groups (`layer`) carry opacity and a transform, like a CSS stacking context.
 """
 import math
 import os
+import random
 from contextlib import contextmanager
 from functools import lru_cache
 
 import cairo
-from PIL import Image as PILImage, ImageChops, ImageDraw, ImageFilter
+from PIL import Image as PILImage, ImageChops, ImageDraw, ImageFilter, ImageStat
 
 from .layout import Box
 
@@ -147,6 +148,69 @@ def halftone_pattern(pitch, radius, angle=0.0, color='#000'):
     return pat
 
 
+@lru_cache(maxsize=8)
+def _grain_surface(width, height, seed):
+    rnd = random.Random(seed)
+
+    def noise(w, h):
+        return PILImage.frombytes('L', (w, h), rnd.randbytes(w * h))
+    fine = noise(width, height).filter(ImageFilter.GaussianBlur(0.6))
+    # Fibres: noise stretched along x, then turned, so short streaks run both ways.
+    fx = noise(max(1, width // 7), height).resize((width, height), PILImage.BICUBIC)
+    fy = noise(width, max(1, height // 7)).resize((width, height), PILImage.BICUBIC)
+    fibres = PILImage.blend(fx, fy, 0.5)
+    mottle = noise(max(2, width // 90), max(2, height // 90)).resize((width, height), PILImage.BICUBIC)
+    mottle = mottle.filter(ImageFilter.GaussianBlur(12))
+    g = PILImage.blend(PILImage.blend(fine, fibres, 0.3), mottle, 0.12)
+    # Blending flattens the spread; stretch it back out about its own mean, re-centred on 128.
+    mean = ImageStat.Stat(g).mean[0]
+    g = g.point(lambda v: max(0, min(255, round(128 + (v - mean) * 3.0))))
+    return _surface(PILImage.merge('RGB', (g, g, g)))
+
+
+def paper_grain(width, height, seed=0):
+    """A cairo pattern of paper texture -- fine grain, short fibres and a soft
+    mottle -- as grey centred on mid-grey (128), so it brightens and darkens
+    whatever it lands on. Paint it with a light-blending operator, within a
+    clip for one piece: `cv.ctx.set_source(vb.paper_grain(cv.width, cv.height,
+    seed=1))`, `cv.ctx.set_operator(cairo.OPERATOR_SOFT_LIGHT)`,
+    `cv.ctx.paint_with_alpha(0.5)`, then set `cairo.OPERATOR_OVER` back. The
+    texture is generated once per (width, height, seed) and cached; it tiles
+    beyond its size."""
+    pat = cairo.SurfacePattern(_grain_surface(int(width), int(height), seed))
+    pat.set_extend(cairo.EXTEND_REPEAT)
+    pat.set_filter(cairo.FILTER_GOOD)
+    return pat
+
+
+def _a8(m):
+    """An 'L' PIL image -> a cairo A8 surface (A8 rows are padded to a stride)."""
+    W, H = m.size
+    stride = cairo.ImageSurface.format_stride_for_width(cairo.FORMAT_A8, W)
+    raw = m.tobytes()
+    data = bytearray(stride * H)
+    for row in range(H):
+        data[row * stride:row * stride + W] = raw[row * W:(row + 1) * W]
+    return cairo.ImageSurface.create_for_data(data, cairo.FORMAT_A8, W, H, stride)
+
+
+@lru_cache(maxsize=128)
+def _shape_shadow_mask(points, blur):
+    """Blurred alpha of a closed polygon, padded so the blur has room. Returns
+    (surface, x, y): where the surface's top-left corner goes."""
+    sigma = blur / 2  # CSS: blur radius = 2 sigma
+    pad = int(math.ceil(3 * sigma)) + 2
+    xs, ys = [p[0] for p in points], [p[1] for p in points]
+    x0, y0 = math.floor(min(xs)) - pad, math.floor(min(ys)) - pad
+    W, H = math.ceil(max(xs)) - x0 + pad, math.ceil(max(ys)) - y0 + pad
+    m = PILImage.new('L', (W * 2, H * 2), 0)
+    ImageDraw.Draw(m).polygon([((x - x0) * 2, (y - y0) * 2) for x, y in points], fill=255)
+    m = m.resize((W, H), PILImage.BOX)  # 2x supersampled edge
+    if sigma > 0:
+        m = m.filter(ImageFilter.GaussianBlur(sigma))
+    return _a8(m), x0, y0
+
+
 @lru_cache(maxsize=256)
 def _shadow_mask(w, h, radius, blur, spread):
     """Blurred alpha of a rounded box, padded so the blur has room. Returns (surface, pad)."""
@@ -161,12 +225,7 @@ def _shadow_mask(w, h, radius, blur, spread):
     m = m.resize((W, H), PILImage.BOX)  # 4x supersampled edge
     if sigma > 0:
         m = m.filter(ImageFilter.GaussianBlur(sigma))
-    stride = cairo.ImageSurface.format_stride_for_width(cairo.FORMAT_A8, W)
-    raw = m.tobytes()
-    data = bytearray(stride * H)
-    for row in range(H):
-        data[row * stride:row * stride + W] = raw[row * W:(row + 1) * W]
-    return cairo.ImageSurface.create_for_data(data, cairo.FORMAT_A8, W, H, stride), pad
+    return _a8(m), pad
 
 
 class Canvas:
@@ -262,6 +321,20 @@ class Canvas:
         c = self.ctx
         c.set_source_rgba(*rgba(color))
         c.mask_surface(mask, x + dx - pad, y + dy - pad)
+
+    def shape_shadow(self, points, dx=0, dy=0, blur=0, color=(0, 0, 0, 0.5)):
+        """A soft drop shadow that follows the closed point list `points` (a
+        torn scrap, a cut-out's outline) instead of a box: `shadow`'s free-form
+        sibling, drawn under the shape. The blurred mask is made once per
+        shape and `blur` and cached, so a piece that only moves -- inside a
+        `layer` or a cairo transform -- blurs once, not every frame."""
+        if len(points) < 3:
+            return
+        key = tuple((round(x * 4) / 4, round(y * 4) / 4) for x, y in points)
+        mask, x0, y0 = _shape_shadow_mask(key, float(blur))
+        c = self.ctx
+        c.set_source_rgba(*rgba(color))
+        c.mask_surface(mask, x0 + dx, y0 + dy)
 
     def scale_factor(self):
         """Current user->device scale (for mip selection under a scaled layer)."""
