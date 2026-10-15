@@ -1,4 +1,5 @@
 'use strict';
+// ---- Shared state and small DOM/format helpers ----
 const $ = id => document.getElementById(id);
 const api = (path, params) => 'api/' + path + (params ? '?' + new URLSearchParams(params) : '');
 const libMode = location.pathname.startsWith('/v/');
@@ -56,6 +57,7 @@ const node = (tag, className, text) => {
 };
 // Replies stored before the runner stripped its "== result: ... ==" banner.
 const replyText = reply => reply && reply.replace(/^== result:[^\n]*==\n+/, '');
+// ---- Networking: fetch/json, errors and toasts ----
 async function json(path, params, body) {
   const r=await fetch(api(path,params),body===undefined? {
   }
@@ -111,6 +113,7 @@ async function ensureName() {
     return false
   }
 }
+// ---- Version, format and URL helpers ----
 function versionBy(commit) {
   return state.versions.find(v=>v.commit===commit)
 }
@@ -162,6 +165,7 @@ function renderFormats() {
     wrap.append(b)
   }
 }
+// ---- Player: sizing, transport, scrubbing and sheet/view switching ----
 function resizePlayer() {
   const f=formatInfo();
   if (!f) return;
@@ -352,6 +356,7 @@ function closeSheet() {
   // iOS can still scroll #app when its keyboard opens.
   $('app').scrollTop=0
 }
+// ---- Notes: chat feed, builder step feed, and question cards ----
 function attachmentUrl(id) {
   return api('attachments/'+encodeURIComponent(id))
 }
@@ -673,6 +678,7 @@ async function loadNotes() {
     showError(e.message)
   }
 }
+// ---- Versions list and the upgrade chip ----
 function versionMeta(v) {
   const who=v.directed_by||v.author||'Someone';
   switch(v.kind) {
@@ -804,6 +810,7 @@ async function upgradeVideo() {
     button.disabled=false
   }
 }
+// ---- File attachments and the music picker ----
 function renderFiles() {
   const wrap=$('attachments');
   wrap.replaceChildren();
@@ -947,6 +954,7 @@ $('music-preview').onplay=$('music-preview').onpause=$('music-preview').onended=
 };
 // Notes the director has written but not sent: kept in this browser, per video,
 // so they survive a reload. Not the "queued" note state, which is sent and waiting.
+// ---- Pending notes: drafted locally, batched before sending ----
 const pendingKey=()=>`director-pending:${location.pathname}:${state.video}`;
 function savePending() {
   try {
@@ -1103,6 +1111,7 @@ async function sendPending() {
     $('send-all').disabled=false
   }
 }
+// ---- Fine-tuning iframe, opening a video, and startup ----
 function openTuning(target) {
   let frame=$(target).querySelector('iframe');
   if(!frame) {
@@ -1182,6 +1191,7 @@ async function init() {
     toast(e.message)
   }
 }
+// ---- Player and transport controls wiring ----
 $('upgrade').onclick=upgradeVideo;
 $('tap-player').onclick=togglePlay;
 $('desktop-play').onclick=togglePlay;
@@ -1259,6 +1269,7 @@ $('desktop-tune-toggle').onclick=async()=> {
   $('desktop-tune-toggle').setAttribute('aria-expanded',!body.hidden);
   if(!body.hidden)openTuning('desktop-tune-body')
 };
+// ---- Account: name, sign-out and access sharing ----
 $('director-name').onclick=async()=> {
   const value=prompt('What should we call you?',state.name||'');
   if(value===null)return;
@@ -1357,6 +1368,7 @@ $('share-invite').onclick=()=> {
 };
 $('tab-share').onclick=()=>setView('share');
 $('rail-share').onclick=()=>openSheet('share');
+// ---- Composer wiring: drag/drop, paste, keyboard shortcuts ----
 window.addEventListener('message',async e=> {
   if (e.origin!==location.origin || e.data?.type!=='videobuilder:edit' ||
       e.data.video!==state.video) return;
@@ -1437,6 +1449,7 @@ $('panel').ondrop=e=> {
   setView('chat');
   addFiles(e.dataTransfer.files)
 };
+// ---- Startup and periodic polling ----
 stampLabel();
 init();
 let lastNotesPoll=0;
