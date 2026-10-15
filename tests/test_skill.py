@@ -164,6 +164,26 @@ class Skill(unittest.TestCase):
         self.assertNotIn('glyphsLib', ofl)
         self.assertEqual(ofl.count('Inter Project Authors'), 1)
 
+    @unittest.skipUnless(shutil.which('ffmpeg'), 'needs ffmpeg')
+    def test_check_passes_sounds_only_film_with_no_music(self):
+        with tempfile.TemporaryDirectory() as d:
+            subprocess.run(['ffmpeg', '-v', 'error', '-y', '-f', 'lavfi', '-i', 'sine=frequency=300:duration=1',
+                            os.path.join(d, 's.wav')], check=True)
+            Path(d, 'film.py').write_text(
+                "from pathlib import Path\n"
+                "import videobuilder as vb\n"
+                "HERE = Path(__file__).resolve().parent\n"
+                "def draw(n, cv):\n"
+                "    cv.fill('#fff')\n"
+                "FILM = vb.Film(draw=draw, fps=30, frames=60, formats='1x1', "
+                "sounds=(vb.Sound(str(HERE / 's.wav'), at=10, start=0, frames=30),))\n")
+            subprocess.run([sys.executable, '-m', 'videobuilder', 'render', 'film.py'], cwd=d, env=ENV,
+                           capture_output=True, check=True)
+            out = script('check.py', 'film.py', '--video', cwd=d)
+        self.assertEqual(out.returncode, 0, out.stdout + out.stderr)
+        self.assertIn('0 failed', out.stdout)
+        self.assertNotIn('the film has no audio', out.stdout)
+
     def test_benchmark_example_passes_its_checks(self):
         out = script('check.py', ROOT / 'examples' / 'benchmark.py', cwd=ROOT).stdout
         self.assertIn('0 failed, 0 warnings', out)

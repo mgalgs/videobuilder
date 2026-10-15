@@ -242,7 +242,7 @@ def probe(path, film, fmt, r, loop=False):
             r.fail(f'{path}: loop rendered frame {film.frames} as well as frame 0')
     if abs(vdur - want) > 0.5 / film.fps:
         problems.append(f'video lasts {vdur:.3f} s, not {want:.3f} s')
-    if film.audio is not None:
+    if film.audio is not None or film.sounds:
         if len(a) != 1:
             problems.append(f'{len(a)} audio streams, film has audio')
         else:
@@ -495,8 +495,8 @@ def main(argv=None):
                 cuts(path, film, r, frames=frames)
                 picture_safety(path, film, r, getattr(mod, 'LOOP', False), frames=frames)
                 beats(path, film, r)
-                if film.audio is not None:
-                    loudness(path, film.audio, r)
+                if film.audio is not None or film.sounds:
+                    loudness(path, film.audio if film.audio is not None else film, r)
     print(f'{r.failed} failed, {r.warned} warnings')
     return 1 if r.failed else 0
 
