@@ -39,7 +39,14 @@ FROM runtime AS capabilities
 USER root
 RUN python3 -m videobuilder capabilities build --out /opt/videobuilder-capabilities
 
+# Same idea for the compendium vote feed: every component and recipe preview, plus
+# index.json's loop windows, built from exactly this image's videobuilder.
+FROM runtime AS compendium
+USER root
+RUN python3 -m videobuilder compendium build --out /opt/videobuilder-compendium
+
 FROM runtime
 COPY --from=gated /opt/videobuilder/deploy/Dockerfile /opt/videobuilder/deploy/Dockerfile
 COPY --from=capabilities /opt/videobuilder-capabilities /opt/videobuilder-capabilities
+COPY --from=compendium /opt/videobuilder-compendium /opt/videobuilder-compendium
 USER 1000:1000

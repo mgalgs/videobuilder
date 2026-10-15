@@ -86,6 +86,34 @@ def _get_capability_clip(self, route, q, editor, user, cap_id, kind):
     return self._send(200, data, 'image/jpeg')
 
 
+def _get_compendium(self, route, q, editor, user):
+    if not _is_admin(self, user):
+        raise HTTPError(403, 'admin only')
+    from . import __version__, compendium_feed
+    return self._send(200, compendium_feed.page_html(editor.compendium_dir, __version__), 'text/html; charset=utf-8')
+
+
+def _get_compendium_clip(self, route, q, editor, user, clip_id, kind):
+    if not _is_admin(self, user):
+        raise HTTPError(403, 'admin only')
+    from . import compendium_feed
+    path = compendium_feed.clip_file(editor.compendium_dir, clip_id, kind)
+    if path is None or not os.path.isfile(path):
+        raise HTTPError(404, 'compendium clip not built')
+    data = open(path, 'rb').read()
+    if kind == 'mp4':
+        return self._send_ranged(data, 'video/mp4', {'Accept-Ranges': 'bytes'})
+    return self._send(200, data, 'image/jpeg')
+
+
+def _get_api_compendium(self, route, q, editor, user):
+    if not _is_admin(self, user):
+        raise HTTPError(403, 'admin only')
+    from . import compendium_feed
+    return self._json(200, {'items': compendium_feed.feed_items(editor.compendium_dir),
+                            'votes': editor.compendium_votes.for_user(user)})
+
+
 def _get_attachment(self, route, q, editor, user, attachment_id):
     try:
         meta, path = editor.attachments.get(attachment_id)
@@ -223,6 +251,9 @@ GET_ROUTES = [
     ('/api/video', _get_video),
     ('/capabilities', _get_capabilities),
     (re.compile(r'/capabilities/([a-z][a-z0-9-]*)\.(mp4|jpg)'), _get_capability_clip),
+    ('/compendium', _get_compendium),
+    (re.compile(r'/compendium/([a-z][a-z0-9-]*)\.(mp4|jpg)'), _get_compendium_clip),
+    ('/api/compendium', _get_api_compendium),
     (re.compile(r'/api/attachments/([0-9a-f]+)'), _get_attachment),
     ('/api/music/sources', _get_music_sources),
     ('/api/music/tracks', _get_music_tracks),
@@ -268,6 +299,17 @@ def _post_upgrade(self, route, body, identity, editor, user):
 def _post_draft_action(self, route, body, identity, editor, user):
     action = getattr(editor.drafts, route.rsplit('/', 1)[1])
     return self._json(200, action(_field(body, 'video', str), identity))
+
+
+def _post_compendium_vote(self, route, body, identity, editor, user):
+    if not _is_admin(self, user):
+        raise HTTPError(403, 'admin only')
+    from . import compendium_feed
+    try:
+        id, vote, reason = compendium_feed.validate_vote(body)
+    except ValueError as exc:
+        raise HTTPError(400, str(exc)) from None
+    return self._json(200, editor.compendium_votes.record(user, id, vote, reason))
 
 
 def _post_music_attach(self, route, body, identity, editor, user):
@@ -352,6 +394,7 @@ POST_ROUTES = [
     ('/api/versions/restore', _post_versions_restore),
     ('/api/upgrade', _post_upgrade),
     (('/api/draft/accept', '/api/draft/drop'), _post_draft_action),
+    ('/api/compendium/vote', _post_compendium_vote),
     ('/api/music/attach', _post_music_attach),
     (('/api/roll', '/api/copy', '/api/undo'), _post_edit),
     ('/api/notes', _post_notes),

@@ -249,10 +249,24 @@ def _poster_frame(film):
     return min(film.frames - 1, mid - shot.f + int(shot.length * 0.7))
 
 
-def _render_one(film, out_dir, id, jobs, crf, log):
+def _loop_window(film, pad_seconds=0.5):
+    """A transition's preview `film`'s own motion window -- the `to` segment's
+    span, which (see `component_film`) overlaps `from` for its entire length
+    -- padded by `pad_seconds` on each side and clamped to the film, in
+    seconds: `[start, end)` for the feed to loop instead of the whole clip."""
+    grid = film.timeline.grid
+    lo_f, hi_f = film.timeline.span('to')
+    pad_f = round(pad_seconds * grid.fps)
+    lo_f, hi_f = max(0, lo_f - pad_f), min(film.frames, hi_f + pad_f)
+    return [grid.seconds(lo_f), grid.seconds(hi_f)]
+
+
+def _render_one(film, out_dir, id, kind, jobs, crf, log):
     import time
     from ..render import render as _render
+    loop = _loop_window(film) if kind == 'transition' else None
     results = []
+    clips = []
     for fmt in film.formats:
         name = f'{id}-{fmt.name}'
         out_mp4 = os.path.join(out_dir, name + '.mp4')
@@ -260,27 +274,38 @@ def _render_one(film, out_dir, id, jobs, crf, log):
         _render(film, out_mp4, fmt, jobs=jobs, crf=crf, log=log)
         _save_poster(film.frame(_poster_frame(film), fmt), os.path.join(out_dir, name + '.jpg'))
         results.append({'id': name, 'seconds': time.time() - t0, 'bytes': os.path.getsize(out_mp4)})
-    return results
+        clips.append({'id': id, 'kind': kind, 'format': fmt.name, 'loop': loop})
+    return results, clips
 
 
 def build(out_dir, only=None, jobs=None, crf=30, log=None):
     """Render every component's sample preview and every recipe (or just the
-    ids in `only`) to `<out_dir>/<id>-<format>.mp4` and `.jpg`. Returns a list
-    of {id, seconds, bytes} for the clips built."""
+    ids in `only`) to `<out_dir>/<id>-<format>.mp4` and `.jpg`, and write
+    `<out_dir>/index.json`: `{"clips": [...]}`, one entry per clip built, each
+    `{id, kind, format, loop}` -- `kind` is the component's own kind, or
+    `'recipe'`; `loop` is a transition's `[start, end]` in seconds (see
+    `_loop_window`), else null. Returns a list of {id, seconds, bytes} for the
+    clips built."""
     import sys
+    from ..atomic import write_json_atomic
     log = log or sys.stderr
     if only is not None:
         unknown = set(only) - set(ids()) - set(recipe_ids())
         if unknown:
             raise ValueError(f'unknown id(s): {", ".join(sorted(unknown))}')
     os.makedirs(out_dir, exist_ok=True)
-    results = []
+    results, clips = [], []
     for c in CATALOG:
         if only is not None and c.id not in only:
             continue
-        results += _render_one(component_film(c), out_dir, c.id, jobs, crf, log)
-    for r in RECIPES:
-        if only is not None and r.id not in only:
+        r, cl = _render_one(component_film(c), out_dir, c.id, c.kind, jobs, crf, log)
+        results += r
+        clips += cl
+    for r_ in RECIPES:
+        if only is not None and r_.id not in only:
             continue
-        results += _render_one(build_recipe_film(r), out_dir, r.id, jobs, crf, log)
+        r, cl = _render_one(build_recipe_film(r_), out_dir, r_.id, 'recipe', jobs, crf, log)
+        results += r
+        clips += cl
+    write_json_atomic(os.path.join(out_dir, 'index.json'), {'clips': clips}, indent=2, newline=True)
     return results

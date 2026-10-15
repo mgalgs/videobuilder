@@ -24,14 +24,17 @@ def valid_name(name):
 class Library:
     def __init__(self, root, checkouts=None, state_dir=None, host='127.0.0.1', allowed_hosts=(),
                  backend=None, agent=None, unsandboxed_previews=False, envs=None, admins=(), capabilities_dir=None,
-                 music_sources=None, account_daily_note_cap=None, account_daily_cost_cap_usd=None):
+                 compendium_dir=None, music_sources=None, account_daily_note_cap=None, account_daily_cost_cap_usd=None):
         self.capabilities_dir = capabilities_dir
+        self.compendium_dir = compendium_dir
         self.root = Path(root).resolve()
         self.repos = self.root / 'repos'
         self.checkouts = Path(checkouts or self.root / 'checkouts').resolve()
         self.state_dir = Path(state_dir or self.root / 'state').resolve()
         for path in (self.repos, self.checkouts, self.state_dir):
             path.mkdir(parents=True, exist_ok=True)
+        from .compendium_feed import CompendiumVotes
+        self.compendium_votes = CompendiumVotes(str(self.state_dir / 'compendium-votes.jsonl'))
         self.allowed_hosts = {h.lower().rstrip('.') for h in
                               ('localhost', '127.0.0.1', '::1', host, *allowed_hosts)}
         from .workers import Environments
@@ -176,7 +179,9 @@ class Library:
         names = self.names()
         if self.accounts:
             names = [n for n in names if self.access.can_access(n, user, self.accounts)]
-        return pages.index([(n, self.has_main(n)) for n in names], self.accounts is not None, user, host, scheme)
+        is_admin = not self.accounts or self.accounts.is_admin(user)
+        return pages.index([(n, self.has_main(n)) for n in names], self.accounts is not None, user, host, scheme,
+                           is_admin=is_admin)
 
     def new_video_page(self, names=None):
         return pages.new_video_page(names if names is not None else self.names())

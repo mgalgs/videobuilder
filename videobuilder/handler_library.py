@@ -183,7 +183,9 @@ class LibraryHandler:
                     if not _is_admin(self, user):
                         raise HTTPError(403, 'admin only')
                     return self._json(200, library.usage())
-                if route != '/healthz' and route != '/capabilities' and not route.startswith('/capabilities/'):
+                if (route != '/healthz' and route != '/capabilities' and not route.startswith('/capabilities/')
+                        and route != '/compendium' and not route.startswith('/compendium/')
+                        and route != '/api/compendium' and route != '/api/compendium/vote'):
                     if video_name is None:
                         raise HTTPError(404, 'not found')
                     name = video_name

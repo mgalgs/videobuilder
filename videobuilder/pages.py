@@ -320,7 +320,7 @@ def _starter_section_html(hero, as_link):
            f'<div class="starter-grid">{cards}</div></section>')
 
 
-def index(names, accounts_enabled, user, host, scheme='http'):
+def index(names, accounts_enabled, user, host, scheme='http', is_admin=False):
     """`names`: [(name, has_main), ...], already access-filtered and in order."""
     groups = {}
     for name, _ in names:
@@ -354,6 +354,7 @@ def index(names, accounts_enabled, user, host, scheme='http'):
                     f'<strong>{html.escape(user)}</strong>.</p>')
     starters = _starter_section_html(hero, as_link=True)
     new_video = '<a class="btn btn-primary new-video" href="/new">+ New video</a>' if can_create else ''
+    compendium_link = '<a class="caps-link" href="/compendium">Compendium</a>' if is_admin else ''
     script = ('<script>'
               'for(const b of document.querySelectorAll(".lib-copy"))b.onclick=async()=>{'
               'try{await navigator.clipboard.writeText(b.dataset.url);const t=b.textContent;'
@@ -366,7 +367,7 @@ def index(names, accounts_enabled, user, host, scheme='http'):
             '<style>' + LIBRARY_STYLE + STARTER_STYLE + '</style>'
             '</head><body><div class="lib-page">' + account_bar +
             '<header class="lib-header"><h1>Video library</h1>' + new_video +
-            '<a class="caps-link" href="/capabilities">Capabilities</a></header>' +
+            '<a class="caps-link" href="/capabilities">Capabilities</a>' + compendium_link + '</header>' +
             starters + body + script +
             '</div></body></html>').encode()
 

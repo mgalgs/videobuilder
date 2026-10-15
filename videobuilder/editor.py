@@ -274,10 +274,11 @@ class Editor:
 
     def __init__(self, root, state_dir=None, backend=None, agent=None, allowed_hosts=(), host='127.0.0.1',
                  unsandboxed_previews=False, envs=None, env_builder=None, sync_remote=None, environments=None,
-                 auto_land=None, capabilities_dir=None, music_sources=None, music=None,
+                 auto_land=None, capabilities_dir=None, compendium_dir=None, music_sources=None, music=None,
                  account_daily_note_cap=None, account_daily_cost_cap_usd=None,
                  trust_repo_config=True):
         self.capabilities_dir = capabilities_dir
+        self.compendium_dir = compendium_dir
         # `music`, a pre-parsed MusicLibrary, is how library mode shares one cache and one
         # startup parse across projects (see Library.__init__); `music_sources`, a path
         # parsed here, is for single-project mode, where there is only one Editor anyway.
@@ -335,6 +336,8 @@ class Editor:
             self._seen_main = None
         self.drafts.prune()
         _ensure_state_dir(self.state_dir)
+        from .compendium_feed import CompendiumVotes
+        self.compendium_votes = CompendiumVotes(os.path.join(self.state_dir, 'compendium-votes.jsonl'))
 
     def _before_submit(self, video, note, state):
         self.drafts.before_submit(video, note, state)
@@ -757,10 +760,10 @@ def _ticker(tick, stop):
 
 def serve(root, host='127.0.0.1', port=8100, state_dir=None, open_browser=False, backend=None,
           hook=request_hook, agent=None, allowed_hosts=(), unsandboxed_previews=False, envs=None, sync_remote=None,
-          capabilities_dir=None, music_sources=None):
+          capabilities_dir=None, compendium_dir=None, music_sources=None):
     editor = Editor(root, state_dir=state_dir, backend=backend, agent=agent, allowed_hosts=allowed_hosts, host=host,
                     unsandboxed_previews=unsandboxed_previews, envs=envs, sync_remote=sync_remote,
-                    capabilities_dir=capabilities_dir, music_sources=music_sources)
+                    capabilities_dir=capabilities_dir, compendium_dir=compendium_dir, music_sources=music_sources)
     httpd = ThreadingHTTPServer((host, port), make_handler(editor, hook))
     httpd.daemon_threads = True
     stop_sync = threading.Event()
@@ -795,13 +798,13 @@ def serve(root, host='127.0.0.1', port=8100, state_dir=None, open_browser=False,
 
 def serve_library(root, host='127.0.0.1', port=8100, checkouts=None, state_dir=None, open_browser=False,
                   hook=request_hook, agent=None, allowed_hosts=(), unsandboxed_previews=False, envs=None,
-                  admins=(), capabilities_dir=None, music_sources=None,
+                  admins=(), capabilities_dir=None, compendium_dir=None, music_sources=None,
                   account_daily_note_cap=None, account_daily_cost_cap_usd=None):
     from .library import Library
     library = Library(root, checkouts=checkouts, state_dir=state_dir, host=host, agent=agent,
                       allowed_hosts=allowed_hosts, unsandboxed_previews=unsandboxed_previews, envs=envs,
-                      admins=admins, capabilities_dir=capabilities_dir, music_sources=music_sources,
-                      account_daily_note_cap=account_daily_note_cap,
+                      admins=admins, capabilities_dir=capabilities_dir, compendium_dir=compendium_dir,
+                      music_sources=music_sources, account_daily_note_cap=account_daily_note_cap,
                       account_daily_cost_cap_usd=account_daily_cost_cap_usd)
     httpd = ThreadingHTTPServer((host, port), make_handler(library, hook))
     httpd.daemon_threads = True
