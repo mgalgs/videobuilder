@@ -3,6 +3,9 @@ request validation and index.json's loop windows, following
 tests/test_capabilities_routes.py's and tests/test_compendium.py's
 fixtures."""
 import json
+import re
+import shutil
+import subprocess
 import tempfile
 import unittest
 import urllib.error
@@ -96,6 +99,12 @@ class IndexJSON(unittest.TestCase):
         self.assertTrue(any(e['kind'] == 'recipe' for e in index['clips'] if e['id'] == RECIPE_ID))
 
 
+def _fresh(vote, reason=None):
+    """The non-stale shape `for_user`/`current` return for a vote cast on
+    the entry's current fingerprint."""
+    return {'vote': vote, 'reason': reason, 'stale': False, 'previous_vote': None}
+
+
 class VoteStore(unittest.TestCase):
     def test_last_vote_per_user_and_id_wins_but_history_is_kept(self):
         with tempfile.TemporaryDirectory() as d:
@@ -104,13 +113,13 @@ class VoteStore(unittest.TestCase):
             store.record('alice', COMPONENT_ID, 'up', None)
             store.record('alice', COMPONENT_ID, 'down', 'too busy')
             store.record('bob', COMPONENT_ID, 'up', None)
-            self.assertEqual(store.for_user('alice'), {COMPONENT_ID: {'vote': 'down', 'reason': 'too busy'}})
-            self.assertEqual(store.for_user('bob'), {COMPONENT_ID: {'vote': 'up', 'reason': None}})
+            self.assertEqual(store.for_user('alice'), {COMPONENT_ID: _fresh('down', 'too busy')})
+            self.assertEqual(store.for_user('bob'), {COMPONENT_ID: _fresh('up')})
             lines = [l for l in Path(path).read_text(encoding='utf-8').splitlines() if l.strip()]
             self.assertEqual(len(lines), 3)  # nothing rewritten or compacted
             for line in lines:
                 event = json.loads(line)
-                self.assertEqual(set(event), {'at', 'by', 'id', 'vote', 'reason', 'version'})
+                self.assertEqual(set(event), {'at', 'by', 'id', 'vote', 'reason', 'version', 'fingerprint'})
 
     def test_current_is_the_last_event_per_id_across_every_voter(self):
         with tempfile.TemporaryDirectory() as d:
@@ -118,22 +127,22 @@ class VoteStore(unittest.TestCase):
             store.record('alice', COMPONENT_ID, 'up', None)
             store.record('alice', COMPONENT_ID, 'down', 'too busy')  # up then down: down wins
             store.record('bob', TRANSITION_ID, 'up', None)
-            self.assertEqual(store.current(), {COMPONENT_ID: {'vote': 'down', 'reason': 'too busy'},
-                                               TRANSITION_ID: {'vote': 'up', 'reason': None}})
+            self.assertEqual(store.current(), {COMPONENT_ID: _fresh('down', 'too busy'),
+                                               TRANSITION_ID: _fresh('up')})
 
     def test_votes_survive_a_restart(self):
         with tempfile.TemporaryDirectory() as d:
             path = str(Path(d) / 'compendium-votes.jsonl')
             compendium_feed.CompendiumVotes(path).record('alice', COMPONENT_ID, 'up', None)
             reopened = compendium_feed.CompendiumVotes(path)
-            self.assertEqual(reopened.for_user('alice'), {COMPONENT_ID: {'vote': 'up', 'reason': None}})
+            self.assertEqual(reopened.for_user('alice'), {COMPONENT_ID: _fresh('up')})
 
     def test_null_vote_clears_it(self):
         with tempfile.TemporaryDirectory() as d:
             store = compendium_feed.CompendiumVotes(str(Path(d) / 'v.jsonl'))
             store.record('alice', COMPONENT_ID, 'up', None)
             store.record('alice', COMPONENT_ID, None, None)
-            self.assertEqual(store.for_user('alice'), {COMPONENT_ID: {'vote': None, 'reason': None}})
+            self.assertEqual(store.for_user('alice'), {COMPONENT_ID: _fresh(None)})
 
     def test_no_file_yet_is_no_votes(self):
         with tempfile.TemporaryDirectory() as d:
@@ -147,7 +156,60 @@ class VoteStore(unittest.TestCase):
             store.record('alice', COMPONENT_ID, 'up', None)
             with open(path, 'a', encoding='utf-8') as fh:
                 fh.write('{"at": "2026-01-01T00:00:00Z", "by": "alice", "id": "' + COMPONENT_ID)  # cut off mid-write
-            self.assertEqual(store.for_user('alice'), {COMPONENT_ID: {'vote': 'up', 'reason': None}})
+            self.assertEqual(store.for_user('alice'), {COMPONENT_ID: _fresh('up')})
+
+
+class Staleness(unittest.TestCase):
+    """A vote's fingerprint is stamped by the server (never the client's),
+    a mismatch against the entry's current fingerprint makes it stale (kept
+    but not counted), a vote with no fingerprint (a legacy vote, cast before
+    this existed) always counts, and re-voting clears the staleness."""
+
+    def test_record_stamps_the_current_fingerprint_even_if_a_caller_passes_one(self):
+        with tempfile.TemporaryDirectory() as d:
+            store = compendium_feed.CompendiumVotes(str(Path(d) / 'v.jsonl'))
+            event = store.record('alice', COMPONENT_ID, 'up', None)
+            self.assertEqual(event['fingerprint'], compendium.fingerprint(COMPONENT_ID))
+
+    def test_stale_vote_is_kept_but_does_not_count(self):
+        with tempfile.TemporaryDirectory() as d:
+            store = compendium_feed.CompendiumVotes(str(Path(d) / 'v.jsonl'))
+            with mock.patch('videobuilder.compendium.fingerprint', return_value='oldoldoldold'):
+                store.record('alice', COMPONENT_ID, 'up', None)
+            with mock.patch('videobuilder.compendium.fingerprint', return_value='newnewnewnew'):
+                self.assertEqual(store.for_user('alice'), {
+                    COMPONENT_ID: {'vote': None, 'reason': None, 'stale': True, 'previous_vote': 'up'}})
+                # the builder's "prefer"/"do not use" lists are built from current(): omitted entirely.
+                self.assertEqual(store.current(), {
+                    COMPONENT_ID: {'vote': None, 'reason': None, 'stale': True, 'previous_vote': 'up'}})
+
+    def test_revoting_clears_the_stale_flag(self):
+        with tempfile.TemporaryDirectory() as d:
+            store = compendium_feed.CompendiumVotes(str(Path(d) / 'v.jsonl'))
+            with mock.patch('videobuilder.compendium.fingerprint', return_value='oldoldoldold'):
+                store.record('alice', COMPONENT_ID, 'up', None)
+            with mock.patch('videobuilder.compendium.fingerprint', return_value='newnewnewnew'):
+                store.record('alice', COMPONENT_ID, 'down', None)
+                self.assertEqual(store.for_user('alice'), {COMPONENT_ID: _fresh('down')})
+
+    def test_legacy_vote_with_no_fingerprint_still_counts(self):
+        """Every vote cast before fingerprints existed has no `fingerprint`
+        field at all; it must keep counting as current, not be treated as
+        stale against whatever the entry's fingerprint happens to be now."""
+        with tempfile.TemporaryDirectory() as d:
+            path = str(Path(d) / 'v.jsonl')
+            with open(path, 'w', encoding='utf-8') as fh:
+                fh.write(json.dumps({'at': '2026-01-01T00:00:00Z', 'by': 'alice', 'id': COMPONENT_ID,
+                                     'vote': 'up', 'reason': None, 'version': '0.1.0'}) + '\n')
+            store = compendium_feed.CompendiumVotes(path)
+            self.assertEqual(store.for_user('alice'), {COMPONENT_ID: _fresh('up')})
+            self.assertEqual(store.current(), {COMPONENT_ID: _fresh('up')})
+
+    def test_a_vote_on_an_id_the_catalog_no_longer_has_is_never_stale(self):
+        with tempfile.TemporaryDirectory() as d:
+            store = compendium_feed.CompendiumVotes(str(Path(d) / 'v.jsonl'))
+            store.record('alice', 'no-such-id-anymore', 'up', None)
+            self.assertEqual(store.for_user('alice'), {'no-such-id-anymore': _fresh('up')})
 
 
 class Validation(unittest.TestCase):
@@ -192,10 +254,24 @@ class SingleProjectRoutes(fixtures.API):
     def test_vote_round_trips_with_no_accounts(self):
         code, vote = self.post('/api/compendium/vote', {'id': COMPONENT_ID, 'vote': 'up'})
         self.assertEqual(code, 200, vote)
-        self.assertEqual(self.get('/api/compendium')['votes'][COMPONENT_ID], {'vote': 'up', 'reason': None})
+        self.assertEqual(self.get('/api/compendium')['votes'][COMPONENT_ID], _fresh('up'))
         code, _ = self.post('/api/compendium/vote', {'id': COMPONENT_ID, 'vote': 'down', 'reason': 'meh'})
         self.assertEqual(code, 200)
-        self.assertEqual(self.get('/api/compendium')['votes'][COMPONENT_ID], {'vote': 'down', 'reason': 'meh'})
+        self.assertEqual(self.get('/api/compendium')['votes'][COMPONENT_ID], _fresh('down', 'meh'))
+
+    def test_client_sent_fingerprint_is_ignored_the_server_stamps_its_own(self):
+        code, vote = self.post('/api/compendium/vote',
+                               {'id': COMPONENT_ID, 'vote': 'up', 'fingerprint': 'clientsent0'})
+        self.assertEqual(code, 200, vote)
+        self.assertEqual(vote['fingerprint'], compendium.fingerprint(COMPONENT_ID))
+        self.assertNotEqual(vote['fingerprint'], 'clientsent0')
+
+    def test_stale_vote_is_reported_through_the_api(self):
+        with mock.patch('videobuilder.compendium.fingerprint', return_value='oldoldoldold'):
+            self.post('/api/compendium/vote', {'id': COMPONENT_ID, 'vote': 'up'})
+        with mock.patch('videobuilder.compendium.fingerprint', return_value='newnewnewnew'):
+            view = self.get('/api/compendium')['votes'][COMPONENT_ID]
+            self.assertEqual(view, {'vote': None, 'reason': None, 'stale': True, 'previous_vote': 'up'})
 
     def test_malformed_vote_is_400_never_500(self):
         for body in ({'id': 'no-such-id', 'vote': 'up'}, {'id': COMPONENT_ID, 'vote': 'maybe'},
@@ -292,7 +368,7 @@ class AuthCompendium(fixtures.Auth):
                                   headers={'Content-Type': 'application/json', 'Cookie': admin})
         self.assertEqual(code, 200, vote)
         code, data2 = self.request('/api/compendium', headers=headers)
-        self.assertEqual(data2['votes'][COMPONENT_ID], {'vote': 'down', 'reason': 'meh'})
+        self.assertEqual(data2['votes'][COMPONENT_ID], _fresh('down', 'meh'))
         code, clip, _ = self.request_full(f'/compendium/{COMPONENT_ID}-{FMT}.mp4', headers=headers)
         self.assertEqual(code, 200)
 
@@ -307,6 +383,24 @@ class AuthCompendium(fixtures.Auth):
         code, page = self.request('/', headers={'Cookie': admin})
         self.assertEqual(code, 200)
         self.assertNotIn(b'href="/compendium"', page)
+
+
+@unittest.skipUnless(shutil.which('node'), 'node is not available in this environment')
+class InlineScriptParses(unittest.TestCase):
+    """The feed page's inline script, checked the way tests/test_pages.py
+    checks the other server-rendered pages' scripts: extracted and run
+    through `node --check`, since there's no build step to catch a typo
+    otherwise."""
+
+    def test_feed_page_script_parses(self):
+        html = compendium_feed.page_html(None, '0.0.0')
+        scripts = re.findall(rb'<script(?: [^>]*)?>(.*?)</script>', html, re.S)
+        self.assertTrue(scripts)
+        for script in scripts:
+            if not script.strip():
+                continue
+            result = subprocess.run(['node', '--check', '-'], input=script, capture_output=True)
+            self.assertEqual(result.returncode, 0, result.stderr.decode())
 
 
 if __name__ == '__main__':

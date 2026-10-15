@@ -10,10 +10,10 @@ A component is one module under `components/`; see `schema.py` for the
 format (`Component`, `Slot`) and `catalog.py` for the registry, the index,
 and rendering previews.
 """
-from .catalog import (CATALOG, RECIPES, build, build_recipe_film, component_film, get, get_recipe, ids,
-                      index_data, index_json, index_markdown, kinds, recipe_ids)
+from .catalog import (CATALOG, RECIPES, build, build_recipe_film, component_film, fingerprint, get, get_recipe,
+                      ids, index_data, index_json, index_markdown, kinds, recipe_ids)
 from .schema import Component, Recipe, RecipeStep, Slot, SlotError
 
 __all__ = ['CATALOG', 'Component', 'Recipe', 'RECIPES', 'RecipeStep', 'Slot', 'SlotError', 'build',
-           'build_recipe_film', 'component_film', 'get', 'get_recipe', 'ids', 'index_data', 'index_json',
-           'index_markdown', 'kinds', 'recipe_ids']
+           'build_recipe_film', 'component_film', 'fingerprint', 'get', 'get_recipe', 'ids', 'index_data',
+           'index_json', 'index_markdown', 'kinds', 'recipe_ids']

@@ -22,11 +22,32 @@ VOTES = ('up', 'down', None)
 MAX_REASON = 300
 
 
+def _is_stale(event):
+    """True when `event`'s vote was cast against a fingerprint that no
+    longer matches `event['id']`'s current one (the component or recipe was
+    edited since). A legacy vote (`fingerprint` missing -- every vote cast
+    before fingerprints existed) or a vote on an id the catalog no longer
+    knows always counts as current, never stale."""
+    fp = event.get('fingerprint')
+    if fp is None:
+        return False
+    from . import compendium
+    try:
+        return fp != compendium.fingerprint(event['id'])
+    except KeyError:
+        return False
+
+
 class CompendiumVotes:
     """`path`'s append-only JSONL: one line per vote event (`at`, `by`, `id`,
-    `vote`, `reason`, `version`). The current state is the last event per
-    (by, id); nothing is ever rewritten or compacted, so the full history is
-    kept as data."""
+    `vote`, `reason`, `version`, `fingerprint`). The current state is the
+    last event per (by, id); nothing is ever rewritten or compacted, so the
+    full history is kept as data.
+
+    A vote whose `fingerprint` no longer matches the entry's current one is
+    kept but doesn't count: `for_user`/`current` report it with `vote: None`
+    (so it sorts and filters as not-voted-yet) and `stale: True`, keeping
+    what it actually was in `previous_vote` for the feed's note."""
 
     def __init__(self, path):
         self.path = path
@@ -51,29 +72,50 @@ class CompendiumVotes:
                 continue
         return events
 
+    def _view(self, event):
+        """`event`'s vote the way a caller should see it: a stale vote (see
+        `_is_stale`) doesn't count, so `vote` comes back `None`, but
+        `previous_vote` keeps what it actually was, for the feed's note. A
+        cleared vote (`vote: None` already) is never stale -- there is
+        nothing left to have gone stale."""
+        stale = event['vote'] is not None and _is_stale(event)
+        return {'vote': None if stale else event['vote'],
+               'reason': None if stale else event.get('reason'),
+               'stale': stale,
+               'previous_vote': event['vote'] if stale else None}
+
     def for_user(self, user):
-        """{id: {"vote", "reason"}}, `user`'s current votes: the last event
-        per id, among events attributed to `user`."""
+        """{id: {"vote", "reason", "stale", "previous_vote"}}, `user`'s
+        current votes: the last event per id, among events attributed to
+        `user`."""
         current = {}
         for event in self._events():
             if event.get('by') == user:
                 current[event['id']] = event
-        return {id: {'vote': e['vote'], 'reason': e.get('reason')} for id, e in current.items()}
+        return {id: self._view(e) for id, e in current.items()}
 
     def current(self):
-        """{id: {"vote", "reason"}}, the current vote per id: the last event per
-        id across every voter (there is one admin today, but this doesn't lean
-        on that). Used to tell the builder which compendium ids are liked or
-        disliked (see prompt._compendium_lines)."""
+        """{id: {"vote", "reason", "stale", "previous_vote"}}, the current
+        vote per id: the last event per id across every voter (there is one
+        admin today, but this doesn't lean on that). Used to tell the
+        builder which compendium ids are liked or disliked (see
+        prompt._compendium_lines) -- a stale vote's `vote` comes back `None`
+        there too, so the caller's existing "up"/"down" filter already
+        leaves it out of both lists."""
         current = {}
         for event in self._events():
             current[event['id']] = event
-        return {id: {'vote': e['vote'], 'reason': e.get('reason')} for id, e in current.items()}
+        return {id: self._view(e) for id, e in current.items()}
 
     def record(self, user, id, vote, reason):
-        from . import __version__
+        from . import __version__, compendium
+        try:
+            fp = compendium.fingerprint(id)
+        except KeyError:
+            fp = None
         event = {'at': datetime.datetime.now(datetime.timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ'),
-                 'by': user, 'id': id, 'vote': vote, 'reason': reason, 'version': __version__}
+                 'by': user, 'id': id, 'vote': vote, 'reason': reason, 'version': __version__,
+                 'fingerprint': fp}
         with self.lock:
             os.makedirs(os.path.dirname(self.path), exist_ok=True)
             with open(self.path, 'a', encoding='utf-8') as fh:
@@ -179,6 +221,8 @@ header h1{font-size:16px;margin:0;margin-right:auto}
 .item .meta .kind{color:#a9a9b2;font-size:12.5px;text-transform:uppercase;letter-spacing:.03em;margin-left:8px}
 .item .meta .tags{color:#a9a9b2;font-size:12.5px;margin-top:4px}
 .item .meta .desc{color:#dcdcdc;font-size:13.5px;margin-top:6px}
+.stale-note{display:none;margin-top:10px;max-width:92vw;font-size:12.5px;color:#f2c572;
+  background:#2a2410;border:1px solid #4a3f14;border-radius:8px;padding:6px 10px;text-align:center}
 .votes{display:flex;gap:14px;margin-top:14px;align-items:center;justify-content:center}
 .votes button{min-height:48px;min-width:64px;font-size:22px;border-radius:12px;border:1px solid #26262c;
   background:#141417;color:#eee;cursor:pointer}
@@ -281,13 +325,24 @@ _PAGE_SCRIPT = """
     reason.innerHTML = '<textarea maxlength="300" placeholder="Why? (optional)"></textarea>' +
       '<div class="err"></div>';
     sec.appendChild(reason);
+    var staleNote = document.createElement('div');
+    staleNote.className = 'stale-note';
+    sec.appendChild(staleNote);
     function paint(){
-      var current = state.votes[item.id] && state.votes[item.id].vote;
+      var v = state.votes[item.id] || {};
+      var current = v.vote;
       up.setAttribute('aria-pressed', current === 'up' ? 'true' : 'false');
       down.setAttribute('aria-pressed', current === 'down' ? 'true' : 'false');
       reason.classList.toggle('open', current === 'down');
       if(current === 'down'){
-        reason.querySelector('textarea').value = (state.votes[item.id] && state.votes[item.id].reason) || '';
+        reason.querySelector('textarea').value = v.reason || '';
+      }
+      if(v.stale){
+        staleNote.textContent = 'Changed since your vote \\u2014 you voted ' +
+          (v.previous_vote === 'up' ? '\\uD83D\\uDC4D' : '\\uD83D\\uDC4E') + ' on an earlier version.';
+        staleNote.style.display = 'block';
+      } else {
+        staleNote.style.display = 'none';
       }
     }
     function setVote(vote, reasonText){

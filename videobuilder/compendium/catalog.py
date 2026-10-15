@@ -6,6 +6,8 @@ catalog.
     python -m videobuilder compendium index [--json]
     python -m videobuilder compendium build --out DIR [--only ID ...]
 """
+import hashlib
+import inspect
 import json
 import math
 import os
@@ -13,15 +15,39 @@ import os
 import videobuilder as vb
 
 from . import kit
+from . import recipes as _recipes_module
 from .components import CATALOG
 from .recipes import RECIPES
 
 _BY_ID = {c.id: c for c in CATALOG}
 _RECIPES_BY_ID = {r.id: r for r in RECIPES}
+_RECIPES_FILE = _recipes_module.__file__
 
 
 def get(id):
     return _BY_ID[id]
+
+
+def _hash_file(path):
+    with open(path, 'rb') as fh:
+        return hashlib.sha256(fh.read()).hexdigest()[:12]
+
+
+def fingerprint(id):
+    """The first 12 hex characters of the sha256 of `id`'s own source file:
+    a component's module file (found through its `draw`, which every
+    component module defines itself -- see `components/__init__.py`), or
+    `recipes.py` for every recipe, since all of them live in that one file.
+    Shared helpers (`kit.py`, `_*_util.py`) are deliberately left out of the
+    hash: a kit change would otherwise invalidate every vote at once, and
+    breakage there is already caught by the image build's render-and-check
+    of every component. Raises `KeyError` for an id the catalog doesn't
+    know."""
+    if id in _BY_ID:
+        return _hash_file(inspect.getfile(_BY_ID[id].draw))
+    if id in _RECIPES_BY_ID:
+        return _hash_file(_RECIPES_FILE)
+    raise KeyError(id)
 
 
 def ids():
@@ -144,7 +170,8 @@ def _slot_data(slot):
 
 def _component_data(c):
     return {'id': c.id, 'kind': c.kind, 'description': c.description, 'tags': list(c.tags),
-           'formats': list(c.formats), 'beats': list(c.beats), 'slots': [_slot_data(s) for s in c.slots]}
+           'formats': list(c.formats), 'beats': list(c.beats), 'slots': [_slot_data(s) for s in c.slots],
+           'fingerprint': fingerprint(c.id)}
 
 
 def _jsonify(v):
@@ -166,7 +193,7 @@ def _step_data(s):
 
 def _recipe_data(r):
     return {'id': r.id, 'title': r.title, 'description': r.description, 'bpm': r.bpm,
-           'formats': list(r.formats), 'steps': [_step_data(s) for s in r.steps]}
+           'formats': list(r.formats), 'steps': [_step_data(s) for s in r.steps], 'fingerprint': fingerprint(r.id)}
 
 
 def index_data():
@@ -285,7 +312,7 @@ def _loop_window(film, pad_seconds=0.5, still_threshold=1.0, scale=0.08):
     return [grid.seconds(lo_f), grid.seconds(hi_f)]
 
 
-def _render_one(film, out_dir, id, kind, jobs, crf, log):
+def _render_one(film, out_dir, id, kind, fp, jobs, crf, log):
     import time
     from ..render import render as _render
     loop = _loop_window(film) if kind == 'transition' else None
@@ -298,7 +325,7 @@ def _render_one(film, out_dir, id, kind, jobs, crf, log):
         _render(film, out_mp4, fmt, jobs=jobs, crf=crf, log=log)
         _save_poster(film.frame(_poster_frame(film), fmt), os.path.join(out_dir, name + '.jpg'))
         results.append({'id': name, 'seconds': time.time() - t0, 'bytes': os.path.getsize(out_mp4)})
-        clips.append({'id': id, 'kind': kind, 'format': fmt.name, 'loop': loop})
+        clips.append({'id': id, 'kind': kind, 'format': fmt.name, 'loop': loop, 'fingerprint': fp})
     return results, clips
 
 
@@ -306,10 +333,10 @@ def build(out_dir, only=None, jobs=None, crf=30, log=None):
     """Render every component's sample preview and every recipe (or just the
     ids in `only`) to `<out_dir>/<id>-<format>.mp4` and `.jpg`, and write
     `<out_dir>/index.json`: `{"clips": [...]}`, one entry per clip built, each
-    `{id, kind, format, loop}` -- `kind` is the component's own kind, or
-    `'recipe'`; `loop` is a transition's `[start, end]` in seconds (see
-    `_loop_window`), else null. Returns a list of {id, seconds, bytes} for the
-    clips built."""
+    `{id, kind, format, loop, fingerprint}` -- `kind` is the component's own
+    kind, or `'recipe'`; `loop` is a transition's `[start, end]` in seconds
+    (see `_loop_window`), else null; `fingerprint` is `fingerprint(id)`.
+    Returns a list of {id, seconds, bytes} for the clips built."""
     import sys
     from ..atomic import write_json_atomic
     log = log or sys.stderr
@@ -322,13 +349,13 @@ def build(out_dir, only=None, jobs=None, crf=30, log=None):
     for c in CATALOG:
         if only is not None and c.id not in only:
             continue
-        r, cl = _render_one(component_film(c), out_dir, c.id, c.kind, jobs, crf, log)
+        r, cl = _render_one(component_film(c), out_dir, c.id, c.kind, fingerprint(c.id), jobs, crf, log)
         results += r
         clips += cl
     for r_ in RECIPES:
         if only is not None and r_.id not in only:
             continue
-        r, cl = _render_one(build_recipe_film(r_), out_dir, r_.id, 'recipe', jobs, crf, log)
+        r, cl = _render_one(build_recipe_film(r_), out_dir, r_.id, 'recipe', fingerprint(r_.id), jobs, crf, log)
         results += r
         clips += cl
     write_json_atomic(os.path.join(out_dir, 'index.json'), {'clips': clips}, indent=2, newline=True)
