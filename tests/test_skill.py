@@ -190,10 +190,16 @@ class Skill(unittest.TestCase):
                 "TIMELINE = vb.Timeline(vb.Grid(fps=30, bpm=120), [vb.Segment('interview', 0, 2)], end=2)\n"
                 + example)
             from videobuilder import load
+            from videobuilder.render import render
             f = load(str(film))
             self.assertEqual(f.frames, 30)
             self.assertEqual(len(f.sounds), 1)
             f.frame(10)
+            # Render from a cwd other than the film's own directory (pytest's, not
+            # d's): an audio path built relative to the cwd instead of from HERE
+            # would fail to resolve here.
+            with open(os.devnull, 'w') as quiet:
+                render(f, os.path.join(d, 'out.mp4'), jobs=1, log=quiet)
 
 
 if __name__ == '__main__':

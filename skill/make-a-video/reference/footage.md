@@ -87,7 +87,8 @@ def draw(n, cv):
         pic = clip.frame(clip.frame_at(footage_a.seconds_at(n)))
         cv.image(pic, 0, 0, cv.width, cv.height)
 
-FILM = vb.Film(draw=draw, timeline=TIMELINE, audio=vb.Audio('assets/music.wav', duck_db=-12),
+FILM = vb.Film(draw=draw, timeline=TIMELINE,
+               audio=vb.Audio(str(HERE / 'assets' / 'music.wav'), duck_db=-12),
                sounds=(footage_a.sound(str(HERE / 'assets' / 'interview.mp4'), gain_db=-3),))
 ```
 
