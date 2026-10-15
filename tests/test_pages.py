@@ -52,6 +52,13 @@ class StarterCardsOnPages(unittest.TestCase):
         self.assertNotIn('id="showcase"', with_video)
         self.assertNotIn('id="showcase"', pages.index([], False, None, 'example.com').decode())
 
+    def test_every_new_key_block_has_a_copy_button(self):
+        page = pages.account_page('dana', []).decode()
+        for target in ('secret-value', 'git-clone', 'git-cred', 'api-header'):
+            self.assertIn(f'id="{target}"', page)
+            self.assertIn(f'data-copy="{target}"', page)
+        self.assertNotIn('.panel code,', page)   # inline <code> in a sentence must stay inline
+
     def test_new_video_page_has_all_six_cards_wired_to_their_prompt(self):
         page = pages.new_video_page(['acme/launch']).decode()
         for s in STARTERS:

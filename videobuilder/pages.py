@@ -461,8 +461,10 @@ _ACCOUNT_STYLE = (
     'label{display:flex;flex-direction:column;gap:.25rem;font-size:.9em;color:#bbb}'
     '#error{color:#f88;min-height:1.2em}'
     '.panel{background:#20242b;border:1px solid #333;border-radius:8px;padding:1rem;margin:1rem 0}'
-    '.panel code,.panel pre{display:block;background:#15171b;border-radius:6px;padding:.6rem;'
+    '.panel pre{display:block;background:#15171b;border-radius:6px;padding:.6rem;margin:.4rem 0 0;'
     'overflow-x:auto;word-break:break-all;white-space:pre-wrap;font-size:.85em}'
+    '.panel p code{background:#15171b;border-radius:4px;padding:.1rem .3rem;font-size:.85em}'
+    '.panel p{margin:1.1rem 0 0}'
     '.panel button{min-height:44px;padding:.5rem 1rem;border-radius:6px;border:1px solid #333;'
     'background:#2d6cdf;color:#fff;margin-top:.4rem}'
     '@media (max-width:480px){.key{flex-direction:column;align-items:flex-start}}'
@@ -524,8 +526,17 @@ _ACCOUNT_SCRIPT = (
     'const data=await r.json();'
     'if(!r.ok){err.textContent=data.error;return;}'
     'e.target.reset();addRow(data);showSecret(data);};'
-    "document.querySelector('#copy-btn').onclick=()=>{"
-    "navigator.clipboard.writeText(document.querySelector('#secret-value').textContent);};"
+    # The clipboard API can be refused (no secure context, no permission), so
+    # fall back to selecting the text and execCommand, and say what happened.
+    'async function copyText(el){const s=el.textContent;'
+    'try{await navigator.clipboard.writeText(s);return true;}catch(_){}'
+    'const r=document.createRange();r.selectNodeContents(el);const sel=getSelection();'
+    'sel.removeAllRanges();sel.addRange(r);'
+    "try{return document.execCommand('copy');}catch(_){return false;}}"
+    "for(const b of document.querySelectorAll('button.copy'))b.onclick=async()=>{"
+    "const ok=await copyText(document.getElementById(b.dataset.copy));"
+    "b.textContent=ok?'Copied':'Selected \\u2014 press Ctrl+C';"
+    "setTimeout(()=>{b.textContent='Copy';},2000);};"
     "document.body.addEventListener('click',async e=>{"
     "if(!e.target.classList.contains('revoke'))return;"
     'const id=e.target.dataset.id;'
@@ -639,8 +650,12 @@ def account_page(username, keys, limits=None):
            '<button>Create key</button></form><p id="error"></p>'
            '<div id="secret-panel" class="panel" hidden>'
            '<p><strong>New key secret &mdash; copy it now; it will not be shown again.</strong></p>'
-           '<code id="secret-value"></code><button id="copy-btn" type="button">Copy</button>'
+           '<pre id="secret-value"></pre>'
+           '<button class="copy" type="button" data-copy="secret-value">Copy</button>'
            '<p>Git clone (replace <code>&lt;name&gt;</code> with the repository):</p><pre id="git-clone"></pre>'
+           '<button class="copy" type="button" data-copy="git-clone">Copy</button>'
            '<p>Git credential helper (e.g. <code>git credential approve</code>):</p><pre id="git-cred"></pre>'
+           '<button class="copy" type="button" data-copy="git-cred">Copy</button>'
            '<p>API header:</p><pre id="api-header"></pre>'
+           '<button class="copy" type="button" data-copy="api-header">Copy</button>'
            '</div>' + limits_block + _ACCOUNT_SCRIPT + limits_script + '</body></html>').encode()
