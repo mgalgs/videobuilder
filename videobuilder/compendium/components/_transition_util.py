@@ -71,6 +71,13 @@ def hold_f(shots):
     return 10_000 + shots[-1].f
 
 
+def beat_frac(shots):
+    """How far through the current beat of the film's grid this frame is,
+    0..1 (0 on the beat itself), from the front shot's own position."""
+    shot = shots[-1]
+    return (shot.segment.at + shot.f / frames_per_beat(shot)) % 1.0
+
+
 def smoothstep(t):
     t = vb.clamp01(t)
     return t * t * t * (t * (6 * t - 15) + 10)
