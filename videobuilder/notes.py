@@ -412,8 +412,9 @@ class NoteStore:
             # The runner sees the frame only through /attachments, never at its editor path.
             image = payload['image'] if payload['image'] and os.path.isfile(payload['image']) else None
             sources = self.sources.list(video) if self.sources else []
+            any_ready = any(s.get('preview_ready') for s in sources)
             if self.attachments:
-                payload['attach_dir'] = self.attachments.stage(note, image, force=bool(sources))
+                payload['attach_dir'] = self.attachments.stage(note, image, force=any_ready)
                 if image:
                     from .attachments import FRAME_NAME
                     image = '/attachments/' + FRAME_NAME
