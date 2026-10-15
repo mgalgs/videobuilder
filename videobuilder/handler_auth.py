@@ -5,9 +5,12 @@ for every route including git. Its precedence: hook() runs first in
 then, for a `/git/...` route, Basic auth with a password or a `vbk_` key;
 then, for everything else, when the library has accounts and the route is
 not in OPEN_ROUTES, a Bearer key or the session cookie (judged alone -- a
-request carrying Authorization is never combined with a cookie); otherwise
-(no accounts, or an open route) the hook's value, falling back to the
-vb_name cookie."""
+request carrying Authorization is never combined with a cookie; a key is
+accepted only on `/v/<name>/api/...` other than `/api/access`, and any other
+Authorization header leaves the request unauthenticated); when the library
+has accounts and the route *is* in OPEN_ROUTES, there is no identity at all
+(the hook value and vb_name cookie are ignored); otherwise (no accounts, or
+no library) the hook's value, falling back to the vb_name cookie."""
 import base64
 import re
 from http.cookies import SimpleCookie
@@ -35,9 +38,10 @@ def _attributed(username, key):
 class AuthHandler:
     def _identity(self, hook_identity):
         """The hook's value, falling back to the vb_name cookie. Used only by
-        resolve_identity, for the no-accounts (or open-route) case: with
+        resolve_identity, for the no-accounts (or no-library) case: with
         accounts on, the session is the only source of identity, decided
-        there instead."""
+        there instead -- and an OPEN_ROUTES request in that case gets no
+        identity at all, rather than falling back here."""
         if hook_identity is not None:
             return hook_identity
         cookie = SimpleCookie()
