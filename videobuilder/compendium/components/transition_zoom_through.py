@@ -79,19 +79,31 @@ def _from_content(cv, data, enter, beat, zoom, marks=True):
     pulse = math.exp(-beat * 7)
     _brackets(cv, s, 10 * pulse, kit.INK, 0.75)
     _ruler(cv, s, zoom, accent, enter, marks)
-    sizes = {'9x16': (190, 170, 150, 132, 116, 100, 88, 76, 64), '1x1': (170, 150, 132, 116, 100, 88, 76, 64)}.get(
+    sizes = {'9x16': (220, 196, 176, 156, 136, 118, 100, 88, 76, 64), '1x1': (170, 150, 132, 116, 100, 88, 76, 64)}.get(
         name, (220, 196, 176, 156, 136, 118, 100, 88, 76))
-    lines_max = {'9x16': 3, '1x1': 2}.get(name, 2)
-    inner = s.pad(70, 52, 70, 4) if name == '9x16' else s.pad(40, 40)
-    font, lines = u.fit(data['from_title'], inner.w, sizes, weight=900, max_lines=lines_max, tracking=-0.05,
-                        line_height=0.92, max_height=s.h - 2 * 64)
+    lines_max = 2
+    tall = name == '9x16'
+    # On 9:16 the word runs up the tall frame, turned a quarter, so it can be as big as on 16:9.
+    if tall:
+        length, room = s.h - 2 * 96, s.w - 2 * 70
+    else:
+        length, room = s.w - 80, s.h - 2 * 64
+    font, lines = u.fit(data['from_title'], length, sizes, weight=900, max_lines=lines_max, tracking=-0.05,
+                        line_height=0.92, max_height=room)
     lh = text.line_height(font)
-    top = s.cy - lh * len(lines) / 2
+    cx, cy = s.cx, s.cy
+    ctx = cv.ctx
     with cv.layer(opacity=enter, dy=(1 - enter) * 40):
+        ctx.save()
+        ctx.translate(cx, cy)
+        if tall:
+            ctx.rotate(-math.pi / 2)
+        top = -lh * len(lines) / 2
         for i, line in enumerate(lines):
-            box = text.draw(cv, [line], font, inner.x, top + i * lh, kit.INK, align='center', width=inner.w)
+            box = text.draw(cv, [line], font, -length / 2, top + i * lh, kit.INK, align='center', width=length)
             if marks:
                 cv.mark(f'word-{i}', *box)
+        ctx.restore()
     mf = kit.mono(18, 600, tracking=0.12)
     kicker = data['from_kicker']
     if kicker:
