@@ -52,16 +52,19 @@ class Footage(unittest.TestCase):
             size = (16, 16)
 
             def source():
-                for i in range(30):
-                    yield i, bytes((i * 8, 0, 0, 255)) * (size[0] * size[1])
+                for i in range(60):
+                    yield i, bytes((i % 256, 0, 0, 255)) * (size[0] * size[1])
 
-            build(path, source, size, 30, 30)
+            build(path, source, size, 30, 60)
             clip = vb.Clip(path)
             grid = vb.Grid(fps=30, bpm=120)
             tl = vb.Timeline(grid, [vb.Segment('a', 0, 2), vb.Segment('b', 2, 4)], end=4)
             at, z = tl.span('b')
             ft = vb.footage(tl, 'b', start=0.5)  # source second 0.5 = frame 15
-            for f, expected_source_frame in ((at, 15), (at + 5, 20), (z - 1, 15 + (z - 1 - at))):
+            # Sweep every frame of the segment: a single floating-point rounding
+            # error in the arithmetic would otherwise only show up on some frames.
+            for f in range(at, z):
+                expected_source_frame = 15 + (f - at)
                 self.assertEqual(clip.frame_at(ft.seconds_at(f)), expected_source_frame)
             clip.close()
 

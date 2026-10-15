@@ -82,7 +82,10 @@ class Clip:
 
     def frame_at(self, seconds):
         """The source frame shown at `seconds` into this clip."""
-        return math.floor(seconds * self.fps)
+        # `seconds` is normally the result of float arithmetic meant to land exactly
+        # on a frame boundary (e.g. Footage.seconds_at); nudge past the rounding
+        # error that would otherwise floor it one frame early.
+        return math.floor(seconds * self.fps + 1e-9)
 
     def __del__(self):
         if getattr(self, '_decoder', None) is not None:
