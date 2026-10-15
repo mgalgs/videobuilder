@@ -27,19 +27,28 @@ def frames_per_beat(shot):
     return shot.length / beats if beats else kit.GRID.frames_per_beat
 
 
+def _words(data, side):
+    return sum(len(v.split()) for k, v in data.items() if k.startswith(side + '_') and isinstance(v, str))
+
+
 def start_frame(shots, motion_beats):
     """Frames into the transition's own shot at which its move starts, on a
     beat. In its own preview the outgoing shot has already held on its own
     (it is this transition's `from` phase, carrying the same data), so the
-    move starts at once; between two real neighbours the `from` card is new
-    on screen, so it holds for a beat first when the step has room for one
-    and still leaves a beat for the incoming card to settle in."""
+    move starts at once. Between two real neighbours the `from` card is new
+    on screen, so the beats the move doesn't use are shared between the two
+    cards by how many words each carries (whole beats; the incoming card
+    always keeps at least one to settle in)."""
     shot = shots[-1]
     fpb = frames_per_beat(shot)
     if len(shots) > 1 and shots[0].data is shot.data:
         return 0
-    beats = shot.length / fpb
-    lead = 1.0 if beats - motion_beats >= 2 else 0.0
+    spare = shot.length / fpb - motion_beats - 1
+    if spare <= 0:
+        return 0
+    a, b = _words(shot.data, 'from'), _words(shot.data, 'to')
+    share = a / (a + b) if a + b else 0.5
+    lead = min(math.floor(spare), math.floor(spare * share + 0.5))
     return round(lead * fpb)
 
 

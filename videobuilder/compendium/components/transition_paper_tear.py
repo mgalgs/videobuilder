@@ -277,7 +277,7 @@ COMPONENT = Component(
                 'title on a torn scrap. Stop-motion, on twos.',
     tags=('transition', 'paper', 'tear', 'collage', 'tactile', 'photo'),
     formats=('16x9', '9x16', '1x1'),
-    beats=(2, 4),
+    beats=(2, 8),
     slots=(
         Slot('from_title', 'text', True, 'Headline printed on the outgoing sheet.', max_length=36),
         Slot('to_title', 'text', True, 'Title on the torn scrap of the incoming card, a few words.', max_length=32),

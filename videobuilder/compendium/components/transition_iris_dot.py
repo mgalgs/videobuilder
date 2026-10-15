@@ -208,7 +208,7 @@ COMPONENT = Component(
                 'by word.',
     tags=('transition', 'iris', 'reveal', 'morph', 'photo', 'beat'),
     formats=('16x9', '9x16', '1x1'),
-    beats=(2, 4),
+    beats=(2, 8),
     slots=(
         Slot('from_title', 'text', True, 'Title on the outgoing card; it ends on the dot, so leave off the full '
              'stop.', max_length=32),

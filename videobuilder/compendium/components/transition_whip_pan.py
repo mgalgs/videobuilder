@@ -168,7 +168,7 @@ COMPONENT = Component(
                 'overshoots and settles. Pans up the tall frame on 9:16.',
     tags=('transition', 'whip', 'pan', 'smear', 'comic', 'halftone', 'energy'),
     formats=('16x9', '9x16', '1x1'),
-    beats=(2, 4),
+    beats=(2, 8),
     slots=(
         Slot('from_title', 'text', True, 'Big title on the outgoing panel, a few punchy words.', max_length=28),
         Slot('to_title', 'text', True, 'Big title on the incoming panel, a few punchy words.', max_length=28),

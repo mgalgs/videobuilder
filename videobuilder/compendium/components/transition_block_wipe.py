@@ -158,7 +158,7 @@ COMPONENT = Component(
                 'up 9:16, corner to corner on 1:1.',
     tags=('transition', 'wipe', 'colour', 'bands', 'editorial', 'type'),
     formats=('16x9', '9x16', '1x1'),
-    beats=(2, 4),
+    beats=(2, 8),
     slots=(
         Slot('from_title', 'text', True, 'Title on the outgoing (dark) card, a few words.', max_length=28),
         Slot('to_title', 'text', True, 'Title on the incoming (light) card, a few words.', max_length=28),

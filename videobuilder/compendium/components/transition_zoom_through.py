@@ -228,7 +228,7 @@ COMPONENT = Component(
                 'slightly small.',
     tags=('transition', 'zoom', 'punch-in', 'camera', 'energy', 'photo'),
     formats=('16x9', '9x16', '1x1'),
-    beats=(2, 4),
+    beats=(2, 8),
     slots=(
         Slot('from_title', 'text', True, 'One or two big words on the outgoing card.', max_length=16),
         Slot('to_title', 'text', True, 'Title beside the incoming picture, a short sentence.', max_length=40),
