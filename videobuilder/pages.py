@@ -582,10 +582,12 @@ _LIMITS_SCRIPT = (
     "const n=row.querySelector('.limit-notes').value.trim(),c=row.querySelector('.limit-cost').value.trim();"
     "body.notes=n?Number(n):null;body.cost_usd=c?Number(c):null}"
     "status.textContent='';"
-    "const r=await fetch('/api/admin/limits',{method:'POST',headers:{'Content-Type':'application/json'},"
+    "let ok=false,msg=\"Couldn't save -- try again.\";"
+    "try{const r=await fetch('/api/admin/limits',{method:'POST',headers:{'Content-Type':'application/json'},"
     "body:JSON.stringify(body)});"
-    "const data=await r.json();"
-    "status.textContent=r.ok?'Saved':(data.error||'Error')}});"
+    "const data=await r.json().catch(()=>({}));"
+    "ok=r.ok;if(ok)msg='Saved';else if(data.error)msg=data.error}catch(_){}"
+    "status.style.color=ok?'#8c8':'#f88';status.textContent=msg}});"
     '</script>')
 
 
