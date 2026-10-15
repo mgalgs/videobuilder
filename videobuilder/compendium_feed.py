@@ -133,10 +133,11 @@ def _esc(s):
 
 
 _PAGE_STYLE = """
-body{font:16px/1.5 system-ui,sans-serif;background:#0d0d10;color:#eee;margin:0}
+body{font:16px/1.5 system-ui,sans-serif;background:#0d0d10;color:#eee;margin:0;
+  display:flex;flex-direction:column;height:100vh;height:100dvh}
 .signed-out-banner{flex:none;padding:10px 24px;border-bottom:1px solid #1f1f25;background:#2a1a18;color:#ffb4ad}
 .signed-out-banner a{color:#e5483b;font-weight:600}
-header{position:sticky;top:0;z-index:4;background:#141417;border-bottom:1px solid #26262c;
+header{flex:none;background:#141417;border-bottom:1px solid #26262c;
   padding:10px 14px;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
 header a.back{color:#a9a9b2;text-decoration:none;font-weight:600;margin-right:4px}
 header h1{font-size:16px;margin:0;margin-right:auto}
@@ -145,8 +146,8 @@ header h1{font-size:16px;margin:0;margin-right:auto}
   background:#1b1e24;color:#eee;font-size:13px;cursor:pointer}
 #filters button[aria-pressed="true"]{background:#e5483b;border-color:#e5483b}
 #count{font-size:12.5px;color:#a9a9b2;width:100%}
-#feed{height:calc(100vh - 56px);overflow-y:auto;scroll-snap-type:y mandatory}
-.item{height:calc(100vh - 56px);scroll-snap-align:start;display:flex;flex-direction:column;
+#feed{flex:1;min-height:0;overflow-y:auto;scroll-snap-type:y mandatory}
+.item{height:100%;scroll-snap-align:start;display:flex;flex-direction:column;
   align-items:center;justify-content:center;padding:16px;box-sizing:border-box;border-bottom:1px solid #141417}
 .item .player{position:relative;max-height:62%;max-width:92%;background:#000;border-radius:14px;overflow:hidden}
 .item video{display:block;max-height:62vh;max-width:92vw}
