@@ -195,6 +195,28 @@ class ChromiumArgs(unittest.TestCase):
         self.assertIn('--proxy-server=127.0.0.1:12345', args)
         self.assertIn('--proxy-bypass-list=<-loopback>', args)
         self.assertIn('--force-webrtc-ip-handling-policy=disable_non_proxied_udp', args)
+        self.assertIn('--disable-quic', args)
+
+
+class OpenerTest(unittest.TestCase):
+    def test_no_proxy_in_the_environment_cannot_route_around_the_guard(self):
+        server = HTTPServer(('127.0.0.1', 0), _OK)
+        threading.Thread(target=server.serve_forever, daemon=True).start()
+        self.addCleanup(server.shutdown)
+        proxy = guard.GuardProxy(allow_loopback=False)
+        self.addCleanup(proxy.close)
+        import urllib.error
+        from unittest import mock
+        with mock.patch.dict('os.environ', {'no_proxy': '*', 'NO_PROXY': '*'}):
+            with self.assertRaises(urllib.error.HTTPError) as ctx:
+                guard.opener(proxy.port).open(f'http://127.0.0.1:{server.server_address[1]}/', timeout=5)
+        self.assertEqual(ctx.exception.code, 502)
+
+    def test_local_schemes_have_no_handler(self):
+        import urllib.error
+        for url in ('file:///etc/passwd', 'data:text/plain,hi', 'ftp://example.com/x'):
+            with self.assertRaises(urllib.error.URLError, msg=url):
+                guard.opener(1).open(url, timeout=5)
 
 
 if __name__ == '__main__':

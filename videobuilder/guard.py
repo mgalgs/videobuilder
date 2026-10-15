@@ -279,10 +279,24 @@ def _splice(a, b, bufsize=65536):
 def opener(proxy_port):
     """A urllib opener routing both http and https through the guard proxy at
     `proxy_port` -- the same instance Chromium is launched against, so a
-    fetch made from Python answers to the same guard."""
+    fetch made from Python answers to the same guard. It has no file, ftp or
+    data handlers, and ignores no_proxy: build_opener's defaults would open
+    those schemes locally and let the environment send a fetch around the
+    guard."""
     import urllib.request
+
+    class AlwaysProxy(urllib.request.ProxyHandler):
+        def proxy_open(self, req, proxy, type):
+            req.set_proxy(proxy, type)
+
     proxy = f'127.0.0.1:{proxy_port}'
-    return urllib.request.build_opener(urllib.request.ProxyHandler({'http': proxy, 'https': proxy}))
+    director = urllib.request.OpenerDirector()
+    for handler in (AlwaysProxy({'http': proxy, 'https': proxy}), urllib.request.HTTPHandler(),
+                    urllib.request.HTTPSHandler(), urllib.request.HTTPRedirectHandler(),
+                    urllib.request.HTTPDefaultErrorHandler(), urllib.request.HTTPErrorProcessor(),
+                    urllib.request.UnknownHandler()):
+        director.add_handler(handler)
+    return director
 
 
 def chromium_proxy_args(proxy_port):
@@ -290,6 +304,7 @@ def chromium_proxy_args(proxy_port):
     Chromium makes -- navigation, redirects and subresources alike -- through
     the guard, with the bypass list disabled so nothing goes direct. WebRTC
     ignores --proxy-server by default and sends UDP (STUN/ICE) straight to
-    whatever address a page names, so it is disabled separately."""
+    whatever address a page names, so it is disabled separately, and so is
+    QUIC, which is UDP too."""
     return [f'--proxy-server=127.0.0.1:{proxy_port}', '--proxy-bypass-list=<-loopback>',
-            '--force-webrtc-ip-handling-policy=disable_non_proxied_udp']
+            '--force-webrtc-ip-handling-policy=disable_non_proxied_udp', '--disable-quic']

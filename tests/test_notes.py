@@ -114,6 +114,11 @@ class Notes(unittest.TestCase):
         self.assertIsNotNone(recovered['handle'])
         self.assertEqual(agent.submitted[-1]['text'], recovered['text'])
 
+        # A crawl thread that outlived the stale cutoff must not pull the submitted note back.
+        late = restarted.finish_gathering(gathering['id'], 'Late brief', [])
+        self.assertEqual(late['state'], recovered['state'])
+        self.assertEqual(restarted.get(gathering['id'])['text'], recovered['text'])
+
         # Once the recovered note finishes, the follow-up that was waiting behind it
         # is dispatched too: the video is unblocked for good, not just for one poll.
         agent.states[recovered['handle']] = AgentStatus('replied', 'Done', 'notes/branch')

@@ -121,17 +121,16 @@ def _fetch(opener, url, timeout, allow_loopback):
 
 
 def _screenshot(chromium, proxy_port, url, size, timeout):
-    with tempfile.NamedTemporaryFile(suffix='.png', delete=False) as handle:
-        path = Path(handle.name)
-    try:
+    # A throwaway profile per visit: no cookies or storage carry between pages or gathers.
+    with tempfile.TemporaryDirectory(prefix='vb-gather-') as profile:
+        path = Path(profile) / 'shot.png'
         subprocess.run([chromium, '--headless=new', '--disable-gpu', '--disable-dev-shm-usage',
                         '--hide-scrollbars', '--no-first-run', '--virtual-time-budget=8000',
+                        f'--user-data-dir={profile}/profile',
                         *guard.chromium_proxy_args(proxy_port),
                         f'--screenshot={path}', f'--window-size={size[0]},{size[1]}', url],
                        capture_output=True, timeout=timeout, check=True)
-        data = path.read_bytes()
-    finally:
-        path.unlink(missing_ok=True)
+        data = path.read_bytes() if path.exists() else b''
     if not data:
         raise ValueError('chromium produced no screenshot')
     return data
@@ -163,6 +162,9 @@ def crawl(links, max_pages=MAX_PAGES, time_budget=TIME_BUDGET, page_timeout=PAGE
             if url in seen:
                 continue
             seen.add(url)
+            if urlsplit(url).scheme not in ('http', 'https'):
+                errors.append((url, 'not an http or https link'))
+                continue
             if _looks_skippable(url):
                 errors.append((url, 'looks like a sign-in or sign-out page'))
                 continue

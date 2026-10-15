@@ -121,6 +121,12 @@ class Crawl(GatherFixture):
         self.assertIsNone(pages[0]['phone_png'])
         self.assertTrue(any('no browser' in reason for _, reason in errors))
 
+    def test_only_http_and_https_links_are_fetched(self):
+        links = ['file:///etc/passwd', 'data:text/html,<p>hi</p>', 'ftp://example.com/x']
+        pages, errors = gather.crawl(links, max_pages=10, allow_loopback=True, chromium=None)
+        self.assertEqual(pages, [])
+        self.assertEqual([reason for _, reason in errors], ['not an http or https link'] * 3)
+
     def test_empty_links_refused(self):
         with self.assertRaises(ValueError):
             gather.crawl([])

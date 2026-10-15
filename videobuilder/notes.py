@@ -210,6 +210,9 @@ class NoteStore:
         video = self.get(nid)['video']
         with self.video_lock(video):
             note = self.get(nid)
+            if note['state'] != 'gathering':
+                # _advance already gave up on this crawl as stale and sent the note on.
+                return note
             note.update(text=text.strip(), attachments=attachments, **asdict(AgentStatus('queued')))
             self._save(note)
             self._advance(video)
