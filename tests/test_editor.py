@@ -1,6 +1,7 @@
 """The editor's HTTP API, on a temp project in a git repo."""
 import io
 import json
+import os
 import tempfile
 import threading
 import unittest
@@ -129,6 +130,26 @@ class CompendiumForBuilderConfigKey(TempProject):
             compendium_votes = FakeVotes()
         editor.library = FakeLibrary()
         self.assertEqual(editor._compendium_votes_for_builder(), {'z': 'down'})
+
+    def test_a_stale_vote_is_left_out_of_the_builders_lists(self):
+        """A vote cast against a fingerprint the entry no longer has doesn't
+        count: `current()` reports it with `vote: None` (see
+        CompendiumVotes._view), which this method's own "up"/"down" filter
+        already excludes."""
+        editor = self._editor('state-votes-stale')
+        with mock.patch('videobuilder.compendium.fingerprint', return_value='oldoldoldold'):
+            editor.compendium_votes.record('owner', 'a', 'up', None)
+        with mock.patch('videobuilder.compendium.fingerprint', return_value='newnewnewnew'):
+            self.assertEqual(editor._compendium_votes_for_builder(), {})
+
+    def test_a_legacy_vote_with_no_fingerprint_still_counts_for_the_builder(self):
+        editor = self._editor('state-votes-legacy')
+        path = editor.compendium_votes.path
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        with open(path, 'w', encoding='utf-8') as fh:
+            fh.write(json.dumps({'at': '2026-01-01T00:00:00Z', 'by': 'owner', 'id': 'a',
+                                 'vote': 'up', 'reason': None, 'version': '0.1.0'}) + '\n')
+        self.assertEqual(editor._compendium_votes_for_builder(), {'a': 'up'})
 
 
 PKG = Path(__file__).resolve().parents[1] / 'videobuilder'

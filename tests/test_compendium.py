@@ -189,6 +189,45 @@ class SlotValidation(unittest.TestCase):
         film.frame(film.frames - 1, film.formats[0], scale=0.1)
 
 
+class Fingerprint(unittest.TestCase):
+    def test_every_id_has_a_12_hex_fingerprint_stable_across_calls(self):
+        for id in (*compendium.ids(), *compendium.recipe_ids()):
+            with self.subTest(id=id):
+                fp = compendium.fingerprint(id)
+                self.assertRegex(fp, r'\A[0-9a-f]{12}\Z')
+                self.assertEqual(fp, compendium.fingerprint(id))  # stable across rebuilds of unchanged files
+
+    def test_unknown_id_raises(self):
+        with self.assertRaises(KeyError):
+            compendium.fingerprint('no-such-id')
+
+    def test_every_recipe_shares_the_recipes_file_fingerprint(self):
+        """All recipes live in the one `recipes.py`, so decision 1 ("the
+        entry's own source file") makes them share a fingerprint."""
+        fps = {compendium.fingerprint(r.id) for r in compendium.RECIPES}
+        self.assertEqual(len(fps), 1)
+
+    def test_hash_changes_when_the_file_content_changes(self):
+        from videobuilder.compendium.catalog import _hash_file
+        with tempfile.TemporaryDirectory() as d:
+            path = os.path.join(d, 'f.py')
+            with open(path, 'wb') as fh:
+                fh.write(b'hello')
+            h1 = _hash_file(path)
+            with open(path, 'wb') as fh:
+                fh.write(b'world')
+            h2 = _hash_file(path)
+        self.assertNotEqual(h1, h2)
+        self.assertEqual(len(h1), len(h2), 12)
+
+    def test_index_json_exposes_the_fingerprint(self):
+        data = compendium.index_data()
+        for c in data['components']:
+            self.assertEqual(c['fingerprint'], compendium.fingerprint(c['id']))
+        for r in data['recipes']:
+            self.assertEqual(r['fingerprint'], compendium.fingerprint(r['id']))
+
+
 class Index(unittest.TestCase):
     def test_markdown_lists_every_component_and_recipe(self):
         md = compendium.index_markdown()
@@ -268,6 +307,17 @@ class Build(unittest.TestCase):
         with tempfile.TemporaryDirectory() as d:
             with self.assertRaises(ValueError):
                 compendium.build(d, only={'no-such-id'})
+
+    def test_build_writes_the_fingerprint_for_every_clip(self):
+        def fake_render(film, out, fmt, **kw):
+            Path(out).write_bytes(b'mp4')
+
+        with tempfile.TemporaryDirectory() as d, mock.patch('videobuilder.render.render', fake_render):
+            compendium.build(d, only={'stat-counter', compendium.recipe_ids()[0]})
+            with open(Path(d) / 'index.json', encoding='utf-8') as fh:
+                index = json.load(fh)
+        for entry in index['clips']:
+            self.assertEqual(entry['fingerprint'], compendium.fingerprint(entry['id']))
 
 
 if __name__ == '__main__':
