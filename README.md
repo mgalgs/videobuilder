@@ -70,10 +70,13 @@ FILM = vb.Film(draw=draw, timeline=TIMELINE, formats=('16x9', '9x16', '1x1'), ba
     python -m videobuilder preview hello.py              # http://127.0.0.1:8000/
     python -m videobuilder render hello.py --format all  # hello-16x9.mp4, hello-9x16.mp4, hello-1x1.mp4
 
-`examples/tour.py` is a fuller example (12 s, three formats, a generated
-picture and click track). `examples/benchmark.py` is a 20 s benchmark reel
-with a bar chart drawn on the canvas, made by an agent with the
-make-a-video skill. Their fonts are vendored with their OFL licences in
+`examples/showcase.py` is the place to start: a 58 s quick-cut reel, cut on
+the beat of a generated music bed, with one shot for every capability in the
+catalog, each tagged with its card's title (it's also the reel at the top of
+`/capabilities`). `examples/tour.py` is a smaller example (12 s, three
+formats, a generated picture and click track). `examples/benchmark.py` is a
+20 s benchmark reel with a bar chart drawn on the canvas, made by an agent
+with the make-a-video skill. Their fonts are vendored with their OFL licences in
 `examples/assets/`.
 
 ## The make-a-video skill
