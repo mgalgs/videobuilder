@@ -131,7 +131,8 @@ class Library:
                         raise ValueError('checkout path already exists')
                     run('git', 'clone', str(self.path(name)), str(checkout))
                 self.editors[name] = Editor(checkout, state_dir=self.state_dir / flat,
-                                            sync_remote='origin', **self.options)
+                                            sync_remote='origin', trust_repo_config=False,
+                                            **self.options)
             return self.editors[name]
 
     def copied(self, source, name):

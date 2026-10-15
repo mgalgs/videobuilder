@@ -144,7 +144,9 @@ STATE_DIR = '.vb-editor'
 NOTE_SCALE = 0.5  # the size of a note's saved frame
 MAX_BODY = 1 << 20
 # Reachable while signed out, when a library has accounts configured.
-OPEN_ROUTES = {'/healthz', '/login', '/signup', '/api/login', '/api/signup', '/api/logout'}
+# The only [editor] keys a library-hosted repo may set (see Editor.__init__).
+REPO_CONFIG_KEYS = {'videos', 'auto_land'}
+OPEN_ROUTES = {'/healthz','/login', '/signup', '/api/login', '/api/signup', '/api/logout'}
 
 
 class HTTPError(Exception):
@@ -183,7 +185,8 @@ class Editor:
 
     def __init__(self, root, state_dir=None, backend=None, poll=0.25, agent=None, allowed_hosts=(), host='127.0.0.1',
                  unsandboxed_previews=False, envs=None, env_builder=None, sync_remote=None, environments=None,
-                 auto_land=None, capabilities_dir=None, music_sources=None, music=None):
+                 auto_land=None, capabilities_dir=None, music_sources=None, music=None,
+                 trust_repo_config=True):
         self.capabilities_dir = capabilities_dir
         # `music`, a pre-parsed MusicLibrary, is how library mode shares one cache and one
         # startup parse across projects (see Library.__init__); `music_sources`, a path
@@ -191,6 +194,11 @@ class Editor:
         self.music = music if music is not None else (MusicLibrary.from_file(music_sources) if music_sources else None)
         self.root = os.path.abspath(root)
         cfg = read_config(self.root)
+        if not trust_repo_config:
+            # A library repo is whatever its collaborators pushed: its config may
+            # describe the video, never configure this process (agent command,
+            # preview sandbox, hosts, limits).
+            cfg = {k: v for k, v in cfg.items() if k in REPO_CONFIG_KEYS}
         state = state_dir or cfg.get('state_dir') or STATE_DIR
         self.state_dir = os.path.abspath(os.path.join(self.root, state))
         self.lock = threading.RLock()

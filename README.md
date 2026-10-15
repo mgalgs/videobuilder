@@ -496,6 +496,12 @@ LAN trust model as the UI. The `request_hook` in `videobuilder.editor` is the
 place to authenticate requests behind a proxy; the host allowlist still
 applies to Git URLs. Single-project mode still supports `sync_remote`.
 
+A hosted repository's `videobuilder.toml` cannot configure the editor: in
+library mode only `[editor] videos` and `auto_land` are read from it. The
+agent, preview sandbox, environments, hosts and limits come from the command
+line, because anyone who can push could otherwise choose the command the
+editor runs.
+
 ## The authoring loop
 
 1. **Preview.** `python -m videobuilder preview film.py` serves a page with

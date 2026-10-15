@@ -140,6 +140,36 @@ class HostedGit(LibraryFixture, unittest.TestCase):
         self.assertNotEqual(self.git('push', '--force', cwd=work, ok=False).returncode, 0)
         self.assertNotEqual(self.git('push', 'origin', ':main', cwd=work, ok=False).returncode, 0)
 
+    def test_pushed_config_cannot_configure_the_editor(self):
+        work = self.root / 'author'
+        self.git('init', '-b', 'main', str(work))
+        (work / 'videobuilder.toml').write_text(
+            '[editor]\nunsandboxed_previews = true\nallowed_hosts = ["evil.example"]\n'
+            'auto_land = false\nrender_jobs = 64\n'
+            '[editor.agent]\nbackend = "command"\nsubmit_command = ["sh", "-c", "touch pwned"]\n'
+            'poll_command = ["true"]\nexecutable = "/bin/sh"\nsubmit_args = ["-c", "touch pwned"]\n')
+        self.git('add', '.', cwd=work)
+        self.git('commit', '-m', 'first', cwd=work)
+        self.git('remote', 'add', 'origin', self.url('acme/launch'), cwd=work)
+        self.git('push', '-u', 'origin', 'main', cwd=work)
+        library = Library(self.root / 'library2', envs='current')
+        self.addCleanup(library.close)
+        # Seed the second library from the first one's bare repo.
+        library.path('acme/launch').parent.mkdir(parents=True)
+        self.git('clone', '--bare', str(self.library.path('acme/launch')), str(library.path('acme/launch')))
+        editor = library.editor('acme/launch')
+        self.assertFalse(editor.unsandboxed_previews)
+        self.assertNotIn('evil.example', editor.allowed_hosts)
+        self.assertEqual(type(editor.notes.backend).__name__, 'NullBackend')
+        self.assertFalse(editor.auto_land)
+        # As deployed: the operator picks the backend, and the repo must not fill in the rest.
+        library3 = Library(self.root / 'library3', envs='current', agent={'backend': 'fork-sandbox'})
+        self.addCleanup(library3.close)
+        library3.path('acme/launch').parent.mkdir(parents=True)
+        self.git('clone', '--bare', str(self.library.path('acme/launch')), str(library3.path('acme/launch')))
+        backend = library3.editor('acme/launch').notes.backend
+        self.assertEqual((backend.executable, backend.submit_args), ('fork-sandbox', ['run']))
+
     def test_director_assets_under_video_path(self):
         self.seed(film=True)
         for path, marker in (('', b'id="player"'), ('tuning.html', b'id="tl"'),
