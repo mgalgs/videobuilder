@@ -113,7 +113,7 @@ class Discovery(unittest.TestCase):
         root = Path(__file__).resolve().parent.parent
         self.assertEqual([v.id for v in discover(root / 'examples')],
                          ['benchmark', 'capabilities/beat-lock', 'capabilities/counting-numbers',
-                          'capabilities/eased-entrances', 'capabilities/every-format',
+                          'capabilities/eased-entrances', 'capabilities/every-format', 'capabilities/footage-with-sound',
                           'capabilities/overlap-transitions', 'showcase', 'tour'])
 
 

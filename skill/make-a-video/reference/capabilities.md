@@ -161,6 +161,23 @@ What videobuilder can already do, with a worked example for each. Reach for one 
 
 **Worked example:** `examples/capabilities/kinetic-typography.py` — read it before writing something similar from scratch.
 
+### Word-timed captions
+
+**What it looks like:** Captions that follow the words as they are spoken. A speaker's words run along the bottom of the clip one short line at a time, each line measured to fit the frame: the word being spoken lights up in yellow as it is said, and a chosen keyword stays green, so the captions keep pace with the voice instead of sitting there as a block of text.
+
+**When to use it:** reach for this when a director says something like:
+- "Add captions that follow along word by word"
+- "Highlight each word in yellow as it is said"
+- "Make the word "mornings" stand out in green in the captions"
+
+**How to build it:**
+- `vb.captions.parse(text) / vb.captions.load(path)  # .vtt or .srt, word times kept`
+- `track.slice(a, b).shift(at - a)  # a clip cut from a longer source`
+- `vb.captions.draw(cv, track, t, keywords={...}, font=..., safe=...)`
+- Read `skill/make-a-video/reference/captions.md`.
+
+**Worked example:** `examples/capabilities/word-timed-captions.py` — read it before writing something similar from scratch.
+
 ### Numbers that count up
 
 **What it looks like:** A hero stat counts from zero to its final value. A big number counts up to its final value on a spring, the way a benchmark or a result should land: with weight, not just appearing.
@@ -400,6 +417,25 @@ What videobuilder can already do, with a worked example for each. Reach for one 
 - Read `skill/make-a-video/reference/music.md`.
 
 **Worked example:** `examples/capabilities/beat-lock.py` — read it before writing something similar from scratch.
+
+### Footage with its own sound
+
+**What it looks like:** A clip plays with its sound while the music dips under it. A speaker clip cuts in and plays with its own sound, mixed with the music bed: the music dips under the speech while the clip plays and comes back up when it ends, and the whole mix is evened out to one loudness, so the voice is easy to hear without the music ever cutting out.
+
+**When to use it:** reach for this when a director says something like:
+- "Use this clip with its sound, and bring the music down under the speech"
+- "Let us hear the speaker, then bring the music back up after"
+- "Cut between the interview clips and the graphics, with the music underneath"
+
+**How to build it:**
+- `vb.Sound(path, at=, start=, frames=, fade_in_frames=, fade_out_frames=)`
+- `ft = vb.footage(TIMELINE, 'segment', start=seconds)  # picture and sound in sync`
+- `clip.frame(clip.frame_at(ft.seconds_at(n)))`
+- `ft.sound(path) -> Film(sounds=(...))`
+- `vb.Audio(music, duck_db=-12)  # the music ducks while a sound plays`
+- Read `skill/make-a-video/reference/footage.md`.
+
+**Worked example:** `examples/capabilities/footage-with-sound.py` — read it before writing something similar from scratch.
 
 ### Every format, recomposed
 
