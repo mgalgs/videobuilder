@@ -118,10 +118,13 @@ def redrawn(cv, s, st):
     panel_h = sum(blocks) + 16 * (len(blocks) - 1) + 64
     panel = Box(c.cx - pw / 2, c.cy - panel_h / 2, pw, panel_h)
     # A push-in after it's built: vector all the way down, so it stays sharp.
+    # It comes to rest with the whole panel just inside the content box, so no
+    # label is cropped and the button stays clear of the tag.
+    z1 = 0.97 * min(c.w / pw, c.h / panel_h)
     zp = kit.prog(s.f, 30, 56, kit.SMOOTH)
-    z = vb.log_lerp(1.0, pick(st, 1.6, 1.45), zp)
-    fx, fy = panel.x + pw * 0.62, panel.y + panel_h * 0.45
-    tx, ty = kit.lerp(fx, c.cx, zp), kit.lerp(fy, c.cy, zp)
+    z = vb.log_lerp(z1 / 1.22, z1, zp)
+    fx, fy = panel.cx, panel.cy
+    tx, ty = c.cx, c.cy
     with cv.clip(*st.frame), cv.layer(dx=tx - fx * z, dy=ty - fy * z, scale=z):
         cv.shadow(*panel, radius=26, dy=20, blur=50, color=(0, 0, 0, 0.5))
         cv.rect(*panel, CARD, radius=26)
@@ -152,7 +155,7 @@ def redrawn(cv, s, st):
                     cv.rect(*b, ACCENT, radius=b.h / 2)
                     w = text.measure('Start focus', kit.font(30, 750))
                     text.draw(cv, 'Start focus', kit.font(30, 750), b.cx - w / 2, b.cy - 20, BG)
-    cv.mark('panel', *(panel if zp == 0 else c))
+    cv.mark('panel', tx + (panel.x - fx) * z, ty + (panel.y - fy) * z, pw * z, panel_h * z)
 
 
 # ---- image treatments: one generated picture, three ways ----
