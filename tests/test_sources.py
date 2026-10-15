@@ -16,7 +16,7 @@ from unittest import mock
 from videobuilder.editor import Editor
 from videobuilder.sources import CAPTION_MAX_BYTES, PREVIEW_MAX_SIDE, Sources, TooLarge
 from tests import fixtures
-from tests.test_project import TempProject, git
+from tests.test_project import FILM, TempProject, git, make_repo
 
 FFMPEG = shutil.which('ffmpeg') and shutil.which('ffprobe')
 
@@ -317,6 +317,55 @@ class DirectUpload(fixtures.API):
             self._wait_for_preview('first')
             self._wait_for_preview('second')
         self.assertEqual(max_seen[0], 1)
+
+    def test_builds_run_one_at_a_time_across_editors_sharing_a_process(self):
+        # Decision 4's "one at a time per editor process" means the process,
+        # not the `Sources` instance: a library editor's own process opens a
+        # separate `Editor`/`Sources` pair per open project (see library.py),
+        # and an upload to one must not encode concurrently with an upload to
+        # another sharing that same process.
+        with tempfile.TemporaryDirectory() as tmp2:
+            root2 = Path(tmp2, 'project')
+            (root2 / 'promo').mkdir(parents=True)
+            (root2 / 'promo' / 'film.py').write_text(FILM)
+            (root2 / 'README.md').write_text('a project\n')
+            make_repo(root2)
+            git(root2, 'add', '-A')
+            git(root2, 'commit', '-qm', 'init')
+            editor2 = Editor(root2, unsandboxed_previews=True, auto_land=False)
+            self.addCleanup(editor2.pool.close)
+            self.addCleanup(editor2.renders.close)
+
+            in_flight = []
+            max_seen = [0]
+            lock = threading.Lock()
+            real_run = subprocess.run
+
+            def tracking_run(cmd, **kw):
+                if cmd and cmd[0] == 'ffmpeg':
+                    with lock:
+                        in_flight.append(1)
+                        max_seen[0] = max(max_seen[0], len(in_flight))
+                    time.sleep(0.3)
+                    with lock:
+                        in_flight.pop()
+                return real_run(cmd, **kw)
+
+            def _wait(sources, name, timeout=10):
+                deadline = time.monotonic() + timeout
+                while not sources.get('promo/film', name)['preview_ready']:
+                    if time.monotonic() > deadline:
+                        self.fail(f'preview for {name!r} never became ready')
+                    time.sleep(0.05)
+
+            with mock.patch('videobuilder.sources.subprocess.run', side_effect=tracking_run):
+                self._upload(name='first')
+                data = self.clip.read_bytes()
+                editor2.sources.stream_upload('promo/film', 'clip.mp4', 'second', 'video/mp4',
+                                              _Rfile(data), len(data))
+                self._wait_for_preview('first')
+                _wait(editor2.sources, 'second')
+            self.assertEqual(max_seen[0], 1)
 
 
 @unittest.skipUnless(FFMPEG, 'needs ffmpeg/ffprobe')

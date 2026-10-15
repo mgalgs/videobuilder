@@ -180,6 +180,67 @@ class ConstantFrameRateRegression(unittest.TestCase):
             clip.close()
 
 
+def _coarse_timescale_clip(path, fps, timescale, n=90):
+    """A CFR clip recorded at the exact rational `fps` but muxed with a coarse
+    mov/mp4 timestamp timescale (an iPhone's own mov typically uses 600 ticks
+    a second) that can't represent `1/fps` seconds exactly, the same way a
+    real phone recording's own `avg_frame_rate` (duration / frame count)
+    comes out as some nearby-but-wrong ratio instead of the rate it was
+    actually recorded at. Frame `i`'s red channel is `(i * 50) % 256` -- a
+    step too big to confuse with ordinary compression noise, so a decode
+    that's merely one frame off from the right one is easy to tell apart
+    from a decode that's merely a little lossy."""
+    size = (16, 16)
+    raw = b''.join(bytes(((i * 50) % 256, 20, 100, 255)) * (size[0] * size[1]) for i in range(n))
+    process = subprocess.Popen(
+        ['ffmpeg', '-y', '-v', 'error', '-f', 'rawvideo', '-pixel_format', 'rgba',
+         '-video_size', f'{size[0]}x{size[1]}', '-framerate', f'{fps.numerator}/{fps.denominator}',
+         '-i', 'pipe:0', '-video_track_timescale', str(timescale), '-an', '-c:v', 'libx264',
+         '-preset', 'medium', '-crf', '14', '-pix_fmt', 'yuv420p', '-g', '15', '-bf', '0', str(path)],
+        stdin=subprocess.PIPE)
+    process.stdin.write(raw)
+    process.stdin.close()
+    if process.wait() != 0:
+        raise RuntimeError('ffmpeg failed to encode shot')
+
+
+class CoarseTimescaleRegression(unittest.TestCase):
+    """Decisions 1-2: a phone's own coarse mov timescale (e.g. 600) corrupts
+    `avg_frame_rate` for a stream that is actually constant-rate; `Clip` must
+    still decode it as the CFR source it is, not drop or duplicate frames."""
+
+    def test_rounds_the_rate_and_decodes_every_frame_once(self):
+        with tempfile.TemporaryDirectory() as root:
+            path = Path(root, 'phone.mp4')
+            fps = Fraction(30000, 1001)
+            _coarse_timescale_clip(path, fps, timescale=600)
+            clip = vb.Clip(path)
+            self.assertEqual(clip.fps, fps)  # not the raw, unrounded avg_frame_rate
+            self.assertTrue(clip._cfr)
+            for i in range(clip.frames):
+                r, g, b = clip.frame(i)._pil.convert('RGB').getpixel((0, 0))
+                self.assertAlmostEqual(r, (i * 50) % 256, delta=10)
+            clip.close()
+
+
+class RoundFps(unittest.TestCase):
+    """Decision 2: avg_frame_rate is rounded "sensibly" -- close enough to a
+    standard rate to be that rate, but not so loosely that a genuine NTSC-ish
+    rate collapses into its whole-number neighbor."""
+
+    def test_snaps_a_quantization_corrupted_rate(self):
+        from videobuilder.clip import round_fps
+        self.assertEqual(round_fps(Fraction(27000, 901)), Fraction(30000, 1001))
+
+    def test_leaves_2997_distinct_from_30(self):
+        from videobuilder.clip import round_fps
+        self.assertEqual(round_fps(Fraction(30000, 1001)), Fraction(30000, 1001))
+
+    def test_leaves_a_genuinely_unusual_rate_alone(self):
+        from videobuilder.clip import round_fps
+        self.assertEqual(round_fps(Fraction(40, 3)), Fraction(40, 3))
+
+
 class VariableFrameRate(unittest.TestCase):
     """Decision 2: frame `i` is the source frame displayed at `i / clip.fps`
     seconds on the source's own clock, even when the source itself isn't
@@ -202,6 +263,29 @@ class VariableFrameRate(unittest.TestCase):
                 n = clip.frame_at(float(t))
                 shown = round(clip.frame(n)._pil.convert('RGB').getpixel((0, 0))[0] / 10)
                 self.assertLessEqual(abs(shown - true_index_at(t)), 1)
+            clip.close()
+
+    def test_sequential_read_matches_the_source_exactly(self):
+        # A read straight through every output index (no seeking in between, so
+        # this exercises the `fps` filter's own `round` direction in isolation):
+        # frame i must be the source frame already on screen at i/fps, the last
+        # whose own pts is <= i/fps. round=down maps a source frame to the
+        # output slot *before* that, showing every frame one source frame
+        # early throughout -- a bias the base pinned VFR test's own +-1
+        # tolerance can't see.
+        with tempfile.TemporaryDirectory() as root:
+            path = Path(root, 'vfr.mp4')
+            _vfr_clip(path, [(10, 10), (20, 10)])
+            clip = vb.Clip(path)
+
+            def true_index_at(t):
+                if t < 1:
+                    return min(9, int(t * 10))
+                return 10 + min(9, int((t - 1) * 20))
+
+            for i in range(clip.frames):
+                shown = round(clip.frame(i)._pil.convert('RGB').getpixel((0, 0))[0] / 10)
+                self.assertEqual(shown, true_index_at(Fraction(i) / clip.fps))
             clip.close()
 
 

@@ -19,6 +19,7 @@ from videobuilder.agents import CommandBackend, FakeBackend, ForkSandboxBackend
 from videobuilder.drafts import inspect
 from videobuilder.editor import Editor
 from videobuilder.notes import NoteStore, AgentStatus
+from videobuilder import sources
 from videobuilder.transcript import read_feed
 from videobuilder.workers import child_environment
 
@@ -363,11 +364,12 @@ class DraftLoop(TempProject):
     def test_source_still_preparing_is_listed_but_not_staged(self):
         with patch('videobuilder.sources.Sources._build_preview', lambda self, video, name: None):
             self._upload_source('alpha')
-            # The build itself now runs on a background worker (one encode at a time,
-            # see Sources._build_worker), not a thread started with this patched method
-            # already bound -- wait for it to actually run the no-op while still patched,
-            # or the real _build_preview would run once this `with` block exits instead.
-            self.editor.sources._build_queue.join()
+            # The build itself now runs on a single process-wide background worker
+            # (one encode at a time, shared by every editor -- see sources._build_worker),
+            # not a thread started with this patched method already bound -- wait for it
+            # to actually run the no-op while still patched, or the real _build_preview
+            # would run once this `with` block exits instead.
+            sources._BUILD_QUEUE.join()
         note = self.draft()
         attach_dir = self.editor.notes.session_dir('promo/film') / ('attachments-' + note['id'])
         self.assertFalse((attach_dir / 'sources' / 'alpha.mp4').exists())

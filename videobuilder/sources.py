@@ -14,9 +14,11 @@ removes stale links.
 
 The preview copy is queued from the request thread, right after an upload
 passes its probe (`stream_upload` enqueues it and returns without waiting),
-and built by a single background worker per `Sources` instance -- one encode
-at a time, never one thread per upload. Builds queued this way, or found
-pending at startup (see `__init__`), share that same worker and so still
+and built by a single background worker **per process** (not per `Sources`
+instance: a library editor's own process hosts one `Editor`/`Sources` pair
+per open project, and they all share this one worker, see `_BUILD_QUEUE`) --
+one encode at a time, never one thread per upload. Builds queued this way, or
+found pending at startup (see `__init__`), share that same worker and so still
 run one at a time: a frame number in the preview means the same source
 moment it does in the original (same frame rate, forced constant even for a
 variable-rate source -- see `.clip._displayed_size`/`Clip`), short side at
@@ -29,8 +31,8 @@ any source still not ready, which is also when a scratch file left by a
 build interrupted mid-encode gets swept up.
 """
 import hashlib
-from fractions import Fraction
 import json
+import logging
 import os
 from pathlib import Path, PurePosixPath
 import queue
@@ -42,7 +44,7 @@ import threading
 import time
 
 from .attachments import TYPES, _validate_content
-from .clip import _displayed_size
+from .clip import _displayed_size, _fps_and_cfr
 
 EXTS = ('mp4', 'mov', 'webm')
 CAPTION_EXTS = ('vtt', 'srt')
@@ -54,6 +56,37 @@ SYNC_MANIFEST = '.vb-sync.json'
 _NAME_RE = re.compile(r'^[a-z0-9-]{1,80}$')
 PREVIEW_MAX_SIDE = 360
 PREVIEW_DIRNAME = 'preview'
+_log = logging.getLogger(__name__)
+
+# One background worker for the whole process (not one per `Sources` instance:
+# a library editor's process opens a separate `Sources` per project, and they
+# must still share a single encode slot -- see the module docstring). Jobs are
+# (sources, video, name) so the one worker can serve every instance.
+_BUILD_QUEUE = queue.Queue()
+_build_worker_started = False
+_build_worker_lock = threading.Lock()
+
+
+def _build_worker():
+    while True:
+        sources, video, name = _BUILD_QUEUE.get()
+        try:
+            sources._build_preview(video, name)
+        except Exception:
+            # A build that raises must not take the only worker down with it --
+            # every later upload in every open editor would sit at preview_ready
+            # False until the process restarts. Log and move on to the next job.
+            _log.exception('preview build failed for %r/%r', video, name)
+        finally:
+            _BUILD_QUEUE.task_done()
+
+
+def _ensure_build_worker():
+    global _build_worker_started
+    with _build_worker_lock:
+        if not _build_worker_started:
+            threading.Thread(target=_build_worker, daemon=True).start()
+            _build_worker_started = True
 
 
 def _preview_dims(width, height):
@@ -120,15 +153,17 @@ def probe(path):
     return duration, width, height, has_audio
 
 
-def _avg_fps(path):
-    """The average frame rate ffprobe reports for `path`'s first video stream,
-    as an exact Fraction -- the same rate `vb.Clip` reports, so a frame
-    number means the same source moment in the preview copy as it does in
-    the original."""
+def _source_fps(path):
+    """(fps, is_cfr) for `path`'s first video stream -- the same rate and the
+    same CFR/VFR distinction `vb.Clip` computes (see `.clip._fps_and_cfr`),
+    so a frame number means the same source moment in the preview copy as it
+    does in the original, and a constant-rate source's preview is built the
+    same unresampled way `Clip` decodes it."""
     result = subprocess.run(
-        ['ffprobe', '-v', 'error', '-select_streams', 'v:0', '-show_entries', 'stream=avg_frame_rate',
-         '-of', 'json', str(path)], capture_output=True, text=True, check=True)
-    return Fraction(json.loads(result.stdout)['streams'][0]['avg_frame_rate'])
+        ['ffprobe', '-v', 'error', '-select_streams', 'v:0', '-show_entries',
+         'stream=avg_frame_rate,r_frame_rate', '-of', 'json', str(path)],
+        capture_output=True, text=True, check=True)
+    return _fps_and_cfr(json.loads(result.stdout)['streams'][0])
 
 
 class Sources:
@@ -149,10 +184,9 @@ class Sources:
             stale.unlink(missing_ok=True)
         self._locks = {}
         self._locks_guard = threading.Lock()
-        # One background worker per editor process, building queued previews one at
-        # a time (see the module docstring) rather than a thread per upload.
-        self._build_queue = queue.Queue()
-        threading.Thread(target=self._build_worker, daemon=True).start()
+        # One background worker for the whole process, building queued previews
+        # one at a time (see the module docstring) rather than a thread per upload.
+        _ensure_build_worker()
         # Recovery for a restart mid-encode: a source left with preview_ready False
         # has nothing else polling for it, so without this it would stay that way
         # forever. Scoped to videos the project still knows about -- a source's own
@@ -162,15 +196,7 @@ class Sources:
         for video in self.editor.project.videos():
             for meta in self.list(video.id):
                 if not meta.get('preview_ready'):
-                    self._build_queue.put((video.id, meta['name']))
-
-    def _build_worker(self):
-        while True:
-            job = self._build_queue.get()
-            try:
-                self._build_preview(*job)
-            finally:
-                self._build_queue.task_done()
+                    _BUILD_QUEUE.put((self, video.id, meta['name']))
 
     def _lock(self, video, name):
         """One lock per (video, name), guarding the small read-modify-write
@@ -227,8 +253,17 @@ class Sources:
         return self._dir(video, name) / 'meta.json'
 
     def _save(self, video, name, meta):
+        # Write-then-rename, not a direct write_text: `_build_preview` reads this
+        # same file via `get()` without taking this source's lock (deliberately,
+        # so a concurrent delete() isn't blocked for the length of an encode --
+        # see `_build_preview`'s own docstring), so a plain write_text's truncate
+        # would be visible, briefly, as a zero-byte file to that unlocked read. A
+        # rename is atomic on the same filesystem, so no reader ever sees a
+        # partial write.
         path = self._meta_path(video, name)
-        path.write_text(json.dumps(meta))
+        tmp = path.with_name(f'.{path.name}.{secrets.token_hex(8)}.tmp')
+        tmp.write_text(json.dumps(meta))
+        tmp.rename(path)
 
     def list(self, video):
         d = self._video_dir(video)
@@ -326,7 +361,7 @@ class Sources:
                     has_audio=has_audio, caption=None, created=time.time(), preview_ready=False)
         self._save(video, slug, meta)
         self.sync(video)
-        self._build_queue.put((video, slug))
+        _BUILD_QUEUE.put((self, video, slug))
         return self.public(meta)
 
     def add_caption(self, video, name, filename, data):
@@ -455,15 +490,20 @@ class Sources:
         width, height = dims
         src = self._dir(video, name) / f"{meta['name']}.{meta['ext']}"
         try:
-            fps = _avg_fps(src)
-        except (subprocess.CalledProcessError, IndexError, KeyError, ValueError, ZeroDivisionError):
+            fps, cfr = _source_fps(src)
+        except (OSError, subprocess.CalledProcessError, IndexError, KeyError, ValueError, ZeroDivisionError):
             return
         tmp = self._tmp_dir / ('.tmp-' + secrets.token_hex(8))
         audio = ['-c:a', 'aac', '-ac', '2', '-b:a', '96k'] if meta.get('has_audio') else ['-an']
         # Forcing the same constant rate Clip reports for the source (even when the
         # source itself is variable-rate) is what keeps a frame number meaning the
         # same moment in the preview as in the original -- see the module docstring.
-        vf = f'scale={width}:{height},fps=fps={fps.numerator}/{fps.denominator}:round=down'
+        # A constant-rate source skips the fps resample, same as Clip._start's own
+        # decode and for the same reason (see _fps_and_cfr); round=up otherwise,
+        # see the matching comment there.
+        vf = f'scale={width}:{height}'
+        if not cfr:
+            vf += f',fps=fps={fps.numerator}/{fps.denominator}:round=up'
         # -f mp4 forces an MP4 container regardless of the destination name's extension,
         # so a .mov or .webm source still gets an MP4-inside preview copy (see the module
         # docstring) -- ffmpeg would otherwise infer the container from that extension.

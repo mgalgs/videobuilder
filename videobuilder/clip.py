@@ -36,6 +36,49 @@ def _displayed_size(stream):
     return width, height
 
 
+_STANDARD_FPS = tuple(Fraction(n) for n in range(1, 121)) + tuple(
+    Fraction(n * 1000, 1001) for n in (24, 30, 60, 120))
+
+
+def round_fps(fps):
+    """Snap `fps` to the nearest standard frame rate when it's suspiciously
+    close to one -- within 0.05%, tighter than the ~0.1% gap between a whole
+    rate and its own NTSC-ish sibling (e.g. 30 and 30000/1001), so a genuinely
+    29.97 source stays 29.97 rather than rounding up to 30. `ffprobe`'s
+    avg_frame_rate is computed from a stream's own (often coarse, e.g. an
+    iPhone's 600) timestamp timescale, so a truly constant-rate source can
+    report a rate like 27000/901 instead of the 30000/1001 it was recorded
+    at; left unrounded, that odd rate becomes the grid `Clip`'s `fps` filter
+    resamples onto, dropping and duplicating frames a CFR source shouldn't
+    lose."""
+    for candidate in _STANDARD_FPS:
+        if abs(fps - candidate) <= candidate / 2000:
+            return candidate
+    return fps
+
+
+def _fps_and_cfr(stream):
+    """(fps, is_cfr): the rate `Clip` reports (see `round_fps`), and whether
+    the stream already sits on that rate's own grid closely enough that
+    resampling it through ffmpeg's `fps` filter would be a true no-op.
+
+    `avg_frame_rate` (duration / frame count) is corrupted by a coarse
+    container timescale -- an iPhone's mov typically uses 600 ticks/second,
+    which can't exactly represent a 30000/1001 frame interval, so a
+    genuinely constant-rate stream's own `avg_frame_rate` comes out as some
+    nearby-but-wrong ratio (e.g. 27000/901). `r_frame_rate` is derived from
+    codec-level frame timing instead and survives that rounding, so when the
+    two agree (after both are snapped the same way) the source really is
+    constant-rate and the `fps` filter can be skipped outright -- which
+    matters, because *applying* the filter to a stream whose own timestamps
+    are already coarsely quantized reintroduces exactly the drop/duplicate
+    drift it exists to prevent, even when its target rate matches. A
+    genuinely variable-rate source has no such agreement: its `r_frame_rate`
+    reflects the shortest frame interval or similar, not the average."""
+    fps = round_fps(Fraction(stream['avg_frame_rate']))
+    return fps, round_fps(Fraction(stream['r_frame_rate'])) == fps
+
+
 class Clip:
     """A video file with random frame access. Keep one decoder open per process."""
 
@@ -49,7 +92,7 @@ class Clip:
             raise ValueError(f'no video stream: {self.path}')
         stream = streams[0]
         self.size = _displayed_size(stream)
-        self.fps = Fraction(stream['avg_frame_rate'])
+        self.fps, self._cfr = _fps_and_cfr(stream)
         if self.fps <= 0:
             raise ValueError(f'unknown frame rate: {self.path}')
         if stream.get('nb_frames') not in (None, 'N/A'):
@@ -79,15 +122,28 @@ class Clip:
         # The `fps` filter resamples a variable-rate source onto this clip's own
         # constant grid (frame i at i/self.fps), the same way ffmpeg would if asked
         # to render the source at a fixed rate: it holds the last decoded frame
-        # until the next output slot, rather than assuming evenly-spaced input. A
-        # CFR source already sits on that exact grid, so this is a no-op for it.
-        # Rotation needs no filter of its own: ffmpeg auto-rotates on decode from
-        # the stream's own display-matrix side data (ahead of this filter, same as
-        # any other -vf), which is also how `self.size` already accounts for it.
-        fps_filter = f'fps=fps={self.fps.numerator}/{self.fps.denominator}:round=down'
+        # until the next output slot, rather than assuming evenly-spaced input.
+        # round=up (not the filter's own default, round=near, nor round=down):
+        # frame i must be the source frame already on screen at i/fps, i.e. the
+        # last one whose own pts is <= i/fps -- round=up maps an input frame to
+        # the *next* output slot at or after its pts, which is exactly that frame
+        # held from its pts through the following output slot. round=down maps
+        # it one slot earlier instead, showing frame i one source frame ahead of
+        # schedule throughout a variable-rate source.
+        # A genuinely constant-rate source (self._cfr, see _fps_and_cfr) skips the
+        # filter rather than running through it as a "no-op": even a CFR source's
+        # own timestamps can be coarsely quantized (an iPhone's mov typically uses
+        # a 600-tick/second timescale), and resampling those onto a grid -- even
+        # one at the matching rate -- can still drop and duplicate frames the
+        # unfiltered decode wouldn't.
+        # Rotation needs no filter of its own either way: ffmpeg auto-rotates on
+        # decode from the stream's own display-matrix side data (ahead of any
+        # -vf), which is also how `self.size` already accounts for it.
+        vf = [] if self._cfr else [
+            '-vf', f'fps=fps={self.fps.numerator}/{self.fps.denominator}:round=up']
         self._decoder = subprocess.Popen(
             ['ffmpeg', '-v', 'error', '-ss', timestamp, '-i', self.path,
-             '-map', '0:v:0', '-vf', fps_filter, '-f', 'rawvideo', '-pix_fmt', 'rgb24',
+             '-map', '0:v:0', *vf, '-f', 'rawvideo', '-pix_fmt', 'rgb24',
              '-fps_mode', 'passthrough', 'pipe:1'], stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
         self._next = index
         self._pid = os.getpid()
