@@ -205,6 +205,20 @@ class HostedGit(LibraryFixture, unittest.TestCase):
         self.assertIn(b'name="description"', page)
         self.assertIn(b'name="links"', page)
 
+    def test_library_page_starter_cards_are_a_hero_when_empty_then_a_compact_row(self):
+        page = self.request('/')[1]
+        self.assertIn(b'class="starters hero"', page)
+        self.assertIn(b'href="/new?starter=paper-explainer"', page)
+        self.seed('acme/launch')
+        page = self.request('/')[1]
+        self.assertNotIn(b'starters hero', page)
+        self.assertIn(b'class="starters">', page)
+
+    def test_new_video_page_shows_the_same_starter_cards(self):
+        page = self.request('/new')[1]
+        self.assertIn(b'data-id="paper-explainer"', page)
+        self.assertIn(b'/capabilities/paper-collage.jpg', page)
+
     def test_repos_share_one_env_cache(self):
         self.seed('acme/launch')
         self.request('/api/library/new', {'from': 'acme/launch', 'name': 'acme/promo'})

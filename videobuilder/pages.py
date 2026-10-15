@@ -6,6 +6,8 @@ import html
 import time
 from urllib.parse import quote
 
+from .starters import STARTERS
+
 
 _AUTH_STYLE = ('<style>body{font:16px system-ui;background:#181b20;color:#eee;max-width:420px;margin:4rem auto;'
               'padding:0 1rem}input,button{display:block;width:100%;margin:.4rem 0;padding:.7rem;font-size:16px;'
@@ -71,6 +73,25 @@ LIBRARY_STYLE = (
     '.lib-copy{flex:0 0 auto;min-height:36px;padding:.3rem .6rem;border-radius:6px;border:1px solid #26262c;'
     'background:#0d0d10;color:#fff;font-size:.8rem}'
     '@media (max-width:480px){.lib-page{padding:.75rem .75rem 2.5rem}.lib-card-top{flex-wrap:wrap}}'
+)
+
+STARTER_STYLE = (
+    '.starters{margin-bottom:1.5rem}'
+    '.starters h2{font-size:1rem;color:#a9a9b2;margin:0 0 .6rem;text-transform:none;letter-spacing:0}'
+    '.starter-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:.75rem;'
+    'margin:0;padding:0;list-style:none}'
+    '.starters.hero{padding:.5rem 0 1.75rem;border-bottom:1px solid #26262c;margin-bottom:1.25rem}'
+    '.starters.hero .starter-grid{grid-template-columns:repeat(auto-fill,minmax(170px,1fr))}'
+    '.starter-card{display:flex;flex-direction:column;gap:.4rem;border:1px solid #26262c;border-radius:10px;'
+    'padding:.6rem;background:#141417;color:#fff;text-align:left;cursor:pointer;min-height:44px;'
+    'font:inherit;text-decoration:none;box-sizing:border-box;width:100%}'
+    '.starter-poster{display:block;aspect-ratio:16/9;border-radius:6px;overflow:hidden;background:#0d0d10}'
+    '.starter-poster img{display:block;width:100%;height:100%;object-fit:cover}'
+    '.starter-title{font-weight:600;font-size:.9rem}'
+    '.starter-prompt{font-size:.8rem;color:#a9a9b2;display:-webkit-box;-webkit-line-clamp:3;'
+    '-webkit-box-orient:vertical;overflow:hidden}'
+    '#files-field.starter-highlight,#links-field.starter-highlight{outline:2px solid #e5483b;'
+    'border-radius:8px}'
 )
 
 NEW_VIDEO_STYLE = (
@@ -140,6 +161,57 @@ NEW_VIDEO_SCRIPT = (
     '</script>'
 )
 
+STARTER_SCRIPT = (
+    '<script>'
+    '(function(){'
+    'const form=document.querySelector("#new-video");'
+    'function applyStarter(id){'
+    'const card=document.querySelector(\'.starter-card[data-id="\'+id+\'"]\');'
+    'if(!card)return;'
+    'const prompt=card.dataset.prompt,needs=card.dataset.needs;'
+    'const blank=form.querySelector("input[name=start][value=blank]");'
+    'blank.checked=true;blank.dispatchEvent(new Event("change"));'
+    'form.description.value=prompt;'
+    'for(const l of form.querySelectorAll(".starter-highlight"))l.classList.remove("starter-highlight");'
+    'const target=needs==="files"?document.querySelector("#files-field"):'
+    'needs==="links"?document.querySelector("#links-field"):null;'
+    'if(target)target.classList.add("starter-highlight");'
+    'form.description.focus();'
+    'const m=/\\[[^\\]]*\\]/.exec(prompt);'
+    'if(m)form.description.setSelectionRange(m.index,m.index+m[0].length)}'
+    'for(const c of document.querySelectorAll(".starter-card"))c.onclick=()=>applyStarter(c.dataset.id);'
+    'const initial=new URLSearchParams(location.search).get("starter");'
+    'if(initial)applyStarter(initial)'
+    '})();'
+    '</script>'
+)
+
+
+def _starter_poster_html(poster):
+    return (f'<span class="starter-poster"><img src="/capabilities/{poster}.jpg" alt="" loading="lazy" '
+           'onerror="this.remove()"></span>')
+
+
+def _starter_card_html(s, as_link):
+    title = html.escape(s['title'])
+    prompt = html.escape(s['prompt'])
+    poster = _starter_poster_html(s['poster'])
+    if as_link:
+        return (f'<a class="starter-card" href="/new?starter={quote(s["id"])}">' + poster +
+               f'<span class="starter-title">{title}</span>'
+               f'<span class="starter-prompt">{prompt}</span></a>')
+    return (f'<button type="button" class="starter-card" data-id="{html.escape(s["id"])}" '
+           f'data-prompt="{prompt}" data-needs="{html.escape(s["needs"])}">' + poster +
+           f'<span class="starter-title">{title}</span>'
+           f'<span class="starter-prompt">{prompt}</span></button>')
+
+
+def _starter_section_html(hero, as_link):
+    cls = 'starters hero' if hero else 'starters'
+    cards = ''.join(_starter_card_html(s, as_link) for s in STARTERS)
+    return (f'<section class="{cls}"><h2>Start with one of these</h2>'
+           f'<div class="starter-grid">{cards}</div></section>')
+
 
 def index(names, accounts_enabled, user, host, scheme='http'):
     """`names`: [(name, has_main), ...], already access-filtered and in order."""
@@ -165,6 +237,7 @@ def index(names, accounts_enabled, user, host, scheme='http'):
     account_bar = ''
     body = ''.join(rows)
     can_create = bool(user) if accounts_enabled else True
+    hero = not names
     if accounts_enabled:
         account_bar = ('<div class="account-bar"><span>Signed in as <strong>' + html.escape(user) +
                        '</strong> · <a href="/account">API keys</a></span>'
@@ -172,6 +245,7 @@ def index(names, accounts_enabled, user, host, scheme='http'):
         if not names:
             body = (f'<p>No videos shared with you yet — ask the owner to invite '
                     f'<strong>{html.escape(user)}</strong>.</p>')
+    starters = _starter_section_html(hero, as_link=True)
     new_video = '<a class="btn btn-primary new-video" href="/new">+ New video</a>' if can_create else ''
     script = ('<script>'
               'for(const b of document.querySelectorAll(".lib-copy"))b.onclick=async()=>{'
@@ -182,21 +256,23 @@ def index(names, accounts_enabled, user, host, scheme='http'):
               'location.href="/login"};</script>')
     return ('<!doctype html><html><head><meta charset="utf-8"><title>Video library</title>'
             '<meta name="viewport" content="width=device-width, initial-scale=1">'
-            '<style>' + LIBRARY_STYLE + '</style>'
+            '<style>' + LIBRARY_STYLE + STARTER_STYLE + '</style>'
             '</head><body><div class="lib-page">' + account_bar +
             '<header class="lib-header"><h1>Video library</h1>' + new_video +
             '<a class="caps-link" href="/capabilities">Capabilities</a></header>' +
-            body + script +
+            starters + body + script +
             '</div></body></html>').encode()
 
 
 def new_video_page(names):
     options = ''.join(f'<option value="{html.escape(n)}"></option>' for n in names)
+    starters = _starter_section_html(hero=False, as_link=False)
     return ('<!doctype html><html><head><meta charset="utf-8"><title>New video · Video library</title>'
             '<meta name="viewport" content="width=device-width, initial-scale=1">'
-            '<style>' + LIBRARY_STYLE + NEW_VIDEO_STYLE + '</style></head><body><div class="lib-page">'
+            '<style>' + LIBRARY_STYLE + STARTER_STYLE + NEW_VIDEO_STYLE + '</style></head>'
+            '<body><div class="lib-page">'
             '<header class="lib-header"><a class="btn" href="/">&larr; Library</a>'
-            '<h1>New video</h1></header>'
+            '<h1>New video</h1></header>' + starters +
             '<form id="new-video">'
             '<label>Name<input name="name" placeholder="namespace/name" required autocapitalize="off" '
             'autocorrect="off" spellcheck="false"></label>'
@@ -209,14 +285,14 @@ def new_video_page(names):
             '<div id="scratch-fields">'
             '<label>Description<textarea name="description" rows="5" '
             'placeholder="What is this video for? Who is it for?"></textarea></label>'
-            '<label>Files<input name="files" type="file" multiple '
+            '<label id="files-field">Files<input name="files" type="file" multiple '
             'accept="image/*,video/*,audio/*,.pdf,.txt,.md"></label>'
-            '<label>Links (one per line)<textarea name="links" rows="3" '
+            '<label id="links-field">Links (one per line)<textarea name="links" rows="3" '
             'placeholder="https://example.com/the-feature"></textarea></label>'
             '</div>'
             '<button id="create" type="submit">Create</button>'
             '<p id="error" role="alert"></p>'
-            '</form></div>' + NEW_VIDEO_SCRIPT + '</body></html>').encode()
+            '</form></div>' + NEW_VIDEO_SCRIPT + STARTER_SCRIPT + '</body></html>').encode()
 
 
 _ACCOUNT_STYLE = (
