@@ -150,7 +150,33 @@ def draw(cv, shot):
         cv.shadow(*box, radius=RADIUS * (1 - g), dy=10 * (1 - g), blur=30, color=(0, 0, 0, 0.5 * (1 - g)))
         u.cover_image(cv, imgs[hero], box, zoom=1.0 + breathe + 0.04 * g, radius=RADIUS * (1 - g))
         cv.mark('hero', *box)
-        _headline(cv, frame, data, shot.f - (grow_at + grow_len), accent)
+        k = shot.f - (grow_at + grow_len)
+        _index(cv, imgs, hero, k, accent)
+        _headline(cv, frame, data, k, accent)
+
+
+def _index(cv, imgs, hero, k, accent):
+    """The set, shrunk to a strip of thumbnails in the top corner, the grown one
+    outlined: the frame still says "one of several" once the grid has gone."""
+    if k < 0:
+        return
+    ts, gap = (44, 8) if cv.width >= cv.height else (40, 8)
+    m = 28
+    n = len(imgs)
+    for i, img in enumerate(imgs):
+        s = vb.spring_at(k - i * 2, 30, **POPPY)
+        if s <= 0.001:
+            continue
+        x = m + i * (ts + gap)
+        with cv.layer(opacity=min(1.0, s * 2), dx=(x + ts / 2) * (1 - s), dy=(m + ts / 2) * (1 - s), scale=s):
+            cv.shadow(x, m, ts, ts, radius=6, dy=3, blur=8, color=(0, 0, 0, 0.45))
+            u.cover_image(cv, img, Box(x, m, ts, ts), radius=6)
+            if i == hero:
+                cv.outline(x - 2, m - 2, ts + 4, ts + 4, accent, width=3, radius=8)
+            else:
+                cv.outline(x, m, ts, ts, kit.INK, width=1.5, radius=6, alpha=0.7)
+    if k >= 2 * (n - 1):
+        cv.mark('index', m - 3, m - 3, n * ts + (n - 1) * gap + 6, ts + 6)
 
 
 def _sample_images():
@@ -175,5 +201,5 @@ COMPONENT = Component(
     sample={'images': _sample_images(), 'hero': 2, 'title': 'Five places worth the long way round',
             'kicker': 'Field notes', 'accent': kit.ACCENT},
     draw=draw,
-    overlap_ok=(('hero', 'title'), ('hero', 'kicker')),
+    overlap_ok=(('hero', 'title'), ('hero', 'kicker'), ('hero', 'index')),
 )

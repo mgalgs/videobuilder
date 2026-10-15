@@ -175,7 +175,7 @@ def _dunes():
         ctx.set_source_rgba(*vb.rgba('#ffd9a8', 0.35 - i * 0.06))
         ctx.set_line_width(2.5)
         ctx.stroke()
-    grain(cv, 0.35, seed=5, w=w, h=h)
+    grain(cv, 0.2, seed=5, w=w, h=h)
     return to_image(cv)
 
 
@@ -220,7 +220,7 @@ def _harbor():
             ctx.rectangle(wx + rnd.uniform(-8, 8), y, rnd.uniform(8, 26), 2.5)
             r, g, b, _ = vb.rgba(col)
             fill(ctx, (r * 255, g * 255, b * 255, 0.45 - k * 0.09))
-    grain(cv, 0.3, seed=9, w=w, h=h)
+    grain(cv, 0.2, seed=9, w=w, h=h)
     return to_image(cv)
 
 
@@ -265,7 +265,7 @@ def _forest():
             ctx.rectangle(x - 3, base - th * 0.12, 6, th * 0.12)
             fill(ctx, '#17352f')
             x += tw * rnd.uniform(0.5, 0.8)
-    grain(cv, 0.3, seed=12, w=w, h=h)
+    grain(cv, 0.2, seed=12, w=w, h=h)
     return to_image(cv)
 
 
@@ -309,7 +309,7 @@ def _poster():
             fill(ctx, '#e9c46a')
             ctx.rectangle(0, 0, w, h)
             fill(ctx, radial(ctx, lx, h * 0.34, w * 0.35, [(0, (255, 225, 160, 0.35)), (1, (255, 225, 160, 0))]))
-    grain(cv, 0.4, seed=14, w=w, h=h)
+    grain(cv, 0.25, seed=14, w=w, h=h)
     return to_image(cv)
 
 
@@ -348,7 +348,7 @@ def _fields():
         fill(ctx, (20, 30, 10, 0.35))
         ctx.arc(x, y2, r, 0, 2 * math.pi)
         fill(ctx, rnd.choice(('#2f5a2c', '#3c6b33', '#284d27')))
-    grain(cv, 0.35, seed=16, w=w, h=h)
+    grain(cv, 0.2, seed=16, w=w, h=h)
     return to_image(cv)
 
 
@@ -448,7 +448,7 @@ def _valley(after):
         ctx.stroke()
         ctx.rectangle(0, 0, w, h)
         fill(ctx, (200, 204, 208, 0.18))
-    grain(cv, 0.35, seed=22, w=w, h=h)
+    grain(cv, 0.22, seed=22, w=w, h=h)
     return to_image(cv)
 
 
