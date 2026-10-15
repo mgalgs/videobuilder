@@ -257,6 +257,8 @@ def render(film, out, format=None, jobs=None, chunk=15, crf=18, frames=None, log
         raise ValueError(f'frames {a}:{z} outside 0:{film.frames}')
     jobs = jobs or default_jobs()
     check_chunk(chunk, film.fps)
+    if film.sounds:
+        ensure_has_audio(s.path for s in film.sounds)
     t0 = time.time()
     with tempfile.TemporaryDirectory() as tmp:
         tasks = [(s, min(s + chunk, z), os.path.join(tmp, f'c{s:06d}.mp4'), crf) for s in range(a, z, chunk)]
@@ -296,7 +298,6 @@ def render(film, out, format=None, jobs=None, chunk=15, crf=18, frames=None, log
         cmd = ['ffmpeg', '-v', 'error', '-y', '-f', 'concat', '-safe', '0', '-i', listing]
         au = film.audio
         if film.sounds:
-            ensure_has_audio(s.path for s in film.sounds)
             graph_inputs, graph, label = mix_graph(film, a, z, start_idx=1)
             target = au.loudness if au else film.loudness
             if target is not None:

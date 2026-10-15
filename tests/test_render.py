@@ -55,6 +55,15 @@ class ChunkDriftGuard(unittest.TestCase):
             render(film, os.devnull, chunk=20)
         self.assertEqual(drawn, [])
 
+    @unittest.skipUnless(shutil.which('ffprobe'), 'needs ffprobe')
+    def test_a_sound_with_no_audio_stream_is_caught_before_drawing(self):
+        drawn = []
+        film = Film(draw=lambda n, cv: drawn.append(n), fps=30, frames=30, formats=['1x1'],
+                    sounds=(Sound(os.devnull, at=0, start=0.0, frames=10),))
+        with self.assertRaisesRegex(ValueError, 'no audio stream'):
+            render(film, os.devnull, chunk=15)
+        self.assertEqual(drawn, [])
+
 
 @unittest.skipUnless(shutil.which('ffmpeg') and shutil.which('ffprobe'), 'needs ffmpeg')
 class RenderJoins(unittest.TestCase):
