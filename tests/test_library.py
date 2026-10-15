@@ -825,6 +825,12 @@ class AccountPage(AccountMixin, KeyMixin, LibraryFixture, unittest.TestCase):
         self.assertIn(b'Sign in', page)
         self.assertNotIn(b'New key', page)
 
+    def test_library_page_links_to_it(self):
+        admin = self.admin_login()
+        code, page = self.request('/', headers={'Cookie': admin})
+        self.assertEqual(code, 200)
+        self.assertIn(b'href="/account"', page)
+
     def test_page_lists_no_keys_then_a_created_one(self):
         admin = self.admin_login()
         code, page = self.request('/account', headers={'Cookie': admin})

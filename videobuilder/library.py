@@ -310,7 +310,8 @@ class Library:
         can_create = bool(user) if self.accounts else True
         if self.accounts:
             account_bar = ('<div class="account-bar"><span>Signed in as <strong>' + html.escape(user) +
-                           '</strong></span><button id="sign-out">Sign out</button></div>')
+                           '</strong> · <a href="/account">API keys</a></span>'
+                           '<button id="sign-out">Sign out</button></div>')
             if not names:
                 body = (f'<p>No videos shared with you yet — ask the owner to invite '
                         f'<strong>{html.escape(user)}</strong>.</p>')
