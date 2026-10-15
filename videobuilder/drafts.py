@@ -12,17 +12,10 @@ import logging
 import os
 from pathlib import Path, PurePosixPath
 import shutil
-import subprocess
 import sys
 import tempfile
 
-
-def git(root, *args):
-    result = subprocess.run(['git', '-c', 'core.hooksPath=/dev/null', *args], cwd=root,
-                            capture_output=True, text=True)
-    if result.returncode:
-        raise ValueError(result.stderr.strip() or result.stdout.strip())
-    return result.stdout.strip()
+from .gitutil import git
 
 
 def branch_tip(root, branch):

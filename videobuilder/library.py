@@ -8,6 +8,8 @@ import sys
 import threading
 from urllib.parse import parse_qs, quote, urlsplit
 
+from .gitutil import git
+
 
 PART = re.compile(r'[a-z0-9][a-z0-9._-]{0,62}\Z')
 GIT_ROUTE = re.compile(r'/git/(.+?)\.git(/.*)?\Z')
@@ -152,13 +154,6 @@ NEW_VIDEO_SCRIPT = (
 )
 
 
-def run(*argv, cwd=None, input=None, env=None):
-    result = subprocess.run(argv, cwd=cwd, input=input, env=env, capture_output=True)
-    if result.returncode:
-        raise ValueError(result.stderr.decode(errors='replace').strip() or 'git failed')
-    return result.stdout.strip()
-
-
 class Library:
     def __init__(self, root, checkouts=None, state_dir=None, host='127.0.0.1', allowed_hosts=(),
                  backend=None, agent=None, unsandboxed_previews=False, envs=None, admins=(), capabilities_dir=None,
@@ -200,8 +195,8 @@ class Library:
 
     def has_main(self, name):
         path = self.path(name)
-        return path.is_dir() and subprocess.run(['git', '--git-dir', str(path), 'show-ref', '--verify', '--quiet',
-                                                 'refs/heads/main']).returncode == 0
+        return path.is_dir() and git(None, 'show-ref', '--verify', '--quiet', 'refs/heads/main',
+                                     git_dir=path, hooks=False, check=False).returncode == 0
 
     def create(self, name):
         path = self.path(name)
@@ -209,10 +204,10 @@ class Library:
             if path.exists():
                 raise ValueError('repository already exists')
             path.parent.mkdir(parents=True, exist_ok=True)
-            run('git', 'init', '--bare', '--initial-branch=main', str(path))
+            git(None, 'init', '--bare', '--initial-branch=main', str(path), hooks=False)
             for key, value in (('http.receivepack', 'true'), ('receive.denyNonFastForwards', 'true'),
                                ('receive.denyDeletes', 'true')):
-                run('git', '--git-dir', str(path), 'config', key, value)
+                git(None, 'config', key, value, git_dir=path, hooks=False)
         return path
 
     def editor(self, name):
@@ -226,7 +221,7 @@ class Library:
                 if not (checkout / '.git').exists():
                     if checkout.exists():
                         raise ValueError('checkout path already exists')
-                    run('git', 'clone', str(self.path(name)), str(checkout))
+                    git(None, 'clone', str(self.path(name)), str(checkout), hooks=False)
                 self.editors[name] = Editor(checkout, state_dir=self.state_dir / flat,
                                             sync_remote='origin', trust_repo_config=False,
                                             **self.options)
@@ -238,19 +233,18 @@ class Library:
         if not self.has_main(source):
             raise ValueError('source has no main branch')
         source_path = self.path(source)
-        sha = run('git', '--git-dir', str(source_path), 'rev-parse', 'refs/heads/main').decode()
-        tree = run('git', '--git-dir', str(source_path), 'rev-parse', sha + '^{tree}').decode()
+        sha = git(None, 'rev-parse', 'refs/heads/main', git_dir=source_path, hooks=False)
+        tree = git(None, 'rev-parse', sha + '^{tree}', git_dir=source_path, hooks=False)
         target = self.create(name)
         env = {**os.environ, 'GIT_AUTHOR_NAME': 'Video Editor', 'GIT_AUTHOR_EMAIL': 'editor@example.com',
                'GIT_COMMITTER_NAME': 'Video Editor', 'GIT_COMMITTER_EMAIL': 'editor@example.com'}
-        run('git', '--git-dir', str(target), 'fetch', str(source_path),
-            'refs/heads/main:refs/vb-source')
+        git(None, 'fetch', str(source_path), 'refs/heads/main:refs/vb-source', git_dir=target, hooks=False)
         try:
-            commit = run('git', '--git-dir', str(target), 'commit-tree', tree,
-                         input=f'New video from {source} ({sha})\n'.encode(), env=env).decode()
-            run('git', '--git-dir', str(target), 'update-ref', 'refs/heads/main', commit)
+            commit = git(None, 'commit-tree', tree, input=f'New video from {source} ({sha})\n', env=env,
+                        git_dir=target, hooks=False)
+            git(None, 'update-ref', 'refs/heads/main', commit, git_dir=target, hooks=False)
         finally:
-            run('git', '--git-dir', str(target), 'update-ref', '-d', 'refs/vb-source')
+            git(None, 'update-ref', '-d', 'refs/vb-source', git_dir=target, hooks=False)
         return {'name': name, 'commit': commit, 'from': source, 'source_commit': sha}
 
     def create_blank(self, name):
@@ -274,13 +268,12 @@ class Library:
         requirements = f'videobuilder=={__version__}\n'.encode()
         env = {**os.environ, 'GIT_AUTHOR_NAME': 'Video Editor', 'GIT_AUTHOR_EMAIL': 'editor@example.com',
                'GIT_COMMITTER_NAME': 'Video Editor', 'GIT_COMMITTER_EMAIL': 'editor@example.com'}
-        film_blob = run('git', '--git-dir', str(target), 'hash-object', '-w', '--stdin', input=film).decode()
-        req_blob = run('git', '--git-dir', str(target), 'hash-object', '-w', '--stdin', input=requirements).decode()
-        tree_input = f'100644 blob {film_blob}\tfilm.py\n100644 blob {req_blob}\trequirements.txt\n'.encode()
-        tree = run('git', '--git-dir', str(target), 'mktree', input=tree_input).decode()
-        commit = run('git', '--git-dir', str(target), 'commit-tree', tree,
-                    input=b'Start a new video\n', env=env).decode()
-        run('git', '--git-dir', str(target), 'update-ref', 'refs/heads/main', commit)
+        film_blob = git(None, 'hash-object', '-w', '--stdin', input=film, git_dir=target, hooks=False)
+        req_blob = git(None, 'hash-object', '-w', '--stdin', input=requirements, git_dir=target, hooks=False)
+        tree_input = f'100644 blob {film_blob}\tfilm.py\n100644 blob {req_blob}\trequirements.txt\n'
+        tree = git(None, 'mktree', input=tree_input, git_dir=target, hooks=False)
+        commit = git(None, 'commit-tree', tree, input='Start a new video\n', env=env, git_dir=target, hooks=False)
+        git(None, 'update-ref', 'refs/heads/main', commit, git_dir=target, hooks=False)
         return {'name': name, 'commit': commit, 'video': 'film'}
 
     def index(self, host, scheme='http', user=None):

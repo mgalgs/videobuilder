@@ -12,6 +12,8 @@ import json
 import os
 import threading
 
+from .atomic import write_json_atomic
+
 
 class Access:
     def __init__(self, state_dir):
@@ -27,10 +29,7 @@ class Access:
 
     def _save(self, data):
         os.makedirs(os.path.dirname(self.path), exist_ok=True)
-        tmp = self.path + '.tmp'
-        with open(tmp, 'w', encoding='utf-8') as fh:
-            json.dump(data, fh)
-        os.replace(tmp, self.path)
+        write_json_atomic(self.path, data)
 
     def get(self, name, accounts):
         record = self._load().get(name) or {'owner': None, 'collaborators': []}

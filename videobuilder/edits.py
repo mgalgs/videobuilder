@@ -27,6 +27,8 @@ import math
 import os
 import tomllib
 
+from .atomic import write_atomic
+
 SUFFIX = '.edits.toml'
 
 _active = contextvars.ContextVar('videobuilder_edits', default=None)
@@ -235,10 +237,7 @@ def _write(path, segments):
         with contextlib.suppress(FileNotFoundError):
             os.remove(path)
         return
-    tmp = path + '.tmp'
-    with open(tmp, 'w', encoding='utf-8', newline='\n') as fh:
-        fh.write(dumps(segments))
-    os.replace(tmp, path)
+    write_atomic(path, dumps(segments))
 
 
 def _load(film_path, segments):

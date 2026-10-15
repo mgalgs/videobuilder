@@ -32,6 +32,8 @@ import secrets
 import threading
 import time
 
+from .atomic import write_json_atomic
+
 USERNAME = re.compile(r'[a-z0-9._-]{3,32}\Z')
 # Same shape as a project namespace (videobuilder.library.PART); duplicated here rather
 # than imported, since library.py imports this module.
@@ -125,10 +127,7 @@ class Accounts:
 
     def _save(self):
         os.makedirs(os.path.dirname(self.path), exist_ok=True)
-        tmp = self.path + '.tmp'
-        with open(tmp, 'w', encoding='utf-8') as fh:
-            json.dump(self._data, fh)
-        os.replace(tmp, self.path)
+        write_json_atomic(self.path, self._data)
 
     def is_admin(self, username):
         return isinstance(username, str) and username.lower() in self.admins

@@ -1,16 +1,8 @@
 """Opt-in synchronization of the editor's main checkout with a forge."""
-import os
-import subprocess
 import time
 from pathlib import Path
 
-
-def git(root, *args, check=True):
-    result = subprocess.run(['git', '-c', 'core.hooksPath=/dev/null', *args], cwd=root,
-                            capture_output=True, text=True)
-    if check and result.returncode:
-        raise ValueError(result.stderr.strip() or result.stdout.strip())
-    return result.stdout.strip() if check else result
+from .gitutil import git
 
 
 class ForgeSync:

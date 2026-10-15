@@ -37,6 +37,7 @@ import time
 from dataclasses import asdict
 from pathlib import Path
 
+from .gitutil import git
 from .notes import AgentBackend, AgentStatus, NullBackend
 from .workers import pin_for, pinned_version
 
@@ -119,8 +120,8 @@ class ForkSandboxBackend(AgentBackend):
             if not (target / 'videobuilder' / '.git').exists():
                 with tempfile.TemporaryDirectory(prefix='v' + version + '-', dir=self.context_root) as temporary:
                     staged = Path(temporary) / 'videobuilder'
-                    result = subprocess.run(['git', 'clone', '--depth', '1', '--branch', ref, url, str(staged)],
-                                            capture_output=True, text=True)
+                    result = git(None, 'clone', '--depth', '1', '--branch', ref, url, str(staged),
+                                hooks=False, check=False)
                     if result.returncode:
                         raise ValueError('could not stage pinned videobuilder: ' + result.stderr.strip())
                     Path(temporary).rename(target)

@@ -37,6 +37,8 @@ import threading
 import time
 from dataclasses import asdict, dataclass
 
+from .atomic import write_atomic, write_json_atomic
+
 STATES = ('gathering', 'queued', 'working', 'replied', 'failed', 'accepted', 'dropped', 'landed', 'refused',
          'conflict', 'questions')
 FINAL = ('replied', 'failed', 'accepted', 'dropped', 'landed', 'refused', 'conflict', 'questions')
@@ -153,12 +155,7 @@ class NoteStore:
         return os.path.join(self.dir, f'{nid}.{ext}')
 
     def _save(self, note):
-        path = self._path(note['id'], 'json')
-        tmp = path + '.tmp'
-        with open(tmp, 'w', encoding='utf-8') as fh:
-            json.dump(note, fh, indent=1, ensure_ascii=False)
-            fh.write('\n')
-        os.replace(tmp, path)
+        write_json_atomic(self._path(note['id'], 'json'), note, newline=True, indent=1, ensure_ascii=False)
 
     def add(self, video, format, frame, segment, text, png, author=None, **context):
         """Store a new note with its frame's PNG bytes, submit it, and return it."""
@@ -258,10 +255,7 @@ class NoteStore:
         return state
 
     def save_session(self, video, state):
-        path = self.session_dir(video) / 'session.json'
-        tmp = path.with_suffix('.tmp')
-        tmp.write_text(json.dumps(state))
-        tmp.replace(path)
+        write_json_atomic(self.session_dir(video) / 'session.json', state)
 
     def list(self, video=None, refresh=True):
         notes = []

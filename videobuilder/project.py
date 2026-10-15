@@ -23,12 +23,12 @@ not committed, and the result carries a warning. Nothing is ever pushed.
 import ast
 import os
 import subprocess
-import tempfile
 import threading
 import tomllib
 from dataclasses import dataclass
 
 from . import edits
+from .atomic import write_atomic
 
 CONFIG = 'videobuilder.toml'
 SKIP_DIRS = {'tests', 'test', 'vendor', 'node_modules', '__pycache__', 'build', 'dist', 'venv', 'site-packages'}
@@ -240,11 +240,7 @@ class Project:
                                                         key=key, value=value)
                     before = response['before']
                     if response['toml']:
-                        with tempfile.NamedTemporaryFile(mode='w', encoding='utf-8', dir=os.path.dirname(path),
-                                                         delete=False) as output:
-                            output.write(response['toml'])
-                            temporary = output.name
-                        os.replace(temporary, path)
+                        write_atomic(path, response['toml'])
                     elif os.path.exists(path):
                         os.remove(path)
                 elif op == 'roll':
