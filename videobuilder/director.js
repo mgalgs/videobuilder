@@ -106,7 +106,7 @@ function httpError(r, data) {
 async function resumeFromSignedOut() {
   if(!state.signedOut)return;
   try {
-    await json('name')
+    await json('project')
   }
   catch(_) {
     return

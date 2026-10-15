@@ -59,6 +59,28 @@ class DirectorPageRoutes(API):
         self.assertIn("api('attachments/'", js)
         self.assertIn("api('video'", js)
 
+    def test_signed_out_handling_pins_resume_probe_banner_and_draft_order(self):
+        # A session can expire while the director tab sits open: the 401 handler
+        # must show the banner, stop polling, keep whatever was typed, and the
+        # resume check (on regaining focus) must hit a route that actually
+        # exists under /v/<name>/api/ -- 'project', not the top-level-only 'name'.
+        import re
+        js = (PKG / 'director.js').read_text()
+        resume = re.search(r'async function resumeFromSignedOut\(\) \{(.*?)\n\}', js, re.S).group(1)
+        self.assertIn("json('project')", resume)
+        self.assertNotIn("json('name')", resume)
+        self.assertIn("$('signed-out-banner').hidden=false", js)
+        self.assertIn("$('signed-out-banner').hidden=true", js)
+        for guard in ("state.video&&!state.signedOut", "document.hidden||state.signedOut",
+                      "document.hidden||!state.project||state.signedOut"):
+            self.assertIn(guard, js)
+        send_pending = re.search(r'async function sendPending\(\) \{(.*?)\n\}', js, re.S).group(1)
+        self.assertLess(send_pending.index("await json('notes'"), send_pending.index('state.pending=[]'),
+                         'the pending draft must only be cleared after the send succeeds')
+        send_now = re.search(r'async function sendNow\(\) \{(.*?)\n\}', js, re.S).group(1)
+        self.assertLess(send_now.index("await json('notes'"), send_now.index("$('message').value=''"),
+                         'the typed note must only be cleared after the send succeeds')
+
     def test_fine_tuning_edit_endpoints(self):
         self.assertIn(b'id="pane-copy"', self.get('/tuning.html'))
         video = 'promo/film'
