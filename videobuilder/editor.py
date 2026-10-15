@@ -767,7 +767,7 @@ def _optional_positive(value, name, kind):
     amount); None if unset (the default, meaning no cap)."""
     if value is None:
         return None
-    if isinstance(value, bool) or not isinstance(value, kind) or value <= 0:
+    if isinstance(value, bool) or not isinstance(value, kind) or not math.isfinite(value) or value <= 0:
         article = 'a positive integer' if kind is int else 'a positive number'
         raise ValueError(f'editor.{name} must be {article}')
     return value

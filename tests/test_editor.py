@@ -42,6 +42,16 @@ class Command(unittest.TestCase):
                 main(['editor', '--library', d, '--account-daily-cost-cap-usd', '-1'])
             self.assertIn('account_daily_cost_cap_usd', str(e.exception))
 
+    def test_account_daily_cost_cap_rejects_nan_and_infinity(self):
+        from videobuilder.cli import main
+        with tempfile.TemporaryDirectory() as d:
+            with self.assertRaises(SystemExit) as e:
+                main(['editor', '--library', d, '--account-daily-cost-cap-usd', 'nan'])
+            self.assertIn('account_daily_cost_cap_usd', str(e.exception))
+            with self.assertRaises(SystemExit) as e:
+                main(['editor', '--library', d, '--account-daily-cost-cap-usd', 'inf'])
+            self.assertIn('account_daily_cost_cap_usd', str(e.exception))
+
 
 class AccountCapConfigKeys(TempProject):
     def _editor(self, state_dir, **kw):

@@ -26,6 +26,7 @@ every request.
 import hashlib
 import hmac
 import json
+import math
 import os
 import re
 import secrets
@@ -60,7 +61,7 @@ def _validated_limit_value(value, name, kind):
     dollar amount); raises ValueError otherwise."""
     if value is None:
         return None
-    if isinstance(value, bool) or not isinstance(value, kind) or value <= 0:
+    if isinstance(value, bool) or not isinstance(value, kind) or not math.isfinite(value) or value <= 0:
         article = 'a positive integer' if kind is int else 'a positive number'
         raise ValueError(f'{name} must be null or {article}')
     return value
@@ -165,7 +166,10 @@ class Accounts:
         username = username.lower() if isinstance(username, str) else ''
         if not self.exists(username):
             return None
-        return self._data.get('limits', {}).get(username, DEFAULT_LIMIT)
+        record = self._data.get('limits', {}).get(username)
+        if record is None or record.get('uid') != self.uid(username):
+            return DEFAULT_LIMIT
+        return {'kind': record['kind'], 'notes': record['notes'], 'cost_usd': record['cost_usd']}
 
     def set_limit(self, username, kind, notes=None, cost_usd=None):
         """Set or clear `username`'s override; returns the resulting limit
@@ -186,7 +190,8 @@ class Accounts:
             if kind == 'default':
                 self._data.setdefault('limits', {}).pop(username, None)
             else:
-                self._data.setdefault('limits', {})[username] = {'kind': kind, 'notes': notes, 'cost_usd': cost_usd}
+                self._data.setdefault('limits', {})[username] = {
+                    'kind': kind, 'notes': notes, 'cost_usd': cost_usd, 'uid': self.uid(username)}
             self._save()
         return self.get_limit(username)
 
@@ -195,8 +200,7 @@ class Accounts:
         get_limit) -- sorted by name, for the admin-only limits API."""
         with self.lock:
             names = sorted(self._data['users'])
-            limits = self._data.get('limits', {})
-            return [{'name': name, 'admin': name in self.admins, 'limit': limits.get(name, DEFAULT_LIMIT)}
+            return [{'name': name, 'admin': name in self.admins, 'limit': self.get_limit(name)}
                     for name in names]
 
     def signup(self, username, password):

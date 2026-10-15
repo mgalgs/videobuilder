@@ -658,6 +658,8 @@ class AdminLimits(AccountMixin, KeyMixin, LibraryFixture, unittest.TestCase):
             {'user': 'bob', 'kind': 'default', 'notes': 5},
             {'user': 'bob', 'kind': 'unlimited', 'cost_usd': 5},
             {'user': 123, 'kind': 'unlimited'},
+            {'user': 'bob', 'kind': 'custom', 'cost_usd': float('nan')},
+            {'user': 'bob', 'kind': 'custom', 'cost_usd': float('inf')},
         )
         for body in cases:
             with self.subTest(body=body):

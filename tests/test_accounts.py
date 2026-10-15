@@ -239,6 +239,16 @@ class LimitsTest(unittest.TestCase):
         self.accounts._save()
         self.assertIsNone(self.accounts.get_limit('dana'))
 
+    def test_recreated_account_does_not_inherit_old_overrides_uid(self):
+        self.accounts.set_limit('dana', 'unlimited')
+        del self.accounts._data['users']['dana']
+        self.accounts._save()
+        self.assertIsNone(self.accounts.get_limit('dana'))
+        self.accounts.signup('dana', 'anotherlongpassword')
+        self.assertEqual(self.accounts.get_limit('dana'), {'kind': 'default', 'notes': None, 'cost_usd': None})
+        listed = {a['name']: a for a in self.accounts.list_accounts()}
+        self.assertEqual(listed['dana']['limit'], {'kind': 'default', 'notes': None, 'cost_usd': None})
+
     def test_custom_either_half_optional(self):
         self.assertEqual(self.accounts.set_limit('dana', 'custom', 5, 1.5),
                          {'kind': 'custom', 'notes': 5, 'cost_usd': 1.5})
@@ -282,6 +292,14 @@ class LimitsTest(unittest.TestCase):
             with self.subTest(bad=bad):
                 with self.assertRaisesRegex(ValueError, 'cost_usd'):
                     self.accounts.set_limit('dana', 'custom', None, bad)
+
+    def test_rejects_nan_and_infinite_custom_values(self):
+        with self.assertRaisesRegex(ValueError, 'cost_usd'):
+            self.accounts.set_limit('dana', 'custom', None, float('nan'))
+        with self.assertRaisesRegex(ValueError, 'cost_usd'):
+            self.accounts.set_limit('dana', 'custom', None, float('inf'))
+        with self.assertRaisesRegex(ValueError, 'notes'):
+            self.accounts.set_limit('dana', 'custom', float('nan'), None)
 
     def test_list_accounts_includes_admin_flag_and_limit(self):
         path = self.state / 'admin-pass'
