@@ -48,8 +48,12 @@ POST /api/attachments?video=V&name=F  raw body with Content-Type; 201
                                      instead unpacks each supported member as
                                      its own attachment: 201 {attachments:
                                      [{id,name,type,size}...],
-                                     skipped:[{name,reason}...]}; 400 an unsafe
-                                     member or bad zip, 413 over a zip limit
+                                     skipped:[{name,reason}...]}; 413 the
+                                     upload itself is over the compressed-size
+                                     limit (checked from Content-Length before
+                                     the body is read); 400 an unsafe member,
+                                     a bad zip, or any other zip limit
+                                     (member count, per-file, total unpacked)
 GET  /api/attachments/<id>          stored bytes, nosniff, CSP sandbox;
                                      image/video/audio inline, others download
 GET  /api/music/sources              [{id,name,license}]; [] with none configured

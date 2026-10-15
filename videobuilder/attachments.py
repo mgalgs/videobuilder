@@ -19,6 +19,11 @@ TYPES = {'png':'image/png','jpg':'image/jpeg','jpeg':'image/jpeg','webp':'image/
          'mp4':'video/mp4','mov':'video/quicktime','webm':'video/webm','mp3':'audio/mpeg','wav':'audio/wav',
          'm4a':'audio/mp4','aac':'audio/aac','ogg':'audio/ogg','pdf':'application/pdf',
          'txt':'text/plain','md':'text/plain'}
+# Plain-language label for a creator-facing "not a valid ..." skip reason; no internal wording.
+CATEGORY = {'png':'image','jpg':'image','jpeg':'image','webp':'image','gif':'image',
+            'mp4':'video','mov':'video','webm':'video','mp3':'audio file','wav':'audio file',
+            'm4a':'audio file','aac':'audio file','ogg':'audio file','pdf':'PDF',
+            'txt':'text file','md':'text file'}
 # Staged after the uploads, so it wins a name clash and the note file stays true.
 FRAME_NAME = 'pinned-frame.png'
 ZIP_CHUNK = 1 << 16
@@ -103,12 +108,12 @@ class Attachments:
             if ext not in MAGIC:
                 skipped.append((basename, 'not a supported type'))
                 continue
-            content = self._unpack_member(zf, info, self.zip_max_unpacked - total_unpacked)
+            content = self._unpack_member(zf, info, self.zip_max_unpacked - total_unpacked, basename)
             total_unpacked += len(content)
             try:
                 _validate_content(TYPES[ext], content, ext)
-            except ValueError as exc:
-                skipped.append((basename, str(exc)))
+            except ValueError:
+                skipped.append((basename, f'not a valid {CATEGORY[ext]}'))
                 continue
             if len(kept) >= self.zip_max_members:
                 raise ValueError(f'zip has more than {self.zip_max_members} supported files')
@@ -116,7 +121,7 @@ class Attachments:
         attachments = [self._write(video, clean, ext, content) for clean, ext, content in kept]
         return {'attachments': attachments, 'skipped': [{'name': n, 'reason': r} for n, r in skipped]}
 
-    def _unpack_member(self, zf, info, remaining):
+    def _unpack_member(self, zf, info, remaining, basename):
         """Decompresses one member in chunks, checked against the per-file and
         remaining total-unpacked budgets as bytes actually come out -- never
         against the (attacker-controlled) size the zip header declares. A
@@ -136,7 +141,7 @@ class Attachments:
                     if len(buf) > remaining:
                         raise ValueError('the zip exceeds the total unpacked size limit')
         except zipfile.BadZipFile as exc:
-            raise ValueError(f'zip member {info.filename!r} is corrupt or its size is wrong') from exc
+            raise ValueError(f'{basename} is corrupt or its size is wrong') from exc
         return bytes(buf)
 
     def _write(self, video, name, ext, data):
