@@ -146,6 +146,72 @@ class Notes(unittest.TestCase):
         self.assertIn('End your reply with Summary: <one line>.', md2)
         self.assertNotIn('unless you are asking clarifying questions', md2)
 
+    def test_builder_prompt_golden_text(self):
+        """Pins the exact note file the builder reads, byte for byte: a change here
+        means the prompt itself changed, not just where it's built."""
+        agent = FakeAgent()
+        store = NoteStore(self.dir, agent)
+        note = store.add('promo/film', '16x9', None, None, 'Make it punchier', None)
+        md = (store.session_dir('promo/film') / (note['id'] + '.md')).read_text()
+        self.assertEqual(md, (
+            '# Review request\n'
+            '\n'
+            'Make it punchier\n'
+            '\n'
+            'video: promo/film\n'
+            'film: None\n'
+            'format: 16x9\n'
+            'frame: None\n'
+            'segment: None\n'
+            'beat: None\n'
+            'time: None\n'
+            'image: None\n'
+            'draft: None\n'
+            '\n'
+            '## Ask first if truly unclear\n'
+            '\n'
+            'Before doing any work, check whether this note leaves open a choice that would '
+            'substantially change the result, and that nothing already here (this note, the '
+            'pinned frame, any attachments, or the video itself) settles. If so, stop and ask '
+            'the director 1 to 3 short questions instead of building: ask before changing '
+            'anything, and commit nothing. Keep each question short, in plain language (never '
+            'a file, function or parameter name), and either give it 2 to 4 short choices or '
+            'leave it as free text. End your reply with a line containing only ```questions, '
+            'then one line of JSON {"questions": [{"text": "...", "choices": ["...", "..."]}]} '
+            '(omit or empty "choices" for free text), then a line containing only ```, and '
+            'nothing after it: if you ask, that block is the very end of your reply, with no '
+            'Summary line. You may put one short line of plain text before the block as a '
+            'lead-in. If the note is already clear enough, never ask: just build it as usual.\n'
+            '\n'
+            '## Look at your work\n'
+            '\n'
+            'Before each distinct step of your work, write one line in your own message that '
+            'starts with "Step: " and says what you are about to do and why, in plain words '
+            'for the director (for example, "Step: make the logo arrive faster in the intro"). '
+            'One line per step, never inside a tool call.\n'
+            'The director is a creator, not a programmer. In every Step line and in your '
+            'reply, describe what changes on screen in plain language: no file names, function '
+            'or parameter names, code, frame counts or easing names.\n'
+            'You can see images: open a PNG with the Read tool. When `image` is set it is the '
+            'frame the director was looking at; open it before anything else.\n'
+            'For anything about how the video looks, iterate visually: `still` the frames the '
+            'note is about and open them, change the code, `still` them again and open them, '
+            'and repeat until the problem is plainly gone when you look, not just in the code. '
+            'A change you can only see side by side has not fixed it. For motion, `sheet '
+            '--frames` around the moment.\n'
+            'Open your final frames before you reply, and say in the reply what you saw wrong '
+            'and what it looks like now.\n'
+            '\n'
+            'Change files only under promo/film.\n'
+            'Commit only changes to the video. Never commit a reply or notes file: end with a '
+            'short answer for the reviewer as your final message, and it is shown to them as '
+            'your reply.\n'
+            'Continue the supplied draft, or start from main when draft is null.\n'
+            'End your reply with Summary: <one line> — unless you are asking clarifying '
+            'questions instead of building, in which case end with the ```questions block as '
+            'described above and do not add a Summary line.\n'
+        ))
+
     def test_retry_carries_no_questions_forward(self):
         agent = FakeAgent()
         store = NoteStore(self.dir, agent)

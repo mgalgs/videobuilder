@@ -17,96 +17,7 @@ from http.server import ThreadingHTTPServer
 from videobuilder.editor import make_handler
 from videobuilder.library import Library, valid_name
 from tests.test_project import FILM
-
-
-class LibraryFixture:
-    def library_kwargs(self):
-        return {}
-
-    def hook(self, hook):
-        return hook
-
-    def setUp(self):
-        self.tmp = tempfile.TemporaryDirectory()
-        self.addCleanup(self.tmp.cleanup)
-        self.root = Path(self.tmp.name)
-        self.home = self.root / 'home'
-        self.home.mkdir()
-        self.env = {**os.environ, 'HOME': str(self.home), 'GIT_CONFIG_NOSYSTEM': '1',
-                    'GIT_AUTHOR_NAME': 'Test', 'GIT_AUTHOR_EMAIL': 'test@example.com',
-                    'GIT_COMMITTER_NAME': 'Test', 'GIT_COMMITTER_EMAIL': 'test@example.com'}
-        # The editor runs git in-process: give it this env, not the host's git config.
-        patcher = mock.patch.dict(os.environ, self.env)
-        patcher.start()
-        self.addCleanup(patcher.stop)
-        self.library = Library(self.root / 'library', unsandboxed_previews=True, envs='current',
-                               **self.library_kwargs())
-        self.git_requests = []
-        def hook(request):
-            if request.path.startswith('/git/'):
-                self.git_requests.append((request.command, request.headers.get('Transfer-Encoding')))
-        self.httpd = ThreadingHTTPServer(('127.0.0.1', 0), make_handler(self.library, self.hook(hook)))
-        self.base = f'http://127.0.0.1:{self.httpd.server_address[1]}'
-        self.thread = threading.Thread(target=self.httpd.serve_forever)
-        self.thread.start()
-        self.addCleanup(self.library.close)
-        self.addCleanup(self.thread.join)
-        self.addCleanup(self.httpd.server_close)
-        self.addCleanup(self.httpd.shutdown)
-
-    def git(self, *args, cwd=None, ok=True):
-        result = subprocess.run(['git', *args], cwd=cwd or self.root, env=self.env,
-                                capture_output=True, text=True, timeout=30)
-        if ok:
-            self.assertEqual(result.returncode, 0, result.stderr)
-        return result
-
-    def url(self, name):
-        return self.base + '/git/' + name + '.git'
-
-    def request(self, path, body=None, headers=None):
-        req = urllib.request.Request(self.base + path, method='POST' if body is not None else 'GET',
-                                     data=json.dumps(body).encode() if body is not None else None,
-                                     headers=headers or ({'Content-Type': 'application/json'} if body is not None else {}))
-        try:
-            with urllib.request.urlopen(req, timeout=20) as response:
-                data = response.read()
-                return response.status, json.loads(data) if response.headers.get_content_type() == 'application/json' else data
-        except urllib.error.HTTPError as e:
-            with e:
-                return e.code, e.read()
-
-    def request_full(self, path, body=None, headers=None, method=None):
-        req = urllib.request.Request(self.base + path, method=method or ('POST' if body is not None else 'GET'),
-                                     data=json.dumps(body).encode() if body is not None else None,
-                                     headers=headers or ({'Content-Type': 'application/json'} if body is not None else {}))
-        try:
-            with urllib.request.urlopen(req, timeout=20) as response:
-                data = response.read()
-                parsed = json.loads(data) if response.headers.get_content_type() == 'application/json' else data
-                return response.status, parsed, response.headers
-        except urllib.error.HTTPError as e:
-            with e:
-                data = e.read()
-                parsed = json.loads(data) if e.headers.get_content_type() == 'application/json' else data
-                return e.code, parsed, e.headers
-
-    def cookie(self, headers):
-        raw = headers.get('Set-Cookie', '')
-        return raw.split(';', 1)[0]
-
-    def seed(self, name='acme/launch', film=False):
-        work = self.root / 'author' / name.replace('/', '--')
-        self.git('init', '-b', 'main', str(work))
-        (work / 'README.md').write_text('first\n')
-        if film:
-            (work / 'promo').mkdir()
-            (work / 'promo' / 'film.py').write_text(FILM)
-        self.git('add', '.', cwd=work)
-        self.git('commit', '-m', 'first', cwd=work)
-        self.git('remote', 'add', 'origin', self.url(name), cwd=work)
-        self.git('push', '-u', 'origin', 'main', cwd=work)
-        return work
+from tests.fixtures import AccountMixin, Auth, KeyMixin, LibraryFixture
 
 
 class HostedGit(LibraryFixture, unittest.TestCase):
@@ -234,6 +145,39 @@ class HostedGit(LibraryFixture, unittest.TestCase):
                                       headers={'User-Agent': 'Mozilla/5.0'})[0], 404)
         self.assertFalse(self.library.path('acme/drive-by').exists())
 
+    def test_git_auto_create_requires_receive_pack_and_a_git_user_agent(self):
+        # Right suffix and user-agent, wrong service: refused, nothing created.
+        self.assertEqual(self.request('/git/acme/wrong-service.git/info/refs?service=git-upload-pack',
+                                      headers={'User-Agent': 'git/2.50.0'})[0], 404)
+        self.assertFalse(self.library.path('acme/wrong-service').exists())
+        # Right suffix and user-agent, no service at all: refused, nothing created.
+        self.assertEqual(self.request('/git/acme/no-service.git/info/refs',
+                                      headers={'User-Agent': 'git/2.50.0'})[0], 404)
+        self.assertFalse(self.library.path('acme/no-service').exists())
+        # All four conditions (GET, info/refs, service=git-receive-pack, git/ user-agent): created.
+        self.assertEqual(self.request('/git/acme/all-conditions.git/info/refs?service=git-receive-pack',
+                                      headers={'User-Agent': 'git/2.50.0'})[0], 200)
+        self.assertTrue(self.library.path('acme/all-conditions').exists())
+
+    def test_malformed_and_truncated_chunked_git_bodies_are_refused(self):
+        import io
+        from videobuilder.library import _copy_body
+
+        class _FakeHandler:
+            def __init__(self, body):
+                self.headers = {'Transfer-Encoding': 'chunked'}
+                self.rfile = io.BytesIO(body)
+
+        # Truncated: the chunk announces more bytes than the stream actually has.
+        with self.assertRaises(ConnectionError):
+            _copy_body(_FakeHandler(b'5\r\nab'), io.BytesIO())
+        # Malformed: the chunk size isn't valid hex.
+        with self.assertRaises(ValueError):
+            _copy_body(_FakeHandler(b'zz\r\nabcde\r\n0\r\n\r\n'), io.BytesIO())
+        # Malformed: no CRLF after the chunk's data.
+        with self.assertRaises(ValueError):
+            _copy_body(_FakeHandler(b'5\r\nabcdeXX0\r\n\r\n'), io.BytesIO())
+
     def test_trailing_slash_redirect_and_https_clone_url(self):
         self.seed()
         conn = http.client.HTTPConnection('127.0.0.1', self.httpd.server_address[1], timeout=20)
@@ -360,329 +304,6 @@ class HostedGit(LibraryFixture, unittest.TestCase):
         self.assertEqual(code, 400, err)
 
 
-class AccountMixin:
-    """Shared accounts/session setup for Auth, Keys and AccountPage: not itself a TestCase."""
-    ADMIN_PASSWORD = 'adminsecretpw1'
-
-    def library_kwargs(self):
-        path = self.root / 'admin-pass'
-        path.write_text(self.ADMIN_PASSWORD + '\n')
-        return {'admins': [('mgalgs', str(path))]}
-
-    def url(self, name):
-        # seed() pushes as a plain git client: give it the admin's Basic credentials.
-        return self.base.replace('http://', f'http://mgalgs:{self.ADMIN_PASSWORD}@') + '/git/' + name + '.git'
-
-    def hook(self, hook):
-        # A header-based identity (the old proxy_identity pattern): must be ignored
-        # once accounts are configured.
-        def combined(request):
-            hook(request)
-            for header in ('X-SV-User', 'X-Forwarded-User', 'Remote-User'):
-                if request.headers.get(header):
-                    return request.headers[header]
-            return None
-        return combined
-
-    def login(self, username, password):
-        code, data, headers = self.request_full('/api/login', {'username': username, 'password': password})
-        return code, data, self.cookie(headers) if code == 200 else None
-
-    def signup(self, username, password, confirm=None):
-        body = {'username': username, 'password': password, 'confirm': password if confirm is None else confirm}
-        code, data, headers = self.request_full('/api/signup', body)
-        return code, data, self.cookie(headers) if code == 200 else None
-
-    def admin_login(self):
-        return self.login('mgalgs', self.ADMIN_PASSWORD)[2]
-
-    def new_project(self, cookie, name='acme/launch', source='acme/launch'):
-        return self.request(f'/api/library/new', {'from': source, 'name': name}, headers={
-            'Content-Type': 'application/json', 'Cookie': cookie})
-
-
-class Auth(AccountMixin, LibraryFixture, unittest.TestCase):
-    """Accounts, sessions and per-project access on a library with --admin."""
-
-    def test_unauthenticated_html_get_is_the_signin_page(self):
-        code, page, _ = self.request_full('/')
-        self.assertEqual(code, 200)
-        self.assertIn(b'Sign in', page)
-        self.assertIn(b'Sign up', self.request('/signup')[1])
-
-    def test_unauthenticated_api_call_is_401(self):
-        self.seed('acme/launch', film=True)
-        self.assertEqual(self.request('/v/acme/launch/api/project')[0], 401)
-
-    def test_unauthenticated_git_is_401_with_basic_challenge(self):
-        self.seed('acme/launch')
-        code, _, headers = self.request_full('/git/acme/launch.git/info/refs?service=git-receive-pack')
-        self.assertEqual(code, 401)
-        self.assertEqual(headers['WWW-Authenticate'], 'Basic realm="videobuilder"')
-
-    def test_header_identity_is_ignored_without_a_session(self):
-        self.seed('acme/launch', film=True)
-        code, body = self.request('/v/acme/launch/api/project', headers={'X-Forwarded-User': 'sam'})
-        self.assertEqual(code, 401)
-
-    def test_signup_creates_a_working_session(self):
-        code, data, cookie = self.signup('dana', 'longenoughpassword')
-        self.assertEqual((code, data['name']), (200, 'dana'))
-        code, body = self.request('/api/project', headers={'Cookie': cookie})
-        # No project context at the library root: a 404 (not the sign-in page) proves the session worked.
-        self.assertNotEqual(code, 401)
-
-    def test_signup_refuses_duplicate_admin_and_bad_input(self):
-        self.signup('dana', 'longenoughpassword')
-        self.assertEqual(self.signup('Dana', 'anotherlongpassword')[0], 400)
-        self.assertEqual(self.signup('mgalgs', 'anotherlongpassword')[0], 400)
-        self.assertEqual(self.signup('dana2', 'short')[0], 400)
-        self.assertEqual(self.signup('d', 'longenoughpassword')[0], 400)
-
-    def test_signup_throttle(self):
-        from videobuilder.accounts import SIGNUP_LIMIT
-        for i in range(SIGNUP_LIMIT):
-            self.assertEqual(self.signup(f'user{i}', 'longenoughpassword')[0], 200)
-        self.assertEqual(self.signup('oneover', 'longenoughpassword')[0], 400)
-
-    def test_admin_bootstrap_login_works(self):
-        code, data, cookie = self.login('mgalgs', self.ADMIN_PASSWORD)
-        self.assertEqual((code, data['name']), (200, 'mgalgs'))
-        self.assertIsNotNone(cookie)
-
-    def test_login_bad_password_and_lockout(self):
-        self.signup('dana', 'longenoughpassword')
-        self.assertEqual(self.login('dana', 'wrong')[0], 401)
-        from videobuilder.accounts import LOGIN_LIMIT
-        for _ in range(LOGIN_LIMIT - 1):
-            self.login('dana', 'wrong')
-        code, data, _ = self.login('dana', 'longenoughpassword')
-        self.assertEqual(code, 401)
-        self.assertIn('too many', data['error'])
-
-    def test_logout_ends_the_session(self):
-        _, _, cookie = self.signup('dana', 'longenoughpassword')
-        self.request('/api/logout', {}, headers={'Content-Type': 'application/json', 'Cookie': cookie})
-        code, _ = self.request('/api/project', headers={'Cookie': cookie})
-        self.assertEqual(code, 401)
-
-    def test_noncollaborator_gets_404_everywhere_and_off_the_index(self):
-        self.seed('acme/launch', film=True)
-        admin = self.admin_login()
-        self.new_project(admin, 'acme/launch', 'acme/launch')
-        _, _, outsider = self.signup('outsider', 'longenoughpassword')
-        for path in ('/v/acme/launch/', '/v/acme/launch/api/project',
-                     '/v/acme/launch/director.js', '/v/acme/launch/tuning.html',
-                     '/v/acme/launch/api/music/sources'):
-            self.assertEqual(self.request(path, headers={'Cookie': outsider})[0], 404, path)
-        code, _, headers = self.request_full('/git/acme/launch.git/info/refs?service=git-receive-pack',
-                                              headers={'Authorization': 'Basic ' + base64.b64encode(
-                                                  b'outsider:longenoughpassword').decode()})
-        self.assertEqual(code, 404)
-        self.assertNotIn(b'acme/launch', self.request('/', headers={'Cookie': outsider})[1])
-
-    def test_invite_grants_and_remove_revokes_next_request(self):
-        self.seed('acme/launch', film=True)
-        admin = self.admin_login()
-        self.new_project(admin, 'acme/launch', 'acme/launch')
-        _, _, collaborator = self.signup('collaborator', 'longenoughpassword')
-        self.assertEqual(self.request('/v/acme/launch/api/project', headers={'Cookie': collaborator})[0], 404)
-        code, access = self.request('/v/acme/launch/api/access', {'action': 'invite', 'username': 'collaborator'},
-                                    headers={'Content-Type': 'application/json', 'Cookie': admin})
-        self.assertEqual((code, access['collaborators']), (200, ['collaborator']))
-        self.assertEqual(self.request('/v/acme/launch/api/project', headers={'Cookie': collaborator})[0], 200)
-        code, access = self.request('/v/acme/launch/api/access', {'action': 'remove', 'username': 'collaborator'},
-                                    headers={'Content-Type': 'application/json', 'Cookie': admin})
-        self.assertEqual((code, access['collaborators']), (200, []))
-        self.assertEqual(self.request('/v/acme/launch/api/project', headers={'Cookie': collaborator})[0], 404)
-
-    def test_invite_unknown_user_404_and_collaborator_cannot_share(self):
-        self.seed('acme/launch', film=True)
-        admin = self.admin_login()
-        self.new_project(admin, 'acme/launch', 'acme/launch')
-        self.request('/v/acme/launch/api/access', {'action': 'invite', 'username': 'nosuchuser'},
-                     headers={'Content-Type': 'application/json', 'Cookie': admin})
-        code, err = self.request('/v/acme/launch/api/access', {'action': 'invite', 'username': 'nosuchuser'},
-                                 headers={'Content-Type': 'application/json', 'Cookie': admin})
-        self.assertEqual(code, 404)
-        _, _, collaborator = self.signup('collaborator', 'longenoughpassword')
-        self.request('/v/acme/launch/api/access', {'action': 'invite', 'username': 'collaborator'},
-                     headers={'Content-Type': 'application/json', 'Cookie': admin})
-        code, err = self.request('/v/acme/launch/api/access', {'action': 'invite', 'username': 'someone'},
-                                 headers={'Content-Type': 'application/json', 'Cookie': collaborator})
-        self.assertEqual(code, 403)
-
-    def test_only_admin_creates_project_and_owns_it(self):
-        self.seed('acme/launch')
-        _, _, dana = self.signup('dana', 'longenoughpassword')
-        self.assertEqual(self.new_project(dana, 'acme/copy1', 'acme/launch')[0], 403)
-        admin = self.admin_login()
-        code, result = self.new_project(admin, 'acme/copy2', 'acme/launch')
-        self.assertEqual(code, 201)
-        code, access = self.request('/v/acme/copy2/api/access', headers={'Cookie': admin})
-        self.assertEqual((code, access['owner']), (200, 'mgalgs'))
-
-    def test_any_signed_in_user_starts_a_video_and_owns_it(self):
-        # Unlike /api/library/new (admin-only, above), /api/videos/new -- the New Video
-        # page's own route -- is open to any signed-in user, who becomes its owner.
-        _, _, dana = self.signup('dana', 'longenoughpassword')
-        code, result = self.request('/api/videos/new', {'name': 'acme/dana-video', 'start': 'blank'},
-                                    headers={'Content-Type': 'application/json', 'Cookie': dana})
-        self.assertEqual(code, 201, result)
-        code, access = self.request('/v/acme/dana-video/api/access', headers={'Cookie': dana})
-        self.assertEqual((code, access['owner']), (200, 'dana'))
-
-    def test_copy_start_refuses_a_source_the_user_cannot_access(self):
-        # Unlike /api/library/new (admin-only, so admins always have access to
-        # the source), start:"copy" on /api/videos/new is open to any signed-in
-        # user and must not let them copy a private project they have no access to.
-        self.seed('secret/private', film=True)
-        admin = self.admin_login()
-        self.new_project(admin, 'secret/private', 'secret/private')
-        _, _, dana = self.signup('dana', 'longenoughpassword')
-        self.assertEqual(self.request('/v/secret/private/api/project', headers={'Cookie': dana})[0], 404)
-        code, result = self.request('/api/videos/new', {'name': 'dana/stolen', 'start': 'copy',
-                                                         'from': 'secret/private'},
-                                    headers={'Content-Type': 'application/json', 'Cookie': dana})
-        self.assertEqual(code, 404, result)
-        self.assertFalse(self.library.path('dana/stolen').exists())
-
-    def test_anonymous_cannot_start_a_video(self):
-        code, _ = self.request('/api/videos/new', {'name': 'acme/anon-video', 'start': 'blank'})
-        self.assertEqual(code, 401)
-        self.assertFalse(self.library.path('acme/anon-video').exists())
-
-    def test_new_video_page_requires_sign_in_with_accounts_on(self):
-        code, page, _ = self.request_full('/new')
-        self.assertEqual(code, 200)
-        self.assertIn(b'Sign in', page)
-        _, _, dana = self.signup('dana', 'longenoughpassword')
-        code, page = self.request('/new', headers={'Cookie': dana})
-        self.assertEqual(code, 200)
-        self.assertIn(b'id="new-video"', page)
-
-    def test_deleting_a_user_invalidates_their_outstanding_session(self):
-        _, _, dana = self.signup('dana', 'longenoughpassword')
-        self.assertEqual(self.request('/api/project', headers={'Cookie': dana})[0], 404)
-        # The operator deletes the account by hand (with the editor stopped) and restarts;
-        # simulate that here by dropping the record from the in-memory store a restart
-        # would have reloaded without it. The old cookie must stop working.
-        del self.library.accounts._data['users']['dana']
-        self.library.accounts._save()
-        code, _ = self.request('/api/project', headers={'Cookie': dana})
-        self.assertEqual(code, 401)
-
-    def test_deleted_users_access_does_not_transfer_to_a_reused_name(self):
-        self.seed('acme/launch', film=True)
-        admin = self.admin_login()
-        self.new_project(admin, 'acme/launch', 'acme/launch')
-        _, _, bob = self.signup('bob', 'longenoughpassword')
-        self.request('/v/acme/launch/api/access', {'action': 'invite', 'username': 'bob'},
-                     headers={'Content-Type': 'application/json', 'Cookie': admin})
-        self.assertEqual(self.request('/v/acme/launch/api/project', headers={'Cookie': bob})[0], 200)
-        # The operator deletes bob's account (with the editor stopped) and restarts;
-        # simulate that, then let an unrelated person sign up under the freed name.
-        del self.library.accounts._data['users']['bob']
-        self.library.accounts._save()
-        _, _, impostor = self.signup('bob', 'anotherlongpassword')
-        self.assertEqual(self.request('/v/acme/launch/api/project', headers={'Cookie': impostor})[0], 404)
-        code, access = self.request('/v/acme/launch/api/access', headers={'Cookie': admin})
-        self.assertEqual((code, access['collaborators']), (200, []))
-        # The impostor's account still exists under the freed name: re-inviting it
-        # must grant the new account, not silently no-op against the stale entry.
-        self.request('/v/acme/launch/api/access', {'action': 'invite', 'username': 'bob'},
-                     headers={'Content-Type': 'application/json', 'Cookie': admin})
-        self.assertEqual(self.request('/v/acme/launch/api/project', headers={'Cookie': impostor})[0], 200)
-        code, access = self.request('/v/acme/launch/api/access', headers={'Cookie': admin})
-        self.assertEqual((code, access['collaborators']), (200, ['bob']))
-
-    def test_note_author_and_directed_by_are_the_username(self):
-        from videobuilder.agents import FakeBackend
-        self.seed('acme/launch', film=True)
-        admin = self.admin_login()
-        self.new_project(admin, 'acme/launch', 'acme/launch')
-        self.library.editor('acme/launch').notes.backend = FakeBackend(delay=0)
-        code, note = self.request('/v/acme/launch/api/notes', {'video': 'promo/film', 'text': 'Hi'},
-                                  headers={'Content-Type': 'application/json', 'Cookie': admin})
-        self.assertEqual((code, note['author']), (200, 'mgalgs'))
-        self.request('/v/acme/launch/api/notes', headers={'Cookie': admin})
-        log = self.git('show', '-s', '--format=%B', 'HEAD', cwd=self.library.checkouts / 'acme--launch').stdout
-        self.assertIn('Directed-by: mgalgs', log)
-
-    def test_log_route_refuses_a_non_collaborator(self):
-        self.seed('acme/launch', film=True)
-        admin = self.admin_login()
-        self.new_project(admin, 'acme/launch', 'acme/launch')
-        code, note = self.request('/v/acme/launch/api/notes', {'video': 'promo/film', 'text': 'Hi'},
-                                  headers={'Content-Type': 'application/json', 'Cookie': admin})
-        self.assertEqual(code, 200, note)
-        _, _, dana = self.signup('dana', 'longenoughpassword')
-        code, _ = self.request(f'/v/acme/launch/api/notes/{note["id"]}/log', headers={'Cookie': dana})
-        self.assertEqual(code, 404)
-
-    def test_answer_route_refuses_a_non_collaborator(self):
-        from videobuilder.agents import FakeBackend
-        self.seed('acme/launch', film=True)
-        admin = self.admin_login()
-        self.new_project(admin, 'acme/launch', 'acme/launch')
-        editor = self.library.editor('acme/launch')
-        editor.notes.backend = FakeBackend(delay=0, questions=[{'text': 'Light or dark logo?',
-                                                                 'choices': ['Light', 'Dark']}])
-        code, note = self.request('/v/acme/launch/api/notes', {'video': 'promo/film', 'text': 'Make it pop'},
-                                  headers={'Content-Type': 'application/json', 'Cookie': admin})
-        self.assertEqual(code, 200, note)
-        self.request(f'/v/acme/launch/api/notes', headers={'Cookie': admin})
-        self.assertEqual(editor.notes.get(note['id'])['state'], 'questions')
-        _, _, dana = self.signup('dana', 'longenoughpassword')
-        code, _ = self.request(f'/v/acme/launch/api/notes/{note["id"]}/answer', {'answers': ['Dark']},
-                               headers={'Content-Type': 'application/json', 'Cookie': dana})
-        self.assertEqual(code, 404)
-
-    def test_log_route_hides_cost_from_a_non_admin_collaborator(self):
-        self.seed('acme/launch', film=True)
-        admin = self.admin_login()
-        self.new_project(admin, 'acme/launch', 'acme/launch')
-        _, _, bob = self.signup('bob', 'longenoughpassword')
-        self.request('/v/acme/launch/api/access', {'action': 'invite', 'username': 'bob'},
-                     headers={'Content-Type': 'application/json', 'Cookie': admin})
-        code, note = self.request('/v/acme/launch/api/notes', {'video': 'promo/film', 'text': 'Hi'},
-                                  headers={'Content-Type': 'application/json', 'Cookie': admin})
-        self.assertEqual(code, 200, note)
-        editor = self.library.editor('acme/launch')
-        stored = editor.notes.get(note['id'])
-        handle_dir = editor.notes.session_dir('promo/film') / 'run'
-        handle_dir.mkdir()
-        (handle_dir / 'events.jsonl').write_text(json.dumps(
-            {'type': 'result', 'num_turns': 2, 'duration_ms': 1000, 'total_cost_usd': 4.5}) + '\n')
-        stored['handle'] = str(handle_dir)
-        editor.notes._save(stored)
-        code, as_bob = self.request(f'/v/acme/launch/api/notes/{note["id"]}/log', headers={'Cookie': bob})
-        self.assertEqual(code, 200)
-        code, as_admin = self.request(f'/v/acme/launch/api/notes/{note["id"]}/log', headers={'Cookie': admin})
-        self.assertEqual(code, 200)
-        bob_result = next(e for e in as_bob['entries'] if e['kind'] == 'result')
-        admin_result = next(e for e in as_admin['entries'] if e['kind'] == 'result')
-        self.assertEqual(bob_result['text'], '2 turns · 1s')
-        self.assertEqual(admin_result['text'], '2 turns · 1s · $4.50')
-
-    def test_api_name_reflects_login(self):
-        _, _, dana = self.signup('dana', 'longenoughpassword')
-        self.assertEqual(self.request('/api/name', headers={'Cookie': dana})[1], {'name': 'dana'})
-        code, err = self.request('/api/name', {'name': 'Someone'},
-                                 headers={'Content-Type': 'application/json', 'Cookie': dana})
-        self.assertEqual(code, 409)
-
-
-class KeyMixin:
-    """Shared key-request helpers for Keys and AccountPage: not itself a TestCase."""
-
-    def bearer(self, secret):
-        return {'Authorization': 'Bearer ' + secret}
-
-    def git_key_url(self, name, secret):
-        return self.base.replace('http://', f'http://x:{secret}@') + '/git/' + name + '.git'
-
-
 class Keys(AccountMixin, KeyMixin, LibraryFixture, unittest.TestCase):
     """Per-account API keys: git over HTTP, the video API, scope, mode and attribution."""
 
@@ -786,6 +407,14 @@ class Keys(AccountMixin, KeyMixin, LibraryFixture, unittest.TestCase):
         with self.assertRaises(ValueError) as caught:
             self.library.accounts.verify('mgalgs', self.ADMIN_PASSWORD)
         self.assertIn('too many attempts', str(caught.exception))
+
+    def test_git_basic_auth_with_an_unknown_key_is_401(self):
+        self.seed('acme/launch')
+        basic = {'Authorization': 'Basic ' + base64.b64encode(b'x:vbk_not-a-real-key').decode()}
+        code, _, headers = self.request_full('/git/acme/launch.git/info/refs?service=git-receive-pack',
+                                             headers=basic)
+        self.assertEqual(code, 401)
+        self.assertEqual(headers['WWW-Authenticate'], 'Basic realm="videobuilder"')
 
     def test_session_cookie_plus_bad_bearer_key_is_refused(self):
         self.seed('acme/launch', film=True)

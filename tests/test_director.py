@@ -6,7 +6,7 @@ import urllib.request
 from pathlib import Path
 from unittest.mock import patch
 
-from tests.test_editor import API
+from tests import fixtures
 from tests.test_project import TempProject
 from tests.test_project import git
 from videobuilder.agents import FakeBackend
@@ -44,9 +44,9 @@ class AskAndCommitBackend(AgentBackend):
 
 
 class Director(TempProject):
-    start = API.start
-    get = API.get
-    post = API.post
+    start = fixtures.API.start
+    get = fixtures.API.get
+    post = fixtures.API.post
     def tearDown(self):
         self.editor.renders.close()
         super().tearDown()
@@ -484,6 +484,31 @@ class Director(TempProject):
         caught.exception.close()
         self.assertEqual(caught.exception.code, 404)
 
+    def test_cross_origin_attachment_upload_refused_and_content_disposition(self):
+        data = b'\x89PNG\r\n\x1a\n' + b'abc'
+        req = urllib.request.Request(self.base + '/api/attachments?video=promo/film&name=shot.png',
+                                     data=data, method='POST',
+                                     headers={'Content-Type': 'image/png', 'Origin': 'http://elsewhere.example'})
+        with self.assertRaises(urllib.error.HTTPError) as caught:
+            urllib.request.urlopen(req)
+        with caught.exception:
+            self.assertEqual(caught.exception.code, 403)
+
+        req = urllib.request.Request(self.base + '/api/attachments?video=promo/film&name=shot.png',
+                                     data=data, method='POST', headers={'Content-Type': 'image/png'})
+        with urllib.request.urlopen(req) as response:
+            uploaded = json.loads(response.read())
+        with urllib.request.urlopen(self.base + '/api/attachments/' + uploaded['id']) as response:
+            self.assertEqual(response.headers['Content-Disposition'], 'inline; filename="shot.png"')
+
+        doc = b'%PDF-' + b'abc'
+        req = urllib.request.Request(self.base + '/api/attachments?video=promo/film&name=doc.pdf',
+                                     data=doc, method='POST', headers={'Content-Type': 'application/pdf'})
+        with urllib.request.urlopen(req) as response:
+            uploaded_doc = json.loads(response.read())
+        with urllib.request.urlopen(self.base + '/api/attachments/' + uploaded_doc['id']) as response:
+            self.assertEqual(response.headers['Content-Disposition'], 'attachment; filename="doc.pdf"')
+
     def test_attachment_limits_magic_and_expiry(self):
         attachments = self.editor.attachments
         attachments.max_file = 4
@@ -621,3 +646,18 @@ FILM = vb.Film(draw=draw, timeline=T, formats=('1x1',))
         while self.editor.renders.state('promo/film', sha, '1x1')['state'] != 'ready' and time.monotonic() < deadline:
             time.sleep(0.01)
         self.assertEqual(path.read_bytes(), b'retried')
+
+    def test_video_and_retry_refuse_a_commit_not_on_main(self):
+        git(self.root, 'checkout', '-b', 'side')
+        (self.root / 'promo' / 'extra.txt').write_text('x')
+        git(self.root, 'add', '-A')
+        git(self.root, 'commit', '-qm', 'side commit')
+        off_main = git(self.root, 'rev-parse', 'HEAD').strip()
+        git(self.root, 'checkout', 'main')
+        req = urllib.request.Request(self.base + f'/api/video?video=promo/film&commit={off_main}&format=1x1')
+        with self.assertRaises(urllib.error.HTTPError) as caught:
+            urllib.request.urlopen(req)
+        with caught.exception:
+            self.assertEqual(caught.exception.code, 400)
+        code, err = self.post('/api/video/retry', {'video': 'promo/film', 'commit': off_main, 'format': '1x1'})
+        self.assertEqual(code, 400, err)

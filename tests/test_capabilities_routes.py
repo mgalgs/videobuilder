@@ -11,8 +11,7 @@ from pathlib import Path
 
 from videobuilder import capabilities
 
-from tests.test_editor import API
-from tests.test_library import Auth
+from tests import fixtures
 
 
 def _embedded_data(page):
@@ -31,7 +30,7 @@ def _status(base, path, headers=None):
             return e.code, e.read(), e.headers
 
 
-class SingleProjectRoutes(API):
+class SingleProjectRoutes(fixtures.API):
     """No accounts in single-project mode: the page is always reachable."""
 
     def test_page_lists_every_card_with_a_placeholder_with_no_capabilities_dir(self):
@@ -55,11 +54,11 @@ class SingleProjectRoutes(API):
         self.assertEqual(code, 404)
 
 
-class SingleProjectWithClip(API):
+class SingleProjectWithClip(fixtures.API):
     """Single-project mode with a --capabilities-dir configured and one built clip."""
 
     def setUp(self):
-        super(API, self).setUp()
+        super(fixtures.API, self).setUp()
         self.cap_tmp = tempfile.TemporaryDirectory()
         self.addCleanup(self.cap_tmp.cleanup)
         Path(self.cap_tmp.name, 'eased-entrances.mp4').write_bytes(b'0123456789')
@@ -89,7 +88,7 @@ class SingleProjectWithClip(API):
         self.assertEqual(code, 404)
 
 
-class AuthCapabilities(Auth):
+class AuthCapabilities(fixtures.Auth):
     """Library mode with accounts: the capabilities page follows the same
     sign-in gate as the index, and is reachable by anyone signed in (it isn't
     gated per-project, unlike /v/<name>/)."""
