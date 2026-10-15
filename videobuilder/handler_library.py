@@ -122,7 +122,8 @@ class LibraryHandler:
                     return self._send(200, b'{}', 'application/json',
                                       {'Set-Cookie': 'vb_session=; Path=/; Max-Age=0; SameSite=Lax'})
                 if library.accounts and route == '/account' and method == 'GET':
-                    return self._send(200, account_page(user, library.accounts.list_keys(user)),
+                    limits = library.admin_limits() if library.accounts.is_admin(user) else None
+                    return self._send(200, account_page(user, library.accounts.list_keys(user), limits),
                                       'text/html; charset=utf-8')
                 if library.accounts and route == '/api/account/keys' and method == 'POST':
                     body = self._body()
@@ -183,6 +184,27 @@ class LibraryHandler:
                     if not _is_admin(self, user):
                         raise HTTPError(403, 'admin only')
                     return self._json(200, library.usage())
+                if route == '/api/admin/limits' and method == 'GET':
+                    from .video_api import _is_admin
+                    if not _is_admin(self, user):
+                        raise HTTPError(403, 'admin only')
+                    return self._json(200, library.admin_limits())
+                if route == '/api/admin/limits' and method == 'POST':
+                    from .video_api import _is_admin
+                    if not _is_admin(self, user):
+                        raise HTTPError(403, 'admin only')
+                    body = self._body()
+                    if not library.accounts:
+                        raise HTTPError(400, 'no such account')
+                    target = body.get('user')
+                    if not isinstance(target, str):
+                        raise HTTPError(400, 'user must be a string')
+                    try:
+                        limit = library.accounts.set_limit(target, body.get('kind'), body.get('notes'),
+                                                            body.get('cost_usd'))
+                    except ValueError as exc:
+                        raise HTTPError(400, str(exc)) from None
+                    return self._json(200, {'user': target.strip().lower(), 'limit': limit})
                 if (route != '/healthz' and route != '/capabilities' and not route.startswith('/capabilities/')
                         and route != '/compendium' and not route.startswith('/compendium/')
                         and route != '/api/compendium' and route != '/api/compendium/vote'):

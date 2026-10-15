@@ -441,6 +441,21 @@ _ACCOUNT_STYLE = (
     '.panel button{min-height:44px;padding:.5rem 1rem;border-radius:6px;border:1px solid #333;'
     'background:#2d6cdf;color:#fff;margin-top:.4rem}'
     '@media (max-width:480px){.key{flex-direction:column;align-items:flex-start}}'
+    '.limits-default{color:#9aa0ab;margin:0 0 .8rem}'
+    'ul#limits{list-style:none;margin:0;padding:0}'
+    '.limit-row{padding:.8rem 0;border-bottom:1px solid #2a2e36}'
+    '.limit-row-top{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:.3rem .8rem}'
+    '.limit-usage{color:#9aa0ab;font-size:.85em}'
+    '.limit-controls{display:flex;flex-wrap:wrap;align-items:center;gap:.5rem;margin-top:.5rem}'
+    '.limit-controls select,.limit-controls input{min-height:40px;padding:.3rem .5rem;font-size:16px;'
+    'border-radius:6px;border:1px solid #333;background:#20242b;color:#eee;box-sizing:border-box}'
+    '.limit-custom{display:flex;flex-wrap:wrap;gap:.5rem}'
+    '.limit-custom label{display:flex;flex-direction:column;gap:.15rem;font-size:.8em;color:#bbb}'
+    '.limit-custom input{width:6.5rem}'
+    '.limit-save{min-height:40px;padding:.4rem 1rem;border-radius:6px;border:none;background:#2d6cdf;color:#fff;'
+    'font-weight:600;cursor:pointer}'
+    '.limit-status{font-size:.85em;color:#8c8}'
+    '@media (max-width:480px){.limit-row-top{flex-direction:column;align-items:flex-start}}'
     '</style>')
 
 _ACCOUNT_SCRIPT = (
@@ -511,10 +526,75 @@ def _key_row(k):
             f'<button class="revoke" type="button" data-id="{kid}">Revoke</button></li>')
 
 
-def account_page(username, keys):
+_LIMIT_KIND_LABELS = (('default', 'Default'), ('custom', 'Custom'), ('unlimited', 'Unlimited'))
+
+
+def _cap_text(value, unit):
+    return 'No cap' if value is None else f'{value:g}{unit}'
+
+
+def _limits_defaults_html(defaults):
+    notes = _cap_text(defaults['notes'], ' notes/day')
+    cost = _cap_text(defaults['cost_usd'], ' $/day')
+    return f'<p class="limits-default">Library default: {notes} &middot; {cost}</p>'
+
+
+def _limit_row_html(account):
+    name = html.escape(account['name'])
+    limit, usage = account['limit'], account['usage']
+    options = ''.join(f'<option value="{k}"{" selected" if limit["kind"] == k else ""}>{label}</option>'
+                      for k, label in _LIMIT_KIND_LABELS)
+    notes_val = '' if limit['notes'] is None else limit['notes']
+    cost_val = '' if limit['cost_usd'] is None else limit['cost_usd']
+    custom_hidden = '' if limit['kind'] == 'custom' else ' hidden'
+    admin_badge = ' <span class="badge">admin</span>' if account['admin'] else ''
+    return ('<li class="limit-row" data-user="' + name + '">'
+           '<div class="limit-row-top"><strong>' + name + '</strong>' + admin_badge +
+           f'<span class="limit-usage">{usage["notes"]} notes today &middot; ${usage["cost_usd"]:.2f}</span></div>'
+           '<div class="limit-controls">'
+           f'<select class="limit-kind">{options}</select>'
+           f'<span class="limit-custom"{custom_hidden}>'
+           f'<label>Notes/day<input type="number" min="1" step="1" class="limit-notes" value="{notes_val}"></label>'
+           f'<label>$/day<input type="number" min="0" step="0.01" class="limit-cost" value="{cost_val}"></label>'
+           '</span>'
+           '<button class="limit-save" type="button">Save</button>'
+           '<span class="limit-status" role="status"></span>'
+           '</div></li>')
+
+
+def _limits_section_html(limits):
+    rows = ''.join(_limit_row_html(a) for a in limits['accounts'])
+    return ('<h2>Usage limits</h2>' + _limits_defaults_html(limits['defaults']) +
+           f'<ul id="limits">{rows}</ul>')
+
+
+_LIMITS_SCRIPT = (
+    '<script>'
+    "document.querySelectorAll('.limit-kind').forEach(sel=>{"
+    "sel.onchange=()=>{sel.closest('.limit-row').querySelector('.limit-custom').hidden=sel.value!=='custom'}});"
+    "document.querySelectorAll('.limit-save').forEach(btn=>{"
+    "btn.onclick=async()=>{"
+    "const row=btn.closest('.limit-row'),user=row.dataset.user;"
+    "const kind=row.querySelector('.limit-kind').value;"
+    "const status=row.querySelector('.limit-status');"
+    "const body={user,kind,notes:null,cost_usd:null};"
+    "if(kind==='custom'){"
+    "const n=row.querySelector('.limit-notes').value.trim(),c=row.querySelector('.limit-cost').value.trim();"
+    "body.notes=n?Number(n):null;body.cost_usd=c?Number(c):null}"
+    "status.textContent='';"
+    "const r=await fetch('/api/admin/limits',{method:'POST',headers:{'Content-Type':'application/json'},"
+    "body:JSON.stringify(body)});"
+    "const data=await r.json();"
+    "status.textContent=r.ok?'Saved':(data.error||'Error')}});"
+    '</script>')
+
+
+def account_page(username, keys, limits=None):
     keys_block = ('<ul id="keys">' + ''.join(_key_row(k) for k in keys) + '</ul>' if keys
                  else '<p id="keys" class="empty">No keys yet.</p>')
     user = html.escape(username)
+    limits_block = _limits_section_html(limits) if limits is not None else ''
+    limits_script = _LIMITS_SCRIPT if limits is not None else ''
     return ('<!doctype html><html><head><meta charset="utf-8"><title>Account &middot; Video library</title>'
            '<meta name="viewport" content="width=device-width, initial-scale=1">' + _ACCOUNT_STYLE +
            '</head><body>'
@@ -536,4 +616,4 @@ def account_page(username, keys):
            '<p>Git clone (replace <code>&lt;name&gt;</code> with the repository):</p><pre id="git-clone"></pre>'
            '<p>Git credential helper (e.g. <code>git credential approve</code>):</p><pre id="git-cred"></pre>'
            '<p>API header:</p><pre id="api-header"></pre>'
-           '</div>' + _ACCOUNT_SCRIPT + '</body></html>').encode()
+           '</div>' + limits_block + _ACCOUNT_SCRIPT + limits_script + '</body></html>').encode()

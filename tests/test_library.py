@@ -583,6 +583,99 @@ class AccountPage(AccountMixin, KeyMixin, LibraryFixture, unittest.TestCase):
         self.assertIn(b'Sign in', page)  # the old session no longer resolves to an account
         self.assertEqual(self.create(dana)[0], 401)
 
+    def test_usage_limits_section_shown_only_to_an_admin(self):
+        admin = self.admin_login()
+        code, page = self.request('/account', headers={'Cookie': admin})
+        self.assertEqual(code, 200)
+        self.assertIn(b'Usage limits', page)
+        _, _, bob = self.signup('bob', 'longenoughpassword')
+        code, page = self.request('/account', headers={'Cookie': bob})
+        self.assertEqual(code, 200)
+        self.assertNotIn(b'Usage limits', page)
+
+
+class AdminLimits(AccountMixin, KeyMixin, LibraryFixture, unittest.TestCase):
+    """GET/POST /api/admin/limits: library-wide defaults, per-account overrides and usage."""
+
+    def test_signed_out_is_401(self):
+        self.assertEqual(self.request('/api/admin/limits')[0], 401)
+        self.assertEqual(self.request('/api/admin/limits', {'user': 'bob', 'kind': 'unlimited'})[0], 401)
+
+    def test_non_admin_is_403(self):
+        _, _, bob = self.signup('bob', 'longenoughpassword')
+        self.assertEqual(self.request('/api/admin/limits', headers={'Cookie': bob})[0], 403)
+        self.assertEqual(self.request('/api/admin/limits', {'user': 'bob', 'kind': 'unlimited'},
+                                      headers={'Content-Type': 'application/json', 'Cookie': bob})[0], 403)
+
+    def test_admin_get_lists_defaults_and_every_account_with_usage(self):
+        from videobuilder.agents import FakeBackend
+        self.seed('acme/launch', film=True)
+        admin = self.admin_login()
+        self.new_project(admin, 'acme/launch', 'acme/launch')
+        _, _, bob = self.signup('bob', 'longenoughpassword')
+        self.request('/v/acme/launch/api/access', {'action': 'invite', 'username': 'bob'},
+                     headers={'Content-Type': 'application/json', 'Cookie': admin})
+        editor = self.library.editor('acme/launch')
+        editor.notes.backend = FakeBackend(delay=0, cost_usd=1.5)
+        editor.account_daily_note_cap = 10
+        code, note = self.request('/v/acme/launch/api/notes', {'video': 'promo/film', 'text': 'Hi'},
+                                  headers={'Content-Type': 'application/json', 'Cookie': bob})
+        self.assertEqual(code, 200, note)
+        self.request('/v/acme/launch/api/notes?video=promo/film', headers={'Cookie': bob})  # force poll
+        code, data = self.request('/api/admin/limits', headers={'Cookie': admin})
+        self.assertEqual(code, 200)
+        self.assertEqual(data['defaults'], {'notes': None, 'cost_usd': None})  # library-wide: unset here
+        by_name = {a['name']: a for a in data['accounts']}
+        self.assertEqual(by_name['mgalgs']['admin'], True)
+        self.assertEqual(by_name['bob']['admin'], False)
+        self.assertEqual(by_name['bob']['limit'], {'kind': 'default', 'notes': None, 'cost_usd': None})
+        self.assertEqual(by_name['bob']['usage'], {'notes': 1, 'cost_usd': 1.5})
+
+    def test_post_sets_a_custom_limit_and_get_reflects_it(self):
+        admin = self.admin_login()
+        _, _, bob = self.signup('bob', 'longenoughpassword')
+        code, result = self.request('/api/admin/limits', {'user': 'bob', 'kind': 'custom', 'notes': 3,
+                                                           'cost_usd': 2.5},
+                                    headers={'Content-Type': 'application/json', 'Cookie': admin})
+        self.assertEqual((code, result), (200, {'user': 'bob', 'limit': {'kind': 'custom', 'notes': 3,
+                                                                          'cost_usd': 2.5}}))
+        code, data = self.request('/api/admin/limits', headers={'Cookie': admin})
+        by_name = {a['name']: a for a in data['accounts']}
+        self.assertEqual(by_name['bob']['limit'], {'kind': 'custom', 'notes': 3, 'cost_usd': 2.5})
+
+    def test_malformed_posts_are_400_not_500(self):
+        admin = self.admin_login()
+        _, _, bob = self.signup('bob', 'longenoughpassword')
+        headers = {'Content-Type': 'application/json', 'Cookie': admin}
+        cases = (
+            {'user': 'nosuchuser', 'kind': 'unlimited'},
+            {'user': 'bob', 'kind': 'bogus'},
+            {'user': 'bob'},
+            {'user': 'bob', 'kind': 'custom', 'notes': 0},
+            {'user': 'bob', 'kind': 'custom', 'notes': -1},
+            {'user': 'bob', 'kind': 'custom', 'notes': 'five'},
+            {'user': 'bob', 'kind': 'custom', 'cost_usd': -2},
+            {'user': 'bob', 'kind': 'default', 'notes': 5},
+            {'user': 'bob', 'kind': 'unlimited', 'cost_usd': 5},
+            {'user': 123, 'kind': 'unlimited'},
+        )
+        for body in cases:
+            with self.subTest(body=body):
+                code, data = self.request('/api/admin/limits', body, headers=headers)
+                self.assertEqual(code, 400, data)
+        code, data = self.request('/api/admin/limits', [1, 2, 3], headers=headers)  # not an object
+        self.assertEqual(code, 400, data)
+
+    def test_an_api_key_cannot_reach_the_admin_limits_routes(self):
+        admin = self.admin_login()
+        _, secret = self.library.accounts.create_key('mgalgs', 'writer', None, 'write')
+        self.assertEqual(self.request('/api/admin/limits', headers=self.bearer(secret))[0], 401)
+
+    def test_with_no_accounts_system_the_route_is_open_but_empty(self):
+        self.library.accounts = None  # as if --admin was never given
+        code, data = self.request('/api/admin/limits')
+        self.assertEqual((code, data), (200, {'defaults': {'notes': None, 'cost_usd': None}, 'accounts': []}))
+
 
 if __name__ == '__main__':
     unittest.main()

@@ -54,6 +54,26 @@ class StarterCardsOnPages(unittest.TestCase):
         self.assertIn('id="order-start"', page)
 
 
+class AccountPageLimits(unittest.TestCase):
+    def test_no_limits_section_by_default(self):
+        page = pages.account_page('dana', []).decode()
+        self.assertNotIn('Usage limits', page)
+
+    def test_limits_section_shows_defaults_and_each_account(self):
+        limits = {'defaults': {'notes': 20, 'cost_usd': None},
+                  'accounts': [{'name': 'bob', 'admin': False,
+                               'limit': {'kind': 'custom', 'notes': 5, 'cost_usd': 1.5},
+                               'usage': {'notes': 2, 'cost_usd': 0.3}}]}
+        page = pages.account_page('dana', [], limits).decode()
+        self.assertIn('Usage limits', page)
+        self.assertIn('20 notes/day', page)
+        self.assertIn('No cap', page)  # cost_usd default unset
+        self.assertIn('data-user="bob"', page)
+        self.assertIn('selected', page)  # the custom option is pre-selected
+        self.assertIn('value="5"', page)
+        self.assertIn('value="1.5"', page)
+
+
 @unittest.skipUnless(shutil.which('node'), 'node is not available in this environment')
 class InlineScriptsParse(unittest.TestCase):
     def _check(self, html_bytes):
@@ -73,6 +93,13 @@ class InlineScriptsParse(unittest.TestCase):
 
     def test_account_page_scripts_parse(self):
         self._check(pages.account_page('dana', []))
+
+    def test_account_page_with_limits_scripts_parse(self):
+        limits = {'defaults': {'notes': 20, 'cost_usd': None},
+                  'accounts': [{'name': 'dana', 'admin': True,
+                               'limit': {'kind': 'custom', 'notes': 5, 'cost_usd': 1.5},
+                               'usage': {'notes': 2, 'cost_usd': 0.3}}]}
+        self._check(pages.account_page('dana', [], limits))
 
     def test_signin_and_signup_pages_scripts_parse(self):
         self._check(pages.signin_page())
