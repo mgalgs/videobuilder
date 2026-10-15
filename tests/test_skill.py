@@ -159,6 +159,8 @@ class Skill(unittest.TestCase):
         self.assertTrue(ofl.startswith('Copyright 2016 The Inter Project Authors'))
         self.assertIn('SIL OPEN FONT LICENSE Version 1.1', ofl)
         self.assertNotIn('Cantarell', ofl)
+        self.assertNotIn('glyphsLib', ofl)
+        self.assertEqual(ofl.count('Inter Project Authors'), 1)
 
     def test_benchmark_example_passes_its_checks(self):
         out = script('check.py', ROOT / 'examples' / 'benchmark.py', cwd=ROOT).stdout

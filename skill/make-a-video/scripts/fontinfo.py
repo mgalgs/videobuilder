@@ -73,16 +73,20 @@ def is_ofl(i):
     return 'open font license' in (i['licence'] + i['licence_url']).lower() or 'OFL' in i['licence_url']
 
 
-OFL_TEXT = Path(__file__).resolve().parents[3] / 'examples' / 'assets' / 'Cantarell-OFL.txt'
+# Inter's upstream licence file: a copyright line, then the bare OFL 1.1 text.
+# Not Cantarell's, which appends a notice of its own after the licence.
+OFL_TEXT = Path(__file__).resolve().parents[3] / 'examples' / 'assets' / 'Inter-OFL.txt'
 
 
 def write_ofl(path):
     """<Family>-OFL.txt beside the font: its copyright line, then the OFL 1.1
-    text (taken from the copy vendored with videobuilder's example font)."""
+    text. The font's own copyright field can be shorter than its upstream
+    notice (Adobe's omits its trademark sentence), so prefer the upstream
+    licence file whenever one ships with the font."""
     i = info(path)
     if not is_ofl(i):
         raise SystemExit(f'{path}: its licence is not the SIL OFL: {i["licence"][:120]!r}')
-    body = OFL_TEXT.read_text().split('\n', 1)[1]  # drop Cantarell's own copyright line
+    body = OFL_TEXT.read_text().split('\n', 1)[1]  # drop Inter's own copyright line
     out = Path(path).parent / f"{i['family'].replace(' ', '')}-OFL.txt"
     out.write_text((i['copyright'] or f"Copyright: the authors of {i['family']}") + '\n' + body)
     return out
