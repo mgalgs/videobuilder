@@ -1,5 +1,5 @@
-"""examples/showcase.py: every catalog capability has its own shot, in catalog
-order, tagged with its card's title, and every shot draws in both formats;
+"""examples/showcase.py: every catalog capability is named in some shot's tag,
+sections meet on transitions, and every shot draws in both formats;
 `capabilities build` renders it and the /capabilities page shows it."""
 import os
 import tempfile
@@ -20,22 +20,29 @@ class Showcase(unittest.TestCase):
         cls.film = cls.mod.FILM
         cls.timeline = cls.mod.TIMELINE
 
-    def test_every_capability_has_a_shot(self):
-        segments = {s.name for s, _ in self.timeline.walk()}
+    def test_every_capability_is_named_in_some_shots_tag(self):
+        tagged = {cap for caps in self.mod.SHOTS.values() for cap in caps}
         for e in capabilities.CATALOG:
             with self.subTest(id=e['id']):
-                self.assertIn(e['id'], self.mod.SHOTS, f"{e['id']} has no shot in examples/showcase.py")
-                self.assertIn(self.mod.SHOTS[e['id']], segments)
+                self.assertIn(e['id'], tagged, f"no shot in examples/showcase.py names {e['id']} in its tag")
 
-    def test_shots_run_in_catalog_order(self):
-        starts = [self.timeline.start(self.mod.SHOTS[i]) for i in capabilities.ids()]
-        self.assertEqual(starts, sorted(starts))
-        self.assertEqual(len(set(starts)), len(starts), 'two capabilities share a shot')
+    def test_every_shot_has_a_tag_of_known_capabilities(self):
+        ids = set(capabilities.ids())
+        for seg in self.timeline.leaves():
+            with self.subTest(segment=seg.name):
+                caps = self.mod.SHOTS[seg.name]
+                self.assertTrue(caps)
+                self.assertLessEqual(set(caps), ids)
+                self.assertEqual(len(self.mod.TAGS[seg.name]), len(caps))
 
-    def test_each_shot_is_tagged_with_its_catalog_title(self):
-        for e in capabilities.CATALOG:
-            with self.subTest(id=e['id']):
-                self.assertEqual(self.mod.TAGS[self.mod.SHOTS[e['id']]], e['title'])
+    def test_sections_meet_on_at_least_three_transitions(self):
+        overlapping = [s.name for s, _ in self.timeline.walk() if s.overlap]
+        self.assertGreaterEqual(len(overlapping), 3)
+        for seg in self.timeline.leaves():
+            a, _ = self.timeline.span(seg)
+            live = self.timeline.live(a)
+            if len(live) > 1:
+                self.assertIn(live[-1].name, self.mod.TRANSITIONS)
 
     def test_every_segment_is_drawn(self):
         for seg in self.timeline.leaves():

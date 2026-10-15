@@ -1,8 +1,10 @@
-"""Paper collage: the to-do list on paper gets retired, then the wall rips
-open onto Lumen. After examples/capabilities/paper-collage.py, laid out for
-both shapes of this film: torn scraps, a cut-paper notepad, hand-drawn ticks
-and an arrow, a rubber stamp, all held on twos; then the wall tears open
-from the middle and its shards curl back to show the phone, taped onto red.
+"""Paper collage: the to-do list on paper gets retired, in three cuts, then
+the wall rips open onto the next section. After
+examples/capabilities/paper-collage.py, laid out for both shapes of this
+film: close on a torn headline as it slaps down, close on the cut-paper
+notepad lifting off the wall on its shadow as it's ticked, then wide as an
+arrow is drawn and a rubber stamp slams; all held on twos. The rip is the
+transition out (examples/showcase.py draws the next shot under the shards).
 
 Its own palette (STYLE.md's style-card exception): wall grey-beige, scrap
 off-white, ink, and one accent red."""
@@ -17,7 +19,7 @@ import videobuilder as vb
 from videobuilder import paths, text
 
 from . import kit
-from .kit import ACCENT, TEAL, rect_points, rounded_points
+from .kit import rect_points, rounded_points
 
 WALL = '#c3b9ac'
 SCRAP = '#efebe3'
@@ -28,15 +30,19 @@ HEAD_F = kit.font(78, 900, tracking=-0.035)
 STAMP_F = kit.font(54, 900, tracking=0.02)
 LABEL_F = kit.font(34, 800, tracking=-0.01)
 
-# ---- timing (frames into the shot) ----
+# ---- timing (frames into the paper sequence: three cuts at 0, 45 and 105) ----
+CUTS = (0, 45, 105, 165)
 SCRAP_IN = (-4, 8)
-PAD_IN = (2, 12)
-TICKS = (14, 19, 24)
-ARROW = (16, 30)
-STAMP_AT = 32
-RIP = (50, 70)
-PHONE_IN = (64, 74)
-TAPE_AT = (76, 79)
+PAD_IN = (44, 56)
+TICKS = (61, 76, 91)
+ARROW = (108, 126)
+STAMP_AT = 135
+RIP = (0, 22)        # frames into the next section, which the shards uncover
+# How each cut frames the wall: zoom, and the point (in wall px) it centres on.
+FRAMING = {
+    True: ((1.6, (390, 155)), (1.3, (315, 440)), (1.0, (640, 360))),
+    False: ((1.12, (360, 213)), (1.38, (360, 595)), (1.0, (360, 640))),
+}
 
 
 def step(n):
@@ -93,7 +99,7 @@ class Layout:
         self.W, self.H = W, H
         self.centre = (W / 2, H / 2) if wide else (W / 2, H * 0.46)
         self.scrap = (110, 92, 560, 126) if wide else (90, 150, 540, 126)
-        self.pad = (150, 290, 330, 340) if wide else (150, 380, 420, 430)
+        self.pad = (150, 262, 330, 340) if wide else (150, 380, 420, 430)
         self.stamp = (930, 420) if wide else (440, 1000)
         x, y, w, h = self.scrap
         self.scrap_pts = paths.torn(rect_points(x, y, w, h), seed=5, amount=6)
@@ -119,16 +125,6 @@ class Layout:
             (paths.torn([(W * 0.7, -40), (W + 40, -40), (W + 40, H * 0.08), (W * 0.86, H * 0.04)], seed=12, amount=7),
              '#b8ad9f'),
         )
-        # The phone, pasted on red.
-        if wide:
-            self.phone = (W / 2 - 150, 70, 300, 560)
-        else:
-            self.phone = (W / 2 - 190, 220, 380, 720)
-        x, y, w, h = self.phone
-        self.phone_pts = rounded_points(x, y, w, h, 44)
-        self.tapes = ((paths.torn(rect_points(-62, -18, 124, 36), seed=81, amount=2.2, step=2), (x + 30, y + 22), -0.66),
-                      (paths.torn(rect_points(-62, -18, 124, 36), seed=82, amount=2.2, step=2),
-                       (x + w - 26, y + h - 22), -0.6))
         # The rip: radial tears from the centre, and the shards between them.
         cx, cy = self.centre
         self.angles = (-100, -38, 8, 62, 118, 176)
@@ -169,7 +165,7 @@ def stamp_image():
     return vb.Image.from_pil(PILImage.merge('RGBA', (r, g, b, a)))
 
 
-# ---- cached layers: the wall, the light, the red, and scene one as it stands before the rip ----
+# ---- cached layers: the wall, the light, and the wall as it stands before the rip ----
 @lru_cache(maxsize=16)
 def _surface(name, wide, scale):
     L = LAYOUTS[wide]
@@ -178,11 +174,8 @@ def _surface(name, wide, scale):
         draw_wall(cv, L)
     elif name == 'light':
         draw_light(cv, L)
-    elif name == 'red':
-        cv.fill(RED)
-        grain(cv, 0.4, seed=2)
     else:
-        draw_scene1(cv, L, RIP[0] - 1, marks=False)
+        draw_scene1(cv, L, CUTS[-1] - 1, marks=False)
     cv.surface.flush()
     return cv.surface
 
@@ -299,6 +292,37 @@ def draw_scene1(cv, L, n, marks=True):
     draw_stamp(cv, L, n, marks)
 
 
+def _paint_at(cv, name, wide, zoom, operator=cairo.OPERATOR_OVER):
+    """A cached wall-sized layer, drawn at the device scale it's seen at, so a close-up stays sharp."""
+    k = cv.scale * zoom
+    surf = _surface(name, wide, round(k, 3))
+    ctx = cv.ctx
+    ctx.save()
+    ctx.scale(1 / k, 1 / k)
+    ctx.set_source_surface(surf, 0, 0)
+    ctx.set_operator(operator)
+    ctx.paint()
+    ctx.restore()
+
+
+def collage(cv, s, st):
+    """One of the three cuts: the wall as it stands at frame `n` of the sequence, framed for this cut."""
+    L = LAYOUTS[st.wide]
+    n = s.group_f
+    cut = max(i for i, c in enumerate(CUTS[:3]) if n >= c)
+    zoom, (fx, fy) = FRAMING[st.wide][cut]
+    half_w, half_h = L.W / (2 * zoom), L.H / (2 * zoom)   # keep the wall filling the frame
+    fx, fy = min(max(fx, half_w), L.W - half_w), min(max(fy, half_h), L.H - half_h)
+    with cv.layer(dx=st.frame.w / 2 - fx * zoom, dy=st.frame.h / 2 - fy * zoom, scale=zoom):
+        _paint_at(cv, 'wall', st.wide, zoom)
+        # A close-up marks only its subject; the rest is cropped by the framing, on purpose.
+        draw_pad(cv, L, n, cut != 0)
+        draw_arrow(cv, L, n, cut == 2)
+        draw_scrap(cv, L, n, cut != 1)
+        draw_stamp(cv, L, n, cut == 2)
+        _paint_at(cv, 'light', st.wide, zoom, cairo.OPERATOR_SOFT_LIGHT)
+
+
 # ---- the rip ----
 def clip_half(pts, fx, fy, nx, ny, far=True):
     sign = 1 if far else -1
@@ -380,57 +404,12 @@ def draw_shards(cv, L, n):
         ctx.restore()
 
 
-# ---- scene two: Lumen, taped onto red ----
-def draw_phone(cv, L, n):
-    if step(n) < PHONE_IN[0]:
-        return
-    t = progress(n, PHONE_IN)
-    x, y, w, h = L.phone
-    cx, cy = x + w / 2, y + h / 2
-    jx, jy, jr = boil('phone', n, 1.2) if step(n) < PHONE_IN[1] + 2 else (0, 0, 0)
-    lift = 8 + (1 - t) * 26
-    ctx = cv.ctx
-    ctx.save()
-    transform(ctx, cx, cy, math.radians(4) + jr + (1 - t) * math.radians(-10), scale=1 + (1 - t) * 0.25,
-              dx=jx, dy=jy + (1 - t) * 60)
-    cv.shape_shadow(L.phone_pts, dx=lift * 0.5, dy=lift, blur=14 + lift, color=(50, 10, 0, 0.5))
-    kit.poly(ctx, L.phone_pts)
-    ctx.set_source_rgba(*vb.rgba(INK))
-    ctx.fill()
-    sx, sy, sw, sh = x + 14, y + 14, w - 28, h - 28
-    cv.rect(sx, sy, sw, sh, kit.BG, radius=32)
-    kit.logo(cv, sx + sw / 2, sy + sh * 0.3, sw * 0.24, -0.6, name=None)
-    wf = kit.font(round(sw * 0.2), 850, tracking=-0.03)
-    ww = text.measure('Lumen', wf)
-    text.draw(cv, 'Lumen', wf, sx + sw / 2 - ww / 2, sy + sh * 0.3 + sw * 0.3, kit.INK)
-    for i in range(3):
-        cv.rect(sx + 26, sy + sh * 0.62 + i * 44, sw - 52 - i * 40, 26, kit.CARD_HI, radius=13)
-        cv.rect(sx + 34, sy + sh * 0.62 + i * 44 + 7, 12, 12, TEAL if i % 2 else ACCENT, radius=6)
-    cv.mark('phone', x, y, w, h)
-    ctx.restore()
-    for i, (pts, (tx, ty), ang) in enumerate(L.tapes):
-        if step(n) < TAPE_AT[i]:
-            continue
-        ctx.save()
-        transform(ctx, 0, 0, ang, dx=tx, dy=ty)
-        cv.shape_shadow(pts, dx=1, dy=2, blur=4, color=(40, 10, 0, 0.25))
-        kit.poly(ctx, pts)
-        ctx.set_source_rgba(*vb.rgba('#ece6d6', 0.82))
-        ctx.fill()
-        ctx.restore()
-
-
-def collage(cv, s, st):
+def rip(cv, out, st):
+    """The wall tearing open from the middle, its shards curling back and
+    flying off; drawn over whatever the next shot has under it. `out.exit`
+    counts frames since the next shot started."""
     L = LAYOUTS[st.wide]
-    n = s.f
-    if n < RIP[0]:
-        draw_scene1(cv, L, n)
-    else:
-        kit.paint_surface(cv, _surface('red', st.wide, cv.scale))
-        draw_phone(cv, L, n)
-        if step(n) < RIP[1]:
-            draw_shards(cv, L, n)
-    kit.paint_surface(cv, _surface('light', st.wide, cv.scale), cairo.OPERATOR_SOFT_LIGHT)
+    draw_shards(cv, L, out.exit)
 
 
-SCENES = {'paper-collage': collage}
+SCENES = {'paper-head': collage, 'paper-pad': collage, 'paper-stamp': collage}
