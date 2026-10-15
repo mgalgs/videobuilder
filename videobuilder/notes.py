@@ -37,7 +37,8 @@ import threading
 import time
 from dataclasses import asdict, dataclass
 
-from .atomic import write_atomic, write_json_atomic
+from .atomic import write_json_atomic
+from . import prompt
 
 STATES = ('gathering', 'queued', 'working', 'replied', 'failed', 'accepted', 'dropped', 'landed', 'refused',
          'conflict', 'questions')
@@ -311,120 +312,80 @@ class NoteStore:
                 self._save(note)
             state = self.session(video)
             if not note['handle']:
-                try:
-                    if self.before_submit:
-                        self.before_submit(video, note, state)
-                    payload = {**note, **self.context(video), **state,
-                               'state_dir': str(self.session_dir(video)),
-                               'image': self._path(note['id'], 'png') if note.get('frame') is not None else None}
-                    path = self.session_dir(video) / (note['id'] + '.md')
-                    # The runner sees the frame only through /attachments, never at its editor path.
-                    image = payload['image'] if payload['image'] and os.path.isfile(payload['image']) else None
-                    if self.attachments:
-                        payload['attach_dir'] = self.attachments.stage(note, image)
-                        if image:
-                            from .attachments import FRAME_NAME
-                            image = '/attachments/' + FRAME_NAME
-                    lines = ['# Review request', '', *([note['rejection']] if note.get('rejection') else []), note['text'], '']
-                    if note.get('time') is not None:
-                        t = note['time']
-                        lines += [f'At {int(t // 60)}:{int(t % 60):02d} (frame {note["frame"]}, segment {json.dumps(note.get("segment"))})', '']
-                    if note.get('attachments'):
-                        lines += ['Attachments (read-only reference files):']
-                        for item in note['attachments']:
-                            lines.append(f'- /attachments/{item["name"]} ({item["type"]}, {item["size"]} bytes)')
-                        lines += ['Use them as reference. To include one in the video, copy it into the video assets directory and commit it there. Never write into /attachments.', '']
-                    for key in ('video', 'film', 'format', 'frame', 'segment', 'beat', 'time', 'image', 'draft'):
-                        lines.append(f"{key}: {image if key == 'image' else payload.get(key)}")
-                    asking_enabled = not (note.get('no_questions') or note.get('automatic'))
-                    if not asking_enabled:
-                        lines += ['', '## No more questions', '',
-                                  'This note already settles any open choice (either with answers, or by asking '
-                                  'you to use your best judgement). Do not ask clarifying questions about it: '
-                                  'go ahead and build it.']
-                    else:
-                        lines += ['', '## Ask first if truly unclear', '',
-                                  'Before doing any work, check whether this note leaves open a choice that '
-                                  'would substantially change the result, and that nothing already here (this '
-                                  'note, the pinned frame, any attachments, or the video itself) settles. If so, '
-                                  'stop and ask the director 1 to 3 short questions instead of building: ask '
-                                  'before changing anything, and commit nothing. Keep each question short, in '
-                                  'plain language (never a file, function or parameter name), and either give it '
-                                  '2 to 4 short choices or leave it as free text. End your reply with a line '
-                                  'containing only ```questions, then one line of JSON {"questions": '
-                                  '[{"text": "...", "choices": ["...", "..."]}]} (omit or empty "choices" for '
-                                  'free text), then a line containing only ```, and nothing after it: if you '
-                                  'ask, that block is the very end of your reply, with no Summary line. You may '
-                                  'put one short line of plain text before the block as a lead-in. If the note '
-                                  'is already clear enough, never ask: just build it as usual.']
-                    lines += ['', '## Look at your work', '',
-                              'Before each distinct step of your work, write one line in your own message '
-                              'that starts with "Step: " and says what you are about to do and why, in plain '
-                              'words for the director (for example, "Step: make the logo arrive faster in the '
-                              'intro"). One line per step, never inside a tool call.',
-                              'The director is a creator, not a programmer. In every Step line and in your '
-                              'reply, describe what changes on screen in plain language: no file names, function '
-                              'or parameter names, code, frame counts or easing names.',
-                              'You can see images: open a PNG with the Read tool. When `image` is set it is '
-                              'the frame the director was looking at; open it before anything else.',
-                              'For anything about how the video looks, iterate visually: `still` the frames the '
-                              'note is about and open them, change the code, `still` them again and open them, '
-                              'and repeat until the problem is plainly gone when you look, not just in the code. '
-                              'A change you can only see side by side has not fixed it. For motion, '
-                              '`sheet --frames` around the moment.',
-                              'Open your final frames before you reply, and say in the reply what you saw wrong '
-                              'and what it looks like now.',
-                              '', f"Change files only under {payload.get('directory', video)}.",
-                              'Commit only changes to the video. Never commit a reply or notes file: '
-                              'end with a short answer for the reviewer as your final message, '
-                              'and it is shown to them as your reply.',
-                              'Continue the supplied draft, or start from main when draft is null.',
-                              'End your reply with Summary: <one line> — unless you are asking clarifying '
-                              'questions instead of building, in which case end with the ```questions block '
-                              'as described above and do not add a Summary line.'
-                              if asking_enabled else 'End your reply with Summary: <one line>.']
-                    path.write_text('\n'.join(lines) + '\n', encoding='utf-8')
-                    payload['note_file'] = str(path)
-                    note['handle'] = self.backend.submit(payload)
-                    note['started'] = time.time()
-                    self._save(note)
+                if self._submit(video, note, state):
                     return
-                except Exception as e:
-                    note.update(state='failed', reply=f'could not submit: {e}')
             else:
-                try:
-                    status = self.backend.poll(note['handle'])
-                    if status.branch and state['draft'] and status.branch != state['draft']:
-                        status = AgentStatus('failed', 'Runner returned a different draft branch; '
-                                             'continue ' + state['draft'])
-                    parsed = parse_questions(status.reply) if status.state == 'replied' else None
-                    if parsed:
-                        # Strip the raw block from what's shown even when asking is disabled: a backend
-                        # that ignores the no-questions instruction must not leak it into the reply.
-                        lead_in, questions = parsed
-                        if note.get('no_questions') or note.get('automatic'):
-                            status = AgentStatus('replied', lead_in or None, status.branch)
-                        else:
-                            note['questions'] = questions
-                            status = AgentStatus('questions', lead_in or None, status.branch)
-                    note.update(asdict(status))
-                    note.pop('poll_error', None)
-                    if status.branch:
-                        state['draft'] = status.branch
-                        self.save_session(video, state)
-                    self._save(note)
-                    # A run that asked but committed anyway still lands those commits right away,
-                    # exactly as an ordinary reply would; the questions stay on the note for display.
-                    if self.on_reply and (status.state == 'replied'
-                                           or (status.state == 'questions' and status.branch)):
-                        self.on_reply(video, note)
-                except Exception as e:
-                    note['poll_error'] = str(e)
-                    self._save(note)
+                if self._poll(video, note, state):
                     return
             self._save(note)
             if note['state'] not in FINAL:
                 return
+
+    def _submit(self, video, note, state):
+        """Build the prompt and hand `note` to the backend. True if submitted,
+        telling `_advance` to stop for this tick (as the original `return` inside
+        this block's try did); False to fall through to `_advance`'s common
+        save-and-check-final tail (a submission failure is itself final)."""
+        try:
+            if self.before_submit:
+                self.before_submit(video, note, state)
+            payload = {**note, **self.context(video), **state,
+                       'state_dir': str(self.session_dir(video)),
+                       'image': self._path(note['id'], 'png') if note.get('frame') is not None else None}
+            path = self.session_dir(video) / (note['id'] + '.md')
+            # The runner sees the frame only through /attachments, never at its editor path.
+            image = payload['image'] if payload['image'] and os.path.isfile(payload['image']) else None
+            if self.attachments:
+                payload['attach_dir'] = self.attachments.stage(note, image)
+                if image:
+                    from .attachments import FRAME_NAME
+                    image = '/attachments/' + FRAME_NAME
+            path.write_text(prompt.render(note, payload, image), encoding='utf-8')
+            payload['note_file'] = str(path)
+            note['handle'] = self.backend.submit(payload)
+            note['started'] = time.time()
+            self._save(note)
+            return True
+        except Exception as e:
+            note.update(state='failed', reply=f'could not submit: {e}')
+            return False
+
+    def _poll(self, video, note, state):
+        """Poll the backend for `note`'s in-flight handle. True on a poll error,
+        telling `_advance` to stop for this tick (as the original `return` in
+        this block's except did); False otherwise, falling through to
+        `_advance`'s common tail."""
+        try:
+            status = self.backend.poll(note['handle'])
+            if status.branch and state['draft'] and status.branch != state['draft']:
+                status = AgentStatus('failed', 'Runner returned a different draft branch; '
+                                     'continue ' + state['draft'])
+            parsed = parse_questions(status.reply) if status.state == 'replied' else None
+            if parsed:
+                # Strip the raw block from what's shown even when asking is disabled: a backend
+                # that ignores the no-questions instruction must not leak it into the reply.
+                lead_in, questions = parsed
+                if note.get('no_questions') or note.get('automatic'):
+                    status = AgentStatus('replied', lead_in or None, status.branch)
+                else:
+                    note['questions'] = questions
+                    status = AgentStatus('questions', lead_in or None, status.branch)
+            note.update(asdict(status))
+            note.pop('poll_error', None)
+            if status.branch:
+                state['draft'] = status.branch
+                self.save_session(video, state)
+            self._save(note)
+            # A run that asked but committed anyway still lands those commits right away,
+            # exactly as an ordinary reply would; the questions stay on the note for display.
+            if self.on_reply and (status.state == 'replied'
+                                   or (status.state == 'questions' and status.branch)):
+                self.on_reply(video, note)
+            return False
+        except Exception as e:
+            note['poll_error'] = str(e)
+            self._save(note)
+            return True
 
     def resolve(self, video, branch, action, author):
         with self.video_lock(video):
