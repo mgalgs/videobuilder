@@ -112,6 +112,15 @@ class VoteStore(unittest.TestCase):
                 event = json.loads(line)
                 self.assertEqual(set(event), {'at', 'by', 'id', 'vote', 'reason', 'version'})
 
+    def test_current_is_the_last_event_per_id_across_every_voter(self):
+        with tempfile.TemporaryDirectory() as d:
+            store = compendium_feed.CompendiumVotes(str(Path(d) / 'v.jsonl'))
+            store.record('alice', COMPONENT_ID, 'up', None)
+            store.record('alice', COMPONENT_ID, 'down', 'too busy')  # up then down: down wins
+            store.record('bob', TRANSITION_ID, 'up', None)
+            self.assertEqual(store.current(), {COMPONENT_ID: {'vote': 'down', 'reason': 'too busy'},
+                                               TRANSITION_ID: {'vote': 'up', 'reason': None}})
+
     def test_votes_survive_a_restart(self):
         with tempfile.TemporaryDirectory() as d:
             path = str(Path(d) / 'compendium-votes.jsonl')

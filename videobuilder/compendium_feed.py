@@ -60,6 +60,16 @@ class CompendiumVotes:
                 current[event['id']] = event
         return {id: {'vote': e['vote'], 'reason': e.get('reason')} for id, e in current.items()}
 
+    def current(self):
+        """{id: {"vote", "reason"}}, the current vote per id: the last event per
+        id across every voter (there is one admin today, but this doesn't lean
+        on that). Used to tell the builder which compendium ids are liked or
+        disliked (see prompt._compendium_lines)."""
+        current = {}
+        for event in self._events():
+            current[event['id']] = event
+        return {id: {'vote': e['vote'], 'reason': e.get('reason')} for id, e in current.items()}
+
     def record(self, user, id, vote, reason):
         from . import __version__
         event = {'at': datetime.datetime.now(datetime.timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ'),
