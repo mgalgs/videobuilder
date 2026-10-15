@@ -282,14 +282,17 @@ class CheckoutStaging(fixtures.API):
         self.assertIsNone(self.editor.sources.stage_dir('promo/film'))
 
     def test_draft_preview_renders_a_source_with_vb_clip(self):
-        # The plain relative path a note-driven builder is told to use (prompt.py), with no
-        # framework helper: it resolves because the worker's cwd is the film's own directory
-        # (workers.Worker.__init__), the same directory sources.sync() hardlinks sources into.
+        # The path a note-driven builder is told to use (prompt.py): built from the film
+        # file's own directory, not a plain relative path -- the working directory itself
+        # differs between a preview, a render and the builder's sandbox, but `__file__`
+        # resolves the same way everywhere, into the directory sources.sync() hardlinks
+        # sources into.
         self.editor.sources.sync('promo/film')
         self.film.write_text(
+            "import os\n"
             "import videobuilder as vb\n"
             "T = vb.Timeline(vb.Grid(fps=10, bpm=120), [vb.Segment('tiny', 0, 1)], end=1)\n"
-            "_clip = vb.Clip('sources/interview.mp4')\n"
+            "_clip = vb.Clip(os.path.join(os.path.dirname(__file__), 'sources', 'interview.mp4'))\n"
             "def draw(n, cv):\n"
             "    cv.rect(0, 0, cv.width, cv.height, '#101418')\n"
             "    cv.image(_clip.frame(0), 0, 0, cv.width, cv.height)\n"

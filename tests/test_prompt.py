@@ -85,3 +85,20 @@ class SourcesSection(unittest.TestCase):
         source = {**self.SOURCE, 'duration': 3725}
         md = prompt.render(NOTE, PAYLOAD, None, sources=[source])
         self.assertIn('1:02:05', md)
+
+    def test_file_relative_path_convention_is_spelled_out(self):
+        md = prompt.render(NOTE, PAYLOAD, None, sources=[self.SOURCE])
+        self.assertIn('os.path.dirname(__file__)', md)
+
+    def test_sandbox_marker_and_instructions(self):
+        in_sandbox = {**self.SOURCE, 'in_sandbox': True}
+        md = prompt.render(NOTE, PAYLOAD, None, sources=[in_sandbox])
+        self.assertIn('in your sandbox', md)
+        self.assertNotIn('not in your sandbox', md)
+        self.assertIn('ln -s /attachments/sources promo/sources', md)
+        self.assertIn('.git/info/exclude', md)
+        self.assertIn('Never commit anything under sources/', md)
+
+    def test_not_in_sandbox_marker_with_no_in_sandbox_flag(self):
+        md = prompt.render(NOTE, PAYLOAD, None, sources=[self.SOURCE])
+        self.assertIn('not in your sandbox', md)

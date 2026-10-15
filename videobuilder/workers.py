@@ -153,11 +153,8 @@ class Worker:
         self.home = tempfile.TemporaryDirectory()
         command = sandbox_command(python, checkout, self.home.name, unsandboxed, source)
         self.log = tempfile.TemporaryFile()
-        # cwd is the film's own directory, not home: film code reads source videos
-        # (sources.py) with a plain relative path, `sources/<name>.<ext>`, resolved
-        # against the directory sources.sync() hardlinks them into -- the film's own.
         self.process = subprocess.Popen(command, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
-                                        stderr=self.log, cwd=os.path.dirname(self.film),
+                                        stderr=self.log, cwd=self.home.name,
                                         env=child_environment(self.home.name, source), bufsize=0)
         self.buffer = b''
         self.lock = threading.RLock()

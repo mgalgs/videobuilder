@@ -31,21 +31,29 @@ def _clock(seconds):
     return f'{h}:{m:02d}:{s:02d}' if h else f'{m}:{s:02d}'
 
 
-def _sources_lines(sources):
+def _sources_lines(sources, directory):
     lines = ['## Source videos', '',
              'This video has footage the director uploaded, read-only, at the paths below (relative to '
              'this video\'s own directory). A note that says something like "use 0:32 to 0:47 from '
              '<name>" means that span of that source\'s own timeline; its sound plays along with it '
-             'unless the note says otherwise. See skill/make-a-video/reference/footage.md for how to '
-             'read one with `vb.Clip`, and skill/make-a-video/reference/captions.md for a caption '
-             'file.', '']
+             'unless the note says otherwise. Always reach a source through a path built from the film '
+             'file\'s own directory, never a plain relative one -- the working directory itself differs '
+             'between a preview, a render and your own sandbox: '
+             '`os.path.join(os.path.dirname(__file__), \'sources\', \'<name>.<ext>\')`. See '
+             'skill/make-a-video/reference/footage.md for how to read one with `vb.Clip`, and '
+             'skill/make-a-video/reference/captions.md for a caption file.', '']
     for item in sources:
         bits = [f"{item['width']}x{item['height']}" if item.get('width') and item.get('height') else None,
                 'has audio' if item.get('has_audio') else 'no audio',
-                f"caption {item['caption']}" if item.get('caption') else None]
+                f"caption {item['caption']}" if item.get('caption') else None,
+                'in your sandbox' if item.get('in_sandbox') else 'not in your sandbox']
         lines.append(f"- sources/{item['name']}.{item['ext']} ({_clock(item.get('duration'))}, "
                      f"{', '.join(b for b in bits if b)})")
-    lines.append('')
+    lines += ['', f'The ones marked "in your sandbox" have a smaller copy, at the same timing, under '
+              f'/attachments/sources/. To preview with them, link them in: `ln -s /attachments/sources '
+              f'{directory}/sources` and add `/{directory}/sources` to `.git/info/exclude`. Never commit '
+              f'anything under sources/ either way -- the editor renders with the full-quality originals, '
+              f'never these copies.', '']
     return lines
 
 
@@ -58,8 +66,10 @@ def render(note, payload, image, compendium=False, votes=None, sources=None):
     point the builder at; `votes` is {id: "up"|"down"} for its components and
     recipes (only up/down -- see CompendiumVotes.current), or falsy for no
     votes at all. `sources` is this video's source-video list (Sources.list),
-    or falsy when it has none -- the section is left out entirely then, so
-    the prompt stays byte-identical to a video with no sources at all.
+    each item optionally carrying `in_sandbox` (see NoteStore._submit, which
+    stages the ready ones under this note's /attachments/sources/), or falsy
+    when it has none -- the section is left out entirely then, so the prompt
+    stays byte-identical to a video with no sources at all.
     """
     lines = ['# Review request', '', *([note['rejection']] if note.get('rejection') else []), note['text'], '']
     if note.get('time') is not None:
@@ -71,7 +81,7 @@ def render(note, payload, image, compendium=False, votes=None, sources=None):
             lines.append(f'- /attachments/{item["name"]} ({item["type"]}, {item["size"]} bytes)')
         lines += ['Use them as reference. To include one in the video, copy it into the video assets directory and commit it there. Never write into /attachments.', '']
     if sources:
-        lines += _sources_lines(sources)
+        lines += _sources_lines(sources, payload.get('directory', payload.get('video')))
     for key in ('video', 'film', 'format', 'frame', 'segment', 'beat', 'time', 'image', 'draft'):
         lines.append(f"{key}: {image if key == 'image' else payload.get(key)}")
     asking_enabled = not (note.get('no_questions') or note.get('automatic'))
