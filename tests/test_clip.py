@@ -289,5 +289,54 @@ class VariableFrameRate(unittest.TestCase):
             clip.close()
 
 
+class SeekMatchesSequentialRead(unittest.TestCase):
+    """Decision 2, applied to the access pattern every render actually uses:
+    `render.py` reads a VFR clip in fixed-size chunks, each from a forked
+    worker with a fresh decoder (so every chunk after the first starts with a
+    seek); `preview.py`, `cli.py` and poster frames ask for one frame at a
+    time, which also means a fresh seek every time. A seek that lands the
+    `fps` filter's grid on the wrong source frame (or runs off the end of the
+    file entirely) is invisible to a test that only ever reads from a fresh
+    decoder at frame 0 -- both VFR tests above do exactly that."""
+
+    def _sequential_truth(self, path):
+        clip = vb.Clip(path)
+        truth = [clip.frame(i)._pil.convert('RGB').getpixel((0, 0))[0] for i in range(clip.frames)]
+        clip.close()
+        return truth
+
+    def test_chunked_reads_from_a_fresh_decoder_match(self):
+        # Mirrors render.py's _encode_chunk: each chunk is read by its own
+        # decoder (a forked worker's first use of the clip), in order, from
+        # the chunk's first frame through its last -- the last chunk's last
+        # frame being the clip's own final index.
+        with tempfile.TemporaryDirectory() as root:
+            path = Path(root, 'vfr.mp4')
+            _vfr_clip(path, [(10, 10), (20, 10)])
+            truth = self._sequential_truth(path)
+            frames = len(truth)
+            chunk = 15
+            for a in range(0, frames, chunk):
+                z = min(a + chunk, frames)
+                clip = vb.Clip(path)
+                for i in range(a, z):
+                    shown = clip.frame(i)._pil.convert('RGB').getpixel((0, 0))[0]
+                    self.assertEqual(shown, truth[i], f'frame {i}')
+                clip.close()
+
+    def test_single_frame_reads_from_a_fresh_decoder_match(self):
+        # Mirrors preview.py/cli.py/a poster frame: one frame per decoder,
+        # including the clip's own last index.
+        with tempfile.TemporaryDirectory() as root:
+            path = Path(root, 'vfr.mp4')
+            _vfr_clip(path, [(10, 10), (20, 10)])
+            truth = self._sequential_truth(path)
+            for i in range(len(truth)):
+                clip = vb.Clip(path)
+                shown = clip.frame(i)._pil.convert('RGB').getpixel((0, 0))[0]
+                self.assertEqual(shown, truth[i], f'frame {i}')
+                clip.close()
+
+
 if __name__ == '__main__':
     unittest.main()

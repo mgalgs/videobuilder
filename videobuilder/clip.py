@@ -4,7 +4,10 @@ from fractions import Fraction
 import json
 import math
 import os
+import queue
+import re
 import subprocess
+import threading
 
 from PIL import Image as PILImage
 
@@ -79,6 +82,28 @@ def _fps_and_cfr(stream):
     return fps, round_fps(Fraction(stream['r_frame_rate'])) == fps
 
 
+_SHOWINFO_PTS_TIME = re.compile(rb'pts_time:(\S+)')
+
+
+def _drain_slots(stderr, slots):
+    """Feed `slots` the `pts_time` of each frame `showinfo` logs to `stderr`,
+    in order, ending with a `None` sentinel at EOF. Runs for the life of a VFR
+    decoder: once the caller stops reading (past the seek-sync it needs this
+    for), further puts are dropped rather than blocking, but the thread keeps
+    draining stderr so ffmpeg's own write to that pipe never backs up."""
+    for line in stderr:
+        match = _SHOWINFO_PTS_TIME.search(line)
+        if match is not None:
+            try:
+                slots.put_nowait(float(match.group(1)))
+            except queue.Full:
+                pass
+    try:
+        slots.put_nowait(None)
+    except queue.Full:
+        pass
+
+
 class Clip:
     """A video file with random frame access. Keep one decoder open per process."""
 
@@ -106,19 +131,48 @@ class Clip:
         self._decoder = None
         self._next = None
         self._pid = None
+        self._pending = None
+        self._drain_thread = None
 
     def close(self):
         process = self._decoder
         self._decoder = None
         self._next = None
+        self._pending = None
+        thread = self._drain_thread
+        self._drain_thread = None
         if process is not None:
             process.stdout.close()
             process.kill()
             process.wait()
+            # The decoder's own exit closes its write end of stderr, so this
+            # thread (if any -- VFR decoders have one, CFR ones don't) sees EOF
+            # and returns right away; joining before closing stderr on our end
+            # avoids racing its read against our close of the same file object.
+            if thread is not None:
+                thread.join()
+                process.stderr.close()
 
     def _start(self, index):
         self.close()
-        timestamp = f'{float(index / self.fps):.9f}'
+        count = self.size[0] * self.size[1] * 3
+        if self._cfr:
+            # A genuinely constant-rate source (see _fps_and_cfr) skips the `fps`
+            # filter rather than running through it as a "no-op": even a CFR
+            # source's own timestamps can be coarsely quantized (an iPhone's mov
+            # typically uses a 600-tick/second timescale), and resampling those
+            # onto a grid -- even one at the matching rate -- can still drop and
+            # duplicate frames the unfiltered decode wouldn't. An input seek's
+            # timestamps need no anchoring here either: a CFR source's own frame
+            # at i/fps is just the i'th frame, seek or no seek.
+            timestamp = f'{float(index / self.fps):.9f}'
+            self._decoder = subprocess.Popen(
+                ['ffmpeg', '-v', 'error', '-ss', timestamp, '-i', self.path,
+                 '-map', '0:v:0', '-f', 'rawvideo', '-pix_fmt', 'rgb24',
+                 '-fps_mode', 'passthrough', 'pipe:1'], stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
+            self._next = index
+            self._pid = os.getpid()
+            return
         # The `fps` filter resamples a variable-rate source onto this clip's own
         # constant grid (frame i at i/self.fps), the same way ffmpeg would if asked
         # to render the source at a fixed rate: it holds the last decoded frame
@@ -130,23 +184,70 @@ class Clip:
         # held from its pts through the following output slot. round=down maps
         # it one slot earlier instead, showing frame i one source frame ahead of
         # schedule throughout a variable-rate source.
-        # A genuinely constant-rate source (self._cfr, see _fps_and_cfr) skips the
-        # filter rather than running through it as a "no-op": even a CFR source's
-        # own timestamps can be coarsely quantized (an iPhone's mov typically uses
-        # a 600-tick/second timescale), and resampling those onto a grid -- even
-        # one at the matching rate -- can still drop and duplicate frames the
-        # unfiltered decode wouldn't.
         # Rotation needs no filter of its own either way: ffmpeg auto-rotates on
         # decode from the stream's own display-matrix side data (ahead of any
         # -vf), which is also how `self.size` already accounts for it.
-        vf = [] if self._cfr else [
-            '-vf', f'fps=fps={self.fps.numerator}/{self.fps.denominator}:round=up']
-        self._decoder = subprocess.Popen(
-            ['ffmpeg', '-v', 'error', '-ss', timestamp, '-i', self.path,
-             '-map', '0:v:0', *vf, '-f', 'rawvideo', '-pix_fmt', 'rgb24',
-             '-fps_mode', 'passthrough', 'pipe:1'], stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
-        self._next = index
-        self._pid = os.getpid()
+        #
+        # A seek complicates this: ffmpeg's default input-seek ("accurate seek")
+        # decodes from the keyframe at or before the target but only hands the
+        # filter graph frames from the target onward, and (without -copyts)
+        # rebases their timestamps near zero. The `fps` filter then grids those
+        # against a clock that starts at the seek point, not the source's own
+        # clock, so frame i after a seek can land on the wrong source frame --
+        # off by whatever the source's own frame interval was right there. This
+        # also means the filter has no frame before the seek point to hold from,
+        # so the first slot or two after a seek can go missing entirely, which
+        # is why a plain "-ss index/fps" can undercount all the way to a missing
+        # final frame. `-noaccurate_seek` hands the filter every frame from the
+        # keyframe forward and `-copyts` keeps their timestamps absolute, so the
+        # grid stays anchored to the source's own clock across the seek, exactly
+        # as it would be from a sequential decode; we then discard (via `showinfo`,
+        # parsed from stderr) whatever leading output slots land before `index`,
+        # retrying with an earlier seek if the keyframe we landed on turns out to
+        # already be past it.
+        vf = f'fps=fps={self.fps.numerator}/{self.fps.denominator}:round=up,showinfo'
+        backoff = 0
+        tries = 0
+        while True:
+            tries += 1
+            seek_index = max(0, index - backoff)
+            timestamp = f'{float(seek_index / self.fps):.9f}'
+            process = subprocess.Popen(
+                ['ffmpeg', '-v', 'info', '-noaccurate_seek', '-copyts', '-ss', timestamp,
+                 '-i', self.path, '-map', '0:v:0', '-vf', vf, '-f', 'rawvideo',
+                 '-pix_fmt', 'rgb24', '-fps_mode', 'passthrough', 'pipe:1'],
+                stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            slots = queue.Queue(maxsize=8)
+            thread = threading.Thread(target=_drain_slots, args=(process.stderr, slots), daemon=True)
+            thread.start()
+            pending = None
+            while True:
+                pts_time = slots.get()
+                if pts_time is None:
+                    break
+                data = process.stdout.read(count)
+                if len(data) < count:
+                    break
+                slot = round(pts_time * float(self.fps))
+                if slot >= index:
+                    if slot == index:
+                        pending = data
+                    break
+            if pending is not None:
+                self._decoder = process
+                self._pending = pending
+                self._drain_thread = thread
+                self._next = index + 1
+                self._pid = os.getpid()
+                return
+            process.stdout.close()
+            process.kill()
+            process.wait()
+            thread.join()
+            process.stderr.close()
+            if seek_index == 0 and tries > 1:
+                raise RuntimeError(f'could not seek to frame {index} of {self.path}')
+            backoff = backoff * 2 if backoff else 5
 
     def frame(self, index):
         if not isinstance(index, int) or not 0 <= index < self.frames:
@@ -156,6 +257,12 @@ class Clip:
             self._next = None
         if self._decoder is None or index != self._next:
             self._start(index)
+        if self._pending is not None:
+            # `_start` already set `self._next` to `index + 1` for this buffered
+            # frame; don't double-advance it here.
+            data = self._pending
+            self._pending = None
+            return Image.from_pil(PILImage.frombytes('RGB', self.size, data))
         count = self.size[0] * self.size[1] * 3
         chunks = []
         remaining = count
