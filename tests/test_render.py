@@ -9,7 +9,7 @@ import struct
 import wave
 
 from videobuilder import Audio, Film, Grid, Segment, Sound, Timeline
-from videobuilder.render import check_chunk, measure, render
+from videobuilder.render import audio_filters, check_chunk, loudness_gain, measure, normalise, render
 
 
 def sine_wav(path, freq, duration, sr=48000, amplitude=10000):
@@ -242,9 +242,11 @@ class UnchangedDefaultPath(unittest.TestCase):
             film = Film(draw=lambda n, cv: None, fps=30, frames=20, formats=['1x1'])
             out = os.path.join(tmp, 'x.mp4')
             cmd = self.captured_cmd(film, out)
-        self.assertNotIn('-filter_complex', cmd)
-        self.assertEqual(cmd.count('-i'), 1)  # only the concat listing
-        self.assertEqual(cmd[-5:], ['-c:v', 'copy', '-movflags', '+faststart', out])
+            listing = cmd[cmd.index('-i') + 1]
+        # Pinned, not just shape-checked: any change to flags or map order would
+        # show up here, not just a change that adds a filter_complex or a second -i.
+        self.assertEqual(cmd, ['ffmpeg', '-v', 'error', '-y', '-f', 'concat', '-safe', '0', '-i', listing,
+                               '-c:v', 'copy', '-movflags', '+faststart', out])
 
     def test_music_only(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -253,11 +255,16 @@ class UnchangedDefaultPath(unittest.TestCase):
             film = Film(draw=lambda n, cv: None, fps=30, frames=20, formats=['1x1'], audio=Audio(wav))
             out = os.path.join(tmp, 'x.mp4')
             cmd = self.captured_cmd(film, out)
-        self.assertEqual(cmd.count('-i'), 2)  # the concat listing, then the music file
-        fc = cmd[cmd.index('-filter_complex') + 1]
-        self.assertTrue(fc.startswith('[1:a]') and fc.endswith('[a]'))
-        self.assertNotIn('amix', fc)
-        self.assertNotIn('adelay', fc)
+            listing = cmd[cmd.index('-i') + 1]
+            filters = audio_filters(film, 0, film.frames)
+            filters = normalise(filters, loudness_gain(wav, filters, film.audio.loudness))
+        # Pinned to the full command built from the pre-existing filter-chain
+        # helpers, so a change to the music filter string, the limiter, the codec
+        # flags or the map order fails here, not just a shape check.
+        self.assertEqual(cmd, ['ffmpeg', '-v', 'error', '-y', '-f', 'concat', '-safe', '0', '-i', listing,
+                               '-i', wav, '-filter_complex', f'[1:a]{filters}[a]',
+                               '-map', '0:v', '-map', '[a]', '-c:a', 'aac', '-b:a', '320k', '-ar', '48000',
+                               '-c:v', 'copy', '-movflags', '+faststart', out])
 
 
 @unittest.skipUnless(shutil.which('ffmpeg') and shutil.which('ffprobe'), 'needs ffmpeg')
