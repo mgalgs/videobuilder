@@ -78,13 +78,13 @@ LIBRARY_STYLE = (
 STARTER_STYLE = (
     '.starters{margin-bottom:1.5rem}'
     '.starters h2{font-size:1rem;color:#a9a9b2;margin:0 0 .6rem;text-transform:none;letter-spacing:0}'
-    '.starter-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:.75rem;'
-    'margin:0;padding:0;list-style:none}'
+    '.starter-grid{display:flex;gap:.75rem;overflow-x:auto;scroll-snap-type:x proximity;'
+    '-webkit-overflow-scrolling:touch;margin:0;padding:0 0 .5rem;list-style:none}'
     '.starters.hero{padding:.5rem 0 1.75rem;border-bottom:1px solid #26262c;margin-bottom:1.25rem}'
-    '.starters.hero .starter-grid{grid-template-columns:repeat(auto-fill,minmax(170px,1fr))}'
     '.starter-card{display:flex;flex-direction:column;gap:.4rem;border:1px solid #26262c;border-radius:10px;'
     'padding:.6rem;background:#141417;color:#fff;text-align:left;cursor:pointer;min-height:44px;'
-    'font:inherit;text-decoration:none;box-sizing:border-box;width:100%}'
+    'font:inherit;text-decoration:none;box-sizing:border-box;flex:0 0 min(200px,70vw);scroll-snap-align:start}'
+    '.starters.hero .starter-card{flex-basis:min(220px,75vw)}'
     '.starter-poster{display:block;aspect-ratio:16/9;border-radius:6px;overflow:hidden;background:#0d0d10}'
     '.starter-poster img{display:block;width:100%;height:100%;object-fit:cover}'
     '.starter-title{font-weight:600;font-size:.9rem}'
@@ -316,11 +316,11 @@ def _starter_card_html(s, as_link):
 def _starter_section_html(hero, as_link):
     cls = 'starters hero' if hero else 'starters'
     cards = ''.join(_starter_card_html(s, as_link) for s in STARTERS)
-    return (f'<section class="{cls}"><h2>Start with one of these</h2>'
+    return (f'<section class="{cls}"><h2>Starter prompts</h2>'
            f'<div class="starter-grid">{cards}</div></section>')
 
 
-def index(names, accounts_enabled, user, host, scheme='http', is_admin=False):
+def index(names, accounts_enabled, user, host, scheme='http'):
     """`names`: [(name, has_main), ...], already access-filtered and in order."""
     groups = {}
     for name, _ in names:
@@ -354,7 +354,6 @@ def index(names, accounts_enabled, user, host, scheme='http', is_admin=False):
                     f'<strong>{html.escape(user)}</strong>.</p>')
     starters = _starter_section_html(hero, as_link=True)
     new_video = '<a class="btn btn-primary new-video" href="/new">+ New video</a>' if can_create else ''
-    compendium_link = '<a class="caps-link" href="/compendium">Compendium</a>' if is_admin else ''
     script = ('<script>'
               'for(const b of document.querySelectorAll(".lib-copy"))b.onclick=async()=>{'
               'try{await navigator.clipboard.writeText(b.dataset.url);const t=b.textContent;'
@@ -367,7 +366,7 @@ def index(names, accounts_enabled, user, host, scheme='http', is_admin=False):
             '<style>' + LIBRARY_STYLE + STARTER_STYLE + '</style>'
             '</head><body><div class="lib-page">' + account_bar +
             '<header class="lib-header"><h1>Video library</h1>' + new_video +
-            '<a class="caps-link" href="/capabilities">Capabilities</a>' + compendium_link + '</header>' +
+            '<a class="caps-link" href="/capabilities">Capabilities</a></header>' +
             starters + body + script +
             '</div></body></html>').encode()
 

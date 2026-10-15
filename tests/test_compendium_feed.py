@@ -302,15 +302,11 @@ class AuthCompendium(fixtures.Auth):
                                  headers={'Content-Type': 'application/json', 'Cookie': admin})
         self.assertEqual(code, 400, err)
 
-    def test_compendium_link_shown_to_admin_only(self):
+    def test_library_page_does_not_link_the_compendium(self):
         admin = self.admin_login()
         code, page = self.request('/', headers={'Cookie': admin})
         self.assertEqual(code, 200)
-        self.assertIn(b'href="/compendium"', page)
-        _, _, dana = self.signup('dana', 'longenoughpassword')
-        code, page2 = self.request('/', headers={'Cookie': dana})
-        self.assertEqual(code, 200)
-        self.assertNotIn(b'href="/compendium"', page2)
+        self.assertNotIn(b'href="/compendium"', page)
 
 
 if __name__ == '__main__':
