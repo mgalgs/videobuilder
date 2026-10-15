@@ -184,7 +184,7 @@ def draw(cv, shots):
     m = u.smoothstep((q - 0.35) / 0.65)
     cx, cy = u.lerp(dx, W / 2, u.smoothstep(q / 0.8)), u.lerp(dy, H / 2, u.smoothstep(q / 0.8))
     rad = u.lerp(r * 0.7, reach * 1.02, g)
-    pad = 6 * (1 - m)
+    pad = 40   # past the frame: resampling the rect cuts its corners, so keep them off screen
     rect = u.rounded_points(-pad, -pad, W + 2 * pad, H + 2 * pad, 40 * (1 - m), per_corner=8)
     shape = paths.morph(_circle(cx, cy, rad), rect, m, closed=True, n=N)
 
