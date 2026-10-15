@@ -7,6 +7,10 @@ by adding one entry here and one demo film at its `demo` path; nothing else
 reads capability text directly.
 
     python -m videobuilder capabilities build --out DIR [--only ID]
+
+The full build also renders the showcase reel (examples/showcase.py, every
+capability in one quick-cut film) as showcase-16x9.mp4 and showcase-9x16.mp4
+with posters, served beside the clips and shown at the top of the page.
 """
 import json
 import os
@@ -345,20 +349,53 @@ def _save_poster(cv, path, quality=82):
     im.convert('RGB').save(path, 'JPEG', quality=quality)
 
 
+# ---- the showcase reel: every capability in one film, served beside the clips ----
+
+SHOWCASE = 'examples/showcase.py'
+SHOWCASE_ID = 'showcase'
+SHOWCASE_FILES = ('showcase-16x9', 'showcase-9x16')   # one per format, each with an .mp4 and a .jpg
+
+
+def build_showcase(out_dir, jobs=None, crf=30, log=None):
+    """Render the showcase in each of its formats (its own 1280x720 and 720x1280)
+    to `<out_dir>/showcase-<format>.mp4`, with a poster from its title shot.
+    Returns {id, seconds, bytes} per format."""
+    import sys as _sys
+    import time as _time
+    from . import film as _film
+    from .render import render as _render
+    log = log or _sys.stderr
+    mod = _film.load_module(os.path.join(REPO_ROOT, SHOWCASE))
+    film = mod.FILM
+    poster_n = mod.TIMELINE.start('title') + 3 * mod.GRID.frames_per_beat   # the title, landed
+    os.makedirs(out_dir, exist_ok=True)
+    results = []
+    for fmt in film.formats:
+        name = f'showcase-{fmt.name}'
+        out_mp4 = os.path.join(out_dir, name + '.mp4')
+        t0 = _time.time()
+        _render(film, out_mp4, fmt, jobs=jobs, crf=crf, log=log)
+        _save_poster(film.frame(int(poster_n), fmt), os.path.join(out_dir, name + '.jpg'))
+        results.append({'id': name, 'seconds': _time.time() - t0, 'bytes': os.path.getsize(out_mp4)})
+    return results
+
+
 def build(out_dir, only=None, jobs=None, crf=30, log=None):
     """Render every catalog demo (or just the ids in `only`) to `<out_dir>/<id>.mp4`
     (H.264, yuv420p, faststart, audio only where the demo has it) and
     `<out_dir>/<id>.jpg` (a poster from the demo's middle frame — every demo is
     built to be mid-clip-settled by its own enter/hold/exit or periodic-phase
-    convention, see examples/capabilities/STYLE.md). Returns a list of
-    {id, seconds, bytes} for the ones built, in catalog order."""
+    convention, see examples/capabilities/STYLE.md). With no `only`, or with
+    'showcase' in it, the showcase reel is built too (`build_showcase`).
+    Returns a list of {id, seconds, bytes} for the ones built, in catalog
+    order, the showcase's last."""
     import sys as _sys
     import time as _time
     from . import film as _film
     from .render import render as _render
     log = log or _sys.stderr
     if only is not None:
-        unknown = set(only) - set(ids())
+        unknown = set(only) - set(ids()) - {SHOWCASE_ID}
         if unknown:
             raise ValueError(f'unknown capability id(s): {", ".join(sorted(unknown))}')
     entries = [e for e in CATALOG if only is None or e['id'] in only]
@@ -375,16 +412,19 @@ def build(out_dir, only=None, jobs=None, crf=30, log=None):
         poster_cv = film.frame(poster_n, fmt)
         _save_poster(poster_cv, os.path.join(out_dir, entry['id'] + '.jpg'))
         results.append({'id': entry['id'], 'seconds': _time.time() - t0, 'bytes': os.path.getsize(out_mp4)})
+    if only is None or SHOWCASE_ID in only:
+        results += build_showcase(out_dir, jobs=jobs, crf=crf, log=log)
     return results
 
 
 # ---- serving: /capabilities, /capabilities/<id>.mp4, /capabilities/<id>.jpg ----
 
 def clip_file(capabilities_dir, id, kind):
-    """The clip ('mp4') or poster ('jpg') path for a catalog id, or None for an
-    unknown id (checked by membership in the fixed catalog, never built from
-    the request string directly) or a dir that isn't configured."""
-    if capabilities_dir is None or id not in _BY_ID:
+    """The clip ('mp4') or poster ('jpg') path for a catalog id or a showcase
+    file, or None for an unknown id (checked by membership in the fixed
+    catalog and SHOWCASE_FILES, never built from the request string directly)
+    or a dir that isn't configured."""
+    if capabilities_dir is None or (id not in _BY_ID and id not in SHOWCASE_FILES):
         return None
     return os.path.join(capabilities_dir, f'{id}.{kind}')
 
@@ -393,6 +433,11 @@ def available_ids(capabilities_dir):
     if capabilities_dir is None:
         return frozenset()
     return frozenset(e['id'] for e in CATALOG if os.path.exists(clip_file(capabilities_dir, e['id'], 'mp4')))
+
+
+def showcase_available(capabilities_dir):
+    """Whether the 16:9 showcase reel, the one the page shows, is built."""
+    return capabilities_dir is not None and os.path.exists(clip_file(capabilities_dir, SHOWCASE_FILES[0], 'mp4'))
 
 
 def _esc(s):
@@ -408,6 +453,12 @@ header h1{font-size:20px;margin:0}
 header .version{color:#a9a9b2;font-size:13px}
 header .back{color:#a9a9b2;text-decoration:none;font-weight:600}
 main{max-width:1100px;margin:0 auto;padding:8px 24px 48px}
+.reel{margin:24px 0 8px}
+.reel .player{position:relative;border-radius:14px;overflow:hidden;background:#000;aspect-ratio:16/9}
+.reel video{width:100%;height:100%;display:block;cursor:pointer}
+.reel .unmute{position:absolute;bottom:12px;right:12px;min-height:36px;padding:6px 12px;border-radius:8px;
+  border:1px solid #fff5;background:#000a;color:#fff;cursor:pointer}
+.reel p{color:#a9a9b2;margin:10px 2px 0;font-size:14px}
 h2{font-size:15px;text-transform:uppercase;letter-spacing:.04em;color:#a9a9b2;margin:36px 0 14px}
 .grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px}
 @media (max-width:1000px){.grid{grid-template-columns:repeat(3,1fr)}}
@@ -513,6 +564,23 @@ _PAGE_SCRIPT = """
   document.addEventListener('keydown', function(e){
     if(e.key === 'Escape') closeModal();
   });
+  // The showcase reel: muted until asked, paused while a card's clip plays,
+  // and still (on its poster) for anyone who prefers reduced motion.
+  var reel = document.getElementById('reel');
+  if(reel){
+    var reelUnmute = document.getElementById('reel-unmute');
+    var still = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if(!still) reel.play().catch(function(){});
+    reel.addEventListener('click', function(){ if(reel.paused) reel.play(); else reel.pause(); });
+    reelUnmute.addEventListener('click', function(){
+      reel.muted = !reel.muted;
+      reelUnmute.textContent = reel.muted ? 'Unmute' : 'Mute';
+      if(!reel.muted && reel.paused) reel.play().catch(function(){});
+    });
+    document.querySelectorAll('[data-card]').forEach(function(btn){
+      btn.addEventListener('click', function(){ reel.pause(); });
+    });
+  }
 })();
 """
 
@@ -525,6 +593,17 @@ def page_html(capabilities_dir, version):
     player; the page still lists every capability's text either way."""
     built = available_ids(capabilities_dir)
     cards = []
+    if showcase_available(capabilities_dir):
+        name = SHOWCASE_FILES[0]
+        cards.append(
+            '<section class="reel" aria-label="Showcase">'
+            '<div class="player">'
+            f'<video id="reel" src="/capabilities/{name}.mp4" poster="/capabilities/{name}.jpg" loop muted playsinline '
+            'preload="metadata" aria-label="Showcase: every capability in one film"></video>'
+            '<button class="unmute" id="reel-unmute" type="button">Unmute</button>'
+            '</div>'
+            '<p>Every shot in this reel is one of the capabilities below; its corner tag is the card\'s title.</p>'
+            '</section>')
     for category in categories():
         cards.append(f'<h2>{_esc(category)}</h2><div class="grid">')
         for e in CATALOG:
