@@ -18,19 +18,17 @@
 - With ffmpeg's concat demuxer, joins drift unless the chunk length × (1/fps) is exact in µs. The renderer rejects drifting chunk sizes.
 - CSS adds letter-spacing after the last letter too; Pango doesn't.
 
-**What each phase is for.** Phase 1 turns the imported code into a project you can actually author in: a preview, layouts and tests. Phase 2 proves it on real films by porting sonlet-videos. Phase 3 builds the skill. The skill must not start before phase 2, because a skill built on an unproven API teaches the wrong API.
+**What each phase is for.** Phase 1 turns the imported code into a project you can actually author in: a preview, layouts and tests. Phase 2 proves it on a real film by porting an earlier private reel onto it. Phase 3 builds the skill. The skill must not start before phase 2, because a skill built on an unproven API teaches the wrong API.
 
 ## 1. Phases
 
 | # | Phase | State |
 |---|---|---|
-| 1 | **Project core:** package `videobuilder` (rename from `motion`), `pyproject.toml`, CLI (`render`, `still`, `preview`), **live preview** (frame server, scrubber, hot reload, timeline overlay), **layout** module (row/column/center/anchor/fit) with **per-format layout tables** (9:16 / 16:9 / 1:1 from one film), a generic example film with no Sonlet assets, unit tests (ease, timeline) and golden-still tests, README | done |
-| 2 | **Prove it:** port the sonlet-videos party-templates reel onto the package (sonlet-videos depends on videobuilder), then render all three formats from one film; add `media` (video clips, multi-track audio) only if a real film needs it | done |
+| 1 | **Project core:** package `videobuilder` (rename from `motion`), `pyproject.toml`, CLI (`render`, `still`, `preview`), **live preview** (frame server, scrubber, hot reload, timeline overlay), **layout** module (row/column/center/anchor/fit) with **per-format layout tables** (9:16 / 16:9 / 1:1 from one film), a generic example film with no third-party assets, unit tests (ease, timeline) and golden-still tests, README | done |
+| 2 | **Prove it:** port an earlier private product reel onto the package (its repo depends on videobuilder), then render all three formats from one film; add `media` (video clips, multi-track audio) only if a real film needs it | done |
 | 2b | **Close the gaps the port found:** timeline groups and overlaps (`Shot`s from `Timeline.live`), `text.box`/`draw_in`, `Canvas.view` camera with `pin`, and the small edges (short/alpha hex colours, `outline`/`line`, `wrap` forced breaks, `vb.main(__file__)` and `load_module`, one-table-per-format layouts, grid-derived audio trim, per-format sheet tiles, image cache eviction, invisible layers keep their transform). Each proven in the party-templates film with byte-identical frames | done |
 | 3 | **Skill:** the "make a video" skill in `skill/make-a-video/`: scaffolding a film, the authoring loop (preview → contact sheet → render), music and beat-locking, and the review checks (read times, cuts on grid, ffprobe). Style-neutral. Proven by two cold trials (a product launch, a benchmark chart); the second's film is `examples/benchmark.py` | done |
 | 4 | Optional modules as needed: `html` (Chromium screenshot of a static panel → image), `charts`, captions | as needed |
 
 **State (2026-10-06):** phases 1, 2, 2b and 3 are done. The skill is `skill/make-a-video/`: a procedural `SKILL.md`, a template film, reference files (API cheatsheet, storyboard, music, review checklist) and scripts (`check.py`, `tempo.py`, `make_track.py`, `fontinfo.py`, `doctor.py`), tested in `tests/test_skill.py`. Its cold trials found a real framework bug (forked render workers hung on Pango's font thread, now fixed) and drove a stall timeout and log-friendly render progress; 124 tests pass. Earlier: The party-templates reel renders 9:16, 16:9 and 1:1 from one film on videobuilder, its timeline grouped and overlapping, with 112 passing tests. Phase 3 (the skill) is next. Phase 1 was done on branch `phase1-core`. The package, CLI (`render`/`still`/`sheet`/`preview`), hot-reloading preview, `layout`, `examples/tour.py` in three formats, and 65 passing tests are in place. Audio in the preview is deferred.
 
-## 2. References
-- The comparison report and its evidence: the sonlet-videos repo, branch `video-pt-nolib`, `nolib/REPORT.md`.
