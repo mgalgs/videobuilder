@@ -10,6 +10,7 @@ up that second bare name too and reruns every inherited test a second time.
 import base64
 import json
 import os
+import shutil
 import subprocess
 import tempfile
 import threading
@@ -596,30 +597,72 @@ class Auth(AccountMixin, LibraryFixture, unittest.TestCase):
                                                  headers={'Cookie': outsider})
         self.assertEqual(code, 404)
 
+    def _raw_post(self, path, data, ctype, cookie=None):
+        headers = {'Content-Type': ctype}
+        if cookie is not None:
+            headers['Cookie'] = cookie
+        req = urllib.request.Request(self.base + path, data=data, method='POST', headers=headers)
+        try:
+            with urllib.request.urlopen(req, timeout=20) as r:
+                return r.status
+        except urllib.error.HTTPError as exc:
+            with exc:
+                return exc.code
+
     def test_source_routes_are_gated_by_project_access(self):
         # Same gate as attachments above, for the new per-video source-video routes:
-        # upload, list and delete all go through `/v/<name>` access before Sources is reached.
+        # upload, list, preview, caption and delete all go through `/v/<name>` access
+        # before Sources is reached -- a signed-out caller never gets that far (401,
+        # before the project is even resolved), an authenticated outsider is turned
+        # away the same way every other project route is (404), and the project's own
+        # admin reaches Sources itself.
         self.seed('acme/launch', film=True)
         admin = self.admin_login()
         self.new_project(admin, 'acme/launch', 'acme/launch')
         _, _, outsider = self.signup('outsider', 'longenoughpassword')
-        code = self.request('/v/acme/launch/api/sources?video=promo/film', headers={'Cookie': outsider})[0]
-        self.assertEqual(code, 404)
-        req = urllib.request.Request(
-            self.base + '/v/acme/launch/api/sources?video=promo/film&filename=clip.mp4',
-            data=b'not actually a video', method='POST',
-            headers={'Content-Type': 'video/mp4', 'Cookie': outsider})
-        try:
-            with urllib.request.urlopen(req, timeout=20) as r:
-                code = r.status
-        except urllib.error.HTTPError as exc:
-            with exc:
-                code = exc.code
-        self.assertEqual(code, 404)
+
+        for path in ('/v/acme/launch/api/sources?video=promo/film',
+                     '/v/acme/launch/api/sources/clip?video=promo/film'):
+            self.assertEqual(self.request(path)[0], 401, path)
+            self.assertEqual(self.request(path, headers={'Cookie': outsider})[0], 404, path)
+
+        for path in ('/v/acme/launch/api/sources?video=promo/film&filename=clip.mp4',
+                     '/v/acme/launch/api/sources/clip/caption?video=promo/film&filename=cc.vtt'):
+            self.assertEqual(self._raw_post(path, b'not actually a video', 'video/mp4'), 401, path)
+            self.assertEqual(self._raw_post(path, b'not actually a video', 'video/mp4', outsider), 404, path)
+
+        code = self.request('/v/acme/launch/api/sources/clip/delete', {'video': 'promo/film'})[0]
+        self.assertEqual(code, 401)
         code = self.request('/v/acme/launch/api/sources/clip/delete', {'video': 'promo/film'},
                             headers={'Content-Type': 'application/json', 'Cookie': outsider})[0]
         self.assertEqual(code, 404)
+
         code = self.request('/v/acme/launch/api/sources?video=promo/film', headers={'Cookie': admin})[0]
+        self.assertEqual(code, 200)
+
+    @unittest.skipUnless(shutil.which('ffmpeg') and shutil.which('ffprobe'), 'needs ffmpeg/ffprobe')
+    def test_editor_access_reaches_upload_preview_caption_and_delete_for_sources(self):
+        # The flip side of the gating test above: the project's own editor must
+        # actually reach Sources for every one of these routes, not just list.
+        self.seed('acme/launch', film=True)
+        admin = self.admin_login()
+        self.new_project(admin, 'acme/launch', 'acme/launch')
+        clip = self.root / 'clip.mp4'
+        subprocess.run(['ffmpeg', '-y', '-f', 'lavfi', '-i', 'color=c=blue:s=64x64:d=1:r=5',
+                        '-pix_fmt', 'yuv420p', str(clip)], check=True, capture_output=True)
+        data = clip.read_bytes()
+        self.assertEqual(self._raw_post(
+            '/v/acme/launch/api/sources?video=promo/film&filename=clip.mp4', data, 'video/mp4', admin), 201)
+        self.assertEqual(self._raw_post(
+            '/v/acme/launch/api/sources/clip/caption?video=promo/film&filename=cc.vtt',
+            b'WEBVTT\n\n00:00.000 --> 00:01.000\nHi\n', 'text/vtt', admin), 201)
+        req = urllib.request.Request(self.base + '/v/acme/launch/api/sources/clip?video=promo/film',
+                                     headers={'Cookie': admin})
+        with urllib.request.urlopen(req, timeout=20) as r:
+            self.assertEqual(r.status, 200)
+            self.assertEqual(r.read(), data)
+        code = self.request('/v/acme/launch/api/sources/clip/delete', {'video': 'promo/film'},
+                            headers={'Content-Type': 'application/json', 'Cookie': admin})[0]
         self.assertEqual(code, 200)
 
     def test_invite_grants_and_remove_revokes_next_request(self):

@@ -410,6 +410,23 @@ class Keys(AccountMixin, KeyMixin, LibraryFixture, unittest.TestCase):
                                  headers={'Content-Type': 'application/json', **self.bearer(read_secret)})
         self.assertEqual(code, 403)
 
+    def test_bearer_key_reaches_sources_list_and_preview_write_needed_for_delete(self):
+        self.seed('acme/launch', film=True)
+        admin = self.admin_login()
+        self.new_project(admin, 'acme/launch', 'acme/launch')
+        _, write_secret = self.library.accounts.create_key('mgalgs', 'writer', None, 'write')
+        _, read_secret = self.library.accounts.create_key('mgalgs', 'reader', None, 'read')
+        self.assertEqual(self.request('/v/acme/launch/api/sources?video=promo/film',
+                                      headers=self.bearer(read_secret))[0], 200)
+        self.assertEqual(self.request('/v/acme/launch/api/sources/clip?video=promo/film',
+                                      headers=self.bearer(read_secret))[0], 404)  # reaches Sources; no such clip
+        code, _ = self.request('/v/acme/launch/api/sources/clip/delete', {'video': 'promo/film'},
+                               headers={'Content-Type': 'application/json', **self.bearer(read_secret)})
+        self.assertEqual(code, 403)  # read key refused before Sources is ever reached
+        code, _ = self.request('/v/acme/launch/api/sources/clip/delete', {'video': 'promo/film'},
+                               headers={'Content-Type': 'application/json', **self.bearer(write_secret)})
+        self.assertEqual(code, 404)  # write key reaches Sources; 'clip' just doesn't exist
+
     def test_scope_refuses_another_namespace(self):
         self.seed('acme/launch', film=True)
         self.seed('gardening/promo', film=True)
