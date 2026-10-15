@@ -8,8 +8,27 @@ import unittest
 import struct
 import wave
 
-from videobuilder import Audio, Film, Grid, Segment, Timeline
+from videobuilder import Audio, Film, Grid, Segment, Sound, Timeline
 from videobuilder.render import check_chunk, measure, render
+
+
+def sine_wav(path, freq, duration, sr=48000, amplitude=10000):
+    with wave.open(path, 'wb') as w:
+        w.setnchannels(1), w.setsampwidth(2), w.setframerate(sr)
+        n = int(duration * sr)
+        w.writeframes(b''.join(struct.pack('<h', int(amplitude * math.sin(2 * math.pi * freq * i / sr)))
+                               for i in range(n)))
+
+
+def decode_pcm(path, sr=48000):
+    raw = subprocess.run(['ffmpeg', '-v', 'error', '-i', path, '-ac', '1', '-ar', str(sr), '-f', 's16le', '-'],
+                         capture_output=True, check=True).stdout
+    return struct.unpack(f'<{len(raw) // 2}h', raw)
+
+
+def peak_level(pcm, t0, t1, sr=48000):
+    seg = pcm[int(t0 * sr):int(t1 * sr)]
+    return max(abs(v) for v in seg) if seg else 0
 
 
 class ChunkDriftGuard(unittest.TestCase):
@@ -198,3 +217,137 @@ class Loudness(unittest.TestCase):
                 w.writeframes(struct.pack(f'<{len(pcm)}h', *pcm))
             loud, _ = measure(wav, 'anull')
         self.assertAlmostEqual(loud, -14, delta=1)
+
+
+@unittest.skipUnless(shutil.which('ffmpeg') and shutil.which('ffprobe'), 'needs ffmpeg')
+class UnchangedDefaultPath(unittest.TestCase):
+    """Decision 5: a film with no sounds must build exactly the same ffmpeg mux
+    command as before this round, whether or not it has music."""
+
+    def captured_cmd(self, film, out):
+        from unittest import mock
+        import videobuilder.render as render_mod
+        calls = []
+        real_run = subprocess.run
+
+        def spy(cmd, *a, **k):
+            calls.append(cmd)
+            return real_run(cmd, *a, **k)
+        with open(os.devnull, 'w') as quiet, mock.patch.object(render_mod.subprocess, 'run', side_effect=spy):
+            render(film, out, jobs=1, chunk=15, log=quiet)
+        return calls[-1]
+
+    def test_no_audio_at_all(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            film = Film(draw=lambda n, cv: None, fps=30, frames=20, formats=['1x1'])
+            out = os.path.join(tmp, 'x.mp4')
+            cmd = self.captured_cmd(film, out)
+        self.assertNotIn('-filter_complex', cmd)
+        self.assertEqual(cmd.count('-i'), 1)  # only the concat listing
+        self.assertEqual(cmd[-5:], ['-c:v', 'copy', '-movflags', '+faststart', out])
+
+    def test_music_only(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            wav = os.path.join(tmp, 'music.wav')
+            sine_wav(wav, 220, 1.0)
+            film = Film(draw=lambda n, cv: None, fps=30, frames=20, formats=['1x1'], audio=Audio(wav))
+            out = os.path.join(tmp, 'x.mp4')
+            cmd = self.captured_cmd(film, out)
+        self.assertEqual(cmd.count('-i'), 2)  # the concat listing, then the music file
+        fc = cmd[cmd.index('-filter_complex') + 1]
+        self.assertTrue(fc.startswith('[1:a]') and fc.endswith('[a]'))
+        self.assertNotIn('amix', fc)
+        self.assertNotIn('adelay', fc)
+
+
+@unittest.skipUnless(shutil.which('ffmpeg') and shutil.which('ffprobe'), 'needs ffmpeg')
+class SoundMix(unittest.TestCase):
+    fps = 30
+
+    def test_length_matches_and_sound_is_audible_only_in_its_span(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            music, voice = os.path.join(tmp, 'music.wav'), os.path.join(tmp, 'voice.wav')
+            sine_wav(music, 220, 3.0, amplitude=3000)
+            sine_wav(voice, 1000, 1.0, amplitude=16000)
+            frames = 90  # 3 s at 30 fps
+            film = Film(draw=lambda n, cv: None, fps=self.fps, frames=frames, formats=['1x1'],
+                        audio=Audio(music, loudness=None),
+                        sounds=(Sound(voice, at=30, start=0.0, frames=30, fade_in_frames=0, fade_out_frames=0),))
+            out = os.path.join(tmp, 'x.mp4')
+            with open(os.devnull, 'w') as quiet:
+                render(film, out, jobs=1, chunk=15, log=quiet)
+            duration = subprocess.run(['ffprobe', '-v', 'error', '-select_streams', 'a', '-show_entries',
+                                       'stream=duration', '-of', 'default=nw=1:nk=1', out],
+                                      capture_output=True, text=True, check=True).stdout
+            self.assertAlmostEqual(float(duration), frames / self.fps, delta=0.05)
+            pcm = decode_pcm(out)
+        self.assertLess(peak_level(pcm, 0.1, 0.9), 6000)       # before: music bed only
+        self.assertGreater(peak_level(pcm, 1.1, 1.9), 10000)   # during: the voice
+        self.assertLess(peak_level(pcm, 2.1, 2.9), 6000)       # after: music bed only
+
+    def test_sounds_with_no_music_render_with_audio(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            voice = os.path.join(tmp, 'voice.wav')
+            sine_wav(voice, 1000, 1.0)
+            film = Film(draw=lambda n, cv: None, fps=self.fps, frames=60, formats=['1x1'],
+                        sounds=(Sound(voice, at=10, start=0.0, frames=30),))
+            out = os.path.join(tmp, 'x.mp4')
+            with open(os.devnull, 'w') as quiet:
+                render(film, out, jobs=1, chunk=15, log=quiet)
+            pcm = decode_pcm(out)
+        self.assertGreater(peak_level(pcm, 10 / self.fps + 0.1, 10 / self.fps + 0.5), 1000)
+
+    def test_a_sound_with_no_audio_stream_is_a_clear_error(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            silent = os.path.join(tmp, 'novideo.mp4')
+            subprocess.run(['ffmpeg', '-v', 'error', '-y', '-f', 'lavfi', '-i', 'color=c=red:s=16x16:d=1', silent],
+                           check=True)
+            film = Film(draw=lambda n, cv: None, fps=self.fps, frames=30, formats=['1x1'],
+                        sounds=(Sound(silent, at=0, start=0.0, frames=10),))
+            out = os.path.join(tmp, 'x.mp4')
+            with open(os.devnull, 'w') as quiet, self.assertRaisesRegex(ValueError, 'no audio stream'):
+                render(film, out, jobs=1, chunk=15, log=quiet)
+
+    def test_partial_render_gets_the_same_gain_as_the_full_render(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            music, voice = os.path.join(tmp, 'music.wav'), os.path.join(tmp, 'voice.wav')
+            sine_wav(music, 220, 3.0, amplitude=3000)
+            sine_wav(voice, 1000, 1.0, amplitude=16000)
+            frames = 90
+            film = Film(draw=lambda n, cv: None, fps=self.fps, frames=frames, formats=['1x1'],
+                        audio=Audio(music), sounds=(Sound(voice, at=30, start=0.0, frames=20),))
+            full, partial = os.path.join(tmp, 'full.mp4'), os.path.join(tmp, 'partial.mp4')
+            with open(os.devnull, 'w') as quiet:
+                render(film, full, jobs=1, chunk=15, log=quiet)
+                render(film, partial, jobs=1, chunk=15, frames=(45, 75), log=quiet)
+            pcm_full, pcm_partial = decode_pcm(full), decode_pcm(partial)
+        a, b = 60 / self.fps, 70 / self.fps  # music-only window, well clear of the sound's span
+        full_level = peak_level(pcm_full, a, b)
+        partial_level = peak_level(pcm_partial, a - 45 / self.fps, b - 45 / self.fps)
+        self.assertGreater(full_level, 0)
+        self.assertAlmostEqual(full_level / partial_level, 1, delta=0.05)
+
+
+@unittest.skipUnless(shutil.which('ffmpeg') and shutil.which('ffprobe'), 'needs ffmpeg')
+class Ducking(unittest.TestCase):
+    fps = 30
+
+    def test_duck_db_quiets_the_music_during_a_sounds_span(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            music = os.path.join(tmp, 'music.wav')
+            sine_wav(music, 220, 2.0, amplitude=10000)
+            frames = 60
+            # Same file as the "sound", but all but silent: it only triggers ducking,
+            # so the mix during its span is still (ducked) music, directly comparable.
+            film = Film(draw=lambda n, cv: None, fps=self.fps, frames=frames, formats=['1x1'],
+                        audio=Audio(music, loudness=None, duck_db=-12),
+                        sounds=(Sound(music, at=20, start=0.0, frames=20, gain_db=-90),))
+            out = os.path.join(tmp, 'x.mp4')
+            with open(os.devnull, 'w') as quiet:
+                render(film, out, jobs=1, chunk=15, log=quiet)
+            pcm = decode_pcm(out)
+        before = peak_level(pcm, 0.1, 0.5)
+        during = peak_level(pcm, 0.9, 1.1)  # inside the span, clear of its fade ramps
+        after = peak_level(pcm, 1.5, 1.9)
+        self.assertAlmostEqual(before / during, 10 ** (12 / 20), delta=0.4)
+        self.assertAlmostEqual(after / during, 10 ** (12 / 20), delta=0.4)
