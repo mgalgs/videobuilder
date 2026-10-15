@@ -589,6 +589,11 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible {
   color: #cfe9e3;
 }
 
+.shortfall-line {
+  font-size: 12px;
+  color: #9a9aa4;
+}
+
 .problem {
   color: #ffd2cd;
 }

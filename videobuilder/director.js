@@ -631,6 +631,10 @@ function renderNotes() {
       const reply=node('div','bubble-row builder');
       const box=node('div','bubble');
       box.append(node('span','who','Builder'),node('span','msg-text',replyText(note.reply)));
+      for(const s of note.shortfalls||[]) {
+        const label=s.kind==='cannot'?'Couldn\'t do: ':'Rough edges: ';
+        box.append(node('span','shortfall-line',label+s.what))
+      }
       reply.append(box);
       list.append(reply)
     }
