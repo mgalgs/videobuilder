@@ -29,7 +29,7 @@ sys.path.insert(0, str(HERE))
 
 import videobuilder as vb  # noqa: E402
 from videobuilder import capabilities  # noqa: E402
-from showcase_scenes import data, kit, motion  # noqa: E402
+from showcase_scenes import data, imagery, kit, motion, paper  # noqa: E402
 from showcase_scenes.kit import ACCENT, BG, INK, MUTED  # noqa: E402
 
 GRID = kit.GRID
@@ -299,7 +299,7 @@ def placeholder(cv, s, st):
                        st.content.cy, INK, st.content.w * 0.9)
 
 
-SCENES = {'hook-1': hook, 'hook-2': hook, 'hook-3': hook, 'title': title, 'end': end, **motion.SCENES, **data.SCENES}
+SCENES = {'hook-1': hook, 'hook-2': hook, 'hook-3': hook, 'title': title, 'end': end, **motion.SCENES, **data.SCENES, **imagery.SCENES, **paper.SCENES}
 
 
 def draw(n, cv):
@@ -320,8 +320,8 @@ def tag_alpha(s):
     return 1.0
 
 
-# Pairs drawn over each other by design (a callout inside its chart).
-OVERLAP_OK = {('axes', 'callout')}
+# Pairs drawn over each other by design (a callout inside its chart, a stamp slammed across the page).
+OVERLAP_OK = {('axes', 'callout'), ('stamp', 'arrow'), ('stamp', 'notepad')}
 
 LAYOUTS = {name: {'safe': kit.SAFE[name]} for name in ('16x9', '9x16')}
 
