@@ -41,6 +41,34 @@ def render(note, payload, image):
                   'ask, that block is the very end of your reply, with no Summary line. You may '
                   'put one short line of plain text before the block as a lead-in. If the note '
                   'is already clear enough, never ask: just build it as usual.']
+    lines += ['', '## Be honest about what you can build', '']
+    if asking_enabled:
+        lines += ['Not every request is something this tool can do, or do well. Sort each one: '
+                  'if it asks for something you have no means to do at all (real-world footage '
+                  'of real people, a voice you cannot produce, and the like), never fake it or '
+                  'quietly swap in a different technique — stop and ask instead, the same way as '
+                  'above, saying plainly what is not possible and offering 2 to 4 concrete '
+                  'alternatives as the choices. If you can do it but not well, build the best '
+                  'version you can, then say so in your reply: name the weak spot, and add one '
+                  'line on what would improve it (a reference image, a different format, a '
+                  'simpler ask). If the request is merely ambiguous and the choice changes most '
+                  'of the work, ask about that instead, as above.']
+    else:
+        lines += ['Not every request is something this tool can do, or do well. If it asks for '
+                  'something you have no means to do at all (real-world footage of real people, '
+                  'a voice you cannot produce, and the like), never fake it: build the closest '
+                  'reasonable alternative instead, and say so plainly in your reply. If you can '
+                  'do it but not well, build the best version you can, then say so in your '
+                  'reply: name the weak spot, and add one line on what would improve it (a '
+                  'reference image, a different format, a simpler ask).']
+    lines += ['Never quietly substitute a different technique and call it done. Whenever a '
+              'reply falls short either way, say so in plain language, with no file names or '
+              'internal terms, and end that part of your reply with one more fenced block — '
+              'placed before the ```questions block if you are asking — a line containing only '
+              '```shortfalls, then one line of JSON {"shortfalls": [{"kind": "cannot", "what": '
+              '"..."}]} ("kind" is "cannot" or "weak", "what" a short plain-language phrase '
+              'naming the thing asked for, not the workaround; 1 to 5 of them), then a line '
+              'containing only ```. Add this block only when a reply actually falls short.']
     lines += ['', '## Look at your work', '',
               'Before each distinct step of your work, write one line in your own message '
               'that starts with "Step: " and says what you are about to do and why, in plain '
