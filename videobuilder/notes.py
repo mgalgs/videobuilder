@@ -26,6 +26,12 @@ produced; if it committed anyway, those commits land right away exactly as an
 ordinary reply's would, and the note keeps its `questions` for display. `answer()`
 turns the note into a follow-up note that continues the same draft and is marked
 not to ask again.
+
+A reply may also carry a ```shortfalls fenced JSON block (see strip_shortfalls),
+naming a request the builder could not do at all or could not do well. It is
+stripped from the reply either way -- the creator must never see raw JSON -- and,
+when valid, stored as note['shortfalls']: a plain note field, so it reaches
+clients through the existing notes API with no route changes.
 """
 import hashlib
 from pathlib import Path
@@ -49,6 +55,10 @@ CHOICES_MIN, CHOICES_MAX = 2, 4
 TEXT_MAX = 200
 CHOICE_MAX = 60
 LEAD_IN_MAX = 300
+
+SHORTFALL_KINDS = ('cannot', 'weak')
+SHORTFALLS_MAX = 5
+WHAT_MAX = 160
 
 # The crawl's own cap is about two minutes (gather.TIME_BUDGET); a `gathering` note
 # older than this had its background thread die before finishing -- an editor
@@ -96,6 +106,45 @@ def parse_questions(reply):
         parsed.append({'text': text.strip(), 'choices': [c.strip() for c in choices]})
     lead_in = reply[:m.start()].strip()[:LEAD_IN_MAX]
     return lead_in, parsed
+
+
+def strip_shortfalls(reply):
+    """A builder reply's last ```shortfalls fenced block: the reply with that
+    block removed, plus the parsed list of {kind, what} it held, or None for a
+    missing or malformed block. Validated strictly, in the same style as
+    parse_questions: kind is 'cannot' or 'weak', what is a short plain-language
+    phrase (1-160 characters), 1-5 entries. The block is stripped either way --
+    malformed JSON must never reach the creator -- but a malformed or absent
+    block records nothing."""
+    if not reply:
+        return reply, None
+    matches = list(re.finditer(r'```shortfalls[ \t]*\r?\n(.*?)\r?\n```[ \t]*(?:\r?\n|\Z)', reply, re.S))
+    if not matches:
+        return reply, None
+    m = matches[-1]
+    # Collapse the blank-line seam the excision leaves behind, so a stripped block
+    # never shows up to the creator as a stray run of empty lines.
+    cleaned = re.sub(r'\n{3,}', '\n\n', reply[:m.start()] + reply[m.end():]).strip('\n')
+    try:
+        data = json.loads(m.group(1))
+    except ValueError:
+        return cleaned, None
+    if not isinstance(data, dict) or not isinstance(data.get('shortfalls'), list):
+        return cleaned, None
+    items = data['shortfalls']
+    if not 1 <= len(items) <= SHORTFALLS_MAX:
+        return cleaned, None
+    parsed = []
+    for item in items:
+        if not isinstance(item, dict):
+            return cleaned, None
+        kind, what = item.get('kind'), item.get('what')
+        if kind not in SHORTFALL_KINDS:
+            return cleaned, None
+        if not isinstance(what, str) or not what.strip() or len(what) > WHAT_MAX:
+            return cleaned, None
+        parsed.append({'kind': kind, 'what': what.strip()})
+    return cleaned, parsed
 
 
 @dataclass
@@ -360,6 +409,12 @@ class NoteStore:
             if status.branch and state['draft'] and status.branch != state['draft']:
                 status = AgentStatus('failed', 'Runner returned a different draft branch; '
                                      'continue ' + state['draft'])
+            shortfalls = None
+            if status.state == 'replied':
+                # Strip before parse_questions: the shortfalls block sits before the
+                # questions block, so it would otherwise end up inside the lead-in text.
+                reply, shortfalls = strip_shortfalls(status.reply)
+                status = AgentStatus(status.state, reply, status.branch)
             parsed = parse_questions(status.reply) if status.state == 'replied' else None
             if parsed:
                 # Strip the raw block from what's shown even when asking is disabled: a backend
@@ -370,6 +425,8 @@ class NoteStore:
                 else:
                     note['questions'] = questions
                     status = AgentStatus('questions', lead_in or None, status.branch)
+            if shortfalls:
+                note['shortfalls'] = shortfalls
             note.update(asdict(status))
             note.pop('poll_error', None)
             if status.branch:
