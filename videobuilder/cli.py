@@ -211,12 +211,16 @@ def cmd_editor(a):
                           state_dir=a.state_dir, open_browser=a.open, agent=agent,
                           allowed_hosts=a.allow_host, unsandboxed_previews=a.unsandboxed_previews, envs=a.envs,
                           admins=list(zip(a.admin, a.admin_password_file)), capabilities_dir=a.capabilities_dir,
-                          compendium_dir=a.compendium_dir, music_sources=a.music_sources)
+                          compendium_dir=a.compendium_dir, music_sources=a.music_sources,
+                          compendium_for_builder=a.compendium_for_builder)
         else:
             if not a.project:
                 raise ValueError('provide PROJECT or --library DIR')
             if a.admin or a.admin_password_file:
                 raise ValueError('--admin is only for --library mode')
+            if a.compendium_for_builder is not None:
+                raise ValueError('--compendium-for-builder is only for --library mode; set '
+                                 '[editor] compendium_for_builder in the project config instead')
             serve(a.project, host=a.host, port=a.port, state_dir=a.state_dir, open_browser=a.open,
                   agent=agent, allowed_hosts=a.allow_host, unsandboxed_previews=a.unsandboxed_previews,
                   envs=a.envs, sync_remote=a.sync_remote, capabilities_dir=a.capabilities_dir,
@@ -382,6 +386,11 @@ def main(argv=None):
                    '(from `videobuilder compendium build`), served at /compendium (admin only)')
     d.add_argument('--music-sources', help='a TOML file of pluggable music sources for the director '
                    "(see README); with none given, the director shows no music picker")
+    d.add_argument('--compendium-for-builder', action=argparse.BooleanOptionalAction, default=None,
+                   help='--library mode only: tell the builder about the compendium (default: on). A '
+                        'library-hosted repo cannot set this itself, since [editor] compendium_for_builder '
+                        "isn't among the config keys it's trusted for; use this flag instead, e.g. for a "
+                        'bake-off arm that should build from scratch')
     d.set_defaults(fn=cmd_editor)
 
     cap = sub.add_parser('capabilities', help="the capabilities catalog's clips and builder sheet")

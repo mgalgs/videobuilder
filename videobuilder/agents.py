@@ -159,14 +159,21 @@ class ForkSandboxBackend(AgentBackend):
         (no context_root configured) or the pinned version predates the
         compendium -- either way, "can't tell" rather than an error (see
         NoteStore._submit, which calls this before the note's prompt is
-        written, well before this backend actually stages anything for real)."""
+        written). This calls _stage itself, the same real clone submit() does,
+        so it costs nothing extra: submit() would stage the same pin anyway,
+        and _stage is idempotent. One edge case: a transient clone failure
+        here is swallowed into None, so the prompt omits the section even
+        though submit()'s own _stage call can retry and succeed -- the prompt
+        then describes a source that doesn't mention the compendium it was
+        actually rendered with. Rare, and "can't tell" is an acceptable
+        answer for it."""
         if not self.context_root:
             return None
         try:
             target = self._stage(note)
         except ValueError:
             return None
-        compendium = target / 'videobuilder' / 'compendium'
+        compendium = target / 'videobuilder' / 'videobuilder' / 'compendium'
         return compendium if compendium.is_dir() else None
 
     def submit(self, note):

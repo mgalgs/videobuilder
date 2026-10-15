@@ -134,8 +134,8 @@ class CompendiumSource(unittest.TestCase):
         call(src, 'config', 'user.name', 'Test')
         call(src, 'config', 'user.email', 'test@example.com')
         if with_compendium:
-            (src / 'compendium').mkdir()
-            (src / 'compendium' / '__init__.py').write_text('')
+            (src / 'videobuilder' / 'compendium').mkdir(parents=True)
+            (src / 'videobuilder' / 'compendium' / '__init__.py').write_text('')
         (src / 'README').write_text('seed')
         call(src, 'add', '.')
         call(src, 'commit', '-qm', 'source')
@@ -157,7 +157,7 @@ class CompendiumSource(unittest.TestCase):
             with patch('videobuilder.agents.CONTEXT_STAGING_ROOT', base / 'forks'):
                 backend = ForkSandboxBackend(context_root=base / 'forks' / 'context')
                 result = backend.compendium_source(payload)
-            self.assertEqual(result, base / 'forks' / 'context' / 'v1.0.0' / 'videobuilder' / 'compendium')
+            self.assertEqual(result, base / 'forks' / 'context' / 'v1.0.0' / 'videobuilder' / 'videobuilder' / 'compendium')
             self.assertTrue(result.is_dir())
 
     def test_none_when_the_staged_pin_predates_the_compendium(self):

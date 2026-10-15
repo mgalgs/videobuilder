@@ -472,7 +472,9 @@ video whose pinned videobuilder predates the compendium, or whose backend
 can't tell which source it will render with. Set to false for the half of a
 bake-off that should build from scratch. It isn't one of the `[editor]` keys
 a library-hosted repo's own `videobuilder.toml` can set (see below), so a
-project can't pick its own experiment arm.
+project can't pick its own experiment arm; in `--library` mode, set
+`--compendium-for-builder`/`--no-compendium-for-builder` on the command line
+instead.
 
 Each builder run can report what it cost (`cost_usd`) and the tokens it used,
 stored on the note once the run is final; a backend that never reports them

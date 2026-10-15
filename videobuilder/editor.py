@@ -212,7 +212,9 @@ them -- so it can glue one in instead of drawing from scratch; the section is
 left out anyway for a video whose pinned videobuilder predates the compendium,
 or whose backend can't tell. Set to false for the half of a bake-off that
 should build from scratch. Not among REPO_CONFIG_KEYS, so a library-hosted
-repo cannot set its own experiment arm.
+repo cannot set its own experiment arm; the library operator sets it instead,
+via `Library(compendium_for_builder=...)` / `serve_library(...)` /
+`--compendium-for-builder` on the command line.
 """
 import calendar
 import datetime
@@ -828,13 +830,14 @@ def serve(root, host='127.0.0.1', port=8100, state_dir=None, open_browser=False,
 def serve_library(root, host='127.0.0.1', port=8100, checkouts=None, state_dir=None, open_browser=False,
                   hook=request_hook, agent=None, allowed_hosts=(), unsandboxed_previews=False, envs=None,
                   admins=(), capabilities_dir=None, compendium_dir=None, music_sources=None,
-                  account_daily_note_cap=None, account_daily_cost_cap_usd=None):
+                  account_daily_note_cap=None, account_daily_cost_cap_usd=None, compendium_for_builder=None):
     from .library import Library
     library = Library(root, checkouts=checkouts, state_dir=state_dir, host=host, agent=agent,
                       allowed_hosts=allowed_hosts, unsandboxed_previews=unsandboxed_previews, envs=envs,
                       admins=admins, capabilities_dir=capabilities_dir, compendium_dir=compendium_dir,
                       music_sources=music_sources, account_daily_note_cap=account_daily_note_cap,
-                      account_daily_cost_cap_usd=account_daily_cost_cap_usd)
+                      account_daily_cost_cap_usd=account_daily_cost_cap_usd,
+                      compendium_for_builder=compendium_for_builder)
     httpd = ThreadingHTTPServer((host, port), make_handler(library, hook))
     httpd.daemon_threads = True
     stop = threading.Event()
