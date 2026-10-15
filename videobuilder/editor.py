@@ -140,7 +140,10 @@ free text, even once landed or answered; its `reply`, if any, is a short
 lead-in, never the raw block.
 The identity is the session username when accounts are on, else the
 request_hook value, then vb_name cookie, then anonymous. Errors otherwise
-return {error}. POSTs require same-origin; all but attachment upload use JSON.
+return {error} -- except an unhandled server error, which never reaches the
+response: a page request gets a generic HTML "Something went wrong", an API
+or fetch request {error: "internal error"}, and the real traceback only goes
+to the server log. POSTs require same-origin; all but attachment upload use JSON.
 
 [editor] config: auto_land=true, render_jobs=min(4,cpu_count), render_keep=20,
 attachment_max_file=25, attachment_max_files=10, attachment_max_message=100

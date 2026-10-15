@@ -1,4 +1,5 @@
 """The editor's HTTP API, on a temp project in a git repo."""
+import io
 import json
 import tempfile
 import threading
@@ -7,6 +8,7 @@ import urllib.error
 import urllib.request
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
+from unittest import mock
 
 from tests.fixtures import API
 
@@ -66,6 +68,43 @@ class DirectorPageRoutes(API):
         self.assertEqual(self.get('/api/info?video=promo/film')['timeline']['segments'][0]['copy']['title'], 'New')
         self.assertEqual(self.post('/api/undo', {'video': video})[0], 200)
         self.assertEqual(self.get('/api/info?video=promo/film')['timeline']['segments'][0]['copy']['title'], 'Hello')
+
+
+class ServerErrors(API):
+    """An unhandled exception must never put its traceback (or any other internal
+    detail) in the response a guest sees; the operator still gets it, in the log."""
+    LEAK = '/nonexistent/secret-path/traceback-marker'
+
+    def test_unhandled_exception_on_an_api_route_hides_internals(self):
+        with mock.patch.object(self.editor, 'info', side_effect=RuntimeError(self.LEAK)), \
+             mock.patch('sys.stderr', new_callable=io.StringIO) as err:
+            with self.assertRaises(urllib.error.HTTPError) as e:
+                self.get('/api/info?video=promo/film')
+            with e.exception:
+                self.assertEqual(e.exception.code, 500)
+                self.assertEqual(e.exception.headers.get_content_type(), 'application/json')
+                body = e.exception.read()
+            log = err.getvalue()
+        self.assertEqual(json.loads(body), {'error': 'internal error'})
+        self.assertNotIn(self.LEAK.encode(), body)
+        self.assertNotIn(b'Traceback', body)
+        self.assertIn(self.LEAK, log)
+        self.assertIn('Traceback', log)
+
+    def test_unhandled_exception_on_a_page_route_is_a_plain_html_error(self):
+        with mock.patch('videobuilder.video_api._page', side_effect=RuntimeError(self.LEAK)), \
+             mock.patch('sys.stderr', new_callable=io.StringIO) as err:
+            with self.assertRaises(urllib.error.HTTPError) as e:
+                urllib.request.urlopen(self.base + '/', timeout=20)
+            with e.exception:
+                self.assertEqual(e.exception.code, 500)
+                self.assertEqual(e.exception.headers.get_content_type(), 'text/html')
+                body = e.exception.read()
+            log = err.getvalue()
+        self.assertNotIn(self.LEAK.encode(), body)
+        self.assertNotIn(b'Traceback', body)
+        self.assertIn(self.LEAK, log)
+        self.assertIn('Traceback', log)
 
 
 class _MusicServer:

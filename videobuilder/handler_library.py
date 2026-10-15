@@ -3,6 +3,7 @@ video-creation routes. See editor.py's module docstring for route shapes and
 the full check order."""
 import json
 import re
+import sys
 import traceback
 from urllib.parse import parse_qs, quote, unquote, urlparse
 
@@ -216,7 +217,14 @@ class LibraryHandler:
         except HTTPError as e:
             self._json(e.code, {'error': str(e)})
         except Exception:
-            self._json(500, {'error': traceback.format_exc()})
+            # The traceback is for the operator's log, never the response: a guest must
+            # not see internals, so the body stays as generic as a 500 gets.
+            print(traceback.format_exc(), file=sys.stderr, flush=True)
+            if self._wants_html(url.path, method):
+                self._send(500, b'<!doctype html><title>Error</title><p>Something went wrong.</p>',
+                          'text/html; charset=utf-8')
+            else:
+                self._json(500, {'error': 'internal error'})
 
     def do_GET(self):
         self._handle('GET')
