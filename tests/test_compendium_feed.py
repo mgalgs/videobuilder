@@ -131,6 +131,15 @@ class VoteStore(unittest.TestCase):
             store = compendium_feed.CompendiumVotes(str(Path(d) / 'missing.jsonl'))
             self.assertEqual(store.for_user('alice'), {})
 
+    def test_a_torn_trailing_line_does_not_lose_earlier_votes(self):
+        with tempfile.TemporaryDirectory() as d:
+            path = str(Path(d) / 'v.jsonl')
+            store = compendium_feed.CompendiumVotes(path)
+            store.record('alice', COMPONENT_ID, 'up', None)
+            with open(path, 'a', encoding='utf-8') as fh:
+                fh.write('{"at": "2026-01-01T00:00:00Z", "by": "alice", "id": "' + COMPONENT_ID)  # cut off mid-write
+            self.assertEqual(store.for_user('alice'), {COMPONENT_ID: {'vote': 'up', 'reason': None}})
+
 
 class Validation(unittest.TestCase):
     def test_unknown_id_is_rejected(self):

@@ -33,12 +33,23 @@ class CompendiumVotes:
         self.lock = threading.RLock()
 
     def _events(self):
+        """Every event line parsed, skipping one that fails: a process killed
+        or a disk filling mid-append can leave a torn last line, and that
+        must not cost every vote recorded before it."""
         try:
             with open(self.path, encoding='utf-8') as fh:
                 lines = fh.readlines()
         except FileNotFoundError:
             return []
-        return [json.loads(line) for line in lines if line.strip()]
+        events = []
+        for line in lines:
+            if not line.strip():
+                continue
+            try:
+                events.append(json.loads(line))
+            except ValueError:
+                continue
+        return events
 
     def for_user(self, user):
         """{id: {"vote", "reason"}}, `user`'s current votes: the last event
