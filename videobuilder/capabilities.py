@@ -481,6 +481,7 @@ header .back{color:#a9a9b2;text-decoration:none;font-weight:600}
 main{max-width:1100px;margin:0 auto;padding:8px 24px 48px}
 .reel{margin:24px 0 8px}
 .reel .player{position:relative;border-radius:14px;overflow:hidden;background:#000;aspect-ratio:16/9}
+.reel.portrait .player{aspect-ratio:9/16;width:min(100%,calc(80vh * 9 / 16));margin:0 auto}
 .reel video{width:100%;height:100%;display:block;cursor:pointer}
 .reel .unmute{position:absolute;bottom:12px;right:12px;min-height:36px;padding:6px 12px;border-radius:8px;
   border:1px solid #fff5;background:#000a;color:#fff;cursor:pointer}
@@ -596,6 +597,15 @@ _PAGE_SCRIPT = """
   // and still (on its poster) for anyone who prefers reduced motion.
   var reel = document.getElementById('reel');
   if(reel){
+    // The 9:16 cut for portrait screens is picked here, not with <source media>,
+    // which older Safari and Firefox ignore.
+    var section = reel.closest('.reel');
+    var tall = section.dataset.portrait;
+    if(tall && window.matchMedia && window.matchMedia('(orientation: portrait)').matches){
+      section.classList.add('portrait');
+      reel.poster = '/capabilities/' + tall + '.jpg';
+      reel.src = '/capabilities/' + tall + '.mp4';
+    }
     var reelUnmute = document.getElementById('reel-unmute');
     var still = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     if(!still) reel.play().catch(function(){});
@@ -629,8 +639,11 @@ def page_html(capabilities_dir, version):
     cards = []
     if showcase_available(capabilities_dir):
         name = SHOWCASE_FILES[0]
+        tall = SHOWCASE_FILES[1]
+        portrait = (f' data-portrait="{tall}"'
+                    if os.path.exists(clip_file(capabilities_dir, tall, 'mp4')) else '')
         cards.append(
-            '<section class="reel" aria-label="Showcase">'
+            f'<section class="reel" aria-label="Showcase"{portrait}>'
             '<div class="player">'
             f'<video id="reel" src="/capabilities/{name}.mp4" poster="/capabilities/{name}.jpg" loop muted playsinline '
             'preload="metadata" aria-label="Showcase: every capability in one film"></video>'

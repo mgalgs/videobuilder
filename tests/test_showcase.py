@@ -120,6 +120,13 @@ class ServedWithTheCatalog(unittest.TestCase):
         self.assertIn('id="reel-fullscreen"', page)
         self.assertLess(page.index('id="reel"'), page.index('data-card='))
 
+    def test_the_page_offers_portrait_screens_the_9x16_cut_only_when_built(self):
+        with tempfile.TemporaryDirectory() as d:
+            Path(d, 'showcase-16x9.mp4').write_bytes(b'mp4')
+            self.assertNotIn('data-portrait=', capabilities.page_html(d, '0').decode())
+            Path(d, 'showcase-9x16.mp4').write_bytes(b'mp4')
+            self.assertIn('data-portrait="showcase-9x16"', capabilities.page_html(d, '0').decode())
+
 
 if __name__ == '__main__':
     unittest.main()
