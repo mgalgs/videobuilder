@@ -183,9 +183,11 @@ function updateLabels() {
   $('caption-text').textContent=v.summary||'';
   $('sheet-subtitle').textContent=`Playing v${v.n} · ${timeLabel(player.currentTime)}`;
   const url=videoUrl();
+  const multi=(state.project?.videos?.length||0)>1;
+  const base=libName?(multi?`${libName}-${state.video}`:libName):state.video;
   for(const id of ['rail-save','desktop-save']) {
     if(state.videoReady)$(id).href=url;
-    $(id).download=`${state.video.replaceAll('/','-')}-v${v.n}-${state.format}.mp4`
+    $(id).download=`${base.replaceAll('/','-')}-v${v.n}-${state.format}.mp4`
   }
   renderVersions()
 }
