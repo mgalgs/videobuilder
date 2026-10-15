@@ -89,15 +89,18 @@ def lerp(a, b, t):
 
 # ---- type ----
 
-def fit(copy, width, sizes, weight=800, max_lines=3, tracking=-0.02, line_height=1.02, balance=True):
+def fit(copy, width, sizes, weight=800, max_lines=3, tracking=-0.02, line_height=1.02, balance=True,
+        max_height=None):
     """(font, lines): `copy` wrapped at the largest of `sizes` that fits
-    `width` in at most `max_lines` lines (no single word wider than the box),
-    falling back to the smallest size."""
+    `width` in at most `max_lines` lines (no single word wider than the box)
+    and, given `max_height`, no taller than that, falling back to the
+    smallest size."""
     font = lines = None
     for size in sizes:
         font = kit.font(size, weight, tracking=tracking, line_height=line_height)
         lines = text.wrap(copy, font, width, balance=balance) if copy else ()
-        if len(lines) <= max_lines and all(text.measure(ln, font) <= width + 0.5 for ln in lines):
+        if (len(lines) <= max_lines and all(text.measure(ln, font) <= width + 0.5 for ln in lines)
+                and (max_height is None or text.line_height(font) * len(lines) <= max_height)):
             return font, lines
     return font, lines
 
