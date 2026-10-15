@@ -492,6 +492,20 @@ in the server's local time, naming when the account can send another. Admin
 accounts are never capped; where there are no accounts at all, nobody is
 exempt, so a cap set there binds everyone, including the operator.
 
+In `--library` mode, a hosted repo's own config can't set these two keys (see
+below), so set library-wide defaults with `--account-daily-note-cap N` and
+`--account-daily-cost-cap-usd X` on the command line instead; both are
+refused outside `--library`, and unset still means no cap. An admin can also
+give one account its own override from `/account`'s **Usage limits** section
+(visible to admins only), or `POST /api/admin/limits
+{user,kind:"default"|"custom"|"unlimited",notes?,cost_usd?}`: `"default"`
+goes back to the library-wide caps; `"custom"` sets the account's own
+`notes`/`cost_usd`, either left `null` for no cap on that one thing;
+`"unlimited"` lifts both. `GET /api/admin/limits` lists the library-wide
+defaults and, for every account, its limit and its trailing-24h usage. Both
+routes are admin-only (403 for anyone else, 401 signed out) and the override
+is stored with the account, so it survives a restart.
+
 The generic command backend still receives a request JSON and markdown note.
 Fork-sandbox submissions add `--attach-dir` only for notes with attachments.
 A note with a playhead time includes a line such as `At 0:12 (frame 360,
@@ -579,6 +593,7 @@ python -m videobuilder edit roll film.py SEGMENT UNTIL
 python -m videobuilder edit copy film.py SEGMENT KEY VALUE
 python -m videobuilder editor PROJECT-DIR [--host 127.0.0.1] [--port 8100] [--state-dir DIR] [--open]
 python -m videobuilder editor --library DIR [--checkouts DIR2] [--state-dir DIR3] [--open]
+    [--account-daily-note-cap N] [--account-daily-cost-cap-usd X]
 ```
 
 ## Modules
