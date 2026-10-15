@@ -32,6 +32,13 @@ naming a request the builder could not do at all or could not do well. It is
 stripped from the reply either way -- the creator must never see raw JSON -- and,
 when valid, stored as note['shortfalls']: a plain note field, so it reaches
 clients through the existing notes API with no route changes.
+
+A poll's `AgentStatus` may also carry `cost_usd` (a number) and `tokens` (an
+object), whatever the backend reported for that run; both default to None
+and stay None when a backend never reports them -- never estimated, and
+never coerced to zero, so "unknown" stays distinguishable from "free". Each
+poll's status fields are copied onto the note as-is, so a note's cost and
+token counts are exactly what the last poll reported.
 """
 import hashlib
 from pathlib import Path
@@ -155,10 +162,16 @@ class AgentStatus:
     state: str                 # one of STATES
     reply: str | None = None   # the agent's answer to the reviewer
     branch: str | None = None  # a draft branch with the agent's change, for review
+    cost_usd: float | None = None  # what this run cost, or None when the backend didn't report it
+    tokens: dict | None = None     # token counts as the backend reported them, or None
 
     def __post_init__(self):
         if self.state not in STATES:
             raise ValueError(f'unknown note state {self.state!r}; known: {", ".join(STATES)}')
+        if self.cost_usd is not None and (isinstance(self.cost_usd, bool) or not isinstance(self.cost_usd, (int, float))):
+            raise ValueError('cost_usd must be a number or null')
+        if self.tokens is not None and not isinstance(self.tokens, dict):
+            raise ValueError('tokens must be an object or null')
 
 
 class AgentBackend:
@@ -417,17 +430,17 @@ class NoteStore:
                 # Strip before parse_questions: the shortfalls block sits before the
                 # questions block, so it would otherwise end up inside the lead-in text.
                 reply, shortfalls = strip_shortfalls(status.reply)
-                status = AgentStatus(status.state, reply, status.branch)
+                status = AgentStatus(status.state, reply, status.branch, status.cost_usd, status.tokens)
             parsed = parse_questions(status.reply) if status.state == 'replied' else None
             if parsed:
                 # Strip the raw block from what's shown even when asking is disabled: a backend
                 # that ignores the no-questions instruction must not leak it into the reply.
                 lead_in, questions = parsed
                 if note.get('no_questions') or note.get('automatic'):
-                    status = AgentStatus('replied', lead_in or None, status.branch)
+                    status = AgentStatus('replied', lead_in or None, status.branch, status.cost_usd, status.tokens)
                 else:
                     note['questions'] = questions
-                    status = AgentStatus('questions', lead_in or None, status.branch)
+                    status = AgentStatus('questions', lead_in or None, status.branch, status.cost_usd, status.tokens)
             if shortfalls:
                 note['shortfalls'] = shortfalls
             note.update(asdict(status))

@@ -5,7 +5,11 @@ CommandBackend invokes ``submit_command + [request.json]`` and
 fields plus project, film, image, note_file, state_dir, session and draft.
 submit stdout is JSON {"handle": "opaque string"}; poll stdout is JSON
 {"state": "queued|working|replied|failed", "reply": "text or null",
-"branch": "local branch or null"}. Commands must be idempotent for a note
+"branch": "local branch or null", "cost_usd": number or null (optional),
+"tokens": object or null (optional)}. cost_usd and tokens are whatever the
+run cost and used, passed straight through to the note; a command that
+never reports them simply omits the keys, and they stay null -- never
+estimated, never zero. Commands must be idempotent for a note
 id: a crash between external submission and persisting its handle can retry.
 The stable per-video state_dir is the runner's resumable session, and draft
 is the current linear branch (null after Accept/Drop). Runners must honor it.
@@ -13,7 +17,8 @@ is the current linear branch (null after Accept/Drop). Runners must honor it.
 ForkSandboxBackend is deliberately isolated here: run --resume STATE
 [--base DRAFT] [extra_args] PROJECT NOTE prints a run directory (--base only
 when a draft exists; without it the run starts from main); status --json RUN prints
-the status above, optionally reply_file (otherwise RUN/outbox/reply.md).
+the status above, optionally reply_file (otherwise RUN/outbox/reply.md) and
+cost_usd/tokens (see CommandBackend above; same meaning, same optionality).
 executable, submit_args, poll_args, extra_args are configurable argv lists
 (executable is a string). No shell expansion is performed.
 
@@ -149,7 +154,7 @@ class ForkSandboxBackend(AgentBackend):
                 reply = path.read_text(encoding='utf-8')
         if reply:
             reply = re.sub(r'^== result:[^\n]*==\n+', '', reply)
-        return AgentStatus(data['state'], reply, data.get('branch'))
+        return AgentStatus(data['state'], reply, data.get('branch'), data.get('cost_usd'), data.get('tokens'))
 
     def _peek(self, handle, file=None, after=0):
         """Live transcript bytes for an in-flight cluster run (see the class
@@ -185,17 +190,22 @@ class FakeBackend(AgentBackend):
     Pass `shortfalls` (a list of {"kind", "what"} dicts, 1-5 of them) to add a
     ```shortfalls block to the reply, as a real builder would when a request
     falls short; it is added either way, whether or not `questions` is also set.
+    Pass `cost_usd` and/or `tokens` to have the reply report them, as a real
+    backend would through `status --json`; left unset, both stay null on the
+    note, exactly as an unreporting backend leaves them.
     """
     name = 'fake'
 
     def __init__(self, delay=3, change=None, commits=1, extra_path=None, questions=None, lead_in=None,
-                shortfalls=None):
+                shortfalls=None, cost_usd=None, tokens=None):
         self.delay = delay
         self.commits = commits
         self.extra_path = extra_path
         self.questions = questions
         self.lead_in = lead_in if lead_in is not None else 'Quick check before I start:'
         self.shortfalls = shortfalls
+        self.cost_usd = cost_usd
+        self.tokens = tokens
         self.change = change or ('\n_original_draw = FILM.draw\n'
                                 'def _draft_draw(n, cv):\n'
                                 '    _original_draw(n, cv)\n'
@@ -222,7 +232,7 @@ class FakeBackend(AgentBackend):
         if self.questions:
             reply = (f'{self.lead_in}\n\n{shortfalls_block}'
                     f'```questions\n{json.dumps({"questions": self.questions})}\n```\n')
-            result = AgentStatus('replied', reply, None)
+            result = AgentStatus('replied', reply, None, self.cost_usd, self.tokens)
             data['result'] = asdict(result)
             path.write_text(json.dumps(data))
             return result
@@ -251,7 +261,7 @@ class FakeBackend(AgentBackend):
         reply = 'Added an amber bar at the top of the frame for review.'
         if shortfalls_block:
             reply += '\n\n' + shortfalls_block.rstrip('\n')
-        result = AgentStatus('replied', reply, branch)
+        result = AgentStatus('replied', reply, branch, self.cost_usd, self.tokens)
         data['result'] = asdict(result)
         path.write_text(json.dumps(data))
         return result
@@ -263,7 +273,7 @@ def backend_from_config(config):
     if name == 'null':
         return NullBackend()
     if name == 'fake':
-        return FakeBackend(delay=cfg.get('delay', 3))
+        return FakeBackend(delay=cfg.get('delay', 3), cost_usd=cfg.get('cost_usd'), tokens=cfg.get('tokens'))
     if name == 'command':
         return CommandBackend(cfg.get('submit_command'), cfg.get('poll_command'))
     if name == 'fork-sandbox':

@@ -78,6 +78,26 @@ class Notes(unittest.TestCase):
         agent.states['h1'] = AgentStatus('working')  # a final state isn't polled again
         self.assertEqual(store.list()[0]['state'], 'replied')
 
+    def test_cost_and_tokens_land_on_the_note_once_final(self):
+        agent = FakeAgent()
+        store = NoteStore(self.dir, agent)
+        n = store.add('promo/film', '16x9', 3, 'intro', 'Shorter', b'png')
+        self.assertIsNone(store.get(n['id'])['cost_usd'])
+        self.assertIsNone(store.get(n['id'])['tokens'])
+        agent.states['h1'] = AgentStatus('replied', 'Done', 'notes/shorter', 0.42, {'input': 100, 'output': 20})
+        got = store.list()[0]
+        self.assertEqual(got['cost_usd'], 0.42)
+        self.assertEqual(got['tokens'], {'input': 100, 'output': 20})
+
+    def test_an_unreported_cost_stays_null_never_zero(self):
+        agent = FakeAgent()
+        store = NoteStore(self.dir, agent)
+        n = store.add('promo/film', '16x9', 3, 'intro', 'Shorter', b'png')
+        agent.states['h1'] = AgentStatus('replied', 'Done', 'notes/shorter')
+        got = store.list()[0]
+        self.assertIsNone(got['cost_usd'])
+        self.assertIsNone(got['tokens'])
+
     def test_a_backend_that_fails_to_submit(self):
         class Down(NullBackend):
             def submit(self, note):
