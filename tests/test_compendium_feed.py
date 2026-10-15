@@ -46,14 +46,23 @@ class IndexJSON(unittest.TestCase):
             _build(d, transitions)
             with open(Path(d) / 'index.json', encoding='utf-8') as fh:
                 index = json.load(fh)
+        total_new = total_naive = 0.0
         for tid in transitions:
             with self.subTest(id=tid):
                 c = compendium.get(tid)
                 film = compendium.component_film(c)
+                grid = film.timeline.grid
                 lo_f, hi_f = film.timeline.span('to')
-                overlap_start = film.timeline.grid.seconds(lo_f)
-                overlap_end = film.timeline.grid.seconds(hi_f)
-                clip_duration = film.timeline.grid.seconds(film.frames)
+                move_start = grid.seconds(lo_f)
+                clip_duration = grid.seconds(film.frames)
+                # The window the old (reviewer-flagged) code used -- the
+                # whole overlap, padded -- which a fixed window must never
+                # exceed, even though for a transition whose move genuinely
+                # takes the whole overlap (a continuous slide, say) the fix
+                # won't shrink it.
+                pad_f = round(0.5 * grid.fps)
+                naive_lo_f, naive_hi_f = max(0, lo_f - pad_f), min(film.frames, hi_f + pad_f)
+                naive_duration = grid.seconds(naive_hi_f) - grid.seconds(naive_lo_f)
                 entries = [e for e in index['clips'] if e['id'] == tid]
                 self.assertEqual({e['format'] for e in entries}, set(c.formats))
                 for e in entries:
@@ -63,9 +72,17 @@ class IndexJSON(unittest.TestCase):
                     self.assertGreaterEqual(lo, 0)
                     self.assertLessEqual(hi, clip_duration)
                     self.assertLess(lo, hi)
-                    # ...and covering the overlap (with padding on each side).
-                    self.assertLessEqual(lo, overlap_start)
-                    self.assertGreaterEqual(hi, overlap_end)
+                    # ...covering the move (padded a bit before it starts)...
+                    self.assertLessEqual(lo, move_start)
+                    self.assertGreater(hi, move_start)
+                    # ...and never longer than the old, whole-overlap window.
+                    self.assertLessEqual(hi - lo, naive_duration + 1e-9)
+                total_new += entries[0]['loop'][1] - entries[0]['loop'][0]
+                total_naive += naive_duration
+        # For most of these transitions the move is much shorter than the
+        # overlap (the bug this guards against), so the fixed windows are,
+        # in total, far shorter than the naive whole-overlap ones.
+        self.assertLess(total_new, total_naive * 0.6)
 
     def test_non_transition_clips_have_no_loop_window(self):
         with tempfile.TemporaryDirectory() as d:

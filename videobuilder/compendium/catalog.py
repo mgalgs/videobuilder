@@ -249,15 +249,39 @@ def _poster_frame(film):
     return min(film.frames - 1, mid - shot.f + int(shot.length * 0.7))
 
 
-def _loop_window(film, pad_seconds=0.5):
-    """A transition's preview `film`'s own motion window -- the `to` segment's
-    span, which (see `component_film`) overlaps `from` for its entire length
-    -- padded by `pad_seconds` on each side and clamped to the film, in
-    seconds: `[start, end)` for the feed to loop instead of the whole clip."""
+def _loop_window(film, pad_seconds=0.5, still_threshold=1.0, scale=0.08):
+    """A transition's preview `film`'s own move, found by rendering the `to`
+    segment frame by frame and watching where consecutive frames stop
+    differing. The `to` segment (see `component_film`) overlaps `from` for
+    its *entire* length, which for most transitions is far longer than the
+    move itself: once the incoming card settles, holding it for the rest of
+    the overlap is static. The move always starts at the first frame of `to`
+    in this preview (`_transition_util.start_frame` returns 0 when both
+    phases carry the same sample data), so the search only needs to find
+    where it ends. Padded by `pad_seconds` on each side and clamped to the
+    film, in seconds: `[start, end)` for the feed to loop instead of the
+    whole clip."""
     grid = film.timeline.grid
-    lo_f, hi_f = film.timeline.span('to')
+    lo_f, span_hi_f = film.timeline.span('to')
+    search_hi_f = min(span_hi_f, film.frames - 1)
+    fmt = film.format()
+
+    def pixels(n):
+        cv = film.frame(n, fmt, scale=scale)
+        cv.surface.flush()
+        return bytes(cv.surface.get_data())
+
+    move_end_f = lo_f
+    prev = pixels(lo_f)
+    for n in range(lo_f, search_hi_f):
+        cur = pixels(n + 1)
+        diff = sum(abs(a - b) for a, b in zip(prev, cur)) / len(prev)
+        if diff > still_threshold:
+            move_end_f = n + 1
+        prev = cur
+
     pad_f = round(pad_seconds * grid.fps)
-    lo_f, hi_f = max(0, lo_f - pad_f), min(film.frames, hi_f + pad_f)
+    lo_f, hi_f = max(0, lo_f - pad_f), min(film.frames, move_end_f + pad_f)
     return [grid.seconds(lo_f), grid.seconds(hi_f)]
 
 
