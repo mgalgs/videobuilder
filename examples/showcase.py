@@ -5,8 +5,8 @@ generated music bed while a made-up app, Lumen, gets launched.
     python -m videobuilder render examples/showcase.py --format all
 
 Sections: a kinetic-type hook and the title hit; the product (camera, UI,
-Lumi checking off the day, a diagram), the launch numbers on one dashboard,
-then the looks, which get room to breathe (generated art, 3D, hard light,
+Lumi checking off the day, a tester on camera, a diagram), the launch
+numbers on one dashboard, then the looks, which get room to breathe (generated art, 3D, hard light,
 comic, pixel art, paper collage), and the timing and formats block before
 the end card. Sections meet on catalog moves (a shape morph, an overlap
 slide, the paper rip), cuts within a section land on the beat.
@@ -36,7 +36,7 @@ sys.path.insert(0, str(HERE))
 
 import videobuilder as vb  # noqa: E402
 from videobuilder import capabilities, paths  # noqa: E402
-from showcase_scenes import comic, data, imagery, kit, looks, motion, paper, pixel, timing  # noqa: E402
+from showcase_scenes import comic, data, imagery, kit, looks, motion, paper, pixel, timing, voice  # noqa: E402
 from showcase_scenes.kit import ACCENT, BG, INK, MUTED  # noqa: E402
 
 GRID = kit.GRID
@@ -50,7 +50,7 @@ FPB = kit.FPB
 SECTIONS = [
     ('hook', [('hook-1', 2), ('hook-2', 2), ('hook-3', 2)]),
     ('title', 4),
-    ('product', [('camera', 5), ('redrawn', 4), ('lumi', 8), ('diagram', 5)], 1),
+    ('product', [('camera', 5), ('redrawn', 4), ('lumi', 8), ('voice', 5), ('diagram', 5)], 1),
     ('dashboard', 10, 1),
     ('styles', [('generated', [('gen-arcs', 3), ('gen-flow', 3), ('gen-tiles', 3)]),
                 ('orbit', [('orbit-type', 3), ('orbit-device', 3), ('orbit-bleed', 4)]),
@@ -95,6 +95,7 @@ SHOTS = {
     'camera': ['shape-morph', 'camera-on-a-screenshot'],
     'redrawn': ['redrawn-product-ui', 'eased-entrances'],
     'lumi': ['character-motion', 'staggered-reveals', 'springs-with-character'],
+    'voice': ['footage-with-sound', 'word-timed-captions'],
     'diagram': ['drawn-on-diagram'],
     'dashboard': ['overlap-transitions', 'counting-numbers', 'gauges-and-rings', 'bar-charts', 'line-chart-callout'],
     **{n: ['generated-art'] for n in ('gen-arcs', 'gen-flow', 'gen-tiles')},
@@ -370,7 +371,7 @@ def end(cv, s, st):
 
 SCENES = {'hook-1': hook, 'hook-2': hook, 'hook-3': hook, 'title': title, 'end': end,
           **motion.SCENES, **data.SCENES, **imagery.SCENES, **looks.SCENES, **comic.SCENES, **pixel.SCENES,
-          **paper.SCENES, **timing.SCENES}
+          **paper.SCENES, **timing.SCENES, **voice.SCENES}
 
 
 # ---- transitions between sections: the outgoing shot keeps drawing under the incoming one's first beat ----
@@ -443,8 +444,9 @@ def tag_alpha(s):
     return 1.0
 
 
-# Pairs drawn over each other by design (a callout inside its chart, a stamp slammed across the page).
-OVERLAP_OK = {('chart', 'callout'), ('stamp', 'arrow'), ('stamp', 'notepad')}
+# Pairs drawn over each other by design (a callout inside its chart, a stamp slammed across the page,
+# captions over the bottom of the footage).
+OVERLAP_OK = {('chart', 'callout'), ('stamp', 'arrow'), ('stamp', 'notepad'), ('footage', 'caption')}
 
 LAYOUTS = {name: {'safe': kit.SAFE[name]} for name in ('16x9', '9x16')}
 
@@ -453,7 +455,8 @@ FILM = vb.Film(
     timeline=TIMELINE,
     formats=(kit.F16, kit.F9),
     background=BG,
-    audio=vb.Audio(_music(), fade_out_frames=round(2 * FPB)),
+    audio=vb.Audio(_music(), fade_out_frames=round(2 * FPB), duck_db=-12),   # the music dips under the tester
+    sounds=(vb.footage(TIMELINE, 'voice', start=0.0).sound(voice.CLIP_PATH),),
 )
 
 if __name__ == '__main__':
