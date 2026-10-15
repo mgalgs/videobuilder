@@ -439,6 +439,7 @@ _ACCOUNT_STYLE = (
     'body{font:16px system-ui;background:#181b20;color:#eee;max-width:720px;margin:0 auto;'
     'padding:1.2rem 1rem 4rem;box-sizing:border-box}'
     'h1{font-size:1.3em}a{color:#88cafa}'
+    'button{cursor:pointer}button:disabled{cursor:default}'
     '.bar{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:.6rem;'
     'border-bottom:1px solid #333;padding-bottom:1rem;margin-bottom:1.2rem}'
     '.bar button{min-height:44px;padding:.5rem 1rem;border-radius:6px;border:1px solid #333;'
