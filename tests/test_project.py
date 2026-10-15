@@ -114,7 +114,7 @@ class Discovery(unittest.TestCase):
         self.assertEqual([v.id for v in discover(root / 'examples')],
                          ['benchmark', 'capabilities/beat-lock', 'capabilities/counting-numbers',
                           'capabilities/eased-entrances', 'capabilities/every-format',
-                          'capabilities/overlap-transitions', 'tour'])
+                          'capabilities/overlap-transitions', 'showcase', 'tour'])
 
 
 class Committing(TempProject):
