@@ -297,6 +297,22 @@ class SoundMix(unittest.TestCase):
             pcm = decode_pcm(out)
         self.assertGreater(peak_level(pcm, 10 / self.fps + 0.1, 10 / self.fps + 0.5), 1000)
 
+    def test_sounds_with_no_music_are_told_a_loudness_target_otherwise(self):
+        # Decision 3: "A film with sounds and no music must work too: it
+        # normalises to the same default target (-14 LUFS) unless told otherwise."
+        # There's no Audio to carry that override here, so Film.loudness does.
+        with tempfile.TemporaryDirectory() as tmp:
+            voice = os.path.join(tmp, 'voice.wav')
+            sine_wav(voice, 1000, 1.0, amplitude=1000)
+            film = Film(draw=lambda n, cv: None, fps=self.fps, frames=30, formats=['1x1'],
+                        sounds=(Sound(voice, at=0, start=0.0, frames=30, fade_in_frames=0, fade_out_frames=0),),
+                        loudness=-24)
+            out = os.path.join(tmp, 'x.mp4')
+            with open(os.devnull, 'w') as quiet:
+                render(film, out, jobs=1, chunk=15, log=quiet)
+            loud, _ = measure(out, 'anull')
+        self.assertAlmostEqual(loud, -24, delta=1.5)
+
     def test_a_sound_with_no_audio_stream_is_a_clear_error(self):
         with tempfile.TemporaryDirectory() as tmp:
             silent = os.path.join(tmp, 'novideo.mp4')

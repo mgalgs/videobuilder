@@ -63,9 +63,9 @@ def as_format(f):
         raise ValueError(f'unknown format {f!r}; known: {", ".join(FORMATS)}') from None
 
 
-# The mix's default integrated-loudness target, shared by Audio.loudness (for a
-# film with music) and by a film with sounds but no music (which has no Audio to
-# carry an override): one knob, not two.
+# The mix's default integrated-loudness target: Audio.loudness when the film has
+# music, Film.loudness otherwise (a film with sounds and no music has no Audio to
+# carry the override).
 DEFAULT_LOUDNESS = -14.0
 
 
@@ -121,6 +121,11 @@ class Film:
 
     `frames` and `fps` may be left out when a `timeline` gives them. The first
     of `formats` is the default; each is a name from `FORMATS` or a `Format`.
+
+    `loudness`: the mix's target when the film has `sounds` and no `audio`,
+    so there's still a knob to tell it otherwise (None turns normalisation
+    off). Ignored when the film has music: `Audio.loudness` is the target
+    for the whole mix then, same as always.
     """
     draw: Callable[[int, Canvas], None]
     fps: int | None = None
@@ -129,6 +134,7 @@ class Film:
     background: str | tuple | None = '#000000'
     audio: Audio | None = None
     sounds: tuple = ()
+    loudness: float | None = DEFAULT_LOUDNESS
     timeline: Timeline | None = None
     # Frames worth reviewing, as frame numbers or (frame, label) pairs: the
     # default frames of `sheet`, labelled. Checks can walk them too.

@@ -298,7 +298,7 @@ def render(film, out, format=None, jobs=None, chunk=15, crf=18, frames=None, log
         if film.sounds:
             ensure_has_audio(s.path for s in film.sounds)
             graph_inputs, graph, label = mix_graph(film, a, z, start_idx=1)
-            target = au.loudness if au else DEFAULT_LOUDNESS
+            target = au.loudness if au else film.loudness
             if target is not None:
                 # Measured over the whole film, so a partial render gets the same gain.
                 whole_inputs, whole_graph, whole_label = mix_graph(film, 0, film.frames)

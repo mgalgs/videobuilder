@@ -52,12 +52,14 @@ reacting to the actual signal. `duck_db=0`, the default, means no ducking.
 ## One loudness target for the mix
 
 `Audio.loudness` (default -14 LUFS) is the target for the music when a film
-has no sounds, same as always. When a film has `sounds`, it's the target for
-the *whole mix* (music plus sounds) instead, still measured over the whole
-film — a partial render (`render(..., frames=(a, z))`) gets the same gain as
-the full one. There's no second loudness knob for the sounds-with-no-music
-case: it normalises to the same -14 LUFS default. Set `loudness=None` on the
-`Audio` to turn normalisation off (raw passthrough, no limiter either).
+has no sounds, same as always. When a film has `sounds` and music, it's the
+target for the *whole mix* (music plus sounds) instead, still measured over
+the whole film — a partial render (`render(..., frames=(a, z))`) gets the
+same gain as the full one. A film with sounds and no music has no `Audio` to
+carry that target, so `Film.loudness` (same -14 LUFS default) takes over for
+it instead — one knob or the other is ever in effect, never both. Set
+`loudness=None` on whichever one applies to turn normalisation off (raw
+passthrough, no limiter either).
 
 ## Keeping picture and sound in sync
 
