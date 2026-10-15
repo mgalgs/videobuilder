@@ -25,8 +25,8 @@ from . import _data_util as du
 FPB = du.FPB
 CARD = '#1d1f26'
 ENTER = vb.damped(0.62, hz=2.6)
-GROW = 14             # frames for a bar to grow after its row arrives
-GLEAM = 18            # frames for the gleam to cross the top bar
+GROW = 10             # frames for a bar to grow after its row arrives
+GLEAM = 12            # frames for the gleam to cross the top bar
 
 
 def _top_at(n):
@@ -154,7 +154,7 @@ def draw(cv, shot):
             if bw > 1:
                 if hero:
                     cv.rect(bx, bar_y, bw, bar_h, color, radius=bar_h / 2)
-                    gl = du.prog(f, top_at, top_at + GLEAM, vb.ease_in_out_quart)
+                    gl = du.prog(f, top_at - 2, top_at - 2 + GLEAM, vb.ease_in_out_quart)
                     if 0 < gl < 1:
                         with cv.clip(bx, bar_y, bw, bar_h, radius=bar_h / 2):
                             ctx = cv.ctx
