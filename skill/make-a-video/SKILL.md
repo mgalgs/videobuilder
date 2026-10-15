@@ -138,6 +138,12 @@ layout, images, views) with the traps each part hides.
 - **3D shots**: build a ManimGX shot to `assets/name.mp4`, commit it, and
   draw its frames with `vb.Clip`. Match its frame count to its storyboard
   segment. See `reference/3d.md` for the build command and the GPU stop rule.
+- **Footage with its own sound**: read `reference/footage.md` when the video
+  uses source clips whose sound should play (an interview, a podcast): it
+  places the clip's audio on the timeline, keeps it in sync with the picture
+  and dips the music under the speech.
+- **Captions**: read `reference/captions.md` when the video shows spoken
+  words on screen: captions from a subtitle file, timed word by word.
 - Write `assets/README.md`: each file, where it came from, its licence
   (generated files: the command that made them, and "generated for this film").
 
