@@ -44,7 +44,7 @@ def _layout(cv, title, answer):
     s = vb.Box(s.x, s.y, s.w, s.h - STATUS_H - 10)
     text_w = s.w - GUTTER - 4
     tall = cv.height > cv.width * 1.2
-    max_rows_h = s.h * (0.62 if tall else 0.72)
+    max_rows_h = s.h * (0.62 if tall else 0.86)
     for size in TITLE_SIZES:
         row = round(size * 0.68)          # one grid row; a title line is two
         tf = _mono(size, 700, row * 2)
@@ -103,7 +103,7 @@ def draw(cv, shot):
     # ---- the grid: content rows centred, gutter numbers / tildes everywhere ----
     content_rows = 2 * len(tl) + (1 + len(al) if al else 0)
     total_rows = int(s.h // row)
-    first = max(0, (total_rows - content_rows) // 2)
+    first = max(0, round((total_rows - content_rows) / 2 + 0.01))
     gf = kit.mono(max(12, min(17, row * 0.5)), 500)
     gl = text.line_height(gf)
     title_rows = {first + 2 * i: i for i in range(len(tl))}
