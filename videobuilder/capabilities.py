@@ -458,6 +458,8 @@ main{max-width:1100px;margin:0 auto;padding:8px 24px 48px}
 .reel video{width:100%;height:100%;display:block;cursor:pointer}
 .reel .unmute{position:absolute;bottom:12px;right:12px;min-height:36px;padding:6px 12px;border-radius:8px;
   border:1px solid #fff5;background:#000a;color:#fff;cursor:pointer}
+.reel .fullscreen{position:absolute;top:12px;right:12px;min-height:36px;padding:6px 12px;border-radius:8px;
+  border:1px solid #fff5;background:#000a;color:#fff;cursor:pointer}
 .reel p{color:#a9a9b2;margin:10px 2px 0;font-size:14px}
 h2{font-size:15px;text-transform:uppercase;letter-spacing:.04em;color:#a9a9b2;margin:36px 0 14px}
 .grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px}
@@ -577,6 +579,12 @@ _PAGE_SCRIPT = """
       reelUnmute.textContent = reel.muted ? 'Unmute' : 'Mute';
       if(!reel.muted && reel.paused) reel.play().catch(function(){});
     });
+    document.getElementById('reel-fullscreen').addEventListener('click', function(){
+      // iPhone Safari has no element fullscreen, only the video's own player.
+      if(document.fullscreenEnabled && reel.requestFullscreen) reel.requestFullscreen().catch(function(){});
+      else if(reel.webkitEnterFullscreen) reel.webkitEnterFullscreen();
+      reel.play().catch(function(){});
+    });
     document.querySelectorAll('[data-card]').forEach(function(btn){
       btn.addEventListener('click', function(){ reel.pause(); });
     });
@@ -601,6 +609,7 @@ def page_html(capabilities_dir, version):
             f'<video id="reel" src="/capabilities/{name}.mp4" poster="/capabilities/{name}.jpg" loop muted playsinline '
             'preload="metadata" aria-label="Showcase: every capability in one film"></video>'
             '<button class="unmute" id="reel-unmute" type="button">Unmute</button>'
+            '<button class="fullscreen" id="reel-fullscreen" type="button">Full screen</button>'
             '</div>'
             '<p>Every shot in this reel is one of the capabilities below; its corner tag is the card\'s title.</p>'
             '</section>')

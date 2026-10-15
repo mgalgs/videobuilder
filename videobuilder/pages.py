@@ -329,14 +329,13 @@ def _showcase_section_html():
     # The 9:16 cut for portrait screens is picked in JS, not with <source media>,
     # which older Safari and Firefox ignore.
     return ('<section class="showcase" aria-label="Showcase"><h2>What it can make</h2>'
-            '<video id="showcase" poster="/capabilities/showcase-16x9.jpg" muted playsinline loop '
+            '<video id="showcase" poster="/capabilities/showcase-16x9.jpg" muted playsinline loop controls '
             'preload="none" aria-label="Showcase: every capability in one film"></video>'
-            '<p>Tap to play. Every shot is something the builder can do for you; '
+            '<p>Every shot is something the builder can do for you; '
             '<a href="/capabilities">see them one by one</a>.</p></section>'
             '<script>(()=>{const v=document.getElementById("showcase");'
             'const f=matchMedia("(orientation:portrait)").matches?"showcase-9x16":"showcase-16x9";'
-            'v.poster="/capabilities/"+f+".jpg";v.src="/capabilities/"+f+".mp4";'
-            'v.onclick=()=>{if(v.paused)v.play().catch(()=>{});else v.pause()}})()</script>')
+            'v.poster="/capabilities/"+f+".jpg";v.src="/capabilities/"+f+".mp4"})()</script>')
 
 
 def index(names, accounts_enabled, user, host, scheme='http', showcase=False):

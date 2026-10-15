@@ -117,6 +117,7 @@ class ServedWithTheCatalog(unittest.TestCase):
         self.assertIn(' muted', video)
         self.assertNotIn('autoplay', video)   # started muted from script, and not at all for reduced motion
         self.assertIn('id="reel-unmute"', page)
+        self.assertIn('id="reel-fullscreen"', page)
         self.assertLess(page.index('id="reel"'), page.index('data-card='))
 
 

@@ -4,9 +4,11 @@ there's no build step to catch a typo otherwise)."""
 import re
 import shutil
 import subprocess
+import tempfile
 import unittest
+from pathlib import Path
 
-from videobuilder import pages
+from videobuilder import capabilities, pages
 from videobuilder.capabilities import CATALOG
 from videobuilder.starters import STARTERS
 
@@ -43,6 +45,7 @@ class StarterCardsOnPages(unittest.TestCase):
         self.assertIn('id="showcase"', page)
         self.assertLess(page.index('id="showcase"'), page.index('class="starters hero"'))
         self.assertNotIn('autoplay', page)
+        self.assertIn(' controls ', page)   # the native controls carry full screen, iPhone included
 
     def test_showcase_is_absent_once_a_video_exists_or_when_unbuilt(self):
         with_video = pages.index([('acme/launch', True)], False, None, 'example.com', showcase=True).decode()
@@ -105,6 +108,11 @@ class InlineScriptsParse(unittest.TestCase):
 
     def test_account_page_scripts_parse(self):
         self._check(pages.account_page('dana', []))
+
+    def test_capabilities_page_scripts_parse(self):
+        with tempfile.TemporaryDirectory() as d:
+            Path(d, 'showcase-16x9.mp4').write_bytes(b'mp4')
+            self._check(capabilities.page_html(d, '0'))
 
     def test_account_page_with_limits_scripts_parse(self):
         limits = {'defaults': {'notes': 20, 'cost_usd': None},
