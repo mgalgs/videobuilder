@@ -118,7 +118,10 @@ def strip_shortfalls(reply):
     block records nothing."""
     if not reply:
         return reply, None
-    matches = list(re.finditer(r'```shortfalls[ \t]*\r?\n(.*?)\r?\n```[ \t]*(?:\r?\n|\Z)', reply, re.S))
+    # The body may not span a fence: an unclosed block must not swallow a following
+    # ```questions block and lose the builder's questions.
+    matches = list(re.finditer(r'```shortfalls[ \t]*\r?\n((?:(?!```).)*?)\r?\n```[ \t]*(?:\r?\n|\Z)',
+                               reply, re.S))
     if not matches:
         return reply, None
     m = matches[-1]

@@ -79,6 +79,13 @@ class StripShortfalls(unittest.TestCase):
         _, shortfalls = strip_shortfalls('Done.\n\n' + block([{'kind': 'weak', 'what': '  a rough edge  '}]))
         self.assertEqual(shortfalls, [{'kind': 'weak', 'what': 'a rough edge'}])
 
+    def test_an_unclosed_block_does_not_swallow_a_questions_block(self):
+        questions = '```questions\n{"questions": [{"text": "Which style?"}]}\n```\n'
+        reply = 'Lead.\n\n```shortfalls\n{"shortfalls": []}\n' + questions
+        cleaned, shortfalls = strip_shortfalls(reply)
+        self.assertIsNone(shortfalls)
+        self.assertIn(questions, cleaned)
+
 
 class ShortfallsOnTheNote(unittest.TestCase):
     """Through NoteStore._poll, with a FakeAgent standing in for the backend
