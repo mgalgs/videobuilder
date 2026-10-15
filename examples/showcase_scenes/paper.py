@@ -37,7 +37,7 @@ PAD_IN = (44, 56)
 TICKS = (61, 76, 91)
 ARROW = (108, 126)
 STAMP_AT = 135
-RIP = (0, 22)        # frames into the next section, which the shards uncover
+RIP = (0, 13)        # frames into the next section, which the shards uncover
 # How each cut frames the wall: zoom, and the point (in wall px) it centres on.
 FRAMING = {
     True: ((1.6, (390, 155)), (1.3, (315, 440)), (1.0, (640, 360))),

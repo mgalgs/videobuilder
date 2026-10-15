@@ -218,7 +218,7 @@ def diagram(cv, s, st):
     trail = [_pen(strokes, _drawn(s.f - k))[1] for k in range(0, 10, 2)]
     cam = (sum(p[0] for p in trail) / len(trail), sum(p[1] for p in trail) / len(trail))
     fit = min(c.w / (bounds.w + 80), c.h / (bounds.h + 80))
-    close = fit * pick(st, 2.0, 1.7)
+    close = fit * pick(st, 2.0, 1.3)
     pull = kit.prog(s.f, *PULL, kit.SMOOTH)
     centre = (bounds.cx, bounds.cy)
     cx, cy = kit.lerp(cam[0], centre[0], pull), kit.lerp(cam[1], centre[1], pull)
