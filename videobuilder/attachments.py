@@ -1,11 +1,13 @@
 """Validated per-video uploads and per-note copies for fork-sandbox."""
+import io
 import json
-import os
 from pathlib import Path
 import re
 import secrets
 import shutil
+import stat
 import time
+import zipfile
 
 MAGIC = {
     'png': (b'\x89PNG\r\n\x1a\n',), 'jpg': (b'\xff\xd8\xff',), 'jpeg': (b'\xff\xd8\xff',),
@@ -19,12 +21,39 @@ TYPES = {'png':'image/png','jpg':'image/jpeg','jpeg':'image/jpeg','webp':'image/
          'txt':'text/plain','md':'text/plain'}
 # Staged after the uploads, so it wins a name clash and the note file stays true.
 FRAME_NAME = 'pinned-frame.png'
+ZIP_CHUNK = 1 << 16
+
+
+def _sanitize_name(name):
+    return re.sub(r'[^A-Za-z0-9._-]', '_', Path(name.replace('\\', '/')).name).lstrip('.') or 'file'
+
+
+def _validate_content(ctype, data, ext):
+    """Raises ValueError if `data` (already known to have extension `ext`) doesn't
+    actually look like `ctype`. Shared by a single upload and each zip member."""
+    if ctype.split(';', 1)[0].strip().lower() != TYPES[ext]:
+        raise ValueError('Content-Type does not match attachment extension')
+    if ext in ('txt', 'md'):
+        try:
+            data.decode('utf-8')
+        except UnicodeError:
+            raise ValueError('text attachment must be UTF-8') from None
+    elif not any(data.startswith(x) for x in MAGIC[ext]):
+        raise ValueError('attachment magic bytes do not match extension')
+    if ext in ('webp', 'wav') and data[8:12] != (b'WEBP' if ext == 'webp' else b'WAVE'):
+        raise ValueError('attachment magic bytes do not match extension')
+    if ext in ('mp4', 'mov', 'm4a') and data[4:8] != b'ftyp':
+        raise ValueError('attachment magic bytes do not match extension')
 
 
 class Attachments:
-    def __init__(self, editor, max_file, max_files, max_message):
+    def __init__(self, editor, max_file, max_files, max_message, zip_max_bytes, zip_max_members,
+                 zip_max_unpacked, start_video_max_files, start_video_max_message):
         self.editor = editor
         self.max_file, self.max_files, self.max_message = max_file, max_files, max_message
+        self.zip_max_bytes, self.zip_max_members, self.zip_max_unpacked = (
+            zip_max_bytes, zip_max_members, zip_max_unpacked)
+        self.start_video_max_files, self.start_video_max_message = start_video_max_files, start_video_max_message
         self.root = Path(editor.state_dir) / 'attachments'
         self.root.mkdir(parents=True, exist_ok=True)
 
@@ -33,23 +62,84 @@ class Attachments:
         self.expire()
         if not allow_oversize and len(data) > self.max_file:
             raise ValueError('attachment exceeds file size limit')
-        name = re.sub(r'[^A-Za-z0-9._-]', '_', Path(name.replace('\\', '/')).name).lstrip('.') or 'file'
+        name = _sanitize_name(name)
         ext = name.rsplit('.', 1)[-1].lower()
         if ext not in MAGIC:
             raise ValueError('unsupported attachment type')
-        if ctype.split(';', 1)[0].strip().lower() != TYPES[ext]:
-            raise ValueError('Content-Type does not match attachment extension')
-        if ext in ('txt', 'md'):
+        _validate_content(ctype, data, ext)
+        return self._write(video, name, ext, data)
+
+    def upload_zip(self, video, name, data):
+        """Unpacks a zip into ordinary attachments, one per supported member,
+        applying the same per-type validation a single upload gets. An unsafe
+        member (an absolute or `..` path, a symlink, or an encrypted entry) or
+        exceeding a limit refuses the whole zip and writes nothing; an
+        unsupported or invalid member is simply skipped and listed. Nothing is
+        written to disk until every member has been scanned, so a rejection
+        never leaves a partial set of attachments behind."""
+        self.editor.project.video(video)
+        self.expire()
+        if len(data) > self.zip_max_bytes:
+            raise ValueError('zip upload exceeds the size limit')
+        try:
+            zf = zipfile.ZipFile(io.BytesIO(data))
+        except zipfile.BadZipFile:
+            raise ValueError('not a valid zip file') from None
+        kept, skipped, total_unpacked = [], [], 0
+        for info in zf.infolist():
+            raw = info.filename.replace('\\', '/')
+            parts = raw.split('/')
+            basename = parts[-1]
+            if info.is_dir() or not basename or basename.startswith('.') or '__MACOSX' in parts[:-1]:
+                continue
+            if raw.startswith('/') or '..' in parts:
+                raise ValueError(f'zip member has an unsafe path: {basename}')
+            if stat.S_ISLNK((info.external_attr >> 16) & 0xFFFF):
+                raise ValueError(f'zip member is a symlink: {basename}')
+            if info.flag_bits & 0x1:
+                raise ValueError(f'zip member is encrypted: {basename}')
+            clean = _sanitize_name(basename)
+            ext = clean.rsplit('.', 1)[-1].lower()
+            if ext not in MAGIC:
+                skipped.append((basename, 'not a supported type'))
+                continue
+            content = self._unpack_member(zf, info, self.zip_max_unpacked - total_unpacked)
+            total_unpacked += len(content)
             try:
-                data.decode('utf-8')
-            except UnicodeError:
-                raise ValueError('text attachment must be UTF-8') from None
-        elif not any(data.startswith(x) for x in MAGIC[ext]):
-            raise ValueError('attachment magic bytes do not match extension')
-        if ext in ('webp', 'wav') and data[8:12] != (b'WEBP' if ext == 'webp' else b'WAVE'):
-            raise ValueError('attachment magic bytes do not match extension')
-        if ext in ('mp4', 'mov', 'm4a') and data[4:8] != b'ftyp':
-            raise ValueError('attachment magic bytes do not match extension')
+                _validate_content(TYPES[ext], content, ext)
+            except ValueError as exc:
+                skipped.append((basename, str(exc)))
+                continue
+            if len(kept) >= self.zip_max_members:
+                raise ValueError(f'zip has more than {self.zip_max_members} supported files')
+            kept.append((clean, ext, content))
+        attachments = [self._write(video, clean, ext, content) for clean, ext, content in kept]
+        return {'attachments': attachments, 'skipped': [{'name': n, 'reason': r} for n, r in skipped]}
+
+    def _unpack_member(self, zf, info, remaining):
+        """Decompresses one member in chunks, checked against the per-file and
+        remaining total-unpacked budgets as bytes actually come out -- never
+        against the (attacker-controlled) size the zip header declares. A
+        member whose declared size understates its real, decompressed content
+        fails zipfile's own CRC check once enough of it has been read; that
+        surfaces here as BadZipFile, not a silent pass-through of the lie."""
+        buf = bytearray()
+        try:
+            with zf.open(info) as fh:
+                while True:
+                    chunk = fh.read(ZIP_CHUNK)
+                    if not chunk:
+                        break
+                    buf += chunk
+                    if len(buf) > self.max_file:
+                        raise ValueError('a file in the zip exceeds the attachment size limit')
+                    if len(buf) > remaining:
+                        raise ValueError('the zip exceeds the total unpacked size limit')
+        except zipfile.BadZipFile as exc:
+            raise ValueError(f'zip member {info.filename!r} is corrupt or its size is wrong') from exc
+        return bytes(buf)
+
+    def _write(self, video, name, ext, data):
         ident = secrets.token_hex(16)
         record = dict(id=ident, video=video, name=name, type=TYPES[ext], size=len(data), created=time.time())
         path = self.root / ident
@@ -69,11 +159,13 @@ class Attachments:
             raise KeyError(ident)
         return meta, self.root / ident / meta['name']
 
-    def validate(self, video, ids):
-        if not isinstance(ids, list) or len(ids) > self.max_files or len(ids) != len(set(ids)):
+    def validate(self, video, ids, max_files=None, max_message=None):
+        max_files = self.max_files if max_files is None else max_files
+        max_message = self.max_message if max_message is None else max_message
+        if not isinstance(ids, list) or len(ids) > max_files or len(ids) != len(set(ids)):
             raise ValueError('too many or duplicate attachments')
         records = [self.get(ident, video)[0] for ident in ids]
-        if sum(x['size'] for x in records) > self.max_message:
+        if sum(x['size'] for x in records) > max_message:
             raise ValueError('attachments exceed message size limit')
         out, names = [], set()
         for x in records:

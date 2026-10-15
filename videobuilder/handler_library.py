@@ -202,12 +202,20 @@ class LibraryHandler:
                 # a bearer key carries no ambient credential, so it skips the Origin check like _body().
                 if not self._key:
                     self._same_origin()
+                upload_name = _need(q, 'name')
+                is_zip = upload_name.lower().endswith('.zip')
+                limit = active.attachments.zip_max_bytes if is_zip else active.attachments.max_file
                 n = int(self.headers.get('Content-Length') or 0)
-                if n < 0 or n > active.attachments.max_file:
-                    raise HTTPError(413, 'attachment exceeds file size limit')
-                record = active.attachments.upload(_need(q, 'video'), _need(q, 'name'),
-                                                   self.headers.get('Content-Type', ''), self.rfile.read(n))
-                self._json(201, record)
+                if n < 0 or n > limit:
+                    raise HTTPError(413, ('zip upload exceeds the size limit' if is_zip else
+                                          'attachment exceeds file size limit'))
+                body_bytes = self.rfile.read(n)
+                if is_zip:
+                    self._json(201, active.attachments.upload_zip(_need(q, 'video'), upload_name, body_bytes))
+                else:
+                    record = active.attachments.upload(_need(q, 'video'), upload_name,
+                                                       self.headers.get('Content-Type', ''), body_bytes)
+                    self._json(201, record)
             else:
                 self._post(route, self._body(), identity or 'anonymous', active)
         except (BrokenPipeError, ConnectionResetError):

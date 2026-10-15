@@ -44,7 +44,12 @@ POST /api/notes/<id>/answer {answers:[...]} or {build:true}
                                      already answered.
 POST /api/attachments?video=V&name=F  raw body with Content-Type; 201
                                      {id,name,type,size}; 400 bad type/magic,
-                                     413 over file limit
+                                     413 over file limit. name ending in .zip
+                                     instead unpacks each supported member as
+                                     its own attachment: 201 {attachments:
+                                     [{id,name,type,size}...],
+                                     skipped:[{name,reason}...]}; 400 an unsafe
+                                     member or bad zip, 413 over a zip limit
 GET  /api/attachments/<id>          stored bytes, nosniff, CSP sandbox;
                                      image/video/audio inline, others download
 GET  /api/music/sources              [{id,name,license}]; [] with none configured
@@ -146,8 +151,16 @@ or fetch request {error: "internal error"}, and the real traceback only goes
 to the server log. POSTs require same-origin; all but attachment upload use JSON.
 
 [editor] config: auto_land=true, render_jobs=min(4,cpu_count), render_keep=20,
-attachment_max_file=25, attachment_max_files=10, attachment_max_message=100
-(the size values are MiB). Film code and MP4 rendering run in bwrap with no
+attachment_max_file=25, attachment_max_files=10, attachment_max_message=100,
+attachment_zip_max_bytes=200, attachment_zip_max_members=50,
+attachment_zip_max_unpacked_bytes=300, start_video_attachment_max_files=50,
+start_video_attachment_max_message=300 (the size values are MiB). The
+attachment_zip_* limits bound a single `.zip` upload (its own compressed
+size, how many of its members become attachments, and their total
+decompressed size); the start_video_attachment_max_* limits replace
+attachment_max_files/attachment_max_message only for the first note a New
+video page creates, since a zip of assets can easily outgrow an ordinary
+note's attachment budget. Film code and MP4 rendering run in bwrap with no
 network; the checkout is read-only. Fork-sandbox attachment copies are mounted
 read-only at /attachments for only the relevant submission.
 """
@@ -250,7 +263,12 @@ class Editor:
                                before_submit=self._before_submit, on_reply=self._on_reply)
         self.attachments = Attachments(self, _positive(cfg, 'attachment_max_file', 25) * 1048576,
                                        _positive(cfg, 'attachment_max_files', 10),
-                                       _positive(cfg, 'attachment_max_message', 100) * 1048576)
+                                       _positive(cfg, 'attachment_max_message', 100) * 1048576,
+                                       _positive(cfg, 'attachment_zip_max_bytes', 200) * 1048576,
+                                       _positive(cfg, 'attachment_zip_max_members', 50),
+                                       _positive(cfg, 'attachment_zip_max_unpacked_bytes', 300) * 1048576,
+                                       _positive(cfg, 'start_video_attachment_max_files', 50),
+                                       _positive(cfg, 'start_video_attachment_max_message', 300) * 1048576)
         self.notes.attachments = self.attachments
         self.renders = Renders(self, _positive(cfg, 'render_jobs', min(4, default_jobs())),
                                _positive(cfg, 'render_keep', 20))
@@ -431,7 +449,9 @@ class Editor:
         if not all(links) or len(links) > 20:
             raise HTTPError(400, 'links must be a list of up to 20 URLs')
         try:
-            attachments = self.attachments.validate(vid, body.get('attachments', []))
+            attachments = self.attachments.validate(vid, body.get('attachments', []),
+                                                    max_files=self.attachments.start_video_max_files,
+                                                    max_message=self.attachments.start_video_max_message)
         except (ValueError, KeyError) as exc:
             raise HTTPError(400, str(exc)) from None
         s = self.session(vid)
