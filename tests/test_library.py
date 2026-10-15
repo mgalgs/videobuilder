@@ -7,6 +7,7 @@ from pathlib import Path
 import subprocess
 import tempfile
 import threading
+import time
 import unittest
 from unittest import mock
 import urllib.error
@@ -313,13 +314,31 @@ class HostedGit(LibraryFixture, unittest.TestCase):
             'attachments': [attach['id']],
             'links': ['http://127.0.0.1:1/unreachable'],
         })
+        # The note is created right away, before the (possibly slow) crawl runs, so the
+        # call returns the placeholder: 'gathering', with the brief already on it.
         self.assertEqual(code, 200, note)
+        self.assertEqual(note['state'], 'gathering')
+        self.assertEqual(note['text'], 'A marketing video for the launch.')
+        note = self.wait_for_note(note['id'], lambda n: n['state'] != 'gathering')
         self.assertIn('A marketing video for the launch.', note['text'])
         self.assertIn('Some pages were not gathered', note['text'])
         names = {a['name'] for a in note['attachments']}
         self.assertIn('brief.txt', names)
         self.assertIn('gathered-pages.md', names)
-        self.assertEqual(note['state'], 'queued')
+        # Left 'gathering' for the normal dispatch states; a FakeBackend with no
+        # delay can race straight through 'queued'/'working' to a final state.
+        self.assertNotEqual(note['state'], 'gathering')
+
+    def wait_for_note(self, nid, predicate, timeout=10):
+        deadline = time.monotonic() + timeout
+        note = None
+        while time.monotonic() < deadline:
+            _, notes = self.request('/v/acme/scratch/api/notes?video=film')
+            note = next((n for n in notes['notes'] if n['id'] == nid), None)
+            if note is not None and predicate(note):
+                return note
+            time.sleep(0.05)
+        self.fail(f'note {nid} did not reach the expected state in time: {note}')
 
     def test_first_note_without_links_queues_immediately(self):
         from videobuilder.agents import FakeBackend

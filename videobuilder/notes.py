@@ -37,8 +37,8 @@ import threading
 import time
 from dataclasses import asdict, dataclass
 
-STATES = ('queued', 'working', 'replied', 'failed', 'accepted', 'dropped', 'landed', 'refused', 'conflict',
-         'questions')
+STATES = ('gathering', 'queued', 'working', 'replied', 'failed', 'accepted', 'dropped', 'landed', 'refused',
+         'conflict', 'questions')
 FINAL = ('replied', 'failed', 'accepted', 'dropped', 'landed', 'refused', 'conflict', 'questions')
 
 QUESTIONS_MAX = 3
@@ -175,6 +175,42 @@ class NoteStore:
             note = self.get(nid)
         return note
 
+    def start_gathering(self, video, format, text=None, author=None, attachments=None, **context):
+        """A placeholder note in the `gathering` state, saved and visible to
+        every viewer (reload, another device, loadNotes' poll) before the
+        gatherer -- which can run for up to about two minutes -- has
+        produced the first note's real text. `_advance` stops at a
+        `gathering` note the same way it stops at an in-flight one, so a
+        note added while the brief is gathering waits for it rather than
+        being submitted first; `finish_gathering` supplies the real text
+        and moves it to `queued`, where `_advance` submits it as usual."""
+        os.makedirs(self.dir, exist_ok=True)
+        now = time.time()
+        nid = time.strftime('%Y%m%dT%H%M%S', time.gmtime(now)) + f'{int(now % 1 * 1e6):06d}Z-{secrets.token_hex(3)}'
+        note = {'id': nid, 'video': video, 'format': format, 'frame': None, 'segment': None,
+                'text': (text or '').strip() or 'Starting this video…', 'author': author,
+                'created': time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime(now)),
+                'attachments': attachments or [], **context, 'backend': self.backend.name, 'handle': None,
+                **asdict(AgentStatus('gathering'))}
+        with self.video_lock(video):
+            self._save(note)
+            note = self.get(nid)
+        return note
+
+    def finish_gathering(self, nid, text, attachments):
+        """Supply a `gathering` note's real text and attachments once the
+        gatherer finishes, and move it to `queued` so `_advance` submits it."""
+        if not isinstance(text, str) or not text.strip():
+            raise ValueError('a note needs some text')
+        video = self.get(nid)['video']
+        with self.video_lock(video):
+            note = self.get(nid)
+            note.update(text=text.strip(), attachments=attachments, **asdict(AgentStatus('queued')))
+            self._save(note)
+            self._advance(video)
+            note = self.get(nid)
+        return note
+
     def get(self, nid):
         try:
             with open(self._path(nid, 'json'), encoding='utf-8') as fh:
@@ -249,6 +285,11 @@ class NoteStore:
         for note in self.list(video, refresh=False):
             if note['state'] in FINAL:
                 continue
+            if note['state'] == 'gathering':
+                # Still being filled in by the background crawl: stop here, the same
+                # way an in-flight note blocks the rest, so a note added while the
+                # brief is gathering waits for it instead of jumping the queue.
+                return
             state = self.session(video)
             if not note['handle']:
                 try:

@@ -32,8 +32,7 @@ const state = {
   musicTracks: [],
   musicPlayingId: null,
   steps: {},
-  pendingAnswers: {},
-  gathering: false
+  pendingAnswers: {}
 };
 const player = $('player');
 const timeLabel = s => {
@@ -594,15 +593,15 @@ function renderNotes() {
       list.append(reply)
     }
     if(note.questions)list.append(renderQuestionsCard(note));
-    if(['queued','working'].includes(note.state)) {
+    if(['gathering','queued','working'].includes(note.state)) {
       const working=node('div','bubble-row builder'),box=node('div','bubble');
       box.append(node('span','who','Builder'));
       const dots=node('span','dots');
       for(let i=0;i<3;i++)dots.append(node('i','dot'));
-      const message=note.state==='queued' ?
+      const message=note.state==='gathering' ? 'Gathering pages…' : note.state==='queued' ?
         'Queued. The builder takes notes one at a time and starts this one when the note before it lands.' :
         'Working on it. A new version usually takes 2–3 minutes. You can keep watching or add more notes.';
-      if(note.state==='working')box.append(dots);
+      if(note.state==='working'||note.state==='gathering')box.append(dots);
       box.append(node('span','state-message',message));
       working.append(box);
       list.append(working)
@@ -638,53 +637,8 @@ function renderNotes() {
       list.append(ready)
     }
   }
-  if(state.gathering) {
-    const row=node('div','bubble-row builder'),box=node('div','bubble');
-    box.append(node('span','who','Builder'));
-    const dots=node('span','dots');
-    for(let i=0;i<3;i++)dots.append(node('i','dot'));
-    box.append(dots,node('span','state-message','Gathering pages…'));
-    row.append(box);
-    list.append(row)
-  }
   $('chat-count').textContent=state.notes.length;
   if(atBottom)list.scrollTop=list.scrollHeight
-}
-async function maybeStartVideo() {
-  if(!libMode||!state.video)return;
-  const key=`vb-first-note:${libName}`;
-  let raw;
-  try {
-    raw=sessionStorage.getItem(key)
-  }
-  catch(_) {
-    raw=null
-  }
-  if(!raw)return;
-  try {
-    sessionStorage.removeItem(key)
-  }
-  catch(_) {
-  }
-  let payload;
-  try {
-    payload=JSON.parse(raw)
-  }
-  catch(_) {
-    return
-  }
-  state.gathering=true;
-  renderNotes();
-  try {
-    await json('videos/first-note',null,payload)
-  }
-  catch(e) {
-    toast(e.message)
-  }
-  finally {
-    state.gathering=false;
-    await loadNotes()
-  }
 }
 async function retryNote(note, button) {
   button.disabled=true;
@@ -1189,7 +1143,6 @@ async function openVideo(video) {
     renderFormats();
     await loadVersions();
     await loadNotes();
-    await maybeStartVideo()
   }
   catch(e) {
     toast(e.message)
@@ -1489,7 +1442,7 @@ init();
 let lastNotesPoll=0;
 setInterval(()=> {
   const fast=!document.hidden && (
-    state.notes.some(n=>['queued','working'].includes(n.state)) ||
+    state.notes.some(n=>['gathering','queued','working'].includes(n.state)) ||
     window.innerWidth>700 || $('panel').classList.contains('open'));
   if(state.video&&Date.now()-lastNotesPoll>=(fast?3000:15000)) {
     lastNotesPoll=Date.now();
