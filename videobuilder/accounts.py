@@ -2,17 +2,26 @@
 
 One JSON file under the library state dir holds everyone: usernames, scrypt
 password hashes (never plaintext, except the admin password files the
-operator supplies), and sessions keyed by the session token's SHA-256, so
-the file never holds a usable token. Login lockout and sign-up throttling
-are in memory and reset on restart.
+operator supplies), sessions keyed by the session token's SHA-256, and API
+keys keyed by the key secret's SHA-256, so the file never holds a usable
+token or key. Login lockout and sign-up throttling are in memory and reset
+on restart.
 
 Each account also gets a random `uid` at creation, stable across restarts,
-that never gets reused even if the username is. Sessions and access grants
-record the uid they were issued to, not just the username, so deleting a
-user's record (by hand, with the editor stopped) invalidates their
-outstanding sessions, and a later sign-up under the same name starts with no
-borrowed access. The file is only read at startup: editing it while the
-editor is running will be overwritten by its next write.
+that never gets reused even if the username is. Sessions, access grants and
+keys record the uid they were issued to, not just the username, so deleting
+a user's record (by hand, with the editor stopped) invalidates their
+outstanding sessions and keys, and a later sign-up under the same name
+starts with no borrowed access. The file is only read at startup: editing it
+while the editor is running will be overwritten by its next write.
+
+A key acts as the account it belongs to, narrowed by its own scope
+(a project namespace, or none for every project the account can reach) and
+mode (`read` or `write`). The secret is high-entropy (`vbk_` plus at least
+32 random bytes), so a plain SHA-256 and direct lookup are enough: no
+per-key lockout. `last_used` is updated in memory on every use but flushed
+to disk at most once an hour per key, to keep that from being a write on
+every request.
 """
 import hashlib
 import hmac
@@ -24,6 +33,9 @@ import threading
 import time
 
 USERNAME = re.compile(r'[a-z0-9._-]{3,32}\Z')
+# Same shape as a project namespace (videobuilder.library.PART); duplicated here rather
+# than imported, since library.py imports this module.
+SCOPE = re.compile(r'[a-z0-9][a-z0-9._-]{0,62}\Z')
 
 SCRYPT_N, SCRYPT_R, SCRYPT_P = 2 ** 14, 8, 1
 SESSION_TTL = 30 * 24 * 3600
@@ -31,6 +43,20 @@ LOGIN_WINDOW = 15 * 60
 LOGIN_LIMIT = 5
 SIGNUP_WINDOW = 60 * 60
 SIGNUP_LIMIT = 20
+
+KEY_PREFIX = 'vbk_'
+KEY_MODES = ('read', 'write')
+KEY_LABEL_MAX = 40
+KEY_LAST_USED_FLUSH = 3600  # flush a key's last_used to disk at most this often
+
+
+def valid_label(label):
+    return (isinstance(label, str) and 1 <= len(label) <= KEY_LABEL_MAX and
+            not any(ord(c) < 32 or ord(c) == 127 or c in '()' for c in label))
+
+
+def valid_scope(scope):
+    return isinstance(scope, str) and bool(SCOPE.fullmatch(scope)) and '..' not in scope and not scope.endswith('.git')
 
 
 def valid_username(name):
@@ -71,6 +97,7 @@ class Accounts:
         self._data = self._load()
         self._failures = {}
         self._signups = []
+        self._key_flushed = {}
         self.admins = set()
         for name, password_file in admins:
             name = normalize_username(name)
@@ -94,7 +121,7 @@ class Accounts:
             with open(self.path, encoding='utf-8') as fh:
                 return json.load(fh)
         except FileNotFoundError:
-            return {'users': {}, 'sessions': {}}
+            return {'users': {}, 'sessions': {}, 'keys': {}}
 
     def _save(self):
         os.makedirs(os.path.dirname(self.path), exist_ok=True)
@@ -192,3 +219,65 @@ class Accounts:
         with self.lock:
             if self._data['sessions'].pop(key, None) is not None:
                 self._save()
+
+    def _public_key(self, record):
+        return {k: record[k] for k in ('id', 'label', 'scope', 'mode', 'created', 'last_used')}
+
+    def create_key(self, username, label, scope, mode):
+        """Create a key acting as `username`; (public record, secret). The secret is
+        returned only here: the stored record never holds it, only its hash."""
+        username = username.lower() if isinstance(username, str) else username
+        if not self.exists(username):
+            raise ValueError('no such account')
+        if not valid_label(label):
+            raise ValueError(f'label must be 1-{KEY_LABEL_MAX} characters, with no control characters or parentheses')
+        if scope is not None and not valid_scope(scope):
+            raise ValueError('scope must look like a project namespace')
+        if mode not in KEY_MODES:
+            raise ValueError('mode must be "read" or "write"')
+        secret = KEY_PREFIX + secrets.token_urlsafe(32)
+        digest = hashlib.sha256(secret.encode()).hexdigest()
+        with self.lock:
+            record = {'id': secrets.token_hex(6), 'username': username, 'uid': self.uid(username),
+                      'label': label, 'scope': scope, 'mode': mode, 'created': time.time(), 'last_used': None}
+            self._data.setdefault('keys', {})[digest] = record
+            self._save()
+        return self._public_key(record), secret
+
+    def list_keys(self, username):
+        """The account's keys (no secrets), oldest first."""
+        username = username.lower() if isinstance(username, str) else ''
+        uid = self.uid(username)
+        with self.lock:
+            records = [r for r in self._data.get('keys', {}).values()
+                      if r['username'] == username and r['uid'] == uid]
+        return [self._public_key(r) for r in sorted(records, key=lambda r: r['created'])]
+
+    def revoke_key(self, username, key_id):
+        """Delete one of the account's keys by its id; raises KeyError if there is none."""
+        username = username.lower() if isinstance(username, str) else ''
+        uid = self.uid(username)
+        with self.lock:
+            for digest, record in self._data.get('keys', {}).items():
+                if record['id'] == key_id and record['username'] == username and record['uid'] == uid:
+                    del self._data['keys'][digest]
+                    self._save()
+                    return
+        raise KeyError(key_id)
+
+    def key_for_secret(self, secret):
+        """The record for a live key matching `secret` (its public fields plus the
+        `username` it acts as), or None: a bad secret, a revoked key, or a key whose
+        account was deleted (and maybe recreated) since."""
+        if not isinstance(secret, str) or not secret.startswith(KEY_PREFIX):
+            return None
+        digest = hashlib.sha256(secret.encode()).hexdigest()
+        with self.lock:
+            record = self._data.get('keys', {}).get(digest)
+            if not record or record['uid'] != self.uid(record['username']):
+                return None
+            record['last_used'] = now = time.time()
+            if now - self._key_flushed.get(digest, 0) >= KEY_LAST_USED_FLUSH:
+                self._key_flushed[digest] = now
+                self._save()
+            return {**self._public_key(record), 'username': record['username']}

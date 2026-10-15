@@ -3,9 +3,10 @@ import json
 import tempfile
 import time
 import unittest
+import unittest.mock
 from pathlib import Path
 
-from videobuilder.accounts import Accounts, LOGIN_LIMIT, SIGNUP_LIMIT, valid_username
+from videobuilder.accounts import Accounts, KEY_LAST_USED_FLUSH, LOGIN_LIMIT, SIGNUP_LIMIT, valid_username
 
 
 class AccountsTest(unittest.TestCase):
@@ -123,6 +124,102 @@ class AccountsTest(unittest.TestCase):
         accounts._data['sessions'][key]['expires'] = time.time() - 1
         accounts._save()
         self.assertIsNone(accounts.user_for_token(token))
+
+
+class KeysTest(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        self.state = Path(self.tmp.name)
+        self.accounts = Accounts(str(self.state))
+        self.accounts.signup('dana', 'longenoughpassword')
+
+    def test_create_returns_secret_once_and_file_holds_only_its_hash(self):
+        record, secret = self.accounts.create_key('dana', 'laptop', None, 'write')
+        self.assertTrue(secret.startswith('vbk_'))
+        self.assertGreaterEqual(len(secret), 36)
+        self.assertEqual(record['label'], 'laptop')
+        self.assertIsNone(record['scope'])
+        self.assertEqual(record['mode'], 'write')
+        self.assertNotIn('secret', record)
+        self.assertNotIn('username', record)  # the public record; not identity
+        raw = (self.state / 'accounts.json').read_text()
+        self.assertNotIn(secret, raw)
+        found = self.accounts.key_for_secret(secret)
+        self.assertEqual(found['id'], record['id'])
+        self.assertEqual(found['username'], 'dana')  # key_for_secret says who it acts as; list_keys doesn't need to
+
+    def test_list_never_shows_a_secret(self):
+        self.accounts.create_key('dana', 'laptop', None, 'write')
+        self.accounts.create_key('dana', 'phone', 'gardening', 'read')
+        listed = self.accounts.list_keys('dana')
+        self.assertEqual(len(listed), 2)
+        for record in listed:
+            self.assertNotIn('secret', record)
+            self.assertNotIn('uid', record)
+
+    def test_revoke_works_on_the_next_request(self):
+        _, secret = self.accounts.create_key('dana', 'laptop', None, 'write')
+        self.assertIsNotNone(self.accounts.key_for_secret(secret))
+        record = self.accounts.list_keys('dana')[0]
+        self.accounts.revoke_key('dana', record['id'])
+        self.assertIsNone(self.accounts.key_for_secret(secret))
+        self.assertEqual(self.accounts.list_keys('dana'), [])
+
+    def test_revoke_unknown_id_raises(self):
+        with self.assertRaises(KeyError):
+            self.accounts.revoke_key('dana', 'nosuchid')
+
+    def test_deleted_and_recreated_account_kills_its_old_keys(self):
+        _, secret = self.accounts.create_key('dana', 'laptop', None, 'write')
+        del self.accounts._data['users']['dana']
+        self.accounts._save()
+        self.accounts.signup('dana', 'anotherlongpassword')
+        self.assertIsNone(self.accounts.key_for_secret(secret))
+        self.assertEqual(self.accounts.list_keys('dana'), [])
+
+    def test_bad_secret_is_rejected(self):
+        self.assertIsNone(self.accounts.key_for_secret('vbk_nosuchkey'))
+        self.assertIsNone(self.accounts.key_for_secret('not-even-key-shaped'))
+        self.assertIsNone(self.accounts.key_for_secret(None))
+
+    def test_label_scope_mode_validation(self):
+        with self.assertRaises(ValueError):
+            self.accounts.create_key('dana', '', None, 'write')
+        with self.assertRaises(ValueError):
+            self.accounts.create_key('dana', 'a' * 41, None, 'write')
+        with self.assertRaises(ValueError):
+            self.accounts.create_key('dana', 'has (parens)', None, 'write')
+        with self.assertRaises(ValueError):
+            self.accounts.create_key('dana', 'ok', 'Bad Scope', 'write')
+        with self.assertRaises(ValueError):
+            self.accounts.create_key('dana', 'ok', None, 'delete')
+        record, _ = self.accounts.create_key('dana', 'ok', 'gardening', 'read')
+        self.assertEqual(record['scope'], 'gardening')
+
+    def test_create_key_requires_existing_account(self):
+        with self.assertRaises(ValueError):
+            self.accounts.create_key('nosuchuser', 'laptop', None, 'write')
+
+    def test_last_used_updates_in_memory_but_flushes_at_most_hourly(self):
+        _, secret = self.accounts.create_key('dana', 'laptop', None, 'write')
+        self.accounts.key_for_secret(secret)
+        digest = next(iter(self.accounts._data['keys']))
+        first_flush = self.accounts._key_flushed[digest]
+        on_disk = json.loads((self.state / 'accounts.json').read_text())
+        self.assertIsNotNone(next(iter(on_disk['keys'].values()))['last_used'])
+        soon_after = first_flush + 10
+        with unittest.mock.patch('time.time', return_value=soon_after):
+            self.accounts.key_for_secret(secret)
+        # The in-memory record moved, but the flush timestamp (and so the on-disk copy) did not.
+        self.assertEqual(self.accounts._data['keys'][digest]['last_used'], soon_after)
+        self.assertEqual(self.accounts._key_flushed[digest], first_flush)
+        on_disk = json.loads((self.state / 'accounts.json').read_text())
+        self.assertNotEqual(next(iter(on_disk['keys'].values()))['last_used'], soon_after)
+        much_later = first_flush + KEY_LAST_USED_FLUSH + 1
+        with unittest.mock.patch('time.time', return_value=much_later):
+            self.accounts.key_for_secret(secret)
+        self.assertEqual(self.accounts._key_flushed[digest], much_later)
 
 
 if __name__ == '__main__':
