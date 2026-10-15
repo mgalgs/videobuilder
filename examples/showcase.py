@@ -29,7 +29,7 @@ sys.path.insert(0, str(HERE))
 
 import videobuilder as vb  # noqa: E402
 from videobuilder import capabilities  # noqa: E402
-from showcase_scenes import kit  # noqa: E402
+from showcase_scenes import kit, motion  # noqa: E402
 from showcase_scenes.kit import ACCENT, BG, INK, MUTED  # noqa: E402
 
 GRID = kit.GRID
@@ -299,7 +299,7 @@ def placeholder(cv, s, st):
                        st.content.cy, INK, st.content.w * 0.9)
 
 
-SCENES = {'hook-1': hook, 'hook-2': hook, 'hook-3': hook, 'title': title, 'end': end}
+SCENES = {'hook-1': hook, 'hook-2': hook, 'hook-3': hook, 'title': title, 'end': end, **motion.SCENES}
 
 
 def draw(n, cv):
