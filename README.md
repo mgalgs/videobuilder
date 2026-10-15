@@ -611,7 +611,7 @@ videobuilder handles each of these, but you should know about them:
 
     python -m unittest
 
-These cover easing (including Remotion-parity springs), timeline rounding,
+These cover easing (springs checked against the textbook damped-oscillator solution), timeline rounding,
 the chunk guard, layout, film loading, direct edits, the CLI, the
 preview server and the editor (in temporary git repos). Golden stills of the example films are compared by PSNR, since text
 rasterisation varies a little between FreeType and Pango versions. After a

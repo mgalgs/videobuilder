@@ -5,69 +5,51 @@ from videobuilder import ease
 from videobuilder.ease import bezier, critical, interpolate, log_lerp, spring, spring_at
 
 
-def remotion_spring(frame, fps, stiffness=100.0, damping=10.0, mass=1.0):
-    """A port of Remotion's spring(): it steps a closed-form solution frame by
-    frame (each step capped at 64 ms), and uses the critically damped solution
-    for every damping ratio >= 1."""
-    current, velocity, last = 0.0, 0.0, 0.0
-    to = 1.0
-    frame = max(0.0, frame)
-    uneven = frame % 1
-    f = 0
-    while f <= math.floor(frame):
-        ff = f + uneven if f == math.floor(frame) else f
-        now = ff / fps * 1000
-        dt = min(now - last, 64) / 1000
-        c, m, k = damping, mass, stiffness
-        v0, x0 = -velocity, to - current
-        zeta = c / (2 * math.sqrt(k * m))
-        w0 = math.sqrt(k / m)
-        if zeta < 1:
-            w1 = w0 * math.sqrt(1 - zeta ** 2)
-            s, co = math.sin(w1 * dt), math.cos(w1 * dt)
-            env = math.exp(-zeta * w0 * dt)
-            frag = env * (s * ((v0 + zeta * w0 * x0) / w1) + x0 * co)
-            pos = to - frag
-            vel = zeta * w0 * frag - env * (co * (v0 + zeta * w0 * x0) - w1 * x0 * s)
-        else:
-            env = math.exp(-w0 * dt)
-            pos = to - env * (x0 + (v0 + w0 * x0) * dt)
-            vel = env * (v0 * (dt * w0 - 1) + dt * x0 * w0 * w0)
-        current, velocity, last = pos, vel, now
-        f += 1
-    return current
+def step_response(t, stiffness=100.0, damping=10.0, mass=1.0):
+    """The textbook step response of a damped harmonic oscillator released
+    from rest at 0 toward 1: m x'' + c x' + k (x - 1) = 0, x(0) = x'(0) = 0."""
+    if t <= 0:
+        return 0.0
+    w0 = math.sqrt(stiffness / mass)
+    zeta = damping / (2 * math.sqrt(stiffness * mass))
+    if zeta < 1:
+        w1 = w0 * math.sqrt(1 - zeta ** 2)
+        return 1 - math.exp(-zeta * w0 * t) * (math.cos(w1 * t) + zeta * w0 / w1 * math.sin(w1 * t))
+    if zeta == 1:
+        return 1 - math.exp(-w0 * t) * (1 + w0 * t)
+    r = w0 * math.sqrt(zeta ** 2 - 1)
+    r1, r2 = -zeta * w0 + r, -zeta * w0 - r
+    return 1 - (r2 * math.exp(r1 * t) - r1 * math.exp(r2 * t)) / (r2 - r1)
 
 
-class SpringParity(unittest.TestCase):
+class SpringPhysics(unittest.TestCase):
     CONFIGS = [
-        {},  # Remotion's default: stiffness 100, damping 10, mass 1
+        {},  # the defaults: stiffness 100, damping 10, mass 1
         dict(stiffness=170, damping=12),
         dict(stiffness=200, damping=26, mass=1.0),
         dict(stiffness=80, damping=8, mass=0.6),
         dict(stiffness=300, damping=20, mass=2.0),
     ]
 
-    def test_under_damped_matches_remotion(self):
+    def test_under_damped_is_the_step_response(self):
         for fps in (24, 30, 60):
             for cfg in self.CONFIGS:
                 for n in range(0, 3 * fps):
                     with self.subTest(fps=fps, cfg=cfg, n=n):
-                        self.assertAlmostEqual(spring_at(n, fps, **cfg), remotion_spring(n, fps, **cfg), delta=1e-9)
+                        self.assertAlmostEqual(spring_at(n, fps, **cfg), step_response(n / fps, **cfg), delta=1e-9)
 
-    def test_critical_matches_remotion_settle(self):
-        # Remotion treats any damping ratio >= 1 as critical; critical(k) is that curve.
+    def test_critical_is_the_critically_damped_response(self):
         for k, m in ((100, 1), (120, 1), (200, 0.5), (60, 3)):
-            for remotion_damping in (2 * math.sqrt(k * m), 40, 200):
-                for n in range(0, 90):
-                    with self.subTest(k=k, m=m, d=remotion_damping, n=n):
-                        ours = spring_at(n, 30, **critical(k, m))
-                        theirs = remotion_spring(n, 30, stiffness=k, damping=remotion_damping, mass=m)
-                        self.assertAlmostEqual(ours, theirs, delta=1e-9)
+            for n in range(0, 90):
+                with self.subTest(k=k, m=m, n=n):
+                    ours = spring_at(n, 30, **critical(k, m))
+                    physics = step_response(n / 30, stiffness=k, damping=2 * math.sqrt(k * m), mass=m)
+                    self.assertAlmostEqual(ours, physics, delta=1e-9)
 
-    def test_over_damped_is_real_physics_not_remotion(self):
-        # Ours crawls when over-damped; Remotion would snap to the critical curve.
+    def test_over_damped_crawls_behind_critical(self):
         cfg = dict(stiffness=100, damping=60)
-        self.assertLess(spring_at(15, 30, **cfg), remotion_spring(15, 30, **cfg) - 0.1)
+        self.assertAlmostEqual(spring_at(15, 30, **cfg), step_response(0.5, **cfg), delta=1e-9)
+        self.assertLess(spring_at(15, 30, **cfg), spring_at(15, 30, **critical(100)) - 0.1)
 
     def test_critical_params(self):
         p = critical(144, mass=2)
