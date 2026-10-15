@@ -132,11 +132,25 @@ def _hard_break(lines, f, max_w):
 def wrap_fit(copy, make, max_w, hi, lo, max_lines=2, balance=True):
     """(lines, font): `copy` wrapped to `max_w` at the largest size from `hi`
     down to `lo` that needs no more than `max_lines` lines, words longer than
-    the width broken by force so nothing ever runs past `max_w`."""
+    the width broken by force so nothing ever runs past `max_w`. Copy that
+    still needs more lines at `lo` is cut short with an ellipsis."""
     size = hi
     while True:
         f = make(size)
         lines = _hard_break(text.wrap(copy, f, max_w, balance=balance), f, max_w)
-        if len(lines) <= max_lines or size <= lo:
+        if len(lines) <= max_lines:
             return lines, f
+        if size <= lo:
+            return _truncate(lines, f, max_w, max_lines), f
         size -= 2
+
+
+def _truncate(lines, f, max_w, max_lines):
+    """The first `max_lines` of `lines`, the last of them ending in an
+    ellipsis that still fits `max_w`."""
+    out = list(lines[:max_lines])
+    last = out[-1]
+    while last and text.measure(last + '\u2026', f) > max_w:
+        last = last[:-1]
+    out[-1] = last.rstrip() + '\u2026'
+    return out
