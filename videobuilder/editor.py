@@ -184,7 +184,8 @@ to the server log. POSTs require same-origin; all but attachment upload use JSON
 attachment_max_file=25, attachment_max_files=10, attachment_max_message=100,
 attachment_zip_max_bytes=200, attachment_zip_max_members=50,
 attachment_zip_max_unpacked_bytes=300, start_video_attachment_max_files=50,
-start_video_attachment_max_message=300 (the size values are MiB). The
+start_video_attachment_max_message=300, compendium_for_builder=true (the size
+values are MiB). The
 attachment_zip_* limits bound a single `.zip` upload (its own compressed
 size, how many of its members become attachments, and their total
 decompressed size); the start_video_attachment_max_* limits replace
@@ -204,6 +205,14 @@ in flight (not yet final) doesn't count toward the cost cap, since it isn't
 known yet -- the note cap covers that gap. Hitting either cap refuses a new
 note (an ordinary one, a video's first note, a retry, or a follow-up from
 answering a question) with 429.
+
+compendium_for_builder (default true) tells the builder's prompt about
+videobuilder/compendium/ -- its pre-built components and the owner's votes on
+them -- so it can glue one in instead of drawing from scratch; the section is
+left out anyway for a video whose pinned videobuilder predates the compendium,
+or whose backend can't tell. Set to false for the half of a bake-off that
+should build from scratch. Not among REPO_CONFIG_KEYS, so a library-hosted
+repo cannot set its own experiment arm.
 """
 import calendar
 import datetime
@@ -275,7 +284,7 @@ class Editor:
     def __init__(self, root, state_dir=None, backend=None, agent=None, allowed_hosts=(), host='127.0.0.1',
                  unsandboxed_previews=False, envs=None, env_builder=None, sync_remote=None, environments=None,
                  auto_land=None, capabilities_dir=None, compendium_dir=None, music_sources=None, music=None,
-                 account_daily_note_cap=None, account_daily_cost_cap_usd=None,
+                 account_daily_note_cap=None, account_daily_cost_cap_usd=None, compendium_for_builder=None,
                  trust_repo_config=True):
         self.capabilities_dir = capabilities_dir
         self.compendium_dir = compendium_dir
@@ -302,11 +311,17 @@ class Editor:
         self.project = Project(self.root, skip=[self.state_dir], lock=self.lock, worker=self.session)
         self.drafts = Drafts(self)
         self.auto_land = bool(cfg.get('auto_land', True) if auto_land is None else auto_land)
+        # The bake-off kill switch: default on, see prompt._compendium_lines. Not in
+        # REPO_CONFIG_KEYS, so a library-hosted repo can't flip its own experiment arm.
+        self.compendium_for_builder = (_bool(cfg, 'compendium_for_builder', True) if compendium_for_builder is None
+                                       else bool(compendium_for_builder))
         self.versions = Versions(self)
         agent_cfg = {**cfg.get('agent', {}), **(agent or {})}
         self.notes = NoteStore(os.path.join(self.state_dir, 'notes'),
                                backend or backend_from_config(agent_cfg), context=self.drafts.context,
-                               before_submit=self._before_submit, on_reply=self._on_reply)
+                               before_submit=self._before_submit, on_reply=self._on_reply,
+                               compendium_for_builder=self.compendium_for_builder,
+                               compendium_votes=self._compendium_votes_for_builder)
         self.attachments = Attachments(self, _positive(cfg, 'attachment_max_file', 25) * 1048576,
                                        _positive(cfg, 'attachment_max_files', 10),
                                        _positive(cfg, 'attachment_max_message', 100) * 1048576,
@@ -338,6 +353,13 @@ class Editor:
         _ensure_state_dir(self.state_dir)
         from .compendium_feed import CompendiumVotes
         self.compendium_votes = CompendiumVotes(os.path.join(self.state_dir, 'compendium-votes.jsonl'))
+
+    def _compendium_votes_for_builder(self):
+        """{id: "up"|"down"} for the builder's "Start from the compendium" prompt
+        section: the library-wide store in library mode (self.library is set by
+        Library.editor() once this project is open there), else this editor's own."""
+        store = self.library.compendium_votes if self.library else self.compendium_votes
+        return {id: v['vote'] for id, v in store.current().items() if v['vote'] in ('up', 'down')}
 
     def _before_submit(self, video, note, state):
         self.drafts.before_submit(video, note, state)
@@ -673,6 +695,13 @@ def _plain_local_time(ts):
     if delta_days == 1:
         return f'{clock} tomorrow'
     return f"{clock} on {when_local.strftime('%B')} {when_local.day}"
+
+
+def _bool(cfg, name, default):
+    value = cfg.get(name, default)
+    if not isinstance(value, bool):
+        raise ValueError(f'editor.{name} must be true or false')
+    return value
 
 
 def _positive(cfg, name, default):

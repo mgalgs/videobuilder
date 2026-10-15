@@ -461,7 +461,18 @@ start_video_attachment_max_files = 50   # replaces attachment_max_files for New 
 start_video_attachment_max_message = 300 # MiB, replaces attachment_max_message for that note
 # account_daily_note_cap = 20            # unset by default: no cap on new notes per account per day
 # account_daily_cost_cap_usd = 5         # unset by default: no cap on recorded cost per account per day
+compendium_for_builder = true            # tell the builder about videobuilder/compendium/ and its votes
 ```
+
+`compendium_for_builder` adds a "Start from the compendium" section to the
+builder's prompt, pointing it at `videobuilder/compendium/`'s pre-built
+components and the owner's up/down votes from `/compendium`, so it reuses one
+instead of drawing from scratch where one fits. It's left out anyway for a
+video whose pinned videobuilder predates the compendium, or whose backend
+can't tell which source it will render with. Set to false for the half of a
+bake-off that should build from scratch. It isn't one of the `[editor]` keys
+a library-hosted repo's own `videobuilder.toml` can set (see below), so a
+project can't pick its own experiment arm.
 
 Each builder run can report what it cost (`cost_usd`) and the tokens it used,
 stored on the note once the run is final; a backend that never reports them

@@ -56,6 +56,51 @@ class AccountCapConfigKeys(TempProject):
             self._editor('state-bad-cost-cap', account_daily_cost_cap_usd=-1)
 
 
+class CompendiumForBuilderConfigKey(TempProject):
+    def _editor(self, state_dir, **kw):
+        editor = Editor(self.root, state_dir=state_dir, unsandboxed_previews=True, auto_land=False, **kw)
+        self.addCleanup(editor.pool.close)
+        self.addCleanup(editor.renders.close)
+        return editor
+
+    def test_defaults_to_true(self):
+        self.assertIs(self._editor('state-defaults').compendium_for_builder, True)
+
+    def test_configured_in_videobuilder_toml(self):
+        (self.root / 'videobuilder.toml').write_text('[editor]\ncompendium_for_builder = false\n')
+        self.assertIs(self._editor('state-configured').compendium_for_builder, False)
+
+    def test_explicit_kwarg_overrides_the_toml(self):
+        (self.root / 'videobuilder.toml').write_text('[editor]\ncompendium_for_builder = false\n')
+        editor = self._editor('state-override', compendium_for_builder=True)
+        self.assertIs(editor.compendium_for_builder, True)
+
+    def test_a_non_bool_value_is_a_clear_config_error(self):
+        (self.root / 'videobuilder.toml').write_text('[editor]\ncompendium_for_builder = "yes"\n')
+        with self.assertRaisesRegex(ValueError, 'compendium_for_builder'):
+            self._editor('state-bad')
+
+    def test_votes_for_the_builder_come_from_this_editors_own_store_in_single_project_mode(self):
+        editor = self._editor('state-votes')
+        editor.compendium_votes.record('owner', 'a', 'up', None)
+        editor.compendium_votes.record('owner', 'b', 'down', None)
+        editor.compendium_votes.record('owner', 'c', None, None)  # reset: never surfaced
+        self.assertEqual(editor._compendium_votes_for_builder(), {'a': 'up', 'b': 'down'})
+
+    def test_votes_for_the_builder_come_from_the_library_store_once_library_hosted(self):
+        editor = self._editor('state-votes-library')
+        editor.compendium_votes.record('owner', 'a', 'up', None)  # this project's own store: ignored once hosted
+
+        class FakeVotes:
+            def current(self):
+                return {'z': {'vote': 'down', 'reason': None}}
+
+        class FakeLibrary:
+            compendium_votes = FakeVotes()
+        editor.library = FakeLibrary()
+        self.assertEqual(editor._compendium_votes_for_builder(), {'z': 'down'})
+
+
 PKG = Path(__file__).resolve().parents[1] / 'videobuilder'
 
 
