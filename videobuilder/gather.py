@@ -177,6 +177,11 @@ def crawl(links, max_pages=MAX_PAGES, time_budget=TIME_BUDGET, page_timeout=PAGE
             except Exception as exc:
                 errors.append((url, f'fetch failed: {exc}'))
                 continue
+            # A redirect can land on a page already gathered, or one still queued.
+            final_url = final_url.split('#', 1)[0]
+            if final_url != url and final_url in seen:
+                continue
+            seen.add(final_url)
             parser = _PageParser()
             try:
                 parser.feed(body)

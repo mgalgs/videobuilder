@@ -35,6 +35,11 @@ PAGES = {
 
 class _Site(BaseHTTPRequestHandler):
     def do_GET(self):
+        if self.path == '/moved':
+            self.send_response(301)
+            self.send_header('Location', '/about')
+            self.end_headers()
+            return
         if self.path == '/slow':
             time.sleep(3)
             self.send_response(200)
@@ -87,6 +92,13 @@ class Crawl(GatherFixture):
         # off-site link never followed
         self.assertNotIn('off-site.example', ''.join(urls))
         self.assertTrue(all('off-site.example' not in u for u in urls))
+
+    def test_a_redirect_to_a_gathered_page_is_not_gathered_twice(self):
+        # /moved lands on /about, which /about's own link then names again.
+        pages, errors = gather.crawl([self.url('/moved'), self.url('/about')], max_pages=10,
+                                     allow_loopback=True, chromium=None)
+        urls = [p['url'] for p in pages]
+        self.assertEqual(urls.count(self.url('/about')), 1)
 
     def test_login_like_pages_are_skipped(self):
         pages, errors = gather.crawl([self.url('/contact')], max_pages=10, allow_loopback=True, chromium=None)
