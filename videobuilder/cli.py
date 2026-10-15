@@ -191,7 +191,7 @@ def cmd_preview(a):
 
 
 def cmd_editor(a):
-    from .editor import serve, serve_library, _optional_positive
+    from .editor import serve, serve_library, _optional_positive, _resolved_positive
     try:
         agent = {k: v for k, v in dict(backend=a.agent, executable=a.agent_executable,
                     submit_command=a.agent_submit_command, poll_command=a.agent_poll_command,
@@ -209,13 +209,16 @@ def cmd_editor(a):
                                  'times, paired in order')
             note_cap = _optional_positive(a.account_daily_note_cap, 'account_daily_note_cap', int)
             cost_cap = _optional_positive(a.account_daily_cost_cap_usd, 'account_daily_cost_cap_usd', (int, float))
+            _resolved_positive(a.source_max_mb, {}, 'source_max_mb', 2048)
+            _resolved_positive(a.source_max_total_mb, {}, 'source_max_total_mb', 8192)
             serve_library(a.library, host=a.host, port=a.port, checkouts=a.checkouts,
                           state_dir=a.state_dir, open_browser=a.open, agent=agent,
                           allowed_hosts=a.allow_host, unsandboxed_previews=a.unsandboxed_previews, envs=a.envs,
                           admins=list(zip(a.admin, a.admin_password_file)), capabilities_dir=a.capabilities_dir,
                           compendium_dir=a.compendium_dir, music_sources=a.music_sources,
                           compendium_for_builder=a.compendium_for_builder,
-                          account_daily_note_cap=note_cap, account_daily_cost_cap_usd=cost_cap)
+                          account_daily_note_cap=note_cap, account_daily_cost_cap_usd=cost_cap,
+                          source_max_mb=a.source_max_mb, source_max_total_mb=a.source_max_total_mb)
         else:
             if not a.project:
                 raise ValueError('provide PROJECT or --library DIR')
@@ -228,6 +231,9 @@ def cmd_editor(a):
                 raise ValueError('--account-daily-note-cap and --account-daily-cost-cap-usd are only for '
                                  '--library mode; set [editor] account_daily_note_cap / '
                                  'account_daily_cost_cap_usd in the project config instead')
+            if a.source_max_mb is not None or a.source_max_total_mb is not None:
+                raise ValueError('--source-max-mb and --source-max-total-mb are only for --library mode; '
+                                 'set [editor] source_max_mb / source_max_total_mb in the project config instead')
             serve(a.project, host=a.host, port=a.port, state_dir=a.state_dir, open_browser=a.open,
                   agent=agent, allowed_hosts=a.allow_host, unsandboxed_previews=a.unsandboxed_previews,
                   envs=a.envs, sync_remote=a.sync_remote, capabilities_dir=a.capabilities_dir,
@@ -406,6 +412,12 @@ def main(argv=None):
                    help='--library mode only: library-wide cap on recorded cost per account per rolling 24h '
                         '(default: no cap); an admin may override it per account from /account. For '
                         'single-project mode, set [editor] account_daily_cost_cap_usd in the project config instead')
+    d.add_argument('--source-max-mb', type=int, metavar='N',
+                   help='--library mode only: per-file size limit for an uploaded source video, in MiB '
+                        '(default 2048). For single-project mode, set [editor] source_max_mb instead')
+    d.add_argument('--source-max-total-mb', type=int, metavar='N',
+                   help="--library mode only: cap on one video's total source-video storage, in MiB "
+                        '(default 8192). For single-project mode, set [editor] source_max_total_mb instead')
     d.set_defaults(fn=cmd_editor)
 
     cap = sub.add_parser('capabilities', help="the capabilities catalog's clips and builder sheet")

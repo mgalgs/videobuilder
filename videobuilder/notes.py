@@ -211,6 +211,7 @@ class NoteStore:
         self.video_locks = {}
         self.context = context or (lambda video: {})
         self.before_submit, self.on_reply, self.attachments = before_submit, on_reply, attachments
+        self.sources = None  # set by Editor.__init__ once editor.sources exists
         # compendium_for_builder is the [editor] kill switch for the bake-off (see
         # prompt._compendium_lines); compendium_votes, when set, is a zero-arg callable
         # returning {id: "up"|"down"} (see CompendiumVotes.current).
@@ -410,11 +411,14 @@ class NoteStore:
                 if image:
                     from .attachments import FRAME_NAME
                     image = '/attachments/' + FRAME_NAME
+            sources = self.sources.list(video) if self.sources else []
+            if self.sources:
+                payload['sources_dir'] = self.sources.stage_dir(video)
             compendium_source = getattr(self.backend, 'compendium_source', None) if self.compendium_for_builder else None
             compendium = bool(compendium_source(payload)) if compendium_source else False
             votes = self.compendium_votes() if compendium and self.compendium_votes else None
-            path.write_text(prompt.render(note, payload, image, compendium=compendium, votes=votes),
-                            encoding='utf-8')
+            path.write_text(prompt.render(note, payload, image, compendium=compendium, votes=votes,
+                                          sources=sources), encoding='utf-8')
             payload['note_file'] = str(path)
             note['handle'] = self.backend.submit(payload)
             note['started'] = time.time()

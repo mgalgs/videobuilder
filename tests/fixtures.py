@@ -565,7 +565,8 @@ class Auth(AccountMixin, LibraryFixture, unittest.TestCase):
                      '/v/acme/launch/director.js', '/v/acme/launch/tuning.html',
                      '/v/acme/launch/api/music/sources',
                      '/v/acme/launch/api/frame?video=promo/film&frame=0',
-                     '/v/acme/launch/api/video?video=promo/film'):
+                     '/v/acme/launch/api/video?video=promo/film',
+                     '/v/acme/launch/api/sources?video=promo/film'):
             self.assertEqual(self.request(path, headers={'Cookie': outsider})[0], 404, path)
         code, _, headers = self.request_full('/git/acme/launch.git/info/refs?service=git-receive-pack',
                                               headers={'Authorization': 'Basic ' + base64.b64encode(
@@ -594,6 +595,32 @@ class Auth(AccountMixin, LibraryFixture, unittest.TestCase):
         code, body, headers = self.request_full('/v/acme/launch/api/attachments/' + uploaded['id'],
                                                  headers={'Cookie': outsider})
         self.assertEqual(code, 404)
+
+    def test_source_routes_are_gated_by_project_access(self):
+        # Same gate as attachments above, for the new per-video source-video routes:
+        # upload, list and delete all go through `/v/<name>` access before Sources is reached.
+        self.seed('acme/launch', film=True)
+        admin = self.admin_login()
+        self.new_project(admin, 'acme/launch', 'acme/launch')
+        _, _, outsider = self.signup('outsider', 'longenoughpassword')
+        code = self.request('/v/acme/launch/api/sources?video=promo/film', headers={'Cookie': outsider})[0]
+        self.assertEqual(code, 404)
+        req = urllib.request.Request(
+            self.base + '/v/acme/launch/api/sources?video=promo/film&filename=clip.mp4',
+            data=b'not actually a video', method='POST',
+            headers={'Content-Type': 'video/mp4', 'Cookie': outsider})
+        try:
+            with urllib.request.urlopen(req, timeout=20) as r:
+                code = r.status
+        except urllib.error.HTTPError as exc:
+            with exc:
+                code = exc.code
+        self.assertEqual(code, 404)
+        code = self.request('/v/acme/launch/api/sources/clip/delete', {'video': 'promo/film'},
+                            headers={'Content-Type': 'application/json', 'Cookie': outsider})[0]
+        self.assertEqual(code, 404)
+        code = self.request('/v/acme/launch/api/sources?video=promo/film', headers={'Cookie': admin})[0]
+        self.assertEqual(code, 200)
 
     def test_invite_grants_and_remove_revokes_next_request(self):
         self.seed('acme/launch', film=True)

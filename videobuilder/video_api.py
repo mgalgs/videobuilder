@@ -126,6 +126,21 @@ def _get_attachment(self, route, q, editor, user, attachment_id):
                        '; filename="' + meta['name'] + '"'})
 
 
+def _get_sources(self, route, q, editor, user):
+    video = _need(q, 'video')
+    editor.project.video(video)
+    return self._json(200, {'sources': [editor.sources.public(m) for m in editor.sources.list(video)]})
+
+
+def _get_source_file(self, route, q, editor, user, name):
+    video = _need(q, 'video')
+    try:
+        meta, path = editor.sources.file_path(video, name)
+    except KeyError:
+        raise HTTPError(404, 'source not found') from None
+    return self._send_ranged(path.read_bytes(), TYPES[meta['ext']], {'Accept-Ranges': 'bytes'})
+
+
 def _get_music_sources(self, route, q, editor, user):
     return self._json(200, editor.music.list_sources() if editor.music else [])
 
@@ -255,6 +270,8 @@ GET_ROUTES = [
     (re.compile(r'/compendium/([a-z][a-z0-9-]*)\.(mp4|jpg)'), _get_compendium_clip),
     ('/api/compendium', _get_api_compendium),
     (re.compile(r'/api/attachments/([0-9a-f]+)'), _get_attachment),
+    ('/api/sources', _get_sources),
+    (re.compile(r'/api/sources/([^/]+)'), _get_source_file),
     ('/api/music/sources', _get_music_sources),
     ('/api/music/tracks', _get_music_tracks),
     ('/api/draft', _get_draft),
@@ -358,6 +375,15 @@ def _post_first_note(self, route, body, identity, editor, user):
                                                                           _is_admin_account(self, user))))
 
 
+def _post_source_delete(self, route, body, identity, editor, user, name):
+    video = _field(body, 'video', str)
+    try:
+        editor.sources.delete(video, name)
+    except KeyError:
+        raise HTTPError(404, f'no source {name!r}') from None
+    return self._json(200, {'deleted': name})
+
+
 def _post_note_delete(self, route, body, identity, editor, user, note_id):
     try:
         editor.notes.delete(unquote(note_id))
@@ -399,6 +425,7 @@ POST_ROUTES = [
     (('/api/roll', '/api/copy', '/api/undo'), _post_edit),
     ('/api/notes', _post_notes),
     ('/api/videos/first-note', _post_first_note),
+    (re.compile(r'/api/sources/([^/]+)/delete'), _post_source_delete),
     (re.compile(r'/api/notes/([^/]+)/delete'), _post_note_delete),
     (re.compile(r'/api/notes/([^/]+)/retry'), _post_note_retry),
     (re.compile(r'/api/notes/([^/]+)/answer'), _post_note_answer),

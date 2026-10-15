@@ -262,6 +262,7 @@ from .render import default_jobs
 from .renders import Renders
 from .attachments import Attachments
 from .music import MusicLibrary
+from .sources import Sources
 from .versions import Versions
 from .workers import Environments, Pool
 from .project import Project, read_config
@@ -314,7 +315,7 @@ class Editor:
                  unsandboxed_previews=False, envs=None, env_builder=None, sync_remote=None, environments=None,
                  auto_land=None, capabilities_dir=None, compendium_dir=None, music_sources=None, music=None,
                  account_daily_note_cap=None, account_daily_cost_cap_usd=None, compendium_for_builder=None,
-                 trust_repo_config=True):
+                 source_max_mb=None, source_max_total_mb=None, trust_repo_config=True):
         self.capabilities_dir = capabilities_dir
         self.compendium_dir = compendium_dir
         # `music`, a pre-parsed MusicLibrary, is how library mode shares one cache and one
@@ -360,6 +361,9 @@ class Editor:
                                        _positive(cfg, 'start_video_attachment_max_files', 50),
                                        _positive(cfg, 'start_video_attachment_max_message', 300) * 1048576)
         self.notes.attachments = self.attachments
+        self.sources = Sources(self, _resolved_positive(source_max_mb, cfg, 'source_max_mb', 2048) * 1048576,
+                               _resolved_positive(source_max_total_mb, cfg, 'source_max_total_mb', 8192) * 1048576)
+        self.notes.sources = self.sources
         self.account_daily_note_cap = _optional_positive(
             account_daily_note_cap if account_daily_note_cap is not None else cfg.get('account_daily_note_cap'),
             'account_daily_note_cap', int)
@@ -391,6 +395,7 @@ class Editor:
         return {id: v['vote'] for id, v in store.current().items() if v['vote'] in ('up', 'down')}
 
     def _before_submit(self, video, note, state):
+        self.sources.sync(video)
         self.drafts.before_submit(video, note, state)
         rejection = state.pop('rejection', None)
         if rejection:
@@ -430,6 +435,7 @@ class Editor:
                 video = self.project.video(vid)
             except KeyError:
                 raise HTTPError(404, f'no video {vid!r} in this project') from None
+            self.sources.sync(vid)
             self.pool.unsandboxed = self.unsandboxed_previews
             return self.pool.get(vid, self.root, video.path, self.root)
 
@@ -762,6 +768,14 @@ def _positive(cfg, name, default):
     return value
 
 
+def _resolved_positive(explicit, cfg, name, default):
+    """`explicit` (a CLI flag's value, for library mode) if given, validated
+    as a positive int; else the usual `[editor]` config lookup."""
+    if explicit is not None:
+        return _positive({name: explicit}, name, default)
+    return _positive(cfg, name, default)
+
+
 def _optional_positive(value, name, kind):
     """`value` if it is a positive `kind` (int, or (int, float) for a dollar
     amount); None if unset (the default, meaning no cap)."""
@@ -840,10 +854,12 @@ def _ticker(tick, stop):
 
 def serve(root, host='127.0.0.1', port=8100, state_dir=None, open_browser=False, backend=None,
           hook=request_hook, agent=None, allowed_hosts=(), unsandboxed_previews=False, envs=None, sync_remote=None,
-          capabilities_dir=None, compendium_dir=None, music_sources=None):
+          capabilities_dir=None, compendium_dir=None, music_sources=None, source_max_mb=None,
+          source_max_total_mb=None):
     editor = Editor(root, state_dir=state_dir, backend=backend, agent=agent, allowed_hosts=allowed_hosts, host=host,
                     unsandboxed_previews=unsandboxed_previews, envs=envs, sync_remote=sync_remote,
-                    capabilities_dir=capabilities_dir, compendium_dir=compendium_dir, music_sources=music_sources)
+                    capabilities_dir=capabilities_dir, compendium_dir=compendium_dir, music_sources=music_sources,
+                    source_max_mb=source_max_mb, source_max_total_mb=source_max_total_mb)
     httpd = ThreadingHTTPServer((host, port), make_handler(editor, hook))
     httpd.daemon_threads = True
     stop_sync = threading.Event()
@@ -879,14 +895,16 @@ def serve(root, host='127.0.0.1', port=8100, state_dir=None, open_browser=False,
 def serve_library(root, host='127.0.0.1', port=8100, checkouts=None, state_dir=None, open_browser=False,
                   hook=request_hook, agent=None, allowed_hosts=(), unsandboxed_previews=False, envs=None,
                   admins=(), capabilities_dir=None, compendium_dir=None, music_sources=None,
-                  account_daily_note_cap=None, account_daily_cost_cap_usd=None, compendium_for_builder=None):
+                  account_daily_note_cap=None, account_daily_cost_cap_usd=None, compendium_for_builder=None,
+                  source_max_mb=None, source_max_total_mb=None):
     from .library import Library
     library = Library(root, checkouts=checkouts, state_dir=state_dir, host=host, agent=agent,
                       allowed_hosts=allowed_hosts, unsandboxed_previews=unsandboxed_previews, envs=envs,
                       admins=admins, capabilities_dir=capabilities_dir, compendium_dir=compendium_dir,
                       music_sources=music_sources, account_daily_note_cap=account_daily_note_cap,
                       account_daily_cost_cap_usd=account_daily_cost_cap_usd,
-                      compendium_for_builder=compendium_for_builder)
+                      compendium_for_builder=compendium_for_builder, source_max_mb=source_max_mb,
+                      source_max_total_mb=source_max_total_mb)
     httpd = ThreadingHTTPServer((host, port), make_handler(library, hook))
     httpd.daemon_threads = True
     stop = threading.Event()

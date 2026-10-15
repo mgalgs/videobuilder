@@ -108,6 +108,7 @@ class Renders:
             home.mkdir()
             git(e.root, 'worktree', 'add', '--detach', str(work), sha)
             try:
+                e.sources.sync(video, root=work)
                 film = work / context['film']
                 python, key, _ = e.envs.python(film, work)
                 source = Path(__file__).resolve().parent.parent if key == 'current' else None

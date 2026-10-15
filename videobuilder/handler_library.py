@@ -10,6 +10,7 @@ from urllib.parse import parse_qs, quote, unquote, urlparse
 from .editor import HTTPError, _field, _need
 from .library import serve_git, valid_name
 from .pages import account_page, signin_page, signup_page
+from .sources import CAPTION_MAX_BYTES, TooLarge as SourceTooLarge
 
 
 class LibraryHandler:
@@ -247,6 +248,29 @@ class LibraryHandler:
                     record = active.attachments.upload(_need(q, 'video'), upload_name,
                                                        self.headers.get('Content-Type', ''), body_bytes)
                     self._json(201, record)
+            elif route == '/api/sources':
+                # Streamed straight to disk in bounded chunks (Sources.stream_upload): a source
+                # can be hundreds of MB, so it must never sit in memory whole like the body above.
+                if not self._key:
+                    self._same_origin()
+                n = self.headers.get('Content-Length')
+                try:
+                    record = active.sources.stream_upload(_need(q, 'video'), _need(q, 'filename'), q.get('name'),
+                                                          self.headers.get('Content-Type', ''), self.rfile,
+                                                          int(n) if n is not None else -1)
+                except SourceTooLarge as exc:
+                    raise HTTPError(413, str(exc)) from None
+                self._json(201, record)
+            elif re.fullmatch(r'/api/sources/[^/]+/caption', route):
+                if not self._key:
+                    self._same_origin()
+                name = route.rsplit('/', 2)[1]
+                n = int(self.headers.get('Content-Length') or 0)
+                if n < 0 or n > CAPTION_MAX_BYTES:
+                    raise HTTPError(413, 'caption file is too large')
+                data = self.rfile.read(n)
+                record = active.sources.add_caption(_need(q, 'video'), name, _need(q, 'filename'), data)
+                self._json(201, record)
             else:
                 self._post(route, self._body(), identity or 'anonymous', active, user)
         except (BrokenPipeError, ConnectionResetError):

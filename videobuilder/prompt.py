@@ -24,7 +24,31 @@ def _compendium_lines(votes):
     return lines
 
 
-def render(note, payload, image, compendium=False, votes=None):
+def _clock(seconds):
+    seconds = int(seconds or 0)
+    h, rem = divmod(seconds, 3600)
+    m, s = divmod(rem, 60)
+    return f'{h}:{m:02d}:{s:02d}' if h else f'{m}:{s:02d}'
+
+
+def _sources_lines(sources):
+    lines = ['## Source videos', '',
+             'This video has footage the director uploaded, read-only, at the paths below (relative to '
+             'this video\'s own directory). A note that says something like "use 0:32 to 0:47 from '
+             '<name>" means that span of that source\'s own timeline; its sound plays along with it '
+             'unless the note says otherwise. See reference/footage.md for how to read one with '
+             '`vb.Clip`, and reference/captions.md for a caption file.', '']
+    for item in sources:
+        bits = [f"{item['width']}x{item['height']}" if item.get('width') and item.get('height') else None,
+                'has audio' if item.get('has_audio') else 'no audio',
+                f"caption {item['caption']}" if item.get('caption') else None]
+        lines.append(f"- sources/{item['name']}.{item['ext']} ({_clock(item.get('duration'))}, "
+                     f"{', '.join(b for b in bits if b)})")
+    lines.append('')
+    return lines
+
+
+def render(note, payload, image, compendium=False, votes=None, sources=None):
     """The exact text written to `<state>/sessions/<slug>/<note-id>.md`, the file
     the submitted payload's `note_file` points the builder at. `payload` is the
     note merged with its context and session fields (see NoteStore._submit);
@@ -32,7 +56,9 @@ def render(note, payload, image, compendium=False, votes=None):
     None. `compendium` is whether this video's videobuilder has a compendium to
     point the builder at; `votes` is {id: "up"|"down"} for its components and
     recipes (only up/down -- see CompendiumVotes.current), or falsy for no
-    votes at all.
+    votes at all. `sources` is this video's source-video list (Sources.list),
+    or falsy when it has none -- the section is left out entirely then, so
+    the prompt stays byte-identical to a video with no sources at all.
     """
     lines = ['# Review request', '', *([note['rejection']] if note.get('rejection') else []), note['text'], '']
     if note.get('time') is not None:
@@ -43,6 +69,8 @@ def render(note, payload, image, compendium=False, votes=None):
         for item in note['attachments']:
             lines.append(f'- /attachments/{item["name"]} ({item["type"]}, {item["size"]} bytes)')
         lines += ['Use them as reference. To include one in the video, copy it into the video assets directory and commit it there. Never write into /attachments.', '']
+    if sources:
+        lines += _sources_lines(sources)
     for key in ('video', 'film', 'format', 'frame', 'segment', 'beat', 'time', 'image', 'draft'):
         lines.append(f"{key}: {image if key == 'image' else payload.get(key)}")
     asking_enabled = not (note.get('no_questions') or note.get('automatic'))

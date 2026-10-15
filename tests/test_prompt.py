@@ -53,3 +53,35 @@ class CompendiumSection(unittest.TestCase):
         self.assertIn('## Start from the compendium', md)
         self.assertIn('Do not use: x.', md)
         self.assertIn('No more questions', md)
+
+
+class SourcesSection(unittest.TestCase):
+    SOURCE = {'name': 'interview', 'ext': 'mp4', 'size': 123, 'duration': 95.4, 'width': 1920,
+             'height': 1080, 'has_audio': True, 'caption': None, 'created': 0}
+
+    def test_omitted_with_no_sources(self):
+        with_none = prompt.render(NOTE, PAYLOAD, None)
+        with_empty = prompt.render(NOTE, PAYLOAD, None, sources=[])
+        self.assertEqual(with_none, with_empty)
+        self.assertNotIn('Source videos', with_none)
+
+    def test_lists_name_path_duration_resolution_and_audio(self):
+        md = prompt.render(NOTE, PAYLOAD, None, sources=[self.SOURCE])
+        self.assertIn('## Source videos', md)
+        self.assertIn('sources/interview.mp4', md)
+        self.assertIn('1:35', md)  # 95.4s -> 1:35
+        self.assertIn('1920x1080', md)
+        self.assertIn('has audio', md)
+        self.assertIn('reference/footage.md', md)
+        self.assertIn('reference/captions.md', md)
+
+    def test_no_audio_and_caption_file_are_named(self):
+        source = {**self.SOURCE, 'has_audio': False, 'caption': 'interview.vtt'}
+        md = prompt.render(NOTE, PAYLOAD, None, sources=[source])
+        self.assertIn('no audio', md)
+        self.assertIn('caption interview.vtt', md)
+
+    def test_hour_long_duration_uses_h_mm_ss(self):
+        source = {**self.SOURCE, 'duration': 3725}
+        md = prompt.render(NOTE, PAYLOAD, None, sources=[source])
+        self.assertIn('1:02:05', md)

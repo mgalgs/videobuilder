@@ -110,6 +110,7 @@ class Drafts:
         path = self.editor.notes.session_dir(video) / ('preview-' + tip)
         if not path.exists():
             git(root, 'worktree', 'add', '--detach', str(path), tip)
+        self.editor.sources.sync(video, root=path)
         return path
 
     def preview(self, video, operation, query):

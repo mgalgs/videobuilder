@@ -2,14 +2,17 @@
 import json
 import os
 from pathlib import Path
+import shutil
 import subprocess
 import sys
+import tempfile
 import threading
 import unittest
 from unittest.mock import patch
 
 from tests.test_project import TempProject, git
 from tests.test_notes import FakeAgent
+from tests.test_sources import _Rfile
 from videobuilder import agents, transcript
 from videobuilder.agents import CommandBackend, FakeBackend, ForkSandboxBackend
 from videobuilder.drafts import inspect
@@ -125,6 +128,12 @@ else:
                             attach_dir='/var/tmp/claude-scratch/attach'))
         run.assert_called_with(['runner', 'start', '--resume', '/state', '--local', '--attach-dir',
                                 '/var/tmp/claude-scratch/attach', '/project', '/note'])
+        backend.submit(dict(state_dir='/state', project='/project', note_file='/note',
+                            sources_dir='/var/tmp/claude-scratch/sources'))
+        run.assert_called_with(['runner', 'start', '--resume', '/state', '--local', '--sources-dir',
+                                '/var/tmp/claude-scratch/sources', '/project', '/note'])
+        backend.submit(dict(state_dir='/state', project='/project', note_file='/note'))
+        self.assertNotIn('--sources-dir', run.call_args.args[0])  # no sources: argv unchanged
         run.return_value = json.dumps(dict(state='replied', branch='draft/a', reply='done'))
         self.assertEqual(backend.poll('/run/example').reply, 'done')
         run.assert_called_with(['runner', 'query', '--json', '/run/example'])
@@ -154,6 +163,17 @@ else:
     def test_non_cluster_backend_has_no_peek(self):
         backend = ForkSandboxBackend('runner', ['start'], ['query', '--json'], ['--local'])
         self.assertFalse(hasattr(backend, 'peek'))
+
+    def test_fake_backend_stages_sources_flat_dir_into_the_build_worktree(self):
+        source_dir = self.root / 'stage'
+        source_dir.mkdir()
+        (source_dir / 'interview.mp4').write_bytes(b'fake video bytes')
+        (source_dir / 'interview.vtt').write_bytes(b'WEBVTT\n')
+        work = self.root / 'work'
+        work.mkdir()
+        FakeBackend()._stage_sources({'sources_dir': str(source_dir), 'directory': 'promo'}, work)
+        self.assertEqual((work / 'promo' / 'sources' / 'interview.mp4').read_bytes(), b'fake video bytes')
+        self.assertEqual((work / 'promo' / 'sources' / 'interview.vtt').read_bytes(), b'WEBVTT\n')
 
     def test_peek_argv_and_status_line_parsing(self):
         script = self._peek_script('''import sys
@@ -280,6 +300,25 @@ class DraftLoop(TempProject):
         n = self.editor.add_note(dict(video='promo/film', frame=0, text='Add a highlight'), 'reviewer')
         self.editor.notes.list()
         return self.editor.notes.get(n['id'])
+
+    @unittest.skipUnless(shutil.which('ffmpeg') and shutil.which('ffprobe'), 'needs ffmpeg/ffprobe')
+    def test_note_with_sources_gets_a_prompt_section_and_the_draft_sees_it(self):
+        clip = Path(self.tmp.name) / 'clip.mp4'
+        subprocess.run(['ffmpeg', '-y', '-f', 'lavfi', '-i', 'color=c=red:s=32x32:d=1:r=5',
+                       '-pix_fmt', 'yuv420p', str(clip)], check=True, capture_output=True)
+        data = clip.read_bytes()
+        self.editor.sources.stream_upload('promo/film', 'interview.mp4', None, 'video/mp4', _Rfile(data), len(data))
+        note = self.draft()
+        md = (self.editor.notes.session_dir('promo/film') / (note['id'] + '.md')).read_text()
+        self.assertIn('## Source videos', md)
+        self.assertIn('sources/interview.mp4', md)
+        preview = self.editor.drafts._worktree('promo/film', self.editor.drafts.details('promo/film')['tip'])
+        self.assertTrue((preview / 'promo' / 'sources' / 'interview.mp4').is_file())
+
+    def test_note_with_no_sources_has_a_byte_identical_prompt(self):
+        with_no_sources = self.draft()
+        md = (self.editor.notes.session_dir('promo/film') / (with_no_sources['id'] + '.md')).read_text()
+        self.assertNotIn('Source videos', md)
 
     def test_accept_and_history(self):
         note = self.draft()
