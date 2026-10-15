@@ -76,6 +76,11 @@ ft = vb.footage(TIMELINE, 'interview', start=12.5)   # a Segment or its name, + 
 builds the matching `Sound`, starting at the same source second segment's
 first frame does.
 
+Phone footage needs no special handling here: a rotated recording decodes
+upright at its displayed size, and a variable-frame-rate recording presents
+as constant-rate at its own average fps, so this same arithmetic still lines
+up picture and sound.
+
 ```python
 HERE = Path(__file__).resolve().parent
 clip = vb.Clip(str(HERE / 'assets' / 'interview.mp4'))
