@@ -410,8 +410,11 @@ class Editor:
         description = body.get('description')
         if description is not None and not isinstance(description, str):
             raise HTTPError(400, 'description must be a string')
-        links = [link.strip() for link in body.get('links') or []]
-        if not all(isinstance(x, str) and x for x in links) or len(links) > 20:
+        raw_links = body.get('links') if body.get('links') is not None else []
+        if not isinstance(raw_links, list) or not all(isinstance(x, str) for x in raw_links):
+            raise HTTPError(400, 'links must be a list of up to 20 URLs')
+        links = [link.strip() for link in raw_links]
+        if not all(links) or len(links) > 20:
             raise HTTPError(400, 'links must be a list of up to 20 URLs')
         try:
             attachments = self.attachments.validate(vid, body.get('attachments', []))

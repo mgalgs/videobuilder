@@ -349,6 +349,16 @@ class HostedGit(LibraryFixture, unittest.TestCase):
         self.assertIn('Simple brief.', note['text'])
         self.assertEqual(note['attachments'], [])
 
+    def test_first_note_refuses_malformed_links(self):
+        self.request('/api/videos/new', {'name': 'acme/bad-links', 'start': 'blank'})
+        # A non-string element must be refused with 400, not crash with a 500 when
+        # the route tries to .strip() it.
+        code, err = self.request('/v/acme/bad-links/api/videos/first-note', {'links': [1]})
+        self.assertEqual(code, 400, err)
+        # A bare string must be refused, not silently iterated into one-character "links".
+        code, err = self.request('/v/acme/bad-links/api/videos/first-note', {'links': 'https://a.example'})
+        self.assertEqual(code, 400, err)
+
 
 class Auth(LibraryFixture, unittest.TestCase):
     """Accounts, sessions and per-project access on a library with --admin."""
