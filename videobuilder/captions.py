@@ -42,7 +42,6 @@ class Track:
 
     def __init__(self, words=()):
         self.words = tuple(words)
-        self._starts = [w.start for w in self.words]
         self._groups = {}
 
     def __len__(self):
@@ -385,6 +384,9 @@ def draw(cv, track, t, keywords=(), font=None, safe=None, position='bottom', max
     keys = {_norm(k) for k in keywords}
     s = line.text
     tw = text.measure(s, font)
+    while tw > max_width:  # one word wider than the line: smaller, for this line only
+        font = replace(font, size=font.size * max_width / tw * 0.99)
+        tw = text.measure(s, font)
     lh = text.line_height(font)
     bw, bh = tw + 2 * pad_h, lh + 2 * pad_v
     by = {'bottom': safe.bottom - bh, 'top': safe.y, 'middle': safe.cy - bh / 2}[position]

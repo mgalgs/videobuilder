@@ -147,3 +147,149 @@ class RealFixture(unittest.TestCase):
         self.assertFalse([g for i, g in enumerate(grams[:-4]) if g == grams[i + 4]])
         self.assertFalse(any('<' in w or '&' in w or '>' in w for w in ws))
         self.assertTrue(all(w.end >= w.start for w in tr))
+
+
+def _track(*cues):
+    """A track from (start, end, 'words ...') with each word given an equal slice."""
+    words = []
+    for a, b, s in cues:
+        ws = s.split()
+        d = (b - a) / len(ws)
+        words += [captions.Word(w, a + i * d, a + (i + 1) * d) for i, w in enumerate(ws)]
+    return captions.Track(words)
+
+
+class Grouping(unittest.TestCase):
+    font = Font('Cantarell', 48, weight=700)
+
+    def assert_lines_ok(self, tr, lines, width):
+        self.assertEqual([w for ln in lines for w in ln.words], list(tr.words))  # every word, whole, once
+        for ln in lines:
+            self.assertLessEqual(text.measure(ln.text, self.font), width, ln.text)
+        for a, b in zip(lines, lines[1:]):
+            self.assertLessEqual(a.end, b.start)  # one line at a time
+
+    def test_lines_fit_the_measured_width(self):
+        tr = _track((0, 9, 'the quick brown fox jumps over the lazy dog while seven foot tall plus sort of '
+                           'gorilla looking creatures watch from somewhere behind the extraordinarily tall hedge'))
+        for width in (400, 550, 700):
+            lines = tr.lines(self.font, width)
+            self.assertGreater(len(lines), 1)
+            self.assert_lines_ok(tr, lines, width)
+        # balanced: no straggler line much shorter than the rest
+        lines = tr.lines(self.font, 700)
+        ws = [text.measure(ln.text, self.font) for ln in lines]
+        self.assertGreater(min(ws[:-1]), 0.6 * max(ws))
+
+    def test_breaks_at_sentence_ends_pauses_and_speakers(self):
+        tr = _track((0, 1, 'Yes. No.'), (1, 2, 'one two'), (3.5, 4, 'three'))
+        words = list(tr.words)
+        words[-1] = captions.Word('Four', 4.0, 4.5, turn=True)
+        tr = captions.Track(words[:-1] + [captions.Word('three', 3.5, 3.8), words[-1]])
+        self.assertEqual([ln.text for ln in tr.lines(self.font, 2000)], ['Yes.', 'No.', 'one two', 'three', 'Four'])
+        lines = tr.lines(self.font, 2000)
+        self.assertAlmostEqual(lines[2].end, 2.0)  # gone in the pause: nothing on screen at 3 s
+        self.assertIsNone(tr.line_at(3.0, self.font, 2000))
+        self.assertIs(tr.line_at(1.2, self.font, 2000), lines[2])
+
+    def test_linger_ends_a_line_whose_last_word_runs_on(self):
+        tr = captions.Track([captions.Word('Wait.', 0.0, 5.0), captions.Word('Then', 5.0, 5.5)])
+        lines = tr.lines(self.font, 2000)
+        self.assertEqual(lines[0].end, 1.0)
+        self.assertIsNone(tr.line_at(2.0, self.font, 2000))
+
+    @unittest.skipUnless(FIXTURE.exists(), 'real YouTube caption fixture not attached')
+    def test_real_fixture_in_a_phone_frame(self):
+        tr = captions.load(FIXTURE)
+        width = 1080 * 0.75
+        lines = tr.lines(self.font, width)
+        self.assert_lines_ok(tr, lines, width)
+        self.assertLess(sum(len(ln.words) for ln in lines) / len(lines), 8)
+
+
+def _share(cv, box, colour, tol=40):
+    """The fraction of pixels in `box` within `tol` of `colour` ('#rrggbb')."""
+    r, g, b = (int(colour[i:i + 2], 16) for i in (1, 3, 5))
+    data, stride = cv.surface.get_data(), cv.surface.get_stride()
+    hits = total = 0
+    for y in range(int(box.y), int(box.bottom)):
+        row = y * stride
+        for x in range(int(box.x), int(box.right)):
+            pb, pg, pr = data[row + 4 * x], data[row + 4 * x + 1], data[row + 4 * x + 2]
+            total += 1
+            hits += abs(pr - r) <= tol and abs(pg - g) <= tol and abs(pb - b) <= tol
+    return hits / max(1, total)
+
+
+TALK = _track((0.0, 2.0, 'seven foot tall plus sort of gorilla looking.'), (4.0, 5.0, 'Then more.'))
+
+
+class Draw(unittest.TestCase):
+    def test_inside_the_safe_area_in_every_format(self):
+        for name, f in vb.FORMATS.items():
+            for t in (0.1, 1.9, 4.5):
+                with self.subTest(format=name, t=t):
+                    cv = Canvas(f.width, f.height, '#ffffff', format=f)
+                    drawn = captions.draw(cv, TALK, t)
+                    self.assertEqual([n for n, _ in cv.marks], ['caption'])
+                    box = cv.marks[0][1]
+                    safe = captions.safe_area(cv)
+                    self.assertTrue(safe.contains(box), (box, safe))
+                    self.assertAlmostEqual(box.bottom, safe.bottom)  # at the bottom by default
+                    self.assertGreater(box.cy, f.height * 0.6)
+                    for _, wb, _ in drawn.words:
+                        self.assertTrue(box.contains(wb))
+            cv = Canvas(f.width, f.height, format=f)
+            self.assertGreaterEqual(captions.default_font(cv).size, 60)  # phone-readable at 1080 wide
+
+    def test_own_safe_area_and_position(self):
+        cv = Canvas(1080, 1920)
+        safe = Box(100, 300, 880, 1000)
+        captions.draw(cv, TALK, 0.5, safe=safe, position='top', mark='sub')
+        (name, box), = cv.marks
+        self.assertEqual(name, 'sub')
+        self.assertAlmostEqual(box.y, 300)
+        self.assertTrue(safe.contains(box))
+
+    def test_spoken_word_and_keywords_take_their_colours(self):
+        cv = Canvas(1920, 1080, '#ffffff')
+        t = 0.9  # 'sort', 5th of 8 words over 0-2 s, is spoken from 1.0; 'plus' (0.75-1.0) now
+        drawn = captions.draw(cv, TALK, t, keywords={'SORT', 'gorilla'},
+                              color='#ffffff', spoken='#ffd23f', accent='#3ddc97', box='#000000', box_alpha=1)
+        colours = {w.text: c for w, _, c in drawn.words}
+        self.assertEqual(colours['plus'], '#ffd23f')
+        self.assertEqual(colours['sort'], '#3ddc97')
+        self.assertEqual(colours['gorilla'], '#3ddc97')
+        self.assertEqual(colours['seven'], '#ffffff')
+        boxes = {w.text: b for w, b, _ in drawn.words}
+        self.assertGreater(_share(cv, boxes['plus'], '#ffd23f'), 0.05)
+        self.assertGreater(_share(cv, boxes['sort'], '#3ddc97'), 0.05)
+        self.assertGreater(_share(cv, boxes['looking.'], '#ffffff'), 0.05)
+        for word in ('seven', 'looking.'):
+            self.assertEqual(_share(cv, boxes[word], '#ffd23f'), 0)
+            self.assertEqual(_share(cv, boxes[word], '#3ddc97'), 0)
+        self.assertEqual(_share(cv, boxes['plus'], '#3ddc97'), 0)
+        self.assertGreater(_share(cv, drawn.box.pad(1), '#000000', tol=10), 0.5)  # a solid dark box
+
+    def test_highlight_never_moves_the_layout(self):
+        boxes = []
+        for t in (0.1, 0.9, 1.6):
+            cv = Canvas(1920, 1080)
+            d = captions.draw(cv, TALK, t, keywords={'sort'})
+            boxes.append((d.box, [b for _, b, _ in d.words]))
+        self.assertEqual(boxes[0], boxes[1])
+        self.assertEqual(boxes[1], boxes[2])
+
+    def test_a_word_too_wide_alone_shrinks_to_fit(self):
+        cv = Canvas(1080, 1920)
+        tr = captions.Track([captions.Word('Pneumonoultramicroscopicsilicovolcanoconiosis', 0, 2)])
+        d = captions.draw(cv, tr, 0.5)
+        self.assertTrue(captions.safe_area(cv).contains(d.box))
+
+    def test_nothing_drawn_in_a_gap(self):
+        for t in (-1.0, 3.0, 9.0):
+            cv = Canvas(1080, 1920, '#336699')
+            before = bytes(cv.surface.get_data())
+            self.assertIsNone(captions.draw(cv, TALK, t))
+            self.assertEqual(cv.marks, [])
+            self.assertEqual(bytes(cv.surface.get_data()), before)
