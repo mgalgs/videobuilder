@@ -36,8 +36,9 @@ def _sources_lines(sources):
              'This video has footage the director uploaded, read-only, at the paths below (relative to '
              'this video\'s own directory). A note that says something like "use 0:32 to 0:47 from '
              '<name>" means that span of that source\'s own timeline; its sound plays along with it '
-             'unless the note says otherwise. See reference/footage.md for how to read one with '
-             '`vb.Clip`, and reference/captions.md for a caption file.', '']
+             'unless the note says otherwise. See skill/make-a-video/reference/footage.md for how to '
+             'read one with `vb.Clip`, and skill/make-a-video/reference/captions.md for a caption '
+             'file.', '']
     for item in sources:
         bits = [f"{item['width']}x{item['height']}" if item.get('width') and item.get('height') else None,
                 'has audio' if item.get('has_audio') else 'no audio',

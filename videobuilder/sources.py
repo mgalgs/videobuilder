@@ -27,6 +27,8 @@ CAPTION_EXTS = ('vtt', 'srt')
 STREAM_CHUNK = 1 << 20
 CAPTION_MAX_BYTES = 2 * 1048576
 PUBLIC_FIELDS = ('name', 'ext', 'size', 'duration', 'width', 'height', 'has_audio', 'caption', 'created')
+SYNC_MANIFEST = '.vb-sync.json'
+_NAME_RE = re.compile(r'^[a-z0-9-]{1,80}$')
 
 
 class TooLarge(ValueError):
@@ -130,6 +132,12 @@ class Sources:
         return out
 
     def get(self, video, name):
+        # `name` reaches here raw from a URL path segment (see video_api.py / handler_library.py):
+        # every other method below funnels through get(), so this is the one place a traversal
+        # name like '..' or '.' -- which `[^/]+` lets through the route regex unchanged -- is
+        # rejected, rather than resolving to a directory this code does not own.
+        if not isinstance(name, str) or not _NAME_RE.fullmatch(name):
+            raise KeyError(name)
         try:
             return json.loads(self._meta_path(video, name).read_text())
         except FileNotFoundError:
@@ -231,8 +239,7 @@ class Sources:
         return self.public(meta)
 
     def delete(self, video, name):
-        if not self._dir(video, name).is_dir():
-            raise KeyError(name)
+        self.get(video, name)  # validates `name` and that the source exists
         shutil.rmtree(self._dir(video, name))
         self.sync(video)
 
@@ -241,8 +248,14 @@ class Sources:
     def sync(self, video, root=None):
         """Hardlink this video's current sources (and captions) into
         `<root>/<video-dir>/sources/`, removing anything stale; `root`
-        defaults to the project's own checkout. Reused across calls: a
-        source already linked in costs only a stat."""
+        defaults to the project's own checkout -- a directory this code
+        does not otherwise own, and may already hold content of the
+        creator's own that happens to be named `sources/`. So the only
+        entries ever removed are ones a previous sync() itself put there,
+        tracked in a small manifest file alongside them; anything else in
+        that directory, including a pre-existing subdirectory, is left
+        alone. Reused across calls: a source already linked in costs only
+        a stat."""
         try:
             video_path = Path(self.editor.project.video(video).path)
         except KeyError:
@@ -258,24 +271,36 @@ class Sources:
             wanted[f"{meta['name']}.{meta['ext']}"] = src_dir / f"{meta['name']}.{meta['ext']}"
             if meta.get('caption'):
                 wanted[meta['caption']] = src_dir / meta['caption']
+        manifest = dest_dir / SYNC_MANIFEST
+        try:
+            managed = set(json.loads(manifest.read_text()))
+        except (OSError, ValueError):
+            managed = set()
+        for stale in managed - set(wanted):
+            path = dest_dir / stale
+            if path.is_file():
+                path.unlink(missing_ok=True)
         if not wanted:
-            if dest_dir.is_dir():
-                shutil.rmtree(dest_dir)
+            manifest.unlink(missing_ok=True)
+            try:
+                dest_dir.rmdir()  # only succeeds if nothing but our own links was left in it
+            except OSError:
+                pass
             return
         dest_dir.mkdir(parents=True, exist_ok=True)
-        for existing in list(dest_dir.iterdir()):
-            if existing.name not in wanted:
-                existing.unlink()
         for rel_name, src in wanted.items():
             dst = dest_dir / rel_name
-            if dst.exists():
+            if dst.is_file():
                 if dst.stat().st_ino == src.stat().st_ino and dst.stat().st_dev == src.stat().st_dev:
                     continue
                 dst.unlink()
+            elif dst.exists():
+                continue  # something not ours is sitting at this name; don't clobber it
             try:
                 os.link(src, dst)
             except OSError:
                 shutil.copyfile(src, dst)
+        manifest.write_text(json.dumps(sorted(wanted)))
 
     def stage_dir(self, video):
         """A persistent, reused directory holding this video's current

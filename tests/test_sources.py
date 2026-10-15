@@ -171,6 +171,24 @@ class DirectUpload(fixtures.API):
         with self.assertRaises(KeyError):
             self.editor.sources.delete('promo/film', 'interview')
 
+    def test_name_traversal_is_refused_everywhere_not_just_in_the_filename(self):
+        # 'name' here models what a URL path segment like /api/sources/../delete
+        # hands the store directly: `[^/]+` in the route regex lets '..' and '.'
+        # through unchanged (see video_api.py / handler_library.py), so delete,
+        # get and add_caption must each refuse it themselves rather than resolving
+        # it against the sources root or the video's own directory.
+        self._upload(name='interview')
+        root_before = sorted(p.name for p in self.editor.sources.root.iterdir())
+        for bad in ('..', '.', 'INTERVIEW', 'inter view', 'a/b', ''):
+            with self.subTest(bad=bad):
+                with self.assertRaises(KeyError):
+                    self.editor.sources.get('promo/film', bad)
+                with self.assertRaises(KeyError):
+                    self.editor.sources.delete('promo/film', bad)
+                with self.assertRaises(KeyError):
+                    self.editor.sources.add_caption('promo/film', bad, 'cc.vtt', b'WEBVTT\n')
+        self.assertEqual(sorted(p.name for p in self.editor.sources.root.iterdir()), root_before)
+
     def test_list_is_sorted_and_public_shape(self):
         self._upload(name='b-clip')
         self._upload(name='a-clip')
@@ -209,6 +227,28 @@ class CheckoutStaging(fixtures.API):
         self.assertTrue(linked.exists())
         self.editor.sources.delete('promo/film', 'interview')
         self.assertFalse(linked.exists())
+
+    def test_sync_with_no_sources_leaves_an_unrelated_sources_dir_alone(self):
+        # A `sources/` folder the creator already had, unrelated to this feature, must
+        # survive a sync() for a video that has none of its own -- sync() used to
+        # shutil.rmtree() the whole directory in that case.
+        self.editor.sources.delete('promo/film', 'interview')
+        unrelated = self.root / 'promo' / 'sources'
+        unrelated.mkdir()
+        (unrelated / 'notes.txt').write_text('keep me')
+        self.editor.sources.sync('promo/film')
+        self.assertEqual((unrelated / 'notes.txt').read_text(), 'keep me')
+
+    def test_sync_does_not_unlink_a_subdirectory_sharing_the_sources_dir(self):
+        # A subdirectory sitting alongside the hardlinks (unrelated to any source
+        # name) used to raise IsADirectoryError on sync() -- real content, not ours,
+        # must be left in place instead.
+        self.editor.sources.sync('promo/film')
+        nested = self.root / 'promo' / 'sources' / 'notes'
+        nested.mkdir()
+        (nested / 'a.txt').write_text('keep me too')
+        self.editor.sources.sync('promo/film')  # must not raise
+        self.assertTrue((nested / 'a.txt').is_file())
 
     def test_sync_into_a_draft_worktree(self):
         work = Path(self.scratch.name) / 'worktree'
@@ -282,6 +322,23 @@ class HTTPRoundTrip(fixtures.API):
         code, body = self.post('/api/sources/clip/delete', {'video': 'promo/film'})
         self.assertEqual((code, body), (200, {'deleted': 'clip'}))
         self.assertEqual(self.get('/api/sources?video=promo/film')['sources'], [])
+
+    def test_preview_serves_a_byte_range_without_reading_the_whole_file(self):
+        self._post_raw('/api/sources?video=promo/film&filename=clip.mp4', self.clip.read_bytes())
+        data = self.clip.read_bytes()
+        with mock.patch('pathlib.Path.read_bytes', side_effect=AssertionError('must not read the whole file')):
+            req = urllib.request.Request(self.base + '/api/sources/clip?video=promo/film',
+                                         headers={'Range': f'bytes=1-{len(data) - 2}'})
+            with urllib.request.urlopen(req, timeout=20) as r:
+                self.assertEqual(r.status, 206)
+                self.assertEqual(r.read(), data[1:len(data) - 1])
+
+    def test_delete_still_refuses_a_traversal_name_through_the_http_route(self):
+        code, _ = self._post_raw('/api/sources?video=promo/film&filename=clip.mp4', self.clip.read_bytes())
+        self.assertEqual(code, 201)
+        code, body = self.post('/api/sources/../delete', {'video': 'promo/film'})
+        self.assertEqual(code, 404, body)
+        self.assertEqual([s['name'] for s in self.get('/api/sources?video=promo/film')['sources']], ['clip'])
 
     def test_unknown_source_preview_is_404(self):
         req = urllib.request.Request(self.base + '/api/sources/nope?video=promo/film')

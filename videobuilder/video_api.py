@@ -138,7 +138,7 @@ def _get_source_file(self, route, q, editor, user, name):
         meta, path = editor.sources.file_path(video, name)
     except KeyError:
         raise HTTPError(404, 'source not found') from None
-    return self._send_ranged(path.read_bytes(), TYPES[meta['ext']], {'Accept-Ranges': 'bytes'})
+    return self._send_ranged_file(path, TYPES[meta['ext']], {'Accept-Ranges': 'bytes'})
 
 
 def _get_music_sources(self, route, q, editor, user):

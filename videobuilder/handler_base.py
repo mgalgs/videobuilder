@@ -71,6 +71,50 @@ class BaseHandler(BaseHTTPRequestHandler):
         return self._send(206, data[start:end + 1], ctype,
                           {**headers, 'Content-Range': f'bytes {start}-{end}/{len(data)}'})
 
+    def _send_ranged_file(self, path, ctype, headers):
+        """Like `_send_ranged`, but for a file that can be large (a source
+        video, up to a couple of GiB): seeks and reads only the bytes the
+        response actually sends, in bounded chunks, rather than loading the
+        whole file into memory first."""
+        size = path.stat().st_size
+        rang = self.headers.get('Range')
+        if not rang:
+            start, end, code = 0, size - 1, 200
+        else:
+            m = re.fullmatch(r'bytes=(\d*)-(\d*)', rang)
+            if not m or (not m[1] and not m[2]):
+                return self._send(416, b'', ctype, {**headers, 'Content-Range': f'bytes */{size}'})
+            if m[1]:
+                start = int(m[1])
+                end = int(m[2]) if m[2] else size - 1
+            else:
+                count = int(m[2])
+                start = max(0, size - count)
+                end = size - 1
+            if start >= size or end < start or (not m[1] and not count):
+                return self._send(416, b'', ctype, {**headers, 'Content-Range': f'bytes */{size}'})
+            end = min(end, size - 1)
+            code = 206
+        self.send_response(code)
+        self.send_header('Content-Type', ctype)
+        self.send_header('Content-Length', str(end - start + 1))
+        self.send_header('Cache-Control', 'no-store')
+        self.send_header('X-Content-Type-Options', 'nosniff')
+        for key, value in headers.items():
+            self.send_header(key, value)
+        if code == 206:
+            self.send_header('Content-Range', f'bytes {start}-{end}/{size}')
+        self.end_headers()
+        remaining = end - start + 1
+        with open(path, 'rb') as fh:
+            fh.seek(start)
+            while remaining > 0:
+                chunk = fh.read(min(1 << 20, remaining))
+                if not chunk:
+                    break
+                self.wfile.write(chunk)
+                remaining -= len(chunk)
+
     def _same_origin(self):
         origin = self.headers.get('Origin')
         if origin and urlparse(origin).netloc != self.headers.get('Host'):
