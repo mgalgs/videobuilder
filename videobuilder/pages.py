@@ -90,8 +90,6 @@ STARTER_STYLE = (
     '.starter-title{font-weight:600;font-size:.9rem}'
     '.starter-prompt{font-size:.8rem;color:#a9a9b2;display:-webkit-box;-webkit-line-clamp:3;'
     '-webkit-box-orient:vertical;overflow:hidden}'
-    '#files-field.starter-highlight,#links-field.starter-highlight{outline:2px solid #e5483b;'
-    'border-radius:8px}'
 )
 
 NEW_VIDEO_STYLE = (
@@ -263,7 +261,7 @@ NEW_VIDEO_SCRIPT = (
     'await waitIfSkipped(skipped)'
     '}}'
     'location.href="/v/"+path+"/"'
-    '}catch(err){error.textContent=err.message;button.disabled=false;button.textContent="Create"}'
+    '}catch(err){error.textContent=err.message;button.disabled=false;button.textContent="Start building"}'
     '}'
     '</script>'
 )
@@ -275,20 +273,18 @@ STARTER_SCRIPT = (
     'function applyStarter(id){'
     'const card=document.querySelector(\'.starter-card[data-id="\'+id+\'"]\');'
     'if(!card)return;'
-    'const prompt=card.dataset.prompt,needs=card.dataset.needs;'
+    'const prompt=card.dataset.prompt;'
     'const blank=form.querySelector("input[name=start][value=blank]");'
     'blank.checked=true;blank.dispatchEvent(new Event("change"));'
     'form.description.value=prompt;'
-    'for(const l of form.querySelectorAll(".starter-highlight"))l.classList.remove("starter-highlight");'
-    'const target=needs==="files"?document.querySelector("#files-field"):'
-    'needs==="links"?document.querySelector("#links-field"):null;'
-    'if(target)target.classList.add("starter-highlight");'
     'form.description.focus();'
     'const m=/\\[[^\\]]*\\]/.exec(prompt);'
     'if(m)form.description.setSelectionRange(m.index,m.index+m[0].length)}'
     'for(const c of document.querySelectorAll(".starter-card"))c.onclick=()=>applyStarter(c.dataset.id);'
     'const initial=new URLSearchParams(location.search).get("starter");'
-    'if(initial)applyStarter(initial)'
+    # Arriving from the library's row, the choice is already made: show the form, not the row again.
+    'if(initial&&document.querySelector(\'.starter-card[data-id="\'+initial+\'"]\')){'
+    'document.querySelector(".starters").hidden=true;applyStarter(initial)}'
     '})();'
     '</script>'
 )
@@ -397,7 +393,7 @@ def new_video_page(names):
             '<label id="links-field">Links (one per line)<textarea name="links" rows="3" '
             'placeholder="https://example.com/the-feature"></textarea></label>'
             '</div>'
-            '<button id="create" type="submit">Create</button>'
+            '<button id="create" type="submit">Start building</button>'
             '<p id="error" role="alert"></p>'
             '</form>'
             '<p id="skipped" role="status"></p>'
