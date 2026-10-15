@@ -6,8 +6,7 @@ import random
 from functools import lru_cache
 
 import cairo
-import numpy as np
-from PIL import Image as PILImage, ImageEnhance
+from PIL import Image as PILImage, ImageChops, ImageEnhance
 
 import videobuilder as vb
 from videobuilder import Box, text
@@ -179,11 +178,11 @@ def keyed(i):
     keyed out, so the render can sit in front of type or on any ground."""
     pil = ORBIT.frame(i % ORBIT.frames)._pil.convert('RGB')
     x, y, w, h = CROP
-    a = np.asarray(pil.crop((x, y, x + w, y + h)), dtype=np.float32)
-    d = np.abs(a - np.array(ORBIT_BG, dtype=np.float32)).max(axis=2)
-    alpha = np.clip((d - 8) / 20, 0, 1)
-    rgba = np.dstack([a, alpha * 255]).astype(np.uint8)
-    return vb.Image.from_pil(PILImage.fromarray(rgba, 'RGBA'))
+    rgb = pil.crop((x, y, x + w, y + h))
+    r, g, b = ImageChops.difference(rgb, PILImage.new('RGB', rgb.size, ORBIT_BG)).split()
+    d = ImageChops.lighter(ImageChops.lighter(r, g), b)
+    rgb.putalpha(d.point(lambda v: int(min(max((v - 8) / 20, 0), 1) * 255)))
+    return vb.Image.from_pil(rgb)
 
 
 def _navy(cv, frame, cx, cy, r):
