@@ -110,6 +110,19 @@ With accounts on, GET /api/name returns the session username and POST
 answers 409; a project the signed-in user cannot access answers 404
 exactly like a non-existent one, on its page, API, frames, video, git.
 
+A key acts as the account it belongs to, narrowed by its own scope and mode
+(see accounts.py). Git over HTTP accepts one as the Basic auth password
+(any username; a password not starting with `vbk_` keeps the ordinary
+username/password check instead). The video API (`/v/<name>/api/...`,
+except `/api/access`) accepts one as `Authorization: Bearer <key>`; GET
+needs only a `read` key, everything else needs `write`. A key reaches only
+those two route families — everywhere else it is refused exactly like no
+credential at all, and it is never combined with a session cookie: a
+request carrying `Authorization` is judged by that header alone. Anything
+done with a key is attributed as `<username> (<label>)` (note authors, the
+`Directed-by:` trailer, undo/restore/upgrade and builder versions), while
+access checks still use the bare username.
+
 An edit returns {message,commit,warning,changed,undo}. Notes include `id`,
 `video`, `text`, `format`, `frame`, `segment`, `time`, `attachments`, `author`,
 `state`, `reply`, `branch`, and queue metadata. States are queued, working,
@@ -606,6 +619,10 @@ def make_handler(editor, hook=request_hook):
             except Exception:
                 return None
             username, _, password = decoded.partition(':')
+            if password.startswith('vbk_'):
+                # The username is ignored for a key: it isn't needed to find or act as the account.
+                self._key = accounts.key_for_secret(password)
+                return self._key['username'] if self._key else None
             try:
                 return accounts.verify(username, password)
             except ValueError:
@@ -653,7 +670,9 @@ def make_handler(editor, hook=request_hook):
         def _body(self):
             if self.headers.get('Content-Type', '').split(';')[0].strip() != 'application/json':
                 raise HTTPError(415, 'send JSON (Content-Type: application/json)')
-            self._same_origin()
+            if not self._key:
+                # A bearer key carries no ambient browser credential, so CSRF doesn't apply.
+                self._same_origin()
             n = int(self.headers.get('Content-Length') or 0)
             if n > MAX_BODY:
                 raise HTTPError(413, 'request too large')
@@ -668,6 +687,7 @@ def make_handler(editor, hook=request_hook):
         def _handle(self, method):
             url = urlparse(self.path)
             q = {k: v[-1] for k, v in parse_qs(url.query).items()}
+            self._key = None  # a key used for this request (git Basic or video-API Bearer), if any
             try:
                 identity = hook(self)
                 route = url.path
@@ -680,20 +700,50 @@ def make_handler(editor, hook=request_hook):
                         parsed = git_route(route)
                         if parsed and not library.access.can_access(parsed[0], git_user, library.accounts):
                             return self._json(404, {'error': 'repository not found'})
-                        identity = git_user
+                        if self._key and parsed:
+                            if not _key_in_scope(self._key, parsed[0]):
+                                return self._json(404, {'error': 'repository not found'})
+                            if self._key['mode'] == 'read' and _git_is_push(parsed[1], url.query):
+                                raise HTTPError(403, 'this key is read-only')
+                        identity = _attributed(git_user, self._key)
                     # Git POSTs use its own content types; the JSON and Origin rule is for browser edits.
                     if serve_git(self, library, method, identity):
                         return
                     raise HTTPError(404, 'repository not found')
+                # Resolved once, here, so the key gate below and the `/v/<name>` dispatch further
+                # down (which reuses video_name/video_subroute) can never disagree about the name.
+                video_name, video_subroute = None, None
+                if library:
+                    video_match = re.fullmatch(r'/v/(.+?)(/api(?:/.*)?|/tuning\.html|/director\.(?:js|css)|/)?',
+                                               route)
+                    if video_match and valid_name(video_match.group(1)):
+                        video_name, video_subroute = video_match.group(1), video_match.group(2)
                 user = None
                 if library and library.accounts:
                     if route not in OPEN_ROUTES:
-                        user = self._session_user(library.accounts)
+                        auth = self.headers.get('Authorization', '')
+                        if auth.startswith('Bearer '):
+                            # A bearer key is judged alone: no ambient cookie combines with it. A key
+                            # reaches only /v/<name>/api/..., never its own access-management sub-route.
+                            eligible = (video_name is not None and video_subroute and
+                                       video_subroute.startswith('/api/') and video_subroute != '/api/access')
+                            self._key = library.accounts.key_for_secret(auth[7:].strip()) if eligible else None
+                            if eligible and self._key is None:
+                                raise HTTPError(401, 'invalid or revoked key')
+                            if self._key and not _key_in_scope(self._key, video_name):
+                                raise HTTPError(404, 'repository not found')
+                            if self._key and self._key['mode'] == 'read' and method != 'GET':
+                                raise HTTPError(403, 'this key is read-only')
+                            user = self._key['username'] if self._key else None
+                        elif auth:
+                            user = None  # some other credential a key route never accepts
+                        else:
+                            user = self._session_user(library.accounts)
                         if user is None:
                             if self._wants_html(route, method):
                                 return self._send(200, signin_page(), 'text/html; charset=utf-8')
                             raise HTTPError(401, 'sign in required')
-                    identity = user
+                    identity = _attributed(user, self._key)
                 if route == '/api/name':
                     if library and library.accounts:
                         if method == 'GET':
@@ -783,11 +833,10 @@ def make_handler(editor, hook=request_hook):
                             library.access.set_owner(result['name'], user, library.accounts)
                         return self._json(201, result)
                     if route != '/healthz' and route != '/capabilities' and not route.startswith('/capabilities/'):
-                        match = re.fullmatch(r'/v/(.+?)(/api(?:/.*)?|/tuning.html|/director\.(?:js|css)|/)?', route)
-                        if not match or not valid_name(match.group(1)):
+                        if video_name is None:
                             raise HTTPError(404, 'not found')
-                        name = match.group(1)
-                        if match.group(2) is None and method == 'GET':
+                        name = video_name
+                        if video_subroute is None and method == 'GET':
                             # The page calls a relative api/, which needs the trailing slash.
                             self.send_response(301)
                             self.send_header('Location', route + '/')
@@ -799,14 +848,16 @@ def make_handler(editor, hook=request_hook):
                             active = library.editor(name)
                         except ValueError as exc:
                             raise HTTPError(404, str(exc)) from None
-                        route = match.group(2) or '/'
+                        route = video_subroute or '/'
                         if library.accounts and route == '/api/access':
                             return self._access(method, name, user)
                 if method == 'GET':
                     self._get(route, q, active, user)
                 elif route == '/api/attachments':
-                    # Same-origin plus validated magic bytes and forced nosniff make raw uploads safe here.
-                    self._same_origin()
+                    # Same-origin plus validated magic bytes and forced nosniff make raw uploads safe here;
+                    # a bearer key carries no ambient credential, so it skips the Origin check like _body().
+                    if not self._key:
+                        self._same_origin()
                     n = int(self.headers.get('Content-Length') or 0)
                     if n < 0 or n > active.attachments.max_file:
                         raise HTTPError(413, 'attachment exceeds file size limit')
@@ -1053,6 +1104,20 @@ def _need(q, name):
     if not q.get(name):
         raise HTTPError(400, f'missing {name}')
     return q[name]
+
+
+def _key_in_scope(key, name):
+    return not key['scope'] or name.startswith(key['scope'] + '/')
+
+
+def _git_is_push(suffix, query):
+    if suffix == '/git-receive-pack':
+        return True
+    return suffix == '/info/refs' and parse_qs(query).get('service') == ['git-receive-pack']
+
+
+def _attributed(username, key):
+    return f"{username} ({key['label']})" if key else username
 
 
 NOTE_TICK = 5

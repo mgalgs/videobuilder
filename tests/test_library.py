@@ -96,7 +96,7 @@ class LibraryFixture:
         return raw.split(';', 1)[0]
 
     def seed(self, name='acme/launch', film=False):
-        work = self.root / 'author'
+        work = self.root / 'author' / name.replace('/', '--')
         self.git('init', '-b', 'main', str(work))
         (work / 'README.md').write_text('first\n')
         if film:
@@ -360,8 +360,8 @@ class HostedGit(LibraryFixture, unittest.TestCase):
         self.assertEqual(code, 400, err)
 
 
-class Auth(LibraryFixture, unittest.TestCase):
-    """Accounts, sessions and per-project access on a library with --admin."""
+class AccountMixin:
+    """Shared accounts/session setup for Auth, Keys and AccountPage: not itself a TestCase."""
     ADMIN_PASSWORD = 'adminsecretpw1'
 
     def library_kwargs(self):
@@ -399,6 +399,10 @@ class Auth(LibraryFixture, unittest.TestCase):
     def new_project(self, cookie, name='acme/launch', source='acme/launch'):
         return self.request(f'/api/library/new', {'from': source, 'name': name}, headers={
             'Content-Type': 'application/json', 'Cookie': cookie})
+
+
+class Auth(AccountMixin, LibraryFixture, unittest.TestCase):
+    """Accounts, sessions and per-project access on a library with --admin."""
 
     def test_unauthenticated_html_get_is_the_signin_page(self):
         code, page, _ = self.request_full('/')
@@ -667,6 +671,143 @@ class Auth(LibraryFixture, unittest.TestCase):
         code, err = self.request('/api/name', {'name': 'Someone'},
                                  headers={'Content-Type': 'application/json', 'Cookie': dana})
         self.assertEqual(code, 409)
+
+
+class KeyMixin:
+    """Shared key-request helpers for Keys and AccountPage: not itself a TestCase."""
+
+    def bearer(self, secret):
+        return {'Authorization': 'Bearer ' + secret}
+
+    def git_key_url(self, name, secret):
+        return self.base.replace('http://', f'http://x:{secret}@') + '/git/' + name + '.git'
+
+
+class Keys(AccountMixin, KeyMixin, LibraryFixture, unittest.TestCase):
+    """Per-account API keys: git over HTTP, the video API, scope, mode and attribution."""
+
+    def test_git_clone_fetch_with_read_key_works_and_push_is_refused(self):
+        self.seed('acme/launch', film=True)
+        admin = self.admin_login()
+        self.new_project(admin, 'acme/launch', 'acme/launch')
+        _, secret = self.library.accounts.create_key('mgalgs', 'reader', None, 'read')
+        clone = self.root / 'read-clone'
+        self.git('clone', self.git_key_url('acme/launch', secret), str(clone))
+        self.assertEqual((clone / 'README.md').read_text(), 'first\n')
+        (clone / 'extra').write_text('extra')
+        self.git('add', '.', cwd=clone)
+        self.git('commit', '-m', 'extra', cwd=clone)
+        result = self.git('push', cwd=clone, ok=False)
+        self.assertNotEqual(result.returncode, 0)
+
+    def test_git_push_with_write_key_works_and_stays_fast_forward_only(self):
+        self.seed('acme/launch', film=True)
+        admin = self.admin_login()
+        self.new_project(admin, 'acme/launch', 'acme/launch')
+        _, secret = self.library.accounts.create_key('mgalgs', 'writer', None, 'write')
+        clone = self.root / 'write-clone'
+        self.git('clone', self.git_key_url('acme/launch', secret), str(clone))
+        stale = self.root / 'stale-clone'
+        self.git('clone', self.git_key_url('acme/launch', secret), str(stale))
+        (clone / 'extra').write_text('extra')
+        self.git('add', '.', cwd=clone)
+        self.git('commit', '-m', 'extra', cwd=clone)
+        self.git('push', cwd=clone)
+        (stale / 'stale').write_text('stale')
+        self.git('add', '.', cwd=stale)
+        self.git('commit', '-m', 'stale', cwd=stale)
+        self.assertNotEqual(self.git('push', cwd=stale, ok=False).returncode, 0)
+
+    def test_bearer_get_and_post_work_for_write_post_refused_for_read(self):
+        self.seed('acme/launch', film=True)
+        admin = self.admin_login()
+        self.new_project(admin, 'acme/launch', 'acme/launch')
+        _, write_secret = self.library.accounts.create_key('mgalgs', 'writer', None, 'write')
+        _, read_secret = self.library.accounts.create_key('mgalgs', 'reader', None, 'read')
+        self.assertEqual(self.request('/v/acme/launch/api/project', headers=self.bearer(read_secret))[0], 200)
+        code, note = self.request('/v/acme/launch/api/notes', {'video': 'promo/film', 'text': 'Hi'},
+                                  headers={'Content-Type': 'application/json', **self.bearer(write_secret)})
+        self.assertEqual(code, 200, note)
+        code, err = self.request('/v/acme/launch/api/notes', {'video': 'promo/film', 'text': 'Hi'},
+                                 headers={'Content-Type': 'application/json', **self.bearer(read_secret)})
+        self.assertEqual(code, 403)
+
+    def test_scope_refuses_another_namespace(self):
+        self.seed('acme/launch', film=True)
+        self.seed('gardening/promo', film=True)
+        admin = self.admin_login()
+        self.new_project(admin, 'acme/launch', 'acme/launch')
+        self.new_project(admin, 'gardening/promo', 'gardening/promo')
+        _, secret = self.library.accounts.create_key('mgalgs', 'scoped', 'gardening', 'write')
+        self.assertEqual(self.request('/v/gardening/promo/api/project', headers=self.bearer(secret))[0], 200)
+        self.assertEqual(self.request('/v/acme/launch/api/project', headers=self.bearer(secret))[0], 404)
+        code, _, headers = self.request_full(
+            '/git/acme/launch.git/info/refs?service=git-receive-pack', headers=self.bearer(secret))
+        # Git never accepts a bearer header; this key must act only through Basic auth there.
+        self.assertIn(code, (401, 404))
+
+    def test_scope_refuses_a_top_level_project_named_like_the_scope(self):
+        # 'gardening' is a valid single-part project name in its own right, distinct from the
+        # 'gardening/...' namespace: a key scoped to 'gardening' must not reach it.
+        self.seed('gardening', film=True)
+        admin = self.admin_login()
+        self.new_project(admin, 'gardening', 'gardening')
+        _, secret = self.library.accounts.create_key('mgalgs', 'scoped', 'gardening', 'write')
+        self.assertEqual(self.request('/v/gardening/api/project', headers=self.bearer(secret))[0], 404)
+        basic = {'Authorization': 'Basic ' + base64.b64encode(f'x:{secret}'.encode()).decode()}
+        code, _, _ = self.request_full('/git/gardening.git/info/refs?service=git-receive-pack', headers=basic)
+        self.assertEqual(code, 404)
+
+    def test_key_refused_on_api_library_new(self):
+        self.seed('acme/launch', film=True)
+        admin = self.admin_login()
+        self.new_project(admin, 'acme/launch', 'acme/launch')
+        _, secret = self.library.accounts.create_key('mgalgs', 'writer', None, 'write')
+        self.assertNotEqual(self.request('/api/library/new', {'from': 'acme/launch', 'name': 'acme/copy'},
+                                         headers={'Content-Type': 'application/json', **self.bearer(secret)})[0], 201)
+
+    def test_scope_excludes_access_management_even_though_it_is_under_api(self):
+        self.seed('acme/launch', film=True)
+        admin = self.admin_login()
+        self.new_project(admin, 'acme/launch', 'acme/launch')
+        _, secret = self.library.accounts.create_key('mgalgs', 'writer', None, 'write')
+        self.assertEqual(self.request('/v/acme/launch/api/access', headers=self.bearer(secret))[0], 401)
+
+    def test_password_not_prefixed_vbk_still_checks_password_and_locks_out(self):
+        self.seed('acme/launch')
+        from videobuilder.accounts import LOGIN_LIMIT
+        import base64
+        def basic(password):
+            return {'Authorization': 'Basic ' + base64.b64encode(f'mgalgs:{password}'.encode()).decode()}
+        for _ in range(LOGIN_LIMIT):
+            code, _, _ = self.request_full('/git/acme/launch.git/info/refs?service=git-receive-pack',
+                                           headers=basic('wrong'))
+            self.assertEqual(code, 401)
+        with self.assertRaises(ValueError) as caught:
+            self.library.accounts.verify('mgalgs', self.ADMIN_PASSWORD)
+        self.assertIn('too many attempts', str(caught.exception))
+
+    def test_session_cookie_plus_bad_bearer_key_is_refused(self):
+        self.seed('acme/launch', film=True)
+        admin = self.admin_login()
+        self.new_project(admin, 'acme/launch', 'acme/launch')
+        code, _ = self.request('/v/acme/launch/api/project',
+                               headers={'Cookie': admin, 'Authorization': 'Bearer vbk_notarealkey'})
+        self.assertEqual(code, 401)
+
+    def test_note_author_and_directed_by_trailer_show_key_attribution(self):
+        from videobuilder.agents import FakeBackend
+        self.seed('acme/launch', film=True)
+        admin = self.admin_login()
+        self.new_project(admin, 'acme/launch', 'acme/launch')
+        self.library.editor('acme/launch').notes.backend = FakeBackend(delay=0)
+        _, secret = self.library.accounts.create_key('mgalgs', 'claude explainer-videos', None, 'write')
+        code, note = self.request('/v/acme/launch/api/notes', {'video': 'promo/film', 'text': 'Hi'},
+                                  headers={'Content-Type': 'application/json', **self.bearer(secret)})
+        self.assertEqual((code, note['author']), (200, 'mgalgs (claude explainer-videos)'))
+        self.request('/v/acme/launch/api/notes', headers=self.bearer(secret))
+        log = self.git('show', '-s', '--format=%B', 'HEAD', cwd=self.library.checkouts / 'acme--launch').stdout
+        self.assertIn('Directed-by: mgalgs (claude explainer-videos)', log)
 
 
 if __name__ == '__main__':
