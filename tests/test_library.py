@@ -810,5 +810,87 @@ class Keys(AccountMixin, KeyMixin, LibraryFixture, unittest.TestCase):
         self.assertIn('Directed-by: mgalgs (claude explainer-videos)', log)
 
 
+class AccountPage(AccountMixin, KeyMixin, LibraryFixture, unittest.TestCase):
+    """The /account page and its key-management routes."""
+
+    def create(self, cookie, label='laptop', scope=None, mode='write'):
+        body = {'label': label, 'mode': mode}
+        if scope is not None:
+            body['scope'] = scope
+        return self.request('/api/account/keys', body, headers={'Content-Type': 'application/json', 'Cookie': cookie})
+
+    def test_unauthenticated_get_is_the_signin_page_not_the_account_page(self):
+        code, page = self.request('/account')
+        self.assertEqual(code, 200)
+        self.assertIn(b'Sign in', page)
+        self.assertNotIn(b'New key', page)
+
+    def test_page_lists_no_keys_then_a_created_one(self):
+        admin = self.admin_login()
+        code, page = self.request('/account', headers={'Cookie': admin})
+        self.assertEqual(code, 200)
+        self.assertIn(b'No keys yet', page)
+        code, record = self.create(admin, label='laptop', scope='gardening', mode='read')
+        self.assertEqual(code, 201, record)
+        self.assertEqual(record['label'], 'laptop')
+        self.assertEqual(record['scope'], 'gardening')
+        self.assertEqual(record['mode'], 'read')
+        self.assertTrue(record['secret'].startswith('vbk_'))
+        code, page = self.request('/account', headers={'Cookie': admin})
+        self.assertIn(b'laptop', page)
+        self.assertIn(b'gardening', page)
+        self.assertNotIn(record['secret'].encode(), page)  # never shown again on reload
+
+    def test_create_validates_label_scope_and_mode(self):
+        admin = self.admin_login()
+        self.assertEqual(self.create(admin, label='')[0], 400)
+        self.assertEqual(self.create(admin, label='has (parens)')[0], 400)
+        self.assertEqual(self.create(admin, scope='Not Valid')[0], 400)
+        self.assertEqual(self.create(admin, mode='delete')[0], 400)
+
+    def test_revoke_takes_effect_on_the_next_request(self):
+        admin = self.admin_login()
+        _, record = self.create(admin, label='revoke-me')
+        secret = record['secret']
+        self.assertEqual(self.request('/api/account/keys/' + record['id'] + '/revoke', {},
+                                      headers={'Content-Type': 'application/json', 'Cookie': admin})[0], 200)
+        code, page = self.request('/account', headers={'Cookie': admin})
+        self.assertIn(b'No keys yet', page)
+        self.assertNotIn(b'revoke-me', page)
+        self.seed('acme/launch', film=True)
+        self.new_project(admin, 'acme/launch', 'acme/launch')
+        self.assertEqual(self.request('/v/acme/launch/api/project', headers=self.bearer(secret))[0], 401)
+
+    def test_revoke_unknown_id_404(self):
+        admin = self.admin_login()
+        code, _ = self.request('/api/account/keys/nosuchid/revoke', {},
+                               headers={'Content-Type': 'application/json', 'Cookie': admin})
+        self.assertEqual(code, 404)
+
+    def test_key_refused_on_account_page_and_key_management(self):
+        admin = self.admin_login()
+        _, record = self.create(admin)
+        secret = record['secret']
+        code, page = self.request('/account', headers=self.bearer(secret))
+        self.assertEqual(code, 200)
+        self.assertNotIn(b'New key', page)  # the sign-in page, not the account page
+        code, _ = self.request('/api/account/keys', {'label': 'x', 'mode': 'write'},
+                               headers={'Content-Type': 'application/json', **self.bearer(secret)})
+        self.assertEqual(code, 401)
+        code, _ = self.request('/api/account/keys/' + record['id'] + '/revoke', {},
+                               headers={'Content-Type': 'application/json', **self.bearer(secret)})
+        self.assertEqual(code, 401)
+
+    def test_a_deleted_accounts_keys_cannot_be_listed_or_created(self):
+        _, _, dana = self.signup('dana', 'longenoughpassword')
+        self.create(dana, label='dana-key')
+        del self.library.accounts._data['users']['dana']
+        self.library.accounts._save()
+        code, page = self.request('/account', headers={'Cookie': dana})
+        self.assertEqual(code, 200)
+        self.assertIn(b'Sign in', page)  # the old session no longer resolves to an account
+        self.assertEqual(self.create(dana)[0], 401)
+
+
 if __name__ == '__main__':
     unittest.main()

@@ -106,6 +106,14 @@ GET  /v/<name>/api/access            {owner,collaborators,can_share}
 POST /v/<name>/api/access {action:"invite"|"remove",username}
                                      owner or admin only (403 otherwise);
                                      200; 404 inviting an unknown username
+GET  /account                        the signed-in account's page: its keys
+                                     and a form to create one
+POST /api/account/keys {label,scope?,mode}
+                                     201 {id,label,scope,mode,created,
+                                     last_used,secret}; the secret is shown
+                                     only in this response; 400 bad label,
+                                     scope or mode
+POST /api/account/keys/<id>/revoke {}  200 {revoked:id}; 404 unknown id
 With accounts on, GET /api/name returns the session username and POST
 answers 409; a project the signed-in user cannot access answers 404
 exactly like a non-existent one, on its page, API, frames, video, git.
@@ -141,6 +149,7 @@ network; the checkout is read-only. Fork-sandbox attachment copies are mounted
 read-only at /attachments for only the relevant submission.
 """
 import base64
+import html
 import json
 import math
 from http.cookies import SimpleCookie
@@ -514,6 +523,136 @@ def _page():
     return resources.files(__package__).joinpath('editor.html').read_bytes()
 
 
+_ACCOUNT_STYLE = (
+    '<style>'
+    'body{font:16px system-ui;background:#181b20;color:#eee;max-width:720px;margin:0 auto;'
+    'padding:1.2rem 1rem 4rem;box-sizing:border-box}'
+    'h1{font-size:1.3em}a{color:#88cafa}'
+    '.bar{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:.6rem;'
+    'border-bottom:1px solid #333;padding-bottom:1rem;margin-bottom:1.2rem}'
+    '.bar button{min-height:44px;padding:.5rem 1rem;border-radius:6px;border:1px solid #333;'
+    'background:#20242b;color:#eee}'
+    'ul#keys{list-style:none;margin:0;padding:0}'
+    '.key{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:.4rem .8rem;'
+    'padding:.8rem 0;border-bottom:1px solid #2a2e36}'
+    '.key-main{flex:1 1 auto;min-width:0}.key-main strong{word-break:break-word}'
+    '.badge{display:inline-block;font-size:.75em;padding:.1rem .5rem;border-radius:1em;'
+    'background:#2d6cdf;color:#fff;margin-left:.4rem}.badge.read{background:#555}'
+    '.key-meta{flex:1 1 100%;color:#9aa0ab;font-size:.85em}'
+    'button.revoke{min-height:44px;min-width:44px;padding:.5rem 1rem;border-radius:6px;'
+    'border:1px solid #633;background:#2b1d1d;color:#f88}'
+    '.empty{color:#9aa0ab}'
+    'form#create{display:flex;flex-direction:column;gap:.6rem;margin-top:1rem;max-width:420px}'
+    'form#create input,form#create select,form#create button{min-height:44px;padding:.6rem;'
+    'font-size:16px;border-radius:6px;border:1px solid #333;background:#20242b;color:#eee;'
+    'box-sizing:border-box}'
+    'form#create button{background:#2d6cdf;border:none;color:#fff;font-weight:600;cursor:pointer}'
+    'label{display:flex;flex-direction:column;gap:.25rem;font-size:.9em;color:#bbb}'
+    '#error{color:#f88;min-height:1.2em}'
+    '.panel{background:#20242b;border:1px solid #333;border-radius:8px;padding:1rem;margin:1rem 0}'
+    '.panel code,.panel pre{display:block;background:#15171b;border-radius:6px;padding:.6rem;'
+    'overflow-x:auto;word-break:break-all;white-space:pre-wrap;font-size:.85em}'
+    '.panel button{min-height:44px;padding:.5rem 1rem;border-radius:6px;border:1px solid #333;'
+    'background:#2d6cdf;color:#fff;margin-top:.4rem}'
+    '@media (max-width:480px){.key{flex-direction:column;align-items:flex-start}}'
+    '</style>')
+
+_ACCOUNT_SCRIPT = (
+    '<script>'
+    "const err=document.querySelector('#error');"
+    "function fmtTime(s){return new Date(s*1000).toISOString().slice(0,16).replace('T',' ')+' UTC';}"
+    'function keyRow(k){'
+    "const li=document.createElement('li');li.className='key';li.dataset.id=k.id;"
+    "const main=document.createElement('div');main.className='key-main';"
+    "const strong=document.createElement('strong');strong.textContent=k.label;main.appendChild(strong);"
+    "const badge=document.createElement('span');badge.className='badge'+(k.mode==='read'?' read':'');"
+    'badge.textContent=k.mode;main.appendChild(badge);'
+    "const meta=document.createElement('div');meta.className='key-meta';"
+    "meta.textContent='Scope: '+(k.scope||'all projects')+' \\u00b7 Created: '+fmtTime(k.created)+"
+    "' \\u00b7 Last used: never';"
+    "const btn=document.createElement('button');btn.className='revoke';btn.type='button';"
+    "btn.dataset.id=k.id;btn.textContent='Revoke';"
+    'li.appendChild(main);li.appendChild(meta);li.appendChild(btn);return li;}'
+    'function addRow(k){'
+    "let ul=document.querySelector('#keys');"
+    "if(!ul||ul.tagName!=='UL'){ul=document.createElement('ul');ul.id='keys';"
+    "document.querySelector('#keys').replaceWith(ul);}"
+    'ul.appendChild(keyRow(k));}'
+    'function showSecret(data){'
+    'const host=location.host;'
+    "const panel=document.querySelector('#secret-panel');panel.hidden=false;"
+    "document.querySelector('#secret-value').textContent=data.secret;"
+    "document.querySelector('#git-clone').textContent="
+    "'https://x:'+data.secret+'@'+host+'/git/<name>.git';"
+    "document.querySelector('#git-cred').textContent="
+    "'protocol=https\\nhost='+host+'\\nusername=x\\npassword='+data.secret;"
+    "document.querySelector('#api-header').textContent='Authorization: Bearer '+data.secret;"
+    "panel.scrollIntoView({behavior:'smooth',block:'nearest'});}"
+    "document.querySelector('#create').onsubmit=async e=>{"
+    "e.preventDefault();err.textContent='';"
+    'const form=new FormData(e.target);'
+    "const body={label:form.get('label'),mode:form.get('mode')};"
+    "const scope=(form.get('scope')||'').trim();if(scope)body.scope=scope;"
+    "const r=await fetch('/api/account/keys',{method:'POST',"
+    "headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});"
+    'const data=await r.json();'
+    'if(!r.ok){err.textContent=data.error;return;}'
+    'e.target.reset();addRow(data);showSecret(data);};'
+    "document.querySelector('#copy-btn').onclick=()=>{"
+    "navigator.clipboard.writeText(document.querySelector('#secret-value').textContent);};"
+    "document.body.addEventListener('click',async e=>{"
+    "if(!e.target.classList.contains('revoke'))return;"
+    'const id=e.target.dataset.id;'
+    "const r=await fetch('/api/account/keys/'+encodeURIComponent(id)+'/revoke',"
+    "{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'});"
+    'if(r.ok)location.reload();});'
+    "const o=document.querySelector('#sign-out');"
+    'if(o)o.onclick=async()=>{'
+    "await fetch('/api/logout',{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'});"
+    "location.href='/login';};"
+    '</script>')
+
+
+def _key_row(k):
+    scope = html.escape(k['scope']) if k['scope'] else 'all projects'
+    created = time.strftime('%Y-%m-%d %H:%M UTC', time.gmtime(k['created']))
+    last_used = time.strftime('%Y-%m-%d %H:%M UTC', time.gmtime(k['last_used'])) if k['last_used'] else 'never'
+    badge = 'badge read' if k['mode'] == 'read' else 'badge'
+    kid = html.escape(k['id'])
+    return (f'<li class="key" data-id="{kid}"><div class="key-main"><strong>{html.escape(k["label"])}</strong>'
+            f'<span class="{badge}">{k["mode"]}</span></div><div class="key-meta">Scope: {scope} &middot; '
+            f'Created: {created} &middot; Last used: {last_used}</div>'
+            f'<button class="revoke" type="button" data-id="{kid}">Revoke</button></li>')
+
+
+def account_page(username, keys):
+    keys_block = ('<ul id="keys">' + ''.join(_key_row(k) for k in keys) + '</ul>' if keys
+                 else '<p id="keys" class="empty">No keys yet.</p>')
+    user = html.escape(username)
+    return ('<!doctype html><html><head><meta charset="utf-8"><title>Account &middot; Video library</title>'
+           '<meta name="viewport" content="width=device-width, initial-scale=1">' + _ACCOUNT_STYLE +
+           '</head><body>'
+           '<div class="bar"><span>Signed in as <strong>' + user + '</strong></span>'
+           '<button id="sign-out" type="button">Sign out</button></div>'
+           '<h1>Account <a href="/">Library</a></h1>'
+           '<h2>API keys</h2>'
+           '<p>A key lets an agent work with your videos over git and the API, with everything it does shown '
+           'as <strong>' + user + ' (label)</strong>.</p>' + keys_block +
+           '<h2>New key</h2>'
+           '<form id="create"><label>Label<input name="label" maxlength="40" required></label>'
+           '<label>Scope (optional namespace, e.g. gardening)<input name="scope"></label>'
+           '<label>Mode<select name="mode"><option value="write">Write</option>'
+           '<option value="read">Read</option></select></label>'
+           '<button>Create key</button></form><p id="error"></p>'
+           '<div id="secret-panel" class="panel" hidden>'
+           '<p><strong>New key secret &mdash; copy it now; it will not be shown again.</strong></p>'
+           '<code id="secret-value"></code><button id="copy-btn" type="button">Copy</button>'
+           '<p>Git clone (replace <code>&lt;name&gt;</code> with the repository):</p><pre id="git-clone"></pre>'
+           '<p>Git credential helper (e.g. <code>git credential approve</code>):</p><pre id="git-cred"></pre>'
+           '<p>API header:</p><pre id="api-header"></pre>'
+           '</div>' + _ACCOUNT_SCRIPT + '</body></html>').encode()
+
+
 def make_handler(editor, hook=request_hook):
     from .library import Library, git_route, serve_git, signin_page, signup_page, valid_name
     library = editor if isinstance(editor, Library) else None
@@ -799,6 +938,28 @@ def make_handler(editor, hook=request_hook):
                         library.accounts.logout(self._cookie('vb_session'))
                         return self._send(200, b'{}', 'application/json',
                                           {'Set-Cookie': 'vb_session=; Path=/; Max-Age=0; SameSite=Lax'})
+                    if library.accounts and route == '/account' and method == 'GET':
+                        return self._send(200, account_page(user, library.accounts.list_keys(user)),
+                                          'text/html; charset=utf-8')
+                    if library.accounts and route == '/api/account/keys' and method == 'POST':
+                        body = self._body()
+                        scope = body.get('scope')
+                        if scope is not None and not isinstance(scope, str):
+                            raise HTTPError(400, 'scope must be a string')
+                        try:
+                            record, secret = library.accounts.create_key(
+                                user, _field(body, 'label', str), scope or None, _field(body, 'mode', str))
+                        except ValueError as exc:
+                            raise HTTPError(400, str(exc)) from None
+                        return self._json(201, {**record, 'secret': secret})
+                    m = re.fullmatch(r'/api/account/keys/([^/]+)/revoke', route)
+                    if library.accounts and method == 'POST' and m:
+                        self._body()
+                        try:
+                            library.accounts.revoke_key(user, unquote(m.group(1)))
+                        except KeyError:
+                            raise HTTPError(404, 'no such key') from None
+                        return self._json(200, {'revoked': m.group(1)})
                     if route == '/api/library/new' and method == 'POST':
                         if library.accounts and not library.accounts.is_admin(user):
                             raise HTTPError(403, 'only an admin may create a project')
