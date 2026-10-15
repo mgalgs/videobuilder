@@ -149,6 +149,24 @@ POST /api/account/keys {label,scope?,mode}
                                      only in this response; 400 bad label,
                                      scope or mode
 POST /api/account/keys/<id>/revoke {}  200 {revoked:id}; 404 unknown id
+GET  /api/admin/limits               admin-only (403 otherwise; 401 signed
+                                     out): {defaults:{notes,cost_usd},
+                                     accounts:[{name,admin,limit:{kind,notes,
+                                     cost_usd},usage:{notes,cost_usd}}...]};
+                                     defaults are the library-wide caps from
+                                     the command line (null when unset);
+                                     usage is each account's trailing-24h
+                                     totals, reusing GET /api/usage's numbers
+POST /api/admin/limits {user,kind,notes?,cost_usd?}
+                                     sets or clears one account's cap
+                                     override; kind is "default" (clears it),
+                                     "custom" (notes/cost_usd each cap that
+                                     one thing, null for no cap on it) or
+                                     "unlimited" (notes/cost_usd must be left
+                                     out); 200 {user,limit}; 400 unknown user,
+                                     bad kind, a non-positive/non-numeric
+                                     notes or cost_usd, or either given
+                                     alongside "default"/"unlimited"
 With accounts on, GET /api/name returns the session username and POST
 answers 409; a project the signed-in user cannot access answers 404
 exactly like a non-existent one, on its page, API, frames, video, git.
@@ -204,7 +222,16 @@ to get a second allowance. An admin account is never capped, and cost still
 in flight (not yet final) doesn't count toward the cost cap, since it isn't
 known yet -- the note cap covers that gap. Hitting either cap refuses a new
 note (an ordinary one, a video's first note, a retry, or a follow-up from
-answering a question) with 429.
+answering a question) with 429. In single-project mode these come from
+[editor] config as above; in `--library` mode a repo's own config can't set
+them (not among REPO_CONFIG_KEYS), so the library operator sets library-wide
+defaults with `--account-daily-note-cap`/`--account-daily-cost-cap-usd` on the
+command line instead. An admin can also give a particular account its own
+override -- a custom note/cost cap (either half optionally null, meaning no
+cap on that one) or fully unlimited -- through accounts.py's
+get_limit/set_limit, stored with the account and surviving a restart; an
+account with no override of its own uses the library-wide defaults. See
+GET/POST /api/admin/limits below.
 
 compendium_for_builder (default true) tells the builder's prompt about
 videobuilder/compendium/ -- its pre-built components and the owner's votes on
@@ -472,16 +499,23 @@ class Editor:
 
     def check_note_cap(self, author, is_admin):
         """Refuse a new note with HTTPError(429) once `author`'s account has hit
-        account_daily_note_cap or account_daily_cost_cap_usd over the trailing
-        24 hours; a no-op when neither is configured, or for an admin account.
-        Cost still in flight is unknown, so it never counts toward the cost cap
-        -- the note cap covers that gap. In a library, an account's notes aren't
+        its effective note or cost cap over the trailing 24 hours; a no-op when
+        neither applies, or for an admin account. The effective caps are the
+        account's own override (Accounts.get_limit) if it has one, else the
+        library-wide account_daily_note_cap/account_daily_cost_cap_usd. Cost
+        still in flight is unknown, so it never counts toward the cost cap --
+        the note cap covers that gap. In a library, an account's notes aren't
         scoped to this one project (Library.account_notes supplies every project's)."""
-        if is_admin or (self.account_daily_note_cap is None and self.account_daily_cost_cap_usd is None):
+        if is_admin:
             return
-        cutoff = time.time() - self.DAY_SECONDS
         has_accounts = bool(self.library and self.library.accounts)
         account = _account_key(author, has_accounts)
+        note_cap, cost_cap = _effective_caps(
+            self.library.accounts if has_accounts else None, account,
+            self.account_daily_note_cap, self.account_daily_cost_cap_usd)
+        if note_cap is None and cost_cap is None:
+            return
+        cutoff = time.time() - self.DAY_SECONDS
         notes = (n for _, n in self.library.account_notes()) if self.library else self.notes.list(refresh=False)
         mine = ((_note_created(n), n) for n in notes if _account_key(n.get('author'), has_accounts) == account)
         window = sorted(((created, n) for created, n in mine if created >= cutoff), key=lambda t: t[0])
@@ -489,8 +523,8 @@ class Editor:
             return
         cost = sum(n['cost_usd'] for _, n in window
                   if isinstance(n.get('cost_usd'), (int, float)) and not isinstance(n.get('cost_usd'), bool))
-        over_count = self.account_daily_note_cap is not None and len(window) >= self.account_daily_note_cap
-        over_cost = self.account_daily_cost_cap_usd is not None and cost >= self.account_daily_cost_cap_usd
+        over_count = note_cap is not None and len(window) >= note_cap
+        over_cost = cost_cap is not None and cost >= cost_cap
         if over_count or over_cost:
             resets_at = window[0][0] + self.DAY_SECONDS
             when = _plain_local_time(resets_at)
@@ -653,6 +687,21 @@ def _account_key(identity, has_accounts):
     if has_accounts and identity:
         return identity.split(' (', 1)[0]
     return identity
+
+
+def _effective_caps(accounts, account, library_note_cap, library_cost_cap):
+    """The (note_cap, cost_cap) that actually bind `account`: its own override
+    from Accounts.get_limit if it has one ("unlimited" meaning (None, None),
+    "custom" meaning its own notes/cost_usd, either of which may be None for
+    "no cap on this one"), else the library-wide caps. `accounts` is None
+    outside a library with accounts configured, where there is no override
+    to consult."""
+    limit = accounts.get_limit(account) if accounts else None
+    if limit is None or limit['kind'] == 'default':
+        return library_note_cap, library_cost_cap
+    if limit['kind'] == 'unlimited':
+        return None, None
+    return limit['notes'], limit['cost_usd']
 
 
 USAGE_WINDOWS = (('last_24h', 24 * 3600), ('last_7d', 7 * 24 * 3600), ('last_30d', 30 * 24 * 3600))

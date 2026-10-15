@@ -22,6 +22,26 @@ class Command(unittest.TestCase):
             main(['editor', '/nonexistent/project'])
         self.assertIn('not a directory', str(e.exception))
 
+    def test_account_daily_caps_are_refused_outside_library_mode(self):
+        from videobuilder.cli import main
+        with self.assertRaises(SystemExit) as e:
+            main(['editor', '/nonexistent/project', '--account-daily-note-cap', '5'])
+        self.assertIn('--account-daily-note-cap', str(e.exception))
+        self.assertIn('--library mode', str(e.exception))
+        with self.assertRaises(SystemExit) as e:
+            main(['editor', '/nonexistent/project', '--account-daily-cost-cap-usd', '2.5'])
+        self.assertIn('--account-daily-cost-cap-usd', str(e.exception))
+
+    def test_account_daily_caps_must_be_positive(self):
+        from videobuilder.cli import main
+        with tempfile.TemporaryDirectory() as d:
+            with self.assertRaises(SystemExit) as e:
+                main(['editor', '--library', d, '--account-daily-note-cap', '0'])
+            self.assertIn('account_daily_note_cap', str(e.exception))
+            with self.assertRaises(SystemExit) as e:
+                main(['editor', '--library', d, '--account-daily-cost-cap-usd', '-1'])
+            self.assertIn('account_daily_cost_cap_usd', str(e.exception))
+
 
 class AccountCapConfigKeys(TempProject):
     def _editor(self, state_dir, **kw):

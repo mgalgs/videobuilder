@@ -1057,6 +1057,76 @@ class Auth(AccountMixin, LibraryFixture, unittest.TestCase):
         self.assertNotIn('UTC', data['error'])
         self.assertRegex(data['error'], r'after \d{1,2}:\d{2} (AM|PM) (today|tomorrow)')
 
+    def test_custom_account_limit_is_tighter_than_the_library_default(self):
+        from videobuilder.agents import FakeBackend
+        self.seed('acme/launch', film=True)
+        admin = self.admin_login()
+        self.new_project(admin, 'acme/launch', 'acme/launch')
+        _, _, bob = self.signup('bob', 'longenoughpassword')
+        self.request('/v/acme/launch/api/access', {'action': 'invite', 'username': 'bob'},
+                     headers={'Content-Type': 'application/json', 'Cookie': admin})
+        editor = self.library.editor('acme/launch')
+        editor.notes.backend = FakeBackend(delay=0)
+        editor.account_daily_note_cap = 5  # the library-wide default: generous
+        self.library.accounts.set_limit('bob', 'custom', 1, None)  # bob's own override: tighter
+        bob_headers = {'Content-Type': 'application/json', 'Cookie': bob}
+        code, note = self.request('/v/acme/launch/api/notes', {'video': 'promo/film', 'text': 'Hi'},
+                                  headers=bob_headers)
+        self.assertEqual(code, 200, note)
+        code, data, _ = self.request_full('/v/acme/launch/api/notes', {'video': 'promo/film', 'text': 'Hi'},
+                                          headers=bob_headers)
+        self.assertEqual(code, 429)
+        self.assertIn("today's limit", data['error'])
+
+    def test_unlimited_account_is_never_capped(self):
+        from videobuilder.agents import FakeBackend
+        self.seed('acme/launch', film=True)
+        admin = self.admin_login()
+        self.new_project(admin, 'acme/launch', 'acme/launch')
+        _, _, bob = self.signup('bob', 'longenoughpassword')
+        self.request('/v/acme/launch/api/access', {'action': 'invite', 'username': 'bob'},
+                     headers={'Content-Type': 'application/json', 'Cookie': admin})
+        editor = self.library.editor('acme/launch')
+        editor.notes.backend = FakeBackend(delay=0)
+        editor.account_daily_note_cap = 1
+        self.library.accounts.set_limit('bob', 'unlimited')
+        bob_headers = {'Content-Type': 'application/json', 'Cookie': bob}
+        for _ in range(3):
+            code, note = self.request('/v/acme/launch/api/notes', {'video': 'promo/film', 'text': 'Hi'},
+                                      headers=bob_headers)
+            self.assertEqual(code, 200, note)
+
+    def test_switching_an_account_back_to_default_restores_the_library_cap(self):
+        from videobuilder.agents import FakeBackend
+        self.seed('acme/launch', film=True)
+        admin = self.admin_login()
+        self.new_project(admin, 'acme/launch', 'acme/launch')
+        _, _, bob = self.signup('bob', 'longenoughpassword')
+        self.request('/v/acme/launch/api/access', {'action': 'invite', 'username': 'bob'},
+                     headers={'Content-Type': 'application/json', 'Cookie': admin})
+        editor = self.library.editor('acme/launch')
+        editor.notes.backend = FakeBackend(delay=0)
+        editor.account_daily_note_cap = 1
+        self.library.accounts.set_limit('bob', 'unlimited')
+        bob_headers = {'Content-Type': 'application/json', 'Cookie': bob}
+        code, note = self.request('/v/acme/launch/api/notes', {'video': 'promo/film', 'text': 'Hi'},
+                                  headers=bob_headers)
+        self.assertEqual(code, 200, note)
+        self.library.accounts.set_limit('bob', 'default')
+        code, data, _ = self.request_full('/v/acme/launch/api/notes', {'video': 'promo/film', 'text': 'Hi'},
+                                          headers=bob_headers)
+        self.assertEqual(code, 429)
+        self.assertIn("today's limit", data['error'])
+
+    def test_limit_override_persists_across_an_accounts_reload(self):
+        # Models a restart: the operator stops the editor and starts it again, which
+        # re-reads accounts.json from scratch rather than keeping the in-memory store.
+        from videobuilder.accounts import Accounts
+        _, _, bob = self.signup('bob', 'longenoughpassword')
+        self.library.accounts.set_limit('bob', 'custom', 7, 2.5)
+        reloaded = Accounts(str(self.library.state_dir), [('mgalgs', str(self.root / 'admin-pass'))])
+        self.assertEqual(reloaded.get_limit('bob'), {'kind': 'custom', 'notes': 7, 'cost_usd': 2.5})
+
     def test_api_name_reflects_login(self):
         _, _, dana = self.signup('dana', 'longenoughpassword')
         self.assertEqual(self.request('/api/name', headers={'Cookie': dana})[1], {'name': 'dana'})

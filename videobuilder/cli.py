@@ -191,7 +191,7 @@ def cmd_preview(a):
 
 
 def cmd_editor(a):
-    from .editor import serve, serve_library
+    from .editor import serve, serve_library, _optional_positive
     try:
         agent = {k: v for k, v in dict(backend=a.agent, executable=a.agent_executable,
                     submit_command=a.agent_submit_command, poll_command=a.agent_poll_command,
@@ -207,12 +207,15 @@ def cmd_editor(a):
             if len(a.admin) != len(a.admin_password_file):
                 raise ValueError('--admin and --admin-password-file must be given the same number of '
                                  'times, paired in order')
+            note_cap = _optional_positive(a.account_daily_note_cap, 'account_daily_note_cap', int)
+            cost_cap = _optional_positive(a.account_daily_cost_cap_usd, 'account_daily_cost_cap_usd', (int, float))
             serve_library(a.library, host=a.host, port=a.port, checkouts=a.checkouts,
                           state_dir=a.state_dir, open_browser=a.open, agent=agent,
                           allowed_hosts=a.allow_host, unsandboxed_previews=a.unsandboxed_previews, envs=a.envs,
                           admins=list(zip(a.admin, a.admin_password_file)), capabilities_dir=a.capabilities_dir,
                           compendium_dir=a.compendium_dir, music_sources=a.music_sources,
-                          compendium_for_builder=a.compendium_for_builder)
+                          compendium_for_builder=a.compendium_for_builder,
+                          account_daily_note_cap=note_cap, account_daily_cost_cap_usd=cost_cap)
         else:
             if not a.project:
                 raise ValueError('provide PROJECT or --library DIR')
@@ -221,6 +224,10 @@ def cmd_editor(a):
             if a.compendium_for_builder is not None:
                 raise ValueError('--compendium-for-builder is only for --library mode; set '
                                  '[editor] compendium_for_builder in the project config instead')
+            if a.account_daily_note_cap is not None or a.account_daily_cost_cap_usd is not None:
+                raise ValueError('--account-daily-note-cap and --account-daily-cost-cap-usd are only for '
+                                 '--library mode; set [editor] account_daily_note_cap / '
+                                 'account_daily_cost_cap_usd in the project config instead')
             serve(a.project, host=a.host, port=a.port, state_dir=a.state_dir, open_browser=a.open,
                   agent=agent, allowed_hosts=a.allow_host, unsandboxed_previews=a.unsandboxed_previews,
                   envs=a.envs, sync_remote=a.sync_remote, capabilities_dir=a.capabilities_dir,
@@ -391,6 +398,14 @@ def main(argv=None):
                         'library-hosted repo cannot set this itself, since [editor] compendium_for_builder '
                         "isn't among the config keys it's trusted for; use this flag instead, e.g. for a "
                         'bake-off arm that should build from scratch')
+    d.add_argument('--account-daily-note-cap', type=int, metavar='N',
+                   help='--library mode only: library-wide cap on new notes per account per rolling 24h '
+                        '(default: no cap); an admin may override it per account from /account. For '
+                        'single-project mode, set [editor] account_daily_note_cap in the project config instead')
+    d.add_argument('--account-daily-cost-cap-usd', type=float, metavar='X',
+                   help='--library mode only: library-wide cap on recorded cost per account per rolling 24h '
+                        '(default: no cap); an admin may override it per account from /account. For '
+                        'single-project mode, set [editor] account_daily_cost_cap_usd in the project config instead')
     d.set_defaults(fn=cmd_editor)
 
     cap = sub.add_parser('capabilities', help="the capabilities catalog's clips and builder sheet")

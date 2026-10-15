@@ -45,6 +45,11 @@ class Library:
         # Parsed once here, not per-project, so a bad file is a startup error and every
         # project shares one cache instead of fetching and importing per project.
         music = MusicLibrary.from_file(music_sources) if music_sources else None
+        # Also kept as plain attributes (not just in `options`, which only Editor()
+        # below reads) so the admin limits API can show the library-wide defaults
+        # without opening a project.
+        self.account_daily_note_cap = account_daily_note_cap
+        self.account_daily_cost_cap_usd = account_daily_cost_cap_usd
         self.options = dict(backend=backend, agent=agent, allowed_hosts=allowed_hosts, host=host,
                             unsandboxed_previews=unsandboxed_previews, environments=environments,
                             music=music, account_daily_note_cap=account_daily_note_cap,
@@ -127,6 +132,21 @@ class Library:
                    f'{proj}/{n["video"]}' if n.get('video') else None, n)
                   for proj, n in self.account_notes())
         return _usage_totals(entries)
+
+    def admin_limits(self):
+        """The library-wide default caps and, for every account, its own cap
+        override and trailing-24h usage -- see Editor.check_note_cap and
+        accounts.Accounts.get_limit -- for the admin-only /api/admin/limits
+        route. [] accounts with no `--admin`, where there is nothing to list."""
+        defaults = {'notes': self.account_daily_note_cap, 'cost_usd': self.account_daily_cost_cap_usd}
+        if not self.accounts:
+            return {'defaults': defaults, 'accounts': []}
+        usage = self.usage()['accounts']
+        accounts = []
+        for info in self.accounts.list_accounts():
+            totals = usage.get(info['name'], {}).get('last_24h', {'notes': 0, 'cost_usd': 0.0})
+            accounts.append({**info, 'usage': {'notes': totals['notes'], 'cost_usd': totals['cost_usd']}})
+        return {'defaults': defaults, 'accounts': accounts}
 
     def copied(self, source, name):
         if not valid_name(source) or not valid_name(name):
