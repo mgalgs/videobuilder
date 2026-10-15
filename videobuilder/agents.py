@@ -23,12 +23,6 @@ usage (token counts); a missing or malformed value is recorded as null.
 executable, submit_args, poll_args, extra_args are configurable argv lists
 (executable is a string). No shell expansion is performed.
 
-When the note's video has source videos (see sources.py), submit also passes
---sources-dir DIR: a reused, flat directory of hardlinks named <name>.<ext>
-(and a caption, if any) that the run should make available read-only at
-sources/ inside the project it forks, the same way --attach-dir is mounted
-at /attachments -- never copied per note.
-
 When extra_args carries --k8s (the backend is running notes as cluster jobs
 via `fork-sandbox run --k8s`), ForkSandboxBackend also gains `peek(handle,
 file=None, after=0)`, calling the read-only `<executable> k8s peek <handle>
@@ -49,9 +43,7 @@ don't have the attribute, which reads as "can't tell" there too.
 """
 import fcntl
 import json
-import os
 import re
-import shutil
 import tempfile
 import subprocess
 import time
@@ -190,7 +182,6 @@ class ForkSandboxBackend(AgentBackend):
         return run([self.executable, *self.submit_args, '--resume', note['state_dir'], *base,
                     *self.extra_args, *(['--context-ro', str(context)] if context else []),
                     *(['--attach-dir', note['attach_dir']] if note.get('attach_dir') else []),
-                    *(['--sources-dir', note['sources_dir']] if note.get('sources_dir') else []),
                     note['project'], note['note_file']])
 
     def poll(self, handle):
@@ -267,22 +258,6 @@ class FakeBackend(AgentBackend):
                                 '    cv.rect(0, 0, cv.width, 18, "#ffb547")\n'
                                 'FILM.draw = _draft_draw\n')
 
-    def _stage_sources(self, note, work):
-        """Hardlink note['sources_dir']'s flat files into this fake run's own
-        worktree at <video-dir>/sources/, the demo-runner equivalent of how a
-        real fork-sandbox run would mount --sources-dir there (see
-        ForkSandboxBackend.submit): proves the builder's checkout sees
-        sources/<name>.<ext>, without actually shelling out to fork-sandbox."""
-        source_dir = Path(note['sources_dir'])
-        dest = work / note['directory'] / 'sources'
-        dest.mkdir(parents=True, exist_ok=True)
-        for item in source_dir.iterdir():
-            target = dest / item.name
-            try:
-                os.link(item, target)
-            except OSError:
-                shutil.copyfile(item, target)
-
     def submit(self, note):
         path = Path(note['state_dir']) / (note['id'] + '.fake.json')
         if not path.exists():
@@ -314,8 +289,6 @@ class FakeBackend(AgentBackend):
             git(root, 'branch', branch, 'main')
         git(root, 'worktree', 'add', str(work), branch)
         try:
-            if note.get('sources_dir'):
-                self._stage_sources(note, work)
             film = work / note['film']
             for number in range(self.commits):
                 film.write_text(film.read_text() + self.change)

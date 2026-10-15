@@ -5,6 +5,7 @@ import json
 import shutil
 import subprocess
 import tempfile
+import time
 import unittest
 import urllib.error
 import urllib.request
@@ -12,7 +13,7 @@ from pathlib import Path
 from unittest import mock
 
 from videobuilder.editor import Editor
-from videobuilder.sources import CAPTION_MAX_BYTES, TooLarge
+from videobuilder.sources import CAPTION_MAX_BYTES, PREVIEW_MAX_SIDE, TooLarge
 from tests import fixtures
 from tests.test_project import TempProject, git
 
@@ -196,7 +197,45 @@ class DirectUpload(fixtures.API):
         self.assertEqual(names, ['a-clip', 'b-clip'])
         for s in self.editor.sources.list('promo/film'):
             self.assertEqual(set(s), {'name', 'ext', 'size', 'duration', 'width', 'height',
-                                      'has_audio', 'caption', 'created'})
+                                      'has_audio', 'caption', 'created', 'preview_ready'})
+
+    def _wait_for_preview(self, name, timeout=10):
+        deadline = time.monotonic() + timeout
+        while not self.editor.sources.get('promo/film', name)['preview_ready']:
+            if time.monotonic() > deadline:
+                self.fail(f'preview for {name!r} never became ready')
+            time.sleep(0.05)
+        return self.editor.sources._preview_path('promo/film', name)
+
+    def test_preview_copy_is_made_off_the_request_thread(self):
+        record, _ = self._upload()
+        self.assertFalse(record['preview_ready'])
+        preview = self.editor.sources._preview_path('promo/film', record['name'])
+        # stream_upload already returned: proven by reaching this assertion before the
+        # background ffmpeg encode (which needs at least a process fork+exec) can have run.
+        self.assertFalse(preview.exists())
+        self._wait_for_preview(record['name'])
+        self.assertTrue(self.editor.sources.get('promo/film', record['name'])['preview_ready'])
+
+    def test_preview_copy_keeps_source_fps_and_caps_the_short_side(self):
+        big = Path(self.scratch.name) / 'big.mp4'
+        subprocess.run(['ffmpeg', '-y', '-f', 'lavfi', '-i', 'color=c=green:s=800x450:d=1:r=24',
+                       '-pix_fmt', 'yuv420p', str(big)], check=True, capture_output=True)
+        record, _ = self._upload(filename='big.mp4', data=big.read_bytes())
+        preview = self._wait_for_preview(record['name'])
+        probed = subprocess.run(
+            ['ffprobe', '-v', 'error', '-select_streams', 'v:0',
+             '-show_entries', 'stream=width,height,r_frame_rate', '-of', 'json', str(preview)],
+            capture_output=True, text=True, check=True)
+        stream = json.loads(probed.stdout)['streams'][0]
+        self.assertEqual(min(stream['width'], stream['height']), PREVIEW_MAX_SIDE)
+        self.assertEqual(stream['r_frame_rate'], '24/1')
+
+    def test_preview_copy_is_deleted_with_its_source(self):
+        record, _ = self._upload()
+        preview = self._wait_for_preview(record['name'])
+        self.editor.sources.delete('promo/film', record['name'])
+        self.assertFalse(preview.exists())
 
 
 @unittest.skipUnless(FFMPEG, 'needs ffmpeg/ffprobe')
@@ -272,14 +311,45 @@ class CheckoutStaging(fixtures.API):
         self.editor.sources.sync('promo/film', root=work)
         self.assertTrue((work / 'promo' / 'sources' / 'interview.mp4').is_file())
 
-    def test_stage_dir_is_flat_and_reused(self):
-        stage = self.editor.sources.stage_dir('promo/film')
-        self.assertTrue((Path(stage) / 'interview.mp4').is_file())
-        self.assertEqual(stage, self.editor.sources.stage_dir('promo/film'))
+    def _wait_for_preview(self, name, timeout=10):
+        deadline = time.monotonic() + timeout
+        while not self.editor.sources.get('promo/film', name)['preview_ready']:
+            if time.monotonic() > deadline:
+                self.fail(f'preview for {name!r} never became ready')
+            time.sleep(0.05)
 
-    def test_stage_dir_is_none_with_no_sources(self):
+    def test_stage_for_builder_copies_ready_previews_not_hardlinks(self):
+        self._wait_for_preview('interview')
+        dest = Path(self.scratch.name) / 'attach'
+        dest.mkdir()
+        added = self.editor.sources.stage_for_builder('promo/film', dest, budget=1 << 30)
+        self.assertEqual(added, {'interview'})
+        staged = dest / 'sources' / 'interview.mp4'
+        self.assertTrue(staged.is_file())
+        self.assertEqual(staged.stat().st_nlink, 1)  # a copy, not a hardlink
+
+    def test_stage_for_builder_skips_a_source_not_yet_ready(self):
+        dest = Path(self.scratch.name) / 'attach'
+        dest.mkdir()
+        added = self.editor.sources.stage_for_builder('promo/film', dest, budget=1 << 30)
+        self.assertEqual(added, set())
+        self.assertFalse((dest / 'sources').exists())
+
+    def test_stage_for_builder_stops_once_the_next_one_would_exceed_budget(self):
+        self._wait_for_preview('interview')
+        dest = Path(self.scratch.name) / 'attach'
+        dest.mkdir()
+        added = self.editor.sources.stage_for_builder('promo/film', dest, budget=1)
+        self.assertEqual(added, set())
+        self.assertFalse((dest / 'sources' / 'interview.mp4').exists())
+
+    def test_stage_for_builder_with_no_sources_adds_nothing(self):
         self.editor.sources.delete('promo/film', 'interview')
-        self.assertIsNone(self.editor.sources.stage_dir('promo/film'))
+        dest = Path(self.scratch.name) / 'attach'
+        dest.mkdir()
+        added = self.editor.sources.stage_for_builder('promo/film', dest, budget=1 << 30)
+        self.assertEqual(added, set())
+        self.assertFalse((dest / 'sources').exists())
 
     def test_draft_preview_renders_a_source_with_vb_clip(self):
         # The path a note-driven builder is told to use (prompt.py): built from the film

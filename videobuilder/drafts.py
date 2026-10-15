@@ -42,8 +42,15 @@ def inspect(root, branch, directory):
         files.append(path)
         old, new = meta.split()[:2]
         reasons = []
-        if scope != PurePosixPath('.') and not PurePosixPath(path).is_relative_to(scope):
+        p = PurePosixPath(path)
+        if scope != PurePosixPath('.') and not p.is_relative_to(scope):
             reasons.append('outside video directory')
+        elif (p.relative_to(scope) if scope != PurePosixPath('.') else p).parts[:1] == ('sources',):
+            # Never landed, even from inside the video's own directory: sources/ holds
+            # hardlinks to creator-uploaded footage (see sources.py), not something a
+            # builder commit should ever add, and the editor renders with the originals
+            # there, not whatever a builder might have put in their place.
+            reasons.append('source video, never committed')
         if any(fnmatch.fnmatch(PurePosixPath(path).name.lower(), pat.lower()) for pat in PINS):
             reasons.append('dependency pin or lockfile')
         if new == '120000':

@@ -67,6 +67,11 @@ SHORTFALL_KINDS = ('cannot', 'weak')
 SHORTFALLS_MAX = 5
 WHAT_MAX = 160
 
+# The whole /attachments directory a submission mounts for the builder -- attachments,
+# pinned frame and source-video previews together -- stays under this; fork-sandbox's
+# k8s push tars that directory and refuses one over 256 MiB, so this leaves headroom.
+ATTACH_DIR_BUDGET = 200 * 1048576
+
 # The crawl's own cap is about two minutes (gather.TIME_BUDGET); a `gathering` note
 # older than this had its background thread die before finishing -- an editor
 # restart, redeploy or crash -- and is recovered rather than left stuck forever.
@@ -406,14 +411,17 @@ class NoteStore:
             path = self.session_dir(video) / (note['id'] + '.md')
             # The runner sees the frame only through /attachments, never at its editor path.
             image = payload['image'] if payload['image'] and os.path.isfile(payload['image']) else None
+            sources = self.sources.list(video) if self.sources else []
             if self.attachments:
-                payload['attach_dir'] = self.attachments.stage(note, image)
+                payload['attach_dir'] = self.attachments.stage(note, image, force=bool(sources))
                 if image:
                     from .attachments import FRAME_NAME
                     image = '/attachments/' + FRAME_NAME
-            sources = self.sources.list(video) if self.sources else []
-            if self.sources:
-                payload['sources_dir'] = self.sources.stage_dir(video)
+            if sources and payload.get('attach_dir'):
+                attach_dir = Path(payload['attach_dir'])
+                used = sum(f.stat().st_size for f in attach_dir.rglob('*') if f.is_file())
+                in_sandbox = self.sources.stage_for_builder(video, attach_dir, max(0, ATTACH_DIR_BUDGET - used))
+                sources = [{**s, 'in_sandbox': s['name'] in in_sandbox} for s in sources]
             compendium_source = getattr(self.backend, 'compendium_source', None) if self.compendium_for_builder else None
             compendium = bool(compendium_source(payload)) if compendium_source else False
             votes = self.compendium_votes() if compendium and self.compendium_votes else None

@@ -393,10 +393,25 @@ enforced as the upload streams in, never after it's buffered:
 2048 MiB) per file, `--source-max-total-mb` / `source_max_total_mb` (default
 8192 MiB) per video. Every source lands, read-only, at `sources/<name>.<ext>`
 relative to its video's own directory -- the editor's own previews and
-renders see it there with no extra step, and a fork-sandbox run gets a
-`--sources-dir` pointing a reused, flat copy at the same relative path. The
-builder's prompt lists each source (name, duration, resolution, audio) when
-a video has any; with none, the prompt is unchanged.
+renders see it there with no extra step; film code reaches it with a path
+built from the film file's own directory
+(`os.path.join(os.path.dirname(__file__), 'sources', '<name>.<ext>')`),
+since the working directory itself differs between a preview, a render and
+a builder's sandbox. In the background, right after an upload, the editor
+makes a small preview copy of it (H.264/AAC, short side at most 360px, the
+source's own frame rate, stereo AAC around 96 kbps, named identically to
+the original) for a backend that can't share the editor's filesystem; a
+note on a video with sources gets the ready ones' preview copies, plus
+captions, under its own `/attachments/sources/`, added in name order up to
+the note's overall 200 MiB attachment budget. A source whose preview copy
+isn't ready yet, or that didn't fit, is still named in the builder's
+prompt, marked as not in its sandbox -- the builder can still write code
+for it, and the editor's own preview and render always use the full-quality
+original. The builder's prompt lists each source (name, duration,
+resolution, audio, caption, and whether it's in the sandbox) when a video
+has any; with none, the prompt is unchanged. Nothing under a video's
+`sources/` may ever be committed; a builder branch that does is refused and
+reported like any other out-of-scope change.
 
 **Music sources.** Pass `--music-sources FILE` (works in both single-project and
 `--library` mode) to add a music button beside the composer's attach button. It
@@ -533,8 +548,8 @@ routes are admin-only (403 for anyone else, 401 signed out) and the override
 is stored with the account, so it survives a restart.
 
 The generic command backend still receives a request JSON and markdown note.
-Fork-sandbox submissions add `--attach-dir` only for notes with attachments,
-and `--sources-dir` only for a video that has source videos.
+Fork-sandbox submissions add `--attach-dir` only for notes with attachments
+or a ready source-video preview copy to stage under it.
 A note with a playhead time includes a line such as `At 0:12 (frame 360,
 segment "sizes")`; the final reply line should be `Summary: <one line>`.
 

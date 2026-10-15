@@ -5,10 +5,20 @@ relative to the film's checkout: `sources/<name>.<ext>` (plus
 `sources/<name>.vtt`/`.srt` for a caption).
 
 Storage is `<state_dir>/sources/<video-dir>/<name>/`: the video file, an
-optional caption, and `meta.json`. `sync()` hardlinks the current set into a
-checkout (the project's own, or a draft/render worktree) and removes stale
-links; `stage_dir()` is the same content, flattened into one reused
-directory, for a backend that can't share the editor's filesystem.
+optional caption, `meta.json`, and (once built) a `preview/` subdirectory
+holding a small H.264/AAC copy, named identically to the original, for a
+backend that can't share the editor's filesystem and so gets a copy of the
+copy instead (see `stage_for_builder`). `sync()` hardlinks the full-quality
+set into a checkout (the project's own, or a draft/render worktree) and
+removes stale links.
+
+The preview copy is built off the request thread, right after an upload
+passes its probe (`stream_upload` starts it and returns without waiting):
+same frame rate as the source (a frame number then means the same moment in
+either file), short side at most PREVIEW_MAX_SIDE px, stereo AAC around 96
+kbps. `meta['preview_ready']` flips to True once it exists; a source deleted
+or an ffmpeg failure just leaves it False forever, since nothing else polls
+for it.
 """
 import hashlib
 import json
@@ -18,6 +28,7 @@ import re
 import secrets
 import shutil
 import subprocess
+import threading
 import time
 
 from .attachments import TYPES, _validate_content
@@ -26,9 +37,28 @@ EXTS = ('mp4', 'mov', 'webm')
 CAPTION_EXTS = ('vtt', 'srt')
 STREAM_CHUNK = 1 << 20
 CAPTION_MAX_BYTES = 2 * 1048576
-PUBLIC_FIELDS = ('name', 'ext', 'size', 'duration', 'width', 'height', 'has_audio', 'caption', 'created')
+PUBLIC_FIELDS = ('name', 'ext', 'size', 'duration', 'width', 'height', 'has_audio', 'caption', 'created',
+                 'preview_ready')
 SYNC_MANIFEST = '.vb-sync.json'
 _NAME_RE = re.compile(r'^[a-z0-9-]{1,80}$')
+PREVIEW_MAX_SIDE = 360
+PREVIEW_DIRNAME = 'preview'
+
+
+def _preview_dims(width, height):
+    """(w, h) for a preview copy -- short side at most PREVIEW_MAX_SIDE, aspect
+    kept, both even (yuv420p needs it) -- or None when the source's own
+    dimensions aren't known. Never upscales: a source already at or under the
+    cap keeps its own size."""
+    if not width or not height:
+        return None
+    if width <= height:
+        w = min(width, PREVIEW_MAX_SIDE)
+        h = round(height * w / width)
+    else:
+        h = min(height, PREVIEW_MAX_SIDE)
+        w = round(width * h / height)
+    return max(w - w % 2, 2), max(h - h % 2, 2)
 
 
 class TooLarge(ValueError):
@@ -75,6 +105,19 @@ class Sources:
         self.max_total = max_total
         self.root = Path(editor.state_dir) / 'sources'
         self.root.mkdir(parents=True, exist_ok=True)
+        self._locks = {}
+        self._locks_guard = threading.Lock()
+
+    def _lock(self, video, name):
+        """One lock per (video, name), so `delete()` and the background preview
+        build (see `_build_preview`) can never interleave on the same source's
+        own directory -- without it, a delete mid-build can race the build's
+        own `preview/` subdirectory coming into existence and fail with
+        ENOTEMPTY, or a caption added mid-build can be clobbered by the stale
+        meta the build re-saves once it's done."""
+        key = (video, name)
+        with self._locks_guard:
+            return self._locks.setdefault(key, threading.Lock())
 
     def _exclude_checkout(self, rel_dir):
         """Ignore this one video's `sources/` directory in the project's own git
@@ -214,9 +257,10 @@ class Sources:
             tmp.unlink(missing_ok=True)
             raise
         meta = dict(name=slug, ext=ext, size=written, duration=duration, width=width, height=height,
-                    has_audio=has_audio, caption=None, created=time.time())
+                    has_audio=has_audio, caption=None, created=time.time(), preview_ready=False)
         self._save(video, slug, meta)
         self.sync(video)
+        threading.Thread(target=self._build_preview, args=(video, slug), daemon=True).start()
         return self.public(meta)
 
     def add_caption(self, video, name, filename, data):
@@ -231,18 +275,20 @@ class Sources:
         except UnicodeDecodeError:
             raise ValueError('caption file must be UTF-8') from None
         d = self._dir(video, name)
-        if meta.get('caption'):
-            (d / meta['caption']).unlink(missing_ok=True)
         caption_name = f'{name}.{ext}'
-        (d / caption_name).write_bytes(data)
-        meta['caption'] = caption_name
-        self._save(video, name, meta)
+        with self._lock(video, name):
+            if meta.get('caption'):
+                (d / meta['caption']).unlink(missing_ok=True)
+            (d / caption_name).write_bytes(data)
+            meta['caption'] = caption_name
+            self._save(video, name, meta)
         self.sync(video)
         return self.public(meta)
 
     def delete(self, video, name):
         self.get(video, name)  # validates `name` and that the source exists
-        shutil.rmtree(self._dir(video, name))
+        with self._lock(video, name):
+            shutil.rmtree(self._dir(video, name))
         self.sync(video)
 
     # ---- staging ----
@@ -305,33 +351,84 @@ class Sources:
                 shutil.copyfile(src, dst)
         manifest.write_text(json.dumps(sorted(wanted)))
 
-    def stage_dir(self, video):
-        """A persistent, reused directory holding this video's current
-        sources (and captions) hardlinked flat as `<name>.<ext>`, for a
-        backend that forks the project elsewhere and can't rely on the
-        editor's own checkout to carry them along. None with no sources."""
-        metas = self.list(video)
-        if not metas:
-            return None
-        stage = self.root / '.stage' / self._video_dir(video).name
-        wanted = {}
-        for meta in metas:
-            src_dir = self._dir(video, meta['name'])
-            wanted[f"{meta['name']}.{meta['ext']}"] = src_dir / f"{meta['name']}.{meta['ext']}"
-            if meta.get('caption'):
-                wanted[meta['caption']] = src_dir / meta['caption']
-        stage.mkdir(parents=True, exist_ok=True)
-        for existing in list(stage.iterdir()):
-            if existing.name not in wanted:
-                existing.unlink()
-        for rel_name, src in wanted.items():
-            dst = stage / rel_name
-            if dst.exists():
-                if dst.stat().st_ino == src.stat().st_ino and dst.stat().st_dev == src.stat().st_dev:
-                    continue
-                dst.unlink()
+    # ---- the builder's sandbox ----
+
+    def _preview_path(self, video, name, meta=None):
+        meta = meta or self.get(video, name)
+        return self._dir(video, name) / PREVIEW_DIRNAME / f"{meta['name']}.{meta['ext']}"
+
+    def _build_preview(self, video, name):
+        """Encode this source's preview copy (see the module docstring) off the
+        request thread, holding this source's lock the whole time (so a
+        concurrent delete() either finishes first -- then the `get()` below
+        raises KeyError and this is a no-op -- or waits for this to finish).
+        Any failure -- a bad probe, ffmpeg erroring out -- just leaves
+        `preview_ready` False; nothing here is fatal to the upload that
+        already succeeded."""
+        with self._lock(video, name):
             try:
-                os.link(src, dst)
+                meta = self.get(video, name)
+            except KeyError:
+                return
+            dims = _preview_dims(meta.get('width'), meta.get('height'))
+            if dims is None:
+                return
+            width, height = dims
+            src = self._dir(video, name) / f"{meta['name']}.{meta['ext']}"
+            preview_dir = self._dir(video, name) / PREVIEW_DIRNAME
+            try:
+                preview_dir.mkdir(exist_ok=True)
             except OSError:
-                shutil.copyfile(src, dst)
-        return str(stage)
+                return
+            tmp = preview_dir / ('.tmp-' + secrets.token_hex(8))
+            audio = ['-c:a', 'aac', '-ac', '2', '-b:a', '96k'] if meta.get('has_audio') else ['-an']
+            # -f mp4 forces an MP4 container regardless of the destination name's extension,
+            # so a .mov or .webm source still gets an MP4-inside preview copy (see the module
+            # docstring) -- ffmpeg would otherwise infer the container from that extension.
+            command = ['ffmpeg', '-y', '-i', str(src), '-vf', f'scale={width}:{height}', '-c:v', 'libx264',
+                      '-pix_fmt', 'yuv420p', *audio, '-movflags', '+faststart', '-f', 'mp4', str(tmp)]
+            try:
+                result = subprocess.run(command, capture_output=True)
+            except OSError:
+                result = None
+            if result is None or result.returncode or not tmp.is_file():
+                tmp.unlink(missing_ok=True)
+                return
+            tmp.rename(preview_dir / f"{meta['name']}.{meta['ext']}")
+            meta['preview_ready'] = True
+            self._save(video, name, meta)
+
+    def stage_for_builder(self, video, dest_dir, budget):
+        """Copy this video's ready preview copies (and their captions) into
+        `dest_dir/sources/`, real files rather than hardlinks -- the k8s push
+        that mounts a note's attachment directory in the builder's pod
+        refuses hard-linked files. Added in name order, stopping as soon as
+        the next one would push the running total over `budget`; a source
+        whose preview isn't ready yet is left out the same way a too-big one
+        is. Returns the set of names actually copied, so the caller can tell
+        the prompt which ones are "in your sandbox"."""
+        added, used = set(), 0
+        sources_dir = dest_dir / 'sources'
+        for meta in self.list(video):
+            if not meta.get('preview_ready'):
+                continue
+            preview = self._preview_path(video, meta['name'], meta)
+            try:
+                size = preview.stat().st_size
+            except OSError:
+                continue
+            caption_src = self._dir(video, meta['name']) / meta['caption'] if meta.get('caption') else None
+            if caption_src:
+                try:
+                    size += caption_src.stat().st_size
+                except OSError:
+                    caption_src = None
+            if used + size > budget:
+                break
+            sources_dir.mkdir(parents=True, exist_ok=True)
+            shutil.copyfile(preview, sources_dir / f"{meta['name']}.{meta['ext']}")
+            if caption_src:
+                shutil.copyfile(caption_src, sources_dir / meta['caption'])
+            used += size
+            added.add(meta['name'])
+        return added

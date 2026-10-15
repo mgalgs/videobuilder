@@ -185,11 +185,14 @@ class Attachments:
             out.append(item)
         return out
 
-    def stage(self, note, frame=None):
+    def stage(self, note, frame=None, force=False):
         """The note's attachments, plus its pinned frame PNG as FRAME_NAME, in one
-        directory for the runner to mount at /attachments; None if there are none."""
+        directory for the runner to mount at /attachments; None if there is
+        nothing to put there and `force` wasn't asked for the directory anyway
+        (NoteStore._submit does, for a video with source videos to stage under
+        it, even when the note itself carries no attachments or frame)."""
         records = note.get('attachments') or []
-        if not records and not frame:
+        if not records and not frame and not force:
             return None
         path = self.editor.notes.session_dir(note['video']) / ('attachments-' + note['id'])
         path.mkdir(exist_ok=True)

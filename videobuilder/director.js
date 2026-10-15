@@ -1070,6 +1070,7 @@ function renderSources() {
     if(s.width&&s.height)meta.push(`${s.width}×${s.height}`);
     meta.push(s.has_audio?'audio':'no audio');
     if(s.caption)meta.push('caption');
+    if(!s.preview_ready)meta.push('Preparing…');
     info.append(node('span','source-meta',meta.join(' · ')));
     row.append(info);
     const del=node('button','source-delete','Delete');

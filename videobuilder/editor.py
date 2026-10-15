@@ -82,9 +82,12 @@ POST /api/attachments?video=V&name=F  raw body with Content-Type; 201
 GET  /api/attachments/<id>          stored bytes, nosniff, CSP sandbox;
                                      image/video/audio inline, others download
 GET  /api/sources?video=V            {sources:[{name,ext,size,duration,width,
-                                     height,has_audio,caption,created}...]};
-                                     persists until deleted, unlike an
-                                     attachment
+                                     height,has_audio,caption,created,
+                                     preview_ready}...]}; persists until
+                                     deleted, unlike an attachment.
+                                     preview_ready flips true once a small
+                                     copy for the builder's sandbox exists
+                                     (built in the background after upload)
 POST /api/sources?video=V&filename=F[&name=N]  raw body with Content-Type,
                                      streamed to disk as it arrives; name
                                      defaults to filename's stem, sanitized
@@ -235,11 +238,17 @@ are the per-file and per-video-total limits for POST /api/sources; in
 so use --source-max-mb/--source-max-total-mb on the command line instead.
 Film code and MP4 rendering run in bwrap with no
 network; the checkout is read-only. Fork-sandbox attachment copies are mounted
-read-only at /attachments for only the relevant submission; its source videos
-(see sources.py) are hardlinked, read-only, at sources/<name>.<ext> relative
-to each video's own directory -- in the project's own checkout and every
-draft-preview/render worktree directly, and via a reused --sources-dir for a
-backend (such as ForkSandboxBackend) that forks the project elsewhere.
+read-only at /attachments for only the relevant submission. A note's source
+videos (see sources.py) are hardlinked, read-only, at sources/<name>.<ext>
+relative to each video's own directory, in the project's own checkout and
+every draft-preview/render worktree directly -- film code reaches them with
+a path built from its own file, since the working directory differs between
+a preview, a render and a builder's sandbox. A backend that forks the
+project elsewhere (such as ForkSandboxBackend) instead gets each ready
+source's small preview copy under the note's own /attachments/sources/,
+within the same budget as its other attachments; a source with no preview
+copy yet, or that doesn't fit, is still named in the prompt, without a
+sandbox copy.
 
 account_daily_note_cap and account_daily_cost_cap_usd (unset by default,
 meaning no cap) each limit one account to that many new notes, or that much

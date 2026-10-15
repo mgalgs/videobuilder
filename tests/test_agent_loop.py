@@ -7,6 +7,7 @@ import subprocess
 import sys
 import tempfile
 import threading
+import time
 import unittest
 from unittest.mock import patch
 
@@ -128,12 +129,8 @@ else:
                             attach_dir='/var/tmp/claude-scratch/attach'))
         run.assert_called_with(['runner', 'start', '--resume', '/state', '--local', '--attach-dir',
                                 '/var/tmp/claude-scratch/attach', '/project', '/note'])
-        backend.submit(dict(state_dir='/state', project='/project', note_file='/note',
-                            sources_dir='/var/tmp/claude-scratch/sources'))
-        run.assert_called_with(['runner', 'start', '--resume', '/state', '--local', '--sources-dir',
-                                '/var/tmp/claude-scratch/sources', '/project', '/note'])
         backend.submit(dict(state_dir='/state', project='/project', note_file='/note'))
-        self.assertNotIn('--sources-dir', run.call_args.args[0])  # no sources: argv unchanged
+        self.assertNotIn('--attach-dir', run.call_args.args[0])  # nothing staged: argv unchanged
         run.return_value = json.dumps(dict(state='replied', branch='draft/a', reply='done'))
         self.assertEqual(backend.poll('/run/example').reply, 'done')
         run.assert_called_with(['runner', 'query', '--json', '/run/example'])
@@ -163,17 +160,6 @@ else:
     def test_non_cluster_backend_has_no_peek(self):
         backend = ForkSandboxBackend('runner', ['start'], ['query', '--json'], ['--local'])
         self.assertFalse(hasattr(backend, 'peek'))
-
-    def test_fake_backend_stages_sources_flat_dir_into_the_build_worktree(self):
-        source_dir = self.root / 'stage'
-        source_dir.mkdir()
-        (source_dir / 'interview.mp4').write_bytes(b'fake video bytes')
-        (source_dir / 'interview.vtt').write_bytes(b'WEBVTT\n')
-        work = self.root / 'work'
-        work.mkdir()
-        FakeBackend()._stage_sources({'sources_dir': str(source_dir), 'directory': 'promo'}, work)
-        self.assertEqual((work / 'promo' / 'sources' / 'interview.mp4').read_bytes(), b'fake video bytes')
-        self.assertEqual((work / 'promo' / 'sources' / 'interview.vtt').read_bytes(), b'WEBVTT\n')
 
     def test_peek_argv_and_status_line_parsing(self):
         script = self._peek_script('''import sys
@@ -320,6 +306,57 @@ class DraftLoop(TempProject):
         md = (self.editor.notes.session_dir('promo/film') / (with_no_sources['id'] + '.md')).read_text()
         self.assertNotIn('Source videos', md)
 
+    def _upload_source(self, name, size='32x32'):
+        clip = Path(self.tmp.name) / (name + '.mp4')
+        subprocess.run(['ffmpeg', '-y', '-f', 'lavfi', '-i', f'color=c=red:s={size}:d=1:r=5',
+                       '-pix_fmt', 'yuv420p', str(clip)], check=True, capture_output=True)
+        data = clip.read_bytes()
+        return self.editor.sources.stream_upload('promo/film', name + '.mp4', name, 'video/mp4',
+                                                  _Rfile(data), len(data))
+
+    def _wait_ready(self, name, timeout=10):
+        deadline = time.monotonic() + timeout
+        while not self.editor.sources.get('promo/film', name)['preview_ready']:
+            if time.monotonic() > deadline:
+                self.fail(f'preview for {name!r} never became ready')
+            time.sleep(0.05)
+
+    @unittest.skipUnless(shutil.which('ffmpeg') and shutil.which('ffprobe'), 'needs ffmpeg/ffprobe')
+    def test_attach_dir_gets_ready_source_previews_as_copies_within_budget(self):
+        self._upload_source('alpha')
+        self._upload_source('beta')
+        self._wait_ready('alpha')
+        self._wait_ready('beta')
+        note = self.draft()
+        attach_dir = self.editor.notes.session_dir('promo/film') / ('attachments-' + note['id'])
+        for name in ('alpha', 'beta'):
+            path = attach_dir / 'sources' / (name + '.mp4')
+            self.assertTrue(path.is_file(), path)
+            self.assertEqual(path.stat().st_nlink, 1)  # a copy, not a hardlink
+        md = (self.editor.notes.session_dir('promo/film') / (note['id'] + '.md')).read_text()
+        self.assertNotIn('not in your sandbox', md)
+
+    @unittest.skipUnless(shutil.which('ffmpeg') and shutil.which('ffprobe'), 'needs ffmpeg/ffprobe')
+    def test_source_still_preparing_is_listed_but_not_staged(self):
+        with patch('videobuilder.sources.Sources._build_preview', lambda self, video, name: None):
+            self._upload_source('alpha')
+        note = self.draft()
+        attach_dir = self.editor.notes.session_dir('promo/film') / ('attachments-' + note['id'])
+        self.assertFalse((attach_dir / 'sources' / 'alpha.mp4').exists())
+        md = (self.editor.notes.session_dir('promo/film') / (note['id'] + '.md')).read_text()
+        self.assertIn('not in your sandbox', md)
+
+    @unittest.skipUnless(shutil.which('ffmpeg') and shutil.which('ffprobe'), 'needs ffmpeg/ffprobe')
+    def test_source_over_budget_is_listed_but_not_staged(self):
+        self._upload_source('alpha')
+        self._wait_ready('alpha')
+        with patch('videobuilder.notes.ATTACH_DIR_BUDGET', 1):
+            note = self.draft()
+        attach_dir = self.editor.notes.session_dir('promo/film') / ('attachments-' + note['id'])
+        self.assertFalse((attach_dir / 'sources' / 'alpha.mp4').exists())
+        md = (self.editor.notes.session_dir('promo/film') / (note['id'] + '.md')).read_text()
+        self.assertIn('not in your sandbox', md)
+
     def test_accept_and_history(self):
         note = self.draft()
         detail = self.editor.drafts.details('promo/film')
@@ -382,7 +419,8 @@ class DraftLoop(TempProject):
     def test_scope_refusals(self):
         for path, kind in [('README.md', 'outside'), ('promo/requirements-dev.txt', 'dependency'),
                            ('promo/pyproject.toml', 'dependency'), ('promo/poetry.lock', 'dependency'),
-                           ('promo/uv.lock', 'dependency'), ('promo/link', 'symlink'), ('promo/sub', 'submodule')]:
+                           ('promo/uv.lock', 'dependency'), ('promo/link', 'symlink'), ('promo/sub', 'submodule'),
+                           ('promo/sources/x.mp4', 'source')]:
             with self.subTest(path=path):
                 git(self.root, 'checkout', '-B', 'bad', 'main')
                 target = self.root / path
@@ -393,6 +431,7 @@ class DraftLoop(TempProject):
                     git(self.root, 'update-index', '--add', '--cacheinfo', '160000',
                         git(self.root, 'rev-parse', 'main').strip(), path)
                 else:
+                    target.parent.mkdir(parents=True, exist_ok=True)
                     target.write_text('bad change')
                     git(self.root, 'add', path)
                 git(self.root, 'commit', '-qm', 'bad')
