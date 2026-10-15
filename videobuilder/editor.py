@@ -501,7 +501,9 @@ class Editor:
                 pages, gather_errors = gather.crawl(links)
                 gathered = gather.write_attachments(self.attachments, vid, pages, gather_errors,
                                                     reserved_files=len(attachments),
-                                                    reserved_bytes=sum(a['size'] for a in attachments))
+                                                    reserved_bytes=sum(a['size'] for a in attachments),
+                                                    max_files=self.attachments.start_video_max_files,
+                                                    max_message=self.attachments.start_video_max_message)
                 final_attachments = attachments + [{k: self.attachments.get(i, vid)[0][k]
                                                     for k in ('id', 'name', 'type', 'size')} for i in gathered]
             except Exception as exc:

@@ -454,6 +454,11 @@ render_keep = 20
 attachment_max_file = 25    # MiB
 attachment_max_files = 10
 attachment_max_message = 100 # MiB
+attachment_zip_max_bytes = 200          # MiB, a single .zip upload
+attachment_zip_max_members = 50         # members kept from a .zip
+attachment_zip_max_unpacked_bytes = 300 # MiB, total decompressed size
+start_video_attachment_max_files = 50   # replaces attachment_max_files for New video's first note
+start_video_attachment_max_message = 300 # MiB, replaces attachment_max_message for that note
 ```
 
 The generic command backend still receives a request JSON and markdown note.

@@ -224,6 +224,21 @@ class WriteAttachments(unittest.TestCase):
         self.assertEqual(store.uploads, [])
         self.assertEqual(ids, [])
 
+    def test_explicit_max_files_and_max_message_override_the_stores_own_limit(self):
+        # A caller sharing this note with a bigger budget than the store's ordinary
+        # one (e.g. the first note from New video, which allows more files than an
+        # ordinary note) must pass that budget in rather than being governed by the
+        # store's own max_files/max_message, or a dozen reserved uploads leave no
+        # room for anything gathered here.
+        store = self.FakeStore(max_files=10, max_message=100)
+        pages = [dict(url='http://x/1', title='One', text='hi', desktop_png=b'd', phone_png=b'p')]
+        ids = gather.write_attachments(store, 'film', pages, [], reserved_files=12, reserved_bytes=90,
+                                       max_files=50, max_message=1000)
+        self.assertNotEqual(ids, [])
+        names = [u[1] for u in store.uploads]
+        self.assertIn('page-1.txt', names)
+        self.assertIn('gathered-pages.md', names)
+
     def test_index_itself_skipped_rather_than_exceeding_max_message(self):
         # Page attachments alone already spend the whole byte budget; the index
         # markdown itself must not be uploaded on top of that.

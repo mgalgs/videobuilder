@@ -213,7 +213,8 @@ def crawl(links, max_pages=MAX_PAGES, time_budget=TIME_BUDGET, page_timeout=PAGE
     return pages, errors
 
 
-def write_attachments(store, video, pages, errors, reserved_files=0, reserved_bytes=0):
+def write_attachments(store, video, pages, errors, reserved_files=0, reserved_bytes=0,
+                      max_files=None, max_message=None):
     """Upload each page's text and screenshots as ordinary note attachments
     plus one index attachment listing every page, and return the attachment
     ids (index first). A single oversized file (bigger than the store's own
@@ -223,13 +224,15 @@ def write_attachments(store, video, pages, errors, reserved_files=0, reserved_by
 
     `reserved_files`/`reserved_bytes` are the count and size of attachments
     the note already carries (e.g. the director's own uploads), so the
-    store's overall `max_files`/`max_message` budget -- shared with every
-    other note -- is honored for the combined set, not just the pages
-    gathered here. Once that budget (minus one slot reserved for the index
-    itself) is spent, remaining page attachments are skipped and noted
-    rather than silently exceeding it."""
-    max_files = getattr(store, 'max_files', None)
-    max_message = getattr(store, 'max_message', None)
+    `max_files`/`max_message` budget for this note -- defaulting to the
+    store's ordinary limits, but overridable by a caller using a different
+    budget for this note (e.g. the first note's higher limits) -- is
+    honored for the combined set, not just the pages gathered here. Once
+    that budget (minus one slot reserved for the index itself) is spent,
+    remaining page attachments are skipped and noted rather than silently
+    exceeding it."""
+    max_files = getattr(store, 'max_files', None) if max_files is None else max_files
+    max_message = getattr(store, 'max_message', None) if max_message is None else max_message
     budget_files = None if max_files is None else max(0, max_files - reserved_files - 1)
     budget_bytes = None if max_message is None else max(0, max_message - reserved_bytes)
     ids = []
