@@ -218,7 +218,8 @@ def cmd_editor(a):
                           compendium_dir=a.compendium_dir, music_sources=a.music_sources,
                           compendium_for_builder=a.compendium_for_builder,
                           account_daily_note_cap=note_cap, account_daily_cost_cap_usd=cost_cap,
-                          source_max_mb=a.source_max_mb, source_max_total_mb=a.source_max_total_mb)
+                          source_max_mb=a.source_max_mb, source_max_total_mb=a.source_max_total_mb,
+                          capability_agent_extra_args=a.capability_agent_extra_arg)
         else:
             if not a.project:
                 raise ValueError('provide PROJECT or --library DIR')
@@ -234,6 +235,8 @@ def cmd_editor(a):
             if a.source_max_mb is not None or a.source_max_total_mb is not None:
                 raise ValueError('--source-max-mb and --source-max-total-mb are only for --library mode; '
                                  'set [editor] source_max_mb / source_max_total_mb in the project config instead')
+            if a.capability_agent_extra_arg is not None:
+                raise ValueError('--capability-agent-extra-arg … only for --library mode')
             serve(a.project, host=a.host, port=a.port, state_dir=a.state_dir, open_browser=a.open,
                   agent=agent, allowed_hosts=a.allow_host, unsandboxed_previews=a.unsandboxed_previews,
                   envs=a.envs, sync_remote=a.sync_remote, capabilities_dir=a.capabilities_dir,
@@ -418,6 +421,13 @@ def main(argv=None):
     d.add_argument('--source-max-total-mb', type=int, metavar='N',
                    help="--library mode only: cap on one video's total source-video storage, in MiB "
                         '(default 8192). For single-project mode, set [editor] source_max_total_mb instead')
+    d.add_argument('--capability-agent-extra-arg', action='append',
+                   help='--library mode only: repeatable; use = for leading dashes. Appended after '
+                        '--agent-extra-arg, but only for notes on a community-capability project '
+                        '(capabilities/<slug>); with none given, those notes instead get the note args '
+                        'plus a heavier default (--review-loop 2 --maintainer-loop 1 --review-model M '
+                        '--maintainer-model M when --agent-extra-arg names a --model M, else just '
+                        '--review-loop 2)')
     d.set_defaults(fn=cmd_editor)
 
     cap = sub.add_parser('capabilities', help="the capabilities catalog's clips and builder sheet")

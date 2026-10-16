@@ -226,6 +226,27 @@ class LibraryHandler:
                     except ValueError as exc:
                         raise HTTPError(400, str(exc)) from None
                     return self._json(200, {'user': target.strip().lower(), 'limit': limit})
+                if library.accounts and route == '/api/capabilities/new' and method == 'POST':
+                    body = self._body()
+                    try:
+                        result = library.submit_capability(user, body.get('url'), body.get('capture'),
+                                                            body.get('files', 0))
+                    except ValueError as exc:
+                        raise HTTPError(400, str(exc)) from None
+                    return self._json(201, result)
+                m = re.fullmatch(r'/api/capabilities/([^/]+)/send', route)
+                if library.accounts and method == 'POST' and m:
+                    body = self._body()
+                    attachment_ids = body.get('attachments') or []
+                    if not isinstance(attachment_ids, list) or not all(isinstance(x, str) for x in attachment_ids):
+                        raise HTTPError(400, 'attachments must be a list of ids')
+                    try:
+                        note = library.send_capability(user, unquote(m.group(1)), attachment_ids)
+                    except KeyError:
+                        raise HTTPError(404, 'no such capability') from None
+                    except ValueError as exc:
+                        raise HTTPError(409, str(exc)) from None
+                    return self._json(200, note)
                 if (route != '/healthz' and route != '/capabilities' and not route.startswith('/capabilities/')
                         and route != '/compendium' and not route.startswith('/compendium/')
                         and route != '/api/compendium' and route != '/api/compendium/vote'):

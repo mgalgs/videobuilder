@@ -25,8 +25,11 @@ class Library:
     def __init__(self, root, checkouts=None, state_dir=None, host='127.0.0.1', allowed_hosts=(),
                  backend=None, agent=None, unsandboxed_previews=False, envs=None, admins=(), capabilities_dir=None,
                  compendium_dir=None, music_sources=None, account_daily_note_cap=None, account_daily_cost_cap_usd=None,
-                 compendium_for_builder=None, source_max_mb=None, source_max_total_mb=None):
+                 compendium_for_builder=None, source_max_mb=None, source_max_total_mb=None,
+                 capability_agent_extra_args=None):
         self.capabilities_dir = capabilities_dir
+        self.capability_agent_extra_args = capability_agent_extra_args
+        self.capability_fetch = True
         self.compendium_dir = compendium_dir
         self.root = Path(root).resolve()
         self.repos = self.root / 'repos'
@@ -62,6 +65,7 @@ class Library:
         from .access import Access
         self.accounts = Accounts(str(self.state_dir), admins) if admins else None
         self.access = Access(str(self.state_dir))
+        self.community = community.Store(str(self.state_dir))
 
     def path(self, name):
         if not valid_name(name):
@@ -117,9 +121,18 @@ class Library:
                     if checkout.exists():
                         raise ValueError('checkout path already exists')
                     git(None, 'clone', str(self.path(name)), str(checkout), hooks=False)
+                options = self.options
+                if community.is_reserved(name):
+                    # The capability pipeline is heavier than an ordinary note's (see
+                    # community.capability_agent_args): this project's own Editor gets the
+                    # heavier args instead of the library's ordinary --agent-extra-arg list.
+                    agent = dict(options.get('agent') or {})
+                    agent['extra_args'] = community.capability_agent_args(
+                        agent.get('extra_args'), self.capability_agent_extra_args)
+                    options = {**options, 'agent': agent}
                 self.editors[name] = Editor(checkout, state_dir=self.state_dir / flat,
                                             sync_remote='origin', trust_repo_config=False,
-                                            **self.options)
+                                            **options)
                 self.editors[name].library = self
             return self.editors[name]
 
@@ -139,6 +152,16 @@ class Library:
                 store = NoteStore(notes_dir)
             for note in store.list(refresh=False):
                 yield name, note
+
+    def check_note_cap(self, author, is_admin):
+        """Mirrors Editor.check_note_cap, for the library-wide capability-
+        submission routes, which add a note before any per-project Editor
+        is open: the same effective-cap logic (see editor._check_note_cap),
+        over every project's notes in the library."""
+        from .editor import _check_note_cap
+        notes = (n for _, n in self.account_notes())
+        _check_note_cap(self.accounts, notes, self.account_daily_note_cap,
+                        self.account_daily_cost_cap_usd, author, is_admin)
 
     def usage(self):
         """Per-account and per-video totals across the whole library -- see
@@ -213,6 +236,76 @@ class Library:
         commit = git(None, 'commit-tree', tree, input='Start a new video\n', env=env, git_dir=target, hooks=False)
         git(None, 'update-ref', 'refs/heads/main', commit, git_dir=target, hooks=False)
         return {'name': name, 'commit': commit, 'video': 'film'}
+
+    def submit_capability(self, user, url, capture, files):
+        """Step 1 of the capability-submission flow (POST /api/capabilities/new):
+        validate the dialog's fields, enforce `user`'s daily note cap, and create
+        the reserved `capabilities/<slug>` project and its draft record. `files`
+        is how many files the browser is about to upload in step 2 (POST
+        /v/capabilities/<slug>/api/attachments, the ordinary upload route); at
+        least one of a URL or a file is required. Reading `url` (when the
+        editor's fetch flag allows it) happens in this same method once
+        xpost.py exists; until then it is accepted but never fetched, and the
+        new draft's `post` stays null."""
+        if not isinstance(files, int) or isinstance(files, bool) or files < 0:
+            raise ValueError('files must be a non-negative integer')
+        if url is not None and not isinstance(url, str):
+            raise ValueError('url must be a string')
+        if capture is not None and not isinstance(capture, str):
+            raise ValueError('capture must be a string')
+        if not (url and url.strip()) and files < 1:
+            raise ValueError('give a URL or drop at least one file')
+        is_admin = bool(self.accounts and self.accounts.is_admin(user))
+        self.check_note_cap(user, is_admin)
+        slug = community.new_slug()
+        name = f'{community.NAMESPACE}/{slug}'
+        result = self.create_blank(name, allow_reserved=True)
+        if self.accounts:
+            self.access.set_owner(name, user, self.accounts)
+        self.community.create(slug, user, capture=(capture.strip() or None) if capture else None)
+        return {'name': name, 'slug': slug, 'video': result['video'], 'attachments': [], 'read': None}
+
+    def send_capability(self, user, slug, attachment_ids):
+        """Step 3 (POST /api/capabilities/<slug>/send): creates the draft's
+        first note from the brief (community.brief), attaching the record's
+        fetched media -- dropping any that expired since step 1 (Attachments
+        expires an unreferenced upload after 24h, see attachments.expire) --
+        plus whatever ids `attachment_ids` names (the browser's own uploads
+        from step 2). Raises KeyError for an unknown slug or for a caller who
+        is neither the submitter nor an admin (so the route answers 404, like
+        project access everywhere else); ValueError if this draft was already
+        sent."""
+        record = self.community.get(slug)
+        is_admin = bool(self.accounts and self.accounts.is_admin(user))
+        if record['submitter'] != user and not is_admin:
+            raise KeyError(slug)
+        if record.get('note'):
+            raise ValueError('already sent to the builder')
+        name = f'{community.NAMESPACE}/{slug}'
+        editor = self.editor(name)
+        vid = editor.project.videos()[0].id
+        fetched = []
+        for ident in record.get('fetched') or []:
+            try:
+                editor.attachments.get(ident, vid)
+            except KeyError:
+                continue  # expired since step 1: left out, not a failed send
+            fetched.append(ident)
+        ids = list(dict.fromkeys(fetched + list(attachment_ids or [])))
+        text = community.brief(record.get('post'), record.get('capture'), bool(ids))
+        note = editor.start_capability(text, ids, user, is_admin)
+        self.community.set_note(slug, note['id'])
+        return note
+
+    def community_view(self, user):
+        """The /capabilities page's community section for `user` (a signed-in
+        username): whether they can submit one, whether they're an admin
+        (who additionally gets Publish/Reject -- see community.py), whether
+        the dialog's URL field should show at all, and the draft/published
+        lists (added once the store holds more than bare records)."""
+        is_admin = bool(self.accounts and self.accounts.is_admin(user))
+        return {'published': [], 'drafts': [], 'can_submit': bool(user), 'is_admin': is_admin,
+               'fetch': self.capability_fetch}
 
     def index(self, host, scheme='http', user=None):
         names = self.names()

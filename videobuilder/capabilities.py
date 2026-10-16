@@ -11,6 +11,9 @@ reads capability text directly.
 The full build also renders the showcase reel (examples/showcase.py, every
 capability in one quick-cut film) as showcase-16x9.mp4 and showcase-9x16.mp4
 with posters, served beside the clips and shown at the top of the page.
+
+Community-submitted capabilities (community.py) are a separate, runtime-loaded
+list shown beside this fixed CATALOG -- never added to it.
 """
 import json
 import os
@@ -629,7 +632,122 @@ _PAGE_SCRIPT = """
 """
 
 
-def page_html(capabilities_dir, version, header='', header_style=''):
+_ADD_CAPABILITY_STYLE = """
+#add-capability{margin-left:auto}
+.cap-dialog{position:relative;border:1px solid #26262c;border-radius:16px;background:#141417;color:#f4f4f2;
+  padding:1.5rem 1.25rem 1.25rem;max-width:480px;width:calc(100vw - 32px);box-sizing:border-box;
+  box-shadow:0 30px 80px rgba(0,0,0,.6)}
+.cap-dialog::backdrop{background:rgba(0,0,0,.65)}
+.cap-dialog h2{margin:0 2.5rem .9rem 0;font-size:1.25rem;letter-spacing:-.01em}
+.cap-dialog-close{position:absolute;top:.75rem;right:.75rem;min-height:36px;min-width:36px;
+  border-radius:8px;border:1px solid #26262c;background:#0d0d10;color:#f4f4f2;font-size:1.1rem;
+  line-height:1;cursor:pointer}
+#capability-form{display:flex;flex-direction:column;gap:1rem}
+#capability-form label{display:flex;flex-direction:column;gap:.35rem;font-size:.85rem;color:#a9a9b2}
+#capability-form input:not([type=file]),#capability-form textarea{font:inherit;color:#f4f4f2;
+  min-height:46px;padding:.6rem .8rem;border-radius:10px;border:1px solid #2c2c33;background:#0d0d10;
+  outline:none;box-sizing:border-box;width:100%}
+#capability-form .drop{position:relative;display:flex;flex-direction:column;align-items:center;
+  justify-content:center;gap:.25rem;min-height:100px;padding:1rem;border:1.5px dashed #3a3a42;
+  border-radius:12px;background:#0d0d10;text-align:center;cursor:pointer}
+#capability-form .drop.over{border-color:#ef5b4c;background:#1a1211}
+#capability-form .drop input{position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer}
+.drop-title{color:#f4f4f2;font-weight:600;font-size:.95rem}
+.drop-title u{color:#ef5b4c;text-decoration:none}
+.drop-hint{color:#8b8b94;font-size:.82rem}
+.drop-files{color:#c9c9cf;font-size:.85rem;overflow-wrap:anywhere}
+.drop-files:empty{display:none}
+#capability-submit{min-height:48px;border-radius:12px;border:0;background:#e5483b;color:#fff;font:inherit;
+  font-weight:700;cursor:pointer}
+#capability-submit:hover{background:#ef5b4c}
+#capability-submit:disabled{opacity:.6;cursor:default}
+#capability-error{color:#ff8a80;margin:0;font-size:.9rem}#capability-error:empty{display:none}
+"""
+
+_ADD_CAPABILITY_SCRIPT = """
+(function(){
+  var openBtn = document.getElementById('add-capability');
+  if(!openBtn) return;
+  var dialog = document.getElementById('add-capability-dialog');
+  var form = document.getElementById('capability-form');
+  var error = document.getElementById('capability-error');
+  var submit = document.getElementById('capability-submit');
+  var fileInput = form.querySelector('input[type=file]');
+  openBtn.addEventListener('click', function(){
+    error.textContent = '';
+    form.reset();
+    var list = form.querySelector('.drop-files');
+    if(list) list.textContent = '';
+    submit.disabled = false;
+    dialog.showModal();
+  });
+  dialog.querySelector('.cap-dialog-close').addEventListener('click', function(){ dialog.close(); });
+  dialog.addEventListener('click', function(e){
+    var r = dialog.getBoundingClientRect();
+    if(e.clientX < r.left || e.clientX > r.right || e.clientY < r.top || e.clientY > r.bottom) dialog.close();
+  });
+  function pathOf(name){ return name.split('/').map(encodeURIComponent).join('/'); }
+  form.addEventListener('submit', async function(e){
+    e.preventDefault();
+    error.textContent = '';
+    submit.disabled = true;
+    var data = new FormData(form);
+    var url = (data.get('url') || '').trim();
+    var capture = (data.get('capture') || '').trim();
+    var files = fileInput ? fileInput.files : [];
+    var created = null;
+    try{
+      var body = {files: files.length};
+      if(url) body.url = url;
+      if(capture) body.capture = capture;
+      var r = await fetch('/api/capabilities/new', {method: 'POST',
+        headers: {'Content-Type': 'application/json'}, body: JSON.stringify(body)});
+      created = await r.json();
+      if(!r.ok) throw new Error(created.error || "Couldn't start the submission.");
+      var ids = (created.attachments || []).slice();
+      for(var i = 0; i < files.length; i++){
+        var file = files[i];
+        var ur = await fetch('/v/' + pathOf(created.name) + '/api/attachments?' +
+          new URLSearchParams({video: created.video, name: file.name}),
+          {method: 'POST', headers: {'Content-Type': file.type || 'application/octet-stream'}, body: file});
+        var uploaded = await ur.json();
+        if(!ur.ok) throw new Error(uploaded.error || ('could not upload ' + file.name));
+        ids.push(uploaded.id);
+      }
+      var sr = await fetch('/api/capabilities/' + created.slug + '/send', {method: 'POST',
+        headers: {'Content-Type': 'application/json'}, body: JSON.stringify({attachments: ids})});
+      var sent = await sr.json();
+      if(!sr.ok) throw new Error(sent.error || "Couldn't send it to the builder.");
+      location.href = '/v/' + pathOf(created.name) + '/';
+    }catch(err){
+      error.textContent = (created && created.read && created.read.error) ? created.read.error : err.message;
+      submit.disabled = false;
+    }
+  });
+})();
+"""
+
+
+def _add_capability_html(fetch):
+    url_field = ('<label>X post URL<input type="url" name="url" '
+                'placeholder="https://x.com/user/status/123"></label>' if fetch else '')
+    return (
+        '<dialog id="add-capability-dialog" class="cap-dialog">'
+        '<button type="button" class="cap-dialog-close" aria-label="Close">&times;</button>'
+        '<h2>Add a capability</h2>'
+        '<form id="capability-form">' + url_field +
+        '<label id="files-field" class="drop"><input type="file" name="files" multiple accept="image/*,video/*">'
+        '<span class="drop-title">Drop a clip or screenshot or <u>browse</u></span>'
+        '<span class="drop-hint">Optional</span><span class="drop-files" aria-live="polite"></span></label>'
+        '<label>What should it capture? (optional)<input type="text" name="capture" maxlength="200" '
+        'placeholder="A one-line description of the effect"></label>'
+        '<button id="capability-submit" type="submit">Submit</button>'
+        '<p id="capability-error" role="alert"></p>'
+        '</form></dialog>'
+    )
+
+
+def page_html(capabilities_dir, version, header='', header_style='', community=None):
     """The /capabilities page: a card grid grouped by category, generated from
     CATALOG, plus a modal that plays the clip and shows the longer text. Cards
     for a capability with no built clip (`capabilities_dir` unset, or missing
@@ -637,7 +755,10 @@ def page_html(capabilities_dir, version, header='', header_style=''):
     player; the page still lists every capability's text either way.
     `header`/`header_style`: the library's shared page header and its CSS
     (pages.app_header), or nothing, for a single-project editor with no
-    library to go back to."""
+    library to go back to. `community`: library.Library.community_view(user)
+    (published/drafts/can_submit/is_admin/fetch), or None to leave the page
+    byte-identical to one with no community feature at all (single-project
+    mode, or a library with no accounts)."""
     built = available_ids(capabilities_dir)
     cards = []
     if showcase_available(capabilities_dir):
@@ -672,13 +793,23 @@ def page_html(capabilities_dir, version, header='', header_style=''):
             'prompts': list(e['prompts']), 'available': e['id'] in built, 'unmute': e['id'] == 'beat-lock'}
            for e in CATALOG]
     body = ''.join(cards)
+    can_submit = bool(community and community.get('can_submit'))
+    add_button = ('<button type="button" id="add-capability" class="btn btn-primary">Add capability</button>'
+                  if can_submit else '')
+    dialog_html = dialog_script = ''
+    style = _PAGE_STYLE + header_style
+    if can_submit:
+        from .pages import DROP_SCRIPT
+        style += _ADD_CAPABILITY_STYLE
+        dialog_html = _add_capability_html(bool(community.get('fetch')))
+        dialog_script = f'<script>{_ADD_CAPABILITY_SCRIPT}</script>' + DROP_SCRIPT
     html = (
         '<!doctype html><html lang="en"><head><meta charset="utf-8">'
         '<title>Capabilities · videobuilder</title>'
         '<meta name="viewport" content="width=device-width, initial-scale=1">'
-        f'<style>{_PAGE_STYLE}{header_style}</style></head><body>{header}'
-        '<main><div class="cap-head"><h1>Capabilities</h1>'
-        f'<span class="version">videobuilder v{_esc(version)}</span></div>'
+        f'<style>{style}</style></head><body>{header}'
+        f'<main><div class="cap-head"><h1>Capabilities</h1>'
+        f'<span class="version">videobuilder v{_esc(version)}</span>{add_button}</div>'
         f'{body}</main>'
         '<div id="modal" hidden role="dialog" aria-modal="true" aria-labelledby="modal-title">'
         '<div class="box">'
@@ -690,9 +821,9 @@ def page_html(capabilities_dir, version, header='', header_style=''):
         '<h3 id="modal-title"></h3><p class="cat" id="modal-cat"></p>'
         '<p class="desc" id="modal-desc"></p>'
         '<div class="prompts"><p>What to tell the builder</p><ul id="modal-prompts"></ul></div>'
-        '</div></div></div>'
+        '</div></div></div>' + dialog_html +
         f'<script id="capabilities-data" type="application/json">{json.dumps(data)}</script>'
-        f'<script>{_PAGE_SCRIPT}</script>'
+        f'<script>{_PAGE_SCRIPT}</script>' + dialog_script +
         '</body></html>'
     )
     return html.encode()

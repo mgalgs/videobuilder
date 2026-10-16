@@ -77,6 +77,21 @@ class Cli(unittest.TestCase):
             'backend': 'fork-sandbox', 'extra_args': ['--k8s'],
             'context_root': '/var/tmp/claude-scratch/forks/ctx', 'context_mount': '/work/context'})
 
+    def test_editor_capability_agent_extra_arg_flag(self):
+        from unittest import mock
+        from videobuilder.cli import main
+        with mock.patch('videobuilder.editor.serve_library') as serve_library:
+            main(['editor', '--library', 'lib', '--capability-agent-extra-arg=--x',
+                  '--capability-agent-extra-arg=1'])
+        self.assertEqual(serve_library.call_args.kwargs['capability_agent_extra_args'], ['--x', '1'])
+        with mock.patch('videobuilder.editor.serve_library') as serve_library:
+            main(['editor', '--library', 'lib'])
+        self.assertIsNone(serve_library.call_args.kwargs['capability_agent_extra_args'])
+        with self.assertRaises(SystemExit) as e:
+            main(['editor', 'proj', '--capability-agent-extra-arg=--x'])
+        self.assertIn('--capability-agent-extra-arg', str(e.exception))
+        self.assertIn('only for --library mode', str(e.exception))
+
 
 class Edit(unittest.TestCase):
     """`edit roll` and `edit copy` write the film's film.edits.toml, or refuse and leave it."""

@@ -200,9 +200,27 @@ POST /api/admin/limits {user,kind,notes?,cost_usd?}
                                      bad kind, a non-positive/non-numeric
                                      notes or cost_usd, or either given
                                      alongside "default"/"unlimited"
+POST /api/capabilities/new {url?,capture?,files}
+                                     any signed-in user; creates a draft
+                                     community capability (a reserved
+                                     `capabilities/<slug>` project, see
+                                     community.py) and returns 201
+                                     {name,slug,video,attachments,read};
+                                     read is an error summary (or null) once
+                                     a given url has been read; 400 with
+                                     neither a url nor at least one file;
+                                     429 as POST /api/notes above
+POST /api/capabilities/<slug>/send {attachments:[id...]}
+                                     the draft's submitter or an admin;
+                                     creates its first note from the
+                                     standing capability brief; 200 the new
+                                     note; 404 unknown slug or a caller who
+                                     is neither; 409 already sent; 429 as
+                                     POST /api/notes above
 With accounts on, GET /api/name returns the session username and POST
 answers 409; a project the signed-in user cannot access answers 404
-exactly like a non-existent one, on its page, API, frames, video, git.
+exactly like a non-existent one, on its page, API, frames, video, git. A
+key reaches none of the capability routes above.
 
 A key acts as the account it belongs to, narrowed by its own scope and mode
 (see accounts.py). Git over HTTP accepts one as the Basic auth password
@@ -717,6 +735,33 @@ class Editor:
         threading.Thread(target=gather_then_queue, daemon=True).start()
         return note
 
+    def start_capability(self, text, attachment_ids, author, is_admin=False):
+        """A capability project's first note (see Library.send_capability):
+        simpler than start_video, since a capability project never gathers
+        links -- `text` is already the complete brief (community.brief),
+        and `attachment_ids` are already-uploaded attachments (fetched post
+        media and/or the submitter's own dropped files)."""
+        self.check_note_cap(author, is_admin)
+        videos = self.project.videos()
+        if not videos:
+            raise HTTPError(409, 'this project has no video to build yet')
+        vid = videos[0].id
+        try:
+            attachments = self.attachments.validate(vid, attachment_ids,
+                                                    max_files=self.attachments.start_video_max_files,
+                                                    max_message=self.attachments.start_video_max_message)
+        except (ValueError, KeyError) as exc:
+            raise HTTPError(400, str(exc)) from None
+        s = self.session(vid)
+        info = s.request('info')
+        if 'frames' not in info:
+            raise HTTPError(409, 'the video does not load; fix it before starting it')
+        fmt = info['formats'][0]['name']
+        try:
+            return self.notes.add(vid, fmt, None, None, text, None, author=author, attachments=attachments)
+        except ValueError as e:
+            raise HTTPError(400, str(e)) from None
+
 
 def _note_created(note):
     return calendar.timegm(time.strptime(note['created'], '%Y-%m-%dT%H:%M:%SZ'))
@@ -965,7 +1010,7 @@ def serve_library(root, host='127.0.0.1', port=8100, checkouts=None, state_dir=N
                   hook=request_hook, agent=None, allowed_hosts=(), unsandboxed_previews=False, envs=None,
                   admins=(), capabilities_dir=None, compendium_dir=None, music_sources=None,
                   account_daily_note_cap=None, account_daily_cost_cap_usd=None, compendium_for_builder=None,
-                  source_max_mb=None, source_max_total_mb=None):
+                  source_max_mb=None, source_max_total_mb=None, capability_agent_extra_args=None):
     from .library import Library
     library = Library(root, checkouts=checkouts, state_dir=state_dir, host=host, agent=agent,
                       allowed_hosts=allowed_hosts, unsandboxed_previews=unsandboxed_previews, envs=envs,
@@ -973,7 +1018,8 @@ def serve_library(root, host='127.0.0.1', port=8100, checkouts=None, state_dir=N
                       music_sources=music_sources, account_daily_note_cap=account_daily_note_cap,
                       account_daily_cost_cap_usd=account_daily_cost_cap_usd,
                       compendium_for_builder=compendium_for_builder, source_max_mb=source_max_mb,
-                      source_max_total_mb=source_max_total_mb)
+                      source_max_total_mb=source_max_total_mb,
+                      capability_agent_extra_args=capability_agent_extra_args)
     httpd = ThreadingHTTPServer((host, port), make_handler(library, hook))
     httpd.daemon_threads = True
     stop = threading.Event()

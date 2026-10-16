@@ -86,11 +86,15 @@ def _get_thumbnail(self, route, q, editor, user):
 def _get_capabilities(self, route, q, editor, user):
     from . import __version__, capabilities, pages
     header = style = ''
+    community = None
     if self.library:
         accounts = self.library.accounts
         header = pages.app_header('capabilities', user if accounts else None, bool(user) or not accounts)
         style = pages.APP_HEADER_STYLE
-    return self._send(200, capabilities.page_html(editor.capabilities_dir, __version__, header, style),
+        if accounts and user:
+            community = self.library.community_view(user)
+    return self._send(200, capabilities.page_html(editor.capabilities_dir, __version__, header, style,
+                                                   community=community),
                       'text/html; charset=utf-8')
 
 

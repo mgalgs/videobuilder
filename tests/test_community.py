@@ -33,5 +33,23 @@ class Reserved(unittest.TestCase):
             self.assertTrue(library.path('capabilities/other').exists())
 
 
+class AgentArgs(unittest.TestCase):
+    def test_capability_agent_args_cases(self):
+        cases = [
+            (['--model', 'm'], None,
+             ['--model', 'm', '--review-loop', '2', '--maintainer-loop', '1',
+              '--review-model', 'm', '--maintainer-model', 'm']),
+            (['--model=m'], None,
+             ['--model=m', '--review-loop', '2', '--maintainer-loop', '1',
+              '--review-model', 'm', '--maintainer-model', 'm']),
+            (['--k8s'], None, ['--k8s', '--review-loop', '2']),
+            (None, None, ['--review-loop', '2']),
+            (['--model', 'm'], ['--x', '1'], ['--model', 'm', '--x', '1']),
+        ]
+        for note_args, capability_args, expected in cases:
+            with self.subTest(note_args=note_args, capability_args=capability_args):
+                self.assertEqual(community.capability_agent_args(note_args, capability_args), expected)
+
+
 if __name__ == '__main__':
     unittest.main()

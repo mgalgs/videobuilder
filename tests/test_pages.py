@@ -136,6 +136,16 @@ class InlineScriptsParse(unittest.TestCase):
     def test_account_page_scripts_parse(self):
         self._check(pages.account_page('dana', []))
 
+    def test_capabilities_page_with_community_scripts_parse(self):
+        with tempfile.TemporaryDirectory() as d:
+            Path(d, 'showcase-16x9.mp4').write_bytes(b'mp4')
+            community = {'published': [], 'drafts': [], 'can_submit': True, 'is_admin': True, 'fetch': True}
+            self._check(capabilities.page_html(d, '0', pages.app_header('capabilities', 'dana'),
+                                               pages.APP_HEADER_STYLE, community=community))
+            community['fetch'] = False
+            self._check(capabilities.page_html(d, '0', pages.app_header('capabilities', 'dana'),
+                                               pages.APP_HEADER_STYLE, community=community))
+
     def test_capabilities_page_scripts_parse(self):
         with tempfile.TemporaryDirectory() as d:
             Path(d, 'showcase-16x9.mp4').write_bytes(b'mp4')
