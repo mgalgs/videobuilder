@@ -102,6 +102,23 @@ class CountRecent(unittest.TestCase):
             self.assertEqual(store.count_recent('dana', time.time() + 60), 0)
 
 
+class Reserve(unittest.TestCase):
+    def test_reservations_count_toward_the_cap_before_any_record_exists(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            store = community.Store(tmp)
+            store.create('a1', 'dana')
+            token = store.reserve('dana', 2, 0)
+            self.assertIsNotNone(token)  # 1 record so far, cap is 2: the reservation is still allowed
+            self.assertIsNone(store.reserve('dana', 2, 0))  # 1 record + 1 reservation = cap, with no 2nd record yet
+            self.assertIsNotNone(store.reserve('other', 2, 0))  # a different submitter has its own cap
+            store.release(token)
+            self.assertIsNotNone(store.reserve('dana', 2, 0))  # releasing frees the slot again
+
+    def test_release_of_an_unknown_token_is_a_no_op(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            community.Store(tmp).release('no-such-token')  # does not raise
+
+
 class RejectUpdate(unittest.TestCase):
     def test_reject_update_keeps_the_pin_and_only_from_published(self):
         with tempfile.TemporaryDirectory() as tmp:

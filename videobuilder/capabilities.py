@@ -792,7 +792,7 @@ _COMMUNITY_SCRIPT = """
     btn.addEventListener('click', async function(){
       var slug = btn.getAttribute('data-cap-slug');
       var action = btn.getAttribute('data-cap-action');
-      var card = btn.closest('.draft-card') || btn.closest('.card');
+      var card = btn.closest('.draft-card') || btn.closest('.community-card') || btn.closest('.card');
       var errEl = card ? card.querySelector('.draft-error') : null;
       btn.disabled = true;
       try{

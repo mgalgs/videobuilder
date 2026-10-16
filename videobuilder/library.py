@@ -238,19 +238,33 @@ class Library:
         git(None, 'update-ref', 'refs/heads/main', commit, git_dir=target, hooks=False)
         return {'name': name, 'commit': commit, 'video': 'film'}
 
-    def check_capability_cap(self, author, is_admin):
-        """Refuse a new capability submission (HTTPError 429) once `author`
-        has created community.CAPABILITY_DAILY_CAP of them in the trailing
-        24 hours; a no-op for an admin. Separate from check_note_cap: this
-        gates the heavier create-project-and-maybe-read-a-post work that
-        happens before any note exists for the ordinary cap to count."""
+    def reserve_capability_slot(self, author, is_admin):
+        """Holds one of `author`'s next community.CAPABILITY_DAILY_CAP
+        submission slots for the duration of a new capability's create-
+        project-and-maybe-read-a-post work (HTTPError 429 once already at
+        the cap; a no-op returning None for an admin, who is exempt).
+        Unlike a plain count check, this is atomic with every other
+        concurrent reservation (community.Store.reserve, under its lock),
+        so N simultaneous submissions from the same account can't all pass
+        before any of them has a record for a count to see -- at most
+        CAPABILITY_DAILY_CAP can hold a slot at once. Pair with
+        release_capability_slot when the attempt finishes, successfully or
+        not."""
         if is_admin:
-            return
+            return None
         from .editor import HTTPError
         cutoff = time.time() - 24 * 60 * 60
-        if self.community.count_recent(author, cutoff) >= community.CAPABILITY_DAILY_CAP:
+        token = self.community.reserve(author, community.CAPABILITY_DAILY_CAP, cutoff)
+        if token is None:
             raise HTTPError(429, f"You've submitted {community.CAPABILITY_DAILY_CAP} capabilities today. "
                             "Try again tomorrow.")
+        return token
+
+    def release_capability_slot(self, token):
+        """Releases a reservation made by reserve_capability_slot; a no-op
+        for the admin case (token is None)."""
+        if token is not None:
+            self.community.release(token)
 
     def submit_capability(self, user, url, capture, files):
         """Step 1 of the capability-submission flow (POST /api/capabilities/new):
@@ -259,7 +273,12 @@ class Library:
         reserved `capabilities/<slug>` project and its draft record. `files`
         is how many files the browser is about to upload in step 2 (POST
         /v/capabilities/<slug>/api/attachments, the ordinary upload route); at
-        least one of a URL or a file is required.
+        least one of a URL or a file is required. The capability-submission
+        slot (reserve_capability_slot) is held for the whole of this call and
+        released in a `finally`, so concurrent calls from the same account
+        can't all pass the cap before any of them has a record of its own to
+        be counted; a failed attempt (any exception, including FailedRead)
+        releases its slot rather than spending it.
 
         When `url` is given and self.capability_fetch is on, it is read right
         here (xpost.read_post) before anything is created: a malformed URL
@@ -280,42 +299,45 @@ class Library:
         if not url and files < 1:
             raise ValueError('give a URL or drop at least one file')
         is_admin = bool(self.accounts and self.accounts.is_admin(user))
-        self.check_capability_cap(user, is_admin)
-        self.check_note_cap(user, is_admin)
-        read = post = None
-        media = []
-        if url and self.capability_fetch:
-            from . import xpost
-            xpost.parse_url(url)  # malformed -> ValueError (400), before any network call
-            result = xpost.read_post(url)
-            read = {'error': None if result.ok else community.READ_FAILED}
-            if not result.ok and files < 1:
-                raise community.FailedRead(community.READ_FAILED)
-            if result.text or result.handle:
-                post = {'url': url, 'handle': result.handle, 'text': result.text}
-            media = result.media
-        slug = community.new_slug()
-        name = f'{community.NAMESPACE}/{slug}'
-        result = self.create_blank(name, allow_reserved=True)
-        if self.accounts:
-            self.access.set_owner(name, user, self.accounts)
-        fetched_ids = []
-        if media:
-            editor = self.editor(name)
-            vid = editor.project.videos()[0].id
-            for media_name, ctype, data in media:
-                # xpost's own video cap (50 MB) is above the attachment store's
-                # default per-file cap (25 MiB): raise it here the same way
-                # gather.write_attachments does, rather than silently dropping a
-                # fetched clip that read_post already reported as fetched.
-                oversize = len(data) > editor.attachments.max_file
-                try:
-                    record = editor.attachments.upload(vid, media_name, ctype, data, allow_oversize=oversize)
-                except ValueError:
-                    continue
-                fetched_ids.append(record['id'])
-        self.community.create(slug, user, post=post, capture=(capture.strip() or None) if capture else None,
-                              fetched=fetched_ids)
+        token = self.reserve_capability_slot(user, is_admin)
+        try:
+            self.check_note_cap(user, is_admin)
+            read = post = None
+            media = []
+            if url and self.capability_fetch:
+                from . import xpost
+                xpost.parse_url(url)  # malformed -> ValueError (400), before any network call
+                result = xpost.read_post(url)
+                read = {'error': None if result.ok else community.READ_FAILED}
+                if not result.ok and files < 1:
+                    raise community.FailedRead(community.READ_FAILED)
+                if result.text or result.handle:
+                    post = {'url': url, 'handle': result.handle, 'text': result.text}
+                media = result.media
+            slug = community.new_slug()
+            name = f'{community.NAMESPACE}/{slug}'
+            result = self.create_blank(name, allow_reserved=True)
+            if self.accounts:
+                self.access.set_owner(name, user, self.accounts)
+            fetched_ids = []
+            if media:
+                editor = self.editor(name)
+                vid = editor.project.videos()[0].id
+                for media_name, ctype, data in media:
+                    # xpost's own video cap (50 MB) is above the attachment store's
+                    # default per-file cap (25 MiB): raise it here the same way
+                    # gather.write_attachments does, rather than silently dropping a
+                    # fetched clip that read_post already reported as fetched.
+                    oversize = len(data) > editor.attachments.max_file
+                    try:
+                        record = editor.attachments.upload(vid, media_name, ctype, data, allow_oversize=oversize)
+                    except ValueError:
+                        continue
+                    fetched_ids.append(record['id'])
+            self.community.create(slug, user, post=post, capture=(capture.strip() or None) if capture else None,
+                                  fetched=fetched_ids)
+        finally:
+            self.release_capability_slot(token)
         return {'name': name, 'slug': slug, 'video': result['video'], 'attachments': fetched_ids, 'read': read}
 
     def send_capability(self, user, slug, attachment_ids):
@@ -489,19 +511,24 @@ class Library:
     def reject_capability(self, admin, slug):
         """Rejects `slug` (POST /api/capabilities/<slug>/reject): KeyError
         for an unknown slug. When `slug` is published and its project's main
-        has moved past its pin (a pending update), this only discards that
-        update (community.Store.reject_update) -- the pinned version stays
-        published, exactly as before, for everyone but the submitter and
-        admins (who stop seeing "Update awaiting approval" for this sha,
-        until main moves again). Otherwise this is a full takedown, as
-        today: hides `slug` from every /capabilities page and its clip
-        route, without touching the project on disk (ValueError for one
-        that is neither 'draft' nor 'published' -- there is nothing else to
-        take down)."""
+        has moved past its pin to a commit that hasn't already been
+        discarded (a *pending* update is actually showing -- the same test
+        community_view uses for "Update awaiting approval"), this only
+        discards that update (community.Store.reject_update) -- the pinned
+        version stays published, exactly as before, for everyone but the
+        submitter and admins (who stop seeing the notice for this sha, until
+        main moves again). Otherwise this is a full takedown, as today:
+        hides `slug` from every /capabilities page and its clip route,
+        without touching the project on disk (ValueError for one that is
+        neither 'draft' nor 'published' -- there is nothing else to take
+        down). This way a takedown is always reachable: once a pending
+        update has been discarded once, a second Reject (with nothing new
+        to discard) takes the capability down rather than being a no-op
+        forever."""
         record = self.community.get(slug)
         if record['status'] == 'published':
             tip = community.main_sha(self.path(f'{community.NAMESPACE}/{slug}'))
-            if tip and tip != record['pinned_sha']:
+            if tip and tip != record['pinned_sha'] and tip != record['update_rejected_sha']:
                 return self.community.reject_update(slug, admin, tip)
         return self.community.reject(slug, admin)
 

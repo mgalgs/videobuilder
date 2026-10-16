@@ -273,6 +273,7 @@ class Store:
     def __init__(self, state_dir):
         self.path = os.path.join(state_dir, 'community-capabilities.json')
         self.lock = threading.RLock()
+        self._reservations = {}  # token -> (submitter, created); see reserve/release
 
     def _load(self):
         try:
@@ -310,8 +311,41 @@ class Store:
         """How many capabilities `submitter` has created at or after `since`
         (unix seconds), every status counted -- each one already did the
         submission's own work (a project, maybe an X read) regardless of how
-        it was later reviewed. For Library.check_capability_cap."""
+        it was later reviewed. For Library.reserve_capability_slot."""
         return sum(1 for r in self._load().values() if r['submitter'] == submitter and r['created'] >= since)
+
+    def reserve(self, submitter, cap, since):
+        """Atomically holds one of `submitter`'s next `cap` capability-
+        submission slots, for the whole create-project-and-maybe-read-a-post
+        work a submission does before its own record exists to be counted
+        by count_recent: without this, concurrent calls to
+        Library.submit_capability could all pass a plain count check before
+        any of them had created anything, letting a submitter who fires N
+        requests at once get N projects (and N X reads) past the cap.
+        Counts persisted records plus other currently-held reservations
+        created at or after `since`; returns a token once that count is
+        under `cap`, or None at the cap. Pair with release(token) when the
+        attempt finishes, successfully or not -- the real record created on
+        success counts on its own from then on, so releasing a reservation
+        after one never lets the submitter over the cap; one released
+        after a failed attempt (nothing was created) frees the slot for a
+        retry."""
+        with self.lock:
+            data = self._load()
+            count = sum(1 for r in data.values() if r['submitter'] == submitter and r['created'] >= since)
+            count += sum(1 for s, created in self._reservations.values()
+                        if s == submitter and created >= since)
+            if count >= cap:
+                return None
+            token = secrets.token_hex(16)
+            self._reservations[token] = (submitter, time.time())
+            return token
+
+    def release(self, token):
+        """Frees a reservation made by `reserve`; a no-op for an unknown or
+        already-released token."""
+        with self.lock:
+            self._reservations.pop(token, None)
 
     def claim_send(self, slug):
         """Atomically claims `slug` for a single in-flight send, racing two

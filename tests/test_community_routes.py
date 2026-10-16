@@ -241,6 +241,30 @@ class Submission(fixtures.AccountMixin, fixtures.LibraryFixture, unittest.TestCa
             code, data = self.request('/api/capabilities/new', {'files': 1}, headers=admin_headers)
             self.assertEqual(code, 201, data)  # admins are exempt
 
+    def test_concurrent_submissions_cannot_exceed_the_daily_cap(self):
+        import threading
+        _, _, dana = self.signup('dana', 'longenoughpassword')
+        headers = {'Content-Type': 'application/json', 'Cookie': dana}
+        n = community.CAPABILITY_DAILY_CAP + 3
+        results = [None] * n
+
+        def fire(i):
+            results[i] = self.request_full('/api/capabilities/new', {'files': 1}, headers=headers)[:2]
+        threads = [threading.Thread(target=fire, args=(i,)) for i in range(n)]
+        for t in threads:
+            t.start()
+        for t in threads:
+            t.join()
+        codes = [code for code, _ in results]
+        self.assertEqual(codes.count(201), community.CAPABILITY_DAILY_CAP, results)
+        self.assertEqual(codes.count(429), n - community.CAPABILITY_DAILY_CAP, results)
+        # every accepted submission actually has its own project and record -- the reservation
+        # that closed the race didn't let through more creates than slots, nor fewer.
+        slugs = {data['slug'] for code, data in results if code == 201}
+        self.assertEqual(len(slugs), community.CAPABILITY_DAILY_CAP)
+        for slug in slugs:
+            self.assertTrue(self.library.path(f'capabilities/{slug}').exists())
+
     def test_failed_send_can_be_retried(self):
         # Library.account_daily_note_cap is only a constructor-time default for each
         # project's own Editor (see Editor.__init__): mutate the capability project's
@@ -579,6 +603,36 @@ class Published(fixtures.AccountMixin, fixtures.LibraryFixture, unittest.TestCas
         self.assertNotIn(b'Sketchy title', page)
         self.assertNotIn(b'Update awaiting approval', page)  # discarded: stops nagging for this sha
 
+    def test_reject_is_still_reachable_after_discarding_a_pending_update(self):
+        """A second Reject, once there's no pending update left to discard
+        (main at the already-discarded sha), must take the capability down
+        rather than replaying reject_update's no-op forever -- otherwise a
+        submitter only has to push once after approval to make their
+        capability impossible to take down."""
+        admin = self.admin_login()
+        admin_headers = {'Content-Type': 'application/json', 'Cookie': admin}
+        _, _, dana = self.signup('dana', 'longenoughpassword')
+        created = self.request('/api/capabilities/new', {'files': 1},
+                               headers={'Content-Type': 'application/json', 'Cookie': dana})[1]
+        slug = created['slug']
+        publishable(self, slug, title='Original title')
+        self.request(f'/api/capabilities/{slug}/publish', {}, headers=admin_headers)
+        work = self.root / 'publish' / slug
+        toml_path = work / 'capability.toml'
+        toml_path.write_text(toml_path.read_text().replace('Original title', 'Sketchy title'))
+        self.git('add', '.', cwd=work)
+        self.git('commit', '-m', 'retitle', cwd=work)
+        self.git('push', cwd=work)
+        code, data, _ = self.request_full(f'/api/capabilities/{slug}/reject', {}, headers=admin_headers)
+        self.assertEqual(code, 200, data)
+        self.assertEqual(self.library.community.get(slug)['status'], 'published')  # discards only the update
+        code, data, _ = self.request_full(f'/api/capabilities/{slug}/reject', {}, headers=admin_headers)
+        self.assertEqual(code, 200, data)
+        self.assertEqual(data['status'], 'rejected')
+        self.assertEqual(self.library.community.get(slug)['status'], 'rejected')
+        page = self.request('/capabilities', headers={'Cookie': dana})[1]
+        self.assertNotIn(f'data-card="community:{slug}"'.encode(), page)
+
     def test_published_with_no_render_yet_shows_placeholder(self):
         admin = self.admin_login()
         admin_headers = {'Content-Type': 'application/json', 'Cookie': admin}
@@ -592,6 +646,46 @@ class Published(fixtures.AccountMixin, fixtures.LibraryFixture, unittest.TestCas
         self.assertIn(b'clip not built', page)
         data = {e['id']: e for e in _community_data(page)}
         self.assertFalse(data[f'community:{slug}']['available'])
+
+    def test_render_of_an_unapproved_intermediate_commit_is_never_served(self):
+        """A render of a commit strictly between the previous pin and the
+        new one -- never itself approved -- must not stand in for the new
+        pin's own (missing) render: the lookup other users get is exact-sha,
+        not "the newest render on an ancestor of the pin"."""
+        admin = self.admin_login()
+        admin_headers = {'Content-Type': 'application/json', 'Cookie': admin}
+        _, _, dana = self.signup('dana', 'longenoughpassword')
+        _, _, other = self.signup('other', 'longenoughpassword')
+        created = self.request('/api/capabilities/new', {'files': 1},
+                               headers={'Content-Type': 'application/json', 'Cookie': dana})[1]
+        slug, name = created['slug'], created['name']
+        publishable(self, slug, title='Original title')
+        self.request(f'/api/capabilities/{slug}/publish', {}, headers=admin_headers)
+        work = self.root / 'publish' / slug
+        toml_path = work / 'capability.toml'
+        # An intermediate commit, pushed and rendered, but never approved as a pin.
+        toml_path.write_text(toml_path.read_text().replace('Original title', 'Intermediate title'))
+        self.git('add', '.', cwd=work)
+        self.git('commit', '-m', 'intermediate', cwd=work)
+        self.git('push', cwd=work)
+        editor = self.library.editor(name)
+        sha = self.git('--git-dir', str(self.library.path(name)), 'rev-parse', 'main').stdout.strip()
+        path = editor.renders.path('film', sha, '16x9')
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(b'FAKEMP4DATA' * 4)
+        # A further commit, unrendered, approved as the new pin.
+        toml_path.write_text(toml_path.read_text().replace('Intermediate title', 'Final title'))
+        self.git('add', '.', cwd=work)
+        self.git('commit', '-m', 'final', cwd=work)
+        self.git('push', cwd=work)
+        code, data = self.request(f'/api/capabilities/{slug}/publish', {}, headers=admin_headers)
+        self.assertEqual(code, 200, data)
+        other_headers = {'Cookie': other}
+        code, body, _ = self.request_full(f'/capabilities/community/{slug}.mp4', headers=other_headers)
+        self.assertEqual(code, 404, body)  # the intermediate commit's render must not leak to the new pin
+        page = self.request('/capabilities', headers=other_headers)[1]
+        card = {e['id']: e for e in _community_data(page)}[f'community:{slug}']
+        self.assertFalse(card['available'])
 
     def test_published_capability_whose_pin_goes_invalid_is_refused_to_others(self):
         """A published capability's pinned commit can go invalid later even
@@ -676,6 +770,7 @@ class ClipGating(fixtures.AccountMixin, fixtures.LibraryFixture, unittest.TestCa
         self.assertEqual(code, 401, body)
         self.assertEqual(headers.get_content_type(), 'application/json')
         publishable(self, slug)
+        self._place_render(name)  # the pin is about to move to publishable()'s new commit -- it needs its own render
         self.request(f'/api/capabilities/{slug}/publish', {}, headers=admin_headers)
         code, body, _ = self.request_full(f'/capabilities/community/{slug}.mp4', headers=other_headers)
         self.assertEqual(code, 200, body)
