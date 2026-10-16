@@ -44,8 +44,11 @@ don't have the attribute, which reads as "can't tell" there too.
 On Kubernetes, a poll's raw state can also be "orphaned": the driver process
 that was going to wait for the pod and collect its branch is dead, but the
 pod itself is still alive. ForkSandboxBackend reacts by starting
-`<executable> adopt <run-dir>` in the background -- at most one such process
-per run-dir per backend instance -- and reports the note as plain "working"
+`<executable> adopt <run-dir>` in the background -- at most once per run-dir
+per backend instance, ever, even once that process has exited (an adopt
+that refuses right away, e.g. because another adopt is already driving the
+run, is not retried just because the pod is still reporting "orphaned") --
+and reports the note as plain "working"
 rather than exposing "orphaned" any further; the adopt process is reaped
 (never left a zombie) on a later poll, and its stderr is logged on a nonzero
 exit. Nothing else is done with the result: the following poll's raw state,
@@ -133,6 +136,7 @@ class ForkSandboxBackend(AgentBackend):
         self.context_mount = context_mount
         self.videobuilder_repo = videobuilder_repo
         self._adopting = {}  # run-dir -> (Popen, stderr tempfile), while this process's adopt runs
+        self._adopted = set()  # run-dirs this backend instance has ever started an adopt for
         if self.context_root and not self.context_root.is_relative_to(CONTEXT_STAGING_ROOT):
             raise ValueError(f"editor.agent.context_root must be under {CONTEXT_STAGING_ROOT}")
         if '--k8s' in self.extra_args:
@@ -228,12 +232,16 @@ class ForkSandboxBackend(AgentBackend):
                            tokens if isinstance(tokens, dict) else None)
 
     def _adopt(self, handle):
-        """Start `adopt <handle>` in the background, unless an adopt process this
-        backend instance already started for `handle` is still alive -- "at most
-        one per run per editor process" (see the class docstring)."""
+        """Start `adopt <handle>` in the background, unless this backend instance
+        has already started one for `handle` -- "at most once per run per
+        editor process" (see the class docstring). That's tracked separately
+        from `_adopting`, which only tells us whether one is still alive:
+        once reaped, a finished (or refused) adopt must not be retried just
+        because the pod is still reporting "orphaned"."""
         self._reap_adoptions()
-        if handle in self._adopting:
+        if handle in self._adopted:
             return
+        self._adopted.add(handle)
         stderr = tempfile.TemporaryFile()
         process = subprocess.Popen([self.executable, 'adopt', handle], stdin=subprocess.DEVNULL,
                                    stdout=subprocess.DEVNULL, stderr=stderr)

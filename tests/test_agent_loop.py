@@ -212,6 +212,36 @@ else:
         self.assertEqual((third.state, third.reply, third.branch), ('replied', 'done', 'draft/a'))
         self.assertEqual(backend._adopting, {})
 
+    def test_orphaned_adopt_refused_is_not_retried_on_later_polls(self):
+        """If `adopt` refuses right away (e.g. another adopt is already
+        driving the run, or the status read was stale) and the pod keeps
+        reporting "orphaned" because nothing is actually driving it, the
+        backend must not spawn a fresh adopt on every poll -- "at most once
+        per run per editor process" (see agents.py's class docstring), not
+        "at most once while the last attempt is still alive"."""
+        calls = self.root / 'adopt-calls.log'
+        script = self.root / 'status.py'
+        script.write_text(f'''#!/usr/bin/env python3
+import sys
+import json
+from pathlib import Path
+
+calls = Path({str(calls)!r})
+if sys.argv[1] == 'adopt':
+    with calls.open('a') as fh:
+        fh.write(sys.argv[2] + chr(10))
+    sys.exit(1)
+else:
+    print(json.dumps(dict(state='orphaned')))
+''')
+        os.chmod(script, 0o755)
+        backend = ForkSandboxBackend(str(script))
+        for _ in range(5):
+            status = backend.poll('/run/example')
+            time.sleep(0.05)
+        self.assertEqual(status.state, 'working')
+        self.assertEqual(calls.read_text().splitlines(), ['/run/example'])
+
     def _peek_script(self, body):
         script = self.root / 'peek.py'
         script.write_text('#!/usr/bin/env python3\n' + body)
