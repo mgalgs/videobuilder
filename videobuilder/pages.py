@@ -252,7 +252,9 @@ LIBRARY_STYLE = (
 )
 
 LIB_DETAIL_STYLE = (
-    '.lib-detail{position:relative;border:1px solid #26262c;border-radius:16px;background:#141417;color:#f4f4f2;'
+    # fixed, never relative: a modal <dialog> left non-fixed opens at the top of the page,
+    # not of the screen, so a tap far down the library pops it up out of sight.
+    '.lib-detail{position:fixed;border:1px solid #26262c;border-radius:16px;background:#141417;color:#f4f4f2;'
     'padding:1.5rem 1.25rem 1.25rem;max-width:440px;width:calc(100vw - 32px);box-sizing:border-box;'
     'box-shadow:0 30px 80px rgba(0,0,0,.6)}'
     '.lib-detail::backdrop{background:rgba(0,0,0,.65)}'

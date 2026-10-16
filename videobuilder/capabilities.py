@@ -672,7 +672,7 @@ _PAGE_SCRIPT = """
 
 _ADD_CAPABILITY_STYLE = """
 #add-capability{margin-left:auto}
-.cap-dialog{position:relative;border:1px solid #26262c;border-radius:16px;background:#141417;color:#f4f4f2;
+.cap-dialog{position:fixed;border:1px solid #26262c;border-radius:16px;background:#141417;color:#f4f4f2;
   padding:1.5rem 1.25rem 1.25rem;max-width:480px;width:calc(100vw - 32px);box-sizing:border-box;
   box-shadow:0 30px 80px rgba(0,0,0,.6)}
 .cap-dialog::backdrop{background:rgba(0,0,0,.65)}
