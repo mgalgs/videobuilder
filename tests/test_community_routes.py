@@ -173,6 +173,29 @@ class Submission(fixtures.AccountMixin, fixtures.LibraryFixture, unittest.TestCa
                                       headers=headers)[:2]
         self.assertEqual(code, 409, err)
 
+    def test_concurrent_sends_create_at_most_one_note(self):
+        import threading
+        _, _, dana = self.signup('dana', 'longenoughpassword')
+        headers = {'Content-Type': 'application/json', 'Cookie': dana}
+        created = self.request('/api/capabilities/new', {'files': 1}, headers=headers)[1]
+        results = [None, None]
+
+        def fire(i):
+            results[i] = self.request_full(f'/api/capabilities/{created["slug"]}/send', {'attachments': []},
+                                           headers=headers)[:2]
+        threads = [threading.Thread(target=fire, args=(i,)) for i in range(2)]
+        for t in threads:
+            t.start()
+        for t in threads:
+            t.join()
+        codes = sorted(code for code, _ in results)
+        self.assertEqual(codes, [200, 409], results)
+        note = next(data for code, data in results if code == 200)
+        record = self.library.community.get(created['slug'])
+        self.assertEqual(record['note'], note['id'])
+        notes = self.library.editor(created['name']).notes.list(refresh=False)
+        self.assertEqual(len(notes), 1)
+
     def test_send_by_non_owner_is_404(self):
         _, _, dana = self.signup('dana', 'longenoughpassword')
         _, _, other = self.signup('other', 'longenoughpassword')
@@ -201,6 +224,22 @@ class Submission(fixtures.AccountMixin, fixtures.LibraryFixture, unittest.TestCa
         code, data, _ = self.request_full('/api/capabilities/new', {'files': 1}, headers=headers)
         self.assertEqual(code, 429, data)
         self.assertEqual(self.library.names(), ['acme/launch'])
+
+    def test_capability_daily_cap_is_separate_from_the_note_cap(self):
+        _, _, dana = self.signup('dana', 'longenoughpassword')
+        headers = {'Content-Type': 'application/json', 'Cookie': dana}
+        for _ in range(community.CAPABILITY_DAILY_CAP):
+            code, data = self.request('/api/capabilities/new', {'files': 1}, headers=headers)
+            self.assertEqual(code, 201, data)
+        code, data, _ = self.request_full('/api/capabilities/new', {'files': 1}, headers=headers)
+        self.assertEqual(code, 429, data)
+        self.assertEqual(data['error'],
+                         f"You've submitted {community.CAPABILITY_DAILY_CAP} capabilities today. Try again tomorrow.")
+        admin = self.admin_login()
+        admin_headers = {'Content-Type': 'application/json', 'Cookie': admin}
+        for _ in range(community.CAPABILITY_DAILY_CAP + 1):
+            code, data = self.request('/api/capabilities/new', {'files': 1}, headers=admin_headers)
+            self.assertEqual(code, 201, data)  # admins are exempt
 
     def test_failed_send_can_be_retried(self):
         # Library.account_daily_note_cap is only a constructor-time default for each
