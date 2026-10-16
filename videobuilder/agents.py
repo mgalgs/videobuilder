@@ -40,9 +40,23 @@ the pin predates the compendium -- NoteStore._submit calls it (via `getattr`,
 the same optional-attribute pattern as `peek`) to decide whether the builder's
 prompt gets the "Start from the compendium" section. Other backends simply
 don't have the attribute, which reads as "can't tell" there too.
+
+On Kubernetes, a poll's raw state can also be "orphaned": the driver process
+that was going to wait for the pod and collect its branch is dead, but the
+pod itself is still alive. ForkSandboxBackend reacts by starting
+`<executable> adopt <run-dir>` in the background -- at most one such process
+per run-dir per backend instance -- and reports the note as plain "working"
+rather than exposing "orphaned" any further; the adopt process is reaped
+(never left a zombie) on a later poll, and its stderr is logged on a nonzero
+exit. Nothing else is done with the result: the following poll's raw state,
+once adopt has either collected the run or given up, decides the note's fate
+as usual. A "failed" state that also carries a "reason" (the driver died
+before the note ever got a normal chance to fail) is turned into a
+plain-language reply instead of leaving the note with no error text at all.
 """
 import fcntl
 import json
+import logging
 import re
 import tempfile
 import subprocess
@@ -53,6 +67,8 @@ from pathlib import Path
 from .gitutil import git
 from .notes import AgentBackend, AgentStatus, NullBackend
 from .workers import pin_for, pinned_version
+
+_logger = logging.getLogger(__name__)
 
 
 def run(argv):
@@ -116,6 +132,7 @@ class ForkSandboxBackend(AgentBackend):
         self.context_root = Path(context_root).resolve() if context_root else None
         self.context_mount = context_mount
         self.videobuilder_repo = videobuilder_repo
+        self._adopting = {}  # run-dir -> (Popen, stderr tempfile), while this process's adopt runs
         if self.context_root and not self.context_root.is_relative_to(CONTEXT_STAGING_ROOT):
             raise ValueError(f"editor.agent.context_root must be under {CONTEXT_STAGING_ROOT}")
         if '--k8s' in self.extra_args:
@@ -185,22 +202,57 @@ class ForkSandboxBackend(AgentBackend):
                     note['project'], note['note_file']])
 
     def poll(self, handle):
+        self._reap_adoptions()
         data = json.loads(run([self.executable, *self.poll_args, handle]))
+        state = data['state']
+        if state == 'orphaned':
+            self._adopt(handle)
+            state = 'working'
         reply = data.get('reply')
-        if data['state'] == 'replied' and reply is None:
+        if state == 'replied' and reply is None:
             path = Path(data.get('reply_file') or Path(handle) / 'outbox/reply.md')
             if path.is_file():
                 reply = path.read_text(encoding='utf-8')
         if reply:
             reply = re.sub(r'^== result:[^\n]*==\n+', '', reply)
+        if state == 'failed' and data.get('reason'):
+            reply = ("The build was interrupted when the editor restarted, and its work "
+                     "couldn't be recovered. Retry the note.")
         # total_cost_usd spans every leg of the run (review and fix legs too);
         # cost_usd is the first leg's alone. Token counts are under `usage`.
         cost = data.get('total_cost_usd', data.get('cost_usd'))
         if isinstance(cost, bool) or not isinstance(cost, (int, float)):
             cost = None
         tokens = data.get('usage', data.get('tokens'))
-        return AgentStatus(data['state'], reply, data.get('branch'), cost,
+        return AgentStatus(state, reply, data.get('branch'), cost,
                            tokens if isinstance(tokens, dict) else None)
+
+    def _adopt(self, handle):
+        """Start `adopt <handle>` in the background, unless an adopt process this
+        backend instance already started for `handle` is still alive -- "at most
+        one per run per editor process" (see the class docstring)."""
+        self._reap_adoptions()
+        if handle in self._adopting:
+            return
+        stderr = tempfile.TemporaryFile()
+        process = subprocess.Popen([self.executable, 'adopt', handle], stdin=subprocess.DEVNULL,
+                                   stdout=subprocess.DEVNULL, stderr=stderr)
+        self._adopting[handle] = (process, stderr)
+
+    def _reap_adoptions(self):
+        """Collect any adopt process started by this backend instance that has
+        since exited, so it never lingers as a zombie; a nonzero exit is logged
+        and otherwise ignored, since the next ordinary poll decides the note's
+        fate (see the class docstring)."""
+        for handle, (process, stderr) in list(self._adopting.items()):
+            if process.poll() is None:
+                continue
+            del self._adopting[handle]
+            if process.returncode:
+                stderr.seek(0)
+                reason = stderr.read().decode('utf-8', 'replace').strip()[-2000:]
+                _logger.warning('fork-sandbox adopt %s exited %s: %s', handle, process.returncode, reason)
+            stderr.close()
 
     def _peek(self, handle, file=None, after=0):
         """Live transcript bytes for an in-flight cluster run (see the class

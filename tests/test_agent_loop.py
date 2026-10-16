@@ -152,6 +152,66 @@ else:
         status = backend.poll('/run/example')
         self.assertEqual((status.cost_usd, status.tokens), (None, None))
 
+    @patch('videobuilder.agents.run')
+    def test_fork_sandbox_failed_with_reason_gets_plain_text(self, run):
+        backend = ForkSandboxBackend('runner', ['start'], ['query', '--json'])
+        run.return_value = json.dumps(dict(state='failed', reason='the pod finished before anything collected it'))
+        status = backend.poll('/run/example')
+        self.assertEqual(status.state, 'failed')
+        self.assertIn("couldn't be recovered", status.reply)
+        self.assertIn('Retry the note', status.reply)
+
+    @patch('videobuilder.agents.run')
+    def test_fork_sandbox_failed_without_reason_is_unchanged(self, run):
+        backend = ForkSandboxBackend('runner', ['start'], ['query', '--json'])
+        run.return_value = json.dumps(dict(state='failed', reply='could not apply the patch'))
+        self.assertEqual(backend.poll('/run/example').reply, 'could not apply the patch')
+        run.return_value = json.dumps(dict(state='failed'))
+        self.assertIsNone(backend.poll('/run/example').reply)
+
+    def test_orphaned_starts_one_adopt_and_a_later_poll_lands_normally(self):
+        """A dead k8s driver with its pod still alive (see agents.py's class
+        docstring): `status --json` reports "orphaned" until `adopt` has
+        collected the run, at which point it reports the ordinary final
+        state. Repeated polls while adopt is still running must not start a
+        second one, and the note must not surface "orphaned" itself."""
+        marker = self.root / 'adopted'
+        calls = self.root / 'adopt-calls.log'
+        script = self.root / 'status.py'
+        script.write_text(f'''#!/usr/bin/env python3
+import json
+import sys
+import time
+from pathlib import Path
+
+marker = Path({str(marker)!r})
+calls = Path({str(calls)!r})
+if sys.argv[1] == 'adopt':
+    with calls.open('a') as fh:
+        fh.write(sys.argv[2] + chr(10))
+    time.sleep(0.3)
+    marker.write_text('done')
+else:
+    if marker.exists():
+        print(json.dumps(dict(state='replied', reply='done', branch='draft/a')))
+    else:
+        print(json.dumps(dict(state='orphaned')))
+''')
+        os.chmod(script, 0o755)
+        backend = ForkSandboxBackend(str(script))
+        first = backend.poll('/run/example')
+        second = backend.poll('/run/example')
+        self.assertEqual((first.state, second.state), ('working', 'working'))
+        self.assertEqual(calls.read_text().splitlines(), ['/run/example'])
+        deadline = time.time() + 5
+        while not marker.exists() and time.time() < deadline:
+            time.sleep(0.02)
+        self.assertTrue(marker.exists())
+        time.sleep(0.1)  # give the now-finished adopt process time to actually exit
+        third = backend.poll('/run/example')
+        self.assertEqual((third.state, third.reply, third.branch), ('replied', 'done', 'draft/a'))
+        self.assertEqual(backend._adopting, {})
+
     def _peek_script(self, body):
         script = self.root / 'peek.py'
         script.write_text('#!/usr/bin/env python3\n' + body)
