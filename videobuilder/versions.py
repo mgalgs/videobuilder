@@ -5,6 +5,7 @@ import re
 import subprocess
 
 from .drafts import git
+from .library import BLANK_SUMMARY
 from .notes import FINAL
 from .workers import pin_for, pinned_version
 
@@ -55,7 +56,10 @@ class Versions:
                     continue
             raw = git(root, 'show', '-s', '--format=%s%x00%an%x00%aI%x00%B', sha).split('\0')
             meta = trailers(raw[3])
-            result.append(dict(n=n, commit=sha, summary=raw[0], kind=meta.get('Version-kind', 'push'),
+            kind = meta.get('Version-kind', 'push')
+            if n == 1 and kind == 'push' and raw[0] == BLANK_SUMMARY and raw[1] == 'Video Editor':
+                kind = 'blank'
+            result.append(dict(n=n, commit=sha, summary=raw[0], kind=kind,
                                author=raw[1], directed_by=meta.get('Directed-by'), note=meta.get('Note'),
                                restores=meta.get('Restores'), time=raw[2],
                                renders=self.editor.renders.states(video, sha)))

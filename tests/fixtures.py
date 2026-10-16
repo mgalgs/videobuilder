@@ -762,6 +762,9 @@ class Auth(AccountMixin, LibraryFixture, unittest.TestCase):
         self.assertEqual(code, 201, result)
         code, access = self.request('/v/acme/dana-video/api/access', headers={'Cookie': dana})
         self.assertEqual((code, access['owner']), (200, 'dana'))
+        # Its only version is the empty start, which the director never plays.
+        code, data = self.request('/v/acme/dana-video/api/versions?video=film', headers={'Cookie': dana})
+        self.assertEqual((code, [(v['n'], v['kind']) for v in data['versions']]), (200, [(1, 'blank')]))
 
     def test_copy_start_refuses_a_source_the_user_cannot_access(self):
         # Unlike /api/library/new (admin-only, so admins always have access to

@@ -179,7 +179,7 @@ function frameUrl() {
 function updateLabels() {
   const v=currentVersion();
   if(!v)return;
-  const label=`v${v.n} · ${relative(v.time)}`;
+  const label=v.kind==='blank'?'Not built yet':`v${v.n} · ${relative(v.time)}`;
   $('version-label').textContent=label;
   $('rail-version').textContent=`v${v.n}`;
   $('caption-by').textContent=`Builder · v${v.n}`;
@@ -249,6 +249,10 @@ async function loadPlayer(retry=false) {
   player.poster=poster;
   $('poster').src=poster;
   const v=currentVersion();
+  if(v?.kind==='blank') {
+    showBlank();
+    return
+  }
   if(retry) {
     try {
       await json('video/retry',null, {
@@ -298,6 +302,17 @@ async function loadPlayer(retry=false) {
     $('poster').hidden=false;
     setPlayState('play')
   }
+}
+// A new video's first commit is an empty frame for the builder to start
+// from, not a version anyone made: never render or play it.
+function showBlank() {
+  const building=state.notes.some(n=>['gathering','queued','working'].includes(n.state));
+  $('poster').hidden=true;
+  $('retry-render').hidden=true;
+  $('render-status').hidden=false;
+  $('render-text').textContent=building
+    ? 'The builder is making your first version. It plays here when it\'s ready.'
+    : 'Nothing built yet. Say what you want below and the builder makes the first version.';
 }
 function playVersion(v,deliberate) {
   state.commit=v.commit;
@@ -736,6 +751,7 @@ async function loadNotes() {
     const next=JSON.stringify(state.notes.map(n=>[n.id,n.state,n.version?.commit]));
     if(prev!==next) {
       renderNotes();
+      if(currentVersion()?.kind==='blank')showBlank();
       if(state.notes.some(n=>n.version))loadVersions()
     }
     // Clear only the poll's own error, never one from a send the director made.
@@ -753,6 +769,7 @@ function versionMeta(v) {
   switch(v.kind) {
     case 'builder':return `Builder, from ${who} · ${relative(v.time)}`;
     case 'edit':return `${who}, fine tuning · ${relative(v.time)}`;
+    case 'blank':return `Empty start, nothing built · ${relative(v.time)}`;
     case 'upgrade':return `${who}, upgraded videobuilder · ${relative(v.time)}`;
     case 'restore': {
       const n = state.versions.find(x => x.commit === v.restores)?.n || '?';

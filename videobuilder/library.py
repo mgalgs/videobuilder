@@ -15,6 +15,9 @@ from .pages import signin_page, signup_page
 
 
 PART = re.compile(r'[a-z0-9][a-z0-9._-]{0,62}\Z')
+# versions.history also matches this subject, for blank videos made before
+# the commit carried a Version-kind trailer.
+BLANK_SUMMARY = 'Start a new video'
 
 
 def valid_name(name):
@@ -234,7 +237,8 @@ class Library:
         req_blob = git(None, 'hash-object', '-w', '--stdin', input=requirements, git_dir=target, hooks=False)
         tree_input = f'100644 blob {film_blob}\tfilm.py\n100644 blob {req_blob}\trequirements.txt\n'
         tree = git(None, 'mktree', input=tree_input, git_dir=target, hooks=False)
-        commit = git(None, 'commit-tree', tree, input='Start a new video\n', env=env, git_dir=target, hooks=False)
+        commit = git(None, 'commit-tree', tree, input=f'{BLANK_SUMMARY}\n\nVersion-kind: blank\n', env=env,
+                     git_dir=target, hooks=False)
         git(None, 'update-ref', 'refs/heads/main', commit, git_dir=target, hooks=False)
         return {'name': name, 'commit': commit, 'video': 'film'}
 
