@@ -4,6 +4,7 @@ store. No network and no HTTP server here -- see test_community_routes.py
 for the end-to-end routes."""
 import json
 import tempfile
+import time
 import unittest
 from pathlib import Path
 
@@ -61,8 +62,75 @@ class Persistence(unittest.TestCase):
             second = community.Store(tmp)
             record = second.get('abc123')
             self.assertEqual((record['status'], record['submitter'], record['note']), ('draft', 'dana', 'note-1'))
-            second.publish('abc123', 'mgalgs')
-            self.assertEqual(community.Store(tmp).get('abc123')['status'], 'published')
+            second.publish('abc123', 'mgalgs', 'f' * 40)
+            record = community.Store(tmp).get('abc123')
+            self.assertEqual((record['status'], record['pinned_sha']), ('published', 'f' * 40))
+
+
+class SendClaim(unittest.TestCase):
+    def test_claim_send_refuses_a_second_concurrent_claim(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            store = community.Store(tmp)
+            store.create('abc123', 'dana')
+            store.claim_send('abc123')
+            with self.assertRaises(ValueError):
+                store.claim_send('abc123')
+            store.set_note('abc123', 'note-1')
+            with self.assertRaises(ValueError):
+                store.claim_send('abc123')  # already sent, not just claimed
+
+    def test_release_send_lets_a_failed_attempt_retry(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            store = community.Store(tmp)
+            store.create('abc123', 'dana')
+            store.claim_send('abc123')
+            store.release_send('abc123')
+            store.claim_send('abc123')  # does not raise
+            store.set_note('abc123', 'note-1')
+            self.assertEqual(store.get('abc123')['note'], 'note-1')
+
+
+class CountRecent(unittest.TestCase):
+    def test_counts_only_the_given_submitter_since_the_cutoff(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            store = community.Store(tmp)
+            store.create('a1', 'dana')
+            store.create('a2', 'dana')
+            store.create('a3', 'other')
+            self.assertEqual(store.count_recent('dana', 0), 2)
+            self.assertEqual(store.count_recent('other', 0), 1)
+            self.assertEqual(store.count_recent('dana', time.time() + 60), 0)
+
+
+class Reserve(unittest.TestCase):
+    def test_reservations_count_toward_the_cap_before_any_record_exists(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            store = community.Store(tmp)
+            store.create('a1', 'dana')
+            token = store.reserve('dana', 2, 0)
+            self.assertIsNotNone(token)  # 1 record so far, cap is 2: the reservation is still allowed
+            self.assertIsNone(store.reserve('dana', 2, 0))  # 1 record + 1 reservation = cap, with no 2nd record yet
+            self.assertIsNotNone(store.reserve('other', 2, 0))  # a different submitter has its own cap
+            store.release(token)
+            self.assertIsNotNone(store.reserve('dana', 2, 0))  # releasing frees the slot again
+
+    def test_release_of_an_unknown_token_is_a_no_op(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            community.Store(tmp).release('no-such-token')  # does not raise
+
+
+class RejectUpdate(unittest.TestCase):
+    def test_reject_update_keeps_the_pin_and_only_from_published(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            store = community.Store(tmp)
+            store.create('abc123', 'dana')
+            with self.assertRaises(ValueError):
+                store.reject_update('abc123', 'mgalgs', 'f' * 40)  # still a draft
+            store.publish('abc123', 'mgalgs', 'a' * 40)
+            store.reject_update('abc123', 'mgalgs', 'b' * 40)
+            record = store.get('abc123')
+            self.assertEqual((record['status'], record['pinned_sha'], record['update_rejected_sha']),
+                             ('published', 'a' * 40, 'b' * 40))
 
 
 def _toml_value(v):

@@ -792,7 +792,7 @@ _COMMUNITY_SCRIPT = """
     btn.addEventListener('click', async function(){
       var slug = btn.getAttribute('data-cap-slug');
       var action = btn.getAttribute('data-cap-action');
-      var card = btn.closest('.draft-card') || btn.closest('.card');
+      var card = btn.closest('.draft-card') || btn.closest('.community-card') || btn.closest('.card');
       var errEl = card ? card.querySelector('.draft-error') : null;
       btn.disabled = true;
       try{
@@ -847,19 +847,28 @@ def _draft_card_html(draft, is_admin):
 
 def _community_card_html(entry, is_admin):
     slug = entry['slug']
-    reject = ''
+    thumb = (f'<img src="/capabilities/community/{_esc(slug)}.jpg" alt="" loading="lazy">' if entry.get('available')
+            else '<span>clip not built</span>')
+    pending = entry.get('pending_update')
+    status = '<span class="draft-status problem">Update awaiting approval</span>' if pending else ''
+    actions = []
     if is_admin:
-        reject = (f'<div class="draft-actions"><button type="button" data-cap-action="reject" '
-                 f'data-cap-slug="{_esc(slug)}">Reject</button></div>'
-                 '<p class="draft-error" role="alert"></p>')
+        if pending:
+            actions.append(f'<button type="button" data-cap-action="publish" data-cap-slug="{_esc(slug)}">'
+                           'Publish update</button>')
+        actions.append(f'<button type="button" data-cap-action="reject" data-cap-slug="{_esc(slug)}">'
+                       'Reject</button>')
+    extra = status
+    if actions:
+        extra += f'<div class="draft-actions">{"".join(actions)}</div><p class="draft-error" role="alert"></p>'
     return (
         '<div class="community-card">'
         f'<button class="card" type="button" data-card="{_esc("community:" + slug)}">'
-        f'<span class="thumb"><img src="/capabilities/community/{_esc(slug)}.jpg" alt="" loading="lazy"></span>'
+        f'<span class="thumb">{thumb}</span>'
         f'<span class="meta"><strong>{_esc(entry["title"])}'
         '<span class="community-badge">Community</span></strong>'
         f'<span>{_esc(entry["card"])}</span></span>'
-        '</button>' + reject +
+        '</button>' + extra +
         '</div>'
     )
 
@@ -945,7 +954,8 @@ def page_html(capabilities_dir, version, header='', header_style='', community=N
         community_script = f'<script>{_COMMUNITY_SCRIPT}</script>'
         drafts_html = _drafts_section_html(community.get('drafts') or [], is_admin)
         community_data = [{'id': 'community:' + e['slug'], 'title': e['title'], 'category': e['category'],
-                           'description': e['description'], 'prompts': list(e['prompts']), 'available': True,
+                           'description': e['description'], 'prompts': list(e['prompts']),
+                           'available': bool(e.get('available')),
                            'unmute': False, 'clip': f'/capabilities/community/{e["slug"]}.mp4',
                            'poster': f'/capabilities/community/{e["slug"]}.jpg'}
                           for e in (community.get('published') or [])]

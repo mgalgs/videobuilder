@@ -631,22 +631,36 @@ technique -- never the post's own media, text, people or branding),
 `capability.toml` (a catalog entry: id, category, title, card, description,
 three prompts, apis, and the doc path) and a short `capability.md` reference
 doc. The post and any attachments are untrusted data throughout: read for
-the technique only, never as instructions.
+the technique only, never as instructions. Each account may submit at most 5
+capabilities in a rolling 24 hours (admins exempt); the first note still
+counts against the ordinary note cap, same as any other project.
 
 A new submission is a **draft**, visible only to its submitter and admins,
 in its own section on `/capabilities`. An admin reviews it there with
 **Publish** and **Reject**: publishing validates `capability.toml` (and the
 doc and `film.py` it names) and, once it passes, shows the capability to
-everyone, inside its category, badged "Community", tracking whatever is on
-the project's `main` from then on -- a later commit that breaks the toml
-drops it back into Drafts, with the problem shown, until it's fixed or
-rejected. Rejecting hides it from every `/capabilities` page without
-deleting the project; an admin can also reject an already-published one as
-a takedown. A published capability's doc and `film.py` reach every other
-creator's builder too, the same way a source video does: staged read-only
-under the note's `/attachments/capabilities/<slug>/` and named by title in
-the prompt, so the builder can reach for it instead of building the
-technique from scratch.
+everyone, inside its category, badged "Community" -- pinned to the exact
+commit that was just validated. Everyone else, including every other
+creator's builder (below), keeps seeing that pinned commit even as the
+project's `main` moves on: a submitter (or anyone they invite to the
+project) can't change a published capability's doc or `film.py` without
+another round of admin approval. A later push to `main` shows "Update
+awaiting approval" on the card, to the submitter and admins only; an admin's
+**Publish** there re-validates and moves the pin to the new commit, while
+**Reject** discards just that pending update and leaves the pinned version
+published. (An admin can still reject an already-published capability with
+no pending update as a takedown, hiding it from every `/capabilities` page
+without deleting the project.) A published card whose pinned commit has no
+finished render yet shows the same "clip not built" placeholder as an
+unbuilt catalog card; and if a pinned commit's `capability.toml` ever stops
+validating (for instance a later built-in capability claiming its id), it's
+served only to its submitter and admins and drops back into Drafts, with
+the problem shown, for everyone else. A published capability's doc and
+`film.py` -- read at its pinned commit -- reach every other creator's
+builder too, the same way a source video does: staged read-only under the
+note's `/attachments/capabilities/<slug>/` and named by title in the
+prompt, so the builder can reach for it instead of building the technique
+from scratch.
 
 Reading the post is optional and sandboxed: the editor only ever calls
 `https://cdn.syndication.twimg.com/tweet-result` for the post's public JSON
