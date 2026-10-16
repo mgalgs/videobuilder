@@ -7,6 +7,7 @@ import sys
 import traceback
 from urllib.parse import parse_qs, quote, unquote, urlparse
 
+from . import community
 from .capabilities import showcase_available
 from .editor import HTTPError, _field, _need
 from .handler_auth import _key_in_scope
@@ -231,6 +232,8 @@ class LibraryHandler:
                     try:
                         result = library.submit_capability(user, body.get('url'), body.get('capture'),
                                                             body.get('files', 0))
+                    except community.FailedRead as exc:
+                        raise HTTPError(422, str(exc)) from None
                     except ValueError as exc:
                         raise HTTPError(400, str(exc)) from None
                     return self._json(201, result)

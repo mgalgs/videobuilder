@@ -219,7 +219,8 @@ def cmd_editor(a):
                           compendium_for_builder=a.compendium_for_builder,
                           account_daily_note_cap=note_cap, account_daily_cost_cap_usd=cost_cap,
                           source_max_mb=a.source_max_mb, source_max_total_mb=a.source_max_total_mb,
-                          capability_agent_extra_args=a.capability_agent_extra_arg)
+                          capability_agent_extra_args=a.capability_agent_extra_arg,
+                          capability_fetch=not a.no_capability_fetch)
         else:
             if not a.project:
                 raise ValueError('provide PROJECT or --library DIR')
@@ -237,6 +238,8 @@ def cmd_editor(a):
                                  'set [editor] source_max_mb / source_max_total_mb in the project config instead')
             if a.capability_agent_extra_arg is not None:
                 raise ValueError('--capability-agent-extra-arg … only for --library mode')
+            if a.no_capability_fetch:
+                raise ValueError('--no-capability-fetch is only for --library mode')
             serve(a.project, host=a.host, port=a.port, state_dir=a.state_dir, open_browser=a.open,
                   agent=agent, allowed_hosts=a.allow_host, unsandboxed_previews=a.unsandboxed_previews,
                   envs=a.envs, sync_remote=a.sync_remote, capabilities_dir=a.capabilities_dir,
@@ -428,6 +431,9 @@ def main(argv=None):
                         'plus a heavier default (--review-loop 2 --maintainer-loop 1 --review-model M '
                         '--maintainer-model M when --agent-extra-arg names a --model M, else just '
                         '--review-loop 2)')
+    d.add_argument('--no-capability-fetch', action='store_true',
+                   help='--library mode only: never read the X post a capability submission names; the '
+                        'dialog then asks only for files')
     d.set_defaults(fn=cmd_editor)
 
     cap = sub.add_parser('capabilities', help="the capabilities catalog's clips and builder sheet")

@@ -92,6 +92,20 @@ class Cli(unittest.TestCase):
         self.assertIn('--capability-agent-extra-arg', str(e.exception))
         self.assertIn('only for --library mode', str(e.exception))
 
+    def test_editor_no_capability_fetch_flag(self):
+        from unittest import mock
+        from videobuilder.cli import main
+        with mock.patch('videobuilder.editor.serve_library') as serve_library:
+            main(['editor', '--library', 'lib'])
+        self.assertTrue(serve_library.call_args.kwargs['capability_fetch'])
+        with mock.patch('videobuilder.editor.serve_library') as serve_library:
+            main(['editor', '--library', 'lib', '--no-capability-fetch'])
+        self.assertFalse(serve_library.call_args.kwargs['capability_fetch'])
+        with self.assertRaises(SystemExit) as e:
+            main(['editor', 'proj', '--no-capability-fetch'])
+        self.assertIn('--no-capability-fetch', str(e.exception))
+        self.assertIn('only for --library mode', str(e.exception))
+
 
 class Edit(unittest.TestCase):
     """`edit roll` and `edit copy` write the film's film.edits.toml, or refuse and leave it."""

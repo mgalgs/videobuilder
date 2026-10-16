@@ -26,10 +26,10 @@ class Library:
                  backend=None, agent=None, unsandboxed_previews=False, envs=None, admins=(), capabilities_dir=None,
                  compendium_dir=None, music_sources=None, account_daily_note_cap=None, account_daily_cost_cap_usd=None,
                  compendium_for_builder=None, source_max_mb=None, source_max_total_mb=None,
-                 capability_agent_extra_args=None):
+                 capability_agent_extra_args=None, capability_fetch=True):
         self.capabilities_dir = capabilities_dir
         self.capability_agent_extra_args = capability_agent_extra_args
-        self.capability_fetch = True
+        self.capability_fetch = capability_fetch
         self.compendium_dir = compendium_dir
         self.root = Path(root).resolve()
         self.repos = self.root / 'repos'
@@ -243,27 +243,58 @@ class Library:
         the reserved `capabilities/<slug>` project and its draft record. `files`
         is how many files the browser is about to upload in step 2 (POST
         /v/capabilities/<slug>/api/attachments, the ordinary upload route); at
-        least one of a URL or a file is required. Reading `url` (when the
-        editor's fetch flag allows it) happens in this same method once
-        xpost.py exists; until then it is accepted but never fetched, and the
-        new draft's `post` stays null."""
+        least one of a URL or a file is required.
+
+        When `url` is given and self.capability_fetch is on, it is read right
+        here (xpost.read_post) before anything is created: a malformed URL
+        raises ValueError (400, no network call ever made -- xpost.parse_url
+        refuses it first); a URL that reads but fails raises FailedRead (422)
+        only when there are no files either -- with files given, the project
+        is still created and the failure is reported back as `read.error`
+        instead. Fetched media is uploaded as this draft's first attachments.
+        When fetching is off, `url` is accepted but never read, and the new
+        draft's `post` stays null."""
         if not isinstance(files, int) or isinstance(files, bool) or files < 0:
             raise ValueError('files must be a non-negative integer')
         if url is not None and not isinstance(url, str):
             raise ValueError('url must be a string')
         if capture is not None and not isinstance(capture, str):
             raise ValueError('capture must be a string')
-        if not (url and url.strip()) and files < 1:
+        url = url.strip() if url else None
+        if not url and files < 1:
             raise ValueError('give a URL or drop at least one file')
         is_admin = bool(self.accounts and self.accounts.is_admin(user))
         self.check_note_cap(user, is_admin)
+        read = post = None
+        media = []
+        if url and self.capability_fetch:
+            from . import xpost
+            xpost.parse_url(url)  # malformed -> ValueError (400), before any network call
+            result = xpost.read_post(url)
+            read = {'error': None if result.ok else community.READ_FAILED}
+            if not result.ok and files < 1:
+                raise community.FailedRead(community.READ_FAILED)
+            if result.text or result.handle:
+                post = {'url': url, 'handle': result.handle, 'text': result.text}
+            media = result.media
         slug = community.new_slug()
         name = f'{community.NAMESPACE}/{slug}'
         result = self.create_blank(name, allow_reserved=True)
         if self.accounts:
             self.access.set_owner(name, user, self.accounts)
-        self.community.create(slug, user, capture=(capture.strip() or None) if capture else None)
-        return {'name': name, 'slug': slug, 'video': result['video'], 'attachments': [], 'read': None}
+        fetched_ids = []
+        if media:
+            editor = self.editor(name)
+            vid = editor.project.videos()[0].id
+            for media_name, ctype, data in media:
+                try:
+                    record = editor.attachments.upload(vid, media_name, ctype, data)
+                except ValueError:
+                    continue
+                fetched_ids.append(record['id'])
+        self.community.create(slug, user, post=post, capture=(capture.strip() or None) if capture else None,
+                              fetched=fetched_ids)
+        return {'name': name, 'slug': slug, 'video': result['video'], 'attachments': fetched_ids, 'read': read}
 
     def send_capability(self, user, slug, attachment_ids):
         """Step 3 (POST /api/capabilities/<slug>/send): creates the draft's

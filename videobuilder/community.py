@@ -17,6 +17,12 @@ NAMESPACE = 'capabilities'
 READ_FAILED = "Couldn't read that post. Drop the clip or a screenshot instead."
 
 
+class FailedRead(Exception):
+    """Raised by Library.submit_capability when reading a given URL failed
+    and the submitter gave no files either: the route answers 422 with
+    READ_FAILED, and nothing is created."""
+
+
 def is_reserved(name):
     """Whether `name` -- a library project name, or a bare username -- collides
     with the reserved namespace every community capability lives under:

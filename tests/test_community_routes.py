@@ -1,15 +1,35 @@
 """HTTP-level tests for the community-capabilities feature: the reserved
-namespace end to end (commit 2), then submission (commit 3). Drafts/publish
-and the X-post reader land in later commits; every test that sends an X post
-URL will mock videobuilder.xpost._open -- no test here touches the network."""
+namespace end to end (commit 2), then submission, drafts/publish and the
+builder context in later commits. Every test that sends an X post URL mocks
+videobuilder.xpost._open -- no test here touches the network."""
 import json
 import tempfile
 import unittest
 import urllib.request
 from pathlib import Path
+from unittest import mock
 
+from videobuilder import community, xpost
 from videobuilder.library import Library
 from tests import fixtures
+from tests.test_xpost import _FakeResponse
+
+SYNTHETIC_POST = {
+    'text': 'A neat zoom transition on the logo, worth stealing.',
+    'user': {'screen_name': 'example_creator'},
+    'mediaDetails': [{'type': 'photo', 'media_url_https': 'https://pbs.twimg.com/media/fake1.jpg'}],
+    'video': {'variants': [{'type': 'video/mp4', 'src': 'https://video.twimg.com/vid/640x360/clip.mp4'}]},
+}
+_JPEG = b'\xff\xd8\xff' + b'0' * 20
+_MP4 = b'\x00\x00\x00\x20ftypisom' + b'0' * 20
+
+
+def _successful_read_responses(id):
+    return [
+        _FakeResponse(json.dumps(SYNTHETIC_POST).encode(), xpost.syndication_url(id)),
+        _FakeResponse(_JPEG, 'https://pbs.twimg.com/media/fake1.jpg'),
+        _FakeResponse(_MP4, 'https://video.twimg.com/vid/640x360/clip.mp4'),
+    ]
 
 
 class Reserved(fixtures.AccountMixin, fixtures.LibraryFixture, unittest.TestCase):
@@ -201,6 +221,73 @@ class DialogMarkup(fixtures.AccountMixin, fixtures.LibraryFixture, unittest.Test
         for needle in (b'id="add-capability"', b'id="add-capability-dialog"', b'name="url"',
                       b'id="files-field"', b'name="capture"'):
             self.assertIn(needle, page)
+
+
+class XPostRead(fixtures.AccountMixin, fixtures.LibraryFixture, unittest.TestCase):
+    POST_URL = 'https://x.com/example_creator/status/1585341984679469056'
+    POST_ID = '1585341984679469056'
+
+    @mock.patch('videobuilder.xpost._open')
+    def test_failed_read_without_files_creates_nothing(self, opened):
+        opened.side_effect = OSError('no network')
+        _, _, dana = self.signup('dana', 'longenoughpassword')
+        code, data, _ = self.request_full('/api/capabilities/new', {'url': self.POST_URL, 'files': 0},
+                                          headers={'Content-Type': 'application/json', 'Cookie': dana})
+        self.assertEqual(code, 422, data)
+        self.assertEqual(data['error'], community.READ_FAILED)
+        self.assertEqual(self.library.names(), [])
+        self.assertEqual(self.library.community.all(), {})
+
+    @mock.patch('videobuilder.xpost._open')
+    def test_failed_read_with_files_still_submits(self, opened):
+        opened.side_effect = OSError('no network')
+        _, _, dana = self.signup('dana', 'longenoughpassword')
+        code, created = self.request('/api/capabilities/new', {'url': self.POST_URL, 'files': 1},
+                                     headers={'Content-Type': 'application/json', 'Cookie': dana})
+        self.assertEqual(code, 201, created)
+        self.assertEqual(created['read']['error'], community.READ_FAILED)
+        self.assertTrue(self.library.path(created['name']).exists())
+
+    @mock.patch('videobuilder.xpost._open')
+    def test_successful_read_attaches_media_and_quotes_post(self, opened):
+        opened.side_effect = _successful_read_responses(self.POST_ID)
+        _, _, dana = self.signup('dana', 'longenoughpassword')
+        headers = {'Content-Type': 'application/json', 'Cookie': dana}
+        code, created = self.request('/api/capabilities/new', {'url': self.POST_URL, 'files': 0}, headers=headers)
+        self.assertEqual(code, 201, created)
+        self.assertIsNone(created['read']['error'])
+        self.assertEqual(len(created['attachments']), 2)
+        code, note = self.request(f'/api/capabilities/{created["slug"]}/send', {'attachments': []}, headers=headers)
+        self.assertEqual(code, 200, note)
+        self.assertIn('@example_creator', note['text'])
+        self.assertIn('A neat zoom transition on the logo, worth stealing.', note['text'])
+        self.assertIn('untrusted', note['text'])
+
+    @mock.patch('videobuilder.xpost._open')
+    def test_endpoint_refuses_bad_url_before_network(self, opened):
+        _, _, dana = self.signup('dana', 'longenoughpassword')
+        code, data, _ = self.request_full('/api/capabilities/new', {'url': 'not-a-url', 'files': 0},
+                                          headers={'Content-Type': 'application/json', 'Cookie': dana})
+        self.assertEqual(code, 400, data)
+        opened.assert_not_called()
+
+
+class NoFetch(fixtures.AccountMixin, fixtures.LibraryFixture, unittest.TestCase):
+    def library_kwargs(self):
+        return {**super().library_kwargs(), 'capability_fetch': False}
+
+    @mock.patch('videobuilder.xpost._open')
+    def test_no_fetch_flag_never_fetches_and_hides_url_field(self, opened):
+        _, _, dana = self.signup('dana', 'longenoughpassword')
+        headers = {'Content-Type': 'application/json', 'Cookie': dana}
+        page = self.request('/capabilities', headers={'Cookie': dana})[1]
+        self.assertIn(b'id="add-capability"', page)
+        self.assertNotIn(b'name="url"', page)
+        code, created = self.request('/api/capabilities/new',
+                                     {'url': 'https://x.com/a/status/123', 'files': 1}, headers=headers)
+        self.assertEqual(code, 201, created)
+        self.assertIsNone(created['read'])
+        opened.assert_not_called()
 
 
 class BackendArgs(unittest.TestCase):

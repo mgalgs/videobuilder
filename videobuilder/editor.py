@@ -1010,7 +1010,8 @@ def serve_library(root, host='127.0.0.1', port=8100, checkouts=None, state_dir=N
                   hook=request_hook, agent=None, allowed_hosts=(), unsandboxed_previews=False, envs=None,
                   admins=(), capabilities_dir=None, compendium_dir=None, music_sources=None,
                   account_daily_note_cap=None, account_daily_cost_cap_usd=None, compendium_for_builder=None,
-                  source_max_mb=None, source_max_total_mb=None, capability_agent_extra_args=None):
+                  source_max_mb=None, source_max_total_mb=None, capability_agent_extra_args=None,
+                  capability_fetch=True):
     from .library import Library
     library = Library(root, checkouts=checkouts, state_dir=state_dir, host=host, agent=agent,
                       allowed_hosts=allowed_hosts, unsandboxed_previews=unsandboxed_previews, envs=envs,
@@ -1019,7 +1020,8 @@ def serve_library(root, host='127.0.0.1', port=8100, checkouts=None, state_dir=N
                       account_daily_cost_cap_usd=account_daily_cost_cap_usd,
                       compendium_for_builder=compendium_for_builder, source_max_mb=source_max_mb,
                       source_max_total_mb=source_max_total_mb,
-                      capability_agent_extra_args=capability_agent_extra_args)
+                      capability_agent_extra_args=capability_agent_extra_args,
+                      capability_fetch=capability_fetch)
     httpd = ThreadingHTTPServer((host, port), make_handler(library, hook))
     httpd.daemon_threads = True
     stop = threading.Event()
