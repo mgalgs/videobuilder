@@ -177,6 +177,11 @@ NEW_VIDEO_STYLE = (
     '#new-video input,#new-video textarea{font:inherit;min-height:44px;padding:.5rem .6rem;border-radius:8px;'
     'border:1px solid #26262c;background:#141417;color:#fff}'
     '#new-video textarea{min-height:88px;resize:vertical}'
+    '#new-video .prompt{font-size:1.05rem;color:#f4f4f2;font-weight:600}'
+    '#new-video .prompt textarea{min-height:150px;font-size:1.05rem;font-weight:400;border-color:#3a3a42}'
+    '#new-video .prompt textarea:focus{outline:none;border-color:#e5483b;box-shadow:0 0 0 3px rgba(229,72,59,.25)}'
+    '#prompt-fields{display:flex;flex-direction:column;gap:1rem}'
+    '#scratch-fields{display:flex;flex-direction:column;gap:1rem}'
     '.start-from{border:1px solid #26262c;border-radius:10px;padding:.6rem .9rem;display:flex;flex-direction:column;'
     'gap:.5rem}'
     '.start-from legend{color:#a9a9b2;font-size:.85rem;padding:0 .3rem}'
@@ -214,7 +219,8 @@ NEW_VIDEO_SCRIPT = (
     'const sourceField=document.querySelector("#source-field");'
     'const scratchFields=document.querySelector("#scratch-fields");'
     'for(const r of form.querySelectorAll("input[name=start]"))r.onchange=()=>{'
-    'const copy=form.start.value==="copy";sourceField.hidden=!copy;scratchFields.hidden=copy};'
+    'const copy=form.start.value==="copy";sourceField.hidden=!copy;scratchFields.hidden=copy;'
+    'document.querySelector("#prompt-fields").hidden=copy};'
     'function splitLines(s){return (s||"").split("\\n").map(x=>x.trim()).filter(Boolean)}'
     'async function uploadAll(name,video,files){'
     'const records=[],skipped=[];'
@@ -387,10 +393,10 @@ def _starter_card_html(s, as_link):
            f'<span class="starter-prompt">{prompt}</span></button>')
 
 
-def _starter_section_html(hero, as_link):
+def _starter_section_html(hero, as_link, heading='Starter prompts'):
     cls = 'starters hero' if hero else 'starters'
     cards = ''.join(_starter_card_html(s, as_link) for s in STARTERS)
-    return (f'<section class="{cls}"><h2>Starter prompts</h2>'
+    return (f'<section class="{cls}"><h2>{heading}</h2>'
            f'<div class="starter-grid">{cards}</div></section>')
 
 
@@ -564,14 +570,19 @@ def index(entries, accounts_enabled, user, host, scheme='http', showcase=False):
 
 def new_video_page(names):
     options = ''.join(f'<option value="{html.escape(n)}"></option>' for n in names)
-    starters = _starter_section_html(hero=False, as_link=False)
-    return ('<!doctype html><html><head><meta charset="utf-8"><title>New video · Video library</title>'
+    starters = _starter_section_html(hero=False, as_link=False, heading='Or start from one of these')
+    return ('<!doctype html><html><head><meta charset="utf-8"><title>New video · videobuilder</title>'
             '<meta name="viewport" content="width=device-width, initial-scale=1">'
             '<style>' + LIBRARY_STYLE + STARTER_STYLE + NEW_VIDEO_STYLE + ORDER_STYLE + '</style></head>'
             '<body><div class="lib-page">'
             '<header class="lib-header"><a class="btn" href="/">&larr; Library</a>'
-            '<h1>New video</h1></header>' + starters +
+            '<h1>New video</h1></header>'
             '<form id="new-video">'
+            '<div id="prompt-fields">'
+            '<label class="prompt">What do you want to make?<textarea name="description" rows="6" autofocus '
+            'placeholder="A 30-second launch video for our app: open on the problem, show three features, '
+            'end on the download button. Bold type, upbeat."></textarea></label>' + starters +
+            '</div>'
             '<label>Name<input name="name" placeholder="name, or project/name to group it in a project" '
             'required autocapitalize="off" autocorrect="off" spellcheck="false"></label>'
             '<fieldset class="start-from"><legend>Start from</legend>'
@@ -581,8 +592,6 @@ def new_video_page(names):
             f'<label id="source-field" hidden>Video to copy<input name="from" list="existing-videos" '
             f'placeholder="project/name"><datalist id="existing-videos">{options}</datalist></label>'
             '<div id="scratch-fields">'
-            '<label>Description<textarea name="description" rows="5" '
-            'placeholder="What is this video for? Who is it for?"></textarea></label>'
             '<label id="files-field">Files<input name="files" type="file" multiple '
             'accept="image/*,video/*,audio/*,.pdf,.txt,.md,.zip"></label>'
             '<label id="links-field">Links (one per line)<textarea name="links" rows="3" '
