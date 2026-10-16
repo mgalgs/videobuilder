@@ -12,6 +12,20 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     bubblewrap tini git openssh-client ca-certificates curl \
     chromium fonts-liberation fonts-noto-color-emoji && \
     rm -rf /var/lib/apt/lists/*
+# Text to speech for `videobuilder say` (the speech extra) and the Kokoro model
+# it reads from /opt/kokoro. Only authors run it; films load the WAV it wrote.
+# The int8 model: a third the size of the fp32 one, close in quality.
+ARG KOKORO_URL=https://github.com/thewh1teagle/kokoro-onnx/releases/download/model-files-v1.0
+RUN python3 -m pip install --break-system-packages --no-cache-dir kokoro-onnx==0.4.7 && \
+    mkdir -p /opt/kokoro && \
+    curl -fsSL -o /opt/kokoro/kokoro-v1.0.int8.onnx "$KOKORO_URL/kokoro-v1.0.int8.onnx" && \
+    curl -fsSL -o /opt/kokoro/voices-v1.0.bin "$KOKORO_URL/voices-v1.0.bin" && \
+    printf '%s  %s\n' \
+        6e742170d309016e5891a994e1ce1559c702a2ccd0075e67ef7157974f6406cb /opt/kokoro/kokoro-v1.0.int8.onnx \
+        bca610b8308e8d99f32e6fe4197e7ec01679264efed0cac9140fe9c29f1fbf7d /opt/kokoro/voices-v1.0.bin \
+        | sha256sum -c - && \
+    python3 -c 'import kokoro_onnx'
+ENV VIDEOBUILDER_KOKORO_DIR=/opt/kokoro
 WORKDIR /opt/videobuilder
 COPY . .
 # ssh refuses to run for a uid with no passwd entry.
