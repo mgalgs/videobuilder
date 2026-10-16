@@ -22,7 +22,7 @@ ROOT = pathlib.Path(__file__).resolve().parent.parent
 TIMINGS = pathlib.Path(__file__).resolve().parent / 'timings.json'
 
 RAN_RE = re.compile(r'Ran (\d+) tests? in')
-COUNTS_RE = re.compile(r'(failures|errors|skipped)=(\d+)')
+SUMMARY_RE = re.compile(r'^(OK|FAILED)(?: \(([^)]*)\))?\s*$', re.MULTILINE)
 
 
 def discover_modules():
@@ -61,8 +61,17 @@ def run_shard(modules):
 
 
 def summarize(output):
+    """Totals come only from unittest's own last `OK`/`FAILED (...)` line, so a
+    traceback or test body that happens to print e.g. `failures=1` can't be
+    mistaken for the summary."""
     ran = RAN_RE.search(output)
-    counts = {k: int(v) for k, v in COUNTS_RE.findall(output)}
+    counts = {}
+    matches = SUMMARY_RE.findall(output)
+    if matches:
+        _, detail = matches[-1]
+        for part in filter(None, (p.strip() for p in detail.split(','))):
+            key, _, value = part.partition('=')
+            counts[key.strip()] = int(value)
     return (int(ran.group(1)) if ran else None), counts
 
 
@@ -77,7 +86,7 @@ def main(argv=None):
     modules = discover_modules()
     shards = pack(modules, load_weights(modules), min(workers, len(modules)))
 
-    total_ran, totals, crashed = 0, {}, []
+    total_ran, totals, crashed, failed_shards = 0, {}, [], []
     start = time.monotonic()
     with concurrent.futures.ThreadPoolExecutor(max_workers=len(shards)) as pool:
         for modules, code, out, err in pool.map(run_shard, shards):
@@ -97,15 +106,24 @@ def main(argv=None):
                 sys.stderr.write(err)
                 if ran is None:
                     crashed.append(label)
+                else:
+                    failed_shards.append(label)
     elapsed = time.monotonic() - start
 
     print('-' * 70)
     print(f'Ran {total_ran} tests in {elapsed:.3f}s ({workers} workers)')
     print()
-    infos = [f'{k}={v}' for k in ('skipped', 'failures', 'errors') if (v := totals.get(k))]
+    infos = [f'{k}={v}' for k in
+             ('failures', 'errors', 'skipped', 'expected failures', 'unexpected successes')
+             if (v := totals.get(k))]
     if crashed:
         infos.append(f'crashed={len(crashed)}')
-    failed = bool(crashed) or totals.get('failures') or totals.get('errors')
+    if failed_shards:
+        infos.append(f'nonzero exit={len(failed_shards)}')
+    # The exit code, not the parsed counts, decides pass/fail: a shard can print
+    # a clean summary and still exit nonzero (e.g. a crash during interpreter
+    # shutdown, or unittest's own exit(1) on an unexpected success).
+    failed = bool(crashed) or bool(failed_shards)
     if failed:
         print('FAILED (' + ', '.join(infos) + ')')
     elif infos:
