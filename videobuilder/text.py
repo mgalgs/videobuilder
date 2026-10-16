@@ -33,7 +33,11 @@ _stale = []  # font maps replaced after a fork, kept so they're never finalized
 
 def register(path):
     """Make a font file available by its family name (no system install)."""
-    if not PangoCairo.FontMap.get_default().add_font_file(str(path)):
+    font_map = PangoCairo.FontMap.get_default()
+    if not hasattr(font_map, 'add_font_file'):
+        raise RuntimeError(f'Pango {Pango.version_string()} cannot load font files; videobuilder needs '
+                           'Pango 1.56+ (Debian 13+, Ubuntu 25.04+, or the Docker image in deploy/)')
+    if not font_map.add_font_file(str(path)):
         raise RuntimeError(f'could not load font {path}')
     _registered.append(str(path))
     global _known_families

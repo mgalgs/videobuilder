@@ -80,6 +80,9 @@ def main():
         gi.require_version('Pango', '1.0')
         gi.require_version('PangoCairo', '1.0')
         from gi.repository import Pango, PangoCairo  # noqa: F401
+        if Pango.version() < 15600:
+            raise RuntimeError(f'Pango {Pango.version_string()}; videobuilder needs 1.56+ to load font files '
+                               '(Debian 13+, Ubuntu 25.04+, or the Docker image in deploy/)')
         return f'Pango {Pango.version_string()}'
 
     def videobuilder():
