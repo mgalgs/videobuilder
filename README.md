@@ -846,7 +846,9 @@ the image's cairo/Pango. To create the first manifest, run
 then move `deploy/frames.sha256` into the committed source tree. Inspect any
 changed frames before accepting a new manifest; repeat that command and
 commit the new file deliberately. A normal build fails if the manifest is
-missing or differs. `python3 -m videobuilder frames --hash
+missing or differs. To ship before the tests finish, build with
+`--build-arg GATE=runtime`, then run the same checks on the same tree with
+`docker build -f deploy/Dockerfile --target gated .`. `python3 -m videobuilder frames --hash
 examples/tour.py examples/benchmark.py` prints the image-specific values.
 
 Set `[editor] sync_remote = "origin"` or `--sync-remote origin` to fetch

@@ -1,5 +1,8 @@
 # Build from the repository root: docker build -f deploy/Dockerfile .
 ARG BASE=debian:trixie-slim
+# The stage the final image waits on. `gated` runs the tests first; `runtime`
+# skips them, to ship now and run `--target gated` on the same tree afterwards.
+ARG GATE=gated
 FROM ${BASE} AS runtime
 USER root
 ENV DEBIAN_FRONTEND=noninteractive PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1
@@ -45,8 +48,10 @@ FROM runtime AS compendium
 USER root
 RUN python3 -m videobuilder compendium build --out /opt/videobuilder-compendium
 
+FROM ${GATE} AS gate
+
 FROM runtime
-COPY --from=gated /opt/videobuilder/deploy/Dockerfile /opt/videobuilder/deploy/Dockerfile
+COPY --from=gate /opt/videobuilder/deploy/Dockerfile /opt/videobuilder/deploy/Dockerfile
 COPY --from=capabilities /opt/videobuilder-capabilities /opt/videobuilder-capabilities
 COPY --from=compendium /opt/videobuilder-compendium /opt/videobuilder-compendium
 USER 1000:1000
