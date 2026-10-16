@@ -307,6 +307,54 @@ def cmd_edit(a):
     print(edits.path_for(a.film))
 
 
+def cmd_say(a):
+    import json
+    from pathlib import Path
+    from . import speech
+    voice = a.voice or speech.DEFAULT_VOICE
+    try:
+        engine = speech.Kokoro(a.model, a.voices, a.model_dir)
+        if a.list_voices:
+            for v in engine.voices():
+                lang = speech.LANGS.get(v[:1], '?')
+                print(f"{v}  {lang}  {'female' if v[1:2] == 'f' else 'male' if v[1:2] == 'm' else ''}".rstrip())
+            return
+        if (a.script is None) == (a.text is None):
+            raise SystemExit('say: give a script file or --text, not both')
+        script = a.text if a.text is not None else Path(a.script).read_text(encoding='utf-8')
+        lexicon = {}
+        if a.lexicon:
+            lexicon.update(json.loads(Path(a.lexicon).read_text(encoding='utf-8')))
+        for pair in a.say or ():
+            word, sep, repl = pair.partition('=')
+            if not sep or not word.strip():
+                raise SystemExit(f'say: --say takes WORD=RESPELLING, got {pair!r}')
+            lexicon[word.strip()] = repl.strip()
+        blank = [w for w, v in lexicon.items() if not str(v).strip()]
+        if blank:
+            raise SystemExit(f'say: no respelling for {blank[0]!r}; it would drop the word from the speech')
+        lang = a.lang or speech.LANGS.get(voice[:1], 'en-us')
+        if a.phonemes:
+            for ph in speech.phrases(script):
+                print(f'{ph}\n    /{speech.phonemes_for(engine, speech.spoken_parts(ph, lexicon), lang)}/')
+            return
+        if not a.out:
+            raise SystemExit('say: --out is required (a .wav path)')
+        doc = speech.say(script, a.out, engine, voice=voice, speed=a.speed, lang=lang, gap=a.gap,
+                         lexicon=lexicon, force=a.force)
+    except speech.SpeechUnavailable as e:
+        raise SystemExit(f'say: {e}') from None
+    except (ValueError, OSError) as e:
+        raise SystemExit(f'say: {e}') from None
+    vtt_path, json_path = speech.sidecars(a.out)
+    if doc.get('unchanged'):
+        print(f'{a.out}: unchanged (same script, voice and settings as {json_path.name}; --force to redo)')
+        return
+    for ph in doc['phrases']:
+        print(f"{ph['start']:7.3f} {ph['end']:7.3f}  {ph['text']}")
+    print(f"{a.out} ({doc['seconds']:.2f}s), {vtt_path}, {json_path}")
+
+
 def main(argv=None):
     p = argparse.ArgumentParser(prog='videobuilder', description='Make videos in code.')
     sub = p.add_subparsers(dest='cmd', required=True)
@@ -468,6 +516,25 @@ def main(argv=None):
     compb.add_argument('--jobs', type=int, help='worker processes (default: CPU count)')
     compb.add_argument('--crf', type=int, default=30, help='x264 quality (default 30: small clips over sharpness)')
     compb.set_defaults(fn=cmd_compendium)
+
+    sy = sub.add_parser('say', help='narration: text to speech (Kokoro) to a WAV plus phrase-timed .vtt/.json')
+    sy.add_argument('script', nargs='?', help='a text file: one phrase per line (sentences split too; # lines skipped)')
+    sy.add_argument('--text', help='the script inline, instead of a file')
+    sy.add_argument('--out', help='the .wav to write; the .vtt and .json go beside it')
+    sy.add_argument('--voice', help='a Kokoro voice id (default af_heart; see --list-voices)')
+    sy.add_argument('--speed', type=float, default=1.0, help='0.5-2.0 (default 1.0)')
+    sy.add_argument('--lang', help='espeak language (default: from the voice, e.g. en-us for a*, en-gb for b*)')
+    sy.add_argument('--gap', type=float, default=0.35, help='seconds of silence between phrases (default 0.35)')
+    sy.add_argument('--say', action='append', metavar='WORD=RESPELLING',
+                    help="pronounce WORD as RESPELLING, or as phonemes written /like this/ (repeatable)")
+    sy.add_argument('--lexicon', help='a JSON file of {"word": "respelling or /phonemes/"}')
+    sy.add_argument('--phonemes', action='store_true', help='print how each phrase will be read, then stop')
+    sy.add_argument('--list-voices', action='store_true')
+    sy.add_argument('--force', action='store_true', help='synthesize even when the sidecar says nothing changed')
+    sy.add_argument('--model', help='the Kokoro .onnx (default: found in $VIDEOBUILDER_KOKORO_DIR, /opt/kokoro, ~/.cache/kokoro)')
+    sy.add_argument('--voices', help='voices-v1.0.bin (default: beside the model)')
+    sy.add_argument('--model-dir', help='look for both model files here')
+    sy.set_defaults(fn=cmd_say)
 
     f = sub.add_parser('frames', help='hash fixed example keyframes in every format')
     f.add_argument('--hash', action='store_true', required=True)

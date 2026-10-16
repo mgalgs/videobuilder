@@ -1,0 +1,441 @@
+"""Narration: a voiceover made once with text to speech, then loaded like any
+other audio.
+
+    python -m videobuilder say script.txt --out assets/narration.wav
+
+`say` (needs `pip install 'videobuilder[speech]'` and the Kokoro model files)
+synthesizes each phrase of the script with Kokoro, joins them with a short
+gap, and writes the WAV plus two sidecars measured from that audio:
+`narration.vtt` (one cue per phrase, for `vb.captions`) and `narration.json`
+(the phrase times and the inputs that made them). Commit all three, and the
+script beside them. Rendering never needs the model:
+
+    VOICE = vb.speech.load('assets/narration.wav')
+    VOICE.track            # a captions Track, one cue per phrase
+    VOICE.sound(at=15)     # a vb.Sound starting on film frame 15
+    VOICE.mouth(fps, at=15)  # per film frame: is the mouth open?
+
+Pronunciation: `[Kokoro](/kəkˈɔːɹəʊ/)` in the script speaks the phonemes
+between the slashes and captions the word in brackets (Kokoro's own syntax);
+`--say Galgs=Gahlgz` or `--lexicon names.json` respell a word everywhere
+(a value in slashes is phonemes). `say --phonemes` prints how each phrase
+will be read, to copy from.
+"""
+import array
+import hashlib
+import json
+import os
+import re
+import subprocess
+import sys
+import wave
+from dataclasses import dataclass
+from pathlib import Path
+
+RATE = 24000
+DEFAULT_VOICE = 'af_heart'
+MODEL_FILES = ('kokoro-v1.0.int8.onnx', 'kokoro-v1.0.onnx')
+VOICES_FILE = 'voices-v1.0.bin'
+MODEL_DIRS = ('/opt/kokoro', '~/.cache/kokoro')
+MODEL_URL = 'https://github.com/thewh1teagle/kokoro-onnx/releases/download/model-files-v1.0/'
+INSTALL_HINT = ("text to speech needs the speech extra: pip install 'videobuilder[speech]' (kokoro-onnx), "
+                f'plus the model files {MODEL_FILES[0]} and {VOICES_FILE} from {MODEL_URL} '
+                'in $VIDEOBUILDER_KOKORO_DIR or ~/.cache/kokoro')
+
+# Kokoro voice ids start with a language letter, then f/m.
+LANGS = {'a': 'en-us', 'b': 'en-gb', 'e': 'es', 'f': 'fr-fr', 'h': 'hi', 'i': 'it', 'j': 'ja', 'p': 'pt-br',
+         'z': 'cmn'}
+
+
+class SpeechUnavailable(RuntimeError):
+    pass
+
+
+# ---- the script ----
+_SENTENCE = re.compile(r'(?<=[.!?…])["\'”’)\]]*\s+')
+_INLINE = re.compile(r'\[([^\]]+)\]\(/([^/)]+)/\)')
+# A period after these (or after an initial, "J. R. R.") doesn't end a sentence.
+_ABBREV = re.compile(r'(?:mr|mrs|ms|dr|st|jr|sr|prof|mt|vs|e\.g|i\.e|cf|(?-i:[A-Z]))\.', re.IGNORECASE)
+
+
+def phrases(script):
+    """The script's phrases: every non-empty line, split after each sentence."""
+    out = []
+    for line in script.splitlines():
+        line = ' '.join(line.split())
+        if not line or line.startswith('#'):
+            continue
+        at = 0
+        for m in _SENTENCE.finditer(line):
+            # Don't split inside [word](/phonemes/).
+            if line.count('[', 0, m.start()) != line.count(']', 0, m.start()):
+                continue
+            words = line[at:m.start()].split()
+            if words and _ABBREV.fullmatch(words[-1].lstrip('("\'“‘[')):
+                continue
+            out.append(line[at:m.end()].strip())
+            at = m.end()
+        if line[at:].strip():
+            out.append(line[at:].strip())
+    return out
+
+
+def caption_text(phrase):
+    """What the captions show: `[word](/phonemes/)` as just the word."""
+    return _INLINE.sub(r'\1', phrase)
+
+
+def spoken_parts(phrase, lexicon=None):
+    """The phrase as [(kind, text)], kind 'text' or 'phonemes', with `lexicon`
+    ({word: respelling, or '/phonemes/'}, whole words, case-insensitive)
+    applied to the plain text."""
+    parts = []
+    at = 0
+    for m in _INLINE.finditer(phrase):
+        parts.append(('text', phrase[at:m.start()]))
+        parts.append(('phonemes', m.group(2)))
+        at = m.end()
+    parts.append(('text', phrase[at:]))
+    if lexicon:
+        # Lookarounds, not \b: \b never matches beside a key's own non-word edge ("C++").
+        words = '|'.join(re.escape(w) for w in sorted(lexicon, key=len, reverse=True))
+        pat = re.compile(r'(?<!\w)(' + words + r')(?!\w)', re.IGNORECASE)
+        keys = {w.casefold(): v for w, v in lexicon.items()}
+        out = []
+        for kind, s in parts:
+            if kind != 'text':
+                out.append((kind, s))
+                continue
+            at = 0
+            for m in pat.finditer(s):
+                v = keys[m.group(1).casefold()]
+                out.append(('text', s[at:m.start()]))
+                out.append(('phonemes', v[1:-1]) if len(v) > 2 and v[0] == v[-1] == '/' else ('text', v))
+                at = m.end()
+            out.append(('text', s[at:]))
+        parts = out
+    merged = []
+    for kind, s in parts:
+        if not s:
+            continue
+        if merged and merged[-1][0] == kind == 'text':
+            merged[-1] = ('text', merged[-1][1] + s)
+        else:
+            merged.append((kind, s))
+    return merged
+
+
+# ---- synthesis ----
+def _find(name, model_dir=None):
+    dirs = [model_dir] if model_dir else [os.environ.get('VIDEOBUILDER_KOKORO_DIR'), *MODEL_DIRS]
+    for d in dirs:
+        if d and Path(d).expanduser().joinpath(name).is_file():
+            return Path(d).expanduser() / name
+    return None
+
+
+class Kokoro:
+    """Kokoro through kokoro-onnx. The only part of this module that imports it."""
+
+    def __init__(self, model=None, voices=None, model_dir=None):
+        try:
+            import kokoro_onnx  # noqa: F401
+        except ImportError:
+            raise SpeechUnavailable(INSTALL_HINT) from None
+        self.voices_path = Path(voices) if voices else _find(VOICES_FILE, model_dir)
+        self.model_path = Path(model) if model else next(
+            (p for p in (_find(m, model_dir) for m in MODEL_FILES) if p), None)
+        self._kokoro = None
+        self._tokenizer = None
+
+    def _need(self, *paths):
+        missing = [p for p in paths if not p or not Path(p).is_file()]
+        if missing:
+            raise SpeechUnavailable(f'Kokoro model files not found. {INSTALL_HINT}')
+
+    @property
+    def kokoro(self):
+        if self._kokoro is None:
+            self._need(self.model_path, self.voices_path)
+            from kokoro_onnx import Kokoro as K
+            self._kokoro = K(str(self.model_path), str(self.voices_path))
+        return self._kokoro
+
+    @property
+    def model_id(self):
+        return f'{self.model_path.name}+{self.voices_path.name}' if self.model_path and self.voices_path else None
+
+    def voices(self):
+        self._need(self.voices_path)
+        import numpy as np
+        with np.load(self.voices_path) as v:
+            return sorted(v.files)
+
+    def phonemize(self, text, lang):
+        if self._tokenizer is None:
+            from kokoro_onnx.tokenizer import Tokenizer
+            self._tokenizer = Tokenizer()
+        return self._tokenizer.phonemize(text, lang)
+
+    def synth(self, phonemes, voice, speed, lang):
+        """16-bit mono samples at RATE for a phoneme string."""
+        import numpy as np
+        k = self.kokoro
+        if voice not in k.voices:
+            raise ValueError(f'no voice {voice!r}; see `say --list-voices`')
+        samples, rate = k.create(phonemes, voice=voice, speed=speed, lang=lang, is_phonemes=True)
+        if rate != RATE:
+            raise ValueError(f'Kokoro returned {rate} Hz, expected {RATE}')
+        return array.array('h', (np.clip(samples, -1, 1) * 32767).round().astype('<i2').tobytes())
+
+
+def phonemes_for(engine, parts, lang):
+    """One phoneme string for a phrase's spoken parts."""
+    out = ''
+    for kind, s in parts:
+        p = s.strip() if kind == 'phonemes' else engine.phonemize(s, lang).strip()
+        if p:
+            out += p if not out or p[0] in '.,!?;:…' else ' ' + p
+    return out
+
+
+def _audible(samples, rate, floor_db=-45, window=0.01):
+    """(first, last) sample of the audible span: 10 ms windows louder than
+    `floor_db` dBFS. (0, 0) for silence."""
+    n = max(1, int(rate * window))
+    floor = (10 ** (floor_db / 20) * 32767) ** 2 * n
+    loud = [i for i in range(0, len(samples), n) if sum(v * v for v in samples[i:i + n]) >= floor]
+    if not loud:
+        return 0, 0
+    return loud[0], min(len(samples), loud[-1] + n)
+
+
+def assemble(chunks, rate, gap=0.35, margin=0.03, fade=0.005):
+    """Join each phrase's samples, trimmed to its audible span plus `margin`
+    s, with `gap` s of silence between. Returns (samples, [(start, end)] in
+    seconds): each phrase's audible span on the joined clock."""
+    out = array.array('h')
+    spans = []
+    pad, ramp = int(margin * rate), max(1, int(fade * rate))
+    for i, s in enumerate(chunks):
+        a, z = _audible(s, rate)
+        if z <= a:
+            raise ValueError(f'phrase {i + 1} came out silent')
+        a0, z0 = max(0, a - pad), min(len(s), z + pad)
+        piece = array.array('h', s[a0:z0])
+        # Kokoro's phrase edges aren't always at a zero crossing: a few ms of fade keeps the join from clicking.
+        for k in range(min(ramp, len(piece))):
+            g = k / ramp
+            piece[k] = int(piece[k] * g)
+            piece[-1 - k] = int(piece[-1 - k] * g)
+        if i:
+            out.extend(array.array('h', bytes(2 * round(gap * rate))))
+        base = len(out)
+        spans.append(((base + a - a0) / rate, (base + z - a0) / rate))
+        out.extend(piece)
+    return out, spans
+
+
+def _ts(t):
+    ms = round(t * 1000)
+    return f'{ms // 3600000:02d}:{ms // 60000 % 60:02d}:{ms // 1000 % 60:02d}.{ms % 1000:03d}'
+
+
+def vtt(cues):
+    """WebVTT text for [(text, start, end)]: one cue per phrase."""
+    lines = ['WEBVTT', '']
+    for text, a, z in cues:
+        lines += [f'{_ts(a)} --> {_ts(z)}', text, '']
+    return '\n'.join(lines)
+
+
+def _write_wav(path, samples, rate):
+    tmp = f'{path}.{os.getpid()}.tmp'
+    with wave.open(tmp, 'wb') as w:
+        w.setnchannels(1)
+        w.setsampwidth(2)
+        w.setframerate(rate)
+        w.writeframes(samples.tobytes() if sys.byteorder == 'little' else _swapped(samples).tobytes())
+    os.replace(tmp, path)
+
+
+def _swapped(samples):
+    s = array.array('h', samples)
+    s.byteswap()
+    return s
+
+
+def _write_text(path, s):
+    tmp = f'{path}.{os.getpid()}.tmp'
+    Path(tmp).write_text(s, encoding='utf-8')
+    os.replace(tmp, path)
+
+
+def sidecars(out):
+    out = Path(out)
+    return out.with_suffix('.vtt'), out.with_suffix('.json')
+
+
+def say(script, out, engine, voice=DEFAULT_VOICE, speed=1.0, lang=None, gap=0.35, lexicon=None, force=False):
+    """Synthesize `script` to `out` (.wav) and its .vtt/.json sidecars, and
+    return the sidecar's dict. With the same inputs as the committed sidecar
+    and the WAV present, writes nothing (returns it with 'unchanged': True),
+    so a re-run never churns the repo even where Kokoro's floating point
+    differs between machines."""
+    out = Path(out)
+    if out.suffix.lower() != '.wav':
+        raise ValueError(f'{out}: say writes a .wav')
+    if not 0.5 <= speed <= 2.0:
+        raise ValueError(f'speed {speed} is out of range: Kokoro takes 0.5 to 2.0')
+    lang = lang or LANGS.get(voice[:1], 'en-us')
+    items = phrases(script)
+    if not items:
+        raise ValueError('the script has no phrases: write one phrase or sentence per line')
+    inputs = {'phrases': items, 'voice': voice, 'speed': speed, 'lang': lang, 'gap': gap,
+              'lexicon': dict(sorted((lexicon or {}).items())), 'model': getattr(engine, 'model_id', None)}
+    vtt_path, json_path = sidecars(out)
+    if not force and out.is_file() and vtt_path.is_file() and json_path.is_file():
+        try:
+            old = json.loads(json_path.read_text(encoding='utf-8'))
+        except ValueError:
+            old = {}
+        if old.get('inputs') == inputs:
+            return {**old, 'unchanged': True}
+    chunks = []
+    for p in items:
+        ph = phonemes_for(engine, spoken_parts(p, lexicon), lang)
+        chunks.append(engine.synth(ph, voice, speed, lang))
+    samples, spans = assemble(chunks, RATE, gap=gap)
+    cues = [(caption_text(p), round(a, 3), round(z, 3)) for p, (a, z) in zip(items, spans)]
+    doc = {'audio': out.name, 'captions': vtt_path.name, 'seconds': round(len(samples) / RATE, 3),
+           'phrases': [{'text': t, 'start': a, 'end': z} for t, a, z in cues], 'inputs': inputs,
+           'sha256': hashlib.sha256(samples.tobytes()).hexdigest()}
+    out.parent.mkdir(parents=True, exist_ok=True)
+    _write_wav(out, samples, RATE)
+    _write_text(vtt_path, vtt(cues))
+    _write_text(json_path, json.dumps(doc, indent=2, ensure_ascii=False) + '\n')
+    return doc
+
+
+# ---- at render time: no model, just the committed files ----
+def read_samples(path, rate=None):
+    """(mono 16-bit samples, rate) of an audio file: a 16-bit WAV directly,
+    anything else (or a resample to `rate`) through ffmpeg."""
+    path = str(path)
+    if path.lower().endswith('.wav') and rate is None:
+        try:
+            with wave.open(path, 'rb') as w:
+                if w.getsampwidth() == 2:
+                    ch, r = w.getnchannels(), w.getframerate()
+                    s = array.array('h', w.readframes(w.getnframes()))
+                    if sys.byteorder != 'little':
+                        s.byteswap()
+                    return (s if ch == 1 else array.array('h', s[::ch])), r
+        except wave.Error:
+            pass
+    rate = rate or RATE
+    raw = subprocess.run(['ffmpeg', '-v', 'error', '-i', path, '-f', 's16le', '-ac', '1', '-ar', str(rate), '-'],
+                         capture_output=True, check=True).stdout
+    s = array.array('h', raw)
+    if sys.byteorder != 'little':
+        s.byteswap()
+    return s, rate
+
+
+def levels(samples, rate, fps):
+    """RMS level per video frame, in dB relative to the loudest frame (0 at
+    the loudest, -120 for silence)."""
+    import math
+    per = rate / fps
+    out = []
+    for f in range(math.ceil(len(samples) / per)):
+        a, z = round(f * per), min(len(samples), round((f + 1) * per))
+        ms = sum(v * v for v in samples[a:z]) / max(1, z - a)
+        out.append(ms)
+    peak = max(out, default=0)
+    return [10 * math.log10(ms / peak) if ms > 0 and peak > 0 else -120.0 for ms in out]
+
+
+def flaps(db, open_db=-24.0, close_db=-30.0, dip_db=5.0, hold=2, max_open=6):
+    """Mouth open per frame from `levels`. It opens above `open_db` and
+    stays open above `close_db` (the hysteresis), but only near a syllable's
+    peak: within `dip_db` of the loudest of the last three frames, so it
+    shuts in the dips between syllables. Looking back only, so it opens on
+    the frame the sound rises, not when the peak comes. Every open or shut lasts at least `hold`
+    frames, so it never flickers, and a long vowel shuts for `hold` frames
+    after `max_open` frames open, so a held sound still reads as talking."""
+    out, state, held = [], False, hold
+    for i, v in enumerate(db):
+        peak = max(db[max(0, i - 2):i + 1])
+        want = v >= (close_db if state else open_db) and v >= peak - dip_db
+        if state and held >= max_open:
+            want = False
+        if want != state and held >= hold:
+            state, held = want, 0
+        out.append(state)
+        held += 1
+    return out
+
+
+def mouth(path, fps, at=0, frames=None, **kw):
+    """Per film frame (0..`frames`), whether a mouth saying the audio at
+    `path`, starting on frame `at`, is open. `kw` tunes `flaps`."""
+    s, r = read_samples(path)
+    m = flaps(levels(s, r, fps), **kw)
+    frames = at + len(m) if frames is None else frames
+    return tuple(0 <= n - at < len(m) and m[n - at] for n in range(frames))
+
+
+def holds(opened, open_pose='talk', shut_pose='idle'):
+    """`Puppet.pose_at` holds from a per-frame `mouth`: a hold at every change."""
+    out = []
+    for n, o in enumerate(opened):
+        pose = open_pose if o else shut_pose
+        if not out or out[-1][1] != pose:
+            out.append((n, pose))
+    return out or [(0, shut_pose)]
+
+
+@dataclass(frozen=True)
+class Phrase:
+    text: str
+    start: float
+    end: float
+
+
+class Narration:
+    """A `say` output: the WAV and its sidecars, read once."""
+
+    def __init__(self, path):
+        from . import captions
+        self.path = str(path)
+        vtt_path, json_path = sidecars(path)
+        doc = json.loads(Path(json_path).read_text(encoding='utf-8'))
+        self.phrases = tuple(Phrase(p['text'], p['start'], p['end']) for p in doc['phrases'])
+        self.seconds = doc['seconds']
+        self.track = captions.load(vtt_path)
+        self._mouth = {}
+
+    def frames(self, fps):
+        import math
+        return math.ceil(self.seconds * fps)
+
+    def sound(self, at, fps=30, gain_db=0.0):
+        """The narration as a `vb.Sound` starting on film frame `at`."""
+        from .film import Sound
+        return Sound(self.path, at=at, start=0.0, frames=self.frames(fps), gain_db=gain_db,
+                     fade_in_frames=0, fade_out_frames=0)
+
+    def track_at(self, at, fps=30):
+        """The captions on the film's clock, for narration starting on frame `at`."""
+        return self.track.shift(at / fps)
+
+    def mouth(self, fps, at=0, frames=None, **kw):
+        key = (fps, at, frames, tuple(sorted(kw.items())))
+        if key not in self._mouth:
+            self._mouth[key] = mouth(self.path, fps, at, frames, **kw)
+        return self._mouth[key]
+
+
+def load(path):
+    return Narration(path)
