@@ -100,7 +100,7 @@ class LibraryHandler:
                 if route == '/new' and method == 'GET':
                     names = [n for n in library.names()
                             if not library.accounts or library.access.can_access(n, user, library.accounts)]
-                    return self._send(200, library.new_video_page(names), 'text/html; charset=utf-8')
+                    return self._send(200, library.new_video_page(names, user), 'text/html; charset=utf-8')
                 if library.accounts and route == '/api/login' and method == 'POST':
                     body = self._body()
                     try:

@@ -471,14 +471,13 @@ def _esc(s):
 
 
 _PAGE_STYLE = """
-body{font:16px/1.5 system-ui,sans-serif;background:#181b20;color:#eee;margin:0}
-a{color:#88cafa}
-header{display:flex;align-items:center;gap:14px;padding:18px 24px;border-bottom:1px solid #26262c;
-  position:sticky;top:0;background:#181b20;z-index:2}
-header h1{font-size:20px;margin:0}
-header .version{color:#a9a9b2;font-size:13px}
-header .back{color:#a9a9b2;text-decoration:none;font-weight:600}
-main{max-width:1100px;margin:0 auto;padding:8px 24px 48px}
+:root{color-scheme:dark}
+body{font:16px/1.5 system-ui,sans-serif;background:#0d0d10;color:#eee;margin:0;overflow-x:hidden}
+a{color:#ef5b4c}
+.cap-head{display:flex;flex-wrap:wrap;align-items:baseline;gap:6px 14px;padding:28px 0 0}
+.cap-head h1{font-size:clamp(26px,3vw,34px);letter-spacing:-.02em;margin:0;font-weight:800}
+.cap-head .version{color:#a9a9b2;font-size:13px}
+main{max-width:1180px;margin:0 auto;padding:8px 32px 48px;box-sizing:border-box}
 .reel{margin:24px 0 8px}
 .reel .player{position:relative;border-radius:14px;overflow:hidden;background:#000;aspect-ratio:16/9}
 .reel.portrait .player{aspect-ratio:9/16;width:min(100%,calc(80vh * 9 / 16));margin:0 auto}
@@ -491,7 +490,8 @@ main{max-width:1100px;margin:0 auto;padding:8px 24px 48px}
 h2{font-size:15px;text-transform:uppercase;letter-spacing:.04em;color:#a9a9b2;margin:36px 0 14px}
 .grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px}
 @media (max-width:1000px){.grid{grid-template-columns:repeat(3,1fr)}}
-@media (max-width:700px){.grid{grid-template-columns:repeat(2,1fr)}main{padding:8px 14px 48px}}
+@media (max-width:720px){main{padding:8px 16px 48px}.cap-head{padding-top:20px}}
+@media (max-width:700px){.grid{grid-template-columns:repeat(2,1fr)}}
 .card{display:block;width:100%;text-align:left;background:#141417;border:1px solid #26262c;border-radius:12px;
   padding:0;overflow:hidden;cursor:pointer;color:inherit;font:inherit;min-height:44px}
 .card:hover,.card:focus-visible{border-color:#e5483b;outline:none}
@@ -629,12 +629,15 @@ _PAGE_SCRIPT = """
 """
 
 
-def page_html(capabilities_dir, version):
+def page_html(capabilities_dir, version, header='', header_style=''):
     """The /capabilities page: a card grid grouped by category, generated from
     CATALOG, plus a modal that plays the clip and shows the longer text. Cards
     for a capability with no built clip (`capabilities_dir` unset, or missing
     that id's mp4) show a quiet "clip not built" placeholder instead of a
-    player; the page still lists every capability's text either way."""
+    player; the page still lists every capability's text either way.
+    `header`/`header_style`: the library's shared page header and its CSS
+    (pages.app_header), or nothing, for a single-project editor with no
+    library to go back to."""
     built = available_ids(capabilities_dir)
     cards = []
     if showcase_available(capabilities_dir):
@@ -673,11 +676,10 @@ def page_html(capabilities_dir, version):
         '<!doctype html><html lang="en"><head><meta charset="utf-8">'
         '<title>Capabilities · videobuilder</title>'
         '<meta name="viewport" content="width=device-width, initial-scale=1">'
-        f'<style>{_PAGE_STYLE}</style></head><body>'
-        '<header><a class="back" href="/" aria-label="Back">&larr;</a>'
-        '<h1>Capabilities</h1>'
-        f'<span class="version">videobuilder v{_esc(version)}</span></header>'
-        f'<main>{body}</main>'
+        f'<style>{_PAGE_STYLE}{header_style}</style></head><body>{header}'
+        '<main><div class="cap-head"><h1>Capabilities</h1>'
+        f'<span class="version">videobuilder v{_esc(version)}</span></div>'
+        f'{body}</main>'
         '<div id="modal" hidden role="dialog" aria-modal="true" aria-labelledby="modal-title">'
         '<div class="box">'
         '<button class="close" id="modal-close" aria-label="Close">&times;</button>'

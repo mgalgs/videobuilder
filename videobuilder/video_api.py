@@ -84,8 +84,14 @@ def _get_thumbnail(self, route, q, editor, user):
 
 
 def _get_capabilities(self, route, q, editor, user):
-    from . import __version__, capabilities
-    return self._send(200, capabilities.page_html(editor.capabilities_dir, __version__), 'text/html; charset=utf-8')
+    from . import __version__, capabilities, pages
+    header = style = ''
+    if self.library:
+        accounts = self.library.accounts
+        header = pages.app_header('capabilities', user if accounts else None, bool(user) or not accounts)
+        style = pages.APP_HEADER_STYLE
+    return self._send(200, capabilities.page_html(editor.capabilities_dir, __version__, header, style),
+                      'text/html; charset=utf-8')
 
 
 def _get_capability_clip(self, route, q, editor, user, cap_id, kind):

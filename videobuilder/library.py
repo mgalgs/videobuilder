@@ -227,8 +227,9 @@ class Library:
         return pages.index(entries, self.accounts is not None, user, host, scheme,
                            showcase=showcase_available(self.capabilities_dir))
 
-    def new_video_page(self, names=None):
-        return pages.new_video_page(names if names is not None else self.names())
+    def new_video_page(self, names=None, user=None):
+        return pages.new_video_page(names if names is not None else self.names(),
+                                    user if self.accounts else None)
 
     def tick(self):
         """Advance unfinished notes in every repo, opening an editor only where one is pending."""

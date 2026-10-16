@@ -101,22 +101,123 @@ def signup_page(showcase=False):
         'Sign up', '/api/signup', 'Have an account? <a href="/login">Sign in</a>', showcase)
 
 
+# The header every signed-in page shares (library, /new, /account, /capabilities):
+# self-contained, so a page with its own stylesheet (the capabilities catalog) can
+# take it as is. Classes are all `app-*` so they can't collide with a page's own.
+APP_HEADER_STYLE = (
+    '.app-bar{position:sticky;top:0;z-index:20;background:rgba(13,13,16,.88);'
+    '-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);border-bottom:1px solid #1f1f25;'
+    'font:16px/1.5 system-ui,sans-serif}'
+    '.app-bar-inner{max-width:1180px;margin:0 auto;padding:.7rem 2rem;display:flex;align-items:center;'
+    'gap:1.75rem;box-sizing:border-box}'
+    '.app-brand{display:flex;align-items:center;gap:.6rem;flex:none;font-weight:800;font-size:1.15rem;'
+    'letter-spacing:-.01em;color:#f4f4f2;text-decoration:none}'
+    '.app-brand svg{width:30px;height:30px;flex:none}'
+    '.app-nav{display:flex;gap:.25rem;min-width:0}'
+    '.app-nav a{display:inline-flex;align-items:center;min-height:40px;padding:0 .8rem;border-radius:8px;'
+    'color:#a9a9b2;font-weight:600;text-decoration:none;white-space:nowrap}'
+    '.app-nav a:hover{color:#f4f4f2;background:#17171b}'
+    '.app-nav a[aria-current=page]{color:#f4f4f2;background:#1c1c21}'
+    '.app-actions{margin-left:auto;display:flex;align-items:center;gap:.75rem;flex:none}'
+    '.app-new{display:inline-flex;align-items:center;gap:.35rem;min-height:40px;padding:0 1rem;border-radius:10px;'
+    'background:#e5483b;color:#fff;font-weight:700;text-decoration:none;white-space:nowrap}'
+    '.app-new:hover{background:#ef5b4c}'
+    '.app-new span{font-size:1.2em;line-height:1}'
+    '.app-account{position:relative}'
+    '.app-account summary{display:flex;align-items:center;gap:.5rem;min-height:40px;padding:0 .5rem 0 .25rem;'
+    'border-radius:999px;border:1px solid #26262c;background:#141417;color:#f4f4f2;cursor:pointer;'
+    'list-style:none;font-weight:600;font-size:.92rem}'
+    '.app-account summary::-webkit-details-marker{display:none}'
+    '.app-account summary:hover,.app-account[open] summary{border-color:#3a3a42}'
+    '.app-avatar{display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;'
+    'border-radius:50%;background:#2a1715;color:#ef5b4c;font-weight:800;text-transform:uppercase;flex:none}'
+    '.app-user{max-width:10rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}'
+    '.app-menu{position:absolute;right:0;top:calc(100% + .5rem);min-width:220px;padding:.5rem;'
+    'background:#141417;border:1px solid #26262c;border-radius:12px;box-shadow:0 20px 60px rgba(0,0,0,.5)}'
+    '.app-menu p{margin:.35rem .6rem .5rem;color:#a9a9b2;font-size:.85rem;overflow-wrap:anywhere}'
+    '.app-menu p strong{color:#f4f4f2}'
+    '.app-menu a,.app-menu button{display:flex;align-items:center;width:100%;min-height:42px;padding:0 .6rem;'
+    'border:0;border-radius:8px;background:none;color:#f4f4f2;font:inherit;font-size:.95rem;text-align:left;'
+    'text-decoration:none;cursor:pointer;box-sizing:border-box}'
+    '.app-menu a:hover,.app-menu button:hover{background:#1c1c21}'
+    '@media (max-width:720px){'
+    '.app-bar-inner{flex-wrap:wrap;gap:.25rem .75rem;padding:.55rem 16px .35rem}'
+    '.app-nav{order:3;flex:1 0 100%;margin:0 -.8rem}'
+    '.app-nav a{min-height:38px}'
+    '.app-user{display:none}'
+    '.app-account summary{padding:0 .25rem}}'
+    '@media (max-width:360px){.app-brand b{display:none}}'
+)
+
+# The base for the pages that are wholly ours (library, /new, /account): the
+# sign-in pages' palette, type and soft-bordered surfaces.
+APP_STYLE = (
+    ':root{color-scheme:dark}'
+    'body{margin:0;min-height:100vh;font:16px/1.5 system-ui,sans-serif;color:#f4f4f2;'
+    'background:radial-gradient(1200px 520px at 15% -12%,rgba(229,72,59,.11),transparent 60%),#0d0d10;'
+    'overflow-x:hidden}'
+    'a{color:#ef5b4c;text-decoration:none}a:hover{text-decoration:underline}'
+    '.app-main{max-width:1180px;margin:0 auto;padding:2.25rem 2rem 4rem;box-sizing:border-box}'
+    '.page-head{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:.5rem 1rem;'
+    'margin:0 0 1.75rem}'
+    '.page-head h1{margin:0;font-size:clamp(1.6rem,3vw,2.1rem);line-height:1.15;letter-spacing:-.02em;'
+    'font-weight:800}'
+    '.page-head p{margin:.35rem 0 0;color:#a9a9b2}'
+    '.btn{display:inline-flex;align-items:center;justify-content:center;gap:.4rem;min-height:44px;'
+    'padding:.5rem 1.1rem;border-radius:10px;border:1px solid #2c2c33;background:#141417;color:#f4f4f2;'
+    'font:inherit;font-weight:600;cursor:pointer;text-decoration:none;box-sizing:border-box}'
+    '.btn:hover{border-color:#3a3a42;text-decoration:none}'
+    '.btn-primary{background:#e5483b;border-color:#e5483b;color:#fff;font-weight:700}'
+    '.btn-primary:hover{background:#ef5b4c;border-color:#ef5b4c}'
+    '@media (max-width:720px){.app-main{padding:1.5rem 16px 3rem}}'
+) + APP_HEADER_STYLE
+
+APP_HEADER_SCRIPT = (
+    '<script>(()=>{'
+    'const o=document.getElementById("sign-out");if(o)o.onclick=async()=>{'
+    'await fetch("/api/logout",{method:"POST",headers:{"Content-Type":"application/json"},body:"{}"});'
+    'location.href="/login"};'
+    'const m=document.querySelector(".app-account");'
+    'if(m)document.addEventListener("click",e=>{if(m.open&&!m.contains(e.target))m.open=false});'
+    '})()</script>')
+
+_NAV = (('library', '/', 'Library'), ('capabilities', '/capabilities', 'Capabilities'))
+
+
+def app_header(active, user=None, can_create=True):
+    """The shared signed-in header: the brand (back to the library), Library
+    and Capabilities, + New video, and, when there are accounts (`user`
+    set), a compact account menu. `active` is the nav item to mark current
+    ('library', 'capabilities' or None)."""
+    nav = ''.join(f'<a href="{href}"' + (' aria-current="page"' if key == active else '') + f'>{label}</a>'
+                  for key, href, label in _NAV)
+    new = ('<a class="app-new" href="/new"' + (' aria-current="page"' if active == 'new' else '') +
+           '><span aria-hidden="true">+</span> New video</a>') if can_create else ''
+    account = ''
+    if user:
+        name = html.escape(user)
+        account = ('<details class="app-account"><summary aria-label="Account">'
+                   f'<span class="app-avatar" aria-hidden="true">{html.escape(user[:1])}</span>'
+                   f'<span class="app-user">{name}</span></summary>'
+                   f'<div class="app-menu"><p>Signed in as <strong>{name}</strong></p>'
+                   '<a href="/account">Account &amp; API keys</a>'
+                   '<button id="sign-out" type="button">Sign out</button></div></details>')
+    return ('<header class="app-bar"><div class="app-bar-inner">'
+            '<a class="app-brand" href="/">' + _LOGO + '<b>videobuilder</b></a>'
+            f'<nav class="app-nav" aria-label="Main">{nav}</nav>'
+            f'<div class="app-actions">{new}{account}</div></div></header>' + APP_HEADER_SCRIPT)
+
+
+def _head(title, style):
+    return ('<!doctype html><html lang="en"><head><meta charset="utf-8">'
+            f'<title>{title} · videobuilder</title>'
+            '<meta name="viewport" content="width=device-width, initial-scale=1">'
+            f'<style>{style}</style></head>')
+
+
 LIBRARY_STYLE = (
-    'body{font:16px/1.4 system-ui,sans-serif;background:#0d0d10;color:#fff;margin:0}'
-    'a{color:#88cafa;text-decoration:none}'
-    '.lib-page{max-width:900px;margin:0 auto;padding:1rem 1rem 3rem}'
-    '.lib-header{display:flex;flex-wrap:wrap;align-items:center;gap:.75rem;margin-bottom:1rem}'
-    '.lib-header h1{font-size:1.3rem;margin:0;flex:1 1 auto;min-width:0}'
-    '.caps-link{font-size:.85rem;color:#a9a9b2}'
-    '.account-bar{display:flex;flex-wrap:wrap;gap:.6rem;align-items:center;justify-content:space-between;'
-    'border-bottom:1px solid #26262c;padding:.75rem 0;margin-bottom:.5rem}'
-    '.btn{display:inline-flex;align-items:center;justify-content:center;min-height:44px;padding:.5rem 1rem;'
-    'border-radius:8px;border:1px solid #26262c;background:#141417;color:#fff;font-weight:600;cursor:pointer}'
-    '.btn-primary{background:#e5483b;border-color:#e5483b;color:#fff}'
-    'button.btn,button#sign-out{font:inherit}'
-    '#sign-out{min-height:44px;padding:.5rem 1rem;border-radius:8px;border:1px solid #26262c;background:#141417;'
-    'color:#fff}'
-    'h2{font-size:1rem;color:#a9a9b2;margin:1.5rem 0 .5rem;text-transform:uppercase;letter-spacing:.04em}'
+    'h2{font-size:.8rem;color:#a9a9b2;margin:2rem 0 .8rem;text-transform:uppercase;letter-spacing:.08em;'
+    'font-weight:700}'
     '.lib-grid{display:flex;flex-wrap:wrap;gap:.75rem;list-style:none;margin:0;padding:0}'
     '.lib-grid li{flex:0 0 min(200px,45vw);min-width:140px}'
     '.lib-card{display:flex;flex-direction:column;gap:.4rem;width:100%;border:1px solid #26262c;'
@@ -533,50 +634,35 @@ def index(entries, accounts_enabled, user, host, scheme='http', showcase=False):
                        'onerror="this.style.display=\'none\'"></span>'
                        f'<span class="lib-title">{html.escape(leaf)}</span></button></li>')
         rows.append('</ul>')
-    account_bar = ''
     howto = ''
     body = ''.join(rows)
     can_create = bool(user) if accounts_enabled else True
     hero = not entries
-    if accounts_enabled:
-        account_bar = ('<div class="account-bar"><span>Signed in as <strong>' + html.escape(user) +
-                       '</strong> · <a href="/account">API keys</a></span>'
-                       '<button id="sign-out">Sign out</button></div>')
-        if not entries:
-            howto = _howto_html(user)
+    if accounts_enabled and not entries:
+        howto = _howto_html(user)
     starters = _starter_section_html(hero, as_link=True)
     if hero and showcase:
         starters = _showcase_section_html() + starters
-    new_video = '<a class="btn btn-primary new-video" href="/new">+ New video</a>' if can_create else ''
     # A commit subject holding e.g. "<!--<script>" must not push the tokenizer into
     # the script-data double-escaped state, where a literal </script> no longer closes
     # this block: escape every '<' (and '>', '&' along with it) as a \u escape.
     cards_json = (json.dumps(cards).replace('<', '\\u003c').replace('>', '\\u003e')
                  .replace('&', '\\u0026'))
-    script = ('<script>'
-              'const o=document.querySelector("#sign-out");if(o)o.onclick=async()=>{'
-              'await fetch("/api/logout",{method:"POST",headers:{"Content-Type":"application/json"},body:"{}"});'
-              'location.href="/login"};</script>'
-              f'<script type="application/json" id="lib-data">{cards_json}</script>' + LIB_DETAIL_SCRIPT)
-    return ('<!doctype html><html><head><meta charset="utf-8"><title>Video library</title>'
-            '<meta name="viewport" content="width=device-width, initial-scale=1">'
-            '<style>' + LIBRARY_STYLE + LIB_DETAIL_STYLE + STARTER_STYLE + SHOWCASE_STYLE + '</style>'
-            '</head><body><div class="lib-page">' + account_bar +
-            '<header class="lib-header"><h1>Video library</h1>' + new_video +
-            '<a class="caps-link" href="/capabilities">Capabilities</a></header>' +
+    script = (f'<script type="application/json" id="lib-data">{cards_json}</script>' + LIB_DETAIL_SCRIPT)
+    return (_head('Your videos', APP_STYLE + LIBRARY_STYLE + LIB_DETAIL_STYLE + STARTER_STYLE + SHOWCASE_STYLE) +
+            '<body>' + app_header('library', user if accounts_enabled else None, can_create) +
+            '<main class="app-main"><div class="page-head"><h1>Your videos</h1></div>' +
             howto + starters + body + _LIB_DETAIL_HTML + script +
-            '</div></body></html>').encode()
+            '</main></body></html>').encode()
 
 
-def new_video_page(names):
+def new_video_page(names, user=None):
+    """`user`: who is signed in, for the header's account menu; None without accounts."""
     options = ''.join(f'<option value="{html.escape(n)}"></option>' for n in names)
     starters = _starter_section_html(hero=False, as_link=False, heading='Or start from one of these')
-    return ('<!doctype html><html><head><meta charset="utf-8"><title>New video · videobuilder</title>'
-            '<meta name="viewport" content="width=device-width, initial-scale=1">'
-            '<style>' + LIBRARY_STYLE + STARTER_STYLE + NEW_VIDEO_STYLE + ORDER_STYLE + '</style></head>'
-            '<body><div class="lib-page">'
-            '<header class="lib-header"><a class="btn" href="/">&larr; Library</a>'
-            '<h1>New video</h1></header>'
+    return (_head('New video', APP_STYLE + LIBRARY_STYLE + STARTER_STYLE + NEW_VIDEO_STYLE + ORDER_STYLE) +
+            '<body>' + app_header('new', user) + '<main class="app-main">'
+            '<div class="page-head"><h1>New video</h1></div>'
             '<form id="new-video">'
             '<div id="prompt-fields">'
             '<label class="prompt">What do you want to make?<textarea name="description" rows="6" autofocus '
@@ -610,60 +696,65 @@ def new_video_page(names):
             '<button id="order-start" type="button">Start</button>'
             '<p id="order-error" role="alert"></p>'
             '</div>'
-            '</div>' + NEW_VIDEO_SCRIPT + STARTER_SCRIPT + '</body></html>').encode()
+            '</main>' + NEW_VIDEO_SCRIPT + STARTER_SCRIPT + '</body></html>').encode()
 
 
 _ACCOUNT_STYLE = (
-    '<style>'
-    'body{font:16px system-ui;background:#181b20;color:#eee;max-width:720px;margin:0 auto;'
-    'padding:1.2rem 1rem 4rem;box-sizing:border-box}'
-    'h1{font-size:1.3em}a{color:#88cafa}'
+    '.account{max-width:760px;margin:0 auto}'
+    '.account h2{font-size:1.1rem;margin:0 0 .5rem;letter-spacing:-.01em}'
+    '.account section.box{background:#141417;border:1px solid #26262c;border-radius:16px;padding:1.5rem;'
+    'margin:0 0 1.25rem}'
+    '.account .lead{color:#a9a9b2;margin:0 0 1rem;overflow-wrap:anywhere}'
+    '.account .lead strong{color:#f4f4f2}'
+    '.account code{background:#0d0d10;border:1px solid #26262c;border-radius:6px;padding:.05rem .35rem;'
+    'font-size:.85em;overflow-wrap:anywhere}'
     'button{cursor:pointer}button:disabled{cursor:default}'
-    '.bar{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:.6rem;'
-    'border-bottom:1px solid #333;padding-bottom:1rem;margin-bottom:1.2rem}'
-    '.bar button{min-height:44px;padding:.5rem 1rem;border-radius:6px;border:1px solid #333;'
-    'background:#20242b;color:#eee}'
     'ul#keys{list-style:none;margin:0;padding:0}'
     '.key{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:.4rem .8rem;'
-    'padding:.8rem 0;border-bottom:1px solid #2a2e36}'
+    'padding:.85rem 0;border-top:1px solid #22222a}'
     '.key-main{flex:1 1 auto;min-width:0}.key-main strong{word-break:break-word}'
-    '.badge{display:inline-block;font-size:.75em;padding:.1rem .5rem;border-radius:1em;'
-    'background:#2d6cdf;color:#fff;margin-left:.4rem}.badge.read{background:#555}'
-    '.key-meta{flex:1 1 100%;color:#9aa0ab;font-size:.85em}'
-    'button.revoke{min-height:44px;min-width:44px;padding:.5rem 1rem;border-radius:6px;'
-    'border:1px solid #633;background:#2b1d1d;color:#f88}'
-    '.empty{color:#9aa0ab}'
-    'form#create{display:flex;flex-direction:column;gap:.6rem;margin-top:1rem;max-width:420px}'
-    'form#create input,form#create select,form#create button{min-height:44px;padding:.6rem;'
-    'font-size:16px;border-radius:6px;border:1px solid #333;background:#20242b;color:#eee;'
-    'box-sizing:border-box}'
-    'form#create button{background:#2d6cdf;border:none;color:#fff;font-weight:600;cursor:pointer}'
-    'label{display:flex;flex-direction:column;gap:.25rem;font-size:.9em;color:#bbb}'
-    '#error{color:#f88;min-height:1.2em}'
-    '.panel{background:#20242b;border:1px solid #333;border-radius:8px;padding:1rem;margin:1rem 0}'
-    '.panel pre{display:block;background:#15171b;border-radius:6px;padding:.6rem;margin:.4rem 0 0;'
-    'overflow-x:auto;word-break:break-all;white-space:pre-wrap;font-size:.85em}'
-    '.panel p code{background:#15171b;border-radius:4px;padding:.1rem .3rem;font-size:.85em}'
-    '.panel p{margin:1.1rem 0 0}'
-    '.panel button{min-height:44px;padding:.5rem 1rem;border-radius:6px;border:1px solid #333;'
-    'background:#2d6cdf;color:#fff;margin-top:.4rem}'
-    '@media (max-width:480px){.key{flex-direction:column;align-items:flex-start}}'
-    '.limits-default{color:#9aa0ab;margin:0 0 .8rem}'
+    '.badge{display:inline-block;font-size:.72em;font-weight:700;padding:.1rem .55rem;border-radius:1em;'
+    'background:#2a1715;color:#ef5b4c;margin-left:.45rem;text-transform:uppercase;letter-spacing:.04em}'
+    '.badge.read{background:#1f1f25;color:#a9a9b2}'
+    '.key-meta{flex:1 1 100%;color:#8b8b94;font-size:.85em}'
+    'button.revoke{min-height:40px;padding:0 .9rem;border-radius:8px;border:1px solid #4a2522;'
+    'background:transparent;color:#ff8a80;font:inherit;font-size:.9rem}'
+    'button.revoke:hover{background:#2a1715}'
+    '.empty{color:#8b8b94;margin:0}'
+    'form#create{display:grid;grid-template-columns:1fr 1fr;gap:.9rem 1rem;margin-top:.25rem}'
+    'form#create label{display:flex;flex-direction:column;gap:.35rem;font-size:.85rem;color:#a9a9b2}'
+    'form#create .wide{grid-column:1/-1}'
+    'form#create input,form#create select{min-height:46px;padding:.6rem .8rem;font:inherit;border-radius:10px;'
+    'border:1px solid #2c2c33;background:#0d0d10;color:#f4f4f2;box-sizing:border-box;width:100%;outline:none}'
+    'form#create input:focus,form#create select:focus{border-color:#55555f;box-shadow:0 0 0 3px rgba(239,91,76,.18)}'
+    'form#create button{grid-column:1/-1;justify-self:start;min-height:46px;padding:0 1.4rem;border:none;'
+    'border-radius:10px;background:#e5483b;color:#fff;font:inherit;font-weight:700}'
+    'form#create button:hover{background:#ef5b4c}'
+    '#error{color:#ff8a80;margin:.75rem 0 0;font-size:.9rem}#error:empty{display:none}'
+    '.panel{background:#141417;border:1px solid #4a2522;border-radius:16px;padding:1.5rem;margin:0 0 1.25rem}'
+    '.panel pre{display:block;background:#0d0d10;border:1px solid #26262c;border-radius:8px;padding:.6rem .75rem;'
+    'margin:.4rem 0 0;overflow-x:auto;word-break:break-all;white-space:pre-wrap;font-size:.85em}'
+    '.panel p{margin:1.1rem 0 0;color:#c9c9cf}.panel p:first-child{margin-top:0}'
+    '.panel button{min-height:40px;padding:0 1rem;border-radius:8px;border:1px solid #2c2c33;background:#1c1c21;'
+    'color:#f4f4f2;font:inherit;font-size:.9rem;margin-top:.5rem}'
+    '.limits-default{color:#8b8b94;margin:0 0 .8rem}'
     'ul#limits{list-style:none;margin:0;padding:0}'
-    '.limit-row{padding:.8rem 0;border-bottom:1px solid #2a2e36}'
+    '.limit-row{padding:.85rem 0;border-top:1px solid #22222a}'
     '.limit-row-top{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:.3rem .8rem}'
-    '.limit-usage{color:#9aa0ab;font-size:.85em}'
+    '.limit-usage{color:#8b8b94;font-size:.85em}'
     '.limit-controls{display:flex;flex-wrap:wrap;align-items:center;gap:.5rem;margin-top:.5rem}'
-    '.limit-controls select,.limit-controls input{min-height:40px;padding:.3rem .5rem;font-size:16px;'
-    'border-radius:6px;border:1px solid #333;background:#20242b;color:#eee;box-sizing:border-box}'
+    '.limit-controls select,.limit-controls input{min-height:40px;padding:.3rem .55rem;font-size:16px;'
+    'border-radius:8px;border:1px solid #2c2c33;background:#0d0d10;color:#f4f4f2;box-sizing:border-box}'
     '.limit-custom{display:flex;flex-wrap:wrap;gap:.5rem}'
-    '.limit-custom label{display:flex;flex-direction:column;gap:.15rem;font-size:.8em;color:#bbb}'
+    '.limit-custom label{display:flex;flex-direction:column;gap:.15rem;font-size:.8em;color:#a9a9b2}'
     '.limit-custom input{width:6.5rem}'
-    '.limit-save{min-height:40px;padding:.4rem 1rem;border-radius:6px;border:none;background:#2d6cdf;color:#fff;'
-    'font-weight:600;cursor:pointer}'
+    '.limit-save{min-height:40px;padding:.4rem 1rem;border-radius:8px;border:none;background:#e5483b;color:#fff;'
+    'font:inherit;font-weight:700}'
     '.limit-status{font-size:.85em;color:#8c8}'
-    '@media (max-width:480px){.limit-row-top{flex-direction:column;align-items:flex-start}}'
-    '</style>')
+    '@media (max-width:560px){.account section.box,.panel{padding:1.1rem}'
+    'form#create{grid-template-columns:1fr}.key{flex-direction:column;align-items:flex-start}'
+    '.limit-row-top{flex-direction:column;align-items:flex-start}}'
+)
 
 _ACCOUNT_SCRIPT = (
     '<script>'
@@ -723,10 +814,6 @@ _ACCOUNT_SCRIPT = (
     "const r=await fetch('/api/account/keys/'+encodeURIComponent(id)+'/revoke',"
     "{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'});"
     'if(r.ok)location.reload();});'
-    "const o=document.querySelector('#sign-out');"
-    'if(o)o.onclick=async()=>{'
-    "await fetch('/api/logout',{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'});"
-    "location.href='/login';};"
     '</script>')
 
 
@@ -811,25 +898,25 @@ def account_page(username, keys, limits=None):
     keys_block = ('<ul id="keys">' + ''.join(_key_row(k) for k in keys) + '</ul>' if keys
                  else '<p id="keys" class="empty">No keys yet.</p>')
     user = html.escape(username)
-    limits_block = _limits_section_html(limits) if limits is not None else ''
+    limits_block = ('<section class="box">' + _limits_section_html(limits) + '</section>'
+                    if limits is not None else '')
     limits_script = _LIMITS_SCRIPT if limits is not None else ''
-    return ('<!doctype html><html><head><meta charset="utf-8"><title>Account &middot; Video library</title>'
-           '<meta name="viewport" content="width=device-width, initial-scale=1">' + _ACCOUNT_STYLE +
-           '</head><body>'
-           '<div class="bar"><span>Signed in as <strong>' + user + '</strong></span>'
-           '<button id="sign-out" type="button">Sign out</button></div>'
-           '<h1>Account <a href="/">Library</a></h1>'
-           '<h2>API keys</h2>'
-           '<p>A key lets an agent work with your videos over git and the API, with everything it does shown '
-           'as <strong>' + user + ' (label)</strong>. A write key can also start a brand-new video inside its '
-           'own project (if it has one): <code>POST /api/videos/new {"name":"project/video","start":"blank"}'
-           '</code> with an <code>Authorization: Bearer &lt;key&gt;</code> header.</p>' + keys_block +
-           '<h2>New key</h2>'
-           '<form id="create"><label>Label<input name="label" maxlength="40" required></label>'
+    return (_head('Account', APP_STYLE + _ACCOUNT_STYLE) +
+           '<body>' + app_header(None, username) + '<main class="app-main"><div class="account">'
+           '<div class="page-head"><div><h1>Account</h1>'
+           '<p>Signed in as <strong>' + user + '</strong></p></div></div>'
+           '<section class="box"><h2>API keys</h2>'
+           '<p class="lead">A key lets an agent work with your videos over git and the API, with everything it '
+           'does shown as <strong>' + user + ' (label)</strong>. A write key can also start a brand-new video '
+           'inside its own project (if it has one): <code>POST /api/videos/new {"name":"project/video",'
+           '"start":"blank"}</code> with an <code>Authorization: Bearer &lt;key&gt;</code> header.</p>' +
+           keys_block + '</section>'
+           '<section class="box"><h2>New key</h2>'
+           '<form id="create"><label class="wide">Label<input name="label" maxlength="40" required></label>'
            '<label>Project (optional: limit the key to one project, e.g. gardening)<input name="scope"></label>'
            '<label>Mode<select name="mode"><option value="write">Write</option>'
            '<option value="read">Read</option></select></label>'
-           '<button>Create key</button></form><p id="error"></p>'
+           '<button>Create key</button></form><p id="error"></p></section>'
            '<div id="secret-panel" class="panel" hidden>'
            '<p><strong>New key secret &mdash; copy it now; it will not be shown again.</strong></p>'
            '<pre id="secret-value"></pre>'
@@ -840,4 +927,5 @@ def account_page(username, keys, limits=None):
            '<button class="copy" type="button" data-copy="git-cred">Copy</button>'
            '<p>API header:</p><pre id="api-header"></pre>'
            '<button class="copy" type="button" data-copy="api-header">Copy</button>'
-           '</div>' + limits_block + _ACCOUNT_SCRIPT + limits_script + '</body></html>').encode()
+           '</div>' +
+           limits_block + '</div></main>' + _ACCOUNT_SCRIPT + limits_script + '</body></html>').encode()
