@@ -40,6 +40,11 @@ class _Site(BaseHTTPRequestHandler):
             self.send_header('Location', '/about')
             self.end_headers()
             return
+        if self.path == '/to-private':
+            self.send_response(302)
+            self.send_header('Location', 'http://10.1.2.3/secret')
+            self.end_headers()
+            return
         if self.path == '/slow':
             time.sleep(3)
             self.send_response(200)
@@ -142,6 +147,11 @@ class Crawl(GatherFixture):
     def test_empty_links_refused(self):
         with self.assertRaises(ValueError):
             gather.crawl([])
+
+    def test_a_redirect_to_a_private_address_is_refused(self):
+        pages, errors = gather.crawl([self.url('/to-private')], max_pages=1, allow_loopback=True, chromium=None)
+        self.assertEqual(pages, [])
+        self.assertTrue(any('10.1.2.3' in url for url, _ in errors), errors)
 
     def test_production_default_refuses_the_loopback_fixture(self):
         pages, errors = gather.crawl([self.url('/')], max_pages=1, chromium=None)  # allow_loopback defaults False

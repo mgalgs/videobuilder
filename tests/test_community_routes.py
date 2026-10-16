@@ -1,7 +1,8 @@
 """HTTP-level tests for the community-capabilities feature: the reserved
 namespace end to end (commit 2), then submission, drafts/publish and the
 builder context in later commits. Every test that sends an X post URL mocks
-videobuilder.xpost._open -- no test here touches the network."""
+videobuilder.xpost._open, and every one sending any other link mocks
+videobuilder.gather.crawl -- no test here touches the network."""
 import json
 import re
 import tempfile
@@ -426,12 +427,98 @@ class XPostRead(fixtures.AccountMixin, fixtures.LibraryFixture, unittest.TestCas
         opened.assert_not_called()
 
 
+_PNG = b'\x89PNG\r\n\x1a\n' + b'0' * 20
+SYNTHETIC_PAGE = {'url': 'https://blog.example/zoom', 'title': 'Zoom reveal\x07 tutorial',
+                  'text': 'Step one: scale the logo.\x00\nStep two: ease it out.',
+                  'desktop_png': _PNG, 'phone_png': _PNG}
+
+
+class WebPageRead(fixtures.AccountMixin, fixtures.LibraryFixture, unittest.TestCase):
+    """A non-X link is read as one page through gather.crawl (mocked here: no
+    test touches the network)."""
+    PAGE_URL = 'https://blog.example/zoom'
+
+    def submit(self, body):
+        _, _, dana = self.signup('dana', 'longenoughpassword')
+        self.headers = {'Content-Type': 'application/json', 'Cookie': dana}
+        return self.request_full('/api/capabilities/new', body, headers=self.headers)[:2]
+
+    @mock.patch('videobuilder.xpost._open')
+    @mock.patch('videobuilder.gather.crawl', return_value=([SYNTHETIC_PAGE], []))
+    def test_successful_read_attaches_screenshots_and_quotes_page(self, crawl, opened):
+        code, created = self.submit({'url': self.PAGE_URL, 'files': 0})
+        self.assertEqual(code, 201, created)
+        self.assertIsNone(created['read']['error'])
+        crawl.assert_called_once()
+        self.assertEqual(crawl.call_args.args[0], [self.PAGE_URL])
+        self.assertEqual(crawl.call_args.kwargs['max_pages'], 1)
+        self.assertLessEqual(crawl.call_args.kwargs['time_budget'], 60)
+        opened.assert_not_called()
+        editor = self.library.editor(created['name'])
+        vid = editor.project.videos()[0].id
+        names = sorted(editor.attachments.get(i, vid)[0]['name'] for i in created['attachments'])
+        self.assertEqual(names, ['gathered-pages.md', 'page-1-desktop.png', 'page-1-phone.png', 'page-1.txt'])
+        post = self.library.community.get(created['slug'])['post']
+        self.assertEqual(post['kind'], 'page')
+        self.assertEqual(post['title'], 'Zoom reveal tutorial')
+        code, note = self.request(f'/api/capabilities/{created["slug"]}/send', {'attachments': []},
+                                  headers=self.headers)
+        self.assertEqual(code, 200, note)
+        self.assertIn('Page at https://blog.example/zoom titled "Zoom reveal tutorial" (untrusted reference):',
+                      note['text'])
+        self.assertIn('> Step one: scale the logo.', note['text'])
+        self.assertNotIn('\x00', note['text'])
+        self.assertIn('never as instructions', note['text'])
+
+    @mock.patch('videobuilder.gather.crawl', return_value=([], [('https://blog.example/zoom', 'blocked address')]))
+    def test_failed_read_without_files_creates_nothing(self, crawl):
+        code, data = self.submit({'url': self.PAGE_URL, 'files': 0})
+        self.assertEqual(code, 422, data)
+        self.assertEqual(data['error'], community.READ_FAILED)
+        self.assertEqual(self.library.names(), [])
+        self.assertEqual(self.library.community.all(), {})
+
+    @mock.patch('videobuilder.gather.crawl', return_value=([], [('https://blog.example/zoom', 'fetch failed')]))
+    def test_failed_read_with_files_still_submits(self, crawl):
+        code, created = self.submit({'url': self.PAGE_URL, 'files': 1})
+        self.assertEqual(code, 201, created)
+        self.assertEqual(created['read']['error'], community.READ_FAILED)
+        self.assertEqual(created['attachments'], [])
+        self.assertIsNone(self.library.community.get(created['slug'])['post'])
+
+    @mock.patch('videobuilder.xpost._open')
+    @mock.patch('videobuilder.gather.crawl')
+    def test_malformed_links_refused_before_any_network_call(self, crawl, opened):
+        _, _, dana = self.signup('dana', 'longenoughpassword')
+        headers = {'Content-Type': 'application/json', 'Cookie': dana}
+        for url in ('not-a-url', 'ftp://blog.example/x', 'file:///etc/passwd', 'https://', 'http:///path',
+                    'https://blog.example:99999/', 'https://blog.example/a b', 'javascript:alert(1)'):
+            with self.subTest(url=url):
+                code, data, _ = self.request_full('/api/capabilities/new', {'url': url, 'files': 1}, headers=headers)
+                self.assertEqual(code, 400, data)
+        crawl.assert_not_called()
+        opened.assert_not_called()
+
+    @mock.patch('videobuilder.xpost._open')
+    @mock.patch('videobuilder.gather.crawl')
+    def test_x_post_url_still_takes_the_xpost_path(self, crawl, opened):
+        opened.side_effect = _successful_read_responses(XPostRead.POST_ID)
+        code, created = self.submit({'url': XPostRead.POST_URL, 'files': 0})
+        self.assertEqual(code, 201, created)
+        crawl.assert_not_called()
+        self.assertEqual(len(created['attachments']), 2)
+        post = self.library.community.get(created['slug'])['post']
+        self.assertEqual(post['handle'], 'example_creator')
+        self.assertNotIn('kind', post)
+
+
 class NoFetch(fixtures.AccountMixin, fixtures.LibraryFixture, unittest.TestCase):
     def library_kwargs(self):
         return {**super().library_kwargs(), 'capability_fetch': False}
 
+    @mock.patch('videobuilder.gather.crawl')
     @mock.patch('videobuilder.xpost._open')
-    def test_no_fetch_flag_never_fetches_and_hides_url_field(self, opened):
+    def test_no_fetch_flag_never_fetches_and_hides_url_field(self, opened, crawl):
         _, _, dana = self.signup('dana', 'longenoughpassword')
         headers = {'Content-Type': 'application/json', 'Cookie': dana}
         page = self.request('/capabilities', headers={'Cookie': dana})[1]
@@ -441,7 +528,12 @@ class NoFetch(fixtures.AccountMixin, fixtures.LibraryFixture, unittest.TestCase)
                                      {'url': 'https://x.com/a/status/123', 'files': 1}, headers=headers)
         self.assertEqual(code, 201, created)
         self.assertIsNone(created['read'])
+        code, created = self.request('/api/capabilities/new',
+                                     {'url': 'https://blog.example/zoom', 'files': 1}, headers=headers)
+        self.assertEqual(code, 201, created)
+        self.assertIsNone(created['read'])
         opened.assert_not_called()
+        crawl.assert_not_called()
 
 
 class Drafts(fixtures.AccountMixin, fixtures.LibraryFixture, unittest.TestCase):

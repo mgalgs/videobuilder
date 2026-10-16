@@ -18,6 +18,9 @@ PART = re.compile(r'[a-z0-9][a-z0-9._-]{0,62}\Z')
 # versions.history also matches this subject, for blank videos made before
 # the commit carried a Version-kind trailer.
 BLANK_SUMMARY = 'Start a new video'
+# A non-X capability link is read synchronously inside the request, like xpost.read_post (60s/15s).
+CAPABILITY_PAGE_BUDGET = 30
+CAPABILITY_PAGE_TIMEOUT = 15
 
 
 def valid_name(name):
@@ -285,12 +288,16 @@ class Library:
         releases its slot rather than spending it.
 
         When `url` is given and self.capability_fetch is on, it is read right
-        here (xpost.read_post) before anything is created: a malformed URL
-        raises ValueError (400, no network call ever made -- xpost.parse_url
-        refuses it first); a URL that reads but fails raises FailedRead (422)
-        only when there are no files either -- with files given, the project
-        is still created and the failure is reported back as `read.error`
-        instead. Fetched media is uploaded as this draft's first attachments.
+        here before anything is created: an X post URL (xpost.parse_url) by
+        xpost.read_post, any other link as that one page only through
+        gather.crawl (guarded, no link-following, no video download). A
+        malformed URL raises ValueError (400, no network call ever made --
+        community.check_link refuses it first); a URL that reads but fails
+        raises FailedRead (422) only when there are no files either -- with
+        files given, the project is still created and the failure is reported
+        back as `read.error` instead. Fetched media (or a page's text and
+        screenshots, via gather.write_attachments) is uploaded as this draft's
+        first attachments.
         When fetching is off, `url` is accepted but never read, and the new
         draft's `post` stays null."""
         if not isinstance(files, int) or isinstance(files, bool) or files < 0:
@@ -308,16 +315,32 @@ class Library:
             self.check_note_cap(user, is_admin)
             read = post = None
             media = []
+            page = None
             if url and self.capability_fetch:
                 from . import xpost
-                xpost.parse_url(url)  # malformed -> ValueError (400), before any network call
-                result = xpost.read_post(url)
-                read = {'error': None if result.ok else community.READ_FAILED}
-                if not result.ok and files < 1:
+                try:
+                    xpost.parse_url(url)
+                    is_x = True
+                except ValueError:
+                    is_x = False
+                if is_x:
+                    result = xpost.read_post(url)
+                    ok = result.ok
+                    if result.text or result.handle:
+                        post = {'url': url, 'handle': result.handle, 'text': result.text}
+                    media = result.media
+                else:
+                    community.check_link(url)  # malformed -> ValueError (400), before any network call
+                    from . import gather
+                    crawled, _ = gather.crawl([url], max_pages=1, time_budget=CAPABILITY_PAGE_BUDGET,
+                                              page_timeout=CAPABILITY_PAGE_TIMEOUT)
+                    ok = bool(crawled)
+                    if crawled:
+                        page = crawled[0]
+                        post = community.page_record(page)
+                read = {'error': None if ok else community.READ_FAILED}
+                if not ok and files < 1:
                     raise community.FailedRead(community.READ_FAILED)
-                if result.text or result.handle:
-                    post = {'url': url, 'handle': result.handle, 'text': result.text}
-                media = result.media
             slug = community.new_slug()
             name = f'{community.NAMESPACE}/{slug}'
             result = self.create_blank(name, allow_reserved=True)
@@ -338,6 +361,14 @@ class Library:
                     except ValueError:
                         continue
                     fetched_ids.append(record['id'])
+            if page:
+                from . import gather
+                editor = self.editor(name)
+                vid = editor.project.videos()[0].id
+                # The dropped files arrive in step 2 and share this first note's budget.
+                fetched_ids += gather.write_attachments(editor.attachments, vid, [page], [], reserved_files=files,
+                                                        max_files=editor.attachments.start_video_max_files,
+                                                        max_message=editor.attachments.start_video_max_message)
             self.community.create(slug, user, post=post, capture=(capture.strip() or None) if capture else None,
                                   fetched=fetched_ids)
         finally:
