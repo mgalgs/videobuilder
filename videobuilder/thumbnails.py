@@ -106,7 +106,7 @@ class Thumbnails:
         return _answer(self._dir(video), render_dir, result.stdout.split())
 
 
-def from_state_dir(state_dir, repo_path):
+def from_state_dir(state_dir, repo_path, ref='main'):
     """The same answer as `Thumbnails.get`, straight off `state_dir` and the
     bare repo at `repo_path`, for a video whose Editor isn't already
     resident -- building one just to answer a thumbnail request would clone
@@ -114,9 +114,12 @@ def from_state_dir(state_dir, repo_path):
     needed to find its slug (Thumbnails._dir) isn't known without an Editor
     to ask the project file for it, so this instead discovers whichever slug
     directories already exist on disk: unambiguous for the common case of one
-    rendered video per project. Returns None with nothing to serve, or
-    AMBIGUOUS if more than one video has ever rendered here and the caller
-    should fall back to the real editor, which knows the video id."""
+    rendered video per project. `ref` defaults to 'main' but is passed as a
+    pinned commit sha to answer for exactly that commit instead of main's
+    current tip (see library.Library.community_clip). Returns None with
+    nothing to serve, or AMBIGUOUS if more than one video has ever rendered
+    here and the caller should fall back to the real editor, which knows the
+    video id."""
     state_dir = Path(state_dir)
     thumbs_root, renders_root = state_dir / 'thumbnails', state_dir / 'renders'
     slugs = {p.name for p in thumbs_root.glob('*') if p.is_dir()}
@@ -126,23 +129,29 @@ def from_state_dir(state_dir, repo_path):
     if len(slugs) > 1:
         return AMBIGUOUS
     slug = next(iter(slugs))
-    result = git(None, 'rev-list', '--first-parent', 'main', git_dir=repo_path, hooks=False, check=False)
+    result = git(None, 'rev-list', '--first-parent', ref, git_dir=repo_path, hooks=False, check=False)
     if result.returncode:
         return None
     return _answer(thumbs_root / slug, renders_root / slug, result.stdout.split())
 
 
-def latest_render(state_dir, repo_path):
-    """The mp4 Path of the newest first-parent main commit under
-    state_dir/renders that has a finished render, preferring 16x9 and
-    otherwise any format; None without one yet. Walks every render-slug
-    directory under renders_root, unlike from_state_dir's AMBIGUOUS bail-out:
-    a community capability project is created by create_blank and so always
-    has exactly one video, and its clip route has no real Editor to fall
-    back to the way the library grid's thumbnail route does."""
+def latest_render(state_dir, repo_path, ref='main'):
+    """The mp4 Path of the newest first-parent commit at or before `ref`
+    (defaults to 'main', main's current tip) under state_dir/renders that
+    has a finished render, preferring 16x9 and otherwise any format; None
+    without one yet. Pass a pinned commit sha as `ref` to answer for exactly
+    that commit instead of whatever main has since moved to (see
+    library.Library.community_clip) -- safe because these bare repos are
+    push-only fast-forward with no deletes (Library.create), so a sha that
+    was ever main's tip stays an ancestor of main forever. Walks every
+    render-slug directory under renders_root, unlike from_state_dir's
+    AMBIGUOUS bail-out: a community capability project is created by
+    create_blank and so always has exactly one video, and its clip route has
+    no real Editor to fall back to the way the library grid's thumbnail
+    route does."""
     state_dir = Path(state_dir)
     renders_root = state_dir / 'renders'
-    result = git(None, 'rev-list', '--first-parent', 'main', git_dir=repo_path, hooks=False, check=False)
+    result = git(None, 'rev-list', '--first-parent', ref, git_dir=repo_path, hooks=False, check=False)
     if result.returncode:
         return None
     shas = result.stdout.split()

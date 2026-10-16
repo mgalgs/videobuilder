@@ -3,6 +3,7 @@ namespace end to end (commit 2), then submission, drafts/publish and the
 builder context in later commits. Every test that sends an X post URL mocks
 videobuilder.xpost._open -- no test here touches the network."""
 import json
+import re
 import tempfile
 import unittest
 import urllib.request
@@ -14,6 +15,13 @@ from videobuilder.library import Library
 from videobuilder.notes import NullBackend
 from tests import fixtures
 from tests.test_xpost import _FakeResponse
+
+
+def _community_data(page):
+    """The page's per-card JSON blob for published community capabilities
+    (id, title, ..., available)."""
+    m = re.search(rb'<script id="community-data" type="application/json">(.*?)</script>', page, re.S)
+    return json.loads(m.group(1)) if m else []
 
 
 class Recorder(NullBackend):
@@ -468,7 +476,10 @@ class Published(fixtures.AccountMixin, fixtures.LibraryFixture, unittest.TestCas
         self.assertNotIn(payload.encode(), page)
         self.assertIn(b'&lt;/script&gt;', page)
 
-    def test_published_tracks_main(self):
+    def test_published_pins_the_approved_commit_until_republished(self):
+        """Publishing pins the exact commit that was validated and approved:
+        a later push to the project's main must not change what the catalog
+        or another user's builder sees, until an admin publishes again."""
         admin = self.admin_login()
         admin_headers = {'Content-Type': 'application/json', 'Cookie': admin}
         _, _, dana = self.signup('dana', 'longenoughpassword')
@@ -477,6 +488,7 @@ class Published(fixtures.AccountMixin, fixtures.LibraryFixture, unittest.TestCas
         slug = created['slug']
         publishable(self, slug, title='Original title')
         self.request(f'/api/capabilities/{slug}/publish', {}, headers=admin_headers)
+        pinned = self.library.community.get(slug)['pinned_sha']
         page = self.request('/capabilities', headers={'Cookie': dana})[1]
         self.assertIn(b'Original title', page)
         work = self.root / 'publish' / slug
@@ -485,11 +497,50 @@ class Published(fixtures.AccountMixin, fixtures.LibraryFixture, unittest.TestCas
         self.git('add', '.', cwd=work)
         self.git('commit', '-m', 'retitle', cwd=work)
         self.git('push', cwd=work)
+        # The push alone changes nothing anyone else sees: catalog, builder and the pin are frozen.
+        page = self.request('/capabilities', headers={'Cookie': dana})[1]
+        self.assertIn(b'Original title', page)
+        self.assertNotIn(b'Updated title', page)
+        self.assertIn(b'Update awaiting approval', page)
+        self.assertEqual(self.library.community.get(slug)['pinned_sha'], pinned)
+        self.assertEqual([c['title'] for c in self.library.community_for_builder()], ['Original title'])
+        # An admin's Publish re-validates and moves the pin forward.
+        code, data = self.request(f'/api/capabilities/{slug}/publish', {}, headers=admin_headers)
+        self.assertEqual(code, 200, data)
+        self.assertNotEqual(self.library.community.get(slug)['pinned_sha'], pinned)
         page = self.request('/capabilities', headers={'Cookie': dana})[1]
         self.assertIn(b'Updated title', page)
         self.assertNotIn(b'Original title', page)
+        self.assertNotIn(b'Update awaiting approval', page)
+        self.assertEqual([c['title'] for c in self.library.community_for_builder()], ['Updated title'])
 
-    def test_published_that_breaks_moves_to_drafts_with_problem(self):
+    def test_reject_on_a_pending_update_discards_only_the_update(self):
+        admin = self.admin_login()
+        admin_headers = {'Content-Type': 'application/json', 'Cookie': admin}
+        _, _, dana = self.signup('dana', 'longenoughpassword')
+        created = self.request('/api/capabilities/new', {'files': 1},
+                               headers={'Content-Type': 'application/json', 'Cookie': dana})[1]
+        slug = created['slug']
+        publishable(self, slug, title='Original title')
+        self.request(f'/api/capabilities/{slug}/publish', {}, headers=admin_headers)
+        pinned = self.library.community.get(slug)['pinned_sha']
+        work = self.root / 'publish' / slug
+        toml_path = work / 'capability.toml'
+        toml_path.write_text(toml_path.read_text().replace('Original title', 'Sketchy title'))
+        self.git('add', '.', cwd=work)
+        self.git('commit', '-m', 'retitle', cwd=work)
+        self.git('push', cwd=work)
+        code, data, _ = self.request_full(f'/api/capabilities/{slug}/reject', {}, headers=admin_headers)
+        self.assertEqual(code, 200, data)
+        record = self.library.community.get(slug)
+        self.assertEqual(record['status'], 'published')
+        self.assertEqual(record['pinned_sha'], pinned)
+        page = self.request('/capabilities', headers={'Cookie': dana})[1]
+        self.assertIn(b'Original title', page)
+        self.assertNotIn(b'Sketchy title', page)
+        self.assertNotIn(b'Update awaiting approval', page)  # discarded: stops nagging for this sha
+
+    def test_published_with_no_render_yet_shows_placeholder(self):
         admin = self.admin_login()
         admin_headers = {'Content-Type': 'application/json', 'Cookie': admin}
         _, _, dana = self.signup('dana', 'longenoughpassword')
@@ -498,18 +549,41 @@ class Published(fixtures.AccountMixin, fixtures.LibraryFixture, unittest.TestCas
         slug = created['slug']
         publishable(self, slug)
         self.request(f'/api/capabilities/{slug}/publish', {}, headers=admin_headers)
-        work = self.root / 'publish' / slug
-        (work / 'capability.toml').unlink()
-        self.git('add', '.', cwd=work)
-        self.git('commit', '-m', 'break it', cwd=work)
-        self.git('push', cwd=work)
         page = self.request('/capabilities', headers={'Cookie': dana})[1]
-        self.assertNotIn(f'data-card="community:{slug}"'.encode(), page)
-        self.assertIn(slug.encode(), page)  # back in the drafts section
-        view = self.library.community_view('dana')
-        draft = next(d for d in view['drafts'] if d['slug'] == slug)
-        self.assertEqual(draft['status'], 'published')
-        self.assertIn('capability.toml', draft['problem'])
+        self.assertIn(b'clip not built', page)
+        data = {e['id']: e for e in _community_data(page)}
+        self.assertFalse(data[f'community:{slug}']['available'])
+
+    def test_published_capability_whose_pin_goes_invalid_is_refused_to_others(self):
+        """A published capability's pinned commit can go invalid later even
+        though its own git content never changes -- e.g. a future built-in
+        catalog id clashing with it. Its clip must then stop being served to
+        anyone but its submitter and admins, consistent with the grid."""
+        admin = self.admin_login()
+        admin_headers = {'Content-Type': 'application/json', 'Cookie': admin}
+        _, _, dana = self.signup('dana', 'longenoughpassword')
+        _, _, other = self.signup('other', 'longenoughpassword')
+        created = self.request('/api/capabilities/new', {'files': 1},
+                               headers={'Content-Type': 'application/json', 'Cookie': dana})[1]
+        slug, name = created['slug'], created['name']
+        publishable(self, slug, id='clashing-id')
+        self.request(f'/api/capabilities/{slug}/publish', {}, headers=admin_headers)
+        sha = self.git('--git-dir', str(self.library.path(name)), 'rev-parse', 'main').stdout.strip()
+        path = self.library.editor(name).renders.path('film', sha, '16x9')
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(b'FAKEMP4DATA' * 4)
+        self.assertEqual(self.request(f'/capabilities/community/{slug}.mp4',
+                                      headers={'Cookie': other})[0], 200)
+        fake_entry = {**capabilities.CATALOG[0], 'id': 'clashing-id'}
+        with mock.patch('videobuilder.capabilities.CATALOG', capabilities.CATALOG + (fake_entry,)):
+            self.assertEqual(self.request(f'/capabilities/community/{slug}.mp4',
+                                          headers={'Cookie': other})[0], 404)
+            self.assertEqual(self.request(f'/capabilities/community/{slug}.mp4',
+                                          headers={'Cookie': dana})[0], 200)
+            self.assertEqual(self.request(f'/capabilities/community/{slug}.mp4',
+                                          headers=admin_headers)[0], 200)
+            page = self.request('/capabilities', headers={'Cookie': other})[1]
+            self.assertNotIn(f'data-card="community:{slug}"'.encode(), page)
 
 
 class Reject(fixtures.AccountMixin, fixtures.LibraryFixture, unittest.TestCase):

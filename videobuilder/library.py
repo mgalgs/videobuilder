@@ -6,6 +6,7 @@ from pathlib import Path
 import re
 import sys
 import threading
+import time
 
 from . import community, pages
 from .gitutil import git
@@ -237,10 +238,25 @@ class Library:
         git(None, 'update-ref', 'refs/heads/main', commit, git_dir=target, hooks=False)
         return {'name': name, 'commit': commit, 'video': 'film'}
 
+    def check_capability_cap(self, author, is_admin):
+        """Refuse a new capability submission (HTTPError 429) once `author`
+        has created community.CAPABILITY_DAILY_CAP of them in the trailing
+        24 hours; a no-op for an admin. Separate from check_note_cap: this
+        gates the heavier create-project-and-maybe-read-a-post work that
+        happens before any note exists for the ordinary cap to count."""
+        if is_admin:
+            return
+        from .editor import HTTPError
+        cutoff = time.time() - 24 * 60 * 60
+        if self.community.count_recent(author, cutoff) >= community.CAPABILITY_DAILY_CAP:
+            raise HTTPError(429, f"You've submitted {community.CAPABILITY_DAILY_CAP} capabilities today. "
+                            "Try again tomorrow.")
+
     def submit_capability(self, user, url, capture, files):
         """Step 1 of the capability-submission flow (POST /api/capabilities/new):
-        validate the dialog's fields, enforce `user`'s daily note cap, and create
-        the reserved `capabilities/<slug>` project and its draft record. `files`
+        validate the dialog's fields, enforce `user`'s daily caps (both the
+        capability-submission cap and the ordinary note cap), and create the
+        reserved `capabilities/<slug>` project and its draft record. `files`
         is how many files the browser is about to upload in step 2 (POST
         /v/capabilities/<slug>/api/attachments, the ordinary upload route); at
         least one of a URL or a file is required.
@@ -264,6 +280,7 @@ class Library:
         if not url and files < 1:
             raise ValueError('give a URL or drop at least one file')
         is_admin = bool(self.accounts and self.accounts.is_admin(user))
+        self.check_capability_cap(user, is_admin)
         self.check_note_cap(user, is_admin)
         read = post = None
         media = []
@@ -310,49 +327,60 @@ class Library:
         from step 2). Raises KeyError for an unknown slug or for a caller who
         is neither the submitter nor an admin (so the route answers 404, like
         project access everywhere else); ValueError if this draft was already
-        sent. The note is always authored as the submitter and checked against
-        the submitter's own daily cap, even when an admin is the one calling
-        this on someone else's unsent draft."""
+        sent, or is being sent by a concurrent call right now (claim_send --
+        so two near-simultaneous sends can produce at most one note, the
+        second always getting back "already sent to the builder"). The note
+        is always authored as the submitter and checked against the
+        submitter's own daily cap, even when an admin is the one calling
+        this on someone else's unsent draft. A claim left by an attempt that
+        fails before producing a note (e.g. the note cap) is released so a
+        retry isn't blocked forever."""
         record = self.community.get(slug)
         is_admin = bool(self.accounts and self.accounts.is_admin(user))
         if record['submitter'] != user and not is_admin:
             raise KeyError(slug)
         submitter = record['submitter']
         submitter_is_admin = bool(self.accounts and self.accounts.is_admin(submitter))
-        if record.get('note'):
-            raise ValueError('already sent to the builder')
-        name = f'{community.NAMESPACE}/{slug}'
-        editor = self.editor(name)
-        vid = editor.project.videos()[0].id
-        fetched = []
-        for ident in record.get('fetched') or []:
-            try:
-                editor.attachments.get(ident, vid)
-            except KeyError:
-                continue  # expired since step 1: left out, not a failed send
-            fetched.append(ident)
-        # A retry from the draft card's own "Send to the builder" button (as opposed to
-        # the submission dialog that just uploaded them) has no memory of what the
-        # browser uploaded in step 2: recover anything still sitting on this video, not
-        # just whatever ids the caller happened to name.
-        uploaded = editor.attachments.uploaded_for(vid)
-        ids = list(dict.fromkeys(fetched + uploaded + list(attachment_ids or [])))
-        text = community.brief(record.get('post'), record.get('capture'), bool(ids))
-        # Charged to the submitter even when an admin is the one clicking "Send to the
-        # builder" on someone else's interrupted draft (capabilities.py's draft card
-        # shows that button to admins too) -- an admin sending on another user's behalf
-        # must not author the note as themselves or skip that user's own daily cap.
-        note = editor.start_capability(text, ids, submitter, submitter_is_admin)
+        self.community.claim_send(slug)
+        try:
+            name = f'{community.NAMESPACE}/{slug}'
+            editor = self.editor(name)
+            vid = editor.project.videos()[0].id
+            fetched = []
+            for ident in record.get('fetched') or []:
+                try:
+                    editor.attachments.get(ident, vid)
+                except KeyError:
+                    continue  # expired since step 1: left out, not a failed send
+                fetched.append(ident)
+            # A retry from the draft card's own "Send to the builder" button (as opposed to
+            # the submission dialog that just uploaded them) has no memory of what the
+            # browser uploaded in step 2: recover anything still sitting on this video, not
+            # just whatever ids the caller happened to name.
+            uploaded = editor.attachments.uploaded_for(vid)
+            ids = list(dict.fromkeys(fetched + uploaded + list(attachment_ids or [])))
+            text = community.brief(record.get('post'), record.get('capture'), bool(ids))
+            # Charged to the submitter even when an admin is the one clicking "Send to the
+            # builder" on someone else's interrupted draft (capabilities.py's draft card
+            # shows that button to admins too) -- an admin sending on another user's behalf
+            # must not author the note as themselves or skip that user's own daily cap.
+            note = editor.start_capability(text, ids, submitter, submitter_is_admin)
+        except Exception:
+            self.community.release_send(slug)
+            raise
         self.community.set_note(slug, note['id'])
         return note
 
-    def _capability_status(self, slug, claimed_ids):
-        """(entry, None) if `slug`'s capability.toml on main validates right
+    def _capability_status(self, slug, claimed_ids, ref='main'):
+        """(entry, None) if `slug`'s capability.toml at `ref` validates right
         now, else (None, problem) with community.Invalid's plain message.
-        `claimed_ids`: ids already claimed by other currently-valid published
-        capabilities (see _published_ids) -- an id clash counts as invalid
-        here too, for whichever one is checked second."""
-        read = community.load(self.path(f'{community.NAMESPACE}/{slug}'))
+        `ref` is 'main' for a live preview (publishing, a brand new draft) or
+        a pinned commit sha to check exactly what a published capability
+        currently shows everyone else (see community.load). `claimed_ids`:
+        ids already claimed by other currently-valid published capabilities
+        (see _published_ids) -- an id clash counts as invalid here too, for
+        whichever one is checked second."""
+        read = community.load(self.path(f'{community.NAMESPACE}/{slug}'), ref=ref)
         try:
             return community.validate(read, claimed_ids), None
         except community.Invalid as exc:
@@ -360,19 +388,29 @@ class Library:
 
     def _published_ids(self, exclude_slug=None):
         """The catalog ids claimed by every currently-valid published
-        capability other than `exclude_slug`, re-validated in publish order
-        so the one published first keeps a clashing id (see
-        community.validate's published_ids parameter)."""
+        capability other than `exclude_slug`, re-validated at its own pinned
+        commit, in publish order so the one published first keeps a
+        clashing id (see community.validate's published_ids parameter)."""
         records = self.community.all()
         order = sorted((slug for slug, r in records.items()
                         if r['status'] == 'published' and slug != exclude_slug),
                        key=lambda slug: records[slug]['published_at'] or 0)
         claimed = set()
         for slug in order:
-            entry, _ = self._capability_status(slug, claimed)
+            entry, _ = self._capability_status(slug, claimed, ref=records[slug]['pinned_sha'])
             if entry:
                 claimed.add(entry['id'])
         return claimed
+
+    def _capability_available(self, slug, ref):
+        """Whether `slug`'s project has a finished render for `ref` (its
+        pinned commit) -- for community_view's `available`, which decides
+        whether a published card shows a player or the same "clip not
+        built" placeholder an unbuilt catalog card shows (see
+        capabilities.page_html)."""
+        from .thumbnails import latest_render
+        name = f'{community.NAMESPACE}/{slug}'
+        return latest_render(self.state_dir / name.replace('/', '--'), self.path(name), ref=ref) is not None
 
     def community_view(self, user):
         """The /capabilities page's community section for `user` (a signed-in
@@ -383,19 +421,31 @@ class Library:
         categories by the page itself), and the drafts `user` may see --
         their own plus, for an admin, everyone's, always excluding rejected
         ones (on nobody's page) and a published one that still validates
-        (shown in the grid instead, not here). A published capability that
-        has gone invalid since publishing shows up here instead, with its
-        `problem` set, for its owner and admins to fix."""
+        (shown in the grid instead, not here). A published capability shows
+        exactly its pinned commit (see publish_capability) -- a published
+        entry's `available` is whether that pinned commit has a finished
+        render yet, and its `pending_update` (shown only to the submitter and
+        admins) is whether the project's main has moved past the pin since,
+        awaiting an admin's Publish or Reject. A published capability whose
+        *pinned* commit has gone invalid (e.g. an id now clashing with
+        another capability published first) shows up in drafts instead, with
+        its `problem` set, for its owner and admins to fix."""
         is_admin = bool(self.accounts and self.accounts.is_admin(user))
         records = self.community.all()
         published_slugs = sorted((slug for slug, r in records.items() if r['status'] == 'published'),
                                  key=lambda slug: records[slug]['published_at'] or 0)
         published, claimed, broken = [], set(), {}
         for slug in published_slugs:
-            entry, problem = self._capability_status(slug, claimed)
+            record = records[slug]
+            pin = record['pinned_sha']
+            entry, problem = self._capability_status(slug, claimed, ref=pin)
             if entry:
                 claimed.add(entry['id'])
-                published.append({'slug': slug, **entry})
+                tip = community.main_sha(self.path(f'{community.NAMESPACE}/{slug}'))
+                can_see_update = user == record['submitter'] or is_admin
+                pending_update = bool(can_see_update and tip and tip != pin and tip != record['update_rejected_sha'])
+                published.append({'slug': slug, **entry, 'available': self._capability_available(slug, pin),
+                                  'pending_update': pending_update})
             else:
                 broken[slug] = problem
         drafts = []
@@ -415,43 +465,64 @@ class Library:
                'fetch': self.capability_fetch}
 
     def publish_capability(self, admin, slug):
-        """Publishes `slug` (POST /api/capabilities/<slug>/publish): KeyError
-        for an unknown slug (the route answers 404); community.Invalid for one
-        that doesn't validate right now (the route answers 400 with its plain
-        message, and the status is left unchanged); otherwise it is validated
-        against every other currently-valid published capability's id (the
-        one published first keeps a clashing id) and marked published."""
+        """Publishes `slug` (POST /api/capabilities/<slug>/publish), pinning
+        it to the project's main right now: KeyError for an unknown slug
+        (the route answers 404); community.Invalid for one that doesn't
+        validate right now (the route answers 400 with its plain message,
+        and the status/pin are left unchanged); otherwise it is validated
+        against every other currently-valid published capability's own
+        pinned id (the one published first keeps a clashing id), then marked
+        published and pinned to that exact commit. Works the same way for a
+        brand new draft and for approving a pending update on an
+        already-published capability -- either way, everyone else sees
+        nothing different until this call succeeds."""
         self.community.get(slug)
         claimed = self._published_ids(exclude_slug=slug)
-        read = community.load(self.path(f'{community.NAMESPACE}/{slug}'))
+        repo_path = self.path(f'{community.NAMESPACE}/{slug}')
+        sha = community.main_sha(repo_path)
+        if sha is None:
+            raise community.Invalid('this project has no commits yet')
+        read = community.load(repo_path, ref=sha)
         community.validate(read, claimed)
-        return self.community.publish(slug, admin)
+        return self.community.publish(slug, admin, sha)
 
     def reject_capability(self, admin, slug):
-        """Rejects `slug` (POST /api/capabilities/<slug>/reject): hides it
-        from every /capabilities page and its clip route, without touching
-        the project on disk. KeyError for an unknown slug; ValueError for one
-        that is neither 'draft' nor 'published' (there is nothing else to
+        """Rejects `slug` (POST /api/capabilities/<slug>/reject): KeyError
+        for an unknown slug. When `slug` is published and its project's main
+        has moved past its pin (a pending update), this only discards that
+        update (community.Store.reject_update) -- the pinned version stays
+        published, exactly as before, for everyone but the submitter and
+        admins (who stop seeing "Update awaiting approval" for this sha,
+        until main moves again). Otherwise this is a full takedown, as
+        today: hides `slug` from every /capabilities page and its clip
+        route, without touching the project on disk (ValueError for one
+        that is neither 'draft' nor 'published' -- there is nothing else to
         take down)."""
+        record = self.community.get(slug)
+        if record['status'] == 'published':
+            tip = community.main_sha(self.path(f'{community.NAMESPACE}/{slug}'))
+            if tip and tip != record['pinned_sha']:
+                return self.community.reject_update(slug, admin, tip)
         return self.community.reject(slug, admin)
 
     def community_for_builder(self):
         """Every published, currently-valid community capability, with its
-        doc and film.py bytes already read off main, oldest-published
-        first -- for an Editor's notes.NoteStore to stage under a note's
-        /attachments and list in the builder's prompt (see
+        doc and film.py bytes already read off its pinned commit, oldest-
+        published first -- for an Editor's notes.NoteStore to stage under a
+        note's /attachments and list in the builder's prompt (see
         notes._stage_community, prompt.render's community section). []
-        with nothing published, or nothing currently valid."""
+        with nothing published, or nothing currently valid at its pin."""
         records = self.community.all()
         order = sorted((slug for slug, r in records.items() if r['status'] == 'published'),
                        key=lambda slug: records[slug]['published_at'] or 0)
         out, claimed = [], set()
         for slug in order:
-            entry, _ = self._capability_status(slug, claimed)
+            pin = records[slug]['pinned_sha']
+            entry, _ = self._capability_status(slug, claimed, ref=pin)
             if not entry:
                 continue
             claimed.add(entry['id'])
-            read = community.load(self.path(f'{community.NAMESPACE}/{slug}'))
+            read = community.load(self.path(f'{community.NAMESPACE}/{slug}'), ref=pin)
             doc_bytes, film_bytes = read(entry['doc']), read(community.FILM_PATH)
             if doc_bytes is None or film_bytes is None:
                 continue  # vanished between validate() and this read: treat like invalid
@@ -463,22 +534,33 @@ class Library:
         """Bytes for /capabilities/community/<slug>.(mp4|jpg): KeyError (the
         route answers 404) for an unknown slug, a draft or rejected
         capability `user` may not see (anyone but its submitter and admins),
-        or one with no render yet."""
+        a published capability whose pinned commit has gone invalid since
+        (served only to its submitter and admins, consistent with the grid
+        -- see community_view), or one with no render yet at its pin. The
+        submitter and admins always see the pinned commit too -- the project
+        page (/v/capabilities/<slug>/) is where they preview an unapproved
+        update, not this route."""
         record = self.community.get(slug)
         is_admin = bool(self.accounts and self.accounts.is_admin(user))
-        if record['status'] != 'published' and record['submitter'] != user and not is_admin:
+        is_owner = record['submitter'] == user or is_admin
+        if record['status'] != 'published' and not is_owner:
             raise KeyError(slug)
+        ref = record['pinned_sha'] or 'main'
+        if record['status'] == 'published' and not is_owner:
+            entry, _ = self._capability_status(slug, self._published_ids(exclude_slug=slug), ref=ref)
+            if entry is None:
+                raise KeyError(slug)
         name = f'{community.NAMESPACE}/{slug}'
         state_dir = self.state_dir / name.replace('/', '--')
         repo_path = self.path(name)
         if kind == 'jpg':
             from .thumbnails import AMBIGUOUS, from_state_dir
-            data = from_state_dir(state_dir, repo_path)
+            data = from_state_dir(state_dir, repo_path, ref=ref)
             if data is None or data is AMBIGUOUS:
                 raise KeyError(slug)
             return data
         from .thumbnails import latest_render
-        path = latest_render(state_dir, repo_path)
+        path = latest_render(state_dir, repo_path, ref=ref)
         if path is None:
             raise KeyError(slug)
         return path.read_bytes()
