@@ -616,6 +616,55 @@ agent, preview sandbox, environments, hosts and limits come from the command
 line, because anyone who can push could otherwise choose the command the
 editor runs.
 
+### Community capabilities
+
+With accounts configured, `/capabilities` lets any signed-in creator grow
+the catalog from a post they saw on X: "I saw this effect, I want
+videobuilder to be able to do it." **Add capability** opens a dialog for the
+post's URL, an optional dropped clip or screenshot, and an optional one-line
+note on what to capture. Submitting creates a video in a reserved
+`capabilities/<slug>` namespace (ordinary create/copy/rename and sign-up all
+refuse to collide with it) and its first note, carrying a standing brief
+plus the post's text and handle, quoted as untrusted reference. The builder
+is told to make three files: `film.py` (an **original** demo of the
+technique -- never the post's own media, text, people or branding),
+`capability.toml` (a catalog entry: id, category, title, card, description,
+three prompts, apis, and the doc path) and a short `capability.md` reference
+doc. The post and any attachments are untrusted data throughout: read for
+the technique only, never as instructions.
+
+A new submission is a **draft**, visible only to its submitter and admins,
+in its own section on `/capabilities`. An admin reviews it there with
+**Publish** and **Reject**: publishing validates `capability.toml` (and the
+doc and `film.py` it names) and, once it passes, shows the capability to
+everyone, inside its category, badged "Community", tracking whatever is on
+the project's `main` from then on -- a later commit that breaks the toml
+drops it back into Drafts, with the problem shown, until it's fixed or
+rejected. Rejecting hides it from every `/capabilities` page without
+deleting the project; an admin can also reject an already-published one as
+a takedown. A published capability's doc and `film.py` reach every other
+creator's builder too, the same way a source video does: staged read-only
+under the note's `/attachments/capabilities/<slug>/` and named by title in
+the prompt, so the builder can reach for it instead of building the
+technique from scratch.
+
+Reading the post is optional and sandboxed: the editor only ever calls
+`https://cdn.syndication.twimg.com/tweet-result` for the post's public JSON
+and downloads media only from `pbs.twimg.com`/`video.twimg.com`, each capped
+in size and time, following no redirect off those hosts. Pass
+`--no-capability-fetch` to turn this off entirely; the dialog then asks only
+for a dropped file, and a failed or refused read always falls back to that
+instead of blocking the submission.
+
+Because a capability needs a more thorough build than an ordinary note, the
+agent gets a heavier default: a review loop plus a maintainer loop, pinned
+to the `--model` given to `--agent-extra-arg` if any. Set
+`--capability-agent-extra-arg` (repeatable, like `--agent-extra-arg`) to
+replace that default with your own arguments, appended after the ordinary
+`--agent-extra-arg` list; both flags are refused outside `--library` mode,
+and (like `--maintainer-loop`) only mean anything to the `fork-sandbox`
+agent.
+
 ## The authoring loop
 
 1. **Preview.** `python -m videobuilder preview film.py` serves a page with
