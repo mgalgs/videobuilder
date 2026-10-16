@@ -746,7 +746,9 @@ def account_page(username, keys, limits=None):
            '<h1>Account <a href="/">Library</a></h1>'
            '<h2>API keys</h2>'
            '<p>A key lets an agent work with your videos over git and the API, with everything it does shown '
-           'as <strong>' + user + ' (label)</strong>.</p>' + keys_block +
+           'as <strong>' + user + ' (label)</strong>. A write key can also start a brand-new video inside its '
+           'own project (if it has one): <code>POST /api/videos/new {"name":"project/video","start":"blank"}'
+           '</code> with an <code>Authorization: Bearer &lt;key&gt;</code> header.</p>' + keys_block +
            '<h2>New key</h2>'
            '<form id="create"><label>Label<input name="label" maxlength="40" required></label>'
            '<label>Project (optional: limit the key to one project, e.g. gardening)<input name="scope"></label>'

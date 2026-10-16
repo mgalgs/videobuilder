@@ -8,6 +8,7 @@ import traceback
 from urllib.parse import parse_qs, quote, unquote, urlparse
 
 from .editor import HTTPError, _field, _need
+from .handler_auth import _key_in_scope
 from .library import serve_git, valid_name
 from .pages import account_page, signin_page, signup_page
 from .sources import CAPTION_MAX_BYTES, TooLarge as SourceTooLarge
@@ -160,14 +161,21 @@ class LibraryHandler:
                     # Reachable by any signed-in user (the generic session check above
                     # already refused an anonymous one when accounts are on), unlike the
                     # admin-only /api/library/new: this is the New Video page's own route.
+                    # A write key may also reach it, to create a video inside its own scope.
                     body = self._body()
                     name = _field(body, 'name', str)
                     start = _field(body, 'start', str)
                     if start not in ('blank', 'copy'):
                         raise HTTPError(400, 'start must be "blank" or "copy"')
+                    if self._key and not _key_in_scope(self._key, name):
+                        raise HTTPError(403, f"this key can only create videos under {self._key['scope']}/")
                     try:
                         if start == 'copy':
                             source = _field(body, 'from', str)
+                            # Out of the key's scope answers exactly like "not accessible to this
+                            # account" below, so a key can't probe for other projects' existence.
+                            if self._key and not _key_in_scope(self._key, source):
+                                raise HTTPError(404, 'repository has no main branch')
                             if library.accounts and not library.access.can_access(source, user, library.accounts):
                                 raise HTTPError(404, 'repository has no main branch')
                             result = {**library.copied(source, name), 'video': None}

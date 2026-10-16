@@ -6,7 +6,8 @@ then, for a `/git/...` route, Basic auth with a password or a `vbk_` key;
 then, for everything else, when the library has accounts and the route is
 not in OPEN_ROUTES, a Bearer key or the session cookie (judged alone -- a
 request carrying Authorization is never combined with a cookie; a key is
-accepted only on `/v/<name>/api/...` other than `/api/access`, and any other
+accepted only on `/v/<name>/api/...` other than `/api/access`, and on
+`POST /api/videos/new` to create a video inside its own scope -- any other
 Authorization header leaves the request unauthenticated); when the library
 has accounts and the route *is* in OPEN_ROUTES, there is no identity at all
 (the hook value and vb_name cookie are ignored); otherwise (no accounts, or
@@ -118,15 +119,23 @@ class AuthHandler:
                 auth = self.headers.get('Authorization', '')
                 if auth.startswith('Bearer '):
                     # A bearer key is judged alone: no ambient cookie combines with it. A key
-                    # reaches only /v/<name>/api/..., never its own access-management sub-route.
+                    # reaches only /v/<name>/api/... (never its own access-management sub-route)
+                    # and, to create a video inside its own scope, POST /api/videos/new.
                     eligible = (video_name is not None and video_subroute and
                                video_subroute.startswith('/api/') and video_subroute != '/api/access')
-                    self._key = self.library.accounts.key_for_secret(auth[7:].strip()) if eligible else None
-                    if eligible and self._key is None:
-                        raise HTTPError(401, 'invalid or revoked key')
-                    if self._key and not _key_in_scope(self._key, video_name):
-                        raise HTTPError(404, 'repository not found')
-                    if self._key and self._key['mode'] == 'read' and method != 'GET':
+                    creating = route == '/api/videos/new' and method == 'POST'
+                    if eligible or creating:
+                        self._key = self.library.accounts.key_for_secret(auth[7:].strip())
+                        if self._key is None:
+                            raise HTTPError(401, 'invalid or revoked key')
+                    else:
+                        self._key = None
+                    if eligible:
+                        if not _key_in_scope(self._key, video_name):
+                            raise HTTPError(404, 'repository not found')
+                        if self._key['mode'] == 'read' and method != 'GET':
+                            raise HTTPError(403, 'this key is read-only')
+                    elif creating and self._key['mode'] == 'read':
                         raise HTTPError(403, 'this key is read-only')
                     user = self._key['username'] if self._key else None
                 elif auth:

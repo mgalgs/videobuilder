@@ -204,13 +204,16 @@ A key acts as the account it belongs to, narrowed by its own scope and mode
 (any username; a password not starting with `vbk_` keeps the ordinary
 username/password check instead). The video API (`/v/<name>/api/...`,
 except `/api/access`) accepts one as `Authorization: Bearer <key>`; GET
-needs only a `read` key, everything else needs `write`. A key reaches only
-those two route families — everywhere else it is refused exactly like no
-credential at all, and it is never combined with a session cookie: a
-request carrying `Authorization` is judged by that header alone. Anything
-done with a key is attributed as `<username> (<label>)` (note authors, the
-`Directed-by:` trailer, undo/restore/upgrade and builder versions), while
-access checks still use the bare username.
+needs only a `read` key, everything else needs `write`. A `write` key can
+also reach `POST /api/videos/new` (see above) to create a video of its own,
+as long as `name` (and, for "copy", `from`) are inside its scope; a `read`
+key gets the same "this key is read-only" there as everywhere else. A key
+reaches only these three route families — everywhere else it is refused
+exactly like no credential at all, and it is never combined with a session
+cookie: a request carrying `Authorization` is judged by that header alone.
+Anything done with a key is attributed as `<username> (<label>)` (note
+authors, the `Directed-by:` trailer, undo/restore/upgrade and builder
+versions), while access checks still use the bare username.
 
 An edit returns {message,commit,warning,changed,undo}. Notes include `id`,
 `video`, `text`, `format`, `frame`, `segment`, `time`, `attachments`, `author`,

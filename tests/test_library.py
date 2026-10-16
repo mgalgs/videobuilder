@@ -509,6 +509,88 @@ class Keys(AccountMixin, KeyMixin, LibraryFixture, unittest.TestCase):
         _, secret = self.library.accounts.create_key('mgalgs', 'writer', None, 'write')
         self.assertNotEqual(self.request('/api/library/new', {'from': 'acme/launch', 'name': 'acme/copy'},
                                          headers={'Content-Type': 'application/json', **self.bearer(secret)})[0], 201)
+        self.assertNotEqual(self.request('/api/usage', headers=self.bearer(secret))[0], 200)
+
+    def test_write_key_creates_a_blank_video_in_its_scope_and_then_reaches_it(self):
+        admin = self.admin_login()
+        _, secret = self.library.accounts.create_key('mgalgs', 'agent', 'claude', 'write')
+        code, result = self.request('/api/videos/new', {'name': 'claude/first', 'start': 'blank'},
+                                    headers={'Content-Type': 'application/json', **self.bearer(secret)})
+        self.assertEqual(code, 201, result)
+        self.assertEqual(result['name'], 'claude/first')
+        self.assertEqual(self.request('/v/claude/first/api/access', headers=self.bearer(secret))[0], 401)
+        code, access = self.request('/v/claude/first/api/access', headers={'Cookie': admin})
+        self.assertEqual((code, access['owner']), (200, 'mgalgs'))
+        self.assertEqual(self.request('/v/claude/first/api/project', headers=self.bearer(secret))[0], 200)
+
+    def test_scoped_key_creating_outside_its_scope_is_403_and_nothing_is_created(self):
+        self.admin_login()
+        _, secret = self.library.accounts.create_key('mgalgs', 'agent', 'claude', 'write')
+        code, err, _ = self.request_full('/api/videos/new', {'name': 'other/first', 'start': 'blank'},
+                                         headers={'Content-Type': 'application/json', **self.bearer(secret)})
+        self.assertEqual(code, 403, err)
+        self.assertIn('claude/', err['error'])
+        self.assertFalse(self.library.path('other/first').exists())
+
+    def test_read_only_key_cannot_create_a_video(self):
+        self.admin_login()
+        _, secret = self.library.accounts.create_key('mgalgs', 'agent', None, 'read')
+        code, err, _ = self.request_full('/api/videos/new', {'name': 'acme/first', 'start': 'blank'},
+                                         headers={'Content-Type': 'application/json', **self.bearer(secret)})
+        self.assertEqual(code, 403, err)
+        self.assertEqual(err['error'], 'this key is read-only')
+        self.assertFalse(self.library.path('acme/first').exists())
+
+    def test_unscoped_write_key_can_create_any_free_name(self):
+        self.admin_login()
+        _, secret = self.library.accounts.create_key('mgalgs', 'agent', None, 'write')
+        code, result = self.request('/api/videos/new', {'name': 'anywhere/first', 'start': 'blank'},
+                                    headers={'Content-Type': 'application/json', **self.bearer(secret)})
+        self.assertEqual(code, 201, result)
+
+    def test_invalid_key_on_videos_new_is_401(self):
+        self.admin_login()
+        code, err, _ = self.request_full('/api/videos/new', {'name': 'acme/first', 'start': 'blank'},
+                                         headers={'Content-Type': 'application/json', **self.bearer('vbk_notarealkey')})
+        self.assertEqual(code, 401, err)
+        self.assertEqual(err['error'], 'invalid or revoked key')
+
+    def test_copy_source_outside_the_keys_scope_is_the_sessions_404_and_nothing_is_created(self):
+        self.seed('acme/launch', film=True)
+        admin = self.admin_login()
+        self.new_project(admin, 'acme/launch', 'acme/launch')  # owned by mgalgs, the key's own account
+        _, secret = self.library.accounts.create_key('mgalgs', 'agent', 'claude', 'write')
+        code, err, _ = self.request_full('/api/videos/new', {'name': 'claude/copy', 'start': 'copy',
+                                                              'from': 'acme/launch'},
+                                         headers={'Content-Type': 'application/json', **self.bearer(secret)})
+        self.assertEqual(code, 404, err)
+        self.assertEqual(err['error'], 'repository has no main branch')
+        self.assertFalse(self.library.path('claude/copy').exists())
+
+    def test_copy_source_in_scope_but_inaccessible_to_the_keys_account_is_the_sessions_404(self):
+        self.seed('acme/launch', film=True)
+        admin = self.admin_login()
+        self.new_project(admin, 'acme/launch', 'acme/launch')  # owned by mgalgs, not dana
+        _, _, dana = self.signup('dana', 'longenoughpassword')
+        _, secret = self.library.accounts.create_key('dana', 'agent', 'acme', 'write')
+        code, err, _ = self.request_full('/api/videos/new', {'name': 'acme/stolen', 'start': 'copy',
+                                                              'from': 'acme/launch'},
+                                         headers={'Content-Type': 'application/json', **self.bearer(secret)})
+        self.assertEqual(code, 404, err)
+        self.assertEqual(err['error'], 'repository has no main branch')
+        self.assertFalse(self.library.path('acme/stolen').exists())
+
+    def test_copy_from_an_accessible_in_scope_source_works_and_the_key_owns_the_result(self):
+        _, _, dana = self.signup('dana', 'longenoughpassword')
+        code, original = self.request('/api/videos/new', {'name': 'acme/own', 'start': 'blank'},
+                                       headers={'Content-Type': 'application/json', 'Cookie': dana})
+        self.assertEqual(code, 201, original)
+        _, secret = self.library.accounts.create_key('dana', 'agent', 'acme', 'write')
+        code, result = self.request('/api/videos/new', {'name': 'acme/own-copy', 'start': 'copy', 'from': 'acme/own'},
+                                    headers={'Content-Type': 'application/json', **self.bearer(secret)})
+        self.assertEqual(code, 201, result)
+        code, access = self.request('/v/acme/own-copy/api/access', headers={'Cookie': dana})
+        self.assertEqual((code, access['owner']), (200, 'dana'))
 
     def test_scope_excludes_access_management_even_though_it_is_under_api(self):
         self.seed('acme/launch', film=True)
