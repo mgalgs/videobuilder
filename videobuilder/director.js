@@ -34,6 +34,12 @@ const state = {
   musicSource: null,
   musicTracks: [],
   musicPlayingId: null,
+  pictures: null,
+  pictureCount: 2,
+  pictureGpu: 'unknown',
+  pictureGpuAt: 0,
+  pictureMaking: false,
+  pictureOriginals: new Set(),
   steps: {},
   pendingAnswers: {},
   sources: [],
@@ -157,7 +163,9 @@ function httpError(r, data) {
     return Error(SIGNED_OUT_MESSAGE)
   }
   if(draining(r.status,data))return restarting();
-  return Error(data.log||data.error||r.statusText)
+  const error=Error(data.log||data.error||r.statusText);
+  error.status=r.status;
+  return error
 }
 // Called when the tab regains focus: the sign-in link opens in a new tab, so this
 // one's draft was never touched; once a session exists again, polling resumes.
@@ -1162,6 +1170,274 @@ $('music-preview').onplay=$('music-preview').onpause=$('music-preview').onended=
   if($('music-preview').paused)state.musicPlayingId=null;
   if(!$('music-dialog').hidden)renderMusicList()
 };
+// ---- Pictures: make pictures from a description and add them to the note ----
+// Shown only when the editor has a picture service (api/pictures answers 404 otherwise). Sets are made
+// in the background and can wait a long time for the shared GPU, so the list is polled: often while
+// the sheet is open, slowly while one is on the way and it is closed, then not at all.
+function picturesOpen() {
+  return !$('pictures-dialog').hidden
+}
+async function loadPictures() {
+  const video=state.video;
+  let data;
+  try {
+    data=await json('pictures', {
+      video
+    })
+  }
+  catch(e) {
+    if(e.status===404) {
+      state.pictures=null;
+      $('pictures-button').hidden=true
+    }
+    return
+  }
+  if(video!==state.video)return;
+  const before=state.pictures;
+  state.pictures=data.jobs;
+  $('pictures-button').hidden=false;
+  // A set that finished while the sheet was closed earns the button a dot.
+  if(before&&!picturesOpen()) {
+    const done=new Set(before.filter(j=>j.status==='done').map(j=>j.id));
+    if(data.jobs.some(j=>j.status==='done'&&!done.has(j.id)))$('pictures-badge').hidden=false
+  }
+  if(picturesOpen())renderPictures()
+}
+async function loadPictureGpu() {
+  try {
+    state.pictureGpu=(await json('pictures/gpu')).gpu
+  }
+  catch(e) {
+    state.pictureGpu='unknown'
+  }
+  if(picturesOpen())renderPictureStatus()
+}
+function openPictures() {
+  $('pictures-badge').hidden=true;
+  $('pictures-error').hidden=true;
+  $('pictures-added').hidden=true;
+  $('pictures-dialog').hidden=false;
+  $('pictures-shade').hidden=false;
+  renderPictureCount();
+  renderPictures();
+  loadPictures();
+  loadPictureGpu()
+}
+function closePictures() {
+  $('pictures-dialog').hidden=true;
+  $('pictures-shade').hidden=true;
+  $('pictures-prompt').blur()
+}
+function renderPictureCount() {
+  for(const b of $('pictures-count').children) {
+    const on=Number(b.dataset.n)===state.pictureCount;
+    b.classList.toggle('active',on);
+    b.setAttribute('aria-checked',String(on))
+  }
+}
+const picturesPending=()=>(state.pictures||[]).filter(j=>j.status==='waiting'||j.status==='making');
+function renderPictureStatus() {
+  const status=$('pictures-status'),full=picturesPending().length>=2;
+  $('pictures-make').disabled=full||state.pictureMaking;
+  status.textContent=full?'Two sets are on the way. You can make more when one is done.'
+    : state.pictureGpu==='free'?'GPU free: about a minute'
+    : state.pictureGpu==='busy'?'The GPU is busy. Your pictures will wait in line and show up here.'
+    : 'Pictures usually take about a minute.';
+  status.classList.toggle('busy',!full&&state.pictureGpu==='busy')
+}
+function pictureUrl(job,picture,cutout,full) {
+  return api(`pictures/${job.id}/${picture.index}`, {
+    video:state.video,...(cutout?{cutout:1}:{}),...(full?{full:1}:{})
+  })
+}
+const pictureKey=(job,picture,cutout)=>`${job.id}/${picture.index}${cutout?'/cutout':''}`;
+function renderPictures() {
+  renderPictureStatus();
+  const list=$('pictures-list');
+  list.replaceChildren();
+  const jobs=state.pictures||[];
+  if(!jobs.length) {
+    list.append(node('p','pictures-empty','Describe a picture and the builder can use it in your video.'));
+    return
+  }
+  for(const job of jobs)list.append(pictureCard(job))
+}
+function pictureCard(job) {
+  const card=node('section','picture-card');
+  const head=node('div','picture-card-head');
+  head.append(node('p','picture-prompt',job.prompt));
+  const count=job.n===1?'1 picture':`${job.n} pictures`;
+  head.append(node('span','picture-meta',`${count}${job.cutout?' · cut out':''} · ${relative(job.created*1000)}`));
+  card.append(head);
+  if(job.status==='failed') {
+    const row=node('div','picture-failed');
+    row.append(node('span',null,job.message||'These pictures couldn’t be made.'));
+    if(job.retryable!==false) {
+      const retry=node('button',null,'Retry');
+      retry.onclick=()=>retryPictures(job,retry);
+      row.append(retry)
+    }
+    card.append(row);
+    return card
+  }
+  const grid=node('div','picture-grid');
+  if(job.status!=='done') {
+    for(let i=0;i<job.n;i++)grid.append(node('div','picture-tile picture-wait'));
+    card.append(grid);
+    const making=job.status==='making';
+    card.append(node('p','picture-wait-text',making?`Making ${count}…`:'Waiting for the GPU…'));
+    return card
+  }
+  for(const picture of job.pictures)grid.append(pictureTile(job,picture));
+  card.append(grid);
+  return card
+}
+function pictureTile(job,picture) {
+  const tile=node('div','picture-tile');
+  const showCutout=picture.cutout&&!state.pictureOriginals.has(pictureKey(job,picture));
+  tile.classList.toggle('checker',showCutout);
+  const add=node('button','picture-add');
+  const img=node('img');
+  img.src=pictureUrl(job,picture,showCutout);
+  img.alt=`${job.prompt}, picture ${picture.index+1}${showCutout?', background cut out':''}`;
+  img.loading='lazy';
+  img.decoding='async';
+  add.append(img);
+  const key=pictureKey(job,picture,showCutout);
+  const added=state.files.some(f=>f.pictureKey===key);
+  add.setAttribute('aria-label',added?'Added to your note':`Add picture ${picture.index+1} to your note`);
+  if(added) {
+    const mark=node('span','picture-added-mark');
+    mark.append(icon('check'));
+    add.append(mark)
+  }
+  add.onclick=()=>addPicture(job,picture,showCutout,tile);
+  tile.append(add);
+  if(picture.cutout) {
+    const flip=node('button','picture-flip',showCutout?'See original':'See cut-out');
+    flip.setAttribute('aria-label',showCutout?'Show the original picture':'Show it with the background cut out');
+    flip.onclick=()=> {
+      const k=pictureKey(job,picture);
+      if(state.pictureOriginals.has(k))state.pictureOriginals.delete(k);
+      else state.pictureOriginals.add(k);
+      tile.replaceWith(pictureTile(job,picture))
+    };
+    tile.append(flip)
+  }
+  return tile
+}
+async function addPicture(job,picture,cutout,tile) {
+  const key=pictureKey(job,picture,cutout);
+  if(state.files.some(f=>f.pictureKey===key)) {
+    showPictureAdded('Already in your note');
+    return
+  }
+  if(tile.classList.contains('adding'))return;
+  tile.classList.add('adding');
+  $('pictures-error').hidden=true;
+  try {
+    const record=await json(`pictures/${job.id}/${picture.index}/attach`,null, {
+      video:state.video,cutout
+    });
+    addFiles([{...record,pictureKey:key}]);
+    tile.replaceWith(pictureTile(job,picture));
+    showPictureAdded('Added to your note')
+  }
+  catch(e) {
+    tile.classList.remove('adding');
+    $('pictures-error').textContent=e.message;
+    $('pictures-error').hidden=false
+  }
+}
+let pictureAddedTimer=null;
+function showPictureAdded(text) {
+  $('pictures-added-text').textContent=text;
+  const pill=$('pictures-added');
+  pill.hidden=false;
+  pill.classList.remove('pop');
+  void pill.offsetWidth;
+  pill.classList.add('pop');
+  clearTimeout(pictureAddedTimer);
+  pictureAddedTimer=setTimeout(()=>pill.hidden=true,4000)
+}
+async function makePictures(e) {
+  e.preventDefault();
+  const prompt=$('pictures-prompt').value.trim();
+  if(!prompt) {
+    $('pictures-prompt').focus();
+    return
+  }
+  if(state.pictureMaking)return;
+  state.pictureMaking=true;
+  $('pictures-make').textContent='Starting…';
+  $('pictures-error').hidden=true;
+  renderPictureStatus();
+  try {
+    const job=await json('pictures',null, {
+      video:state.video,prompt,n:state.pictureCount,cutout:$('pictures-cutout').checked
+    });
+    state.pictures=[job,...(state.pictures||[]).filter(j=>j.id!==job.id)];
+    // Down goes the keyboard, so the new set is in view; the words stay, to tweak and make again.
+    $('pictures-prompt').blur();
+    document.querySelector('.pictures-scroll').scrollTop=0
+  }
+  catch(e) {
+    $('pictures-error').textContent=e.message;
+    $('pictures-error').hidden=false
+  }
+  finally {
+    state.pictureMaking=false;
+    $('pictures-make').textContent='Make';
+    renderPictures()
+  }
+}
+async function retryPictures(job,button) {
+  button.disabled=true;
+  $('pictures-error').hidden=true;
+  try {
+    const again=await json(`pictures/${job.id}/retry`,null, {
+      video:state.video
+    });
+    state.pictures=(state.pictures||[]).map(j=>j.id===again.id?again:j);
+    renderPictures()
+  }
+  catch(e) {
+    button.disabled=false;
+    $('pictures-error').textContent=e.message;
+    $('pictures-error').hidden=false
+  }
+}
+$('pictures-button').onclick=openPictures;
+$('pictures-close').onclick=closePictures;
+$('pictures-shade').onclick=closePictures;
+$('pictures-back').onclick=closePictures;
+$('pictures-form').onsubmit=makePictures;
+$('pictures-prompt').onkeydown=e=> {
+  if(e.key==='Enter'&&!e.shiftKey) {
+    e.preventDefault();
+    $('pictures-form').requestSubmit()
+  }
+};
+for(const b of $('pictures-count').children) {
+  b.onclick=()=> {
+    state.pictureCount=Number(b.dataset.n);
+    renderPictureCount()
+  }
+}
+let lastPicturesPoll=0;
+setInterval(()=> {
+  if(document.hidden||!state.video||!state.pictures||state.signedOut||state.restarting)return;
+  const pending=picturesPending().length>0;
+  const every=picturesOpen()?(pending?3000:15000):pending?15000:0;
+  if(every&&Date.now()-lastPicturesPoll>=every) {
+    lastPicturesPoll=Date.now();
+    loadPictures()
+  }
+  if(picturesOpen()&&Date.now()-(state.pictureGpuAt||0)>=30000) {
+    state.pictureGpuAt=Date.now();
+    loadPictureGpu()
+  }
+},1000);
 // ---- Source videos: upload, list, pick a span, delete ----
 // m:ss, or h:mm:ss past an hour -- distinct from timeLabel, which never shows hours.
 function sourceClock(seconds) {
@@ -1577,6 +1853,9 @@ async function openVideo(video) {
   $('video-picker').value=video;
   renderUpgrade();
   loadPending();
+  state.pictures=null;
+  $('pictures-badge').hidden=true;
+  loadPictures();
   try {
     state.info=await json('info', {
       video

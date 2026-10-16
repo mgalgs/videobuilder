@@ -424,7 +424,7 @@ class NetworkSafety(Base):
 
 
 class NotConfigured(Server):
-    def test_every_route_is_404(self):
+    def test_every_route_is_404_and_the_page_hides_the_button(self):
         self.assertIsNone(self.editor.pictures)
         for path in ('/api/pictures?video=' + VIDEO, '/api/pictures/gpu', f'/api/pictures/{"0" * 16}/0?video={VIDEO}'):
             with self.assertRaises(urllib.error.HTTPError) as e:
@@ -435,6 +435,9 @@ class NotConfigured(Server):
                            (f'/api/pictures/{"0" * 16}/retry', {'video': VIDEO}),
                            (f'/api/pictures/{"0" * 16}/0/attach', {'video': VIDEO})):
             self.assertEqual(self.post(path, body)[0], 404, path)
+        html = self.get('/')
+        self.assertIn(b'id="pictures-button"', html)
+        self.assertIn(b'hidden', html.split(b'id="pictures-button"', 1)[1].split(b'>', 1)[0])
 
 
 if __name__ == '__main__':

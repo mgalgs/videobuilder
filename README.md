@@ -485,6 +485,27 @@ stores it through the same attachment store as an upload — the picker never
 tells the server a URL to fetch, only a source and track id it already has
 cached.
 
+**Pictures.** Pass `--artbox-url URL` (both modes) to add a Pictures button
+beside the composer's attach and music buttons. It opens a sheet where the
+creator describes a picture, picks how many (1-4) and whether to cut out the
+background, and the editor asks an artbox image service at `URL` to make them.
+The service is batch and its GPU is shared, so a set can wait in line for
+hours: each video's sets are kept in the editor's state dir
+(`pictures/<video>/jobs.json`), polled in the background (every 5 s at first,
+backing off to every 30 s, resumed after a restart) and given up after 12
+hours. Finished pictures are copied into a per-video store beside them (500
+MiB per video, oldest sets dropped first); tapping one adds it to the note
+being written as an ordinary attachment. A cut-out is made from the prompt
+plus ", on a plain mid-grey background", since cut-outs lose faint white
+parts against white. Limits: a description up to 1,000 characters, at most
+two sets on the way per video, and a per-account cap of pictures per rolling
+24 hours (`--account-daily-picture-cap N`, default 40, or `[editor]
+account_daily_picture_cap` in single-project mode; across every project in a
+library; never for an admin account). The editor only ever talks to `URL`:
+file URLs are built from it, a validated job id and a validated, url-quoted
+file name, redirects are refused, and every read is capped and timed out.
+With no `--artbox-url`, there is no button and the routes answer 404.
+
 When a builder turn finishes, the editor applies the same scope guard as
 manual Accept. Out-of-scope changes are refused and the draft is reset to
 `main`; the next note tells the builder what was refused. A clean turn is
@@ -718,6 +739,7 @@ python -m videobuilder edit copy film.py SEGMENT KEY VALUE
 python -m videobuilder editor PROJECT-DIR [--host 127.0.0.1] [--port 8100] [--state-dir DIR] [--open]
 python -m videobuilder editor --library DIR [--checkouts DIR2] [--state-dir DIR3] [--open]
     [--account-daily-note-cap N] [--account-daily-cost-cap-usd X]
+    [--artbox-url URL] [--account-daily-picture-cap N]
 ```
 
 ## Modules
@@ -757,6 +779,7 @@ python -m videobuilder editor --library DIR [--checkouts DIR2] [--state-dir DIR3
   committing edits, and review notes with their `AgentBackend`.
 - `edits`: direct edits, `<film>.edits.toml`: `roll`, `set_copy` and `rollable`.
 - `music`: pluggable `--music-sources` for the director's music picker.
+- `pictures`: `--artbox-url` generated pictures for the director's Pictures sheet.
 
 ## Known traps
 

@@ -179,13 +179,13 @@ class DirectorPageRoutes(API):
         expected = {'project','name','info','frame','video','notes','versions','versions/restore',
                     'attachments','video/retry','roll','copy','undo','draft','draft/info','draft/frame',
                     'draft/accept','draft/drop','upgrade','access','music/sources','music/tracks','music/attach',
-                    'videos/first-note','sources'}
+                    'videos/first-note','sources','pictures','pictures/gpu'}
         # Dynamic attachment, draft and source actions have their own router patterns.
-        self.assertTrue(paths - {'attachments/', 'draft/', 'sources/'} <= expected, paths - expected)
+        self.assertTrue(paths - {'attachments/', 'draft/', 'sources/', 'pictures/'} <= expected, paths - expected)
         # The route literals live wherever make_handler's pieces do now, not all in editor.py.
         router = ''.join((PKG / name).read_text() for name in
                          ('editor.py', 'handler_library.py', 'video_api.py'))
-        for path in paths - {'attachments/', 'draft/', 'sources/'}:
+        for path in paths - {'attachments/', 'draft/', 'sources/', 'pictures/'}:
             self.assertIn("'/api/" + path + "'", router, path)
         self.assertIn("api('attachments/'", js)
         self.assertIn("api('video'", js)
