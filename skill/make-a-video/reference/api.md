@@ -167,6 +167,26 @@ v.to_screen(px, py), v.image_box()               # where image points land
 - **Trap:** don't build or decode images inside `draw` per frame (slow); make
   them at import or use `Image.load`.
 
+### A cut-out character in poses
+
+```python
+FOX = vb.Puppet({'idle': 'assets/fox/idle.png', 'talk': 'assets/fox/talk.png',
+                 'point': 'assets/fox/point.png'}, height=380)   # at import: decoded and downscaled once
+pose, age = FOX.pose_at(n, [(0, 'idle'), (20, 'talk'), (24, 'idle'), (45, 'point')])   # held poses
+sx, sy = FOX.breath(n, 60)                          # a slow breath, so a hold never freezes
+FOX.draw(cv, pose, x, ground_y, sx=sx, sy=sy, lean=0.03, angle=0, mark='fox')   # feet at (x, ground_y)
+```
+
+- Every transform pivots on the feet, so squash and stretch keeps the
+  character on the ground. `height` is the first pose's character (its
+  opaque pixels) in px; all poses share its scale.
+- Each pose is placed by its own feet (the middle of its lowest opaque
+  rows), so poses drawn a little off each other don't jump on a swap. A
+  pose whose feet are raised (a jump) lands on the ground line too: draw
+  it lifted.
+- The pictures must have their backgrounds cut out; `age` is 0 on the
+  frame a pose snaps in, for a 2-3 frame pop.
+
 ## Text
 
 ```python

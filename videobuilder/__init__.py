@@ -2,6 +2,7 @@
 __version__ = '0.1.70'
 from .canvas import Canvas, Image, View, halftone_pattern, paper_grain, rgba
 from .clip import Clip, Footage, footage
+from .puppet import Puppet
 from .ease import (bezier, clamp01, critical, damped, ease_in_expo, ease_in_out_quart, ease_out_back,
                    ease_out_expo, ease_out_quint, interpolate, linear, log_lerp, spring, spring_at)
 from .layout import Box, fr, per_format
@@ -13,7 +14,7 @@ from .timeline import Grid, Segment, Shot, Timeline, round_half_up, sequence
 from . import edits, layout, paths, text
 from . import captions
 
-__all__ = ['Audio', 'Box', 'Canvas', 'Clip', 'FORMATS', 'Film', 'Font', 'Footage', 'Format', 'Grid', 'Image',
+__all__ = ['Audio', 'Box', 'Canvas', 'Clip', 'FORMATS', 'Film', 'Font', 'Footage', 'Format', 'Grid', 'Image', 'Puppet',
            'Segment', 'Shot', 'Sound', 'Timeline', 'View', 'apart', 'at_rest_by', 'bezier', 'clamp01', 'critical',
            'damped', 'ease_in_expo', 'ease_in_out_quart', 'ease_out_back', 'ease_out_expo', 'ease_out_quint',
            'edits', 'footage', 'fr', 'halftone_pattern', 'hidden', 'interpolate', 'layout', 'linear', 'load',
