@@ -341,6 +341,7 @@ import calendar
 import datetime
 import math
 import os
+import signal
 import sys
 import threading
 import time
@@ -1020,7 +1021,85 @@ def _ticker(tick, stop):
                 tick()
             except Exception as e:
                 print(f'[editor] note poll failed: {e}', file=sys.stderr, flush=True)
-    threading.Thread(target=loop, daemon=True).start()
+    thread = threading.Thread(target=loop, daemon=True)
+    thread.start()
+    return thread
+
+
+# Under a 60s pod grace period, with room left for closing down after it.
+DRAIN_SECONDS = 45
+UPDATING = 'The editor is updating. Nothing you sent is lost; try again in a moment.'
+
+
+class Server(ThreadingHTTPServer):
+    """The editor's HTTP server: counts the writes (POSTs) in flight, so a
+    SIGTERM can refuse new ones and let those already started finish."""
+    daemon_threads = True
+    # Otherwise server_close joins every request thread, a long video download
+    # included, with no bound.
+    block_on_close = False
+
+    def __init__(self, address, handler):
+        super().__init__(address, handler)
+        self.draining = False
+        self.writes = 0
+        self.idle = threading.Condition()
+
+    def begin_write(self):
+        with self.idle:
+            if self.draining:
+                return False
+            self.writes += 1
+            return True
+
+    def end_write(self):
+        with self.idle:
+            self.writes -= 1
+            self.idle.notify_all()
+
+    def drain(self, deadline):
+        """Refuse new writes, then wait until `deadline` (time.monotonic) for
+        the ones in flight; True if they all finished."""
+        with self.idle:
+            self.draining = True
+            return self.idle.wait_for(lambda: not self.writes, max(0, deadline - time.monotonic()))
+
+
+def _run(httpd, stop, loops, stop_renders, close, drain_seconds=DRAIN_SECONDS):
+    """Serve until Ctrl-C or SIGTERM. Ctrl-C stops at once; SIGTERM (a deploy)
+    drains first: `stop` ends the background `loops`, renders are stopped (the
+    player asks again after the restart), new writes are refused, and writes
+    and loop iterations already under way get until the deadline. Reads are
+    served throughout, so an open tab's polls keep answering."""
+    terminated = []
+    if threading.current_thread() is threading.main_thread():
+        # Only a flag: a handler that took a lock could deadlock on one the main thread holds.
+        signal.signal(signal.SIGTERM, lambda *_: terminated.append(True))
+    threading.Thread(target=httpd.serve_forever, daemon=True).start()
+    try:
+        while not terminated:
+            time.sleep(0.2)
+        print('[editor] stopping: finishing work in flight', file=sys.stderr, flush=True)
+        _drain(httpd, stop, loops, stop_renders, time.monotonic() + drain_seconds)
+    except KeyboardInterrupt:
+        pass
+    finally:
+        stop.set()
+        httpd.shutdown()
+        httpd.server_close()
+        close()
+
+
+def _drain(httpd, stop, loops, stop_renders, deadline):
+    stop.set()
+    stop_renders()
+    finished = httpd.drain(deadline)
+    for loop in loops:
+        loop.join(max(0, deadline - time.monotonic()))
+        finished = finished and not loop.is_alive()
+    if not finished:
+        print('[editor] stopping with work still in flight', file=sys.stderr, flush=True)
+    return finished
 
 
 def serve(root, host='127.0.0.1', port=8100, state_dir=None, open_browser=False, backend=None,
@@ -1031,15 +1110,15 @@ def serve(root, host='127.0.0.1', port=8100, state_dir=None, open_browser=False,
                     unsandboxed_previews=unsandboxed_previews, envs=envs, sync_remote=sync_remote,
                     capabilities_dir=capabilities_dir, compendium_dir=compendium_dir, music_sources=music_sources,
                     source_max_mb=source_max_mb, source_max_total_mb=source_max_total_mb)
-    httpd = ThreadingHTTPServer((host, port), make_handler(editor, hook))
-    httpd.daemon_threads = True
+    httpd = Server((host, port), make_handler(editor, hook))
     stop_sync = threading.Event()
-    _ticker(editor.notes.tick, stop_sync)
+    loops = [_ticker(editor.notes.tick, stop_sync)]
     if editor.sync:
         def periodic_sync():
             while not stop_sync.wait(editor.sync.interval):
                 editor.refresh()
-        threading.Thread(target=periodic_sync, daemon=True).start()
+        loops.append(threading.Thread(target=periodic_sync, daemon=True))
+        loops[-1].start()
     url = f'http://{host}:{httpd.server_address[1]}/'
     videos = editor.project_info()['videos']
     print(f'[editor] {editor.root}: {len(videos)} video(s) at {url} (Ctrl-C to stop)', file=sys.stderr, flush=True)
@@ -1052,15 +1131,11 @@ def serve(root, host='127.0.0.1', port=8100, state_dir=None, open_browser=False,
     if open_browser:
         import webbrowser
         webbrowser.open(url)
-    try:
-        httpd.serve_forever()
-    except KeyboardInterrupt:
-        pass
-    finally:
-        stop_sync.set()
-        httpd.server_close()
+
+    def close():
         editor.renders.close()
         editor.pool.close()
+    _run(httpd, stop_sync, loops, editor.renders.close, close)
 
 
 def serve_library(root, host='127.0.0.1', port=8100, checkouts=None, state_dir=None, open_browser=False,
@@ -1079,20 +1154,16 @@ def serve_library(root, host='127.0.0.1', port=8100, checkouts=None, state_dir=N
                       source_max_total_mb=source_max_total_mb,
                       capability_agent_extra_args=capability_agent_extra_args,
                       capability_fetch=capability_fetch)
-    httpd = ThreadingHTTPServer((host, port), make_handler(library, hook))
-    httpd.daemon_threads = True
+    httpd = Server((host, port), make_handler(library, hook))
     stop = threading.Event()
-    _ticker(library.tick, stop)
+    loops = [_ticker(library.tick, stop)]
     url = f'http://{host}:{httpd.server_address[1]}/'
     print(f'[editor] library {library.root} at {url} (Ctrl-C to stop)', file=sys.stderr, flush=True)
     if open_browser:
         import webbrowser
         webbrowser.open(url)
-    try:
-        httpd.serve_forever()
-    except KeyboardInterrupt:
-        pass
-    finally:
-        stop.set()
-        httpd.server_close()
-        library.close()
+
+    def stop_renders():
+        for editor in list(library.editors.values()):
+            editor.renders.close()
+    _run(httpd, stop, loops, stop_renders, library.close)

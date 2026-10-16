@@ -9,7 +9,7 @@ from urllib.parse import parse_qs, quote, unquote, urlparse
 
 from . import community
 from .capabilities import showcase_available
-from .editor import HTTPError, _field, _need
+from .editor import UPDATING, HTTPError, _field, _need
 from .handler_auth import _key_in_scope
 from .library import serve_git, valid_name
 from .pages import account_page, editor_page, signin_page, signup_page
@@ -382,4 +382,12 @@ class LibraryHandler:
         self._handle('GET')
 
     def do_POST(self):
-        self._handle('POST')
+        # Tests serve with a plain ThreadingHTTPServer, which has no drain to join.
+        begin = getattr(self.server, 'begin_write', None)
+        if begin and not begin():
+            return self._json(503, {'error': UPDATING})
+        try:
+            self._handle('POST')
+        finally:
+            if begin:
+                self.server.end_write()
