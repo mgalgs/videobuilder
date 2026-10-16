@@ -58,19 +58,32 @@ def new_slug():
     return 'c-' + time.strftime('%Y%m%d', time.gmtime()) + '-' + secrets.token_hex(3)
 
 
-def _model_from_args(args):
-    """The value right after the last bare `--model`, or after the last
-    `--model=...`, in an `--agent-extra-arg` list; None without one. Mirrors
+def _model_from_args(args, flag='--model'):
+    """The value right after the last bare `flag`, or after the last
+    `flag=...`, in an `--agent-extra-arg` list; None without one. Mirrors
     how argparse itself would resolve a repeated flag (last one wins), and
     how deploy/compose/start.sh passes `--agent-extra-arg=--model
     "--agent-extra-arg=$VB_MODEL"`."""
     model = None
     for i, arg in enumerate(args):
-        if arg == '--model' and i + 1 < len(args):
+        if arg == flag and i + 1 < len(args):
             model = args[i + 1]
-        elif arg.startswith('--model='):
+        elif arg.startswith(flag + '='):
             model = arg.split('=', 1)[1]
     return model
+
+
+def _without(args, flags):
+    """`args` minus every `flag value` and `flag=value` for each of `flags`."""
+    out, skip = [], False
+    for arg in args:
+        if skip:
+            skip = False
+        elif arg in flags:
+            skip = True
+        elif not any(arg.startswith(f + '=') for f in flags):
+            out.append(arg)
+    return out
 
 
 def capability_agent_args(note_args, capability_args):
@@ -86,6 +99,11 @@ def capability_agent_args(note_args, capability_args):
     model = _model_from_args(note_args)
     if model is None:
         return note_args + ['--review-loop', '2']
+    tier = next((t for t in ('opus', 'sonnet', 'haiku') if t in model), None)
+    if '--k8s' in note_args and _model_from_args(note_args, '--harness') == 'claude' and tier:
+        # fork-sandbox refuses --maintainer-loop on --k8s; a composed pipeline carries the
+        # same tiers there, but it names each seat's model itself and refuses --model.
+        return _without(note_args, ('--harness', '--model')) + ['--pipeline', f'c{tier}1-r{tier}2-m{tier}1']
     return note_args + ['--review-loop', '2', '--maintainer-loop', '1',
                         '--review-model', model, '--maintainer-model', model]
 

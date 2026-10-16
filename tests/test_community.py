@@ -45,6 +45,11 @@ class AgentArgs(unittest.TestCase):
              ['--model=m', '--review-loop', '2', '--maintainer-loop', '1',
               '--review-model', 'm', '--maintainer-model', 'm']),
             (['--k8s'], None, ['--k8s', '--review-loop', '2']),
+            # The live cluster's note args: a claude seat on --k8s becomes a composed pipeline.
+            (['--k8s', '--harness', 'claude', '--model', 'claude-opus-5-5', '--claude-credentials', 'c.json'], None,
+             ['--k8s', '--claude-credentials', 'c.json', '--pipeline', 'copus1-ropus2-mopus1']),
+            (['--k8s', '--harness=claude', '--model=claude-sonnet-5'], None,
+             ['--k8s', '--pipeline', 'csonnet1-rsonnet2-msonnet1']),
             (None, None, ['--review-loop', '2']),
             (['--model', 'm'], ['--x', '1'], ['--model', 'm', '--x', '1']),
         ]

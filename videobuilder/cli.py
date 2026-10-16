@@ -430,7 +430,8 @@ def main(argv=None):
                         '(capabilities/<slug>); with none given, those notes instead get the note args '
                         'plus a heavier default (--review-loop 2 --maintainer-loop 1 --review-model M '
                         '--maintainer-model M when --agent-extra-arg names a --model M, else just '
-                        '--review-loop 2)')
+                        '--review-loop 2; with --k8s and --harness claude, the same tiers as '
+                        '--pipeline cT1-rT2-mT1 for the model\'s tier T, in place of --harness and --model)')
     d.add_argument('--no-capability-fetch', action='store_true',
                    help='--library mode only: never read the X post a capability submission names; the '
                         'dialog then asks only for files')
