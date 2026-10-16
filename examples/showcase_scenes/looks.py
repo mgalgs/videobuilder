@@ -19,10 +19,10 @@ CHIP_F = kit.mono(24, 600)
 
 
 def chip(cv, st, words, name='chip', dark=True):
-    """A small mono label, top left of the safe area: which variant this cut is."""
+    """A small mono label, top left of the content area: which variant this cut is."""
     w = text.measure(words, CHIP_F) + 36
     h = text.line_height(CHIP_F) + 18
-    x, y = st.safe.x, st.safe.y
+    x, y = st.content.x, st.content.y
     cv.rect(x, y, w, h, (14, 15, 19, 0.82) if dark else (255, 255, 255, 0.85), radius=h / 2)
     text.draw(cv, words, CHIP_F, x + 18, y + 9, INK if dark else '#1c1e25')
     cv.mark(name, x, y, w, h)

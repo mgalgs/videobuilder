@@ -1,6 +1,6 @@
 """The showcase's shared look and helpers: the catalog's palette and type
 (examples/capabilities/STYLE.md), this film's two formats, the stage each
-shot lays itself out on, the Lumen logo and the corner tag.
+shot lays itself out on, the Lumen logo and the capability tag.
 
 Every shot is a function `shot(cv, s, st)`: `s` is the `vb.Shot` drawing
 (`s.f` frames in, `s.length` frames long), `st` the `Stage` for the format.
@@ -53,7 +53,7 @@ def mono(size, weight=500, **kw):
 @dataclass(frozen=True)
 class Stage:
     """Where a shot may draw: the whole frame, the safe area, and `content`,
-    the safe area above the corner tag's strip."""
+    the safe area below the tag's strip."""
     frame: Box
     safe: Box
     content: Box
@@ -67,7 +67,7 @@ class Stage:
 def stage(cv):
     safe = Box(*SAFE[cv.format.name])
     room = TAG_LINES[cv.format.name] * TAG_LH + 2 * TAG_PAD[1] + 16
-    return Stage(Box.of(cv), safe, Box(safe.x, safe.y, safe.w, safe.h - room), cv.width > cv.height)
+    return Stage(Box.of(cv), safe, Box(safe.x, safe.y + room, safe.w, safe.h - room), cv.width > cv.height)
 
 
 def pick(st, wide, tall):
@@ -155,14 +155,14 @@ def glow(cv, cx, cy, r, color=ACCENT, alpha=0.35):
     ctx.restore()
 
 
-# ---- the corner tag: which catalog cards this shot shows ----
-TAG_F = font(24, 650)
-TAG_LH = 30          # one line of the tag
-TAG_PAD = (16, 9)    # pill padding, x and y
+# ---- the tag: which catalog cards this shot shows ----
+TAG_F = font(36, 700)
+TAG_LH = 44          # one line of the tag
+TAG_PAD = (22, 12)   # pill padding, x and y
 TAG_SEP = '  ·  '
-# Room kept clear for the tag under each shot: one line in 16:9, two in 9:16
+# Room kept clear for the tag above each shot: two lines in 16:9, three in 9:16
 # (a tag listing several cards wraps there).
-TAG_LINES = {'16x9': 1, '9x16': 2}
+TAG_LINES = {'16x9': 2, '9x16': 3}
 TAG_H = TAG_LH + 2 * TAG_PAD[1]
 
 
@@ -178,25 +178,22 @@ def tag_lines(items, width):
 
 
 def tag(cv, st, items, alpha=1.0):
-    """A dark pill, bottom left of the safe area, naming the capabilities in
-    the shot. Big enough to read with the 16:9 reel playing ~1000 px wide, and
-    a translucent dark chip with a hairline rim so it reads on any shot's look."""
+    """An accent pill, top left of the safe area, naming the capabilities in
+    the shot: the reel's headline, so it reads at a glance on a phone."""
     if alpha <= 0:
         return
-    dot = 10
-    lines = tag_lines(items, st.safe.w - 2 * TAG_PAD[0] - dot - 12)
+    lines = tag_lines(items, st.safe.w - 2 * TAG_PAD[0])
     tw = max(text.measure(line, TAG_F) for line in lines)
-    w = TAG_PAD[0] + dot + 12 + tw + TAG_PAD[0]
+    w = TAG_PAD[0] + tw + TAG_PAD[0]
     h = len(lines) * TAG_LH + 2 * TAG_PAD[1]
-    x, y = st.safe.x, st.safe.bottom - h
+    x, y = st.safe.x, st.safe.y
     r = min(h / 2, TAG_H / 2)
     with cv.layer(opacity=alpha):
-        cv.rect(x, y, w, h, (14, 15, 19, 0.86), radius=r)
-        cv.outline(x, y, w, h, (255, 255, 255, 0.16), width=1.5, radius=r)
-        cv.rect(x + TAG_PAD[0], y + TAG_PAD[1] + TAG_LH / 2 - dot / 2, dot, dot, ACCENT, radius=dot / 2)
+        cv.shadow(x, y, w, h, radius=r, dy=6, blur=18, color=(0, 0, 0, 0.35))
+        cv.rect(x, y, w, h, ACCENT, radius=r)
         lh = text.line_height(TAG_F)
         for i, line in enumerate(lines):
-            text.draw(cv, line, TAG_F, x + TAG_PAD[0] + dot + 12, y + TAG_PAD[1] + i * TAG_LH + (TAG_LH - lh) / 2, INK)
+            text.draw(cv, line, TAG_F, x + TAG_PAD[0], y + TAG_PAD[1] + i * TAG_LH + (TAG_LH - lh) / 2, '#ffffff')
     cv.mark('tag', x, y, w, h)
 
 

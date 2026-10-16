@@ -11,7 +11,7 @@ comic, pixel art, paper collage), and the timing and formats block before
 the end card. Sections meet on catalog moves (a shape morph, an overlap
 slide, the paper rip), cuts within a section land on the beat.
 
-A shot can show several capabilities at once: its corner tag names them all
+A shot can show several capabilities at once: its tag names them all
 (SHOTS), so a viewer can find on the /capabilities page what they just saw.
 Three capabilities are properties of the whole film as well as a shot: every
 cut is on the beat (beat-lock), it renders in two shapes laid out separately
@@ -88,7 +88,7 @@ TIMELINE = _timeline()
 END = TIMELINE.end
 END_CARD = TIMELINE.find('end').until - TIMELINE.find('end').at
 
-# Each shot and the catalog capabilities it shows, named in its corner tag.
+# Each shot and the catalog capabilities it shows, named in its tag.
 SHOTS = {
     'hook-1': ['kinetic-typography'], 'hook-2': ['kinetic-typography'], 'hook-3': ['kinetic-typography'],
     'title': ['pop-on-the-beat'],

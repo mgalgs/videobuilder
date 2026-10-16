@@ -650,7 +650,7 @@ def page_html(capabilities_dir, version):
             '<button class="unmute" id="reel-unmute" type="button">Unmute</button>'
             '<button class="fullscreen" id="reel-fullscreen" type="button">Full screen</button>'
             '</div>'
-            '<p>Every shot in this reel is one of the capabilities below; its corner tag is the card\'s title.</p>'
+            '<p>Every shot in this reel is one of the capabilities below; its tag is the card\'s title.</p>'
             '</section>')
     for category in categories():
         cards.append(f'<h2>{_esc(category)}</h2><div class="grid">')
