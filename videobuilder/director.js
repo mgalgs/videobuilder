@@ -310,6 +310,12 @@ async function loadPlayer(retry=false) {
 function showBlank() {
   const building=state.notes.some(n=>['gathering','queued','working'].includes(n.state));
   $('building').hidden=!building;
+  const working=state.notes.find(n=>n.state==='working');
+  $('build-steps').hidden=!working;
+  if(working) {
+    renderProgress(working,$('build-steps'));
+    if(working.handle)loadSteps(working)
+  }
   $('render-status').classList.toggle('calm',building);
   $('poster').hidden=true;
   $('retry-render').hidden=true;
@@ -487,13 +493,39 @@ async function loadSteps(note) {
   }
   finally {
     data.loading=false;
-    if(data.open)renderStepsFeed(note)
+    if(data.open)renderStepsFeed(note);
+    refreshProgress(note)
   }
 }
-function renderStepsToggle(note) {
-  const data=state.steps[note.id]||(state.steps[note.id]= {
+function stepsData(note) {
+  return state.steps[note.id]||(state.steps[note.id]= {
     open:false,entries:[],next:0,done:false,loading:false
   });
+}
+// A working note's progress as a checklist that grows as the builder's
+// "Step:" lines land: earlier steps ticked, the newest one in progress.
+const SHOWN_STEPS=5;
+function renderProgress(note,el) {
+  const steps=stepsData(note).entries.filter(e=>e.kind==='step');
+  el.replaceChildren();
+  const items=steps.length?steps.map(s=>s.text):['Getting started'];
+  const hidden=Math.max(0,items.length-SHOWN_STEPS);
+  if(hidden)el.append(node('li','build-step earlier',`${hidden} earlier step${hidden===1?'':'s'} done`));
+  items.slice(hidden).forEach((text,i,shown)=> {
+    const current=i===shown.length-1;
+    const li=node('li','build-step '+(current?'current':'done'));
+    li.append(node('span','build-step-mark'),node('span','build-step-text',text));
+    if(current)li.setAttribute('aria-current','step');
+    el.append(li)
+  })
+}
+function refreshProgress(note) {
+  const data=stepsData(note);
+  if(data.progressEl?.isConnected)renderProgress(note,data.progressEl);
+  if(currentVersion()?.kind==='blank'&&!$('building').hidden)renderProgress(note,$('build-steps'))
+}
+function renderStepsToggle(note) {
+  const data=stepsData(note);
   const wrap=node('div','steps-wrap'),toggle=node('button','steps-toggle',data.open?'Hide steps':'Show steps');
   toggle.setAttribute('aria-expanded',String(data.open));
   const body=node('div','steps-body');
@@ -677,9 +709,16 @@ function renderNotes() {
       for(let i=0;i<3;i++)dots.append(node('i','dot'));
       const message=note.state==='gathering' ? 'Gathering pages…' : note.state==='queued' ?
         'Queued. The builder takes notes one at a time and starts this one when the note before it lands.' :
-        'Working on it. A new version usually takes 2–3 minutes. You can keep watching or add more notes.';
-      if(note.state==='working'||note.state==='gathering')box.append(dots);
+        'Working on it. You can keep watching or add more notes.';
+      if(note.state==='gathering')box.append(dots);
       box.append(node('span','state-message',message));
+      if(note.state==='working') {
+        const progress=node('ol','build-steps');
+        stepsData(note).progressEl=progress;
+        renderProgress(note,progress);
+        box.append(progress);
+        if(note.handle)loadSteps(note)
+      }
       working.append(box);
       list.append(working)
     }
@@ -1796,7 +1835,7 @@ setInterval(()=> {
   if(document.hidden||state.signedOut)return;
   for(const note of state.notes) {
     const data=state.steps[note.id];
-    if(data&&data.open&&!data.done)loadSteps(note)
+    if(data&&!data.done&&(data.open||(note.state==='working'&&note.handle)))loadSteps(note)
   }
 },3000);
 setInterval(()=> {

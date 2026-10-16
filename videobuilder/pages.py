@@ -62,7 +62,7 @@ def _auth_page(title, heading, fields, button, api, switch, showcase):
                 '</script>')
     else:
         show = ('<ol class="steps"><li><b>Describe it.</b> The topic, the length, the look.</li>'
-                '<li><b>Watch the first version.</b> The builder makes it in a few minutes.</li>'
+                '<li><b>Watch the first version.</b> The builder makes it for you.</li>'
                 '<li><b>Give notes.</b> Each one makes a new version, until it\'s right.</li></ol>')
     return ('<!doctype html><html lang="en"><head><meta charset="utf-8">'
             f'<title>{title} · videobuilder</title>'

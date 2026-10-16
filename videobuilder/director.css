@@ -385,9 +385,82 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible {
 
 .render-status.calm {
   top: auto;
-  bottom: 22%;
+  bottom: 10%;
   background: none;
   color: #c9cbd3;
+}
+
+/* The builder's steps so far: ticked, with the newest one in progress. */
+.build-steps {
+  list-style: none;
+  margin: 10px 0 0;
+  padding: 0;
+  text-align: left;
+  font-size: .85rem;
+  line-height: 1.4;
+}
+
+.render-status .build-steps {
+  margin: 14px auto 0;
+  max-width: 34ch;
+}
+
+.build-step {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  padding: 3px 0;
+  color: #8b8e98;
+}
+
+.build-step.current {
+  color: #e8e9ee;
+}
+
+.build-step.earlier {
+  padding-left: 22px;
+  font-size: .78rem;
+  color: #6b6e78;
+}
+
+.build-step-mark {
+  flex: none;
+  width: 12px;
+  height: 12px;
+  margin-top: 4px;
+  border-radius: 50%;
+  box-sizing: border-box;
+}
+
+.build-step.done .build-step-mark {
+  position: relative;
+  background: #4f8a6e;
+}
+
+.build-step.done .build-step-mark::after {
+  content: '';
+  position: absolute;
+  left: 4px;
+  top: 2px;
+  width: 3px;
+  height: 6px;
+  border: solid #0d0f13;
+  border-width: 0 1.6px 1.6px 0;
+  transform: rotate(45deg);
+}
+
+.build-step.current .build-step-mark {
+  border: 2px solid #9aa7c7;
+  animation: build-step-pulse 2.8s ease-in-out infinite;
+}
+
+@keyframes build-step-pulse {
+  0%, 100% { opacity: .45; transform: scale(.85); }
+  50% { opacity: 1; transform: scale(1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .build-step.current .build-step-mark { animation: none; }
 }
 
 .render-status button {
