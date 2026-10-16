@@ -1,0 +1,24 @@
+{
+  "audio": "lumen.wav",
+  "captions": "lumen.vtt",
+  "seconds": 1.13,
+  "phrases": [
+    {
+      "text": "Lumen plans my day!",
+      "start": 0.03,
+      "end": 1.1
+    }
+  ],
+  "inputs": {
+    "phrases": [
+      "Lumen plans my day!"
+    ],
+    "voice": "af_heart",
+    "speed": 1.15,
+    "lang": "en-us",
+    "gap": 0.35,
+    "lexicon": {},
+    "model": "kokoro-v1.0.int8.onnx+voices-v1.0.bin"
+  },
+  "sha256": "9b70742c3d19978ce7c5e8a6c419a5f1861eced3de83aab457abb7797e000d9b"
+}

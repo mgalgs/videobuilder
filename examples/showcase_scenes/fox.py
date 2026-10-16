@@ -1,7 +1,9 @@
-"""Puppet motion and pose swaps: a cut-out fox talks up Lumen, flapping its
-mouth on the syllables, snaps to point at the logo on the beat, hops up
-cheering and lands back in idle, breathing under every hold."""
-from videobuilder import Puppet
+"""Puppet motion, pose swaps and narration: a cut-out fox talks up Lumen in
+a generated voice (examples/assets/narration/lumen.wav, its Sound set up in
+examples/showcase.py), its mouth flapping with that voice, snaps to point at
+the logo on the beat, hops up cheering and lands back in idle, breathing
+under every hold."""
+from videobuilder import Puppet, speech
 
 from . import kit
 from .kit import ASSETS, INK
@@ -10,9 +12,9 @@ POSES = ('idle', 'talk', 'blink', 'point', 'cheer')
 FOX = Puppet({name: ASSETS / 'fox' / f'{name}.png' for name in POSES}, height=360)
 
 FPB = kit.FPB
-SYLLABLES = ((2, 6, 'Lumen'), (9, 13, 'plans'), (16, 20, 'my'), (23, 28, 'day!'))
+VOICE = speech.load(ASSETS / 'narration' / 'lumen.wav')   # starts on the shot's first frame
 POINT, CHEER, LAND = 2 * FPB, 3 * FPB, 4 * FPB
-HOLDS = ([(0, 'idle')] + [h for a, z, _ in SYLLABLES for h in ((a, 'talk'), (z, 'idle'))]
+HOLDS = (speech.holds(VOICE.mouth(kit.FPS, frames=POINT))
          + [(POINT, 'point'), (CHEER, 'cheer'), (LAND, 'idle'), (LAND + 7, 'blink'), (LAND + 9, 'idle')])
 POP = ((1.07, 0.93), (0.96, 1.05), (1.015, 0.985))
 HOP = 60
@@ -49,7 +51,7 @@ def fox(cv, s, st):
     FOX.draw(cv, pose, x, ground - lift * scale, sx=sx, sy=sy, scale=scale, mark='fox')
 
     if n < POINT:
-        words = ' '.join(w for a, _, w in SYLLABLES if n >= a)
+        words = ' '.join(w.text for w in VOICE.track if n >= w.start * kit.FPS)
         if words:
             f = kit.font(kit.pick(st, 48, 44), 700)
             head = ground - FOX.height * scale

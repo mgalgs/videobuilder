@@ -144,6 +144,11 @@ layout, images, views) with the traps each part hides.
   and dips the music under the speech.
 - **Captions**: read `reference/captions.md` when the video shows spoken
   words on screen: captions from a subtitle file, timed word by word.
+- **Narration** (a voiceover, or a character that talks): use
+  `$VB`'s `python -m videobuilder say assets/voice.txt --out assets/voice.wav`
+  (text to speech) once, then commit the WAV, its `.vtt` and `.json`, and the
+  script next to them; the film loads those, never the model. It gives
+  phrase-timed captions and a mouth-open signal. Read `reference/narration.md`.
 - Write `assets/README.md`: each file, where it came from, its licence
   (generated files: the command that made them, and "generated for this film").
 

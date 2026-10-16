@@ -779,6 +779,10 @@ python -m videobuilder editor --library DIR [--checkouts DIR2] [--state-dir DIR3
   committing edits, and review notes with their `AgentBackend`.
 - `edits`: direct edits, `<film>.edits.toml`: `roll`, `set_copy` and `rollable`.
 - `music`: pluggable `--music-sources` for the director's music picker.
+- `speech`: narration. `python -m videobuilder say` (needs the `speech` extra,
+  `pip install -e '.[speech]'`, and the Kokoro model files) makes a voiceover
+  WAV with phrase-timed `.vtt`/`.json` sidecars, once; `speech.load` reads them
+  at render time (captions, a `Sound`, a per-frame mouth-open signal) without the model.
 - `pictures`: `--artbox-url` generated pictures for the director's Pictures sheet.
 
 ## Known traps

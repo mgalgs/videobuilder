@@ -104,7 +104,7 @@ SHOTS = {
     **{n: ['hard-light-sweep'] for n in ('light-wide', 'light-close')},
     **{n: ['comic-halftone'] for n in ('comic-hq', 'comic-close', 'comic-launch')},
     **{n: ['pixel-art-layer'] for n in ('pixel-run', 'pixel-clear')},
-    'fox': ['puppet-motion', 'pose-swaps'],
+    'fox': ['puppet-motion', 'pose-swaps', 'narration'],
     **{n: ['paper-collage'] for n in ('paper-head', 'paper-pad', 'paper-stamp')},
     **{f'beat-{i + 1}': ['beat-lock'] for i in range(4)},
     'every-format': ['every-format'],
@@ -457,8 +457,9 @@ FILM = vb.Film(
     timeline=TIMELINE,
     formats=(kit.F16, kit.F9),
     background=BG,
-    audio=vb.Audio(_music(), fade_out_frames=round(2 * FPB), duck_db=-12),   # the music dips under the tester
-    sounds=(vb.footage(TIMELINE, 'voice', start=0.0).sound(voice.CLIP_PATH),),
+    audio=vb.Audio(_music(), fade_out_frames=round(2 * FPB), duck_db=-12),   # the music dips under the voices
+    sounds=(vb.footage(TIMELINE, 'voice', start=0.0).sound(voice.CLIP_PATH),
+            fox.VOICE.sound(at=TIMELINE.span('fox')[0], fps=GRID.fps)),
 )
 
 if __name__ == '__main__':

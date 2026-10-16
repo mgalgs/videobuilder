@@ -1,0 +1,30 @@
+{
+  "audio": "fox.wav",
+  "captions": "fox.vtt",
+  "seconds": 2.66,
+  "phrases": [
+    {
+      "text": "Hi there!",
+      "start": 0.03,
+      "end": 0.59
+    },
+    {
+      "text": "I'm a fox, and now I can talk.",
+      "start": 1.0,
+      "end": 2.63
+    }
+  ],
+  "inputs": {
+    "phrases": [
+      "Hi there!",
+      "I'm a fox, and now I can talk."
+    ],
+    "voice": "af_heart",
+    "speed": 1.0,
+    "lang": "en-us",
+    "gap": 0.35,
+    "lexicon": {},
+    "model": "kokoro-v1.0.int8.onnx+voices-v1.0.bin"
+  },
+  "sha256": "18cb42f4c28e527788fc4e9ca0def7b40d17e2cea8f9e8b3eeea4b4d75d5c2ee"
+}

@@ -3,7 +3,9 @@
 For commentary cuts (a podcast, a hearing) where the speaker's words run
 along the bottom of the frame one short line at a time, the spoken word lit
 up and chosen keywords in an accent colour. The input is a subtitle file;
-`vb.captions` doesn't transcribe audio.
+`vb.captions` doesn't transcribe audio. For a generated voiceover,
+`python -m videobuilder say` writes the subtitle file with the voice (one cue
+per phrase): see `narration.md`.
 
 ## Reading a subtitle file
 

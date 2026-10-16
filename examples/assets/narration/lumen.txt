@@ -1,0 +1,3 @@
+# The fox shot in examples/showcase.py (showcase_scenes/fox.py). Regenerate with:
+#   python -m videobuilder say examples/assets/narration/lumen.txt --out examples/assets/narration/lumen.wav --speed 1.15
+Lumen plans my day!

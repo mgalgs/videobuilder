@@ -1,0 +1,4 @@
+# The fox in examples/capabilities/narration.py. Regenerate with:
+#   python -m videobuilder say examples/assets/narration/fox.txt --out examples/assets/narration/fox.wav
+Hi there!
+I'm a fox, and now I can talk.
