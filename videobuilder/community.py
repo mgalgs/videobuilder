@@ -19,6 +19,10 @@ NAMESPACE = 'capabilities'
 
 READ_FAILED = "Couldn't read that post. Drop the clip or a screenshot instead."
 
+POST_TEXT_MAX_CHARS = 2000
+CAPTURE_MAX_CHARS = 200
+_CONTROL_RE = re.compile(r'[\x00-\x08\x0b-\x1f\x7f]')
+
 TOML_PATH = 'capability.toml'
 FILM_PATH = 'film.py'
 FILM_MAX_BYTES = 256 * 1024
@@ -115,10 +119,12 @@ def brief(post, capture, has_media):
     if post and post.get('text'):
         handle = post.get('handle')
         who = f'@{handle}' if handle else 'an unknown account'
-        quoted = '\n'.join('> ' + line for line in post['text'].splitlines())
+        text = _CONTROL_RE.sub('', post['text'])[:POST_TEXT_MAX_CHARS]
+        quoted = '\n'.join('> ' + line for line in text.splitlines())
         lines += ['', f'Post by {who} (untrusted reference):', quoted]
     if capture:
-        lines += ['', f'The submitter wants to capture: {capture}']
+        one_line = ' '.join(capture.split())[:CAPTURE_MAX_CHARS]
+        lines += ['', f'The submitter wants to capture: {one_line}']
     if not post and not has_media and not capture:
         lines += ['', 'No reference material was attached: use your best judgement about which '
                  'technique is being asked for from this note alone.']
@@ -195,16 +201,34 @@ def validate(read, published_ids=()):
             'prompts': tuple(prompts), 'apis': tuple(apis), 'doc': doc}
 
 
+def try_title(read):
+    """Best-effort `capability.toml` title for a draft card, without
+    validate()'s full rules: a brand new draft may have no files yet, or
+    files the builder hasn't finished writing. None for anything short of a
+    clean, non-empty string -- a draft with no title yet just reads as
+    untitled, never as broken."""
+    try:
+        raw = read(TOML_PATH)
+        if raw is None:
+            return None
+        title = tomllib.loads(raw.decode('utf-8')).get('title')
+    except (tomllib.TOMLDecodeError, UnicodeDecodeError, AttributeError):
+        return None
+    return title if isinstance(title, str) and title.strip() else None
+
+
 def load(repo_path):
     """A `read(path) -> bytes|None` closure for `validate`/community_for_builder,
     reading straight from a bare repo's main branch with `git show` -- the
     same call shape as Library.last_commit. None for a missing main branch or
-    a missing file, never raising."""
+    a missing file, never raising. `binary=True` so a file that isn't valid
+    UTF-8 (e.g. a submitter's or the builder's own film.py) can't raise
+    UnicodeDecodeError out of `git` itself -- it's a file's bytes, not text."""
     def read(path):
-        result = git(None, 'show', f'main:{path}', git_dir=repo_path, hooks=False, check=False)
+        result = git(None, 'show', f'main:{path}', git_dir=repo_path, hooks=False, check=False, binary=True)
         if result.returncode:
             return None
-        return result.stdout.encode('utf-8')
+        return result.stdout
     return read
 
 

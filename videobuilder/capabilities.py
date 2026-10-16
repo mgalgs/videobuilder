@@ -546,6 +546,7 @@ _COMMUNITY_STYLE = """
 .draft-card{background:#141417;border:1px solid #26262c;border-radius:12px;padding:14px 16px;
   display:flex;flex-direction:column;gap:6px}
 .draft-card strong{font-size:14px}
+.draft-slug{font-size:11.5px;color:#6f6f78;font-family:monospace}
 .draft-status{font-size:12.5px;color:#a9a9b2}
 .draft-status.problem{color:#ff8a80}
 .draft-submitter{font-size:12.5px;color:#8b8b94}
@@ -752,7 +753,7 @@ _ADD_CAPABILITY_SCRIPT = """
       if(!sr.ok) throw new Error(sent.error || "Couldn't send it to the builder.");
       location.href = '/v/' + pathOf(created.name) + '/';
     }catch(err){
-      error.textContent = (created && created.read && created.read.error) ? created.read.error : err.message;
+      error.textContent = err.message;
       submit.disabled = false;
     }
   });
@@ -825,9 +826,11 @@ def _draft_card_html(draft, is_admin):
                        'Publish</button>')
         actions.append(f'<button type="button" data-cap-action="reject" data-cap-slug="{_esc(draft["slug"])}">'
                        'Reject</button>')
+    title = draft.get('title') or 'Untitled draft'
     return (
         f'<div class="draft-card" data-slug="{_esc(draft["slug"])}">'
-        f'<strong>{_esc(draft["slug"])}</strong>'
+        f'<strong>{_esc(title)}</strong>'
+        f'<span class="draft-slug">{_esc(draft["slug"])}</span>'
         f'<span class="draft-status {css}">{_esc(status)}</span>'
         f'<span class="draft-submitter">Submitted by {_esc(draft["submitter"])}</span>'
         f'<div class="draft-actions">{"".join(actions)}</div>'

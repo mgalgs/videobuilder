@@ -287,8 +287,13 @@ class Library:
             editor = self.editor(name)
             vid = editor.project.videos()[0].id
             for media_name, ctype, data in media:
+                # xpost's own video cap (50 MB) is above the attachment store's
+                # default per-file cap (25 MiB): raise it here the same way
+                # gather.write_attachments does, rather than silently dropping a
+                # fetched clip that read_post already reported as fetched.
+                oversize = len(data) > editor.attachments.max_file
                 try:
-                    record = editor.attachments.upload(vid, media_name, ctype, data)
+                    record = editor.attachments.upload(vid, media_name, ctype, data, allow_oversize=oversize)
                 except ValueError:
                     continue
                 fetched_ids.append(record['id'])
@@ -322,7 +327,12 @@ class Library:
             except KeyError:
                 continue  # expired since step 1: left out, not a failed send
             fetched.append(ident)
-        ids = list(dict.fromkeys(fetched + list(attachment_ids or [])))
+        # A retry from the draft card's own "Send to the builder" button (as opposed to
+        # the submission dialog that just uploaded them) has no memory of what the
+        # browser uploaded in step 2: recover anything still sitting on this video, not
+        # just whatever ids the caller happened to name.
+        uploaded = editor.attachments.uploaded_for(vid)
+        ids = list(dict.fromkeys(fetched + uploaded + list(attachment_ids or [])))
         text = community.brief(record.get('post'), record.get('capture'), bool(ids))
         note = editor.start_capability(text, ids, user, is_admin)
         self.community.set_note(slug, note['id'])
@@ -389,8 +399,9 @@ class Library:
                     continue
                 if record['submitter'] != user and not is_admin:
                     continue
+                title = community.try_title(community.load(self.path(f'{community.NAMESPACE}/{slug}')))
                 drafts.append({'slug': slug, 'status': record['status'], 'submitter': record['submitter'],
-                              'sent': bool(record['note']), 'problem': broken.get(slug)})
+                              'sent': bool(record['note']), 'problem': broken.get(slug), 'title': title})
             drafts.sort(key=lambda d: records[d['slug']]['created'])
         return {'published': published, 'drafts': drafts, 'can_submit': bool(user), 'is_admin': is_admin,
                'fetch': self.capability_fetch}

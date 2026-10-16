@@ -204,6 +204,21 @@ class Attachments:
             shutil.copyfile(frame, path / FRAME_NAME)
         return str(path)
 
+    def uploaded_for(self, video):
+        """Every currently-existing (not yet expired) attachment id uploaded
+        against `video`, oldest first -- for a caller like
+        Library.send_capability that needs to recover ids a browser uploaded
+        in an earlier step but didn't resend, without keeping its own index."""
+        out = []
+        for path in self.root.glob('*/meta.json'):
+            try:
+                meta = json.loads(path.read_text())
+            except (ValueError, KeyError):
+                continue
+            if meta.get('video') == video:
+                out.append((meta['created'], meta['id']))
+        return [ident for _, ident in sorted(out)]
+
     def expire(self):
         used = {x['id'] for n in self.editor.notes.list(refresh=False) for x in n.get('attachments', [])}
         for path in self.root.glob('*/meta.json'):
