@@ -28,6 +28,9 @@ def _match(route, pattern):
 
 def _get_healthz(self, route, q, editor, user):
     from . import __version__
+    # Not ok while draining: an open tab waits for the new process, not the one about to exit.
+    if getattr(self.server, 'draining', False):
+        return self._send(503, b'stopping', 'text/plain; charset=utf-8')
     return self._send(200, ('ok ' + __version__).encode(), 'text/plain; charset=utf-8')
 
 

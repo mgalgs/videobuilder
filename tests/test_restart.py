@@ -124,8 +124,13 @@ class Draining(Restart):
         drainer.start()
         self.wait(lambda: self.httpd.draining)
         self.assertEqual(self.post('/api/notes'), (503, {'error': UPDATING}))
-        with urllib.request.urlopen(self.base + '/healthz', timeout=20) as r:
-            self.assertTrue(r.read().startswith(b'ok '))
+        with urllib.request.urlopen(self.base + '/api/project', timeout=20) as r:
+            self.assertEqual(r.status, 200)
+        # An open tab waiting out the restart must not take the old process for the new one.
+        with self.assertRaises(urllib.error.HTTPError) as e:
+            urllib.request.urlopen(self.base + '/healthz', timeout=20)
+        e.exception.close()
+        self.assertEqual(e.exception.code, 503)
         self.assertTrue(drainer.is_alive())
         self.release.set()
         drainer.join(10)
@@ -141,6 +146,31 @@ class Draining(Restart):
         began = time.monotonic()
         self.assertFalse(_drain(self.httpd, threading.Event(), [], lambda: None, began + 0.5))
         self.assertLess(time.monotonic() - began, 3)
+
+
+class DirectorDuringARestart(unittest.TestCase):
+    def test_a_failed_request_shows_the_banner_pauses_polling_and_keeps_the_draft(self):
+        import re
+        from pathlib import Path
+        pkg = Path(__file__).resolve().parent.parent / 'videobuilder'
+        js = (pkg / 'director.js').read_text()
+        self.assertIn('id="restart-banner"', (pkg / 'editor.html').read_text())
+        body = lambda name: re.search(r'function ' + name + r'\([^)]*\) \{(.*?)\n\}', js, re.S).group(1)
+        self.assertIn('await reach(api(path,params)', body('json'))
+        self.assertIn("$('restart-banner').hidden=false", body('restarting'))
+        # Only the new process's ok counts: the draining one answers 503 (see _get_healthz).
+        self.assertIn("r.ok&&(await r.text()).startsWith('ok ')", body('waitForEditor'))
+        back = body('editorBack')
+        for call in ("$('restart-banner').hidden=true", 'loadNotes()', 'loadVersions()', 'loadPlayer()'):
+            self.assertIn(call, back)
+        for guard in ('state.video&&!state.signedOut&&!state.restarting', 'state.signedOut||state.restarting'):
+            self.assertIn(guard, js)
+        # A render poll cut off by the restart waits for editorBack rather than offering a retry.
+        player = body('loadPlayer')
+        self.assertLess(player.index('if(state.restarting)return'), player.index("$('retry-render').hidden=false"))
+        # The draft, pending list and picked files are cleared only after a send succeeds
+        # (pinned in test_editor's signed-out test); a failed upload leaves state.files as it was.
+        self.assertNotIn('state.files=', body('uploadFiles'))
 
 
 class Sigterm(TempProject):

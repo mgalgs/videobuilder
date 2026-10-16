@@ -28,6 +28,7 @@ const state = {
   renderTimer: null,
   resumeOnVisible: false,
   signedOut: false,
+  restarting: false,
   musicSources: [],
   musicSourceId: null,
   musicSource: null,
@@ -66,7 +67,7 @@ const replyText = reply => reply && reply.replace(/^== result:[^\n]*==\n+/, '');
 const costLabel = cost => cost==null ? 'cost unknown' : `≈ $${cost.toFixed(2)}`;
 // ---- Networking: fetch/json, errors and toasts ----
 async function json(path, params, body) {
-  const r=await fetch(api(path,params),body===undefined? {
+  const r=await reach(api(path,params),body===undefined? {
   }
   : {
     method:'POST',headers: {
@@ -84,8 +85,56 @@ async function parseJSON(r) {
   try {
     return JSON.parse(text)
   } catch (_) {
+    if(GATEWAY.includes(r.status))throw restarting();
     throw Error(`The editor didn't answer (HTTP ${r.status}); it may be restarting. Try again in a moment.`)
   }
+}
+// ---- Editor restarts ----
+// A deploy stops the editor for a while: requests fail with no answer, or the proxy's
+// 502-504 (503 is also the editor's own while it finishes up). A banner says so, polling
+// pauses, and /healthz is retried until it is back; nothing typed or picked is touched.
+const GATEWAY=[502,503,504];
+const RESTART_MESSAGE='The editor is updating. Nothing you wrote is lost; send it again once it is back.';
+async function reach(url, init) {
+  try {
+    return await fetch(url,init)
+  } catch (_) {
+    throw restarting()
+  }
+}
+function restarting() {
+  if(!state.restarting) {
+    state.restarting=true;
+    $('restart-banner').hidden=false;
+    setTimeout(waitForEditor,2000)
+  }
+  return Error(RESTART_MESSAGE)
+}
+async function waitForEditor() {
+  try {
+    const r=await fetch('/healthz', {cache: 'no-store'});
+    if(r.ok&&(await r.text()).startsWith('ok ')) {
+      editorBack();
+      return
+    }
+  } catch (_) {
+    // Still down.
+  }
+  setTimeout(waitForEditor,document.hidden ? 10000 : 3000)
+}
+function editorBack() {
+  state.restarting=false;
+  $('restart-banner').hidden=true;
+  for(const id of ['composer-error','source-error']) {
+    if($(id).textContent===RESTART_MESSAGE)$(id).textContent='The editor is back. Send it again when you’re ready.'
+  }
+  lastNotesPoll=Date.now();
+  loadNotes();
+  loadVersions();
+  checkEditorVersion();
+  if(state.view==='sources')loadSources();
+  // A render the old editor was making, or one whose poll failed, is asked for again.
+  if(!state.videoReady)loadPlayer()
 }
 // A session can expire while the tab sits open: the note being typed, queued or sent
 // must survive that, so a 401 shows a banner (never a redirect, which would drop it)
@@ -105,6 +154,7 @@ function httpError(r, data) {
     handleSignedOut();
     return Error(SIGNED_OUT_MESSAGE)
   }
+  if(GATEWAY.includes(r.status))return restarting();
   return Error(data.log||data.error||r.statusText)
 }
 // Called when the tab regains focus: the sign-in link opens in a new tab, so this
@@ -272,7 +322,7 @@ async function loadPlayer(retry=false) {
   $('render-text').textContent=`Rendering v${v?.n||'…'}…`;
   $('retry-render').hidden=true;
   try {
-    const r=await fetch(url, {headers: {Range: 'bytes=0-0', Accept: 'application/json'}});
+    const r=await reach(url, {headers: {Range: 'bytes=0-0', Accept: 'application/json'}});
     if(url!==videoUrl())return;
     if(r.status===202) {
       const body=await parseJSON(r);
@@ -299,9 +349,11 @@ async function loadPlayer(retry=false) {
     updateLabels()
   }
   catch(e) {
+    $('poster').hidden=false;
+    // editorBack polls again; until then the render reads as still on its way.
+    if(state.restarting)return;
     $('render-text').textContent=e.message;
     $('retry-render').hidden=false;
-    $('poster').hidden=false;
     setPlayState('play')
   }
 }
@@ -803,6 +855,7 @@ async function loadNotes() {
     state.pollError=null
   }
   catch(e) {
+    if(state.restarting)return;
     state.pollError=e.message;
     showError(e.message)
   }
@@ -878,7 +931,7 @@ async function loadVersions(more=false) {
     updateLabels()
   }
   catch(e) {
-    showError(e.message)
+    if(!state.restarting)showError(e.message)
   }
   finally {
     state.loadingVersions=false
@@ -1187,9 +1240,10 @@ function xhrUpload(path,params,file,onProgress) {
       } catch (_) {
       }
       if(xhr.status>=200&&xhr.status<300&&data)resolve(data);
+      else if(GATEWAY.includes(xhr.status))reject(restarting());
       else reject(Error((data&&(data.error||data.log))||`upload failed (HTTP ${xhr.status})`))
     };
-    xhr.onerror=()=>reject(Error('upload failed: a network error interrupted it'));
+    xhr.onerror=()=>reject(restarting());
     xhr.send(file)
   })
 }
@@ -1221,7 +1275,7 @@ $('source-cancel').onclick=()=> {
   $('source-pending').hidden=true
 };
 async function uploadCaption(name,file) {
-  const r=await fetch(api('sources/'+encodeURIComponent(name)+'/caption', {
+  const r=await reach(api('sources/'+encodeURIComponent(name)+'/caption', {
     video:state.video,filename:file.name
   }), {
     method:'POST',headers: {
@@ -1385,7 +1439,7 @@ async function uploadFiles(files) {
       continue
     }
     showError(`Uploading ${i+1} of ${files.length}…`);
-    const r=await fetch(api('attachments', {
+    const r=await reach(api('attachments', {
       video:state.video,name:files[i].name
     }), {
       method:'POST',headers: {
@@ -1824,29 +1878,29 @@ setInterval(()=> {
   const fast=!document.hidden && (
     state.notes.some(n=>['gathering','queued','working'].includes(n.state)) ||
     window.innerWidth>700 || $('panel').classList.contains('open'));
-  if(state.video&&!state.signedOut&&Date.now()-lastNotesPoll>=(fast?3000:15000)) {
+  if(state.video&&!state.signedOut&&!state.restarting&&Date.now()-lastNotesPoll>=(fast?3000:15000)) {
     lastNotesPoll=Date.now();
     loadNotes();
   }
 },1000);
 setInterval(()=> {
-  if(state.video&&!state.signedOut)loadVersions()
+  if(state.video&&!state.signedOut&&!state.restarting)loadVersions()
 },15000);
 setInterval(()=> {
-  if(document.hidden||state.signedOut)return;
+  if(document.hidden||state.signedOut||state.restarting)return;
   for(const note of state.notes) {
     const data=state.steps[note.id];
     if(data&&!data.done&&(data.open||(note.state==='working'&&note.handle)))loadSteps(note)
   }
 },3000);
 setInterval(()=> {
-  if(document.hidden||state.signedOut||state.view!=='sources')return;
+  if(document.hidden||state.signedOut||state.restarting||state.view!=='sources')return;
   if((state.sources||[]).some(s=>!s.preview_ready))loadSources()
 },3000);
 // /api/project syncs with the forge, so poll the cheap /healthz and refetch the
 // project only when the editor's version changes (a deploy), for the upgrade chip.
 async function checkEditorVersion() {
-  if(document.hidden||!state.project||state.signedOut)return;
+  if(document.hidden||!state.project||state.signedOut||state.restarting)return;
   try {
     const text=await (await fetch('/healthz')).text();
     const version=text.startsWith('ok ')?text.slice(3).trim():null;
@@ -1874,6 +1928,8 @@ document.addEventListener('visibilitychange', () => {
     resumeFromSignedOut();
     return;
   }
+  // waitForEditor catches up once it is back.
+  if (state.restarting) return;
   if (state.renderTimer) {
     clearTimeout(state.renderTimer);
     loadPlayer();
