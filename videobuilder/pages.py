@@ -486,6 +486,7 @@ def index(entries, accounts_enabled, user, host, scheme='http', showcase=False):
                        f'<span class="lib-title">{html.escape(leaf)}</span></button></li>')
         rows.append('</ul>')
     account_bar = ''
+    howto = ''
     body = ''.join(rows)
     can_create = bool(user) if accounts_enabled else True
     hero = not entries
@@ -494,7 +495,7 @@ def index(entries, accounts_enabled, user, host, scheme='http', showcase=False):
                        '</strong> · <a href="/account">API keys</a></span>'
                        '<button id="sign-out">Sign out</button></div>')
         if not entries:
-            body = _howto_html(user)
+            howto = _howto_html(user)
     starters = _starter_section_html(hero, as_link=True)
     if hero and showcase:
         starters = _showcase_section_html() + starters
@@ -515,7 +516,7 @@ def index(entries, accounts_enabled, user, host, scheme='http', showcase=False):
             '</head><body><div class="lib-page">' + account_bar +
             '<header class="lib-header"><h1>Video library</h1>' + new_video +
             '<a class="caps-link" href="/capabilities">Capabilities</a></header>' +
-            starters + body + _LIB_DETAIL_HTML + script +
+            howto + starters + body + _LIB_DETAIL_HTML + script +
             '</div></body></html>').encode()
 
 
