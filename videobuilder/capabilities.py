@@ -773,8 +773,8 @@ _ADD_CAPABILITY_SCRIPT = """
 
 
 def _add_capability_html(fetch):
-    url_field = ('<label>Link<input type="url" name="url" '
-                'placeholder="https://&hellip;  (an X post, a blog post, a demo page)"></label>' if fetch else '')
+    url_field = ('<label>Link (an X post, a blog post, a demo page)<input type="url" name="url" '
+                'placeholder="https://&hellip;"></label>' if fetch else '')
     return (
         '<dialog id="add-capability-dialog" class="cap-dialog">'
         '<button type="button" class="cap-dialog-close" aria-label="Close">&times;</button>'
