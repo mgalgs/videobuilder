@@ -13,6 +13,7 @@ import urllib.request
 from pathlib import Path
 from unittest import mock
 
+from videobuilder import sources as sources_module
 from videobuilder.editor import Editor
 from videobuilder.sources import CAPTION_MAX_BYTES, PREVIEW_MAX_SIDE, Sources, TooLarge
 from tests import fixtures
@@ -380,6 +381,12 @@ class CheckoutStaging(fixtures.API):
         with open(self.clip, 'rb') as fh:
             data = fh.read()
         self.editor.sources.stream_upload('promo/film', 'interview.mp4', None, 'video/mp4', _Rfile(data), len(data))
+
+    def tearDown(self):
+        # The upload queued a preview build; let it finish before the project
+        # directory it writes into is deleted.
+        sources_module._BUILD_QUEUE.join()
+        super().tearDown()
 
     def test_sync_hardlinks_into_the_main_checkout_and_is_git_ignored(self):
         self.editor.sources.sync('promo/film')
