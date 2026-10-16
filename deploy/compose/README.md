@@ -129,7 +129,11 @@ Everything that persists is in the `videobuilder_data` volume, mounted at
 | `forks/` | fork-sandbox's runs, and the videobuilder source the builder reads |
 
 `$HOME` is a tmpfs: it holds the builder's credential and is rebuilt on every
-start. `docker compose down` keeps the volume. `docker compose down -v`
+start. While a build runs, fork-sandbox keeps a copy of the Claude token in a
+`forks/claude-sandboxed-state.*` directory in the volume. The build removes it
+when it ends, and the container removes any left by a build cut off by a stop,
+on its next start. So a copy of the volume can hold the token: delete
+`forks/claude-sandboxed-state.*` from any copy you share. `docker compose down` keeps the volume. `docker compose down -v`
 deletes it, with every video in it.
 
 ## Upgrading
@@ -180,7 +184,8 @@ your LAN, the same as any container on this machine. It can't see the
 container's own loopback, its `$HOME`, the admin password or the video
 library: only a clone of the one video it is working on. It does hold a copy
 of the Claude token, since that is how it calls the model, so anything a build
-runs could read that token. If you suspect it leaked, make a new one with
+runs could read that token. That copy sits in the volume under `forks/` for as
+long as the build runs. If you suspect it leaked, make a new one with
 `claude setup-token` and revoke the old one from your Claude account settings.
 
 ## Troubleshooting

@@ -42,8 +42,9 @@ fi
 /opt/fork-sandbox/install.sh >/dev/null
 
 # The credential the claude harness reads, in the shape `claude setup-token`
-# tokens take on fork-sandbox's cluster path. It lives in $HOME (tmpfs), never
+# tokens take on fork-sandbox's cluster path. It lives in $HOME (tmpfs), not
 # on the data volume, and the variable is dropped before the editor starts.
+# (A running build holds its own copy on the volume; see below.)
 mkdir -p "$HOME/.claude"
 (
     umask 077
@@ -57,6 +58,12 @@ unset CLAUDE_CODE_OAUTH_TOKEN
 # the cluster pod does, so checkouts persist.
 mkdir -p "$DATA/projects" "$DATA/forks"
 ln -sfn "$DATA/projects" "$HOME/src"
+
+# Each build's claude-sandboxed copies the token into a state directory under
+# forks/ (on the volume) and removes it on exit. A build killed with the
+# container never gets to, and fork-sandbox's sweep skips these. No build can
+# be live yet, so remove any left behind.
+rm -rf "$DATA"/forks/claude-sandboxed-state.*
 
 # --envs current: a video made here pins this image's own videobuilder, which
 # is already installed; building per-pin environments would need PyPI or a
