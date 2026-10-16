@@ -237,7 +237,7 @@ def cmd_editor(a):
                 raise ValueError('--source-max-mb and --source-max-total-mb are only for --library mode; '
                                  'set [editor] source_max_mb / source_max_total_mb in the project config instead')
             if a.capability_agent_extra_arg is not None:
-                raise ValueError('--capability-agent-extra-arg … only for --library mode')
+                raise ValueError('--capability-agent-extra-arg is only for --library mode')
             if a.no_capability_fetch:
                 raise ValueError('--no-capability-fetch is only for --library mode')
             serve(a.project, host=a.host, port=a.port, state_dir=a.state_dir, open_browser=a.open,

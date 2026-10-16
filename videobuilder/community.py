@@ -106,8 +106,10 @@ def brief(post, capture, has_media):
         'people, logos or branding into it -- reproduce the technique itself with videobuilder\'s '
         'own drawing and your own content.',
         '- capability.toml: id (a short new id, not already used by an existing capability), '
-        f'category (one of: {categories}), title, card, description, prompts (exactly 3 short '
-        'director-style prompts), apis (1-12 short API hints), and doc = "capability.md".',
+        f'category (one of: {categories}), title (a single line, at most 80 characters), card '
+        '(a single line, at most 160 characters), description (at most 1200 characters; may span '
+        'multiple lines), prompts (exactly 3 director-style prompts, each at most 200 characters), '
+        'apis (1-12 API hints, each at most 200 characters), and doc = "capability.md".',
         '- capability.md: a short reference doc for the technique, at the path capability.toml\'s '
         '`doc` names.',
         '',
@@ -131,10 +133,23 @@ def brief(post, capture, has_media):
     return '\n'.join(lines).strip() + '\n'
 
 
-def _require_str(value, field, max_len):
+def _require_line(value, field, max_len):
+    """title/card: both land verbatim, as a single bullet line, in
+    _community_lines's prompt section for every user's builder -- a newline
+    there would let a later push onto main inject new lines into that
+    prompt, outside the bullet it belongs in. Refused outright."""
     if (not isinstance(value, str) or not value.strip() or len(value) > max_len or
             _CONTROL_RE.search(value) or '\n' in value or '\t' in value):
         raise Invalid(f'{field} must be a single line of at most {max_len} characters, with no control characters')
+    return value
+
+
+def _require_text(value, field, max_len):
+    """description: shown on the page via textContent and never reaches a
+    builder prompt, so unlike title/card it may hold newlines -- a builder
+    reaching for a multi-line TOML string for a long description is normal."""
+    if not isinstance(value, str) or not value.strip() or len(value) > max_len or _CONTROL_RE.search(value):
+        raise Invalid(f'{field} must be a non-empty string of at most {max_len} characters, with no control characters')
     return value
 
 
@@ -173,9 +188,9 @@ def validate(read, published_ids=()):
     category = data['category']
     if category not in capabilities.categories():
         raise Invalid(f'category must be one of: {", ".join(capabilities.categories())}')
-    title = _require_str(data['title'], 'title', 80)
-    card = _require_str(data['card'], 'card', 160)
-    description = _require_str(data['description'], 'description', 1200)
+    title = _require_line(data['title'], 'title', 80)
+    card = _require_line(data['card'], 'card', 160)
+    description = _require_text(data['description'], 'description', 1200)
     prompts = data['prompts']
     if not isinstance(prompts, list) or len(prompts) != 3 or not all(
             isinstance(p, str) and p.strip() and len(p) <= 200 for p in prompts):
