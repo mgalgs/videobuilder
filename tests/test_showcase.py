@@ -74,8 +74,14 @@ class Showcase(unittest.TestCase):
 class ServedWithTheCatalog(unittest.TestCase):
     def test_the_full_build_renders_the_reel_in_both_formats_with_posters(self):
         rendered = []
+        from videobuilder.render import render as real_render
 
-        def fake_render(film, out, fmt, **kw):
+        def fake_render(film, out, *args, **kw):
+            # Loading the showcase renders its synthetic speaker clip (a cache miss on a
+            # fresh machine): only the reel's own renders into `d` are faked.
+            if not out.startswith(d):
+                return real_render(film, out, *args, **kw)
+            fmt = args[0] if args else kw['fmt']
             rendered.append((os.path.basename(out), fmt.width, fmt.height))
             Path(out).write_bytes(b'mp4')
 
