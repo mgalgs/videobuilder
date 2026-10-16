@@ -593,7 +593,8 @@ class Published(fixtures.AccountMixin, fixtures.LibraryFixture, unittest.TestCas
         self.git('add', '.', cwd=work)
         self.git('commit', '-m', 'retitle', cwd=work)
         self.git('push', cwd=work)
-        code, data, _ = self.request_full(f'/api/capabilities/{slug}/reject', {}, headers=admin_headers)
+        code, data, _ = self.request_full(f'/api/capabilities/{slug}/reject', {'update': True},
+                                          headers=admin_headers)
         self.assertEqual(code, 200, data)
         record = self.library.community.get(slug)
         self.assertEqual(record['status'], 'published')
@@ -603,12 +604,10 @@ class Published(fixtures.AccountMixin, fixtures.LibraryFixture, unittest.TestCas
         self.assertNotIn(b'Sketchy title', page)
         self.assertNotIn(b'Update awaiting approval', page)  # discarded: stops nagging for this sha
 
-    def test_reject_is_still_reachable_after_discarding_a_pending_update(self):
-        """A second Reject, once there's no pending update left to discard
-        (main at the already-discarded sha), must take the capability down
-        rather than replaying reject_update's no-op forever -- otherwise a
-        submitter only has to push once after approval to make their
-        capability impossible to take down."""
+    def test_takedown_works_whatever_main_is_doing(self):
+        """A plain Reject takes a published capability down even with an
+        update pending, and even after a discard and a fresh push: a
+        submitter must not be able to dodge a takedown by pushing."""
         admin = self.admin_login()
         admin_headers = {'Content-Type': 'application/json', 'Cookie': admin}
         _, _, dana = self.signup('dana', 'longenoughpassword')
@@ -623,9 +622,17 @@ class Published(fixtures.AccountMixin, fixtures.LibraryFixture, unittest.TestCas
         self.git('add', '.', cwd=work)
         self.git('commit', '-m', 'retitle', cwd=work)
         self.git('push', cwd=work)
-        code, data, _ = self.request_full(f'/api/capabilities/{slug}/reject', {}, headers=admin_headers)
+        code, data, _ = self.request_full(f'/api/capabilities/{slug}/reject', {'update': True},
+                                          headers=admin_headers)
         self.assertEqual(code, 200, data)
         self.assertEqual(self.library.community.get(slug)['status'], 'published')  # discards only the update
+        code, data, _ = self.request_full(f'/api/capabilities/{slug}/reject', {'update': True},
+                                          headers=admin_headers)
+        self.assertEqual(code, 400, data)  # nothing pending to discard any more
+        toml_path.write_text(toml_path.read_text().replace('Sketchy title', 'Sketchier title'))
+        self.git('add', '.', cwd=work)
+        self.git('commit', '-m', 'retitle again', cwd=work)
+        self.git('push', cwd=work)
         code, data, _ = self.request_full(f'/api/capabilities/{slug}/reject', {}, headers=admin_headers)
         self.assertEqual(code, 200, data)
         self.assertEqual(data['status'], 'rejected')

@@ -508,29 +508,26 @@ class Library:
         community.validate(read, claimed)
         return self.community.publish(slug, admin, sha)
 
-    def reject_capability(self, admin, slug):
+    def reject_capability(self, admin, slug, update=False):
         """Rejects `slug` (POST /api/capabilities/<slug>/reject): KeyError
-        for an unknown slug. When `slug` is published and its project's main
-        has moved past its pin to a commit that hasn't already been
-        discarded (a *pending* update is actually showing -- the same test
-        community_view uses for "Update awaiting approval"), this only
-        discards that update (community.Store.reject_update) -- the pinned
-        version stays published, exactly as before, for everyone but the
-        submitter and admins (who stop seeing the notice for this sha, until
-        main moves again). Otherwise this is a full takedown, as today:
-        hides `slug` from every /capabilities page and its clip route,
-        without touching the project on disk (ValueError for one that is
-        neither 'draft' nor 'published' -- there is nothing else to take
-        down). This way a takedown is always reachable: once a pending
-        update has been discarded once, a second Reject (with nothing new
-        to discard) takes the capability down rather than being a no-op
-        forever."""
+        for an unknown slug. By default a full takedown: hides `slug` from
+        every /capabilities page and its clip route, without touching the
+        project on disk (ValueError for one that is neither 'draft' nor
+        'published'). With `update`, only discards a published capability's
+        pending update (community.Store.reject_update) and leaves the pinned
+        version published; ValueError when no update is pending.
+
+        The takedown must never depend on the state of main: if it did, a
+        submitter who pushes a fresh commit before each Reject would keep
+        turning the takedown into another discarded update."""
         record = self.community.get(slug)
-        if record['status'] == 'published':
-            tip = community.main_sha(self.path(f'{community.NAMESPACE}/{slug}'))
-            if tip and tip != record['pinned_sha'] and tip != record['update_rejected_sha']:
-                return self.community.reject_update(slug, admin, tip)
-        return self.community.reject(slug, admin)
+        if not update:
+            return self.community.reject(slug, admin)
+        tip = (community.main_sha(self.path(f'{community.NAMESPACE}/{slug}'))
+               if record['status'] == 'published' else None)
+        if not tip or tip in (record['pinned_sha'], record['update_rejected_sha']):
+            raise ValueError('there is no pending update to discard')
+        return self.community.reject_update(slug, admin, tip)
 
     def community_for_builder(self):
         """Every published, currently-valid community capability, with its

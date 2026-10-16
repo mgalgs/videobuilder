@@ -269,10 +269,10 @@ class LibraryHandler:
                     from .video_api import _is_admin_account
                     if not _is_admin_account(self, user):
                         raise HTTPError(403, 'admin only')
-                    self._body()
+                    body = self._body()
                     slug = unquote(m.group(1))
                     try:
-                        record = library.reject_capability(user, slug)
+                        record = library.reject_capability(user, slug, update=body.get('update') is True)
                     except KeyError:
                         raise HTTPError(404, 'no such capability') from None
                     except ValueError as exc:

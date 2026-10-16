@@ -796,7 +796,7 @@ _COMMUNITY_SCRIPT = """
       var errEl = card ? card.querySelector('.draft-error') : null;
       btn.disabled = true;
       try{
-        var body = action === 'send' ? {attachments: []} : {};
+        var body = action === 'send' ? {attachments: []} : btn.hasAttribute('data-cap-update') ? {update: true} : {};
         var r = await fetch('/api/capabilities/' + slug + '/' + action, {method: 'POST',
           headers: {'Content-Type': 'application/json'}, body: JSON.stringify(body)});
         var data = await r.json();
@@ -856,8 +856,10 @@ def _community_card_html(entry, is_admin):
         if pending:
             actions.append(f'<button type="button" data-cap-action="publish" data-cap-slug="{_esc(slug)}">'
                            'Publish update</button>')
+            actions.append(f'<button type="button" data-cap-action="reject" data-cap-update="1" '
+                           f'data-cap-slug="{_esc(slug)}">Discard update</button>')
         actions.append(f'<button type="button" data-cap-action="reject" data-cap-slug="{_esc(slug)}">'
-                       'Reject</button>')
+                       'Take down</button>')
     extra = status
     if actions:
         extra += f'<div class="draft-actions">{"".join(actions)}</div><p class="draft-error" role="alert"></p>'

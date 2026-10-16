@@ -646,11 +646,11 @@ project's `main` moves on: a submitter (or anyone they invite to the
 project) can't change a published capability's doc or `film.py` without
 another round of admin approval. A later push to `main` shows "Update
 awaiting approval" on the card, to the submitter and admins only; an admin's
-**Publish** there re-validates and moves the pin to the new commit, while
-**Reject** discards just that pending update and leaves the pinned version
-published. (An admin can still reject an already-published capability with
-no pending update as a takedown, hiding it from every `/capabilities` page
-without deleting the project.) A published card whose pinned commit has no
+**Publish update** there re-validates and moves the pin to the new commit,
+while **Discard update** drops just that update and leaves the pinned
+version published. **Take down** works at any time, pending update or not:
+it hides the capability from every `/capabilities` page without deleting
+the project. A published card whose pinned commit has no
 finished render yet shows the same "clip not built" placeholder as an
 unbuilt catalog card; and if a pinned commit's `capability.toml` ever stops
 validating (for instance a later built-in capability claiming its id), it's
