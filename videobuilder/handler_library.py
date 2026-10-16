@@ -12,7 +12,7 @@ from .capabilities import showcase_available
 from .editor import HTTPError, _field, _need
 from .handler_auth import _key_in_scope
 from .library import serve_git, valid_name
-from .pages import account_page, signin_page, signup_page
+from .pages import account_page, editor_page, signin_page, signup_page
 from .sources import CAPTION_MAX_BYTES, TooLarge as SourceTooLarge
 
 
@@ -310,6 +310,10 @@ class LibraryHandler:
                     except ValueError as exc:
                         raise HTTPError(404, str(exc)) from None
                     route = video_subroute or '/'
+                    if route == '/' and method == 'GET':
+                        page = editor_page(user if library.accounts else None,
+                                           bool(user) if library.accounts else True)
+                        return self._send(200, page, 'text/html; charset=utf-8')
                     if library.accounts and route == '/api/access':
                         return self._access(method, name, user)
             if method == 'GET':

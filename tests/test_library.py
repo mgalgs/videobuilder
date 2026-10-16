@@ -199,6 +199,13 @@ class HostedGit(LibraryFixture, unittest.TestCase):
         self.assertIn(b'lib-card', page)
         self.assertIn(b'acme/launch', page)
 
+    def test_video_page_carries_the_shared_header(self):
+        self.seed('acme/launch')
+        code, page = self.request('/v/acme/launch/')
+        self.assertEqual(code, 200)
+        self.assertIn(b'<body class="has-app-bar">', page)
+        self.assertIn(b'id="video-picker"', page)
+
     def test_new_video_page_is_reachable_without_accounts(self):
         code, page = self.request('/new')
         self.assertEqual(code, 200)

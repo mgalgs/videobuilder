@@ -123,6 +123,21 @@ class AccountPageLimits(unittest.TestCase):
 
 
 @unittest.skipUnless(shutil.which('node'), 'node is not available in this environment')
+class EditorPageHeader(unittest.TestCase):
+    def test_library_editor_page_carries_the_shared_header(self):
+        page = pages.editor_page('<dana>').decode()
+        self.assertIn('<body class="has-app-bar">', page)
+        self.assertIn('<div id="app"><div class="desktop-only app-bar-wrap"><header class="app-bar">', page)
+        self.assertIn('.app-bar{', page)
+        self.assertIn('Signed in as <strong>&lt;dana&gt;</strong>', page)
+        self.assertIn('href="/new"', page)
+        # The editor's own topbar stays, for the title row and for phones.
+        self.assertIn('id="library-link"', page)
+
+    def test_no_new_video_button_without_create_rights(self):
+        self.assertNotIn('href="/new"', pages.editor_page('dana', can_create=False).decode())
+
+
 class InlineScriptsParse(unittest.TestCase):
     def _check(self, html_bytes):
         scripts = re.findall(rb'<script(?: [^>]*)?>(.*?)</script>', html_bytes, re.S)
@@ -171,6 +186,9 @@ class InlineScriptsParse(unittest.TestCase):
     def test_signin_and_signup_pages_scripts_parse(self):
         self._check(pages.signin_page())
         self._check(pages.signup_page())
+
+    def test_library_editor_page_scripts_parse(self):
+        self._check(pages.editor_page('dana'))
 
     def test_editor_page_director_js_parses(self):
         # editor.html's own JS is all in director.js (a <script src>, not inline): checked as

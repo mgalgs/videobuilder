@@ -5,6 +5,7 @@ they take whatever plain data they need, so they have no dependency on
 import html
 import json
 import time
+from importlib import resources
 from urllib.parse import quote
 
 from .starters import STARTERS
@@ -210,6 +211,17 @@ def app_header(active, user=None, can_create=True):
             '<a class="app-brand" href="/">' + _LOGO + '<b>videobuilder</b></a>'
             f'<nav class="app-nav" aria-label="Main">{nav}</nav>'
             f'<div class="app-actions">{new}{account}</div></div></header>' + APP_HEADER_SCRIPT)
+
+
+def editor_page(user=None, can_create=True):
+    """editor.html for a library video, with the shared header on top. The
+    `has-app-bar` body class tells director.css to drop the topbar links and
+    the account bar the header now covers; phones keep the compact topbar."""
+    page = resources.files(__package__).joinpath('editor.html').read_text()
+    header = '<div class="desktop-only app-bar-wrap">' + app_header(None, user, can_create) + '</div>'
+    return (page.replace('</head>', f'<style>{APP_HEADER_STYLE}</style></head>', 1)
+            .replace('<body>', '<body class="has-app-bar">', 1)
+            .replace('<div id="app">', '<div id="app">' + header, 1)).encode()
 
 
 def _head(title, style):

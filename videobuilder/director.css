@@ -83,6 +83,31 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible {
   color: #4a4a52;
 }
 
+/* The shared header (pages.editor_page) covers the library and capabilities
+   links and the account bar on desktop. Phones keep the compact topbar. */
+.app-bar-wrap {
+  flex: none;
+}
+
+/* One row down to 701px, where the header itself would wrap its nav at 720. */
+.has-app-bar .app-bar-inner {
+  max-width: none;
+  padding: .6rem 24px;
+  flex-wrap: nowrap;
+}
+
+.has-app-bar .app-nav {
+  order: 0;
+  flex: 0 1 auto;
+}
+
+@media (min-width:701px) {
+  .has-app-bar #library-link,.has-app-bar .topbar .slash,.has-app-bar #capabilities-link,
+  .has-app-bar #account-bar {
+    display: none !important;
+  }
+}
+
 .title {
   display: flex;
   align-items: center;
