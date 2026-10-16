@@ -33,7 +33,8 @@ class Library:
                  backend=None, agent=None, unsandboxed_previews=False, envs=None, admins=(), capabilities_dir=None,
                  compendium_dir=None, music_sources=None, account_daily_note_cap=None, account_daily_cost_cap_usd=None,
                  compendium_for_builder=None, source_max_mb=None, source_max_total_mb=None,
-                 capability_agent_extra_args=None, capability_fetch=True):
+                 capability_agent_extra_args=None, capability_fetch=True, artbox_url=None,
+                 account_daily_picture_cap=None):
         self.capabilities_dir = capabilities_dir
         self.capability_agent_extra_args = capability_agent_extra_args
         self.capability_fetch = capability_fetch
@@ -55,6 +56,8 @@ class Library:
         # Parsed once here, not per-project, so a bad file is a startup error and every
         # project shares one cache instead of fetching and importing per project.
         music = MusicLibrary.from_file(music_sources) if music_sources else None
+        from .pictures import Artbox
+        artbox = Artbox(artbox_url) if artbox_url else None
         # Also kept as plain attributes (not just in `options`, which only Editor()
         # below reads) so the admin limits API can show the library-wide defaults
         # without opening a project.
@@ -65,7 +68,8 @@ class Library:
                             music=music, account_daily_note_cap=account_daily_note_cap,
                             account_daily_cost_cap_usd=account_daily_cost_cap_usd,
                             compendium_for_builder=compendium_for_builder, source_max_mb=source_max_mb,
-                            source_max_total_mb=source_max_total_mb)
+                            source_max_total_mb=source_max_total_mb, artbox=artbox,
+                            account_daily_picture_cap=account_daily_picture_cap)
         self.editors = {}
         self.lock = threading.RLock()
         from .accounts import Accounts
@@ -656,6 +660,27 @@ class Library:
                 self.editor(name).notes.tick()
             except Exception as e:
                 print(f'[editor] {name}: note poll failed: {e}', file=sys.stderr, flush=True)
+
+    def picture_dirs(self):
+        """Every project's pictures dir, open or not, for the daily picture cap
+        (see pictures.Pictures.check_daily_cap), which spans the whole library."""
+        return [self.state_dir / name.replace('/', '--') / 'pictures' for name in self.names()]
+
+    def tick_pictures(self):
+        """Poll generated pictures in every repo, opening an editor only where a
+        set is still on the way -- which is also how they resume after a restart."""
+        from .pictures import has_pending
+        if not self.options.get('artbox'):
+            return
+        for name in self.names():
+            if name not in self.editors:
+                folder = self.state_dir / name.replace('/', '--') / 'pictures'
+                if not folder.is_dir() or not has_pending(folder):
+                    continue
+            try:
+                self.editor(name).pictures.tick()
+            except Exception as e:
+                print(f'[editor] {name}: picture poll failed: {e}', file=sys.stderr, flush=True)
 
     def close(self):
         for editor in self.editors.values():

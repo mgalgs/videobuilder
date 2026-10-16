@@ -196,6 +196,39 @@ def _get_music_tracks(self, route, q, editor, user):
                             'tracks': tracks})
 
 
+def _pictures(editor):
+    if not editor.pictures:
+        raise HTTPError(404, 'not found')
+    return editor.pictures
+
+
+def _picture_call(fn, *args):
+    from .pictures import PictureError
+    try:
+        return fn(*args)
+    except PictureError as exc:
+        raise HTTPError(exc.code, str(exc)) from None
+
+
+def _get_pictures(self, route, q, editor, user):
+    pictures = _pictures(editor)
+    video = _need(q, 'video')
+    editor.project.video(video)
+    return self._json(200, {'jobs': pictures.list(video)})
+
+
+def _get_pictures_gpu(self, route, q, editor, user):
+    return self._json(200, {'gpu': _pictures(editor).gpu()})
+
+
+def _get_picture_file(self, route, q, editor, user, job_id, index):
+    pictures = _pictures(editor)
+    path, ctype = _picture_call(pictures.file, _need(q, 'video'), job_id, int(index),
+                                q.get('cutout') == '1', q.get('full') == '1')
+    # A stored picture never changes under its URL; the default no-store would refetch every grid.
+    return self._send(200, path.read_bytes(), ctype, {'Cache-Control': 'private, max-age=31536000, immutable'})
+
+
 def _get_draft(self, route, q, editor, user):
     return self._json(200, editor.drafts.details(_need(q, 'video')))
 
@@ -314,6 +347,9 @@ GET_ROUTES = [
     (re.compile(r'/api/sources/([^/]+)'), _get_source_file),
     ('/api/music/sources', _get_music_sources),
     ('/api/music/tracks', _get_music_tracks),
+    ('/api/pictures', _get_pictures),
+    ('/api/pictures/gpu', _get_pictures_gpu),
+    (re.compile(r'/api/pictures/([0-9a-f]{16})/([0-3])'), _get_picture_file),
     ('/api/draft', _get_draft),
     (('/api/draft/info', '/api/draft/frame'), _get_draft_preview),
     ('/api/project', _get_project),
@@ -398,6 +434,31 @@ def _post_music_attach(self, route, body, identity, editor, user):
     return self._json(201, record)
 
 
+def _post_pictures(self, route, body, identity, editor, user):
+    pictures = _pictures(editor)
+    job = _picture_call(pictures.start, _field(body, 'video', str), body.get('prompt'), body.get('n', 2),
+                        body.get('cutout', False), identity, _is_admin_account(self, user))
+    return self._json(201, job)
+
+
+def _post_picture_retry(self, route, body, identity, editor, user, job_id):
+    pictures = _pictures(editor)
+    return self._json(200, _picture_call(pictures.retry, _field(body, 'video', str), job_id, identity,
+                                         _is_admin_account(self, user)))
+
+
+def _post_picture_attach(self, route, body, identity, editor, user, job_id, index):
+    pictures = _pictures(editor)
+    cutout = body.get('cutout', False)
+    if not isinstance(cutout, bool):
+        raise HTTPError(400, 'cutout must be true or false')
+    try:
+        record = _picture_call(pictures.attach, _field(body, 'video', str), job_id, int(index), cutout)
+    except ValueError as exc:
+        raise HTTPError(400, str(exc)) from None
+    return self._json(201, record)
+
+
 def _post_edit(self, route, body, identity, editor, user):
     return self._json(200, editor.edit(_field(body, 'video', str), route[5:], body, identity))
 
@@ -462,6 +523,9 @@ POST_ROUTES = [
     (('/api/draft/accept', '/api/draft/drop'), _post_draft_action),
     ('/api/compendium/vote', _post_compendium_vote),
     ('/api/music/attach', _post_music_attach),
+    ('/api/pictures', _post_pictures),
+    (re.compile(r'/api/pictures/([0-9a-f]{16})/retry'), _post_picture_retry),
+    (re.compile(r'/api/pictures/([0-9a-f]{16})/([0-3])/attach'), _post_picture_attach),
     (('/api/roll', '/api/copy', '/api/undo'), _post_edit),
     ('/api/notes', _post_notes),
     ('/api/videos/first-note', _post_first_note),

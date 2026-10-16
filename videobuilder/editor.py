@@ -110,6 +110,26 @@ GET  /api/music/tracks?source=S      {source:{id,name,license},tracks:[...]};
 POST /api/music/attach {video,source,track}
                                      201 {id,name,type,size}, the same shape an
                                      upload returns; 404 unknown source/track
+GET  /api/pictures?video=V           {jobs:[{id,prompt,n,cutout,status,message,
+                                     created,waited,pictures:[{index,cutout}]}]},
+                                     newest first; status is waiting, making,
+                                     done or failed (see pictures.py). Every
+                                     /api/pictures route is 404 without
+                                     --artbox-url
+POST /api/pictures {video,prompt,n?,cutout?}  201 the new set; 400 a bad
+                                     prompt/n; 429 two sets already on the way
+                                     or the account's daily picture cap
+                                     (never for an admin account); 502 the
+                                     picture service didn't answer
+POST /api/pictures/<id>/retry {video}  200 a failed set, started again; 409
+                                     unless it failed; 429 as above
+GET  /api/pictures/<id>/<i>?video=V[&cutout=1][&full=1]
+                                     a WebP thumbnail, or with full=1 the PNG;
+                                     cached as immutable
+POST /api/pictures/<id>/<i>/attach {video,cutout?}
+                                     201 {id,name,type,size}, the same shape an
+                                     upload returns
+GET  /api/pictures/gpu               {gpu:"free"|"busy"|"unknown"}
 GET  /api/versions?video=V[&limit=50&before=SHA]
                                      {versions:[{n,commit,summary,kind,
                                      author,directed_by,note,restores,time,
@@ -415,7 +435,8 @@ class Editor:
                  unsandboxed_previews=False, envs=None, env_builder=None, sync_remote=None, environments=None,
                  auto_land=None, capabilities_dir=None, compendium_dir=None, music_sources=None, music=None,
                  account_daily_note_cap=None, account_daily_cost_cap_usd=None, compendium_for_builder=None,
-                 source_max_mb=None, source_max_total_mb=None, trust_repo_config=True):
+                 source_max_mb=None, source_max_total_mb=None, trust_repo_config=True, artbox_url=None, artbox=None,
+                 account_daily_picture_cap=None):
         self.capabilities_dir = capabilities_dir
         self.compendium_dir = compendium_dir
         # `music`, a pre-parsed MusicLibrary, is how library mode shares one cache and one
@@ -465,6 +486,17 @@ class Editor:
         self.sources = Sources(self, _resolved_positive(source_max_mb, cfg, 'source_max_mb', 2048) * 1048576,
                                _resolved_positive(source_max_total_mb, cfg, 'source_max_total_mb', 8192) * 1048576)
         self.notes.sources = self.sources
+        # `artbox`, a shared client, is library mode's; `artbox_url` is single-project mode's (see `music`).
+        if artbox is None and artbox_url:
+            from .pictures import Artbox
+            artbox = Artbox(artbox_url)
+        self.pictures = None
+        if artbox is not None:
+            from .pictures import DEFAULT_DAILY_CAP, Pictures
+            cap = _optional_positive(account_daily_picture_cap if account_daily_picture_cap is not None
+                                     else cfg.get('account_daily_picture_cap', DEFAULT_DAILY_CAP),
+                                     'account_daily_picture_cap', int)
+            self.pictures = Pictures(self, artbox, cap)
         self.account_daily_note_cap = _optional_positive(
             account_daily_note_cap if account_daily_note_cap is not None else cfg.get('account_daily_note_cap'),
             'account_daily_note_cap', int)
@@ -1013,14 +1045,14 @@ def _need(q, name):
 NOTE_TICK = 5
 
 
-def _ticker(tick, stop):
+def _ticker(tick, stop, label='note poll'):
     """Run the agent loop with no page open: a director may send a note and close the tab."""
     def loop():
         while not stop.wait(NOTE_TICK):
             try:
                 tick()
             except Exception as e:
-                print(f'[editor] note poll failed: {e}', file=sys.stderr, flush=True)
+                print(f'[editor] {label} failed: {e}', file=sys.stderr, flush=True)
     thread = threading.Thread(target=loop, daemon=True)
     thread.start()
     return thread
@@ -1105,14 +1137,17 @@ def _drain(httpd, stop, loops, stop_renders, deadline):
 def serve(root, host='127.0.0.1', port=8100, state_dir=None, open_browser=False, backend=None,
           hook=request_hook, agent=None, allowed_hosts=(), unsandboxed_previews=False, envs=None, sync_remote=None,
           capabilities_dir=None, compendium_dir=None, music_sources=None, source_max_mb=None,
-          source_max_total_mb=None):
+          source_max_total_mb=None, artbox_url=None, account_daily_picture_cap=None):
     editor = Editor(root, state_dir=state_dir, backend=backend, agent=agent, allowed_hosts=allowed_hosts, host=host,
                     unsandboxed_previews=unsandboxed_previews, envs=envs, sync_remote=sync_remote,
                     capabilities_dir=capabilities_dir, compendium_dir=compendium_dir, music_sources=music_sources,
-                    source_max_mb=source_max_mb, source_max_total_mb=source_max_total_mb)
+                    source_max_mb=source_max_mb, source_max_total_mb=source_max_total_mb, artbox_url=artbox_url,
+                    account_daily_picture_cap=account_daily_picture_cap)
     httpd = Server((host, port), make_handler(editor, hook))
     stop_sync = threading.Event()
     loops = [_ticker(editor.notes.tick, stop_sync)]
+    if editor.pictures:
+        loops.append(_ticker(editor.pictures.tick, stop_sync, 'picture poll'))
     if editor.sync:
         def periodic_sync():
             while not stop_sync.wait(editor.sync.interval):
@@ -1143,7 +1178,7 @@ def serve_library(root, host='127.0.0.1', port=8100, checkouts=None, state_dir=N
                   admins=(), capabilities_dir=None, compendium_dir=None, music_sources=None,
                   account_daily_note_cap=None, account_daily_cost_cap_usd=None, compendium_for_builder=None,
                   source_max_mb=None, source_max_total_mb=None, capability_agent_extra_args=None,
-                  capability_fetch=True):
+                  capability_fetch=True, artbox_url=None, account_daily_picture_cap=None):
     from .library import Library
     library = Library(root, checkouts=checkouts, state_dir=state_dir, host=host, agent=agent,
                       allowed_hosts=allowed_hosts, unsandboxed_previews=unsandboxed_previews, envs=envs,
@@ -1153,10 +1188,13 @@ def serve_library(root, host='127.0.0.1', port=8100, checkouts=None, state_dir=N
                       compendium_for_builder=compendium_for_builder, source_max_mb=source_max_mb,
                       source_max_total_mb=source_max_total_mb,
                       capability_agent_extra_args=capability_agent_extra_args,
-                      capability_fetch=capability_fetch)
+                      capability_fetch=capability_fetch, artbox_url=artbox_url,
+                      account_daily_picture_cap=account_daily_picture_cap)
     httpd = Server((host, port), make_handler(library, hook))
     stop = threading.Event()
     loops = [_ticker(library.tick, stop)]
+    if library.options.get('artbox'):
+        loops.append(_ticker(library.tick_pictures, stop, 'picture poll'))
     url = f'http://{host}:{httpd.server_address[1]}/'
     print(f'[editor] library {library.root} at {url} (Ctrl-C to stop)', file=sys.stderr, flush=True)
     if open_browser:

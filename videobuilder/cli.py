@@ -209,6 +209,7 @@ def cmd_editor(a):
                                  'times, paired in order')
             note_cap = _optional_positive(a.account_daily_note_cap, 'account_daily_note_cap', int)
             cost_cap = _optional_positive(a.account_daily_cost_cap_usd, 'account_daily_cost_cap_usd', (int, float))
+            _optional_positive(a.account_daily_picture_cap, 'account_daily_picture_cap', int)
             _resolved_positive(a.source_max_mb, {}, 'source_max_mb', 2048)
             _resolved_positive(a.source_max_total_mb, {}, 'source_max_total_mb', 8192)
             serve_library(a.library, host=a.host, port=a.port, checkouts=a.checkouts,
@@ -220,7 +221,8 @@ def cmd_editor(a):
                           account_daily_note_cap=note_cap, account_daily_cost_cap_usd=cost_cap,
                           source_max_mb=a.source_max_mb, source_max_total_mb=a.source_max_total_mb,
                           capability_agent_extra_args=a.capability_agent_extra_arg,
-                          capability_fetch=not a.no_capability_fetch)
+                          capability_fetch=not a.no_capability_fetch, artbox_url=a.artbox_url,
+                          account_daily_picture_cap=a.account_daily_picture_cap)
         else:
             if not a.project:
                 raise ValueError('provide PROJECT or --library DIR')
@@ -243,7 +245,8 @@ def cmd_editor(a):
             serve(a.project, host=a.host, port=a.port, state_dir=a.state_dir, open_browser=a.open,
                   agent=agent, allowed_hosts=a.allow_host, unsandboxed_previews=a.unsandboxed_previews,
                   envs=a.envs, sync_remote=a.sync_remote, capabilities_dir=a.capabilities_dir,
-                  compendium_dir=a.compendium_dir, music_sources=a.music_sources)
+                  compendium_dir=a.compendium_dir, music_sources=a.music_sources, artbox_url=a.artbox_url,
+                  account_daily_picture_cap=a.account_daily_picture_cap)
     except ValueError as e:
         raise SystemExit(f'editor: {e}') from None
 
@@ -405,6 +408,12 @@ def main(argv=None):
                    '(from `videobuilder compendium build`), served at /compendium (admin only)')
     d.add_argument('--music-sources', help='a TOML file of pluggable music sources for the director '
                    "(see README); with none given, the director shows no music picker")
+    d.add_argument('--artbox-url', metavar='URL',
+                   help='base URL of an artbox image service, for the director\'s Pictures panel (see README); '
+                        'with none given, the director shows no Pictures button')
+    d.add_argument('--account-daily-picture-cap', type=int, metavar='N',
+                   help='cap on generated pictures per account per rolling 24h (default 40, with --artbox-url); '
+                        'an admin account is never capped')
     d.add_argument('--compendium-for-builder', action=argparse.BooleanOptionalAction, default=None,
                    help='--library mode only: tell the builder about the compendium (default: on). A '
                         'library-hosted repo cannot set this itself, since [editor] compendium_for_builder '
