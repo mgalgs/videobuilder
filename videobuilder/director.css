@@ -482,7 +482,7 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible {
   transform: rotate(45deg);
 }
 
-.build-step.current .build-step-mark {
+.build-step.current .build-step-mark,.build-pill .build-step-mark {
   border: 2px solid #c3cde6;
   background: radial-gradient(circle, #c3cde6 0 2.5px, transparent 3px);
   animation: build-step-pulse 1.8s ease-out infinite;
@@ -497,7 +497,40 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .build-step.current .build-step-mark { animation: none; }
+  .build-step.current .build-step-mark,.build-pill .build-step-mark { animation: none; }
+}
+
+.build-pill {
+  position: absolute;
+  z-index: 1;
+  top: 12px;
+  left: 12px;
+  max-width: calc(100% - 24px);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 40px;
+  padding: 8px 14px;
+  border: 1px solid #34343c;
+  border-radius: 20px;
+  background: #141417e6;
+  color: #e8e9ee;
+  font-size: 13px;
+  text-align: left;
+  box-shadow: 0 8px 24px #0006;
+}
+
+.build-pill .build-step-mark {
+  margin-top: 0;
+}
+
+#build-pill-text {
+  min-width: 0;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
 }
 
 .render-status button {
@@ -1599,6 +1632,12 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible {
   /* iOS zooms the page into any focused field under 16px. */
   input,select,textarea {
     font-size: 16px;
+  }
+
+  /* Under the topbar, and clear of the tool rail on the right. */
+  .build-pill {
+    top: 84px;
+    max-width: calc(100% - 96px);
   }
 
   /* The player covers the whole page here, so a banner in the page flow would sit under it. */

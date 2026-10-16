@@ -576,8 +576,27 @@ function renderProgress(note,el) {
 function refreshProgress(note) {
   const data=stepsData(note);
   if(data.progressEl?.isConnected)renderProgress(note,data.progressEl);
-  if(currentVersion()?.kind==='blank'&&!$('building').hidden)renderProgress(note,$('build-steps'))
+  if(currentVersion()?.kind==='blank'&&!$('building').hidden)renderProgress(note,$('build-steps'));
+  updateBuildPill()
 }
+// While a later version builds, the player keeps playing the current one; a pill over
+// it shows the newest step. A blank video's first build has the full checklist instead.
+function updateBuildPill() {
+  const note=currentVersion()?.kind==='blank' ? null :
+    state.notes.find(n=>['gathering','queued','working'].includes(n.state));
+  $('build-pill').hidden=!note;
+  if(!note)return;
+  const steps=stepsData(note).entries.filter(e=>e.kind==='step');
+  $('build-pill-text').textContent=note.state==='gathering' ? 'Gathering pages…' :
+    note.state==='queued' ? 'Waiting for the note before this one' :
+    steps.length ? steps[steps.length-1].text : 'Getting started';
+  const label=`The builder is working: ${$('build-pill-text').textContent}. Open the chat`;
+  $('build-pill').setAttribute('aria-label',label)
+}
+$('build-pill').onclick=()=> {
+  if(window.innerWidth<=700)openSheet('chat');
+  else setView('chat')
+};
 function renderStepsToggle(note) {
   const data=stepsData(note);
   const wrap=node('div','steps-wrap');
@@ -852,6 +871,7 @@ async function loadNotes() {
       if(currentVersion()?.kind==='blank')showBlank();
       if(state.notes.some(n=>n.version))loadVersions()
     }
+    updateBuildPill();
     // Clear only the poll's own error, never one from a send the director made.
     if(state.pollError&&$('composer-error').textContent===state.pollError)showError('');
     state.pollError=null
