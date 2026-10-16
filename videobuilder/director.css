@@ -1073,13 +1073,16 @@ button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible,
 
 .composer-extras #timestamp {
   min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   border: 0;
   border-radius: 15px;
   background: var(--accent);
   color: #fff;
   font-size: 13px;
   font-weight: 700;
-  padding: 0 10px;
+  padding: 0 12px;
 }
 
 .composer-extras #timestamp.off {
@@ -1111,6 +1114,20 @@ button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible,
   padding: 0 16px;
   /* Under 16px, iOS Safari zooms the page in when the field takes focus. */
   font-size: 16px;
+}
+
+/* The note box takes a row of its own; the tool buttons and + sit below it. */
+#composer > .composer-row {
+  flex-wrap: wrap;
+}
+
+#composer > .composer-row textarea {
+  order: -1;
+  flex: 1 0 100%;
+}
+
+#composer > .composer-row #add-note {
+  margin-left: auto;
 }
 
 /* fitMessage() in director.js sets the height to the text, up to max-height. */
