@@ -807,7 +807,10 @@ including upgrades and troubleshooting.
 
 The example in `deploy/k8s/editor.yaml` runs one replica with `Recreate`, a
 PVC for the library, checkouts, editor state and fork-sandbox scratch, a Service,
-Ingress and `/healthz` probes. Replace every `example.com` value, image,
+Ingress and `/healthz` probes. It sets `terminationGracePeriodSeconds: 60`:
+on SIGTERM the editor refuses new writes and gives those under way up to 45
+seconds before it exits, and `/healthz` answers 503 meanwhile. No `preStop` is
+needed. Replace every `example.com` value, image,
 Secret and Role name for your site. The editor binds to loopback by default;
 the example explicitly uses `--host 0.0.0.0` and `--allow-host editor.example.com`.
 The host allowlist is the v1 LAN trust boundary; put the Ingress on a trusted

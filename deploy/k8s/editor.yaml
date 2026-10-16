@@ -44,6 +44,8 @@ spec:
         app: videobuilder-editor
     spec:
       serviceAccountName: videobuilder-editor
+      # The editor drains for up to 45s on SIGTERM; the default 30s would cut that short.
+      terminationGracePeriodSeconds: 60
       securityContext:
         runAsNonRoot: true
         runAsUser: 1000
