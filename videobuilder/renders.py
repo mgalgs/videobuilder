@@ -100,6 +100,9 @@ class Renders:
                 self.evict(video, sha)
             except Exception as exc:
                 partial.unlink(missing_ok=True)
+                if self.stopping.is_set():
+                    # Cut off by shutdown, not failed: a drain-time poll still reads 'rendering'.
+                    return
                 with self.lock:
                     self.status[key] = {'state': 'failed', 'error': 'render failed', 'log': str(exc)[-3000:]}
             finally:

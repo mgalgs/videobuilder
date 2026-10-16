@@ -77,6 +77,22 @@ class Rendering(Restart):
         # The player's next poll (GET api/video) re-requests it.
         self.assertEqual(new.renders.request('promo/film', sha, '16x9')['state'], 'queued')
 
+    def test_a_render_cut_off_by_the_drain_still_reads_as_rendering_not_failed(self):
+        editor = self.editor()
+        started = threading.Event()
+
+        def renderer(video, sha, fmt, output):
+            started.set()
+            editor.renders.stopping.wait(10)
+            raise ValueError('render stopped')
+        editor.renders.renderer = renderer
+        sha = '0' * 40
+        editor.renders.request('promo/film', sha, '16x9')
+        self.assertTrue(started.wait(10))
+        editor.renders.close()
+        # Reads keep answering during the drain; the tab's poll must not turn into an error.
+        self.assertEqual(editor.renders.state('promo/film', sha, '16x9'), {'state': 'rendering'})
+
 
 class Draining(Restart):
     def setUp(self):
@@ -157,6 +173,10 @@ class DirectorDuringARestart(unittest.TestCase):
         self.assertIn('id="restart-banner"', (pkg / 'editor.html').read_text())
         body = lambda name: re.search(r'function ' + name + r'\([^)]*\) \{(.*?)\n\}', js, re.S).group(1)
         self.assertIn('await reach(api(path,params)', body('json'))
+        # Only the drain's own 503 means a restart; the editor's JSON 502s (music upstream) are real errors.
+        self.assertIn('if(draining(r.status,data))return restarting()', body('httpError'))
+        self.assertNotIn('GATEWAY', body('httpError'))
+        self.assertTrue(UPDATING.startswith(re.search(r"startsWith\('([^']+)'\)", js[js.index('const draining'):])[1]))
         self.assertIn("$('restart-banner').hidden=false", body('restarting'))
         # Only the new process's ok counts: the draining one answers 503 (see _get_healthz).
         self.assertIn("r.ok&&(await r.text()).startsWith('ok ')", body('waitForEditor'))

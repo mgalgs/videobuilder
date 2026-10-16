@@ -90,10 +90,12 @@ async function parseJSON(r) {
   }
 }
 // ---- Editor restarts ----
-// A deploy stops the editor for a while: requests fail with no answer, or the proxy's
-// 502-504 (503 is also the editor's own while it finishes up). A banner says so, polling
+// A deploy stops the editor for a while: requests fail with no answer, the proxy's non-JSON
+// 502-504, or the editor's own drain 503 (editor.py UPDATING). A banner says so, polling
 // pauses, and /healthz is retried until it is back; nothing typed or picked is touched.
+// Other JSON 502s are the editor's real errors (an upstream music fetch) and are shown.
 const GATEWAY=[502,503,504];
+const draining=(status,data)=>status===503&&String(data?.error||'').startsWith('The editor is updating');
 const RESTART_MESSAGE='The editor is updating. Nothing you wrote is lost; send it again once it is back.';
 async function reach(url, init) {
   try {
@@ -154,7 +156,7 @@ function httpError(r, data) {
     handleSignedOut();
     return Error(SIGNED_OUT_MESSAGE)
   }
-  if(GATEWAY.includes(r.status))return restarting();
+  if(draining(r.status,data))return restarting();
   return Error(data.log||data.error||r.statusText)
 }
 // Called when the tab regains focus: the sign-in link opens in a new tab, so this
@@ -1240,7 +1242,7 @@ function xhrUpload(path,params,file,onProgress) {
       } catch (_) {
       }
       if(xhr.status>=200&&xhr.status<300&&data)resolve(data);
-      else if(GATEWAY.includes(xhr.status))reject(restarting());
+      else if(data ? draining(xhr.status,data) : GATEWAY.includes(xhr.status))reject(restarting());
       else reject(Error((data&&(data.error||data.log))||`upload failed (HTTP ${xhr.status})`))
     };
     xhr.onerror=()=>reject(restarting());
