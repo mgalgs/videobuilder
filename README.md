@@ -7,9 +7,10 @@ kept, so you can compare them and go back.
 
 The editor is a self-hostable web app: a video library with accounts, a player
 you can pin notes to, source video uploads, reference attachments, a music
-picker, and API keys for scripting. It runs on one machine with Docker Compose
-([deploy/compose/README.md](deploy/compose/README.md)). The builder is Claude
-Code, working in a sandbox.
+picker, and API keys for scripting. Run it on one machine with Docker Compose
+([deploy/compose/README.md](deploy/compose/README.md)), or on Kubernetes (see
+[Deploying the editor on Kubernetes](#deploying-the-editor-on-kubernetes)). The
+builder is Claude Code, working in a sandbox.
 
 Under the editor is a small, dependency-light Python framework for making
 videos in code, which is what the builder writes. You need it only to write
