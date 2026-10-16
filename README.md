@@ -19,7 +19,8 @@ and Pillow.
 
     sudo pacman -S python python-cairo python-gobject python-pillow pango ffmpeg
 
-**Debian / Ubuntu** (Pango 1.56 or newer: Debian 13 or later)
+**Debian / Ubuntu** (Pango 1.56 or newer: Debian 13 or Ubuntu 25.04 or later;
+on older releases, such as Ubuntu 24.04, use the Docker image instead)
 
     sudo apt install python3 python3-venv python3-cairo python3-gi python3-gi-cairo python3-pil \
         gir1.2-pango-1.0 ffmpeg
@@ -33,12 +34,19 @@ install `libgirepository1.0-dev` instead.
 
     brew install python pango pygobject3 py3cairo ffmpeg
 
-Then, from a checkout:
+Then, from a checkout, install it into a virtualenv that can see the distro's
+pycairo and PyGObject (current Debian and Ubuntu refuse a system-wide
+`pip install`):
 
-    pip install -e .            # or use it in place: PYTHONPATH=. python -m videobuilder ...
+    python3 -m venv --system-site-packages ~/.venvs/videobuilder
+    ~/.venvs/videobuilder/bin/pip install -e .
+    ~/.venvs/videobuilder/bin/python skill/make-a-video/scripts/doctor.py   # checks everything above
 
-With the distro packages above, a virtualenv made with
-`python -m venv --system-site-packages` can see pycairo and PyGObject.
+Activate it (`source ~/.venvs/videobuilder/bin/activate`) to use `python` below.
+To use the checkout without installing, run `PYTHONPATH=<checkout> python -m videobuilder ...`.
+Don't run films from the directory that contains the checkout: with a
+`videobuilder/` folder there, Python imports that folder instead of the
+installed package and fails with `cannot import name ... (unknown location)`.
 
 ## Hello, world
 
