@@ -216,59 +216,77 @@ def _head(title, style):
 
 
 LIBRARY_STYLE = (
-    'h2{font-size:.8rem;color:#a9a9b2;margin:2rem 0 .8rem;text-transform:uppercase;letter-spacing:.08em;'
+    '.lib-group{font-size:.78rem;color:#8b8b94;margin:0 0 .8rem;text-transform:uppercase;letter-spacing:.08em;'
     'font-weight:700}'
-    '.lib-grid{display:flex;flex-wrap:wrap;gap:.75rem;list-style:none;margin:0;padding:0}'
-    '.lib-grid li{flex:0 0 min(200px,45vw);min-width:140px}'
-    '.lib-card{display:flex;flex-direction:column;gap:.4rem;width:100%;border:1px solid #26262c;'
-    'border-radius:10px;padding:.6rem;background:#141417;color:#fff;text-align:left;cursor:pointer;'
-    'min-height:44px;font:inherit;box-sizing:border-box}'
-    '.lib-poster{position:relative;display:block;aspect-ratio:16/9;border-radius:6px;overflow:hidden;'
-    'background:#20242b}'
+    '.lib-section{margin:0 0 2.25rem}'
+    '.lib-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:1rem;list-style:none;'
+    'margin:0;padding:0}'
+    '.lib-card{display:flex;flex-direction:column;gap:.15rem;width:100%;border:1px solid #26262c;'
+    'border-radius:14px;padding:0 0 .8rem;background:#141417;color:#f4f4f2;text-align:left;cursor:pointer;'
+    'min-height:44px;font:inherit;box-sizing:border-box;overflow:hidden;transition:border-color .15s,transform .15s}'
+    '.lib-card:hover,.lib-card:focus-visible{border-color:#e5483b;outline:none;transform:translateY(-2px)}'
+    '.lib-poster{position:relative;display:block;aspect-ratio:16/9;overflow:hidden;background:#1a1a1f;'
+    'margin-bottom:.55rem}'
     '.lib-poster-fallback{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;'
-    'padding:.5rem;text-align:center;font-size:.8rem;color:#a9a9b2;overflow-wrap:anywhere}'
+    'padding:.5rem;text-align:center;font-size:.85rem;color:#5d5d66;overflow-wrap:anywhere}'
     '.lib-poster img{position:relative;display:block;width:100%;height:100%;object-fit:cover}'
-    '.lib-title{font-weight:600;font-size:.9rem;overflow-wrap:anywhere}'
+    '.lib-title{font-weight:700;font-size:.95rem;padding:0 .85rem;overflow-wrap:anywhere}'
+    '.lib-meta{font-size:.8rem;color:#8b8b94;padding:0 .85rem}'
     '.lib-empty{color:#a9a9b2}'
-    '.howto{border:1px solid #26262c;border-radius:10px;background:#141417;padding:.25rem 1.25rem 1rem;'
-    'margin:1rem 0;max-width:42rem;line-height:1.5}'
-    '.howto p{color:#a9a9b2;margin:.5rem 0}.howto .howto-lead{color:#f4f4f2;font-size:1.05rem}'
-    '.lib-copy{flex:0 0 auto;min-height:36px;padding:.3rem .6rem;border-radius:6px;border:1px solid #26262c;'
-    'background:#0d0d10;color:#fff;font-size:.8rem}'
-    '@media (max-width:480px){.lib-page{padding:.75rem .75rem 2.5rem}}'
+    '.lib-start{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:1rem 2rem;'
+    'background:#141417;border:1px solid #26262c;border-radius:16px;padding:1.75rem 2rem;margin:0 0 2.25rem}'
+    '.lib-start h2{margin:0 0 .3rem;font-size:1.3rem;letter-spacing:-.01em}'
+    '.lib-start p{margin:0;color:#a9a9b2;max-width:36rem}'
+    '.howto{border:1px solid #26262c;border-radius:16px;background:#141417;padding:1.25rem 1.5rem;'
+    'margin:0 0 1.5rem;line-height:1.55}'
+    '.howto h2{margin:0 0 .4rem;font-size:1.1rem}'
+    '.howto p{color:#a9a9b2;margin:.5rem 0 0}.howto .howto-lead{color:#e4e4e8;font-size:1.02rem}'
+    '.lib-copy{flex:0 0 auto;min-height:36px;padding:.3rem .7rem;border-radius:8px;border:1px solid #2c2c33;'
+    'background:#0d0d10;color:#f4f4f2;font:inherit;font-size:.8rem;cursor:pointer}'
+    '@media (max-width:720px){.lib-grid{grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:.75rem}'
+    '.lib-start{padding:1.25rem}.lib-start .btn{width:100%}}'
 )
 
 LIB_DETAIL_STYLE = (
-    '.lib-detail{position:relative;border:1px solid #26262c;border-radius:12px;background:#141417;color:#fff;'
-    'padding:1.25rem 1rem 1rem;max-width:420px;width:92vw;box-sizing:border-box}'
-    '.lib-detail::backdrop{background:rgba(0,0,0,.6)}'
-    '.lib-detail h2{margin:0 1.5rem .2rem 0;font-size:1.1rem;overflow-wrap:anywhere}'
-    '.lib-detail-close{position:absolute;top:.6rem;right:.6rem;min-height:36px;min-width:36px;'
-    'border-radius:8px;border:1px solid #26262c;background:#0d0d10;color:#fff;font-size:1.1rem;'
+    '.lib-detail{position:relative;border:1px solid #26262c;border-radius:16px;background:#141417;color:#f4f4f2;'
+    'padding:1.5rem 1.25rem 1.25rem;max-width:440px;width:calc(100vw - 32px);box-sizing:border-box;'
+    'box-shadow:0 30px 80px rgba(0,0,0,.6)}'
+    '.lib-detail::backdrop{background:rgba(0,0,0,.65)}'
+    '.lib-detail h2{margin:0 2.5rem .2rem 0;font-size:1.25rem;letter-spacing:-.01em;overflow-wrap:anywhere}'
+    '.lib-detail-close{position:absolute;top:.75rem;right:.75rem;min-height:36px;min-width:36px;'
+    'border-radius:8px;border:1px solid #26262c;background:#0d0d10;color:#f4f4f2;font-size:1.1rem;'
     'line-height:1;cursor:pointer}'
-    '.lib-detail-project{color:#a9a9b2;margin:0 0 .9rem}'
-    '#lib-detail-open{margin:0 0 .9rem}'
-    '.lib-detail-git{display:flex;align-items:center;gap:.5rem;margin:0 0 .9rem;min-width:0}'
+    '.lib-detail-project{color:#a9a9b2;margin:0 0 1rem}'
+    '#lib-detail-open{margin:0 0 1rem}'
+    '.lib-detail-git{display:flex;align-items:center;gap:.5rem;margin:0 0 .9rem;min-width:0;padding:.5rem .6rem;'
+    'background:#0d0d10;border:1px solid #26262c;border-radius:10px}'
     '#lib-detail-url{flex:1 1 auto;min-width:0;overflow-wrap:anywhere;word-break:break-all;font-size:.8rem;'
-    'color:#bdcaaf;user-select:all}'
-    '#lib-detail-meta p{margin:.4rem 0;font-size:.85rem;color:#c9c9cf}'
+    'color:#c9c9cf;user-select:all}'
+    '#lib-detail-meta p{margin:.4rem 0;font-size:.85rem;color:#a9a9b2}'
+    '#lib-detail-meta span{color:#f4f4f2}'
 )
 
 STARTER_STYLE = (
-    '.starters{margin-bottom:1.5rem}'
-    '.starters h2{font-size:1rem;color:#a9a9b2;margin:0 0 .6rem;text-transform:none;letter-spacing:0}'
-    '.starter-grid{display:flex;gap:.75rem;overflow-x:auto;scroll-snap-type:x proximity;'
-    '-webkit-overflow-scrolling:touch;margin:0;padding:0 0 .5rem;list-style:none}'
-    '.starters.hero{padding:.5rem 0 1.75rem;border-bottom:1px solid #26262c;margin-bottom:1.25rem}'
-    '.starter-card{display:flex;flex-direction:column;gap:.4rem;border:1px solid #26262c;border-radius:10px;'
-    'padding:.6rem;background:#141417;color:#fff;text-align:left;cursor:pointer;min-height:44px;'
-    'font:inherit;text-decoration:none;box-sizing:border-box;flex:0 0 min(200px,70vw);scroll-snap-align:start}'
-    '.starters.hero .starter-card{flex-basis:min(220px,75vw)}'
-    '.starter-poster{display:block;aspect-ratio:16/9;border-radius:6px;overflow:hidden;background:#0d0d10}'
+    '.starters{margin:0 0 2.25rem}'
+    '.starters h2{font-size:.78rem;color:#8b8b94;margin:0 0 .8rem;text-transform:uppercase;letter-spacing:.08em;'
+    'font-weight:700}'
+    '.starter-grid{display:flex;gap:.9rem;overflow-x:auto;scroll-snap-type:x proximity;'
+    '-webkit-overflow-scrolling:touch;margin:0;padding:0 0 .6rem;list-style:none;scrollbar-width:thin}'
+    '.starter-card{display:flex;flex-direction:column;gap:.3rem;border:1px solid #26262c;border-radius:14px;'
+    'padding:0 0 .85rem;background:#141417;color:#f4f4f2;text-align:left;cursor:pointer;min-height:44px;'
+    'font:inherit;text-decoration:none;box-sizing:border-box;flex:0 0 min(230px,72vw);scroll-snap-align:start;'
+    'overflow:hidden;transition:border-color .15s}'
+    'a.starter-card:hover{text-decoration:none}'
+    '.starter-card:hover,.starter-card:focus-visible{border-color:#e5483b;outline:none}'
+    '.starter-poster{display:block;aspect-ratio:16/9;overflow:hidden;background:#1a1a1f;margin-bottom:.35rem}'
     '.starter-poster img{display:block;width:100%;height:100%;object-fit:cover}'
-    '.starter-title{font-weight:600;font-size:.9rem}'
-    '.starter-prompt{font-size:.8rem;color:#a9a9b2;display:-webkit-box;-webkit-line-clamp:3;'
+    '.starter-title{font-weight:700;font-size:.92rem;padding:0 .85rem}'
+    '.starter-prompt{font-size:.8rem;color:#a9a9b2;padding:0 .85rem;display:-webkit-box;-webkit-line-clamp:3;'
     '-webkit-box-orient:vertical;overflow:hidden}'
+    '.starters.hero .starter-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));'
+    'overflow:visible}'
+    '@media (max-width:720px){.starters.hero .starter-grid{grid-template-columns:repeat(auto-fill,minmax(150px,1fr));'
+    'gap:.75rem}.starters.hero .starter-prompt{-webkit-line-clamp:2}}'
 )
 
 NEW_VIDEO_STYLE = (
@@ -607,6 +625,17 @@ def _howto_html(user):
             f'<strong>{html.escape(user)}</strong>.</p></section>')
 
 
+def _ago(seconds, now=None):
+    """'3 days ago' for a unix time: the card's quiet "last changed" line."""
+    delta = max(0, (now or time.time()) - seconds)
+    for size, unit in ((365 * 86400, 'year'), (30 * 86400, 'month'), (7 * 86400, 'week'), (86400, 'day'),
+                       (3600, 'hour'), (60, 'minute')):
+        if delta >= size:
+            n = int(delta // size)
+            return f'{n} {unit}{"" if n == 1 else "s"} ago'
+    return 'just now'
+
+
 def index(entries, accounts_enabled, user, host, scheme='http', showcase=False):
     """`entries`: [{name, has_main, updated, subject}, ...], already
     access-filtered and in order; `updated` (unix seconds) and `subject` are
@@ -619,7 +648,8 @@ def index(entries, accounts_enabled, user, host, scheme='http', showcase=False):
     rows = []
     cards = []
     for group, group_entries in groups.items():
-        rows.append(f'<h2>{html.escape(group)}</h2><ul class="lib-grid">')
+        rows.append(f'<section class="lib-section"><h2 class="lib-group">{html.escape(group)}</h2>'
+                    '<ul class="lib-grid">')
         for e in group_entries:
             name = e['name']
             leaf = name.split('/', 1)[1] if '/' in name else name
@@ -628,21 +658,34 @@ def index(entries, accounts_enabled, user, host, scheme='http', showcase=False):
             idx = len(cards)
             cards.append({'name': name, 'leaf': leaf, 'project': group, 'url': url,
                          'hasMain': e['has_main'], 'updated': e['updated'], 'subject': e['subject']})
+            meta = f'Updated {_ago(e["updated"])}' if e['updated'] else 'Empty'
             rows.append(f'<li><button type="button" class="lib-card" data-idx="{idx}">'
                        f'<span class="lib-poster"><span class="lib-poster-fallback">{html.escape(leaf)}</span>'
                        f'<img src="/v/{encoded}/api/thumbnail" alt="" loading="lazy" '
                        'onerror="this.style.display=\'none\'"></span>'
-                       f'<span class="lib-title">{html.escape(leaf)}</span></button></li>')
-        rows.append('</ul>')
+                       f'<span class="lib-title">{html.escape(leaf)}</span>'
+                       f'<span class="lib-meta">{meta}</span></button></li>')
+        rows.append('</ul></section>')
     howto = ''
-    body = ''.join(rows)
     can_create = bool(user) if accounts_enabled else True
     hero = not entries
     if accounts_enabled and not entries:
         howto = _howto_html(user)
-    starters = _starter_section_html(hero, as_link=True)
-    if hero and showcase:
-        starters = _showcase_section_html() + starters
+    if hero:
+        # A new account: nothing of theirs yet, so say so and point at the one next step.
+        body = ('<section class="lib-start"><div><h2>No videos yet</h2>'
+                '<p>Say what you want to make and the builder makes the first version. '
+                'Or pick a starter below and fill in the blanks.</p></div>' +
+                ('<a class="btn btn-primary" href="/new">Start your first video</a>' if can_create else '') +
+                '</section>')
+        starters = _starter_section_html(True, as_link=True, heading='Starter prompts')
+        if showcase:
+            starters = _showcase_section_html() + starters
+        content = howto + body + starters
+    else:
+        content = ''.join(rows) + _starter_section_html(False, as_link=True, heading='Start from a starter prompt')
+    count = len(entries)
+    sub = f'<p>{count} video{"" if count == 1 else "s"}</p>' if count else ''
     # A commit subject holding e.g. "<!--<script>" must not push the tokenizer into
     # the script-data double-escaped state, where a literal </script> no longer closes
     # this block: escape every '<' (and '>', '&' along with it) as a \u escape.
@@ -651,9 +694,8 @@ def index(entries, accounts_enabled, user, host, scheme='http', showcase=False):
     script = (f'<script type="application/json" id="lib-data">{cards_json}</script>' + LIB_DETAIL_SCRIPT)
     return (_head('Your videos', APP_STYLE + LIBRARY_STYLE + LIB_DETAIL_STYLE + STARTER_STYLE + SHOWCASE_STYLE) +
             '<body>' + app_header('library', user if accounts_enabled else None, can_create) +
-            '<main class="app-main"><div class="page-head"><h1>Your videos</h1></div>' +
-            howto + starters + body + _LIB_DETAIL_HTML + script +
-            '</main></body></html>').encode()
+            f'<main class="app-main"><div class="page-head"><div><h1>Your videos</h1>{sub}</div></div>' +
+            content + _LIB_DETAIL_HTML + script + '</main></body></html>').encode()
 
 
 def new_video_page(names, user=None):
