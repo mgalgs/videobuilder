@@ -559,6 +559,11 @@ _COMMUNITY_STYLE = """
 .draft-actions button[data-cap-action=reject]{background:#8a2f2f}
 .draft-actions button[data-cap-action=send]{background:#e5483b}
 .draft-actions button:disabled{opacity:.6;cursor:default}
+.btn{display:inline-flex;align-items:center;justify-content:center;min-height:40px;padding:0 1.1rem;
+  border-radius:10px;border:1px solid #2c2c33;background:#141417;color:#f4f4f2;font:inherit;font-weight:600;
+  cursor:pointer}
+.btn-primary{background:#e5483b;border-color:#e5483b;color:#fff;font-weight:700}
+.btn-primary:hover{background:#ef5b4c;border-color:#ef5b4c}
 .draft-error{color:#ff8a80;font-size:12.5px;margin:0}.draft-error:empty{display:none}
 .community-card{display:flex;flex-direction:column;gap:6px}
 .community-card .draft-actions{padding:0}
