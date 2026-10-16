@@ -33,7 +33,7 @@ COPY --from=frames /frames.sha256 /frames.sha256
 
 FROM runtime AS gated
 USER root
-RUN python3 -m unittest discover -s . -t . && \
+RUN python3 -m tests.run_parallel && \
     python3 -m videobuilder frames --hash --check deploy/frames.sha256 examples/tour.py examples/benchmark.py
 
 # The capabilities page's clips and posters render here, from exactly this image's
