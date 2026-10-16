@@ -198,3 +198,44 @@ class DeploymentYaml(unittest.TestCase):
         self.assertEqual(pod['securityContext']['seccompProfile']['type'], 'Localhost')
         self.assertTrue(pod['securityContext']['runAsNonRoot'])
         self.assertEqual(pod['containers'][0]['securityContext']['capabilities']['drop'], ['ALL'])
+
+
+COMPOSE = Path(__file__).resolve().parent.parent / 'deploy/compose'
+
+
+class ComposeImage(unittest.TestCase):
+    def test_fork_sandbox_is_pinned_by_full_sha(self):
+        text = (COMPOSE / 'Dockerfile').read_text()
+        pins = [line.split('=', 1)[1] for line in text.splitlines() if line.startswith('ARG FORK_SANDBOX_REF=')]
+        self.assertEqual(len(pins), 1)
+        self.assertRegex(pins[0], r'^[0-9a-f]{40}$')
+
+    def test_claude_code_is_pinned(self):
+        text = (COMPOSE / 'Dockerfile').read_text()
+        self.assertRegex(text, r'(?m)^ARG CLAUDE_CODE_VERSION=\d+\.\d+\.\d+$')
+
+    def test_local_secrets_stay_out_of_images_and_git(self):
+        root = COMPOSE.parent.parent
+        ignored = (root / '.dockerignore').read_text().splitlines()
+        self.assertIn('deploy/compose/.env', ignored)
+        self.assertIn('deploy/compose/admin-password*', ignored)
+        self.assertLessEqual({'.env', 'admin-password*'}, set((COMPOSE / '.gitignore').read_text().splitlines()))
+
+    def test_shell_scripts_pass_shellcheck(self):
+        if not shutil.which('shellcheck'):
+            self.skipTest('shellcheck unavailable')
+        scripts = sorted(COMPOSE.glob('*.sh'))
+        self.assertTrue(scripts)
+        result = subprocess.run(['shellcheck', *map(str, scripts)], capture_output=True, text=True)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+    def test_start_refuses_without_an_admin(self):
+        env = {'PATH': '/usr/bin:/bin', 'HOME': tempfile.gettempdir()}
+        result = subprocess.run([str(COMPOSE / 'start.sh')], env=env, capture_output=True, text=True)
+        self.assertEqual(result.returncode, 1)
+        self.assertIn('VB_ADMIN is not set', result.stderr)
+        if not Path('/run/secrets/admin_password').exists():
+            result = subprocess.run([str(COMPOSE / 'start.sh')], env={**env, 'VB_ADMIN': 'admin'},
+                                    capture_output=True, text=True)
+            self.assertEqual(result.returncode, 1)
+            self.assertIn('no admin password', result.stderr)

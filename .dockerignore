@@ -7,3 +7,6 @@ __pycache__
 outbox
 .env*
 !examples/assets/*.mp4
+# deploy/compose's local secrets: never baked into an image.
+deploy/compose/.env
+deploy/compose/admin-password*

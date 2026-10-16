@@ -1,0 +1,5 @@
+# Local settings and secrets for this stack; see README.md.
+.env
+admin-password*
+compose.override.yaml
+music-sources.toml
