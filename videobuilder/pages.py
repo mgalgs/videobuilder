@@ -109,6 +109,7 @@ APP_HEADER_STYLE = (
     '.app-bar{position:sticky;top:0;z-index:20;background:rgba(13,13,16,.88);'
     '-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);border-bottom:1px solid #1f1f25;'
     'font:16px/1.5 system-ui,sans-serif}'
+    '.app-bar a:hover{text-decoration:none}'
     '.app-bar-inner{max-width:1180px;margin:0 auto;padding:.7rem 2rem;display:flex;align-items:center;'
     'gap:1.75rem;box-sizing:border-box}'
     '.app-brand{display:flex;align-items:center;gap:.6rem;flex:none;font-weight:800;font-size:1.15rem;'
