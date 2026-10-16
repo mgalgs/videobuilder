@@ -194,7 +194,8 @@ long as the build runs. If you suspect it leaked, make a new one with
 it checks bubblewrap and pasta.
 
 **"bubblewrap cannot create a sandbox"**, often with `setting up uid map:
-Permission denied`: Ubuntu 23.10 and later restrict unprivileged user
+Permission denied` or `loopback: Failed RTM_NEWADDR: Operation not
+permitted`: Ubuntu 23.10 and later restrict unprivileged user
 namespaces through AppArmor, even in an unconfined container. Allow them:
 
     sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
