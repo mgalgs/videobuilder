@@ -7,7 +7,7 @@ generated music bed while a made-up app, Lumen, gets launched.
 Sections: a kinetic-type hook and the title hit; the product (camera, UI,
 Lumi checking off the day, a tester on camera, a diagram), the launch
 numbers on one dashboard, then the looks, which get room to breathe (generated art, 3D, hard light,
-comic, pixel art, paper collage), and the timing and formats block before
+comic, pixel art, a cut-out fox, paper collage), and the timing and formats block before
 the end card. Sections meet on catalog moves (a shape morph, an overlap
 slide, the paper rip), cuts within a section land on the beat.
 
@@ -36,7 +36,7 @@ sys.path.insert(0, str(HERE))
 
 import videobuilder as vb  # noqa: E402
 from videobuilder import capabilities, paths  # noqa: E402
-from showcase_scenes import comic, data, imagery, kit, looks, motion, paper, pixel, timing, voice  # noqa: E402
+from showcase_scenes import comic, data, fox, imagery, kit, looks, motion, paper, pixel, timing, voice  # noqa: E402
 from showcase_scenes.kit import ACCENT, BG, INK, MUTED  # noqa: E402
 
 GRID = kit.GRID
@@ -57,6 +57,7 @@ SECTIONS = [
                 ('light', [('light-wide', 5), ('light-close', 5)]),
                 ('comic', [('comic-hq', 3), ('comic-close', 3), ('comic-launch', 3)]),
                 ('pixel', [('pixel-run', 7), ('pixel-clear', 3)]),
+                ('fox', 5),
                 ('paper', [('paper-head', 3), ('paper-pad', 4), ('paper-stamp', 4)])]),
     ('closing', [('beats', [(f'beat-{i + 1}', 1) for i in range(4)]), ('every-format', 7)], 1),
     ('end', 13),
@@ -103,6 +104,7 @@ SHOTS = {
     **{n: ['hard-light-sweep'] for n in ('light-wide', 'light-close')},
     **{n: ['comic-halftone'] for n in ('comic-hq', 'comic-close', 'comic-launch')},
     **{n: ['pixel-art-layer'] for n in ('pixel-run', 'pixel-clear')},
+    'fox': ['puppet-motion', 'pose-swaps'],
     **{n: ['paper-collage'] for n in ('paper-head', 'paper-pad', 'paper-stamp')},
     **{f'beat-{i + 1}': ['beat-lock'] for i in range(4)},
     'every-format': ['every-format'],
@@ -370,7 +372,7 @@ def end(cv, s, st):
 
 
 SCENES = {'hook-1': hook, 'hook-2': hook, 'hook-3': hook, 'title': title, 'end': end,
-          **motion.SCENES, **data.SCENES, **imagery.SCENES, **looks.SCENES, **comic.SCENES, **pixel.SCENES,
+          **motion.SCENES, **data.SCENES, **imagery.SCENES, **looks.SCENES, **comic.SCENES, **pixel.SCENES, **fox.SCENES,
           **paper.SCENES, **timing.SCENES, **voice.SCENES}
 
 
