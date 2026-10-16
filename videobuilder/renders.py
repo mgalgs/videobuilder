@@ -20,6 +20,13 @@ class Renders:
         self.renderer = renderer or self._render
         self.root = Path(editor.state_dir) / 'renders'
         self.root.mkdir(parents=True, exist_ok=True)
+        # A render killed with the process leaves its scratch behind, never a short .mp4:
+        # output only ever appears by rename. The queue itself isn't kept; the player's
+        # poll asks for the render again. Drafts.prune drops the stale worktree record.
+        for stale in self.root.glob('render-*'):
+            shutil.rmtree(stale, ignore_errors=True)
+        for stale in self.root.glob('*/*.mp4.partial'):
+            stale.unlink(missing_ok=True)
         self.lock = threading.RLock()
         self.queue = deque()
         self.status = {}

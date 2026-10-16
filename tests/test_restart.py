@@ -49,5 +49,25 @@ class Gathering(Restart):
         self.assertIn('the crawl was interrupted', done['text'])
 
 
+class Rendering(Restart):
+    def test_a_killed_render_leaves_nothing_that_reads_as_ready_and_is_asked_for_again(self):
+        old = self.editor()
+        old.renders.close()
+        sha = '0' * 40
+        output = old.renders.path('promo/film', sha, '16x9')
+        output.parent.mkdir(parents=True, exist_ok=True)
+        partial = output.with_suffix('.mp4.partial')
+        partial.write_bytes(b'half a video')
+        scratch = old.renders.root / 'render-abc123'
+        (scratch / 'output').mkdir(parents=True)
+        new = self.editor()
+        new.renders.close()  # keep the worker off the queue, so the state below is just what was asked
+        self.assertFalse(partial.exists())
+        self.assertFalse(scratch.exists())
+        self.assertEqual(new.renders.state('promo/film', sha, '16x9'), {'state': 'none'})
+        # The player's next poll (GET api/video) re-requests it.
+        self.assertEqual(new.renders.request('promo/film', sha, '16x9')['state'], 'queued')
+
+
 if __name__ == '__main__':
     unittest.main()
