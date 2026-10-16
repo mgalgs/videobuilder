@@ -246,6 +246,15 @@ LIBRARY_STYLE = (
     '.lib-poster-fallback{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;'
     'padding:.5rem;text-align:center;font-size:.85rem;color:#5d5d66;overflow-wrap:anywhere}'
     '.lib-poster img{position:relative;display:block;width:100%;height:100%;object-fit:cover}'
+    '.lib-pill{position:absolute;top:.5rem;left:.5rem;max-width:calc(100% - 1rem);box-sizing:border-box;'
+    'padding:.15rem .5rem;border-radius:999px;background:rgba(10,10,12,.78);border:1px solid rgba(255,255,255,.12);'
+    'color:#e4e4e8;font-size:.68rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;'
+    'white-space:nowrap;overflow:hidden;text-overflow:ellipsis;-webkit-backdrop-filter:blur(4px);'
+    'backdrop-filter:blur(4px)}'
+    '.lib-sort{display:inline-flex;padding:3px;border:1px solid #26262c;border-radius:10px;background:#0d0d10}'
+    '.lib-sort button{min-height:36px;padding:.3rem .8rem;border:0;border-radius:7px;background:none;'
+    'color:#a9a9b2;font:inherit;font-size:.85rem;cursor:pointer}'
+    '.lib-sort button[aria-pressed="true"]{background:#26262c;color:#f4f4f2}'
     '.lib-title{font-weight:700;font-size:.95rem;padding:0 .85rem;overflow-wrap:anywhere}'
     '.lib-meta{font-size:.8rem;color:#8b8b94;padding:0 .85rem}'
     '.lib-empty{color:#a9a9b2}'
@@ -681,6 +690,21 @@ LIB_DETAIL_SCRIPT = (
 )
 
 
+LIB_SORT_SCRIPT = (
+    '<script>(()=>{'
+    'const views={recent:document.getElementById("lib-recent"),projects:document.getElementById("lib-projects")};'
+    'const btns=document.querySelectorAll(".lib-sort button");'
+    'function show(k,save){if(!views[k])return;'
+    'for(const v in views)views[v].hidden=v!==k;'
+    'for(const b of btns)b.setAttribute("aria-pressed",String(b.dataset.sort===k));'
+    'if(save)try{localStorage.setItem("vb-lib-sort",k)}catch(_){}}'
+    'let saved=null;try{saved=localStorage.getItem("vb-lib-sort")}catch(_){}'
+    'if(saved)show(saved,false);'
+    'for(const b of btns)b.onclick=()=>show(b.dataset.sort,true);'
+    '})()</script>'
+)
+
+
 def _howto_html(user):
     return ('<section class="howto"><h2>How it works</h2>'
             '<p class="howto-lead">Direct a video in plain words. Click <strong>+ New video</strong> and say '
@@ -779,30 +803,45 @@ def index(entries, accounts_enabled, user, host, scheme='http', showcase=False, 
     the tour leads with it. The library itself is only the creator's videos:
     the reel and the how-to live in the tour."""
     groups = {}
-    for e in entries:
-        group = e['name'].split('/')[0] if '/' in e['name'] else 'Videos'
-        groups.setdefault(group, []).append(e)
-    rows = []
     cards = []
-    for group, group_entries in groups.items():
-        rows.append(f'<section class="lib-section"><h2 class="lib-group">{html.escape(group)}</h2>'
-                    '<ul class="lib-grid">')
-        for e in group_entries:
-            name = e['name']
-            leaf = name.split('/', 1)[1] if '/' in name else name
-            encoded = '/'.join(quote(p) for p in name.split('/'))
-            url = f'{scheme}://{host}/git/{encoded}.git'
-            idx = len(cards)
-            cards.append({'name': name, 'leaf': leaf, 'project': group, 'url': url,
-                         'hasMain': e['has_main'], 'updated': e['updated'], 'subject': e['subject']})
-            meta = f'Updated {_ago(e["updated"])}' if e['updated'] else 'Empty'
-            rows.append(f'<li><button type="button" class="lib-card" data-idx="{idx}">'
-                       f'<span class="lib-poster"><span class="lib-poster-fallback">{html.escape(leaf)}</span>'
-                       f'<img src="/v/{encoded}/api/thumbnail" alt="" loading="lazy" '
-                       'onerror="this.style.display=\'none\'"></span>'
-                       f'<span class="lib-title">{html.escape(leaf)}</span>'
-                       f'<span class="lib-meta">{meta}</span></button></li>')
-        rows.append('</ul></section>')
+    for e in entries:
+        name = e['name']
+        group, leaf = name.split('/', 1) if '/' in name else ('Videos', name)
+        groups.setdefault(group, []).append(len(cards))
+        encoded = '/'.join(quote(p) for p in name.split('/'))
+        cards.append({'name': name, 'leaf': leaf, 'project': group, 'url': f'{scheme}://{host}/git/{encoded}.git',
+                      'hasMain': e['has_main'], 'updated': e['updated'], 'subject': e['subject'],
+                      'encoded': encoded, 'inProject': '/' in name})
+
+    def card_html(idx, pill):
+        c = cards[idx]
+        leaf = html.escape(c['leaf'])
+        meta = f'Updated {_ago(c["updated"])}' if c['updated'] else 'Empty'
+        pill_html = (f'<span class="lib-pill">{html.escape(c["project"])}</span>'
+                     if pill and c['inProject'] else '')
+        return (f'<li><button type="button" class="lib-card" data-idx="{idx}">'
+                f'<span class="lib-poster"><span class="lib-poster-fallback">{leaf}</span>'
+                f'<img src="/v/{c["encoded"]}/api/thumbnail" alt="" loading="lazy" '
+                f'onerror="this.style.display=\'none\'">{pill_html}</span>'
+                f'<span class="lib-title">{leaf}</span>'
+                f'<span class="lib-meta">{meta}</span></button></li>')
+
+    # Both orders are rendered, the "by project" one hidden: the switch swaps them
+    # without a reload, and hidden <img loading=lazy> never fetch.
+    recent = sorted(range(len(cards)), key=lambda i: -(cards[i]['updated'] or 0))
+    has_projects = any(c['inProject'] for c in cards)
+    rows = ['<section class="lib-section" id="lib-recent"><ul class="lib-grid">',
+            *(card_html(i, True) for i in recent), '</ul></section>']
+    if has_projects:
+        rows.append('<div id="lib-projects" hidden>')
+        for group, idxs in groups.items():
+            rows.append(f'<section class="lib-section"><h2 class="lib-group">{html.escape(group)}</h2>'
+                        '<ul class="lib-grid">')
+            rows.extend(card_html(i, False) for i in idxs)
+            rows.append('</ul></section>')
+        rows.append('</div>' + LIB_SORT_SCRIPT)
+    for c in cards:
+        del c['encoded'], c['inProject']
     can_create = bool(user) if accounts_enabled else True
     hero = not entries
     if hero:
@@ -817,6 +856,11 @@ def index(entries, accounts_enabled, user, host, scheme='http', showcase=False, 
         content = ''.join(rows) + _starter_section_html(False, heading='Start from a starter prompt')
     count = len(entries)
     sub = f'<p>{count} video{"" if count == 1 else "s"}</p>' if count else ''
+    sort = ''
+    if not hero and has_projects:
+        sort = ('<div class="lib-sort" role="group" aria-label="Sort videos">'
+                '<button type="button" data-sort="recent" aria-pressed="true">Recent</button>'
+                '<button type="button" data-sort="projects" aria-pressed="false">By project</button></div>')
     # A commit subject holding e.g. "<!--<script>" must not push the tokenizer into
     # the script-data double-escaped state, where a literal </script> no longer closes
     # this block: escape every '<' (and '>', '&' along with it) as a \u escape.
@@ -830,7 +874,7 @@ def index(entries, accounts_enabled, user, host, scheme='http', showcase=False, 
         tour_html = _tour_html(user, showcase)
     return (_head('Your videos', style) +
             '<body>' + app_header('library', user if accounts_enabled else None, can_create) +
-            f'<main class="app-main"><div class="page-head"><div><h1>Your videos</h1>{sub}</div></div>' +
+            f'<main class="app-main"><div class="page-head"><div><h1>Your videos</h1>{sub}</div>{sort}</div>' +
             content + _LIB_DETAIL_HTML + script + '</main>' + tour_html + '</body></html>').encode()
 
 

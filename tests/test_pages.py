@@ -102,6 +102,36 @@ class StarterCardsOnPages(unittest.TestCase):
         self.assertIn('id="order-start"', page)
 
 
+class LibrarySort(unittest.TestCase):
+    ENTRIES = [_entry('acme/launch', updated=100), _entry('acme/teaser', updated=300),
+               _entry('solo', updated=200), _entry('acme/blank', has_main=False)]
+
+    def _page(self, entries=None):
+        return pages.index(entries or self.ENTRIES, True, 'dana', 'example.com').decode()
+
+    def test_recent_is_the_default_newest_first_with_unstarted_videos_last(self):
+        page = self._page()
+        recent = page[page.index('id="lib-recent"'):page.index('id="lib-projects"')]
+        titles = re.findall(r'class="lib-title">([^<]*)<', recent)
+        self.assertEqual(titles, ['teaser', 'solo', 'launch', 'blank'])
+        self.assertIn('<div id="lib-projects" hidden>', page)
+        self.assertIn('data-sort="recent" aria-pressed="true"', page)
+
+    def test_recent_cards_carry_their_project_as_a_pill_and_project_view_does_not(self):
+        page = self._page()
+        recent = page[page.index('id="lib-recent"'):page.index('id="lib-projects"')]
+        projects = page[page.index('id="lib-projects"'):]
+        self.assertEqual(recent.count('class="lib-pill">acme<'), 3)
+        self.assertNotIn('lib-pill', projects)
+        self.assertIn('class="lib-group">acme<', projects)
+
+    def test_no_switch_when_no_video_is_in_a_project(self):
+        page = self._page([_entry('solo', updated=1), _entry('other', updated=2)])
+        self.assertNotIn('lib-sort"', page)
+        self.assertNotIn('lib-projects', page)
+        self.assertNotIn('lib-pill"', page)
+
+
 class AccountPageLimits(unittest.TestCase):
     def test_no_limits_section_by_default(self):
         page = pages.account_page('dana', []).decode()
