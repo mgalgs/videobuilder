@@ -122,7 +122,6 @@ class AccountPageLimits(unittest.TestCase):
         self.assertIn('value="1.5"', page)
 
 
-@unittest.skipUnless(shutil.which('node'), 'node is not available in this environment')
 class EditorPageHeader(unittest.TestCase):
     def test_library_editor_page_carries_the_shared_header(self):
         page = pages.editor_page('<dana>').decode()
@@ -138,6 +137,7 @@ class EditorPageHeader(unittest.TestCase):
         self.assertNotIn('href="/new"', pages.editor_page('dana', can_create=False).decode())
 
 
+@unittest.skipUnless(shutil.which('node'), 'node is not available in this environment')
 class InlineScriptsParse(unittest.TestCase):
     def _check(self, html_bytes):
         scripts = re.findall(rb'<script(?: [^>]*)?>(.*?)</script>', html_bytes, re.S)

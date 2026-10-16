@@ -526,7 +526,8 @@ function refreshProgress(note) {
 }
 function renderStepsToggle(note) {
   const data=stepsData(note);
-  const wrap=node('div','steps-wrap'),toggle=node('button','steps-toggle',data.open?'Hide builder log':'Show builder log');
+  const wrap=node('div','steps-wrap');
+  const toggle=node('button','steps-toggle',data.open?'Hide builder log':'Show builder log');
   toggle.setAttribute('aria-expanded',String(data.open));
   const body=node('div','steps-body');
   body.hidden=!data.open;
