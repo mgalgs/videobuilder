@@ -961,10 +961,11 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible {
   border: 1px solid #3a3a42;
   background: transparent;
   color: #c9c9d1;
-  padding: 0 14px;
+  padding: 8px 14px;
   border-radius: 18px;
   min-height: 44px;
   font-weight: 700;
+  text-align: left;
 }
 
 .choice-chip.active {

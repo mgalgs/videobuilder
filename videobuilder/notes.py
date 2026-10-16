@@ -66,7 +66,7 @@ FINAL = ('replied', 'failed', 'accepted', 'dropped', 'landed', 'refused', 'confl
 QUESTIONS_MAX = 3
 CHOICES_MIN, CHOICES_MAX = 2, 4
 TEXT_MAX = 200
-CHOICE_MAX = 60
+CHOICE_MAX = 120
 LEAD_IN_MAX = 300
 
 SHORTFALL_KINDS = ('cannot', 'weak')

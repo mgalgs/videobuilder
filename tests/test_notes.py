@@ -195,7 +195,7 @@ class Notes(unittest.TestCase):
             'pinned frame, any attachments, or the video itself) settles. If so, stop and ask '
             'the director 1 to 3 short questions instead of building: ask before changing '
             'anything, and commit nothing. Keep each question short, in plain language (never '
-            'a file, function or parameter name), and either give it 2 to 4 short choices or '
+            'a file, function or parameter name), and either give it 2 to 4 short choices (under 100 characters each) or '
             'leave it as free text. End your reply with a line containing only ```questions, '
             'then one line of JSON {"questions": [{"text": "...", "choices": ["...", "..."]}]} '
             '(omit or empty "choices" for free text), then a line containing only ```, and '
@@ -371,6 +371,12 @@ class Questions(unittest.TestCase):
         self.assertIsNone(parse_questions('```questions\n' + json.dumps({'questions': long_text}) + '\n```\n'))
         long_choice = [{'text': 'Q', 'choices': ['ok', 'y' * 200]}]
         self.assertIsNone(parse_questions('```questions\n' + json.dumps({'questions': long_choice}) + '\n```\n'))
+
+    def test_a_sentence_long_choice_is_valid(self):
+        choice = "Character jams through the video, with the promo's titles and 'OUT NOW' ending on top"
+        block = [{'text': 'How should the character fit?', 'choices': [choice, 'Replace the promo']}]
+        _, questions = parse_questions('```questions\n' + json.dumps({'questions': block}) + '\n```\n')
+        self.assertEqual(questions[0]['choices'][0], choice)
 
     def test_a_missing_block_falls_back_to_an_ordinary_reply(self):
         self.assertIsNone(parse_questions('Just a plain reply, no questions here.'))
