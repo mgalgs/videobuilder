@@ -146,7 +146,11 @@ APP_HEADER_STYLE = (
     '.app-nav a{min-height:38px}'
     '.app-user{display:none}'
     '.app-account summary{padding:0 .25rem}}'
-    '@media (max-width:360px){.app-brand b{display:none}}'
+    # Phone widths: brand, + New video and the avatar must share the first row,
+    # with room to spare for a wider system font (iOS) than the one tested here.
+    '@media (max-width:440px){.app-bar-inner{column-gap:.5rem}.app-brand{gap:.4rem;font-size:1.02rem}'
+    '.app-brand svg{width:26px;height:26px}.app-actions{gap:.4rem}.app-new{padding:0 .75rem}}'
+    '@media (max-width:374px){.app-brand b{display:none}}'
 )
 
 # The base for the pages that are wholly ours (library, /new, /account): the
