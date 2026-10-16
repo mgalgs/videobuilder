@@ -217,6 +217,31 @@ POST /api/capabilities/<slug>/send {attachments:[id...]}
                                      note; 404 unknown slug or a caller who
                                      is neither; 409 already sent; 429 as
                                      POST /api/notes above
+POST /api/capabilities/<slug>/publish {}
+                                     admin only; validates capability.toml
+                                     (plus the doc and film.py it names) on
+                                     the project's main and, if it passes,
+                                     marks it published -- visible to every
+                                     signed-in user and reachable by every
+                                     builder from then on; 200 {slug,status};
+                                     403 non-admin; 404 unknown slug; 400 a
+                                     plain validation message, status
+                                     unchanged
+POST /api/capabilities/<slug>/reject {}
+                                     admin only; hides a draft or a
+                                     published capability from every
+                                     /capabilities page and its clip route,
+                                     without touching the project on disk;
+                                     200 {slug,status}; 403 non-admin; 404
+                                     unknown slug
+GET /capabilities/community/<slug>.mp4|jpg
+                                     the clip and poster for a community
+                                     capability's latest landed render; 200
+                                     for a published one to any signed-in
+                                     user, or for a draft/rejected one to
+                                     its submitter or an admin; 404 for
+                                     anyone else, an unknown slug, or no
+                                     render yet
 With accounts on, GET /api/name returns the session username and POST
 answers 409; a project the signed-in user cannot access answers 404
 exactly like a non-existent one, on its page, API, frames, video, git. A

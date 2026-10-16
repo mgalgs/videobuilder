@@ -80,7 +80,7 @@ class AuthHandler:
         than a JSON 401: a browser navigation (GET), not an API call."""
         if method != 'GET' or route.startswith('/api/'):
             return False
-        if re.fullmatch(r'/(?:capabilities|compendium)/[a-z][a-z0-9-]*\.(mp4|jpg)', route):
+        if re.fullmatch(r'/(?:capabilities(?:/community)?|compendium)/[a-z][a-z0-9-]*\.(mp4|jpg)', route):
             return False
         m = re.fullmatch(r'/v/(.+?)(/api(?:/.*)?|/tuning\.html|/director\.(?:js|css)|/)?', route)
         if m and m.group(2) and m.group(2).startswith('/api'):

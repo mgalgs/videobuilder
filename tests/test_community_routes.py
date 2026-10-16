@@ -9,7 +9,7 @@ import urllib.request
 from pathlib import Path
 from unittest import mock
 
-from videobuilder import community, xpost
+from videobuilder import capabilities, community, xpost
 from videobuilder.library import Library
 from tests import fixtures
 from tests.test_xpost import _FakeResponse
@@ -30,6 +30,30 @@ def _successful_read_responses(id):
         _FakeResponse(_JPEG, 'https://pbs.twimg.com/media/fake1.jpg'),
         _FakeResponse(_MP4, 'https://video.twimg.com/vid/640x360/clip.mp4'),
     ]
+
+
+def publishable(case, slug, title='Zoom logo reveal', category=None, id=None, **field_overrides):
+    """Commits a valid film.py/capability.toml/capability.md straight into
+    `capabilities/<slug>`'s bare repo, via a local clone + push (not HTTP),
+    so a test can publish it without the builder ever having to run. `case`
+    is a LibraryFixture/AccountMixin test case (its .git/.url/.root)."""
+    category = category or capabilities.categories()[0]
+    fields = {'id': id or slug, 'category': category, 'title': title, 'card': 'a card line',
+             'description': 'a longer description of the technique, worth capturing.',
+             'prompts': ['Do the thing', 'Do it faster', 'Do it on the beat'], 'apis': ['vb.spring_at'],
+             'doc': 'capability.md'}
+    fields.update(field_overrides)
+    toml_text = '\n'.join(f'{k} = {json.dumps(v)}' for k, v in fields.items()) + '\n'
+    name = f'{community.NAMESPACE}/{slug}'
+    work = case.root / 'publish' / slug
+    case.git('clone', case.url(name), str(work))
+    (work / 'capability.toml').write_text(toml_text)
+    (work / 'capability.md').write_text('# ' + title + '\n\nA short reference doc.\n')
+    (work / 'film.py').write_text('import videobuilder as vb\n')
+    case.git('add', '.', cwd=work)
+    case.git('commit', '-m', 'capability files', cwd=work)
+    case.git('push', cwd=work)
+    return name
 
 
 class Reserved(fixtures.AccountMixin, fixtures.LibraryFixture, unittest.TestCase):
@@ -189,20 +213,28 @@ class Submission(fixtures.AccountMixin, fixtures.LibraryFixture, unittest.TestCa
 
 class KeysAndOrigin(fixtures.AccountMixin, fixtures.LibraryFixture, unittest.TestCase):
     def test_api_keys_cannot_submit_publish_or_reject(self):
+        admin = self.admin_login()
         _, _, dana = self.signup('dana', 'longenoughpassword')
-        _, secret = self.library.accounts.create_key('dana', 'ci', None, 'write')
-        bearer = {'Content-Type': 'application/json', 'Authorization': 'Bearer ' + secret}
-        for path, body in (('/api/capabilities/new', {'files': 1}),
-                           ('/api/capabilities/fake-slug/send', {'attachments': []})):
+        _, admin_secret = self.library.accounts.create_key('mgalgs', 'ci', None, 'write')
+        _, dana_secret = self.library.accounts.create_key('dana', 'ci', None, 'write')
+        for path, body, secret in (('/api/capabilities/new', {'files': 1}, dana_secret),
+                                   ('/api/capabilities/fake-slug/send', {'attachments': []}, dana_secret),
+                                   ('/api/capabilities/fake-slug/publish', {}, admin_secret),
+                                   ('/api/capabilities/fake-slug/reject', {}, admin_secret)):
             with self.subTest(path=path):
+                bearer = {'Content-Type': 'application/json', 'Authorization': 'Bearer ' + secret}
                 self.assertEqual(self.request(path, body, headers=bearer)[0], 401)
+        self.assertEqual(self.library.community.all(), {})
 
     def test_cross_origin_posts_refused(self):
+        admin = self.admin_login()
         _, _, dana = self.signup('dana', 'longenoughpassword')
-        for path, body in (('/api/capabilities/new', {'files': 1}),
-                           ('/api/capabilities/fake-slug/send', {'attachments': []})):
+        for path, body, cookie in (('/api/capabilities/new', {'files': 1}, dana),
+                                   ('/api/capabilities/fake-slug/send', {'attachments': []}, dana),
+                                   ('/api/capabilities/fake-slug/publish', {}, admin),
+                                   ('/api/capabilities/fake-slug/reject', {}, admin)):
             with self.subTest(path=path):
-                code = self.request(path, body, headers={'Content-Type': 'application/json', 'Cookie': dana,
+                code = self.request(path, body, headers={'Content-Type': 'application/json', 'Cookie': cookie,
                                                           'Origin': 'http://elsewhere.example'})[0]
                 self.assertEqual(code, 403)
 
@@ -288,6 +320,204 @@ class NoFetch(fixtures.AccountMixin, fixtures.LibraryFixture, unittest.TestCase)
         self.assertEqual(code, 201, created)
         self.assertIsNone(created['read'])
         opened.assert_not_called()
+
+
+class Drafts(fixtures.AccountMixin, fixtures.LibraryFixture, unittest.TestCase):
+    def test_draft_invisible_to_other_users(self):
+        _, _, dana = self.signup('dana', 'longenoughpassword')
+        _, _, other = self.signup('other', 'longenoughpassword')
+        created = self.request('/api/capabilities/new', {'files': 1},
+                               headers={'Content-Type': 'application/json', 'Cookie': dana})[1]
+        page = self.request('/capabilities', headers={'Cookie': other})[1]
+        self.assertNotIn(created['slug'].encode(), page)
+
+    def test_submitter_sees_own_draft_without_review_buttons(self):
+        _, _, dana = self.signup('dana', 'longenoughpassword')
+        created = self.request('/api/capabilities/new', {'files': 1},
+                               headers={'Content-Type': 'application/json', 'Cookie': dana})[1]
+        page = self.request('/capabilities', headers={'Cookie': dana})[1]
+        self.assertIn(created['slug'].encode(), page)
+        self.assertNotIn(b'data-cap-action="publish"', page)
+        self.assertNotIn(b'data-cap-action="reject"', page)
+
+    def test_admin_sees_all_drafts_with_review_buttons(self):
+        admin = self.admin_login()
+        _, _, dana = self.signup('dana', 'longenoughpassword')
+        created = self.request('/api/capabilities/new', {'files': 1},
+                               headers={'Content-Type': 'application/json', 'Cookie': dana})[1]
+        page = self.request('/capabilities', headers={'Cookie': admin})[1]
+        self.assertIn(created['slug'].encode(), page)
+        needle = f'data-cap-slug="{created["slug"]}"'.encode()
+        self.assertIn(needle, page)
+        self.assertIn(b'data-cap-action="publish"', page)
+        self.assertIn(b'data-cap-action="reject"', page)
+
+    def test_unsent_draft_is_marked(self):
+        _, _, dana = self.signup('dana', 'longenoughpassword')
+        self.request('/api/capabilities/new', {'files': 1},
+                     headers={'Content-Type': 'application/json', 'Cookie': dana})
+        page = self.request('/capabilities', headers={'Cookie': dana})[1]
+        self.assertIn(b'not sent', page.lower())
+
+
+class Publish(fixtures.AccountMixin, fixtures.LibraryFixture, unittest.TestCase):
+    def test_publish_permissions_and_validation(self):
+        admin = self.admin_login()
+        admin_headers = {'Content-Type': 'application/json', 'Cookie': admin}
+        _, _, dana = self.signup('dana', 'longenoughpassword')
+        dana_headers = {'Content-Type': 'application/json', 'Cookie': dana}
+        created = self.request('/api/capabilities/new', {'files': 1}, headers=dana_headers)[1]
+        slug = created['slug']
+        # non-admin -> 403
+        code, data, _ = self.request_full(f'/api/capabilities/{slug}/publish', {}, headers=dana_headers)
+        self.assertEqual(code, 403, data)
+        # unknown slug -> 404
+        code, data, _ = self.request_full('/api/capabilities/no-such-slug/publish', {}, headers=admin_headers)
+        self.assertEqual(code, 404, data)
+        # invalid (no capability.toml committed yet) -> 400, status unchanged
+        code, data, _ = self.request_full(f'/api/capabilities/{slug}/publish', {}, headers=admin_headers)
+        self.assertEqual(code, 400, data)
+        self.assertIn('capability.toml', data['error'])
+        self.assertEqual(self.library.community.get(slug)['status'], 'draft')
+        # valid -> 200
+        publishable(self, slug)
+        code, data, _ = self.request_full(f'/api/capabilities/{slug}/publish', {}, headers=admin_headers)
+        self.assertEqual(code, 200, data)
+        self.assertEqual(data, {'slug': slug, 'status': 'published'})
+
+
+class Published(fixtures.AccountMixin, fixtures.LibraryFixture, unittest.TestCase):
+    def test_published_shows_to_everyone_in_its_category(self):
+        admin = self.admin_login()
+        admin_headers = {'Content-Type': 'application/json', 'Cookie': admin}
+        _, _, dana = self.signup('dana', 'longenoughpassword')
+        _, _, other = self.signup('other', 'longenoughpassword')
+        created = self.request('/api/capabilities/new', {'files': 1},
+                               headers={'Content-Type': 'application/json', 'Cookie': dana})[1]
+        slug = created['slug']
+        category = capabilities.categories()[0]
+        publishable(self, slug, title='Snappy zoom reveal', category=category)
+        self.request(f'/api/capabilities/{slug}/publish', {}, headers=admin_headers)
+        page = self.request('/capabilities', headers={'Cookie': other})[1]
+        self.assertIn(b'Snappy zoom reveal', page)
+        self.assertIn(b'Community', page)
+        self.assertIn(f'data-card="community:{slug}"'.encode(), page)
+
+    def test_community_strings_are_escaped(self):
+        admin = self.admin_login()
+        admin_headers = {'Content-Type': 'application/json', 'Cookie': admin}
+        _, _, dana = self.signup('dana', 'longenoughpassword')
+        created = self.request('/api/capabilities/new', {'files': 1},
+                               headers={'Content-Type': 'application/json', 'Cookie': dana})[1]
+        slug = created['slug']
+        payload = '</script><script>alert(1)</script>'
+        publishable(self, slug, title=payload)
+        self.request(f'/api/capabilities/{slug}/publish', {}, headers=admin_headers)
+        page = self.request('/capabilities', headers={'Cookie': dana})[1]
+        self.assertNotIn(payload.encode(), page)
+        self.assertIn(b'&lt;/script&gt;', page)
+
+    def test_published_tracks_main(self):
+        admin = self.admin_login()
+        admin_headers = {'Content-Type': 'application/json', 'Cookie': admin}
+        _, _, dana = self.signup('dana', 'longenoughpassword')
+        created = self.request('/api/capabilities/new', {'files': 1},
+                               headers={'Content-Type': 'application/json', 'Cookie': dana})[1]
+        slug = created['slug']
+        publishable(self, slug, title='Original title')
+        self.request(f'/api/capabilities/{slug}/publish', {}, headers=admin_headers)
+        page = self.request('/capabilities', headers={'Cookie': dana})[1]
+        self.assertIn(b'Original title', page)
+        work = self.root / 'publish' / slug
+        toml_path = work / 'capability.toml'
+        toml_path.write_text(toml_path.read_text().replace('Original title', 'Updated title'))
+        self.git('add', '.', cwd=work)
+        self.git('commit', '-m', 'retitle', cwd=work)
+        self.git('push', cwd=work)
+        page = self.request('/capabilities', headers={'Cookie': dana})[1]
+        self.assertIn(b'Updated title', page)
+        self.assertNotIn(b'Original title', page)
+
+    def test_published_that_breaks_moves_to_drafts_with_problem(self):
+        admin = self.admin_login()
+        admin_headers = {'Content-Type': 'application/json', 'Cookie': admin}
+        _, _, dana = self.signup('dana', 'longenoughpassword')
+        created = self.request('/api/capabilities/new', {'files': 1},
+                               headers={'Content-Type': 'application/json', 'Cookie': dana})[1]
+        slug = created['slug']
+        publishable(self, slug)
+        self.request(f'/api/capabilities/{slug}/publish', {}, headers=admin_headers)
+        work = self.root / 'publish' / slug
+        (work / 'capability.toml').unlink()
+        self.git('add', '.', cwd=work)
+        self.git('commit', '-m', 'break it', cwd=work)
+        self.git('push', cwd=work)
+        page = self.request('/capabilities', headers={'Cookie': dana})[1]
+        self.assertNotIn(f'data-card="community:{slug}"'.encode(), page)
+        self.assertIn(slug.encode(), page)  # back in the drafts section
+        view = self.library.community_view('dana')
+        draft = next(d for d in view['drafts'] if d['slug'] == slug)
+        self.assertEqual(draft['status'], 'published')
+        self.assertIn('capability.toml', draft['problem'])
+
+
+class Reject(fixtures.AccountMixin, fixtures.LibraryFixture, unittest.TestCase):
+    def test_reject_hides_but_keeps_project(self):
+        admin = self.admin_login()
+        admin_headers = {'Content-Type': 'application/json', 'Cookie': admin}
+        _, _, dana = self.signup('dana', 'longenoughpassword')
+        dana_headers = {'Content-Type': 'application/json', 'Cookie': dana}
+        created = self.request('/api/capabilities/new', {'files': 1}, headers=dana_headers)[1]
+        slug = created['slug']
+        code, data, _ = self.request_full(f'/api/capabilities/{slug}/reject', {}, headers=dana_headers)
+        self.assertEqual(code, 403, data)
+        publishable(self, slug)
+        self.request(f'/api/capabilities/{slug}/publish', {}, headers=admin_headers)
+        code, data, _ = self.request_full(f'/api/capabilities/{slug}/reject', {}, headers=admin_headers)
+        self.assertEqual(code, 200, data)
+        self.assertEqual(data['status'], 'rejected')
+        for cookie in (dana, admin):
+            page = self.request('/capabilities', headers={'Cookie': cookie})[1]
+            self.assertNotIn(f'data-card="community:{slug}"'.encode(), page)
+            self.assertNotIn(slug.encode(), page)
+        self.assertTrue(self.library.path(created['name']).exists())
+
+
+class ClipGating(fixtures.AccountMixin, fixtures.LibraryFixture, unittest.TestCase):
+    def _place_render(self, name, data=b'FAKEMP4DATA' * 4):
+        editor = self.library.editor(name)
+        sha = self.git('--git-dir', str(self.library.path(name)), 'rev-parse', 'main').stdout.strip()
+        path = editor.renders.path('film', sha, '16x9')
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(data)
+        return path
+
+    def test_community_clip_gating(self):
+        admin = self.admin_login()
+        admin_headers = {'Content-Type': 'application/json', 'Cookie': admin}
+        _, _, dana = self.signup('dana', 'longenoughpassword')
+        dana_headers = {'Content-Type': 'application/json', 'Cookie': dana}
+        _, _, other = self.signup('other', 'longenoughpassword')
+        other_headers = {'Cookie': other}
+        created = self.request('/api/capabilities/new', {'files': 1},
+                               headers={'Content-Type': 'application/json', 'Cookie': dana})[1]
+        slug, name = created['slug'], created['name']
+        self.assertEqual(self.request('/capabilities/community/no-such-slug.mp4', headers=other_headers)[0], 404)
+        self.assertEqual(self.request(f'/capabilities/community/{slug}.mp4', headers=dana_headers)[0], 404)
+        self._place_render(name)
+        self.assertEqual(self.request(f'/capabilities/community/{slug}.mp4', headers=dana_headers)[0], 200)
+        self.assertEqual(self.request(f'/capabilities/community/{slug}.mp4', headers=admin_headers)[0], 200)
+        self.assertEqual(self.request(f'/capabilities/community/{slug}.mp4', headers=other_headers)[0], 404)
+        code, body, headers = self.request_full(f'/capabilities/community/{slug}.mp4')
+        self.assertEqual(code, 401, body)
+        self.assertEqual(headers.get_content_type(), 'application/json')
+        publishable(self, slug)
+        self.request(f'/api/capabilities/{slug}/publish', {}, headers=admin_headers)
+        code, body, _ = self.request_full(f'/capabilities/community/{slug}.mp4', headers=other_headers)
+        self.assertEqual(code, 200, body)
+        code, body, headers = self.request_full(f'/capabilities/community/{slug}.mp4',
+                                                 headers={**other_headers, 'Range': 'bytes=0-3'})
+        self.assertEqual(code, 206, body)
 
 
 class BackendArgs(unittest.TestCase):

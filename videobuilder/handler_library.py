@@ -250,6 +250,34 @@ class LibraryHandler:
                     except ValueError as exc:
                         raise HTTPError(409, str(exc)) from None
                     return self._json(200, note)
+                m = re.fullmatch(r'/api/capabilities/([^/]+)/publish', route)
+                if library.accounts and method == 'POST' and m:
+                    from .video_api import _is_admin_account
+                    if not _is_admin_account(self, user):
+                        raise HTTPError(403, 'admin only')
+                    self._body()
+                    slug = unquote(m.group(1))
+                    try:
+                        record = library.publish_capability(user, slug)
+                    except KeyError:
+                        raise HTTPError(404, 'no such capability') from None
+                    except (community.Invalid, ValueError) as exc:
+                        raise HTTPError(400, str(exc)) from None
+                    return self._json(200, {'slug': slug, 'status': record['status']})
+                m = re.fullmatch(r'/api/capabilities/([^/]+)/reject', route)
+                if library.accounts and method == 'POST' and m:
+                    from .video_api import _is_admin_account
+                    if not _is_admin_account(self, user):
+                        raise HTTPError(403, 'admin only')
+                    self._body()
+                    slug = unquote(m.group(1))
+                    try:
+                        record = library.reject_capability(user, slug)
+                    except KeyError:
+                        raise HTTPError(404, 'no such capability') from None
+                    except ValueError as exc:
+                        raise HTTPError(400, str(exc)) from None
+                    return self._json(200, {'slug': slug, 'status': record['status']})
                 if (route != '/healthz' and route != '/capabilities' and not route.startswith('/capabilities/')
                         and route != '/compendium' and not route.startswith('/compendium/')
                         and route != '/api/compendium' and route != '/api/compendium/vote'):

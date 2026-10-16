@@ -534,11 +534,43 @@ h2{font-size:15px;text-transform:uppercase;letter-spacing:.04em;color:#a9a9b2;ma
 }
 """
 
+_COMMUNITY_STYLE = """
+.community-badge{display:inline-block;margin-left:6px;padding:2px 7px;border-radius:6px;font-size:10.5px;
+  font-weight:700;letter-spacing:.03em;text-transform:uppercase;background:#2a2320;color:#e9a23b;
+  vertical-align:middle}
+.card .meta strong .community-badge{margin-left:4px}
+.draft-section{margin:36px 0 14px}
+.draft-section h2{margin-bottom:6px}
+.draft-section .hint{color:#8b8b94;font-size:13px;margin:0 0 14px}
+.draft-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:14px}
+.draft-card{background:#141417;border:1px solid #26262c;border-radius:12px;padding:14px 16px;
+  display:flex;flex-direction:column;gap:6px}
+.draft-card strong{font-size:14px}
+.draft-status{font-size:12.5px;color:#a9a9b2}
+.draft-status.problem{color:#ff8a80}
+.draft-submitter{font-size:12.5px;color:#8b8b94}
+.draft-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:4px}
+.draft-actions a,.draft-actions button{min-height:34px;padding:0 12px;border-radius:8px;font:inherit;
+  font-size:13px;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center}
+.draft-actions a{border:1px solid #2c2c33;background:#0d0d10;color:#eee}
+.draft-actions button{border:0;color:#fff;background:#3a3a42}
+.draft-actions button[data-cap-action=publish]{background:#2a7a4f}
+.draft-actions button[data-cap-action=reject]{background:#8a2f2f}
+.draft-actions button[data-cap-action=send]{background:#e5483b}
+.draft-actions button:disabled{opacity:.6;cursor:default}
+.draft-error{color:#ff8a80;font-size:12.5px;margin:0}.draft-error:empty{display:none}
+.community-card{display:flex;flex-direction:column;gap:6px}
+.community-card .draft-actions{padding:0}
+"""
+
 _PAGE_SCRIPT = """
 (function(){
   var data = JSON.parse(document.getElementById('capabilities-data').textContent);
+  var communityEl = document.getElementById('community-data');
+  var community = communityEl ? JSON.parse(communityEl.textContent) : [];
   var byId = {};
   data.forEach(function(e){byId[e.id] = e});
+  community.forEach(function(e){byId[e.id] = e});
   var modal = document.getElementById('modal');
   var video = document.getElementById('modal-video');
   var placeholder = document.getElementById('modal-placeholder');
@@ -559,8 +591,8 @@ _PAGE_SCRIPT = """
       ul.appendChild(li);
     });
     if(e.available){
-      video.src = '/capabilities/' + id + '.mp4';
-      video.poster = '/capabilities/' + id + '.jpg';
+      video.src = e.clip || ('/capabilities/' + id + '.mp4');
+      video.poster = e.poster || ('/capabilities/' + id + '.jpg');
       video.muted = true;
       video.hidden = false;
       placeholder.hidden = true;
@@ -747,6 +779,95 @@ def _add_capability_html(fetch):
     )
 
 
+_COMMUNITY_SCRIPT = """
+(function(){
+  document.querySelectorAll('[data-cap-action]').forEach(function(btn){
+    btn.addEventListener('click', async function(){
+      var slug = btn.getAttribute('data-cap-slug');
+      var action = btn.getAttribute('data-cap-action');
+      var card = btn.closest('.draft-card') || btn.closest('.card');
+      var errEl = card ? card.querySelector('.draft-error') : null;
+      btn.disabled = true;
+      try{
+        var body = action === 'send' ? {attachments: []} : {};
+        var r = await fetch('/api/capabilities/' + slug + '/' + action, {method: 'POST',
+          headers: {'Content-Type': 'application/json'}, body: JSON.stringify(body)});
+        var data = await r.json();
+        if(!r.ok) throw new Error(data.error || ("could not " + action + " this capability"));
+        location.reload();
+      }catch(err){
+        if(errEl) errEl.textContent = err.message;
+        btn.disabled = false;
+      }
+    });
+  });
+})();
+"""
+
+
+def _draft_status_line(draft):
+    if draft['status'] == 'published':
+        return 'problem', 'Published, but needs review: ' + (draft['problem'] or '')
+    if not draft['sent']:
+        return '', 'Draft — not sent to the builder yet'
+    return '', 'Draft — waiting on the builder'
+
+
+def _draft_card_html(draft, is_admin):
+    css, status = _draft_status_line(draft)
+    actions = []
+    if not draft['sent']:
+        actions.append(f'<button type="button" data-cap-action="send" data-cap-slug="{_esc(draft["slug"])}">'
+                       'Send to the builder</button>')
+    actions.append(f'<a href="/v/capabilities/{_esc(draft["slug"])}/">Open project</a>')
+    if is_admin:
+        actions.append(f'<button type="button" data-cap-action="publish" data-cap-slug="{_esc(draft["slug"])}">'
+                       'Publish</button>')
+        actions.append(f'<button type="button" data-cap-action="reject" data-cap-slug="{_esc(draft["slug"])}">'
+                       'Reject</button>')
+    return (
+        f'<div class="draft-card" data-slug="{_esc(draft["slug"])}">'
+        f'<strong>{_esc(draft["slug"])}</strong>'
+        f'<span class="draft-status {css}">{_esc(status)}</span>'
+        f'<span class="draft-submitter">Submitted by {_esc(draft["submitter"])}</span>'
+        f'<div class="draft-actions">{"".join(actions)}</div>'
+        '<p class="draft-error" role="alert"></p>'
+        '</div>'
+    )
+
+
+def _community_card_html(entry, is_admin):
+    slug = entry['slug']
+    reject = ''
+    if is_admin:
+        reject = (f'<div class="draft-actions"><button type="button" data-cap-action="reject" '
+                 f'data-cap-slug="{_esc(slug)}">Reject</button></div>'
+                 '<p class="draft-error" role="alert"></p>')
+    return (
+        '<div class="community-card">'
+        f'<button class="card" type="button" data-card="{_esc("community:" + slug)}">'
+        f'<span class="thumb"><img src="/capabilities/community/{_esc(slug)}.jpg" alt="" loading="lazy"></span>'
+        f'<span class="meta"><strong>{_esc(entry["title"])}'
+        '<span class="community-badge">Community</span></strong>'
+        f'<span>{_esc(entry["card"])}</span></span>'
+        '</button>' + reject +
+        '</div>'
+    )
+
+
+def _drafts_section_html(drafts, is_admin):
+    if not drafts:
+        return ''
+    cards = ''.join(_draft_card_html(d, is_admin) for d in drafts)
+    return (
+        '<section class="draft-section">'
+        '<h2>Drafts</h2>'
+        '<p class="hint">Only you and admins can see these.</p>'
+        f'<div class="draft-grid">{cards}</div>'
+        '</section>'
+    )
+
+
 def page_html(capabilities_dir, version, header='', header_style='', community=None):
     """The /capabilities page: a card grid grouped by category, generated from
     CATALOG, plus a modal that plays the clip and shows the longer text. Cards
@@ -759,6 +880,11 @@ def page_html(capabilities_dir, version, header='', header_style='', community=N
     (published/drafts/can_submit/is_admin/fetch), or None to leave the page
     byte-identical to one with no community feature at all (single-project
     mode, or a library with no accounts)."""
+    has_community = community is not None
+    is_admin = bool(community and community.get('is_admin'))
+    published_by_category = {}
+    for entry in (community.get('published') if community else None) or []:
+        published_by_category.setdefault(entry['category'], []).append(entry)
     built = available_ids(capabilities_dir)
     cards = []
     if showcase_available(capabilities_dir):
@@ -788,6 +914,8 @@ def page_html(capabilities_dir, version, header='', header_style='', community=N
                 f'<span class="thumb">{thumb}</span>'
                 f'<span class="meta"><strong>{_esc(e["title"])}</strong><span>{_esc(e["card"])}</span></span>'
                 f'</button>')
+        for entry in published_by_category.get(category, []):
+            cards.append(_community_card_html(entry, is_admin))
         cards.append('</div>')
     data = [{'id': e['id'], 'title': e['title'], 'category': e['category'], 'description': e['description'],
             'prompts': list(e['prompts']), 'available': e['id'] in built, 'unmute': e['id'] == 'beat-lock'}
@@ -796,13 +924,24 @@ def page_html(capabilities_dir, version, header='', header_style='', community=N
     can_submit = bool(community and community.get('can_submit'))
     add_button = ('<button type="button" id="add-capability" class="btn btn-primary">Add capability</button>'
                   if can_submit else '')
-    dialog_html = dialog_script = ''
+    dialog_html = dialog_script = community_style = community_data_script = community_script = drafts_html = ''
     style = _PAGE_STYLE + header_style
     if can_submit:
         from .pages import DROP_SCRIPT
         style += _ADD_CAPABILITY_STYLE
         dialog_html = _add_capability_html(bool(community.get('fetch')))
         dialog_script = f'<script>{_ADD_CAPABILITY_SCRIPT}</script>' + DROP_SCRIPT
+    if has_community:
+        style += _COMMUNITY_STYLE
+        community_script = f'<script>{_COMMUNITY_SCRIPT}</script>'
+        drafts_html = _drafts_section_html(community.get('drafts') or [], is_admin)
+        community_data = [{'id': 'community:' + e['slug'], 'title': e['title'], 'category': e['category'],
+                           'description': e['description'], 'prompts': list(e['prompts']), 'available': True,
+                           'unmute': False, 'clip': f'/capabilities/community/{e["slug"]}.mp4',
+                           'poster': f'/capabilities/community/{e["slug"]}.jpg'}
+                          for e in (community.get('published') or [])]
+        community_json = json.dumps(community_data).replace('<', '\\u003c')
+        community_data_script = f'<script id="community-data" type="application/json">{community_json}</script>'
     html = (
         '<!doctype html><html lang="en"><head><meta charset="utf-8">'
         '<title>Capabilities · videobuilder</title>'
@@ -810,6 +949,7 @@ def page_html(capabilities_dir, version, header='', header_style='', community=N
         f'<style>{style}</style></head><body>{header}'
         f'<main><div class="cap-head"><h1>Capabilities</h1>'
         f'<span class="version">videobuilder v{_esc(version)}</span>{add_button}</div>'
+        f'{drafts_html}'
         f'{body}</main>'
         '<div id="modal" hidden role="dialog" aria-modal="true" aria-labelledby="modal-title">'
         '<div class="box">'
@@ -822,8 +962,9 @@ def page_html(capabilities_dir, version, header='', header_style='', community=N
         '<p class="desc" id="modal-desc"></p>'
         '<div class="prompts"><p>What to tell the builder</p><ul id="modal-prompts"></ul></div>'
         '</div></div></div>' + dialog_html +
-        f'<script id="capabilities-data" type="application/json">{json.dumps(data)}</script>'
-        f'<script>{_PAGE_SCRIPT}</script>' + dialog_script +
+        f'<script id="capabilities-data" type="application/json">{json.dumps(data)}</script>' +
+        community_data_script +
+        f'<script>{_PAGE_SCRIPT}</script>' + dialog_script + community_script +
         '</body></html>'
     )
     return html.encode()

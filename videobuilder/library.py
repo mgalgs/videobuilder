@@ -328,15 +328,117 @@ class Library:
         self.community.set_note(slug, note['id'])
         return note
 
+    def _capability_status(self, slug, claimed_ids):
+        """(entry, None) if `slug`'s capability.toml on main validates right
+        now, else (None, problem) with community.Invalid's plain message.
+        `claimed_ids`: ids already claimed by other currently-valid published
+        capabilities (see _published_ids) -- an id clash counts as invalid
+        here too, for whichever one is checked second."""
+        read = community.load(self.path(f'{community.NAMESPACE}/{slug}'))
+        try:
+            return community.validate(read, claimed_ids), None
+        except community.Invalid as exc:
+            return None, str(exc)
+
+    def _published_ids(self, exclude_slug=None):
+        """The catalog ids claimed by every currently-valid published
+        capability other than `exclude_slug`, re-validated in publish order
+        so the one published first keeps a clashing id (see
+        community.validate's published_ids parameter)."""
+        records = self.community.all()
+        order = sorted((slug for slug, r in records.items()
+                        if r['status'] == 'published' and slug != exclude_slug),
+                       key=lambda slug: records[slug]['published_at'] or 0)
+        claimed = set()
+        for slug in order:
+            entry, _ = self._capability_status(slug, claimed)
+            if entry:
+                claimed.add(entry['id'])
+        return claimed
+
     def community_view(self, user):
         """The /capabilities page's community section for `user` (a signed-in
-        username): whether they can submit one, whether they're an admin
-        (who additionally gets Publish/Reject -- see community.py), whether
-        the dialog's URL field should show at all, and the draft/published
-        lists (added once the store holds more than bare records)."""
+        username, or None): whether they can submit one, whether they're an
+        admin (who additionally gets Publish/Reject -- see community.py),
+        whether the dialog's URL field should show at all, the currently-
+        valid published capabilities (grouped into the fixed catalog's
+        categories by the page itself), and the drafts `user` may see --
+        their own plus, for an admin, everyone's, always excluding rejected
+        ones (on nobody's page) and a published one that still validates
+        (shown in the grid instead, not here). A published capability that
+        has gone invalid since publishing shows up here instead, with its
+        `problem` set, for its owner and admins to fix."""
         is_admin = bool(self.accounts and self.accounts.is_admin(user))
-        return {'published': [], 'drafts': [], 'can_submit': bool(user), 'is_admin': is_admin,
+        records = self.community.all()
+        published_slugs = sorted((slug for slug, r in records.items() if r['status'] == 'published'),
+                                 key=lambda slug: records[slug]['published_at'] or 0)
+        published, claimed, broken = [], set(), {}
+        for slug in published_slugs:
+            entry, problem = self._capability_status(slug, claimed)
+            if entry:
+                claimed.add(entry['id'])
+                published.append({'slug': slug, **entry})
+            else:
+                broken[slug] = problem
+        drafts = []
+        if user:
+            for slug, record in records.items():
+                if record['status'] == 'rejected':
+                    continue
+                if record['status'] == 'published' and slug not in broken:
+                    continue
+                if record['submitter'] != user and not is_admin:
+                    continue
+                drafts.append({'slug': slug, 'status': record['status'], 'submitter': record['submitter'],
+                              'sent': bool(record['note']), 'problem': broken.get(slug)})
+            drafts.sort(key=lambda d: records[d['slug']]['created'])
+        return {'published': published, 'drafts': drafts, 'can_submit': bool(user), 'is_admin': is_admin,
                'fetch': self.capability_fetch}
+
+    def publish_capability(self, admin, slug):
+        """Publishes `slug` (POST /api/capabilities/<slug>/publish): KeyError
+        for an unknown slug (the route answers 404); community.Invalid for one
+        that doesn't validate right now (the route answers 400 with its plain
+        message, and the status is left unchanged); otherwise it is validated
+        against every other currently-valid published capability's id (the
+        one published first keeps a clashing id) and marked published."""
+        self.community.get(slug)
+        claimed = self._published_ids(exclude_slug=slug)
+        read = community.load(self.path(f'{community.NAMESPACE}/{slug}'))
+        community.validate(read, claimed)
+        return self.community.publish(slug, admin)
+
+    def reject_capability(self, admin, slug):
+        """Rejects `slug` (POST /api/capabilities/<slug>/reject): hides it
+        from every /capabilities page and its clip route, without touching
+        the project on disk. KeyError for an unknown slug; ValueError for one
+        that is neither 'draft' nor 'published' (there is nothing else to
+        take down)."""
+        return self.community.reject(slug, admin)
+
+    def community_clip(self, slug, kind, user):
+        """Bytes for /capabilities/community/<slug>.(mp4|jpg): KeyError (the
+        route answers 404) for an unknown slug, a draft or rejected
+        capability `user` may not see (anyone but its submitter and admins),
+        or one with no render yet."""
+        record = self.community.get(slug)
+        is_admin = bool(self.accounts and self.accounts.is_admin(user))
+        if record['status'] != 'published' and record['submitter'] != user and not is_admin:
+            raise KeyError(slug)
+        name = f'{community.NAMESPACE}/{slug}'
+        state_dir = self.state_dir / name.replace('/', '--')
+        repo_path = self.path(name)
+        if kind == 'jpg':
+            from .thumbnails import AMBIGUOUS, from_state_dir
+            data = from_state_dir(state_dir, repo_path)
+            if data is None or data is AMBIGUOUS:
+                raise KeyError(slug)
+            return data
+        from .thumbnails import latest_render
+        path = latest_render(state_dir, repo_path)
+        if path is None:
+            raise KeyError(slug)
+        return path.read_bytes()
 
     def index(self, host, scheme='http', user=None):
         names = self.names()

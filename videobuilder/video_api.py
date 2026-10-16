@@ -109,6 +109,18 @@ def _get_capability_clip(self, route, q, editor, user, cap_id, kind):
     return self._send(200, data, 'image/jpeg')
 
 
+def _get_community_clip(self, route, q, editor, user, slug, kind):
+    if not self.library:
+        raise HTTPError(404, 'not found')
+    try:
+        data = self.library.community_clip(slug, kind, user)
+    except KeyError:
+        raise HTTPError(404, 'capability clip not built') from None
+    if kind == 'mp4':
+        return self._send_ranged(data, 'video/mp4', {'Accept-Ranges': 'bytes'})
+    return self._send(200, data, 'image/jpeg')
+
+
 def _get_compendium(self, route, q, editor, user):
     if not _is_admin(self, user):
         raise HTTPError(403, 'admin only')
@@ -289,6 +301,7 @@ GET_ROUTES = [
     ('/api/video', _get_video),
     ('/api/thumbnail', _get_thumbnail),
     ('/capabilities', _get_capabilities),
+    (re.compile(r'/capabilities/community/([a-z][a-z0-9-]*)\.(mp4|jpg)'), _get_community_clip),
     (re.compile(r'/capabilities/([a-z][a-z0-9-]*)\.(mp4|jpg)'), _get_capability_clip),
     ('/compendium', _get_compendium),
     (re.compile(r'/compendium/([a-z][a-z0-9-]*)\.(mp4|jpg)'), _get_compendium_clip),

@@ -2,11 +2,12 @@
 agent-args helper, the capability.toml validator and the draft/published
 store. No network and no HTTP server here -- see test_community_routes.py
 for the end-to-end routes."""
+import json
 import tempfile
 import unittest
 from pathlib import Path
 
-from videobuilder import community
+from videobuilder import capabilities, community
 from videobuilder.library import Library
 
 
@@ -49,6 +50,100 @@ class AgentArgs(unittest.TestCase):
         for note_args, capability_args, expected in cases:
             with self.subTest(note_args=note_args, capability_args=capability_args):
                 self.assertEqual(community.capability_agent_args(note_args, capability_args), expected)
+
+
+class Persistence(unittest.TestCase):
+    def test_store_persists_across_restart(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            first = community.Store(tmp)
+            first.create('abc123', 'dana', post={'url': 'https://x.com/a/status/1', 'handle': 'a', 'text': 'hi'})
+            first.set_note('abc123', 'note-1')
+            second = community.Store(tmp)
+            record = second.get('abc123')
+            self.assertEqual((record['status'], record['submitter'], record['note']), ('draft', 'dana', 'note-1'))
+            second.publish('abc123', 'mgalgs')
+            self.assertEqual(community.Store(tmp).get('abc123')['status'], 'published')
+
+
+def _toml_value(v):
+    if isinstance(v, list):
+        return '[' + ', '.join(_toml_value(x) for x in v) + ']'
+    return json.dumps(v)
+
+
+def _toml(fields):
+    return '\n'.join(f'{k} = {_toml_value(v)}' for k, v in fields.items()) + '\n'
+
+
+def _base_fields():
+    return {'id': 'zoom-logo-reveal', 'category': capabilities.categories()[0], 'title': 'Zoom logo reveal',
+           'card': 'a card line', 'description': 'a longer description of the technique.',
+           'prompts': ['p1', 'p2', 'p3'], 'apis': ['api1'], 'doc': 'capability.md'}
+
+
+def _files(toml_fields=None, toml_text=None, **extra_files):
+    files = {}
+    if toml_text is not None:
+        files['capability.toml'] = toml_text.encode()
+    elif toml_fields is not None:
+        files['capability.toml'] = _toml(toml_fields).encode()
+    files.setdefault('capability.md', b'# A short reference doc.\n')
+    files.setdefault('film.py', b'import videobuilder as vb\n')
+    files.update(extra_files)
+    return files
+
+
+def _read(files):
+    return lambda path: files.get(path)
+
+
+class Validation(unittest.TestCase):
+    def test_validate_cases(self):
+        base = _base_fields()
+        invalid_cases = {}
+        invalid_cases['toml missing'] = _files()
+        invalid_cases['bad toml'] = _files(toml_text='not = [valid toml')
+        missing = dict(base); del missing['title']
+        invalid_cases['missing key'] = _files(toml_fields=missing)
+        unknown = dict(base); unknown['extra'] = 'x'
+        invalid_cases['unknown key'] = _files(toml_fields=unknown)
+        bad_cat = dict(base); bad_cat['category'] = 'Not A Real Category'
+        invalid_cases['unknown category'] = _files(toml_fields=bad_cat)
+        two = dict(base); two['prompts'] = ['p1', 'p2']
+        invalid_cases['2 prompts'] = _files(toml_fields=two)
+        four = dict(base); four['prompts'] = ['p1', 'p2', 'p3', 'p4']
+        invalid_cases['4 prompts'] = _files(toml_fields=four)
+        empty_apis = dict(base); empty_apis['apis'] = []
+        invalid_cases['empty apis'] = _files(toml_fields=empty_apis)
+        nonstr_api = dict(base); nonstr_api['apis'] = ['a', 2]
+        invalid_cases['non-string api'] = _files(toml_fields=nonstr_api)
+        abs_doc = dict(base); abs_doc['doc'] = '/capability.md'
+        invalid_cases['doc absolute'] = _files(toml_fields=abs_doc)
+        dotdot_doc = dict(base); dotdot_doc['doc'] = '../capability.md'
+        invalid_cases['doc with ..'] = _files(toml_fields=dotdot_doc)
+        notmd_doc = dict(base); notmd_doc['doc'] = 'capability.txt'
+        invalid_cases['doc not .md'] = _files(toml_fields=notmd_doc)
+        missing_doc = dict(base); missing_doc['doc'] = 'missing.md'
+        invalid_cases['doc missing on main'] = _files(toml_fields=missing_doc)
+        bad_id = dict(base); bad_id['id'] = 'X!'
+        invalid_cases['bad id shape'] = _files(toml_fields=bad_id)
+        builtin_id = dict(base); builtin_id['id'] = capabilities.ids()[0]
+        invalid_cases['id equal to a built-in id'] = _files(toml_fields=builtin_id)
+        invalid_cases['film.py missing'] = _files(toml_fields=base, **{'film.py': None})
+        for name, files in invalid_cases.items():
+            with self.subTest(name=name):
+                with self.assertRaises(community.Invalid):
+                    community.validate(_read(files))
+        entry = community.validate(_read(_files(toml_fields=base)))
+        self.assertEqual(entry['id'], 'zoom-logo-reveal')
+        self.assertEqual(entry['prompts'], ('p1', 'p2', 'p3'))
+        self.assertEqual(entry['apis'], ('api1',))
+
+    def test_validate_rejects_id_claimed_by_another_published_capability(self):
+        files = _files(toml_fields=_base_fields())
+        with self.assertRaises(community.Invalid):
+            community.validate(_read(files), published_ids={'zoom-logo-reveal'})
+        community.validate(_read(files), published_ids={'some-other-id'})  # does not raise
 
 
 if __name__ == '__main__':

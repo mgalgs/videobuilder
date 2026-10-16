@@ -6,21 +6,36 @@ publishes or rejects it. This module is a leaf: it must not import `library`,
 accounts.py explains the same cycle for its own reason)."""
 import json
 import os
+import re
 import secrets
 import threading
 import time
+import tomllib
 
 from .atomic import write_json_atomic
+from .gitutil import git
 
 NAMESPACE = 'capabilities'
 
 READ_FAILED = "Couldn't read that post. Drop the clip or a screenshot instead."
+
+TOML_PATH = 'capability.toml'
+FILM_PATH = 'film.py'
+FILM_MAX_BYTES = 256 * 1024
+DOC_MAX_BYTES = 64 * 1024
+ID_RE = re.compile(r'[a-z][a-z0-9-]{1,47}\Z')
+_TOML_FIELDS = ('id', 'category', 'title', 'card', 'description', 'prompts', 'apis', 'doc')
 
 
 class FailedRead(Exception):
     """Raised by Library.submit_capability when reading a given URL failed
     and the submitter gave no files either: the route answers 422 with
     READ_FAILED, and nothing is created."""
+
+
+class Invalid(ValueError):
+    """Raised by validate() with a plain, admin-facing message explaining
+    why a capability project's files don't qualify for publishing."""
 
 
 def is_reserved(name):
@@ -110,6 +125,89 @@ def brief(post, capture, has_media):
     return '\n'.join(lines).strip() + '\n'
 
 
+def _require_str(value, field, max_len):
+    if not isinstance(value, str) or not value.strip() or len(value) > max_len:
+        raise Invalid(f'{field} must be a non-empty string of at most {max_len} characters')
+    return value
+
+
+def validate(read, published_ids=()):
+    """Validates a capability project's capability.toml (plus the doc and
+    film.py it names) against every rule a community capability must satisfy
+    before it can be published or reach a builder. `read(path) -> bytes|None`
+    reads a file straight off the project's main branch (see `load`).
+    `published_ids`: ids already claimed by other currently-valid *published*
+    capabilities -- the one published first keeps a clashing id, so a later
+    one fails this check instead. Raises Invalid with a plain message,
+    meant to be shown to the admin or the submitter as-is. On success,
+    returns a dict shaped like capabilities._entry, minus demo/poster (the
+    demo is always film.py; there is no community poster)."""
+    from . import capabilities
+    raw = read(TOML_PATH)
+    if raw is None:
+        raise Invalid(f'{TOML_PATH} is missing')
+    try:
+        data = tomllib.loads(raw.decode('utf-8'))
+    except (tomllib.TOMLDecodeError, UnicodeDecodeError):
+        raise Invalid(f'{TOML_PATH} is not valid TOML') from None
+    unknown = sorted(set(data) - set(_TOML_FIELDS))
+    if unknown:
+        raise Invalid(f'{TOML_PATH} has unknown field(s): {", ".join(unknown)}')
+    missing = [f for f in _TOML_FIELDS if f not in data]
+    if missing:
+        raise Invalid(f'{TOML_PATH} is missing: {", ".join(missing)}')
+    id_ = data['id']
+    if not isinstance(id_, str) or not ID_RE.fullmatch(id_):
+        raise Invalid('id must be lowercase letters, digits and hyphens, 2-48 characters, starting with a letter')
+    if id_ in capabilities.ids():
+        raise Invalid(f'id {id_!r} is already used by a built-in capability')
+    if id_ in published_ids:
+        raise Invalid(f'id {id_!r} is already used by another published capability')
+    category = data['category']
+    if category not in capabilities.categories():
+        raise Invalid(f'category must be one of: {", ".join(capabilities.categories())}')
+    title = _require_str(data['title'], 'title', 80)
+    card = _require_str(data['card'], 'card', 160)
+    description = _require_str(data['description'], 'description', 1200)
+    prompts = data['prompts']
+    if not isinstance(prompts, list) or len(prompts) != 3 or not all(
+            isinstance(p, str) and p.strip() and len(p) <= 200 for p in prompts):
+        raise Invalid('prompts must be exactly 3 non-empty strings, each at most 200 characters')
+    apis = data['apis']
+    if not isinstance(apis, list) or not 1 <= len(apis) <= 12 or not all(
+            isinstance(a, str) and a.strip() and len(a) <= 200 for a in apis):
+        raise Invalid('apis must be 1-12 non-empty strings, each at most 200 characters')
+    doc = data['doc']
+    if (not isinstance(doc, str) or not doc.endswith('.md') or doc.startswith('/') or
+            '..' in doc.split('/')):
+        raise Invalid('doc must be a relative path ending in .md, with no leading / and no ..')
+    doc_bytes = read(doc)
+    if doc_bytes is None:
+        raise Invalid(f'{doc} was not found on main')
+    if len(doc_bytes) > DOC_MAX_BYTES:
+        raise Invalid(f'{doc} is larger than {DOC_MAX_BYTES} bytes')
+    film_bytes = read(FILM_PATH)
+    if film_bytes is None:
+        raise Invalid(f'{FILM_PATH} is missing on main')
+    if len(film_bytes) > FILM_MAX_BYTES:
+        raise Invalid(f'{FILM_PATH} is larger than {FILM_MAX_BYTES} bytes')
+    return {'id': id_, 'category': category, 'title': title, 'card': card, 'description': description,
+            'prompts': tuple(prompts), 'apis': tuple(apis), 'doc': doc}
+
+
+def load(repo_path):
+    """A `read(path) -> bytes|None` closure for `validate`/community_for_builder,
+    reading straight from a bare repo's main branch with `git show` -- the
+    same call shape as Library.last_commit. None for a missing main branch or
+    a missing file, never raising."""
+    def read(path):
+        result = git(None, 'show', f'main:{path}', git_dir=repo_path, hooks=False, check=False)
+        if result.returncode:
+            return None
+        return result.stdout.encode('utf-8')
+    return read
+
+
 class Store:
     """Draft/published state for every community capability, one JSON file
     under the library state dir, written atomically under a lock -- the
@@ -160,5 +258,36 @@ class Store:
             if slug not in data:
                 raise KeyError(slug)
             data[slug]['note'] = note_id
+            self._save(data)
+            return data[slug]
+
+    def publish(self, slug, admin):
+        """Marks `slug` published: visible to everyone, its project's main
+        tracked from then on (see library.Library.community_view). Only
+        from 'draft' or 'rejected' -- publishing an already-published one,
+        or an unknown slug, is a caller error."""
+        with self.lock:
+            data = self._load()
+            if slug not in data:
+                raise KeyError(slug)
+            if data[slug]['status'] not in ('draft', 'rejected'):
+                raise ValueError(f"can't publish a capability that is already {data[slug]['status']}")
+            data[slug].update(status='published', reviewed_by=admin, reviewed_at=time.time(),
+                              published_at=time.time())
+            self._save(data)
+            return data[slug]
+
+    def reject(self, slug, admin):
+        """Marks `slug` rejected: hidden from everyone's /capabilities and
+        its clip route, while the project itself stays on disk. Works from
+        'draft' or 'published' -- the latter is a takedown path for an
+        admin, not only a review decision on a brand new draft."""
+        with self.lock:
+            data = self._load()
+            if slug not in data:
+                raise KeyError(slug)
+            if data[slug]['status'] not in ('draft', 'published'):
+                raise ValueError(f"can't reject a capability that is already {data[slug]['status']}")
+            data[slug].update(status='rejected', reviewed_by=admin, reviewed_at=time.time())
             self._save(data)
             return data[slug]

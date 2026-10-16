@@ -130,3 +130,26 @@ def from_state_dir(state_dir, repo_path):
     if result.returncode:
         return None
     return _answer(thumbs_root / slug, renders_root / slug, result.stdout.split())
+
+
+def latest_render(state_dir, repo_path):
+    """The mp4 Path of the newest first-parent main commit under
+    state_dir/renders that has a finished render, preferring 16x9 and
+    otherwise any format; None without one yet. Walks every render-slug
+    directory under renders_root, unlike from_state_dir's AMBIGUOUS bail-out:
+    a community capability project is created by create_blank and so always
+    has exactly one video, and its clip route has no real Editor to fall
+    back to the way the library grid's thumbnail route does."""
+    state_dir = Path(state_dir)
+    renders_root = state_dir / 'renders'
+    result = git(None, 'rev-list', '--first-parent', 'main', git_dir=repo_path, hooks=False, check=False)
+    if result.returncode:
+        return None
+    shas = result.stdout.split()
+    by_slug = {p.name: _by_sha(p, '.mp4') for p in renders_root.glob('*') if p.is_dir()}
+    for sha in shas:
+        for rendered in by_slug.values():
+            found = rendered.get(sha)
+            if found:
+                return found.get('16x9') or next(iter(found.values()))
+    return None
