@@ -239,3 +239,71 @@ class ComposeImage(unittest.TestCase):
                                     capture_output=True, text=True)
             self.assertEqual(result.returncode, 1)
             self.assertIn('no admin password', result.stderr)
+
+
+def mkprofile():
+    import importlib.util
+    spec = importlib.util.spec_from_file_location('mkprofile', COMPOSE.parent / 'seccomp/mkprofile.py')
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+MOBY_LIKE = {
+    'defaultAction': 'SCMP_ACT_ERRNO', 'defaultErrnoRet': 1,
+    'archMap': [{'architecture': 'SCMP_ARCH_X86_64', 'subArchitectures': ['SCMP_ARCH_X86']},
+                {'architecture': 'SCMP_ARCH_AARCH64', 'subArchitectures': ['SCMP_ARCH_ARM']}],
+    'syscalls': [
+        {'names': ['read', 'write'], 'action': 'SCMP_ACT_ALLOW'},
+        {'names': ['arch_prctl'], 'action': 'SCMP_ACT_ALLOW', 'includes': {'arches': ['amd64']}},
+        {'names': ['arm_fadvise64_64'], 'action': 'SCMP_ACT_ALLOW', 'includes': {'arches': ['arm64']}},
+        {'names': ['mount', 'unshare'], 'action': 'SCMP_ACT_ALLOW', 'includes': {'caps': ['CAP_SYS_ADMIN']}},
+        {'names': ['clone'], 'action': 'SCMP_ACT_ALLOW',
+         'args': [{'index': 0, 'value': 2114060288, 'op': 'SCMP_CMP_MASKED_EQ'}],
+         'excludes': {'caps': ['CAP_SYS_ADMIN'], 'arches': ['s390', 's390x']}},
+        {'names': ['clone3'], 'action': 'SCMP_ACT_ERRNO', 'errnoRet': 38,
+         'excludes': {'caps': ['CAP_SYS_ADMIN']}, 'comment': 'ENOSYS'},
+    ]}
+
+
+class SeccompProfile(unittest.TestCase):
+    def test_flattened_form_for_kubernetes_is_amd64_and_capless(self):
+        prof = mkprofile().build(MOBY_LIKE)
+        self.assertEqual([a['architecture'] for a in prof['archMap']], ['SCMP_ARCH_X86_64'])
+        self.assertEqual(prof['syscalls'], [
+            {'names': ['read', 'write'], 'action': 'SCMP_ACT_ALLOW'},
+            {'names': ['arch_prctl'], 'action': 'SCMP_ACT_ALLOW'},
+            {'names': ['clone3'], 'action': 'SCMP_ACT_ERRNO', 'errnoRet': 38},
+            {'names': mkprofile().USERNS, 'action': 'SCMP_ACT_ALLOW'}])
+
+    def test_docker_form_keeps_moby_conditions_and_only_swaps_clone(self):
+        module = mkprofile()
+        prof = module.build(MOBY_LIKE, docker=True)
+        self.assertEqual(prof['archMap'], MOBY_LIKE['archMap'])
+        expected = [s for s in MOBY_LIKE['syscalls'] if not s.get('args')]
+        self.assertEqual(prof['syscalls'], expected + [{'names': module.USERNS, 'action': 'SCMP_ACT_ALLOW'}])
+
+    def test_vendored_profile_is_moby_default_plus_user_namespaces(self):
+        module = mkprofile()
+        prof = json.loads((COMPOSE / 'seccomp-bwrap.json').read_text())
+        self.assertEqual(prof['defaultAction'], 'SCMP_ACT_ERRNO')
+        self.assertLessEqual({'SCMP_ARCH_X86_64', 'SCMP_ARCH_AARCH64'},
+                             {a['architecture'] for a in prof['archMap']})
+        *moby, ours = prof['syscalls']
+        self.assertEqual(ours, {'names': module.USERNS, 'action': 'SCMP_ACT_ALLOW'})
+        self.assertLessEqual({'clone', 'unshare'}, set(ours['names']))
+        # Everything else is moby's, conditions intact: nothing else grants the
+        # namespace syscalls unless the container holds CAP_SYS_ADMIN, and
+        # clone is no longer limited by an argument mask.
+        for entry in moby:
+            if set(entry['names']) & set(module.USERNS) and entry['action'] == 'SCMP_ACT_ALLOW':
+                self.assertIn('CAP_SYS_ADMIN', entry['includes']['caps'], entry)
+            self.assertFalse('clone' in entry['names'] and entry.get('args'), entry)
+        socket_rules = [e for e in moby if e['names'] == ['socket']]
+        self.assertTrue(socket_rules and all(e.get('args') for e in socket_rules))
+        self.assertIn({'names': ['clone3'], 'action': 'SCMP_ACT_ERRNO', 'errnoRet': 38,
+                       'excludes': {'caps': ['CAP_SYS_ADMIN']}}, moby)
+        self.assertTrue(any(e.get('includes', {}).get('arches') for e in moby))
+        # The provenance note names the regeneration command, and the licence sits beside it.
+        self.assertIn('mkprofile.py --docker', (COMPOSE / 'seccomp-bwrap.NOTICE').read_text())
+        self.assertIn('Apache License', (COMPOSE / 'seccomp-bwrap.LICENSE').read_text())

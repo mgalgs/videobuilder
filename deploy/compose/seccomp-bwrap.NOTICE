@@ -1,0 +1,1 @@
+seccomp-bwrap.json is generated, not hand-edited: `python3 deploy/seccomp/mkprofile.py --docker default.json > deploy/compose/seccomp-bwrap.json`, from Moby's profiles/seccomp/default.json (sha256 6416b47770785a41ac59073cdc77d9fe98517df2799dc83ef207e622de3053f6), Apache-2.0: see seccomp-bwrap.LICENSE.
