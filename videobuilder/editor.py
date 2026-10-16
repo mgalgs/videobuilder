@@ -320,6 +320,7 @@ from .sync import ForgeSync
 STATE_DIR = '.vb-editor'
 NOTE_SCALE = 0.5  # the size of a note's saved frame
 MAX_BODY = 1 << 20
+DAY_SECONDS = 24 * 3600
 # Reachable while signed out, when a library has accounts configured.
 # The only [editor] keys a library-hosted repo may set (see Editor.__init__).
 REPO_CONFIG_KEYS = {'videos', 'auto_land'}
@@ -556,7 +557,7 @@ class Editor:
             print(f'[editor] {result["warning"]}', file=sys.stderr, flush=True)
         return result
 
-    DAY_SECONDS = 24 * 3600
+    DAY_SECONDS = DAY_SECONDS
 
     def check_note_cap(self, author, is_admin):
         """Refuse a new note with HTTPError(429) once `author`'s account has hit
@@ -567,29 +568,10 @@ class Editor:
         still in flight is unknown, so it never counts toward the cost cap --
         the note cap covers that gap. In a library, an account's notes aren't
         scoped to this one project (Library.account_notes supplies every project's)."""
-        if is_admin:
-            return
         has_accounts = bool(self.library and self.library.accounts)
-        account = _account_key(author, has_accounts)
-        note_cap, cost_cap = _effective_caps(
-            self.library.accounts if has_accounts else None, account,
-            self.account_daily_note_cap, self.account_daily_cost_cap_usd)
-        if note_cap is None and cost_cap is None:
-            return
-        cutoff = time.time() - self.DAY_SECONDS
         notes = (n for _, n in self.library.account_notes()) if self.library else self.notes.list(refresh=False)
-        mine = ((_note_created(n), n) for n in notes if _account_key(n.get('author'), has_accounts) == account)
-        window = sorted(((created, n) for created, n in mine if created >= cutoff), key=lambda t: t[0])
-        if not window:
-            return
-        cost = sum(n['cost_usd'] for _, n in window
-                  if isinstance(n.get('cost_usd'), (int, float)) and not isinstance(n.get('cost_usd'), bool))
-        over_count = note_cap is not None and len(window) >= note_cap
-        over_cost = cost_cap is not None and cost >= cost_cap
-        if over_count or over_cost:
-            resets_at = window[0][0] + self.DAY_SECONDS
-            when = _plain_local_time(resets_at)
-            raise HTTPError(429, f"You've reached today's limit for new notes. You can send more after {when}.")
+        _check_note_cap(self.library.accounts if has_accounts else None, notes,
+                        self.account_daily_note_cap, self.account_daily_cost_cap_usd, author, is_admin)
 
     def usage(self):
         """Per-account and per-video totals -- cost, note count, and how many
@@ -748,6 +730,36 @@ def _account_key(identity, has_accounts):
     if has_accounts and identity:
         return identity.split(' (', 1)[0]
     return identity
+
+
+def _check_note_cap(accounts, notes, note_cap, cost_cap, author, is_admin):
+    """The shared body of Editor.check_note_cap and Library.check_note_cap:
+    raise HTTPError(429) once `author`'s account has hit its effective note
+    or cost cap over the trailing 24 hours, among `notes` (every note the
+    account's `author` field could match); a no-op when neither cap applies,
+    or for an admin account. `accounts` is the library's Accounts instance
+    (for its own override, see _effective_caps), or None with no accounts
+    system to consult. `note_cap`/`cost_cap` are the library-wide defaults."""
+    if is_admin:
+        return
+    has_accounts = bool(accounts)
+    account = _account_key(author, has_accounts)
+    note_cap, cost_cap = _effective_caps(accounts, account, note_cap, cost_cap)
+    if note_cap is None and cost_cap is None:
+        return
+    cutoff = time.time() - DAY_SECONDS
+    mine = ((_note_created(n), n) for n in notes if _account_key(n.get('author'), has_accounts) == account)
+    window = sorted(((created, n) for created, n in mine if created >= cutoff), key=lambda t: t[0])
+    if not window:
+        return
+    cost = sum(n['cost_usd'] for _, n in window
+              if isinstance(n.get('cost_usd'), (int, float)) and not isinstance(n.get('cost_usd'), bool))
+    over_count = note_cap is not None and len(window) >= note_cap
+    over_cost = cost_cap is not None and cost >= cost_cap
+    if over_count or over_cost:
+        resets_at = window[0][0] + DAY_SECONDS
+        when = _plain_local_time(resets_at)
+        raise HTTPError(429, f"You've reached today's limit for new notes. You can send more after {when}.")
 
 
 def _effective_caps(accounts, account, library_note_cap, library_cost_cap):
