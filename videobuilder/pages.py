@@ -142,7 +142,7 @@ APP_HEADER_STYLE = (
     '.app-menu a:hover,.app-menu button:hover{background:#1c1c21}'
     '@media (max-width:720px){'
     '.app-bar-inner{flex-wrap:wrap;gap:.25rem .75rem;padding:.55rem 16px .35rem}'
-    '.app-nav{order:3;flex:1 0 100%;margin:0 -.8rem}'
+    '.app-nav{order:3;flex:1 0 100%}'
     '.app-nav a{min-height:38px}'
     '.app-user{display:none}'
     '.app-account summary{padding:0 .25rem}}'
@@ -749,7 +749,7 @@ def _tour_html(user, showcase):
             (_showcase_section_html() if showcase else '') + _howto_html(user) +
             '<div class="tour-actions"><a class="btn btn-primary" id="tour-start" href="/new">'
             'Start your first video</a>'
-            '<button type="button" class="tour-later" data-tour-close>Skip for now</button></div>'
+            '<button type="button" class="tour-later" data-tour-close>Skip</button></div>'
             '</div></div>' + TOUR_SCRIPT)
 
 
