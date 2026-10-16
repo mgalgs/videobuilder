@@ -11,8 +11,22 @@ from unittest import mock
 
 from videobuilder import capabilities, community, xpost
 from videobuilder.library import Library
+from videobuilder.notes import NullBackend
 from tests import fixtures
 from tests.test_xpost import _FakeResponse
+
+
+class Recorder(NullBackend):
+    """A NullBackend that stashes the payload handed to submit(), so a test
+    can inspect note_file (the rendered prompt) and attach_dir (the staged
+    /attachments tree) without a real agent in the loop."""
+
+    def __init__(self):
+        self.last = None
+
+    def submit(self, note):
+        self.last = note
+        return super().submit(note)
 
 SYNTHETIC_POST = {
     'text': 'A neat zoom transition on the logo, worth stealing.',
@@ -518,6 +532,74 @@ class ClipGating(fixtures.AccountMixin, fixtures.LibraryFixture, unittest.TestCa
         code, body, headers = self.request_full(f'/capabilities/community/{slug}.mp4',
                                                  headers={**other_headers, 'Range': 'bytes=0-3'})
         self.assertEqual(code, 206, body)
+
+
+class BuilderContext(fixtures.AccountMixin, fixtures.LibraryFixture, unittest.TestCase):
+    def _ordinary_note(self, text='Make the intro punchier'):
+        self.seed('acme/launch', film=True)
+        admin = self.admin_login()
+        self.new_project(admin, 'acme/launch', 'acme/launch')
+        recorder = Recorder()
+        self.library.editor('acme/launch').notes.backend = recorder
+        code, note = self.request('/v/acme/launch/api/notes', {'video': 'promo/film', 'text': text},
+                                  headers={'Content-Type': 'application/json', 'Cookie': admin})
+        self.assertEqual(code, 200, note)
+        return recorder
+
+    def test_published_capability_reaches_other_users_builder(self):
+        admin = self.admin_login()
+        admin_headers = {'Content-Type': 'application/json', 'Cookie': admin}
+        _, _, dana = self.signup('dana', 'longenoughpassword')
+        created = self.request('/api/capabilities/new', {'files': 1},
+                               headers={'Content-Type': 'application/json', 'Cookie': dana})[1]
+        slug = created['slug']
+        publishable(self, slug, title='Snappy zoom reveal', card='A quick punchy zoom on the mark.')
+        code, data = self.request(f'/api/capabilities/{slug}/publish', {}, headers=admin_headers)
+        self.assertEqual(code, 200, data)
+        recorder = self._ordinary_note()
+        self.assertIsNotNone(recorder.last)
+        text = Path(recorder.last['note_file']).read_text()
+        self.assertIn('## Community capabilities', text)
+        self.assertIn('Snappy zoom reveal', text)
+        self.assertIn(f'/attachments/capabilities/{slug}/reference.md', text)
+        self.assertIn(f'/attachments/capabilities/{slug}/film.py', text)
+        attach_dir = Path(recorder.last['attach_dir'])
+        self.assertTrue((attach_dir / 'capabilities' / slug / 'reference.md').is_file())
+        self.assertTrue((attach_dir / 'capabilities' / slug / 'film.py').is_file())
+
+    def test_draft_never_reaches_a_builder(self):
+        _, _, dana = self.signup('dana', 'longenoughpassword')
+        created = self.request('/api/capabilities/new', {'files': 1},
+                               headers={'Content-Type': 'application/json', 'Cookie': dana})[1]
+        slug = created['slug']
+        publishable(self, slug)  # valid, but never published: still a draft
+        recorder = self._ordinary_note()
+        text = Path(recorder.last['note_file']).read_text()
+        self.assertNotIn('Community capabilities', text)
+        attach_dir = recorder.last.get('attach_dir')
+        if attach_dir:
+            self.assertFalse((Path(attach_dir) / 'capabilities' / slug).exists())
+
+    def test_rejected_never_reaches_a_builder(self):
+        admin = self.admin_login()
+        admin_headers = {'Content-Type': 'application/json', 'Cookie': admin}
+        _, _, dana = self.signup('dana', 'longenoughpassword')
+        created = self.request('/api/capabilities/new', {'files': 1},
+                               headers={'Content-Type': 'application/json', 'Cookie': dana})[1]
+        slug = created['slug']
+        publishable(self, slug)
+        self.request(f'/api/capabilities/{slug}/publish', {}, headers=admin_headers)
+        self.request(f'/api/capabilities/{slug}/reject', {}, headers=admin_headers)
+        recorder = self._ordinary_note()
+        text = Path(recorder.last['note_file']).read_text()
+        self.assertNotIn('Community capabilities', text)
+        attach_dir = recorder.last.get('attach_dir')
+        if attach_dir:
+            self.assertFalse((Path(attach_dir) / 'capabilities' / slug).exists())
+
+    def test_no_published_no_forced_attach_dir(self):
+        recorder = self._ordinary_note()
+        self.assertIsNone(recorder.last.get('attach_dir'))
 
 
 class BackendArgs(unittest.TestCase):

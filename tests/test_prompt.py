@@ -102,3 +102,30 @@ class SourcesSection(unittest.TestCase):
     def test_not_in_sandbox_marker_with_no_in_sandbox_flag(self):
         md = prompt.render(NOTE, PAYLOAD, None, sources=[self.SOURCE])
         self.assertIn('not in your sandbox', md)
+
+
+class CommunitySection(unittest.TestCase):
+    ENTRY = {'slug': 'c-20260101-abc123', 'title': 'Zoom logo reveal', 'card': 'A snappy zoom on the logo.'}
+
+    def test_render_without_community_is_byte_identical(self):
+        self.assertEqual(prompt.render(NOTE, PAYLOAD, None), prompt.render(NOTE, PAYLOAD, None, community=None))
+        self.assertEqual(prompt.render(NOTE, PAYLOAD, None), prompt.render(NOTE, PAYLOAD, None, community=[]))
+        self.assertNotIn('Community capabilities', prompt.render(NOTE, PAYLOAD, None))
+
+    def test_community_section_placement_and_paths(self):
+        md = prompt.render(NOTE, PAYLOAD, None, compendium=True, votes={'x': 'up'}, community=[self.ENTRY])
+        self.assertIn('## Community capabilities', md)
+        self.assertIn('Zoom logo reveal: A snappy zoom on the logo.', md)
+        self.assertIn('/attachments/capabilities/c-20260101-abc123/reference.md', md)
+        self.assertIn('/attachments/capabilities/c-20260101-abc123/film.py', md)
+        self.assertIn('reference only', md)
+        community_at = md.index('## Community capabilities')
+        compendium_at = md.index('## Start from the compendium')
+        look_at = md.index('## Look at your work')
+        self.assertLess(compendium_at, community_at)
+        self.assertLess(community_at, look_at)
+
+    def test_community_section_present_without_compendium(self):
+        md = prompt.render(NOTE, PAYLOAD, None, community=[self.ENTRY])
+        self.assertIn('## Community capabilities', md)
+        self.assertNotIn('Start from the compendium', md)

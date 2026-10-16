@@ -450,7 +450,8 @@ class Editor:
                                backend or backend_from_config(agent_cfg), context=self.drafts.context,
                                before_submit=self._before_submit, on_reply=self._on_reply,
                                compendium_for_builder=self.compendium_for_builder,
-                               compendium_votes=self._compendium_votes_for_builder)
+                               compendium_votes=self._compendium_votes_for_builder,
+                               community=self._community_for_builder)
         self.attachments = Attachments(self, _positive(cfg, 'attachment_max_file', 25) * 1048576,
                                        _positive(cfg, 'attachment_max_files', 10),
                                        _positive(cfg, 'attachment_max_message', 100) * 1048576,
@@ -494,6 +495,14 @@ class Editor:
         Library.editor() once this project is open there), else this editor's own."""
         store = self.library.compendium_votes if self.library else self.compendium_votes
         return {id: v['vote'] for id, v in store.current().items() if v['vote'] in ('up', 'down')}
+
+    def _community_for_builder(self):
+        """Every published, currently-valid community capability, for the
+        builder's prompt and this note's /attachments staging -- see
+        library.Library.community_for_builder. [] outside library mode
+        (self.library is set by Library.editor(), never in single-project
+        mode), where there is no community feature at all."""
+        return self.library.community_for_builder() if self.library else []
 
     def _before_submit(self, video, note, state):
         self.sources.sync(video)

@@ -39,6 +39,12 @@ and stay None when a backend never reports them -- never estimated, and
 never coerced to zero, so "unknown" stays distinguishable from "free". Each
 poll's status fields are copied onto the note as-is, so a note's cost and
 token counts are exactly what the last poll reported.
+
+Every published community capability (see community.py, library.Library.
+community_for_builder) is staged read-only under a note's own
+/attachments/capabilities/<slug>/ the same way a source video is, and
+listed by title in the prompt -- see NoteStore's `community` callable and
+prompt.render's community section.
 """
 import hashlib
 from pathlib import Path
@@ -71,6 +77,37 @@ WHAT_MAX = 160
 # pinned frame and source-video previews together -- stays under this; fork-sandbox's
 # k8s push tars that directory and refuses one over 256 MiB, so this leaves headroom.
 ATTACH_DIR_BUDGET = 200 * 1048576
+
+# Community capabilities' doc + film.py come out of ATTACH_DIR_BUDGET before source
+# videos get their share (see _submit); this is their own, smaller cap within it.
+COMMUNITY_BUDGET = 8 * 1048576
+
+
+def _stage_community(attach_dir, entries):
+    """Copies each entry's doc and film.py (see library.Library.
+    community_for_builder) into attach_dir/capabilities/<slug>/{reference.md,
+    film.py}, stopping once the running total would cross COMMUNITY_BUDGET --
+    whatever didn't fit is simply left out, newest-published last since
+    `entries` is already oldest-first. Returns the ones actually staged, for
+    prompt.render's listing (never naming a file that isn't really there).
+    Stages nothing, and returns [], when attach_dir already holds a *file*
+    literally named "capabilities" -- an attachment upload could, in
+    principle, collide with the directory this wants to make."""
+    root = Path(attach_dir)
+    if (root / 'capabilities').is_file():
+        return []
+    staged, used = [], 0
+    for item in entries:
+        size = len(item['doc_bytes']) + len(item['film_bytes'])
+        if used + size > COMMUNITY_BUDGET:
+            break
+        dest = root / 'capabilities' / item['slug']
+        dest.mkdir(parents=True, exist_ok=True)
+        (dest / 'reference.md').write_bytes(item['doc_bytes'])
+        (dest / 'film.py').write_bytes(item['film_bytes'])
+        used += size
+        staged.append(item)
+    return staged
 
 # The crawl's own cap is about two minutes (gather.TIME_BUDGET); a `gathering` note
 # older than this had its background thread die before finishing -- an editor
@@ -209,7 +246,7 @@ class NoteStore:
     """Notes on disk under `dir`, submitted to `backend` as they are added."""
 
     def __init__(self, dir, backend=None, context=None, before_submit=None, on_reply=None, attachments=None,
-                compendium_for_builder=False, compendium_votes=None):
+                compendium_for_builder=False, compendium_votes=None, community=None):
         self.dir = os.path.abspath(dir)
         self.backend = backend or NullBackend()
         self.lock = threading.RLock()
@@ -221,6 +258,10 @@ class NoteStore:
         # prompt._compendium_lines); compendium_votes, when set, is a zero-arg callable
         # returning {id: "up"|"down"} (see CompendiumVotes.current).
         self.compendium_for_builder, self.compendium_votes = compendium_for_builder, compendium_votes
+        # community, when set, is a zero-arg callable returning this library's published,
+        # currently-valid capabilities (see library.Library.community_for_builder); [] in
+        # single-project mode, where there is no community feature at all.
+        self.community = community or (lambda: [])
 
     def video_lock(self, video):
         with self.lock:
@@ -413,12 +454,15 @@ class NoteStore:
             image = payload['image'] if payload['image'] and os.path.isfile(payload['image']) else None
             sources = self.sources.list(video) if self.sources else []
             any_ready = any(s.get('preview_ready') for s in sources)
+            community_entries = self.community()
             if self.attachments:
                 self.attachments.expire()
-                payload['attach_dir'] = self.attachments.stage(note, image, force=any_ready)
+                payload['attach_dir'] = self.attachments.stage(note, image, force=any_ready or bool(community_entries))
                 if image:
                     from .attachments import FRAME_NAME
                     image = '/attachments/' + FRAME_NAME
+            staged_community = (_stage_community(payload['attach_dir'], community_entries)
+                               if community_entries and payload.get('attach_dir') else [])
             if sources and payload.get('attach_dir'):
                 attach_dir = Path(payload['attach_dir'])
                 used = sum(f.stat().st_size for f in attach_dir.rglob('*') if f.is_file())
@@ -428,7 +472,7 @@ class NoteStore:
             compendium = bool(compendium_source(payload)) if compendium_source else False
             votes = self.compendium_votes() if compendium and self.compendium_votes else None
             path.write_text(prompt.render(note, payload, image, compendium=compendium, votes=votes,
-                                          sources=sources), encoding='utf-8')
+                                          sources=sources, community=staged_community), encoding='utf-8')
             payload['note_file'] = str(path)
             note['handle'] = self.backend.submit(payload)
             note['started'] = time.time()

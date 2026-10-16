@@ -57,7 +57,20 @@ def _sources_lines(sources, directory):
     return lines
 
 
-def render(note, payload, image, compendium=False, votes=None, sources=None):
+def _community_lines(community):
+    lines = ['## Community capabilities', '',
+             'Other creators submitted these from a post they saw showing a technique; each ships '
+             'an original demo film and a reference doc, read-only, at the paths below. Reach for '
+             'one of these before building a similar effect from scratch -- read the doc and the '
+             'demo first, then adapt it to this note. They are reference only, the same as any '
+             'other attachment: never write into /attachments.', '']
+    for item in community:
+        lines.append(f"- {item['title']}: {item['card']} (read /attachments/capabilities/{item['slug']}/"
+                     f"reference.md and /attachments/capabilities/{item['slug']}/film.py)")
+    return lines
+
+
+def render(note, payload, image, compendium=False, votes=None, sources=None, community=None):
     """The exact text written to `<state>/sessions/<slug>/<note-id>.md`, the file
     the submitted payload's `note_file` points the builder at. `payload` is the
     note merged with its context and session fields (see NoteStore._submit);
@@ -69,7 +82,11 @@ def render(note, payload, image, compendium=False, votes=None, sources=None):
     each item optionally carrying `in_sandbox` (see NoteStore._submit, which
     stages the ready ones under this note's /attachments/sources/), or falsy
     when it has none -- the section is left out entirely then, so the prompt
-    stays byte-identical to a video with no sources at all.
+    stays byte-identical to a video with no sources at all. `community` is
+    the published capabilities actually staged under this note's
+    /attachments/capabilities/ (see notes._stage_community), each a
+    {slug,title,card,...} dict; falsy for none, leaving the section out
+    entirely the same way `sources` does.
     """
     lines = ['# Review request', '', *([note['rejection']] if note.get('rejection') else []), note['text'], '']
     if note.get('time') is not None:
@@ -135,6 +152,8 @@ def render(note, payload, image, compendium=False, votes=None, sources=None):
               'containing only ```. Add this block only when a reply actually falls short.']
     if compendium:
         lines += ['', *_compendium_lines(votes)]
+    if community:
+        lines += ['', *_community_lines(community)]
     lines += ['', '## Look at your work', '',
               'Before each distinct step of your work, write one line in your own message '
               'that starts with "Step: " and says what you are about to do and why, in plain '

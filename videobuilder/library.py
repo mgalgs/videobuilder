@@ -416,6 +416,30 @@ class Library:
         take down)."""
         return self.community.reject(slug, admin)
 
+    def community_for_builder(self):
+        """Every published, currently-valid community capability, with its
+        doc and film.py bytes already read off main, oldest-published
+        first -- for an Editor's notes.NoteStore to stage under a note's
+        /attachments and list in the builder's prompt (see
+        notes._stage_community, prompt.render's community section). []
+        with nothing published, or nothing currently valid."""
+        records = self.community.all()
+        order = sorted((slug for slug, r in records.items() if r['status'] == 'published'),
+                       key=lambda slug: records[slug]['published_at'] or 0)
+        out, claimed = [], set()
+        for slug in order:
+            entry, _ = self._capability_status(slug, claimed)
+            if not entry:
+                continue
+            claimed.add(entry['id'])
+            read = community.load(self.path(f'{community.NAMESPACE}/{slug}'))
+            doc_bytes, film_bytes = read(entry['doc']), read(community.FILM_PATH)
+            if doc_bytes is None or film_bytes is None:
+                continue  # vanished between validate() and this read: treat like invalid
+            out.append({'slug': slug, 'title': entry['title'], 'card': entry['card'],
+                       'doc_bytes': doc_bytes, 'film_bytes': film_bytes})
+        return out
+
     def community_clip(self, slug, kind, user):
         """Bytes for /capabilities/community/<slug>.(mp4|jpg): KeyError (the
         route answers 404) for an unknown slug, a draft or rejected
