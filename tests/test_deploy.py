@@ -307,3 +307,58 @@ class SeccompProfile(unittest.TestCase):
         # The provenance note names the regeneration command, and the licence sits beside it.
         self.assertIn('mkprofile.py --docker', (COMPOSE / 'seccomp-bwrap.NOTICE').read_text())
         self.assertIn('Apache License', (COMPOSE / 'seccomp-bwrap.LICENSE').read_text())
+
+
+class ComposeStack(unittest.TestCase):
+    def setUp(self):
+        try:
+            import yaml
+        except ImportError:
+            self.skipTest('PyYAML unavailable in test environment')
+        self.text = (COMPOSE / 'compose.yaml').read_text()
+        self.compose = yaml.safe_load(self.text)
+        self.editor = self.compose['services']['editor']
+
+    def test_every_referenced_file_exists(self):
+        root = COMPOSE.parent.parent
+        for service in self.compose['services'].values():
+            context = (COMPOSE / service['build']['context']).resolve()
+            self.assertEqual(context, root)
+            self.assertTrue((context / service['build']['dockerfile']).is_file())
+        self.assertEqual(self.editor['build']['additional_contexts'], {'base': 'service:base'})
+        for opt in self.editor['security_opt']:
+            if opt.startswith('seccomp='):
+                self.assertTrue((COMPOSE / opt.split('=', 1)[1]).is_file())
+        # The one file the operator writes, never committed (see .gitignore).
+        self.assertEqual(self.compose['secrets'], {'admin_password': {'file': './admin-password'}})
+        for line in (COMPOSE / 'Dockerfile').read_text().splitlines():
+            if line.startswith('COPY ') and '--from' not in line and not line.startswith('COPY . '):
+                self.assertTrue((root / line.split()[1]).is_file(), line)
+
+    def test_env_example_lists_every_variable_and_no_secret(self):
+        import re
+        used = set(re.findall(r'\$\{(\w+)', self.text))
+        lines = [line for line in (COMPOSE / '.env.example').read_text().splitlines()
+                 if line and not line.startswith('#')]
+        example = dict(line.split('=', 1) for line in lines)
+        self.assertEqual(used, set(example))
+        self.assertEqual(example['CLAUDE_CODE_OAUTH_TOKEN'], '')
+        for value in example.values():
+            self.assertNotRegex(value, r'sk-ant-|[A-Za-z0-9_-]{32,}')
+
+    def test_restricted_but_able_to_sandbox(self):
+        editor = self.editor
+        self.assertEqual(editor['cap_drop'], ['ALL'])
+        self.assertNotIn('cap_add', editor)
+        self.assertNotIn('privileged', editor)
+        self.assertEqual(editor['user'], '1000:1000')
+        self.assertIn('no-new-privileges:true', editor['security_opt'])
+        self.assertIn('apparmor=unconfined', editor['security_opt'])
+        self.assertNotIn('docker.sock', self.text)
+        self.assertNotIn('--k8s', (COMPOSE / 'start.sh').read_text())
+        self.assertEqual(editor['ports'], ['127.0.0.1:${VB_PORT:-8100}:8100'])
+        self.assertEqual(editor['volumes'], ['data:/var/tmp/claude-scratch'])
+        self.assertTrue(editor['tmpfs'][0].startswith('/home/editor:'))
+        self.assertEqual(editor['restart'], 'unless-stopped')
+        self.assertIn('/healthz', ' '.join(editor['healthcheck']['test']))
+        self.assertEqual(self.compose['services']['base']['scale'], 0)

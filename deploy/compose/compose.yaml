@@ -1,0 +1,75 @@
+# The self-hosted editor: one container, accounts on, the AI builder sandboxed
+# by bubblewrap inside it. Setup, TLS and upgrades: README.md beside this file.
+name: videobuilder
+
+services:
+  # deploy/Dockerfile, test and frame-hash gates included. Built only to be
+  # the editor's base; it never runs.
+  base:
+    build:
+      context: ../..
+      dockerfile: deploy/Dockerfile
+    scale: 0
+
+  editor:
+    build:
+      context: ../..
+      dockerfile: deploy/compose/Dockerfile
+      additional_contexts:
+        base: service:base
+    restart: unless-stopped
+    ports:
+      # Loopback only: put a TLS reverse proxy in front (README.md). Never
+      # publish this port to the internet directly.
+      - "127.0.0.1:${VB_PORT:-8100}:8100"
+    environment:
+      VB_ADMIN: ${VB_ADMIN:?set VB_ADMIN in deploy/compose/.env (see README.md)}
+      VB_PUBLIC_HOST: ${VB_PUBLIC_HOST:-}
+      VB_MODEL: ${VB_MODEL:-claude-opus-5-5}
+      CLAUDE_CODE_OAUTH_TOKEN: ${CLAUDE_CODE_OAUTH_TOKEN:?set CLAUDE_CODE_OAUTH_TOKEN in deploy/compose/.env (see README.md)}
+    secrets:
+      - admin_password
+    volumes:
+      # The library, editor state, checkouts and fork-sandbox runs.
+      - data:/var/tmp/claude-scratch
+    tmpfs:
+      # $HOME holds the builder's credential, so it never touches a disk.
+      - /home/editor:uid=1000,gid=1000,mode=0700,exec,size=512m
+    # The builder's sandbox gets its network from pasta, which needs a tun
+    # device inside its own network namespace. Nothing on the host's own
+    # network changes.
+    devices:
+      - /dev/net/tun:/dev/net/tun
+    # The default bridge network: its resolv.conf names real nameservers, which
+    # fork-sandbox pins the sandbox's DNS to. A compose network gives only
+    # Docker's 127.0.0.11 stub, which the sandbox cannot reach.
+    network_mode: bridge
+    user: "1000:1000"
+    cap_drop: [ALL]
+    security_opt:
+      - no-new-privileges:true
+      # Moby's default profile plus the user-namespace syscalls bwrap needs
+      # (clone, unshare, mount, ...): seccomp-bwrap.NOTICE.
+      - seccomp=seccomp-bwrap.json
+      # Docker's AppArmor profile forbids mount, which bwrap needs inside its
+      # own user namespace, and Ubuntu 23.10+ also restricts unprivileged user
+      # namespaces through AppArmor.
+      - apparmor=unconfined
+      # Docker masks parts of /proc, and the kernel then refuses the fresh
+      # /proc a sandbox mounts in its own PID namespace. The container still
+      # runs as uid 1000 with no capabilities, so it cannot write what this
+      # unmasks.
+      - systempaths=unconfined
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "-o", "/dev/null", "http://127.0.0.1:8100/healthz"]
+      interval: 30s
+      timeout: 5s
+      start_period: 30s
+      retries: 3
+
+secrets:
+  admin_password:
+    file: ./admin-password
+
+volumes:
+  data:
