@@ -131,7 +131,7 @@ LIBRARY_STYLE = (
     '.lib-empty{color:#a9a9b2}'
     '.howto{border:1px solid #26262c;border-radius:10px;background:#141417;padding:.25rem 1.25rem 1rem;'
     'margin:1rem 0;max-width:42rem;line-height:1.5}'
-    '.howto ol{padding-left:1.25rem;margin:.5rem 0}.howto li{margin:.5rem 0}.howto p{color:#a9a9b2}'
+    '.howto p{color:#a9a9b2;margin:.5rem 0}.howto .howto-lead{color:#f4f4f2;font-size:1.05rem}'
     '.lib-copy{flex:0 0 auto;min-height:36px;padding:.3rem .6rem;border-radius:6px;border:1px solid #26262c;'
     'background:#0d0d10;color:#fff;font-size:.8rem}'
     '@media (max-width:480px){.lib-page{padding:.75rem .75rem 2.5rem}}'
@@ -492,18 +492,11 @@ LIB_DETAIL_SCRIPT = (
 
 
 def _howto_html(user):
-    return ('<section class="howto"><h2>How it works</h2><ol>'
-            '<li><strong>Start a video.</strong> Click <strong>+ New video</strong>, give it a name, and '
-            'describe what you want: the topic, the length, the look. Then click '
-            '<strong>Start building</strong>.</li>'
-            '<li><strong>Watch the first version.</strong> The builder makes it in a few minutes, and it '
-            'plays on the video\'s page.</li>'
-            '<li><strong>Give notes.</strong> Pause where something is off and write what you want in '
-            '<strong>Chat</strong> ("make the title bigger here"). The note keeps the moment you paused '
-            'on. Attach screenshots, clips or audio as references, and upload your own footage under '
-            '<strong>Sources</strong>. Each note you send makes a new version.</li>'
-            '<li><strong>Go back any time.</strong> <strong>Versions</strong> keeps every one.</li>'
-            '</ol><p>Someone sharing a video with you? It shows up here once they invite '
+    return ('<section class="howto"><h2>How it works</h2>'
+            '<p class="howto-lead">Direct a video in plain words. Click <strong>+ New video</strong> and say '
+            'what you want, and the builder makes a first version. Watch it, then write a note '
+            '("make the title bigger here"): each note makes the next version, and every version is kept.</p>'
+            '<p>Someone sharing a video with you? It shows up here once they invite '
             f'<strong>{html.escape(user)}</strong>.</p></section>')
 
 
