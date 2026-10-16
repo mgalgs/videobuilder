@@ -432,7 +432,7 @@ function closeSheet() {
 function attachmentUrl(id) {
   return api('attachments/'+encodeURIComponent(id))
 }
-// The note's "Show steps" feed: a redacted-free, formatted read of its builder
+// The note's "Show builder log" feed: a redacted-free, formatted read of its builder
 // transcript (see transcript.py), polled every 3s while expanded and not yet
 // in a final state. state.steps[note.id].el is the live body element, kept so
 // a poll can refresh just that feed without the full note-list re-render.
@@ -526,14 +526,14 @@ function refreshProgress(note) {
 }
 function renderStepsToggle(note) {
   const data=stepsData(note);
-  const wrap=node('div','steps-wrap'),toggle=node('button','steps-toggle',data.open?'Hide steps':'Show steps');
+  const wrap=node('div','steps-wrap'),toggle=node('button','steps-toggle',data.open?'Hide builder log':'Show builder log');
   toggle.setAttribute('aria-expanded',String(data.open));
   const body=node('div','steps-body');
   body.hidden=!data.open;
   data.el=body;
   toggle.onclick=()=> {
     data.open=!data.open;
-    toggle.textContent=data.open?'Hide steps':'Show steps';
+    toggle.textContent=data.open?'Hide builder log':'Show builder log';
     toggle.setAttribute('aria-expanded',String(data.open));
     body.hidden=!data.open;
     if(data.open) {
