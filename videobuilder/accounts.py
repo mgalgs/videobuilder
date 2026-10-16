@@ -195,6 +195,26 @@ class Accounts:
             self._save()
         return self.get_limit(username)
 
+    def tour_seen(self, username):
+        """Whether `username` has dismissed the first-run tour. Kept in its own
+        map, not on the user record, which startup rebuilds for each admin; and
+        tied to the uid, so a deleted-and-recreated account sees it again. A
+        file from before the tour has no map at all: nobody has seen it."""
+        username = username.lower() if isinstance(username, str) else ''
+        uid = self.uid(username)
+        return uid is not None and self._data.get('tour_seen', {}).get(username) == uid
+
+    def mark_tour_seen(self, username):
+        """Record that `username` has dismissed the tour, for good."""
+        username = username.lower() if isinstance(username, str) else ''
+        with self.lock:
+            uid = self.uid(username)
+            if uid is None:
+                raise ValueError('no such account')
+            if self._data.setdefault('tour_seen', {}).get(username) != uid:
+                self._data['tour_seen'][username] = uid
+                self._save()
+
     def list_accounts(self):
         """Every account -- name, whether it's an admin, and its limit (see
         get_limit) -- sorted by name, for the admin-only limits API."""

@@ -45,17 +45,31 @@ class StarterCardsOnPages(unittest.TestCase):
         self.assertIn('class="starters">', page)
         self.assertNotIn('starters hero', page)
 
-    def test_empty_library_leads_with_the_showcase_when_it_is_built(self):
-        page = pages.index([], True, 'dana', 'example.com', showcase=True).decode()
-        self.assertIn('id="showcase"', page)
-        self.assertLess(page.index('id="showcase"'), page.index('class="starters hero"'))
+    def test_the_tour_leads_with_the_showcase_then_the_howto_then_one_button(self):
+        page = pages.index([], True, 'dana', 'example.com', showcase=True, tour=True).decode()
+        tour = page[page.index('id="tour"'):]
+        self.assertLess(tour.index('id="showcase"'), tour.index('class="howto"'))
+        self.assertLess(tour.index('class="howto"'), tour.index('Start your first video'))
+        self.assertIn('id="tour-start" href="/new"', tour)
+        self.assertIn('/api/account/tour/dismiss', tour)
         self.assertNotIn('autoplay', page)
         self.assertIn(' controls ', page)   # the native controls carry full screen, iPhone included
 
-    def test_showcase_is_absent_once_a_video_exists_or_when_unbuilt(self):
-        with_video = pages.index([_entry('acme/launch')], False, None, 'example.com', showcase=True).decode()
-        self.assertNotIn('id="showcase"', with_video)
-        self.assertNotIn('id="showcase"', pages.index([], False, None, 'example.com').decode())
+    def test_the_tour_shows_without_the_reel_when_it_is_not_built(self):
+        page = pages.index([], True, 'dana', 'example.com', showcase=False, tour=True).decode()
+        self.assertIn('id="tour"', page)
+        self.assertIn('class="howto"', page)
+        self.assertIn('Start your first video', page)
+        self.assertNotIn('id="showcase"', page)
+
+    def test_the_library_itself_carries_neither_the_reel_nor_the_howto(self):
+        for entries in ([], [_entry('acme/launch')]):
+            for accounts in (True, False):
+                page = pages.index(entries, accounts, 'dana' if accounts else None, 'example.com',
+                                   showcase=True).decode()
+                self.assertNotIn('id="tour"', page)
+                self.assertNotIn('id="showcase"', page)
+                self.assertNotIn('class="howto"', page)
 
     def test_every_new_key_block_has_a_copy_button(self):
         page = pages.account_page('dana', []).decode()
@@ -114,6 +128,7 @@ class InlineScriptsParse(unittest.TestCase):
     def test_index_page_scripts_parse(self):
         self._check(pages.index([_entry('acme/launch')], True, 'dana', 'example.com'))
         self._check(pages.index([], True, 'dana', 'example.com', showcase=True))
+        self._check(pages.index([], True, 'dana', 'example.com', showcase=True, tour=True))
 
     def test_new_video_page_scripts_parse(self):
         self._check(pages.new_video_page(['acme/launch']))
@@ -125,6 +140,8 @@ class InlineScriptsParse(unittest.TestCase):
         with tempfile.TemporaryDirectory() as d:
             Path(d, 'showcase-16x9.mp4').write_bytes(b'mp4')
             self._check(capabilities.page_html(d, '0'))
+            self._check(capabilities.page_html(d, '0', pages.app_header('capabilities', 'dana'),
+                                               pages.APP_HEADER_STYLE))
 
     def test_account_page_with_limits_scripts_parse(self):
         limits = {'defaults': {'notes': 20, 'cost_usd': None},

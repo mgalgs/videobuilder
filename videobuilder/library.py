@@ -224,8 +224,9 @@ class Library:
             entries.append({'name': n, 'has_main': has_main,
                             'updated': commit[0] if commit else None,
                             'subject': commit[1] if commit else None})
+        tour = bool(self.accounts and user and not self.accounts.tour_seen(user))
         return pages.index(entries, self.accounts is not None, user, host, scheme,
-                           showcase=showcase_available(self.capabilities_dir))
+                           showcase=showcase_available(self.capabilities_dir), tour=tour)
 
     def new_video_page(self, names=None, user=None):
         return pages.new_video_page(names if names is not None else self.names(),

@@ -625,6 +625,73 @@ def _howto_html(user):
             f'<strong>{html.escape(user)}</strong>.</p></section>')
 
 
+TOUR_STYLE = (
+    '.tour{position:fixed;inset:0;z-index:50;display:flex;align-items:flex-start;justify-content:center;'
+    'padding:4vh 1rem;overflow-y:auto;background:rgba(5,5,7,.78);'
+    '-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);box-sizing:border-box}'
+    '.tour[hidden]{display:none}'
+    'html:has(.tour:not([hidden])){overflow:hidden}'
+    '.tour-box{position:relative;width:100%;max-width:760px;background:#141417;border:1px solid #26262c;'
+    'border-radius:18px;padding:2rem;box-shadow:0 40px 120px rgba(0,0,0,.7);box-sizing:border-box}'
+    '.tour-box>h2{margin:0 2.5rem .35rem 0;font-size:clamp(1.5rem,3vw,1.9rem);line-height:1.15;'
+    'letter-spacing:-.02em;font-weight:800}'
+    '.tour-box>h2 em{font-style:normal;color:#ef5b4c}'
+    '.tour-intro{margin:0 0 1.5rem;color:#a9a9b2}'
+    '.tour-skip{position:absolute;top:1rem;right:1rem;min-width:40px;min-height:40px;border-radius:10px;'
+    'border:1px solid #26262c;background:#0d0d10;color:#f4f4f2;font:inherit;font-size:1.2rem;line-height:1;'
+    'cursor:pointer}'
+    '.tour-skip:hover{border-color:#3a3a42}'
+    '.tour .showcase{margin:0 0 1.25rem}'
+    '.tour .showcase video{max-width:none;max-height:56vh;aspect-ratio:16/9;border-radius:12px;background:#000;'
+    'box-shadow:0 0 0 1px #26262c}'
+    '@media (orientation:portrait){.tour .showcase video{aspect-ratio:9/16;height:56vh;width:auto;max-width:100%;'
+    'margin:0 auto}}'
+    '.tour-box:focus{outline:none}'
+    '.tour .howto{background:#0d0d10;margin:0 0 1.5rem}'
+    '.tour-actions{display:flex;flex-wrap:wrap;align-items:center;gap:.75rem 1.25rem}'
+    '.tour-later{background:none;border:0;padding:.5rem 0;color:#a9a9b2;font:inherit;cursor:pointer}'
+    '.tour-later:hover{color:#f4f4f2}'
+    '@media (max-width:720px){.tour{padding:16px 16px}.tour-box{padding:1.4rem 1.1rem}'
+    '.tour-actions .btn{width:100%}.tour-later{width:100%}}'
+)
+
+TOUR_SCRIPT = (
+    '<script>(()=>{'
+    'const tour=document.getElementById("tour");if(!tour)return;'
+    # Recorded on the server, so it's once per account on every device. keepalive lets
+    # the request finish even though "Start your first video" navigates away at once.
+    'let sent=null;'
+    'const seen=()=>sent||(sent=fetch("/api/account/tour/dismiss",{method:"POST",keepalive:true,'
+    'headers:{"Content-Type":"application/json"},body:"{}"}).catch(()=>{}));'
+    'const reel=document.getElementById("showcase");'
+    'const close=()=>{seen();if(reel)reel.pause();tour.hidden=true};'
+    'for(const b of tour.querySelectorAll("[data-tour-close]"))b.onclick=close;'
+    'document.getElementById("tour-start").onclick=e=>{e.preventDefault();'
+    'const href=e.currentTarget.href;Promise.race([seen(),new Promise(r=>setTimeout(r,1500))])'
+    '.then(()=>{location.href=href})};'
+    'tour.addEventListener("click",e=>{if(e.target===tour)close()});'
+    'document.addEventListener("keydown",e=>{if(e.key==="Escape"&&!tour.hidden)close()});'
+    'tour.querySelector(".tour-box").focus({preventScroll:true});'
+    'if(reel&&!matchMedia("(prefers-reduced-motion: reduce)").matches)reel.play().catch(()=>{});'
+    '})()</script>'
+)
+
+
+def _tour_html(user, showcase):
+    """The first-run tour, once per account: what the builder can make (the
+    reel, when it's built), how it works, and one way in."""
+    return ('<div class="tour" id="tour" role="dialog" aria-modal="true" aria-labelledby="tour-title">'
+            '<div class="tour-box" tabindex="-1">'
+            '<button type="button" class="tour-skip" data-tour-close aria-label="Close">&times;</button>'
+            '<h2 id="tour-title">Welcome to videobuilder. <em>Here\'s the idea.</em></h2>'
+            '<p class="tour-intro">A quick look before you start. You\'ll only see this once.</p>' +
+            (_showcase_section_html() if showcase else '') + _howto_html(user) +
+            '<div class="tour-actions"><a class="btn btn-primary" id="tour-start" href="/new">'
+            'Start your first video</a>'
+            '<button type="button" class="tour-later" data-tour-close>Skip for now</button></div>'
+            '</div></div>' + TOUR_SCRIPT)
+
+
 def _ago(seconds, now=None):
     """'3 days ago' for a unix time: the card's quiet "last changed" line."""
     delta = max(0, (now or time.time()) - seconds)
@@ -636,11 +703,13 @@ def _ago(seconds, now=None):
     return 'just now'
 
 
-def index(entries, accounts_enabled, user, host, scheme='http', showcase=False):
+def index(entries, accounts_enabled, user, host, scheme='http', showcase=False, tour=False):
     """`entries`: [{name, has_main, updated, subject}, ...], already
     access-filtered and in order; `updated` (unix seconds) and `subject` are
-    None without a main branch. `showcase`: the reel is built, so a library
-    with no videos leads with it."""
+    None without a main branch. `tour`: open with the first-run tour (an
+    account that hasn't dismissed it yet); `showcase`: the reel is built, so
+    the tour leads with it. The library itself is only the creator's videos:
+    the reel and the how-to live in the tour."""
     groups = {}
     for e in entries:
         group = e['name'].split('/')[0] if '/' in e['name'] else 'Videos'
@@ -666,11 +735,8 @@ def index(entries, accounts_enabled, user, host, scheme='http', showcase=False):
                        f'<span class="lib-title">{html.escape(leaf)}</span>'
                        f'<span class="lib-meta">{meta}</span></button></li>')
         rows.append('</ul></section>')
-    howto = ''
     can_create = bool(user) if accounts_enabled else True
     hero = not entries
-    if accounts_enabled and not entries:
-        howto = _howto_html(user)
     if hero:
         # A new account: nothing of theirs yet, so say so and point at the one next step.
         body = ('<section class="lib-start"><div><h2>No videos yet</h2>'
@@ -678,10 +744,7 @@ def index(entries, accounts_enabled, user, host, scheme='http', showcase=False):
                 'Or pick a starter below and fill in the blanks.</p></div>' +
                 ('<a class="btn btn-primary" href="/new">Start your first video</a>' if can_create else '') +
                 '</section>')
-        starters = _starter_section_html(True, as_link=True, heading='Starter prompts')
-        if showcase:
-            starters = _showcase_section_html() + starters
-        content = howto + body + starters
+        content = body + _starter_section_html(True, as_link=True, heading='Starter prompts')
     else:
         content = ''.join(rows) + _starter_section_html(False, as_link=True, heading='Start from a starter prompt')
     count = len(entries)
@@ -692,10 +755,15 @@ def index(entries, accounts_enabled, user, host, scheme='http', showcase=False):
     cards_json = (json.dumps(cards).replace('<', '\\u003c').replace('>', '\\u003e')
                  .replace('&', '\\u0026'))
     script = (f'<script type="application/json" id="lib-data">{cards_json}</script>' + LIB_DETAIL_SCRIPT)
-    return (_head('Your videos', APP_STYLE + LIBRARY_STYLE + LIB_DETAIL_STYLE + STARTER_STYLE + SHOWCASE_STYLE) +
+    style = APP_STYLE + LIBRARY_STYLE + LIB_DETAIL_STYLE + STARTER_STYLE
+    tour_html = ''
+    if tour:
+        style += SHOWCASE_STYLE + TOUR_STYLE
+        tour_html = _tour_html(user, showcase)
+    return (_head('Your videos', style) +
             '<body>' + app_header('library', user if accounts_enabled else None, can_create) +
             f'<main class="app-main"><div class="page-head"><div><h1>Your videos</h1>{sub}</div></div>' +
-            content + _LIB_DETAIL_HTML + script + '</main></body></html>').encode()
+            content + _LIB_DETAIL_HTML + script + '</main>' + tour_html + '</body></html>').encode()
 
 
 def new_video_page(names, user=None):

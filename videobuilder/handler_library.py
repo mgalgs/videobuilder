@@ -141,6 +141,15 @@ class LibraryHandler:
                     except ValueError as exc:
                         raise HTTPError(400, str(exc)) from None
                     return self._json(201, {**record, 'secret': secret})
+                if library.accounts and route == '/api/account/tour/dismiss' and method == 'POST':
+                    # Session-only, like the key routes: a key can't reach this route, and
+                    # _body() holds it to JSON from this origin.
+                    self._body()
+                    try:
+                        library.accounts.mark_tour_seen(user)
+                    except ValueError as exc:
+                        raise HTTPError(400, str(exc)) from None
+                    return self._json(200, {'tour_seen': True})
                 m = re.fullmatch(r'/api/account/keys/([^/]+)/revoke', route)
                 if library.accounts and method == 'POST' and m:
                     self._body()

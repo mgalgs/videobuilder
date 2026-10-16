@@ -315,3 +315,58 @@ class LimitsTest(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+class TourSeen(unittest.TestCase):
+    """The first-run tour's "seen" flag: per account, on disk, and kept apart
+    from the user record that startup rebuilds for each admin."""
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        self.state = Path(self.tmp.name)
+        self.admin_pass = self.state / 'admin-pass'
+        self.admin_pass.write_text('adminsecret1\n')
+
+    def accounts(self):
+        return Accounts(str(self.state), [('boss', str(self.admin_pass))])
+
+    def test_an_accounts_file_from_before_the_tour_means_not_seen(self):
+        old = {'users': {'dana': {'algorithm': 'scrypt', 'n': 2, 'r': 1, 'p': 1, 'salt': '00', 'hash': '00',
+                                  'uid': 'u1'}},
+               'sessions': {}, 'keys': {}, 'limits': {}}
+        (self.state / 'accounts.json').write_text(json.dumps(old))
+        accounts = Accounts(str(self.state))
+        self.assertFalse(accounts.tour_seen('dana'))
+        self.assertFalse(accounts.tour_seen('nobody'))
+        accounts.mark_tour_seen('dana')
+        saved = json.loads((self.state / 'accounts.json').read_text())
+        self.assertEqual({k: v for k, v in saved.items() if k != 'tour_seen'}, old)  # nothing else rewritten
+
+    def test_dismissing_survives_a_restart_for_an_admin_and_an_ordinary_account(self):
+        accounts = self.accounts()
+        accounts.signup('dana', 'longenoughpassword')
+        accounts.signup('eve', 'longenoughpassword')
+        self.assertFalse(accounts.tour_seen('boss'))
+        self.assertFalse(accounts.tour_seen('dana'))
+        accounts.mark_tour_seen('boss')
+        accounts.mark_tour_seen('DANA')
+        restarted = self.accounts()   # rebuilds boss's user record from the password file
+        self.assertTrue(restarted.tour_seen('boss'))
+        self.assertTrue(restarted.tour_seen('dana'))
+        self.assertFalse(restarted.tour_seen('eve'))
+
+    def test_a_recreated_account_sees_the_tour_again(self):
+        accounts = self.accounts()
+        accounts.signup('dana', 'longenoughpassword')
+        accounts.mark_tour_seen('dana')
+        data = json.loads((self.state / 'accounts.json').read_text())
+        del data['users']['dana']
+        (self.state / 'accounts.json').write_text(json.dumps(data))
+        restarted = self.accounts()
+        restarted.signup('dana', 'anotherlongpassword')
+        self.assertFalse(restarted.tour_seen('dana'))
+
+    def test_marking_an_unknown_account_is_refused(self):
+        with self.assertRaises(ValueError):
+            self.accounts().mark_tour_seen('nobody')

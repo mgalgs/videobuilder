@@ -177,6 +177,9 @@ POST /api/account/keys {label,scope?,mode}
                                      only in this response; 400 bad label,
                                      scope or mode
 POST /api/account/keys/<id>/revoke {}  200 {revoked:id}; 404 unknown id
+POST /api/account/tour/dismiss {}    session only: the library's first-run
+                                     tour is never shown to this account
+                                     again; 200 {tour_seen:true}
 GET  /api/admin/limits               admin-only (403 otherwise; 401 signed
                                      out): {defaults:{notes,cost_usd},
                                      accounts:[{name,admin,limit:{kind,notes,

@@ -644,6 +644,57 @@ class Keys(AccountMixin, KeyMixin, LibraryFixture, unittest.TestCase):
         self.assertIn('Directed-by: mgalgs (claude explainer-videos)', log)
 
 
+class Tour(AccountMixin, LibraryFixture, unittest.TestCase):
+    """The library's first-run tour: shown until the account dismisses it,
+    recorded on the server, never for a signed-out visitor."""
+    DISMISS = '/api/account/tour/dismiss'
+
+    def dismiss(self, cookie, **headers):
+        return self.request(self.DISMISS, {}, headers={'Content-Type': 'application/json', 'Cookie': cookie,
+                                                       **headers})
+
+    def test_shown_to_a_new_account_until_dismissed(self):
+        cookie = self.signup('dana', 'longenoughpassword')[2]
+        code, page = self.request('/', headers={'Cookie': cookie})
+        self.assertEqual(code, 200)
+        self.assertIn(b'id="tour"', page)
+        self.assertIn(b'Start your first video', page)
+        self.assertEqual(self.dismiss(cookie), (200, {'tour_seen': True}))
+        page = self.request('/', headers={'Cookie': cookie})[1]
+        self.assertNotIn(b'id="tour"', page)
+        self.assertNotIn(b'id="showcase"', page)
+        self.assertNotIn(b'class="howto"', page)
+        # Once per account, not per browser: another session of the same account doesn't see it.
+        other = self.login('dana', 'longenoughpassword')[2]
+        self.assertNotIn(b'id="tour"', self.request('/', headers={'Cookie': other})[1])
+
+    def test_dismissing_is_per_account(self):
+        admin = self.admin_login()
+        dana = self.signup('dana', 'longenoughpassword')[2]
+        self.assertEqual(self.dismiss(admin)[0], 200)
+        self.assertNotIn(b'id="tour"', self.request('/', headers={'Cookie': admin})[1])
+        self.assertIn(b'id="tour"', self.request('/', headers={'Cookie': dana})[1])
+
+    def test_signed_out_dismiss_is_refused(self):
+        self.assertEqual(self.request(self.DISMISS, {})[0], 401)
+
+    def test_cross_origin_dismiss_is_refused(self):
+        cookie = self.signup('dana', 'longenoughpassword')[2]
+        code, _ = self.dismiss(cookie, Origin='http://elsewhere.example')
+        self.assertEqual(code, 403)
+        self.assertFalse(self.library.accounts.tour_seen('dana'))
+        self.assertEqual(self.request(self.DISMISS, {}, headers={'Content-Type': 'text/plain',
+                                                                 'Cookie': cookie})[0], 415)
+        self.assertFalse(self.library.accounts.tour_seen('dana'))
+
+
+class NoAccountsTour(LibraryFixture, unittest.TestCase):
+    def test_no_tour_without_accounts(self):
+        page = self.request('/')[1]
+        self.assertNotIn(b'id="tour"', page)
+        self.assertEqual(self.request('/api/account/tour/dismiss', {})[0], 404)
+
+
 class AccountPage(AccountMixin, KeyMixin, LibraryFixture, unittest.TestCase):
     """The /account page and its key-management routes."""
 
