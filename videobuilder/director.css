@@ -326,6 +326,70 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible {
   pointer-events: auto;
 }
 
+/* While the builder makes a video's first version: soft light drifting
+   slowly behind the message. Keep it slow and dim; it is meant to calm. */
+.building {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  background: #0d0f13;
+}
+
+.building span {
+  position: absolute;
+  width: 70%;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  filter: blur(40px);
+  opacity: .35;
+  animation: building-drift 26s ease-in-out infinite alternate,
+    building-breathe 9s ease-in-out infinite;
+}
+
+.building span:nth-child(1) {
+  left: -15%;
+  top: 10%;
+  background: radial-gradient(circle, #3b6e8f, transparent 70%);
+}
+
+.building span:nth-child(2) {
+  right: -20%;
+  top: 40%;
+  background: radial-gradient(circle, #5b4d8a, transparent 70%);
+  animation-duration: 32s, 11s;
+  animation-delay: -8s, -3s;
+}
+
+.building span:nth-child(3) {
+  left: 10%;
+  bottom: -15%;
+  background: radial-gradient(circle, #8a5a4a, transparent 70%);
+  animation-duration: 29s, 13s;
+  animation-delay: -15s, -6s;
+}
+
+@keyframes building-drift {
+  from { transform: translate(0, 0); }
+  50% { transform: translate(12%, -10%); }
+  to { transform: translate(-8%, 8%); }
+}
+
+@keyframes building-breathe {
+  0%, 100% { opacity: .32; }
+  50% { opacity: .58; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .building span { animation: none; }
+}
+
+.render-status.calm {
+  top: auto;
+  bottom: 22%;
+  background: none;
+  color: #c9cbd3;
+}
+
 .render-status button {
   margin-left: 12px;
   background: white;

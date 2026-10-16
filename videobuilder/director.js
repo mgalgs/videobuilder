@@ -249,6 +249,8 @@ async function loadPlayer(retry=false) {
   player.poster=poster;
   $('poster').src=poster;
   const v=currentVersion();
+  $('building').hidden=true;
+  $('render-status').classList.remove('calm');
   if(v?.kind==='blank') {
     showBlank();
     return
@@ -307,6 +309,8 @@ async function loadPlayer(retry=false) {
 // from, not a version anyone made: never render or play it.
 function showBlank() {
   const building=state.notes.some(n=>['gathering','queued','working'].includes(n.state));
+  $('building').hidden=!building;
+  $('render-status').classList.toggle('calm',building);
   $('poster').hidden=true;
   $('retry-render').hidden=true;
   $('render-status').hidden=false;
