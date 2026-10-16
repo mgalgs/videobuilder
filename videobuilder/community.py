@@ -274,6 +274,16 @@ class Store:
         self.path = os.path.join(state_dir, 'community-capabilities.json')
         self.lock = threading.RLock()
         self._reservations = {}  # token -> (submitter, created); see reserve/release
+        # One Store per editor process: a `sending` flag found at startup belongs
+        # to a send the previous process died in the middle of, so clear it or
+        # that draft refuses every later send with 409.
+        with self.lock:
+            data = self._load()
+            stale = [s for s, r in data.items() if r.get('sending')]
+            for slug in stale:
+                data[slug]['sending'] = False
+            if stale:
+                self._save(data)
 
     def _load(self):
         try:

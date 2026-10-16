@@ -89,6 +89,13 @@ class SendClaim(unittest.TestCase):
             store.set_note('abc123', 'note-1')
             self.assertEqual(store.get('abc123')['note'], 'note-1')
 
+    def test_a_restart_clears_a_send_claim_left_by_a_dead_process(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            store = community.Store(tmp)
+            store.create('abc123', 'dana')
+            store.claim_send('abc123')
+            community.Store(tmp).claim_send('abc123')  # the new process's store: does not raise
+
 
 class CountRecent(unittest.TestCase):
     def test_counts_only_the_given_submitter_since_the_cutoff(self):
