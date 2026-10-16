@@ -287,9 +287,12 @@ class DirectUpload(fixtures.API):
         self.editor.sources._save('promo/film', 'interview', meta)
         stale = self.editor.sources._tmp_dir / '.tmp-leftover'
         stale.write_bytes(b'leftover scratch from an interrupted build')
+        cut_off = self.editor.sources._video_dir('promo/film') / '.upload-0123456789abcdef'
+        cut_off.write_bytes(b'the first half of an upload')
 
         fresh = Sources(self.editor, self.editor.sources.max_file, self.editor.sources.max_total)
         self.assertFalse(stale.exists())
+        self.assertFalse(cut_off.exists())
         deadline = time.monotonic() + 10
         while not fresh.get('promo/film', 'interview')['preview_ready']:
             if time.monotonic() > deadline:

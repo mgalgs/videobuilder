@@ -182,6 +182,9 @@ class Sources:
         self._tmp_dir.mkdir(exist_ok=True)
         for stale in self._tmp_dir.iterdir():
             stale.unlink(missing_ok=True)
+        # An upload cut off by a restart: the request died with the process.
+        for stale in self.root.glob('*/.upload-*'):
+            stale.unlink(missing_ok=True)
         self._locks = {}
         self._locks_guard = threading.Lock()
         # One background worker for the whole process, building queued previews
