@@ -1,13 +1,23 @@
 # videobuilder
 
-A small, dependency-light Python framework for making videos in code: product
-reels, explainers, benchmark and result videos. A film is a Python file with a
-pure `draw(n, canvas)`; videobuilder gives it a beat-aware timeline, easing and
-springs, real-font text, layout, a live preview, and a parallel renderer that
-pipes frames to ffmpeg.
+Direct a video in plain words. Write a note ("make the title bigger at 0:03",
+"use 0:32–0:47 of my podcast upload, with captions"), and an AI builder makes
+the next version. You watch it, then send the next note. Every version is
+kept, so you can compare them and go back.
 
-It provides mechanisms, not a style. Palettes, type, brand rules and visual
-conventions belong to your films.
+The editor is a self-hostable web app: a video library with accounts, a player
+you can pin notes to, source video uploads, reference attachments, a music
+picker, and API keys for scripting. It runs on one machine with Docker Compose
+([deploy/compose/README.md](deploy/compose/README.md)). The builder is Claude
+Code, working in a sandbox.
+
+Under the editor is a small, dependency-light Python framework for making
+videos in code, which is what the builder writes. You need it only to write
+films by hand or to work on videobuilder itself. A film is a Python file with
+a pure `draw(n, canvas)`; videobuilder gives it a beat-aware timeline, easing
+and springs, real-font text, layout, a live preview, and a parallel renderer
+that pipes frames to ffmpeg. It provides mechanisms, not a style: palettes,
+type, brand rules and visual conventions belong to your films.
 
 ## Install
 
