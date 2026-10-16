@@ -2,6 +2,7 @@
 scripts' basic syntax (extracted and run through `node --check`, since
 there's no build step to catch a typo otherwise)."""
 from importlib import resources
+import json
 import re
 import shutil
 import subprocess
@@ -78,11 +79,18 @@ class StarterCardsOnPages(unittest.TestCase):
             self.assertIn(f'data-copy="{target}"', page)
         self.assertNotIn('.panel code,', page)   # inline <code> in a sentence must stay inline
 
-    def test_new_video_page_has_all_six_cards_wired_to_their_prompt(self):
+    def test_library_cards_put_the_prompt_above_the_poster_and_the_name_last(self):
+        page = pages.index([], False, None, 'example.com').decode()
+        s = STARTERS[0]
+        card = page[page.index(f'href="/new?starter={s["id"]}"'):]
+        self.assertLess(card.index('class="starter-prompt"'), card.index('class="starter-poster"'))
+        self.assertLess(card.index('class="starter-poster"'), card.index('class="starter-title"'))
+
+    def test_new_video_page_has_no_cards_but_knows_every_starter_prompt(self):
         page = pages.new_video_page(['acme/launch']).decode()
+        self.assertNotIn('starter-card', page)
         for s in STARTERS:
-            self.assertIn(f'data-id="{s["id"]}"', page)
-            self.assertIn(f'/capabilities/{s["poster"]}.jpg', page)
+            self.assertIn(json.dumps(s['id']) + ':', page)
         self.assertIn('id="files-field"', page)
         self.assertIn('id="links-field"', page)
 

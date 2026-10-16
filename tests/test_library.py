@@ -216,10 +216,10 @@ class HostedGit(LibraryFixture, unittest.TestCase):
         self.assertNotIn(b'starters hero', page)
         self.assertIn(b'class="starters">', page)
 
-    def test_new_video_page_shows_the_same_starter_cards(self):
-        page = self.request('/new')[1]
-        self.assertIn(b'data-id="paper-explainer"', page)
-        self.assertIn(b'/capabilities/paper-collage.jpg', page)
+    def test_new_video_page_fills_a_starter_from_the_link_without_showing_cards(self):
+        page = self.request('/new?starter=paper-explainer')[1]
+        self.assertNotIn(b'starter-card', page)
+        self.assertIn(b'"paper-explainer":', page)
 
     def test_repos_share_one_env_cache(self):
         self.seed('acme/launch')

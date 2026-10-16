@@ -276,21 +276,23 @@ STARTER_STYLE = (
     'font-weight:700}'
     '.starter-grid{display:flex;gap:.9rem;overflow-x:auto;scroll-snap-type:x proximity;'
     '-webkit-overflow-scrolling:touch;margin:0;padding:0 0 .6rem;list-style:none;scrollbar-width:thin}'
-    '.starter-card{display:flex;flex-direction:column;gap:.3rem;border:1px solid #26262c;border-radius:14px;'
-    'padding:0 0 .85rem;background:#141417;color:#f4f4f2;text-align:left;cursor:pointer;min-height:44px;'
+    '.starter-card{display:flex;flex-direction:column;gap:0;border:1px solid #26262c;border-radius:14px;'
+    'padding:0 0 .75rem;background:#141417;color:#f4f4f2;text-align:left;cursor:pointer;min-height:44px;'
     'font:inherit;text-decoration:none;box-sizing:border-box;flex:0 0 min(230px,72vw);scroll-snap-align:start;'
     'overflow:hidden;transition:border-color .15s}'
     'a.starter-card:hover{text-decoration:none}'
     '.starter-card:hover,.starter-card:focus-visible{border-color:#e5483b;outline:none}'
-    '.starter-poster{display:block;aspect-ratio:16/9;overflow:hidden;background:#1a1a1f;margin-bottom:.35rem}'
+    '.starter-poster{display:block;aspect-ratio:16/9;overflow:hidden;background:#1a1a1f;margin-bottom:.65rem}'
     '.starter-poster img{display:block;width:100%;height:100%;object-fit:cover}'
-    '.starter-title{font-weight:700;font-size:.92rem;padding:0 .85rem}'
-    '.starter-prompt{font-size:.8rem;color:#a9a9b2;padding:0 .85rem;display:-webkit-box;-webkit-line-clamp:3;'
-    '-webkit-box-orient:vertical;overflow:hidden}'
+    '.starter-title{font-weight:600;font-size:.78rem;color:#8b8b94;padding:0 .85rem}'
+    # min-height keeps the posters level across a row of cards whose prompts differ in length.
+    # Margin, not padding: a line-clamped box shows the clipped line through its padding.
+    '.starter-prompt{font-size:.95rem;line-height:1.4;color:#f4f4f2;margin:.85rem .85rem .75rem;'
+    'display:-webkit-box;-webkit-line-clamp:4;-webkit-box-orient:vertical;overflow:hidden;min-height:5.6em}'
     '.starters.hero .starter-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));'
     'overflow:visible}'
     '@media (max-width:720px){.starters.hero .starter-grid{grid-template-columns:repeat(auto-fill,minmax(150px,1fr));'
-    'gap:.75rem}.starters.hero .starter-prompt{-webkit-line-clamp:2}}'
+    'gap:.75rem}.starters.hero .starter-prompt{-webkit-line-clamp:5;min-height:7em;font-size:.88rem}}'
 )
 
 # The New video page: one centred column, prompt first. Inputs follow the sign-in
@@ -315,7 +317,6 @@ NEW_VIDEO_STYLE = (
     'box-shadow:0 20px 60px rgba(0,0,0,.35)}'
     '#new-video .prompt textarea:focus{border-color:#6b6b75;'
     'box-shadow:0 0 0 3px rgba(244,244,242,.08),0 20px 60px rgba(0,0,0,.35)}'
-    '#new-video .starters{margin:0}'
     '.details{display:flex;flex-direction:column;gap:1.1rem;background:#141417;border:1px solid #26262c;'
     'border-radius:16px;padding:1.5rem}'
     '.details>h2{margin:0;font-size:.78rem;color:#8b8b94;text-transform:uppercase;letter-spacing:.08em;'
@@ -530,25 +531,20 @@ NEW_VIDEO_SCRIPT = (
     '</script>'
 )
 
+# The library's starter cards link to /new?starter=<id>; this fills the prompt in.
 STARTER_SCRIPT = (
     '<script>'
     '(function(){'
+    'const prompts=' + json.dumps({s['id']: s['prompt'] for s in STARTERS}).replace('</', '<\\/') + ';'
+    'const prompt=prompts[new URLSearchParams(location.search).get("starter")];'
+    'if(!prompt)return;'
     'const form=document.querySelector("#new-video");'
-    'function applyStarter(id){'
-    'const card=document.querySelector(\'.starter-card[data-id="\'+id+\'"]\');'
-    'if(!card)return;'
-    'const prompt=card.dataset.prompt;'
     'const blank=form.querySelector("input[name=start][value=blank]");'
     'blank.checked=true;blank.dispatchEvent(new Event("change"));'
     'form.description.value=prompt;'
     'form.description.focus();'
     'const m=/\\[[^\\]]*\\]/.exec(prompt);'
-    'if(m)form.description.setSelectionRange(m.index,m.index+m[0].length)}'
-    'for(const c of document.querySelectorAll(".starter-card"))c.onclick=()=>applyStarter(c.dataset.id);'
-    'const initial=new URLSearchParams(location.search).get("starter");'
-    # Arriving from the library's row, the choice is already made: show the form, not the row again.
-    'if(initial&&document.querySelector(\'.starter-card[data-id="\'+initial+\'"]\')){'
-    'document.querySelector(".starters").hidden=true;applyStarter(initial)}'
+    'if(m)form.description.setSelectionRange(m.index,m.index+m[0].length)'
     '})();'
     '</script>'
 )
@@ -559,23 +555,15 @@ def _starter_poster_html(poster):
            'onerror="this.remove()"></span>')
 
 
-def _starter_card_html(s, as_link):
-    title = html.escape(s['title'])
-    prompt = html.escape(s['prompt'])
-    poster = _starter_poster_html(s['poster'])
-    if as_link:
-        return (f'<a class="starter-card" href="/new?starter={quote(s["id"])}">' + poster +
-               f'<span class="starter-title">{title}</span>'
-               f'<span class="starter-prompt">{prompt}</span></a>')
-    return (f'<button type="button" class="starter-card" data-id="{html.escape(s["id"])}" '
-           f'data-prompt="{prompt}" data-needs="{html.escape(s["needs"])}">' + poster +
-           f'<span class="starter-title">{title}</span>'
-           f'<span class="starter-prompt">{prompt}</span></button>')
+def _starter_card_html(s):
+    return (f'<a class="starter-card" href="/new?starter={quote(s["id"])}">'
+            f'<span class="starter-prompt">{html.escape(s["prompt"])}</span>' + _starter_poster_html(s['poster']) +
+            f'<span class="starter-title">{html.escape(s["title"])}</span></a>')
 
 
-def _starter_section_html(hero, as_link, heading='Starter prompts'):
+def _starter_section_html(hero, heading='Starter prompts'):
     cls = 'starters hero' if hero else 'starters'
-    cards = ''.join(_starter_card_html(s, as_link) for s in STARTERS)
+    cards = ''.join(_starter_card_html(s) for s in STARTERS)
     return (f'<section class="{cls}"><h2>{heading}</h2>'
            f'<div class="starter-grid">{cards}</div></section>')
 
@@ -808,9 +796,9 @@ def index(entries, accounts_enabled, user, host, scheme='http', showcase=False, 
                 'Or pick a starter below and fill in the blanks.</p></div>' +
                 ('<a class="btn btn-primary" href="/new">Start your first video</a>' if can_create else '') +
                 '</section>')
-        content = body + _starter_section_html(True, as_link=True, heading='Starter prompts')
+        content = body + _starter_section_html(True, heading='Starter prompts')
     else:
-        content = ''.join(rows) + _starter_section_html(False, as_link=True, heading='Start from a starter prompt')
+        content = ''.join(rows) + _starter_section_html(False, heading='Start from a starter prompt')
     count = len(entries)
     sub = f'<p>{count} video{"" if count == 1 else "s"}</p>' if count else ''
     # A commit subject holding e.g. "<!--<script>" must not push the tokenizer into
@@ -833,15 +821,14 @@ def index(entries, accounts_enabled, user, host, scheme='http', showcase=False, 
 def new_video_page(names, user=None):
     """`user`: who is signed in, for the header's account menu; None without accounts."""
     options = ''.join(f'<option value="{html.escape(n)}"></option>' for n in names)
-    starters = _starter_section_html(hero=False, as_link=False, heading='Or start from one of these')
-    return (_head('New video', APP_STYLE + STARTER_STYLE + NEW_VIDEO_STYLE + ORDER_STYLE) +
+    return (_head('New video', APP_STYLE + NEW_VIDEO_STYLE + ORDER_STYLE) +
             '<body>' + app_header('new', user) + '<main class="app-main"><div class="new-wrap">'
             '<div class="page-head"><h1>New video</h1></div>'
             '<form id="new-video">'
             '<div id="prompt-fields">'
             '<label class="prompt">What do you want to make?<textarea name="description" rows="6" autofocus '
             'placeholder="A 30-second launch video for our app: open on the problem, show three features, '
-            'end on the download button. Bold type, upbeat."></textarea></label>' + starters +
+            'end on the download button. Bold type, upbeat."></textarea></label>'
             '</div>'
             '<section class="details"><h2>Details</h2>'
             '<label>Name<input name="name" placeholder="name, or project/name to group it in a project" '
