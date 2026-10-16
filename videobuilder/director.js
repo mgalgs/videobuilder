@@ -1665,6 +1665,7 @@ $('source-add-to-note').onclick=()=> {
   if(!sp||sp.start==null||sp.end==null)return;
   const [a,b]=sp.start<=sp.end?[sp.start,sp.end]:[sp.end,sp.start];
   insertAtCursor($('message'),`use ${sourceClock(a)}–${sourceClock(b)} from ${sp.name} `);
+  fitMessage();
   closeSourcePlayer()
 };
 $('source-player-close').onclick=closeSourcePlayer;
@@ -1721,6 +1722,7 @@ function editPending(i) {
   savePending();
   renderPending();
   $('message').value=item.text;
+  fitMessage();
   state.files=item.attachments;
   renderFiles();
   state.stamp=item.time!=null;
@@ -1750,6 +1752,13 @@ async function uploadFiles(files) {
   }
   return out
 }
+// Call after every programmatic change to the box's value: only typing fires `input`.
+function fitMessage() {
+  const el=$('message');
+  el.style.height='auto';
+  el.style.height=el.scrollHeight+2+'px';
+  el.style.overflowY=el.scrollHeight+2>parseFloat(getComputedStyle(el).maxHeight)?'auto':'hidden'
+}
 // After a note joins the list, the empty input says how to send it.
 let hintTimer=null;
 function hintSendAgain() {
@@ -1776,6 +1785,7 @@ async function addPending() {
     savePending();
     renderPending();
     $('message').value='';
+    fitMessage();
     hintSendAgain();
     state.files=[];
     renderFiles();
@@ -2125,6 +2135,7 @@ async function sendNow() {
       video:state.video,format:state.format,...batchBody([{text,time,attachments}])
     });
     $('message').value='';
+    fitMessage();
     state.files=[];
     renderFiles();
     showError('');
@@ -2148,6 +2159,7 @@ $('message').onkeydown=e=> {
     else addPending()
   }
 };
+$('message').oninput=fitMessage;
 $('message').onpaste=e=> {
   const files=[...e.clipboardData?.files||[]];
   if(!files.length)return;

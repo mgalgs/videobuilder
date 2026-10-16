@@ -18,7 +18,7 @@ body {
   color: #fff;
 }
 
-button,input,select {
+button,input,textarea,select {
   font: inherit;
 }
 
@@ -36,7 +36,7 @@ a {
   text-decoration: none;
 }
 
-button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible {
+button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible,select:focus-visible {
   outline: 3px solid #fff;
   outline-offset: 2px;
 }
@@ -1095,10 +1095,12 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible {
 
 .composer-row {
   display: flex;
+  align-items: flex-end;
   gap: 8px;
 }
 
-.composer-row input {
+.composer-row input,
+.composer-row textarea {
   min-width: 0;
   flex: 1;
   height: 44px;
@@ -1109,6 +1111,16 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible {
   padding: 0 16px;
   /* Under 16px, iOS Safari zooms the page in when the field takes focus. */
   font-size: 16px;
+}
+
+/* fitMessage() in director.js sets the height to the text, up to max-height. */
+.composer-row textarea {
+  box-sizing: border-box;
+  padding: 11px 16px;
+  line-height: 20px;
+  max-height: 152px;
+  resize: none;
+  overflow-y: hidden;
 }
 
 .accent {
@@ -1163,6 +1175,7 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible {
   color: #fff;
   text-align: left;
   overflow-wrap: anywhere;
+  white-space: pre-line;
 }
 
 .pending-time {
