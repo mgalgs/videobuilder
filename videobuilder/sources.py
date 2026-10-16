@@ -221,7 +221,9 @@ class Sources:
         any worktree, since `info/exclude` is shared repo-wide)."""
         if not self.editor.project.git:
             return
-        pattern = '/' + PurePosixPath(rel_dir).as_posix() + '/sources/'
+        # From parts, not as_posix(): a film at the root has rel_dir '.', and
+        # git never matches '/./sources/'.
+        pattern = '/' + '/'.join(PurePosixPath(rel_dir).parts + ('sources',)) + '/'
         try:
             info_dir = Path(subprocess.run(
                 ['git', 'rev-parse', '--git-common-dir'], cwd=self.editor.root,

@@ -404,6 +404,14 @@ class CheckoutStaging(fixtures.API):
         self.assertEqual(git(self.root, 'status', '--porcelain', '--ignored=matching', '--', 'unrelated').strip(),
                          '?? unrelated/')
 
+    def test_exclude_entry_for_a_film_at_the_repo_root(self):
+        # A blank video's film.py sits at the root, so its directory is '.'.
+        self.editor.sources._exclude_checkout(Path('.'))
+        self.assertIn('/sources/', (self.root / '.git' / 'info' / 'exclude').read_text().splitlines())
+        (self.root / 'sources').mkdir()
+        (self.root / 'sources' / 'podcast.webm').write_text('linked')
+        self.assertEqual(git(self.root, 'status', '--porcelain', '--', 'sources'), '')
+
     def test_sync_removes_a_stale_link_after_delete(self):
         self.editor.sources.sync('promo/film')
         linked = self.root / 'promo' / 'sources' / 'interview.mp4'
