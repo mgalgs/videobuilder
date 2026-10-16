@@ -202,11 +202,12 @@ else:
         first = backend.poll('/run/example')
         second = backend.poll('/run/example')
         self.assertEqual((first.state, second.state), ('working', 'working'))
-        self.assertEqual(calls.read_text().splitlines(), ['/run/example'])
         deadline = time.time() + 5
         while not marker.exists() and time.time() < deadline:
             time.sleep(0.02)
         self.assertTrue(marker.exists())
+        # Only now: on a loaded box the adopt process may not have started by the second poll.
+        self.assertEqual(calls.read_text().splitlines(), ['/run/example'])
         time.sleep(0.1)  # give the now-finished adopt process time to actually exit
         third = backend.poll('/run/example')
         self.assertEqual((third.state, third.reply, third.branch), ('replied', 'done', 'draft/a'))
