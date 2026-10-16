@@ -317,7 +317,9 @@ NEW_VIDEO_STYLE = (
     '#new-video [hidden]{display:none !important}'
     '#new-video{display:flex;flex-direction:column;gap:1.5rem}'
     '#new-video label{display:flex;flex-direction:column;gap:.4rem;font-size:.88rem;color:#a9a9b2}'
-    '#new-video input:not([type=radio]):not([type=file]),#new-video textarea{font:inherit;color:#f4f4f2;'
+    # 16px, not the label's .88rem: iOS zooms the page into any smaller field it focuses.
+    '#new-video input:not([type=radio]):not([type=file]),#new-video textarea{font:inherit;font-size:16px;'
+    'color:#f4f4f2;'
     'min-height:46px;padding:.7rem .85rem;border-radius:10px;border:1px solid #2c2c33;background:#0d0d10;'
     'outline:none;box-sizing:border-box;width:100%;transition:border-color .15s,box-shadow .15s}'
     '#new-video input:not([type=radio]):not([type=file]):focus,#new-video textarea:focus{border-color:#6b6b75;'

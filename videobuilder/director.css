@@ -1584,6 +1584,11 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible {
     display: flex !important;
   }
 
+  /* iOS zooms the page into any focused field under 16px. */
+  input,select,textarea {
+    font-size: 16px;
+  }
+
   #app {
     position: relative;
     overflow: hidden;
