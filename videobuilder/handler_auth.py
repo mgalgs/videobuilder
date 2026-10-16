@@ -17,6 +17,7 @@ import re
 from http.cookies import SimpleCookie
 from urllib.parse import parse_qs, unquote, urlparse
 
+from .capabilities import showcase_available
 from .editor import OPEN_ROUTES, HTTPError
 from .library import git_route
 from .pages import signin_page
@@ -144,7 +145,8 @@ class AuthHandler:
                     user = self._session_user(self.library.accounts)
                 if user is None:
                     if self._wants_html(route, method):
-                        self._send(200, signin_page(), 'text/html; charset=utf-8')
+                        self._send(200, signin_page(showcase=showcase_available(self.library.capabilities_dir)),
+                                   'text/html; charset=utf-8')
                         return None
                     raise HTTPError(401, 'sign in required')
             identity = _attributed(user, self._key)

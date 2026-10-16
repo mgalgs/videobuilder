@@ -320,7 +320,11 @@ MAX_BODY = 1 << 20
 # Reachable while signed out, when a library has accounts configured.
 # The only [editor] keys a library-hosted repo may set (see Editor.__init__).
 REPO_CONFIG_KEYS = {'videos', 'auto_land'}
-OPEN_ROUTES = {'/healthz','/login', '/signup', '/api/login', '/api/signup', '/api/logout'}
+# The showcase reel is open so the sign-in page can play it; it is built from
+# the repo's own examples. Every other capability clip stays behind sign-in.
+OPEN_ROUTES = {'/healthz','/login', '/signup', '/api/login', '/api/signup', '/api/logout',
+               '/capabilities/showcase-16x9.mp4', '/capabilities/showcase-16x9.jpg',
+               '/capabilities/showcase-9x16.mp4', '/capabilities/showcase-9x16.jpg'}
 
 
 class HTTPError(Exception):

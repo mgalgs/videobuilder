@@ -7,6 +7,7 @@ import sys
 import traceback
 from urllib.parse import parse_qs, quote, unquote, urlparse
 
+from .capabilities import showcase_available
 from .editor import HTTPError, _field, _need
 from .handler_auth import _key_in_scope
 from .library import serve_git, valid_name
@@ -91,9 +92,11 @@ class LibraryHandler:
                                          user)
                     return self._send(200, page, 'text/html; charset=utf-8')
                 if library.accounts and route == '/login' and method == 'GET':
-                    return self._send(200, signin_page(), 'text/html; charset=utf-8')
+                    return self._send(200, signin_page(showcase=showcase_available(library.capabilities_dir)),
+                                      'text/html; charset=utf-8')
                 if library.accounts and route == '/signup' and method == 'GET':
-                    return self._send(200, signup_page(), 'text/html; charset=utf-8')
+                    return self._send(200, signup_page(showcase=showcase_available(library.capabilities_dir)),
+                                      'text/html; charset=utf-8')
                 if route == '/new' and method == 'GET':
                     names = [n for n in library.names()
                             if not library.accounts or library.access.can_access(n, user, library.accounts)]

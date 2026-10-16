@@ -10,46 +10,95 @@ from urllib.parse import quote
 from .starters import STARTERS
 
 
-_AUTH_STYLE = ('<style>body{font:16px system-ui;background:#181b20;color:#eee;max-width:420px;margin:4rem auto;'
-              'padding:0 1rem}input,button{display:block;width:100%;margin:.4rem 0;padding:.7rem;font-size:16px;'
-              'box-sizing:border-box;border-radius:6px;border:1px solid #333;background:#20242b;color:#eee;'
-              'min-height:44px}button{background:#2d6cdf;border:none;color:#fff;font-weight:600;cursor:pointer}'
-              'a{color:#88cafa}#error{color:#f88;min-height:1.2em}'
-              '.tagline{color:#a9a9b2;line-height:1.5;margin:-.5rem 0 1.5rem}'
-              '@media (max-width:700px){body{margin:2rem auto}}</style>')
+_AUTH_STYLE = (
+    '<style>'
+    ':root{color-scheme:dark}'
+    'body{margin:0;min-height:100vh;font:16px/1.5 system-ui,sans-serif;color:#f4f4f2;'
+    'background:radial-gradient(1200px 600px at 15% -10%,rgba(229,72,59,.18),transparent 60%),#0d0d10}'
+    '.auth{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(320px,400px);gap:4rem;align-items:center;'
+    'max-width:1180px;margin:0 auto;padding:3.5rem 2rem;box-sizing:border-box;min-height:100vh}'
+    '.brand{display:flex;align-items:center;gap:.65rem;font-weight:800;font-size:1.25rem;letter-spacing:-.01em}'
+    '.brand svg{flex:none}'
+    '.pitch h1{font-size:clamp(2rem,4.2vw,3.25rem);line-height:1.08;letter-spacing:-.025em;margin:2.25rem 0 1rem;'
+    'font-weight:800}'
+    '.pitch h1 em{font-style:normal;color:#ef5b4c}'
+    '.pitch p{color:#a9a9b2;font-size:1.1rem;max-width:34rem;margin:0 0 2rem}'
+    '.reel{display:block;width:100%;aspect-ratio:16/9;border-radius:14px;background:#141417;object-fit:cover;'
+    'box-shadow:0 30px 80px rgba(0,0,0,.55),0 0 0 1px #26262c}'
+    '.steps{list-style:none;padding:0;margin:0;display:grid;gap:.9rem;color:#c9c9cf}'
+    '.steps b{color:#f4f4f2}'
+    '.card{background:#141417;border:1px solid #26262c;border-radius:16px;padding:2rem;'
+    'box-shadow:0 20px 60px rgba(0,0,0,.4)}'
+    '.card h2{margin:0 0 1.25rem;font-size:1.35rem;letter-spacing:-.01em}'
+    'label{display:block;font-size:.85rem;color:#a9a9b2;margin:.9rem 0 .35rem}'
+    'input{display:block;width:100%;box-sizing:border-box;min-height:46px;padding:.7rem .85rem;font:inherit;'
+    'color:#f4f4f2;background:#0d0d10;border:1px solid #2c2c33;border-radius:10px;outline:none}'
+    'input:focus{border-color:#ef5b4c;box-shadow:0 0 0 3px rgba(239,91,76,.25)}'
+    'button{display:block;width:100%;min-height:48px;margin-top:1.5rem;font:inherit;font-weight:700;color:#fff;'
+    'background:#e5483b;border:none;border-radius:10px;cursor:pointer}'
+    'button:hover{background:#ef5b4c}'
+    '#error{color:#ff8a80;min-height:1.4em;margin:.75rem 0 0;font-size:.9rem}'
+    '.switch{margin:1rem 0 0;color:#a9a9b2;font-size:.92rem;text-align:center}'
+    '.switch a{color:#f4f4f2;font-weight:600}'
+    '@media (max-width:900px){.auth{grid-template-columns:1fr;gap:2rem;padding:1.5rem 1rem 2.5rem;'
+    'min-height:0}.pitch h1{margin-top:1.5rem}.pitch p{margin-bottom:1.25rem}.reel{aspect-ratio:16/9}'
+    '.card{padding:1.5rem}}'
+    '</style>')
+
+_LOGO = ('<svg width="34" height="34" viewBox="0 0 34 34" aria-hidden="true">'
+         '<rect width="34" height="34" rx="9" fill="#e5483b"/>'
+         '<path d="M13 10.5v13a1 1 0 0 0 1.5.86l10.8-6.5a1 1 0 0 0 0-1.72l-10.8-6.5A1 1 0 0 0 13 10.5z" '
+         'fill="#fff"/></svg>')
 
 
-_TAGLINE = ('<p class="tagline">Direct videos in plain words: describe what you want, watch the '
-            'version the builder makes, then give notes until it\'s right.</p>')
+def _auth_page(title, heading, fields, button, api, switch, showcase):
+    """The sign-in and sign-up pages: the pitch beside the form, the showcase
+    reel when it is built, three plain steps when it isn't."""
+    if showcase:
+        # Same portrait/landscape pick as the library's reel, for the same reason.
+        show = ('<video class="reel" id="reel" muted autoplay loop playsinline preload="metadata" '
+                'poster="/capabilities/showcase-16x9.jpg" aria-label="What videobuilder can make"></video>'
+                '<script>(()=>{const v=document.getElementById("reel");v.src="/capabilities/showcase-16x9.mp4"})()'
+                '</script>')
+    else:
+        show = ('<ol class="steps"><li><b>Describe it.</b> The topic, the length, the look.</li>'
+                '<li><b>Watch the first version.</b> The builder makes it in a few minutes.</li>'
+                '<li><b>Give notes.</b> Each one makes a new version, until it\'s right.</li></ol>')
+    return ('<!doctype html><html lang="en"><head><meta charset="utf-8">'
+            f'<title>{title} · videobuilder</title>'
+            '<meta name="viewport" content="width=device-width, initial-scale=1">' + _AUTH_STYLE +
+            '</head><body><main class="auth"><section class="pitch">'
+            '<div class="brand">' + _LOGO + 'videobuilder</div>'
+            '<h1>Direct videos <em>in plain words.</em></h1>'
+            '<p>Describe what you want, watch the version the builder makes, then give notes until '
+            'it\'s right.</p>' + show + '</section>'
+            f'<section class="card"><h2>{heading}</h2><form id="f">{fields}<button>{button}</button></form>'
+            f'<p id="error" role="alert"></p><p class="switch">{switch}</p></section></main>'
+            '<script>document.querySelector("#f").onsubmit=async e=>{e.preventDefault();'
+            f'const form=new FormData(e.target);const r=await fetch("{api}",{{method:"POST",'
+            'headers:{"Content-Type":"application/json"},body:JSON.stringify(Object.fromEntries(form))});'
+            'if(r.ok)location.href="/";else document.querySelector("#error").textContent=(await r.json()).error};'
+            '</script></body></html>').encode()
 
 
-def signin_page(error=None):
-    return ('<!doctype html><html><head><meta charset="utf-8"><title>Sign in · Video library</title>'
-           '<meta name="viewport" content="width=device-width, initial-scale=1">' + _AUTH_STYLE +
-           '</head><body><h1>Video library</h1>' + _TAGLINE + '<form id="f">'
-           '<label>Username<input name="username" autocomplete="username" required></label>'
-           '<label>Password<input name="password" type="password" autocomplete="current-password" required>'
-           '</label><button>Sign in</button></form><p id="error"></p><p><a href="/signup">Sign up</a></p>'
-           '<script>document.querySelector("#f").onsubmit=async e=>{e.preventDefault();'
-           'const form=new FormData(e.target);const r=await fetch("/api/login",{method:"POST",'
-           'headers:{"Content-Type":"application/json"},body:JSON.stringify(Object.fromEntries(form))});'
-           'if(r.ok)location.href="/";else document.querySelector("#error").textContent=(await r.json()).error};'
-           '</script></body></html>').encode()
+def signin_page(error=None, showcase=False):
+    return _auth_page(
+        'Sign in', 'Sign in',
+        '<label for="u">Username</label><input id="u" name="username" autocomplete="username" required>'
+        '<label for="p">Password</label><input id="p" name="password" type="password" '
+        'autocomplete="current-password" required>',
+        'Sign in', '/api/login', 'New here? <a href="/signup">Sign up</a>', showcase)
 
 
-def signup_page():
-    return ('<!doctype html><html><head><meta charset="utf-8"><title>Sign up · Video library</title>'
-           '<meta name="viewport" content="width=device-width, initial-scale=1">' + _AUTH_STYLE +
-           '</head><body><h1>Video library</h1>' + _TAGLINE + '<form id="f">'
-           '<label>Username<input name="username" autocomplete="username" required></label>'
-           '<label>Password<input name="password" type="password" autocomplete="new-password" required></label>'
-           '<label>Confirm password<input name="confirm" type="password" autocomplete="new-password" required>'
-           '</label><button>Sign up</button></form><p id="error"></p><p><a href="/login">Sign in</a></p>'
-           '<script>document.querySelector("#f").onsubmit=async e=>{e.preventDefault();'
-           'const form=new FormData(e.target);const r=await fetch("/api/signup",{method:"POST",'
-           'headers:{"Content-Type":"application/json"},body:JSON.stringify(Object.fromEntries(form))});'
-           'if(r.ok)location.href="/";else document.querySelector("#error").textContent=(await r.json()).error};'
-           '</script></body></html>').encode()
+def signup_page(showcase=False):
+    return _auth_page(
+        'Sign up', 'Create your account',
+        '<label for="u">Username</label><input id="u" name="username" autocomplete="username" required>'
+        '<label for="p">Password</label><input id="p" name="password" type="password" '
+        'autocomplete="new-password" required>'
+        '<label for="c">Confirm password</label><input id="c" name="confirm" type="password" '
+        'autocomplete="new-password" required>',
+        'Sign up', '/api/signup', 'Have an account? <a href="/login">Sign in</a>', showcase)
 
 
 LIBRARY_STYLE = (
