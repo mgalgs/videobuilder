@@ -362,3 +362,16 @@ class ComposeStack(unittest.TestCase):
         self.assertEqual(editor['restart'], 'unless-stopped')
         self.assertIn('/healthz', ' '.join(editor['healthcheck']['test']))
         self.assertEqual(self.compose['services']['base']['scale'], 0)
+
+
+class ComposeGuide(unittest.TestCase):
+    def test_guide_covers_setup_and_is_linked(self):
+        guide = (COMPOSE / 'README.md').read_text()
+        for needed in ('admin-password', 'claude setup-token', 'docker compose up -d', 'git pull',
+                       'docker compose build', 'reverse_proxy 127.0.0.1:8100', 'music-sources.toml',
+                       'apparmor_restrict_unprivileged_userns'):
+            self.assertIn(needed, guide)
+        top = (COMPOSE.parent.parent / 'README.md').read_text()
+        self.assertLess(top.index('## Self-host with Docker Compose'),
+                        top.index('## Deploying the editor on Kubernetes'))
+        self.assertIn('deploy/compose/README.md', top)

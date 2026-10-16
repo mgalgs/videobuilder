@@ -720,7 +720,16 @@ deliberate visual change, refresh them with
 `VIDEOBUILDER_UPDATE_GOLDEN=1 python -m unittest tests.test_golden`, and
 commit the new PNGs.
 
-## Deploying the editor
+## Self-host with Docker Compose
+
+The simplest way to run the editor for other people: on any Linux machine with
+Docker, `deploy/compose/` builds one container with the video library,
+accounts and the AI builder, sandboxed by bubblewrap inside it. Set an admin,
+a password and a Claude token, run `docker compose up -d`, and put a TLS
+reverse proxy in front. `deploy/compose/README.md` is the step-by-step guide,
+including upgrades and troubleshooting.
+
+## Deploying the editor on Kubernetes
 
 The example in `deploy/k8s/editor.yaml` runs one replica with `Recreate`, a
 PVC for the library, checkouts, editor state and fork-sandbox scratch, a Service,
