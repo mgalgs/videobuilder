@@ -15,13 +15,18 @@ _AUTH_STYLE = ('<style>body{font:16px system-ui;background:#181b20;color:#eee;ma
               'box-sizing:border-box;border-radius:6px;border:1px solid #333;background:#20242b;color:#eee;'
               'min-height:44px}button{background:#2d6cdf;border:none;color:#fff;font-weight:600;cursor:pointer}'
               'a{color:#88cafa}#error{color:#f88;min-height:1.2em}'
+              '.tagline{color:#a9a9b2;line-height:1.5;margin:-.5rem 0 1.5rem}'
               '@media (max-width:700px){body{margin:2rem auto}}</style>')
+
+
+_TAGLINE = ('<p class="tagline">Direct videos in plain words: describe what you want, watch the '
+            'version the builder makes, then give notes until it\'s right.</p>')
 
 
 def signin_page(error=None):
     return ('<!doctype html><html><head><meta charset="utf-8"><title>Sign in · Video library</title>'
            '<meta name="viewport" content="width=device-width, initial-scale=1">' + _AUTH_STYLE +
-           '</head><body><h1>Video library</h1><form id="f">'
+           '</head><body><h1>Video library</h1>' + _TAGLINE + '<form id="f">'
            '<label>Username<input name="username" autocomplete="username" required></label>'
            '<label>Password<input name="password" type="password" autocomplete="current-password" required>'
            '</label><button>Sign in</button></form><p id="error"></p><p><a href="/signup">Sign up</a></p>'
@@ -35,7 +40,7 @@ def signin_page(error=None):
 def signup_page():
     return ('<!doctype html><html><head><meta charset="utf-8"><title>Sign up · Video library</title>'
            '<meta name="viewport" content="width=device-width, initial-scale=1">' + _AUTH_STYLE +
-           '</head><body><h1>Video library</h1><form id="f">'
+           '</head><body><h1>Video library</h1>' + _TAGLINE + '<form id="f">'
            '<label>Username<input name="username" autocomplete="username" required></label>'
            '<label>Password<input name="password" type="password" autocomplete="new-password" required></label>'
            '<label>Confirm password<input name="confirm" type="password" autocomplete="new-password" required>'
