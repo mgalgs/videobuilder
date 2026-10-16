@@ -682,6 +682,9 @@ def _howto_html(user):
             '<p class="howto-lead">Direct a video in plain words. Click <strong>+ New video</strong> and say '
             'what you want, and the builder makes a first version. Watch it, then write a note '
             '("make the title bigger here"): each note makes the next version, and every version is kept.</p>'
+            '<p class="howto-lead">Bring your own material too. Drop photos, clips, audio or a PDF in when '
+            'you start a video or with any note, and upload longer footage under <strong>Sources</strong> '
+            'in the editor.</p>'
             '<p>Someone sharing a video with you? It shows up here once they invite '
             f'<strong>{html.escape(user)}</strong>.</p></section>')
 
