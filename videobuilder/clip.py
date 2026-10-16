@@ -85,23 +85,18 @@ def _fps_and_cfr(stream):
 _SHOWINFO_PTS_TIME = re.compile(rb'pts_time:(\S+)')
 
 
-def _drain_slots(stderr, slots):
+def _drain_slots(stderr, slots, synced):
     """Feed `slots` the `pts_time` of each frame `showinfo` logs to `stderr`,
     in order, ending with a `None` sentinel at EOF. Runs for the life of a VFR
-    decoder: once the caller stops reading (past the seek-sync it needs this
-    for), further puts are dropped rather than blocking, but the thread keeps
-    draining stderr so ffmpeg's own write to that pipe never backs up."""
+    decoder, so ffmpeg's write to that pipe never backs up; once the caller
+    sets `synced` (past the seek-sync it needs this for) it stops queueing.
+    `slots` is unbounded until then: showinfo can run several frames ahead
+    of stdout, and a dropped pts would misnumber every later frame."""
     for line in stderr:
         match = _SHOWINFO_PTS_TIME.search(line)
-        if match is not None:
-            try:
-                slots.put_nowait(float(match.group(1)))
-            except queue.Full:
-                pass
-    try:
-        slots.put_nowait(None)
-    except queue.Full:
-        pass
+        if match is not None and not synced.is_set():
+            slots.put(float(match.group(1)))
+    slots.put(None)
 
 
 class Clip:
@@ -217,8 +212,8 @@ class Clip:
                  '-i', self.path, '-map', '0:v:0', '-vf', vf, '-f', 'rawvideo',
                  '-pix_fmt', 'rgb24', '-fps_mode', 'passthrough', 'pipe:1'],
                 stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-            slots = queue.Queue(maxsize=8)
-            thread = threading.Thread(target=_drain_slots, args=(process.stderr, slots), daemon=True)
+            slots, synced = queue.Queue(), threading.Event()
+            thread = threading.Thread(target=_drain_slots, args=(process.stderr, slots, synced), daemon=True)
             thread.start()
             pending = None
             while True:
@@ -233,6 +228,7 @@ class Clip:
                     if slot == index:
                         pending = data
                     break
+            synced.set()
             if pending is not None:
                 self._decoder = process
                 self._pending = pending
