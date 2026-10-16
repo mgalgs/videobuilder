@@ -475,13 +475,17 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible {
 }
 
 .build-step.current .build-step-mark {
-  border: 2px solid #9aa7c7;
-  animation: build-step-pulse 2.8s ease-in-out infinite;
+  border: 2px solid #c3cde6;
+  background: radial-gradient(circle, #c3cde6 0 2.5px, transparent 3px);
+  animation: build-step-pulse 1.8s ease-out infinite;
 }
 
+/* A ripple off the ring, with the ring itself breathing. */
 @keyframes build-step-pulse {
-  0%, 100% { opacity: .45; transform: scale(.85); }
-  50% { opacity: 1; transform: scale(1); }
+  0% { box-shadow: 0 0 0 0 rgba(195, 205, 230, .55); transform: scale(.9); }
+  50% { transform: scale(1.05); }
+  70% { box-shadow: 0 0 0 7px rgba(195, 205, 230, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(195, 205, 230, 0); transform: scale(.9); }
 }
 
 @media (prefers-reduced-motion: reduce) {
