@@ -76,6 +76,7 @@ RUN set -eu; \
     git -c user.name=videobuilder -c user.email=videobuilder@example.com commit -qm "videobuilder $version"; \
     git tag "v$version"; \
     git clone -q --bare /tmp/videobuilder-source /opt/videobuilder-source.git; \
+    cd /; \
     rm -rf /tmp/videobuilder-source; \
     git config --system --add safe.directory /opt/videobuilder-source.git
 
