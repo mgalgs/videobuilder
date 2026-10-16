@@ -34,6 +34,7 @@ import threading
 import time
 
 from .atomic import write_json_atomic
+from .community import is_reserved
 
 USERNAME = re.compile(r'[a-z0-9._-]{3,32}\Z')
 # Same shape as a project namespace (videobuilder.library.PART); duplicated here rather
@@ -106,7 +107,8 @@ class Accounts:
     """Usernames, password hashes and sessions. `admins` is a sequence of
     (name, password_file) pairs: each admin's hash is (re)created from its
     file's first line on every startup, so a changed Secret takes effect on
-    restart. An admin name is reserved: sign-up refuses it."""
+    restart. An admin name, and `capabilities` (see community.is_reserved),
+    is reserved: sign-up refuses it."""
 
     def __init__(self, state_dir, admins=()):
         self.path = os.path.join(state_dir, 'accounts.json')
@@ -232,7 +234,7 @@ class Accounts:
                 raise ValueError('too many sign-ups right now; try again later')
             self._signups.append(now)
         username = normalize_username(username)
-        if username in self.admins:
+        if username in self.admins or is_reserved(username):
             raise ValueError('that username is reserved')
         if not isinstance(password, str) or len(password) < 10:
             raise ValueError('password must be at least 10 characters')

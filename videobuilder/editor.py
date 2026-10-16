@@ -146,7 +146,9 @@ GET  /new                             the New Video page
 POST /api/videos/new {name,start:"blank"|"copy",from?}
                                      201 {name,commit,video}; video is the
                                      sole video's id for "blank", null for
-                                     "copy"; 400 invalid/existing name
+                                     "copy"; 400 invalid/existing name, or a
+                                     name under the reserved `capabilities/`
+                                     namespace (see community.is_reserved)
 POST /v/<name>/api/videos/first-note {description?,attachments?:[id...],
                                       links?:[url...]}
                                      200 note: the video's first note, built

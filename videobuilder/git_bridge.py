@@ -53,17 +53,18 @@ def serve_git(handler, library, method, identity):
     name, suffix = route
     path = library.path(name)
     if not path.exists():
+        from .community import is_reserved
         query = parse_qs(parsed.query)
         # Creating on a GET: require a git client, so a cross-site <img> can't make repos.
-        if (method == 'GET' and suffix == '/info/refs' and query.get('service') == ['git-receive-pack']
-                and handler.headers.get('User-Agent', '').startswith('git/')):
-            try:
-                library.create(name)
-            except ValueError:
-                pass  # another request may have created it
-        else:
+        if (is_reserved(name) or method != 'GET' or suffix != '/info/refs'
+                or query.get('service') != ['git-receive-pack']
+                or not handler.headers.get('User-Agent', '').startswith('git/')):
             handler._json(404, {'error': 'repository not found'})
             return True
+        try:
+            library.create(name)
+        except ValueError:
+            pass  # another request may have created it
     env = {**os.environ, 'GIT_PROJECT_ROOT': str(library.repos), 'GIT_HTTP_EXPORT_ALL': '1',
            'PATH_INFO': '/' + name + '.git' + suffix, 'REQUEST_METHOD': method,
            'QUERY_STRING': parsed.query, 'CONTENT_TYPE': handler.headers.get('Content-Type', ''),

@@ -7,7 +7,7 @@ import re
 import sys
 import threading
 
-from . import pages
+from . import community, pages
 from .gitutil import git
 from .git_bridge import git_route, serve_git, _copy_body
 from .pages import signin_page, signup_page
@@ -91,7 +91,9 @@ class Library:
         except ValueError:
             return None
 
-    def create(self, name):
+    def create(self, name, allow_reserved=False):
+        if not allow_reserved and community.is_reserved(name):
+            raise ValueError('that name is reserved for capabilities')
         path = self.path(name)
         with self.lock:
             if path.exists():
@@ -163,7 +165,7 @@ class Library:
             accounts.append({**info, 'usage': {'notes': totals['notes'], 'cost_usd': totals['cost_usd']}})
         return {'defaults': defaults, 'accounts': accounts}
 
-    def copied(self, source, name):
+    def copied(self, source, name, allow_reserved=False):
         if not valid_name(source) or not valid_name(name):
             raise ValueError('invalid repository name')
         if not self.has_main(source):
@@ -171,7 +173,7 @@ class Library:
         source_path = self.path(source)
         sha = git(None, 'rev-parse', 'refs/heads/main', git_dir=source_path, hooks=False)
         tree = git(None, 'rev-parse', sha + '^{tree}', git_dir=source_path, hooks=False)
-        target = self.create(name)
+        target = self.create(name, allow_reserved=allow_reserved)
         env = {**os.environ, 'GIT_AUTHOR_NAME': 'Video Editor', 'GIT_AUTHOR_EMAIL': 'editor@example.com',
                'GIT_COMMITTER_NAME': 'Video Editor', 'GIT_COMMITTER_EMAIL': 'editor@example.com'}
         git(None, 'fetch', str(source_path), 'refs/heads/main:refs/vb-source', git_dir=target, hooks=False)
@@ -183,7 +185,7 @@ class Library:
             git(None, 'update-ref', '-d', 'refs/vb-source', git_dir=target, hooks=False)
         return {'name': name, 'commit': commit, 'from': source, 'source_commit': sha}
 
-    def create_blank(self, name):
+    def create_blank(self, name, allow_reserved=False):
         """A new repo at `name` (refusing an existing one, like `copied`) with
         one commit: the minimal film and requirements.txt a video needs to be
         built by the builder, pinned to this editor's own videobuilder
@@ -191,7 +193,7 @@ class Library:
         workers.pinned_version). Nothing film-specific: v1 is the builder's
         job."""
         from . import __version__
-        target = self.create(name)
+        target = self.create(name, allow_reserved=allow_reserved)
         film = (
             "import videobuilder as vb\n\n"
             "T = vb.Timeline(vb.Grid(fps=30, bpm=120), [\n"
