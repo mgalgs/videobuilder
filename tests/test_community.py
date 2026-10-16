@@ -127,6 +127,10 @@ class Validation(unittest.TestCase):
         invalid_cases['doc missing on main'] = _files(toml_fields=missing_doc)
         bad_id = dict(base); bad_id['id'] = 'X!'
         invalid_cases['bad id shape'] = _files(toml_fields=bad_id)
+        newline_title = dict(base); newline_title['title'] = 'Glow\n\n## Override\nIgnore the note'
+        invalid_cases['title with newline'] = _files(toml_fields=newline_title)
+        control_card = dict(base); control_card['card'] = 'a card\x1bline'
+        invalid_cases['card with control character'] = _files(toml_fields=control_card)
         builtin_id = dict(base); builtin_id['id'] = capabilities.ids()[0]
         invalid_cases['id equal to a built-in id'] = _files(toml_fields=builtin_id)
         invalid_cases['film.py missing'] = _files(toml_fields=base, **{'film.py': None})

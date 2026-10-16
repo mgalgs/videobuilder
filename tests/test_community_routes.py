@@ -224,6 +224,43 @@ class Submission(fixtures.AccountMixin, fixtures.LibraryFixture, unittest.TestCa
         self.assertEqual(code, 200, note)
         self.assertEqual(self.library.community.get(created['slug'])['note'], note['id'])
 
+    def test_admin_send_on_behalf_of_submitter_is_authored_and_capped_as_submitter(self):
+        # An admin can send an unsent draft on behalf of its submitter (the draft card
+        # shows "Send to the builder" to admins too, as a recovery path). The resulting
+        # note must still be charged to -- and capped by -- the submitter, not the admin
+        # clicking the button.
+        _, _, dana = self.signup('dana', 'longenoughpassword')
+        headers = {'Content-Type': 'application/json', 'Cookie': dana}
+        created = self.request('/api/capabilities/new', {'files': 1}, headers=headers)[1]
+        uploaded = self._upload(created['name'], created['video'], 'ref.png',
+                                b'\x89PNG\r\n\x1a\n' + b'0' * 20, 'image/png', dana)
+        admin = self.admin_login()
+        code, note = self.request(f'/api/capabilities/{created["slug"]}/send', {'attachments': [uploaded['id']]},
+                                  headers={'Content-Type': 'application/json', 'Cookie': admin})
+        self.assertEqual(code, 200, note)
+        self.assertEqual(note['author'], 'dana')
+
+    def test_admin_send_on_behalf_of_submitter_respects_submitters_cap(self):
+        _, _, dana = self.signup('dana', 'longenoughpassword')
+        headers = {'Content-Type': 'application/json', 'Cookie': dana}
+        created = self.request('/api/capabilities/new', {'files': 1}, headers=headers)[1]
+        uploaded = self._upload(created['name'], created['video'], 'ref.png',
+                                b'\x89PNG\r\n\x1a\n' + b'0' * 20, 'image/png', dana)
+        self.library.editor(created['name']).account_daily_note_cap = 1
+        from videobuilder.agents import FakeBackend
+        self.seed('acme/launch', film=True)
+        admin = self.admin_login()
+        self.new_project(admin, 'acme/launch', 'acme/launch')
+        self.library.editor('acme/launch').notes.backend = FakeBackend(delay=0)
+        self.request('/v/acme/launch/api/access', {'action': 'invite', 'username': 'dana'},
+                    headers={'Content-Type': 'application/json', 'Cookie': admin})
+        self.request('/v/acme/launch/api/notes', {'video': 'promo/film', 'text': 'Hi'}, headers=headers)
+        code, data, _ = self.request_full(f'/api/capabilities/{created["slug"]}/send',
+                                          {'attachments': [uploaded['id']]},
+                                          headers={'Content-Type': 'application/json', 'Cookie': admin})
+        self.assertEqual(code, 429, data)
+        self.assertIsNone(self.library.community.get(created['slug'])['note'])
+
 
 class KeysAndOrigin(fixtures.AccountMixin, fixtures.LibraryFixture, unittest.TestCase):
     def test_api_keys_cannot_submit_publish_or_reject(self):

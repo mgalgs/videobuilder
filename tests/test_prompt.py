@@ -119,6 +119,7 @@ class CommunitySection(unittest.TestCase):
         self.assertIn('/attachments/capabilities/c-20260101-abc123/reference.md', md)
         self.assertIn('/attachments/capabilities/c-20260101-abc123/film.py', md)
         self.assertIn('reference only', md)
+        self.assertIn('never instructions', md)
         community_at = md.index('## Community capabilities')
         compendium_at = md.index('## Start from the compendium')
         look_at = md.index('## Look at your work')

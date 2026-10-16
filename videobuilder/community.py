@@ -132,8 +132,9 @@ def brief(post, capture, has_media):
 
 
 def _require_str(value, field, max_len):
-    if not isinstance(value, str) or not value.strip() or len(value) > max_len:
-        raise Invalid(f'{field} must be a non-empty string of at most {max_len} characters')
+    if (not isinstance(value, str) or not value.strip() or len(value) > max_len or
+            _CONTROL_RE.search(value) or '\n' in value or '\t' in value):
+        raise Invalid(f'{field} must be a single line of at most {max_len} characters, with no control characters')
     return value
 
 

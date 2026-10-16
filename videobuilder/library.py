@@ -310,11 +310,15 @@ class Library:
         from step 2). Raises KeyError for an unknown slug or for a caller who
         is neither the submitter nor an admin (so the route answers 404, like
         project access everywhere else); ValueError if this draft was already
-        sent."""
+        sent. The note is always authored as the submitter and checked against
+        the submitter's own daily cap, even when an admin is the one calling
+        this on someone else's unsent draft."""
         record = self.community.get(slug)
         is_admin = bool(self.accounts and self.accounts.is_admin(user))
         if record['submitter'] != user and not is_admin:
             raise KeyError(slug)
+        submitter = record['submitter']
+        submitter_is_admin = bool(self.accounts and self.accounts.is_admin(submitter))
         if record.get('note'):
             raise ValueError('already sent to the builder')
         name = f'{community.NAMESPACE}/{slug}'
@@ -334,7 +338,11 @@ class Library:
         uploaded = editor.attachments.uploaded_for(vid)
         ids = list(dict.fromkeys(fetched + uploaded + list(attachment_ids or [])))
         text = community.brief(record.get('post'), record.get('capture'), bool(ids))
-        note = editor.start_capability(text, ids, user, is_admin)
+        # Charged to the submitter even when an admin is the one clicking "Send to the
+        # builder" on someone else's interrupted draft (capabilities.py's draft card
+        # shows that button to admins too) -- an admin sending on another user's behalf
+        # must not author the note as themselves or skip that user's own daily cap.
+        note = editor.start_capability(text, ids, submitter, submitter_is_admin)
         self.community.set_note(slug, note['id'])
         return note
 

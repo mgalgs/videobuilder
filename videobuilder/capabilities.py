@@ -737,6 +737,12 @@ _ADD_CAPABILITY_SCRIPT = """
         headers: {'Content-Type': 'application/json'}, body: JSON.stringify(body)});
       created = await r.json();
       if(!r.ok) throw new Error(created.error || "Couldn't start the submission.");
+      if(created.read && created.read.error){
+        if(!window.confirm(created.read.error + ' Continue with just the dropped files?')){
+          submit.disabled = false;
+          return;
+        }
+      }
       var ids = (created.attachments || []).slice();
       for(var i = 0; i < files.length; i++){
         var file = files[i];
