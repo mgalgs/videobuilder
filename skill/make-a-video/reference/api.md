@@ -148,6 +148,30 @@ paths.draw(cv, points, colour, width=2, closed=False, fill=False, alpha=1.0)   #
 - **Trap:** a CSS shadow list paints its first shadow on top: call
   `cv.shadow` for them last to first.
 
+## Parallax: flat layers with depth
+
+```python
+from videobuilder import parallax, paths
+HILLS = parallax.ridge(720, 120, seed=2)                 # at import: a skyline tile whose ends meet
+def hills(cv, x):                                        # one tile, left edge at x
+    paths.draw(cv, [(x + px, 380 + py) for px, py in HILLS + [(720, 300), (0, 300)]], '#3a4458', fill=True)
+LAYERS = (parallax.Layer(0.2, 720, hills), parallax.Layer(0.5, 360, trees),
+          parallax.Layer(1.0, 240, ground), parallax.Layer(1.7, 900, foreground))
+parallax.draw(cv, LAYERS[:3], camera_x)                  # far first
+FOX.draw(cv, pose, fox_x - camera_x, ground_y)           # on the ground layer: moves with it
+parallax.draw(cv, LAYERS[3:], camera_x)                  # the foreground passes in front
+```
+
+- `depth`: px a layer moves per px of pan. 0 is pinned to the sky, 1 the
+  ground, over 1 a foreground. Hazier, lighter colours far away and darker
+  ones near sell the depth as much as the speeds do.
+- A tile's right edge must meet its left (`ridge` waves fit a whole number
+  of times); overlap a fill by a px each side so tiles show no hairline.
+- For a seamless loop, the camera's travel x each layer's depth is a whole
+  number of its tile widths, or pan out and back.
+- Lay each format out from its own table (`per_format`): the ground's height,
+  the hills' size and the pan differ between 9:16 and 16:9.
+
 ## Images and captures
 
 ```python
