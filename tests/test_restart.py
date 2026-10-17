@@ -40,9 +40,15 @@ class Gathering(Restart):
         old = self.editor()
         note = old.notes.start_gathering('promo/film', '16x9', text='A launch video.', attachments=[],
                                          gather={'description': 'A launch video.', 'links': ['https://a.example']})
+        before = set(threading.enumerate())
         with mock.patch('videobuilder.gather.crawl', return_value=([], [('https://a.example', 'timed out')])) as crawl:
             new = self.editor()
             done = self.wait(lambda: (n := new.notes.get(note['id']))['state'] != 'gathering' and n)
+            # The crawl thread goes on to submit the note, writing the video's
+            # session; let it finish before tearDown deletes the project.
+            for thread in set(threading.enumerate()) - before:
+                if 'gather_then_queue' in thread.name:   # Thread-N (target name)
+                    thread.join(10)
         crawl.assert_called_once_with(['https://a.example'])
         self.assertIn('A launch video.', done['text'])
         self.assertIn('- https://a.example: timed out', done['text'])
