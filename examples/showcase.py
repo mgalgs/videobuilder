@@ -117,9 +117,7 @@ SHOTS = {
 # Shorter names where a shot's tag would otherwise run past one line in 16:9.
 SHORT = {'overlap-transitions': 'Overlap slide', 'counting-numbers': 'Counting numbers',
          'gauges-and-rings': 'Gauges', 'line-chart-callout': 'Line chart + callout',
-         'springs-with-character': 'Springs', 'image-treatments': 'Image treatments',
-         # these shots draw the comic panel and the pixel layer by hand, not through the filters
-         'look-filter-pop-art': 'Comic halftone', 'look-filter-pixel': 'Pixel art'}
+         'springs-with-character': 'Springs', 'image-treatments': 'Image treatments'}
 TAGS = {seg: [SHORT.get(cap, capabilities.get(cap)['title']) for cap in caps] for seg, caps in SHOTS.items()}
 
 LOOP = True  # the end card comes to rest on the opening's first frame

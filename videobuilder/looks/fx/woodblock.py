@@ -4,6 +4,7 @@ edge inked in a thick line. The paper's grain and the ink lines boil on
 twos (a new hand-printed impression every 1/15 s), so a held picture still
 breathes like a print."""
 import random
+from functools import lru_cache
 
 from PIL import Image, ImageChops, ImageFilter
 
@@ -16,6 +17,7 @@ _PALETTE = palette_image(COLOURS)
 IMPRESSIONS = 4    # paper textures the print boils between
 
 
+@lru_cache(maxsize=8)
 def _paper(w, h, i):
     """Impression `i`'s paper: fine grain plus long horizontal wood fibres,
     grey about 128 (soft-light: lighter and darker than the ink it lands on)."""
