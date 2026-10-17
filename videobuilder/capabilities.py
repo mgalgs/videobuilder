@@ -33,23 +33,53 @@ def _entry(id, category, title, card, description, prompts, apis, doc, demo, pos
             'family': family}
 
 
-def _family(id, category, title, card, description, prompts, apis, doc, demo, members, noun, poster=None):
-    """A family: one catalog card that holds named members, each its own
-    entry with its own demo (`members`, built with `family=id`). The Looks
-    family is the first: a member is one named art style any video can be
-    painted in. `noun` is (singular, plural) for a member, as the page and
-    the add flow say it ("look", "looks"). Members are reached through the
-    family (`entries()` lists them), never as top-level CATALOG entries."""
+def _family(id, category, title, card, description, prompts, apis, doc, demo, members, noun, lead, poster=None):
+    """A family: named members, each its own entry with its own demo
+    (`members`, built with `family=id`), that make up a section of their own
+    on the page: the family's `category` is its alone, its heading the
+    section's. The Looks family is the first: a member is one named art
+    style any video can ask for. `noun` is (singular, plural) for a member,
+    as the page and the add flow say it ("look", "looks"); `lead` is the
+    title of the family's own card, first in its section (its demo shows
+    the members together). Members are reached through the family
+    (`entries()` lists them), never as top-level CATALOG entries."""
     entry = _entry(id, category, title, card, description, prompts, apis, doc, demo, poster=poster)
-    entry.update(children=tuple(members), noun=tuple(noun))
+    entry.update(children=tuple(members), noun=tuple(noun), lead=lead)
+    for member in members:
+        assert member['category'] == category and member['family'] == id, member['id']
     return entry
 
 
+# The kinds of Looks member, in the order the page and the sheet group them: a
+# heading for each, and who it is for.
+LOOK_KINDS = (('scene', 'Scene looks', 'for a picture the video draws: it describes the shapes, the look paints them'),
+              ('filter', 'Filter looks', 'for any picture: a photo, a screen capture, footage, every pixel restyled'))
+
+
 def _look(name, title, card, description, prompts, apis):
-    """One member of the Looks family: the `name` look of videobuilder.looks."""
-    return _entry(f'look-{name}', 'Imagery and camera', title, card, description, prompts,
-                  (f"looks.paint(cv, '{name}', scene, t)",) + tuple(apis),
-                  'skill/make-a-video/reference/looks.md', f'look-{name}', family='looks')
+    """A scene look of the Looks family: the `name` look of videobuilder.looks."""
+    entry = _entry(f'look-{name}', 'Looks', title, card, description, prompts,
+                   (f"looks.paint(cv, '{name}', scene, t)",) + tuple(apis),
+                   'skill/make-a-video/reference/looks.md', f'look-{name}', family='looks')
+    entry.update(look=name, kind='scene')
+    return entry
+
+
+def _filter_look(name, title, card, description, prompts, apis=()):
+    """A filter look of the Looks family: the `name` filter of
+    videobuilder.looks, restyling a held screenshot or photo in its demo."""
+    entry = _entry(f'look-filter-{name}', 'Looks', title, card, description, prompts,
+                   (f"with looks.filter(cv, '{name}', t): draw_as_usual(n, cv)",) + tuple(apis),
+                   'skill/make-a-video/reference/looks.md', f'look-filter-{name}', family='looks')
+    entry.update(look=name, kind='filter')
+    return entry
+
+
+def _style(entry):
+    """A Looks member that is a style of its own rather than a named look of
+    videobuilder.looks (paper collage): grouped with the scene looks."""
+    entry.update(look=None, kind='scene')
+    return entry
 
 
 LOOKS = (
@@ -108,7 +138,73 @@ LOOKS = (
           ('Make it look like a blueprint that draws itself', 'Show it as a technical drawing in white lines',
            'Draw the scene in chalk on blue paper'),
           ("looks.paint(cv, 'blueprint', scene, t, age, font=vb.Font(...))  # labels on the dimension line",)),
+    _style(_entry(
+        'paper-collage', 'Looks', 'Paper collage',
+        'Torn-paper headlines, cut-paper objects, a stamp, and a rip-open transition.',
+        'The editorial paper-cutout explainer look: a grey-beige paper wall under still window light, '
+        'a headline printed on a torn scrap, a cut-paper object whose soft shadow follows its outline, '
+        'hand-drawn marks and a red rubber stamp, all moving in stop-motion steps -- then the wall rips open '
+        'from the middle, its flaps curling back to reveal one accent colour with the next scene pasted on it. '
+        'Objects are drawn shapes or images you supply, never generated.',
+        ('Make this look like a paper collage explainer, all torn paper and cut-outs',
+         'Put each headline on a torn strip of paper', 'Rip the paper open to get to the next scene', 'Stamp NO PROOF across it in red',
+         'Make the paper pieces move like stop-motion, a bit choppy'),
+        ('paths.torn(outline, seed, amount=5)  # a torn edge, baked once at import',
+         'cv.shape_shadow(points, dx=.., dy=.., blur=..)  # a lift shadow that follows the shape',
+         'vb.paper_grain(w, h, seed)  # with cairo.OPERATOR_SOFT_LIGHT',
+         'stepped_n = n - n % 2  # paper held on twos'),
+        'skill/make-a-video/reference/api.md', 'paper-collage', poster=78, family='looks')),  # mid-rip, flaps curling back
+    _filter_look('pop-art', 'Pop-art filter', 'Any picture in loud flat colour, comic dots and thick outlines.',
+                 'Restyles whatever the video draws -- a screenshot, a photo, footage: posterized to a loud flat '
+                 'palette, every area screened with Ben-Day dots in a deeper shade of itself (biggest in the '
+                 'shadows), every strong edge inked thick. The dots drift, so a held screenshot crawls with them. '
+                 'For a hand-drawn comic panel instead, shade shapes with a halftone dot fill under a thick ink '
+                 'outline, set the dot plate a couple of pixels off from the ink like a misregistered print, and '
+                 'pop a jittering starburst with a short word in it.',
+                 ('Make my product demo pop art', 'Give this a comic-book look, dot shading and thick outlines',
+                  'Add a jittering burst callout with a short word'),
+                 ('videobuilder.halftone_pattern(pitch, radius, angle=.., color=..)  # a hand-drawn dot fill',
+                  'cv.arc(..., width=..)  # the thick outline',
+                  'videobuilder/looks/popart.py  # dot fills, outlines and the starburst, worked')),
+    _filter_look('pixel', '8-bit pixel filter', 'Any picture as chunky 8-bit pixels, stepped like an old game.',
+                 'Restyles whatever the video draws: shrunk to a chunky grid in a 16-colour game palette and '
+                 'scaled back up hard-edged on faint scan lines, while a rolling bar steps down the screen at 8 '
+                 'fps. Draw the picture underneath at the filter\'s stepped time and it steps with it. To pixelate '
+                 'one layer of a drawn scene instead -- a sprite, a HUD label that should stay blocky -- draw it '
+                 'into a pixelated layer: it is drawn at a fraction of the resolution and scaled back up with '
+                 'nearest-neighbour filtering, any text in it pixelating too, its motion held two frames at a time.',
+                 ('Make my product demo look like an old 8-bit video game', 'Render this as retro 8-bit pixel art',
+                  'Make the motion choppier, like an old game, not smooth 30fps'),
+                 ("looks.get_filter('pixel').step(t)  # draw the picture at this time to step with the filter",
+                  'cv.pixelated(factor)  # one blocky layer of a drawn scene; draw with the canvas it yields',
+                  'stepped_n = (n // 2) * 2  # 15fps motion on a 30fps film')),
+    _filter_look('woodblock', 'Woodblock filter', 'Any picture as a woodblock print, its paper boiling on twos.',
+                 'Restyles whatever the video draws into a few flat inks -- indigo, Prussian blue, vermilion, '
+                 'ochre, sage -- on cream paper, every strong edge inked in a thick line. The paper grain and the '
+                 'ink lines boil on twos, a new impression every fifteenth of a second, so a held photo breathes.',
+                 ('Make this photo look like an old Japanese woodblock print',
+                  'Flat colours and thick ink lines on paper, for the whole video',
+                  'Make the screen recording look hand-printed')),
+    _filter_look('blueprint', 'Blueprint filter', 'Any picture as chalk lines on a blue grid, a scan line sweeping.',
+                 'Keeps only the edges of whatever the video draws, as chalk lines on a blue sheet ruled with a '
+                 'grid. The lines draw in from the top behind a bright scan line when the filter comes on; after '
+                 'that the scan line keeps sweeping, a light band shimmers across the grid and the chalk boils.',
+                 ('Turn the product screenshots into a blueprint', 'Show the app as white lines on blue paper',
+                  'Make the footage look like a technical drawing being scanned')),
+    _filter_look('pointillism', 'Pointillism filter', 'Any picture rebuilt from shimmering dots of its own colours.',
+                 'Rebuilds whatever the video draws from thousands of seeded dots, each taking the colour under '
+                 'it nudged warmer or cooler, on a pale ground. Every dot circles a little and shimmers, so the '
+                 'whole surface swims even on a still photo.',
+                 ('Paint this photo in tiny dots', 'Make the whole video look like a dot painting',
+                  'Give the footage a shimmering, painted-in-dots look')),
 )
+
+# Ids a capability used to have, still answered for the entry that took it over
+# (published notes, the showcase and builder prompts may name the old one).
+ALIASES = {
+    'comic-halftone': 'look-filter-pop-art',    # merged into the pop-art filter look
+    'pixel-art-layer': 'look-filter-pixel',     # merged into the 8-bit pixel filter look
+}
 
 
 CATALOG = (
@@ -366,57 +462,6 @@ CATALOG = (
         ('cv.ctx path + even-odd fill_rule for the clip', 'cv.image(img, *box) for the dim and lit layers'),
         'skill/make-a-video/reference/api.md', 'hard-light-sweep'),
     _entry(
-        'comic-halftone', 'Imagery and camera', 'Comic-book halftone',
-        'Dot-fill shading, thick ink outlines, a jittering burst callout.',
-        'A flat-colour shape shaded with a halftone dot fill, a thick ink outline, and a jittering starburst '
-        'callout with a short word -- the dot plate sits a couple of pixels off from the ink, the way an old '
-        'four-colour print misregisters its plates.',
-        ('Give this a comic-book look, dot shading and thick outlines', 'Add a jittering burst callout with a short word',
-         'Let the colour plate sit slightly off from the linework, like an old print'),
-        ('videobuilder.halftone_pattern(pitch, radius, angle=.., color=..)', 'cv.arc(..., width=..)  # the thick outline'),
-        'skill/make-a-video/reference/api.md', 'comic-halftone'),
-    _entry(
-        'pixel-art-layer', 'Imagery and camera', 'Pixel-art layer',
-        'A scene rendered blocky, 8-bit style, with stepped motion.',
-        'A small scene -- sky, ground, a walking character, a HUD label -- is drawn at a fraction of the '
-        "frame's resolution and scaled back up with blocky nearest-neighbour filtering, its motion held two "
-        'frames at a time for an 8-bit, stop-motion feel; any text drawn into the layer pixelates with it.',
-        ('Render this as retro 8-bit pixel art', 'Make the motion choppier, like an old game, not smooth 30fps',
-         'Keep the on-screen text blocky and pixelated too, not crisp'),
-        ('cv.pixelated(factor)', 'stepped_n = (n // 2) * 2  # 15fps motion on a 30fps film'),
-        'skill/make-a-video/reference/api.md', 'pixel-art-layer'),
-    _family(
-        'looks', 'Imagery and camera', 'Looks',
-        'Named art styles that repaint any scene, each moving its own way.',
-        'A family of looks: named art styles any video can ask for by name ("make it pop art", "try a few '
-        'looks"), each repainting that video\'s own scene with its own signature motion. The video describes '
-        'its picture once as a few shapes with roles (sky, water, land, buildings, figures, lights) plus the '
-        'sun and a beacon, and any look paints it. Creators can add looks of their own.',
-        ('Make it look like pop art', 'Try a few different looks on this and let me pick',
-         'Paint the whole video in the woodblock style', 'Give it a dreamy surreal look, things melting'),
-        ('looks.Scene(w, h, [looks.Region(role, points), ...], horizon=, sun=(x, y, r), beacon=(x, y))',
-         "looks.paint(cv, 'pop-art', scene, t, age)", 'looks.names() / looks.get(name)',
-         'looks.relay(cv, scene, t, names, hold=2.0)  # try several in turn',
-         'looks.motion_floor(film, start, end) >= looks.FLOOR'),
-        'skill/make-a-video/reference/looks.md', 'looks', LOOKS, noun=('look', 'looks'),
-        poster=5 * 24 + 12),  # mid-hold on pop art, not mid-wipe
-    _entry(
-        'paper-collage', 'Imagery and camera', 'Paper collage',
-        'Torn-paper headlines, cut-paper objects, a stamp, and a rip-open transition.',
-        'The editorial paper-cutout explainer look: a grey-beige paper wall under still window light, '
-        'a headline printed on a torn scrap, a cut-paper object whose soft shadow follows its outline, '
-        'hand-drawn marks and a red rubber stamp, all moving in stop-motion steps -- then the wall rips open '
-        'from the middle, its flaps curling back to reveal one accent colour with the next scene pasted on it. '
-        'Objects are drawn shapes or images you supply, never generated.',
-        ('Make this look like a paper collage explainer, all torn paper and cut-outs',
-         'Put each headline on a torn strip of paper', 'Rip the paper open to get to the next scene', 'Stamp NO PROOF across it in red',
-         'Make the paper pieces move like stop-motion, a bit choppy'),
-        ('paths.torn(outline, seed, amount=5)  # a torn edge, baked once at import',
-         'cv.shape_shadow(points, dx=.., dy=.., blur=..)  # a lift shadow that follows the shape',
-         'vb.paper_grain(w, h, seed)  # with cairo.OPERATOR_SOFT_LIGHT',
-         'stepped_n = n - n % 2  # paper held on twos'),
-        'skill/make-a-video/reference/api.md', 'paper-collage', poster=78),  # mid-rip, flaps curling back
-    _entry(
         'parallax-scene', 'Imagery and camera', 'Parallax scene',
         'Flat layers slide at their own speeds as the camera pans, giving depth.',
         'A scene built from five flat layers drawn in code -- a far sky, hills, a row of trees, the ground the '
@@ -431,6 +476,25 @@ CATALOG = (
          'parallax.ridge(width, height, seed)  # a rolling skyline whose ends meet'),
         'skill/make-a-video/reference/api.md', 'parallax-scene'),
     # ---- Timing, sound and formats ----
+    _family(
+        'looks', 'Looks', 'Looks',
+        'Named art styles any video can ask for by name, each moving its own way.',
+        'Named art styles any video can ask for by name ("make it pop art", "try a few looks"), each with its '
+        'own signature motion, in two kinds. A scene look repaints a picture the video describes as a few '
+        'shapes with roles (sky, water, land, buildings, figures, lights, the sun and a beacon); a filter look '
+        'restyles whatever the video draws -- a photo, a screen capture, footage -- every pixel, frame by '
+        'frame. They share names where the style carries over, so "pop art" finds both. Creators can add '
+        'scene looks of their own.',
+        ('Make it look like pop art', 'Try a few different looks on this and let me pick',
+         'Make my product demo look like an 8-bit game', 'Give it a dreamy surreal look, things melting'),
+        ('looks.Scene(w, h, [looks.Region(role, points), ...], horizon=, sun=(x, y, r), beacon=(x, y))',
+         "looks.paint(cv, 'pop-art', scene, t, age)  # a scene look", 'looks.names() / looks.get(name)',
+         "with looks.filter(cv, 'pop-art', t): draw_as_usual(n, cv)  # a filter look, on any picture",
+         'looks.filters() / looks.get_filter(name)',
+         'looks.relay(cv, scene, t, names, hold=2.0)  # try several in turn',
+         'looks.motion_floor(film, start, end) >= looks.FLOOR'),
+        'skill/make-a-video/reference/looks.md', 'looks', LOOKS, noun=('look', 'looks'), lead='Try a few looks',
+        poster=5 * 24 + 12),  # mid-hold on pop art, not mid-wipe
     _entry(
         'beat-lock', 'Timing, sound and formats', 'Cuts locked to the music',
         'Hard cuts land exactly on the beat, with a music bed.',
@@ -515,12 +579,23 @@ def families():
 _BY_ID = {e['id']: e for e in entries()}
 
 
+def resolve(id):
+    """The id an entry goes by now: `id` itself, or the entry an old id
+    (ALIASES) was merged into. KeyError for an id that never existed."""
+    id = ALIASES.get(id, id)
+    if id not in _BY_ID:
+        raise KeyError(id)
+    return id
+
+
 def get(id):
-    return _BY_ID[id]
+    """The entry `id` names, an old id (ALIASES) included."""
+    return _BY_ID[resolve(id)]
 
 
 def ids():
-    """Every id, families' members included: no new capability may reuse one."""
+    """Every entry's id, families' members included. No new capability may
+    reuse one, nor an old id in ALIASES."""
     return tuple(e['id'] for e in entries())
 
 
@@ -530,6 +605,13 @@ def categories():
         if e['category'] not in seen:
             seen.append(e['category'])
     return tuple(seen)
+
+
+def loose_categories():
+    """The categories a capability that isn't a family member may take:
+    every one but a family's own section (Looks holds looks only)."""
+    own = {f['category'] for f in families()}
+    return tuple(c for c in categories() if c not in own)
 
 
 # ---- the builder-facing sheet (skill/make-a-video/reference/capabilities.md) ----
@@ -578,11 +660,22 @@ def sheet_markdown():
                 singular, plural = e['noun']
                 lines.append(f'**The {plural}** ({len(e["children"])}; ask for any {singular} by name):')
                 lines.append('')
-                for child in e['children']:
-                    name = child['id'].removeprefix(f'{singular}-')
-                    lines.append(f"- **{child['title']}** (`{name}`): {child['card']} "
-                                 f"Ask: \"{child['prompts'][0]}\". Example: `{child['demo']}`.")
-                lines.append('')
+                for kind, heading, line in LOOK_KINDS:
+                    lines.append(f'*{heading}*, {line}:')
+                    lines.append('')
+                    for child in e['children']:
+                        if child.get('kind') != kind:
+                            continue
+                        name = child['look'] or child['id']
+                        build = '; '.join(f'`{api}`' for api in child['apis'])
+                        lines.append(f"- **{child['title']}** (`{name}`): {child['card']} "
+                                     f"Ask: \"{child['prompts'][0]}\". Build: {build}. Example: `{child['demo']}`.")
+                    lines.append('')
+                merged = [(old, new) for old, new in ALIASES.items() if get(new)['family'] == e['id']]
+                if merged:
+                    lines.append('Old ids, now part of these: ' + '; '.join(
+                        f"`{old}` is the **{get(new)['title']}**" for old, new in merged) + '.')
+                    lines.append('')
     return '\n'.join(lines) + '\n'
 
 
@@ -671,10 +764,11 @@ def clip_file(capabilities_dir, id, kind):
     """The clip ('mp4') or poster ('jpg') path for a catalog id or a showcase
     file, or None for an unknown id (checked by membership in the fixed
     catalog and SHOWCASE_FILES, never built from the request string directly)
-    or a dir that isn't configured."""
-    if capabilities_dir is None or (id not in _BY_ID and id not in SHOWCASE_FILES):
+    or a dir that isn't configured. An old id (ALIASES) gets the clip of the
+    entry it was merged into."""
+    if capabilities_dir is None or (id not in _BY_ID and id not in ALIASES and id not in SHOWCASE_FILES):
         return None
-    return os.path.join(capabilities_dir, f'{id}.{kind}')
+    return os.path.join(capabilities_dir, f'{ALIASES.get(id, id)}.{kind}')   # an old id serves its new clip
 
 
 def available_ids(capabilities_dir):
@@ -746,40 +840,19 @@ h2{font-size:15px;text-transform:uppercase;letter-spacing:.04em;color:#a9a9b2;ma
   background:#0006;color:#fff;font-size:18px;cursor:pointer;z-index:1}
 #modal .unmute{position:absolute;bottom:10px;right:10px;min-height:36px;padding:6px 12px;border-radius:8px;
   border:1px solid #fff5;background:#000a;color:#fff;cursor:pointer}
-.card.family{box-shadow:5px 5px 0 -1px #0d0d10,5px 5px 0 0 #2c2c33,10px 10px 0 -1px #0d0d10,10px 10px 0 0 #1f1f25;
-  margin:0 10px 10px 0;width:calc(100% - 10px)}
-.card .thumb{position:relative}
-.card .count{position:absolute;left:8px;top:8px;padding:3px 9px;border-radius:999px;background:#000c;color:#fff;
-  font-size:12px;font-weight:700;letter-spacing:.01em}
-#modal .back{position:absolute;top:10px;left:10px;z-index:1;display:inline-flex;align-items:center;min-height:44px;
-  padding:0 16px 0 12px;border-radius:22px;border:1px solid #fff3;background:#000b;color:#fff;font:inherit;
-  font-size:14px;font-weight:600;cursor:pointer}
-#modal .back:hover,#modal .back:focus-visible{border-color:#ef5b4c;outline:none}
-#modal .back[hidden]{display:none}
-#modal.family .box{max-width:820px}
-#modal.family video,#modal.family .placeholder{aspect-ratio:auto;height:min(44vh,400px);object-fit:contain}
-@media (min-width:701px){#modal.family .member-grid{grid-template-columns:repeat(4,1fr)}}
-.family-panel{margin:0 0 18px}
-.family-panel[hidden]{display:none}
-.family-panel h4{margin:0 0 10px;font-size:13px;text-transform:uppercase;letter-spacing:.04em;color:#a9a9b2}
-.member-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
-.member{display:flex;flex-direction:column;width:100%;text-align:left;background:#0d0d10;border:1px solid #26262c;
-  border-radius:10px;padding:0;overflow:hidden;cursor:pointer;color:inherit;font:inherit;min-height:44px}
-.member:hover,.member:focus-visible{border-color:#e5483b;outline:none}
-.member .thumb{width:100%;aspect-ratio:1/1;background:#141417;display:flex;align-items:center;justify-content:center;
-  color:#5a5d66;font-size:12px;overflow:hidden}
-.member .thumb img{width:100%;height:100%;object-fit:cover;display:block}
-.member .meta{display:block;padding:8px 10px 10px}
-.member .meta strong{display:block;font-size:13.5px;margin-bottom:2px}
-.member .meta span{display:block;font-size:12px;color:#a9a9b2;line-height:1.4}
-.member-grid .community-card{gap:4px}
+.section-lead{color:#a9a9b2;margin:-4px 0 14px;font-size:14px}
+.section-lead .count{display:inline-block;margin-left:6px;padding:2px 9px;border-radius:999px;background:#1f1f25;
+  color:#dcdcdc;font-size:12px;font-weight:700}
+h3.kind{font-size:14px;margin:22px 0 10px;color:#eee}
+h3.kind span{display:block;font-weight:400;font-size:13px;color:#8b8b94;margin-top:2px}
 @media (max-width:700px){
   #modal{padding:0}
   #modal .box{max-width:none;width:100%;height:100%;max-height:none;border-radius:0}
   #modal video,#modal .placeholder{aspect-ratio:auto;height:50vh}
-  #modal.family video,#modal.family .placeholder{height:38vh}
-  .card.family{margin:0 6px 6px 0;width:calc(100% - 6px);
-    box-shadow:3px 3px 0 -1px #0d0d10,3px 3px 0 0 #2c2c33,6px 6px 0 -1px #0d0d10,6px 6px 0 0 #1f1f25}
+  .looks-grid{grid-template-columns:repeat(3,1fr);gap:10px}
+  .looks-grid .card .meta{padding:7px 8px 9px}
+  .looks-grid .card .meta strong{font-size:12.5px;margin:0;line-height:1.3}
+  .looks-grid .card .meta span{display:none}
 }
 """
 
@@ -831,27 +904,15 @@ _PAGE_SCRIPT = """
   var placeholder = document.getElementById('modal-placeholder');
   var unmuteBtn = document.getElementById('modal-unmute');
   var opener = null;
-  var back = document.getElementById('modal-back');
   var box = modal.querySelector('.box');
-  function openCard(id, within){
+  function openCard(id){
     var e = byId[id];
     if(!e) return;
-    // A family's members open inside the modal, from its panel: the card the
-    // modal was opened from (in the grid) keeps the focus to return to.
-    if(!within) opener = document.querySelector('[data-card="' + id + '"]');
+    opener = document.querySelector('[data-card="' + id + '"]');
     document.getElementById('modal-title').textContent = e.title;
     document.getElementById('modal-cat').textContent = e.members ?
-      e.category + ' \u00b7 ' + e.members + ' ' + e.plural : (e.family ? e.familyTitle + ' \u00b7 ' + e.category : e.category);
+      e.category + ' \u00b7 ' + e.members + ' ' + e.plural : (e.family ? e.category + ' \u00b7 ' + e.kindTitle : e.category);
     document.getElementById('modal-desc').textContent = e.description;
-    modal.classList.toggle('family', !!e.members);
-    document.querySelectorAll('[data-family-panel]').forEach(function(p){
-      p.hidden = p.getAttribute('data-family-panel') !== id;
-    });
-    back.hidden = !e.family;
-    if(e.family){
-      back.textContent = '\u2039 All ' + byId[e.family].plural;
-      back.onclick = function(){ openCard(e.family, true); };
-    }
     var ul = document.getElementById('modal-prompts');
     ul.innerHTML = '';
     e.prompts.forEach(function(p){
@@ -876,7 +937,7 @@ _PAGE_SCRIPT = """
     }
     modal.hidden = false;
     box.scrollTop = 0;
-    (within && e.family ? back : document.getElementById('modal-close')).focus();
+    document.getElementById('modal-close').focus();
   }
   function closeModal(){
     if(modal.hidden) return;
@@ -887,7 +948,7 @@ _PAGE_SCRIPT = """
     if(opener) opener.focus();
   }
   document.querySelectorAll('[data-card]').forEach(function(btn){
-    btn.addEventListener('click', function(){openCard(btn.getAttribute('data-card'), !!btn.closest('#modal'))});
+    btn.addEventListener('click', function(){openCard(btn.getAttribute('data-card'))});
   });
   document.getElementById('modal-close').addEventListener('click', closeModal);
   modal.addEventListener('click', function(e){if(e.target === modal) closeModal()});
@@ -1187,55 +1248,46 @@ def _community_card_html(entry, is_admin):
         '</button>' + _community_actions_html(entry, is_admin) +
         '</div>'
     )
-def _family_card_html(e, built, extra):
-    """A family's one card in the grid: its own demo's poster under a count
-    of its members ("8 looks"), drawn as a small stack. `extra` is how many
-    published community members it holds besides its own."""
-    singular, plural = e['noun']
-    n = len(e['children']) + extra
-    count = f'{n} {singular if n == 1 else plural}'
-    thumb = (f'<img src="/capabilities/{e["id"]}.jpg" alt="" loading="lazy">' if e['id'] in built
-             else '<span>clip not built</span>')
+def _card_html(card_id, title, card, thumb):
     return (
-        f'<button class="card family" type="button" data-card="{_esc(e["id"])}" '
-        f'aria-label="{_esc(e["title"])}: {_esc(count)}">'
-        f'<span class="thumb">{thumb}<span class="count">{_esc(count)}</span></span>'
-        f'<span class="meta"><strong>{_esc(e["title"])}</strong><span>{_esc(e["card"])}</span></span>'
-        '</button>')
-
-
-def _member_tile_html(card_id, title, card, thumb, badge=''):
-    return (
-        f'<button class="member" type="button" data-card="{_esc(card_id)}">'
+        f'<button class="card" type="button" data-card="{_esc(card_id)}">'
         f'<span class="thumb">{thumb}</span>'
-        f'<span class="meta"><strong>{_esc(title)}{badge}</strong><span>{_esc(card)}</span></span>'
+        f'<span class="meta"><strong>{_esc(title)}</strong><span>{_esc(card)}</span></span>'
         '</button>')
 
 
-def _family_panel_html(e, built, community_members, is_admin):
-    """A family's members, shown in the modal under its own clip: a tile
-    per member (its poster, title and card) that opens that member, its own
-    built-in members first, then published community ones (with the same
-    admin actions their cards have elsewhere)."""
+def _thumb_html(id_, built):
+    return (f'<img src="/capabilities/{id_}.jpg" alt="" loading="lazy">' if id_ in built
+            else '<span>clip not built</span>')
+
+
+def _kind_title(entry):
+    """'Scene look', 'Filter look': what a family member is, for its modal."""
+    return next(heading for kind, heading, _ in LOOK_KINDS if kind == entry.get('kind', 'scene'))[:-1]
+
+
+def _family_section_html(e, built, community_members, is_admin):
+    """A family's section of the page, under its category's heading: one
+    line on the family, its own card (`lead`, its demo showing the members
+    together), then its members grouped by kind (LOOK_KINDS), each group
+    under a heading that says who it is for. Published community members
+    (scene looks) close the scene group, with the actions their cards have
+    elsewhere. On a phone the cards drop their line and sit three across,
+    so the whole section scans in a few screens."""
     singular, plural = e['noun']
-    tiles = []
-    for child in e['children']:
-        thumb = (f'<img src="/capabilities/{child["id"]}.jpg" alt="" loading="lazy">' if child['id'] in built
-                 else '<span>clip not built</span>')
-        tiles.append(_member_tile_html(child['id'], child['title'], child['card'], thumb))
-    for entry in community_members:
-        slug = entry['slug']
-        thumb = (f'<img src="/capabilities/community/{_esc(slug)}.jpg" alt="" loading="lazy">'
-                 if entry.get('available') else '<span>clip not built</span>')
-        tile = _member_tile_html('community:' + slug, entry['title'], entry['card'], thumb,
-                                 '<span class="community-badge">Community</span>')
-        tiles.append('<div class="community-card">' + tile + _community_actions_html(entry, is_admin) + '</div>')
-    n = len(tiles)
-    return (
-        f'<section class="family-panel" data-family-panel="{_esc(e["id"])}" hidden>'
-        f'<h4>The {n} {singular if n == 1 else plural}</h4>'
-        f'<div class="member-grid">{"".join(tiles)}</div>'
-        '</section>')
+    n = len(e['children']) + len(community_members)
+    out = [f'<p class="section-lead">{_esc(e["card"])} <span class="count">{n} {plural}</span></p>',
+           '<div class="grid looks-grid">',
+           _card_html(e['id'], e['lead'], 'Several in turn, wiping from one to the next.', _thumb_html(e['id'], built)),
+           '</div>']
+    for kind, heading, line in LOOK_KINDS:
+        members = [c for c in e['children'] if c.get('kind') == kind]
+        cards = [_card_html(c['id'], c['title'], c['card'], _thumb_html(c['id'], built)) for c in members]
+        if kind == 'scene':
+            cards += [_community_card_html(entry, is_admin) for entry in community_members]
+        out.append(f'<h3 class="kind" data-kind="{kind}">{_esc(heading)} <span>{_esc(line)}</span></h3>')
+        out.append(f'<div class="grid looks-grid" data-family="{_esc(e["id"])}">{"".join(cards)}</div>')
+    return ''.join(out)
 
 
 def _drafts_section_html(drafts, is_admin):
@@ -1290,20 +1342,16 @@ def page_html(capabilities_dir, version, header='', header_style='', community=N
             '<p>Every shot in this reel is one of the capabilities below; its tag is the card\'s title.</p>'
             '</section>')
     for category in categories():
+        family = next((f for f in families() if f['category'] == category), None)
+        if family is not None:          # a family is a section of its own
+            cards.append(f'<h2>{_esc(category)}</h2>')
+            cards.append(_family_section_html(family, built, published_by_family.get(family['id'], []), is_admin))
+            continue
         cards.append(f'<h2>{_esc(category)}</h2><div class="grid">')
         for e in CATALOG:
             if e['category'] != category:
                 continue
-            if e.get('children') is not None:
-                cards.append(_family_card_html(e, built, len(published_by_family.get(e['id'], []))))
-                continue
-            thumb = (f'<img src="/capabilities/{e["id"]}.jpg" alt="" loading="lazy">' if e['id'] in built
-                    else '<span>clip not built</span>')
-            cards.append(
-                f'<button class="card" type="button" data-card="{_esc(e["id"])}">'
-                f'<span class="thumb">{thumb}</span>'
-                f'<span class="meta"><strong>{_esc(e["title"])}</strong><span>{_esc(e["card"])}</span></span>'
-                f'</button>')
+            cards.append(_card_html(e['id'], e['title'], e['card'], _thumb_html(e['id'], built)))
         for entry in published_by_category.get(category, []):
             cards.append(_community_card_html(entry, is_admin))
         cards.append('</div>')
@@ -1314,10 +1362,8 @@ def page_html(capabilities_dir, version, header='', header_style='', community=N
         if e.get('children') is not None:
             item.update(members=len(e['children']) + len(published_by_family.get(e['id'], [])), plural=e['noun'][1])
         if e['family']:
-            item.update(family=e['family'], familyTitle=get(e['family'])['title'])
+            item.update(family=e['family'], kindTitle=_kind_title(e))
         data.append(item)
-    panels = ''.join(_family_panel_html(f, built, published_by_family.get(f['id'], []), is_admin)
-                     for f in families())
     body = ''.join(cards)
     can_submit = bool(community and community.get('can_submit'))
     add_button = ('<button type="button" id="add-capability" class="btn btn-primary">Add capability</button>'
@@ -1341,7 +1387,7 @@ def page_html(capabilities_dir, version, header='', header_style='', community=N
                     'unmute': False, 'clip': f'/capabilities/community/{e["slug"]}.mp4',
                     'poster': f'/capabilities/community/{e["slug"]}.jpg'}
             if e.get('family') in family_ids:
-                item.update(family=e['family'], familyTitle=get(e['family'])['title'])
+                item.update(family=e['family'], kindTitle=_kind_title(e))
             community_data.append(item)
         community_json = json.dumps(community_data).replace('<', '\\u003c')
         community_data_script = f'<script id="community-data" type="application/json">{community_json}</script>'
@@ -1357,13 +1403,12 @@ def page_html(capabilities_dir, version, header='', header_style='', community=N
         '<div id="modal" hidden role="dialog" aria-modal="true" aria-labelledby="modal-title">'
         '<div class="box">'
         '<button class="close" id="modal-close" aria-label="Close">&times;</button>'
-        '<button class="back" id="modal-back" type="button" hidden></button>'
         '<video id="modal-video" autoplay loop muted playsinline hidden></video>'
         '<div class="placeholder" id="modal-placeholder"><span>clip not built</span></div>'
         '<button class="unmute" id="modal-unmute" hidden>Unmute</button>'
         '<div class="body">'
         '<h3 id="modal-title"></h3><p class="cat" id="modal-cat"></p>'
-        '<p class="desc" id="modal-desc"></p>' + panels +
+        '<p class="desc" id="modal-desc"></p>'
         '<div class="prompts"><p>What to tell the builder</p><ul id="modal-prompts"></ul></div>'
         '</div></div></div>' + dialog_html +
         f'<script id="capabilities-data" type="application/json">{json.dumps(data)}</script>' +

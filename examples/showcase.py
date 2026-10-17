@@ -105,8 +105,8 @@ SHOTS = {
     **{n: ['orbit-3d', 'image-treatments'] for n in ('orbit-type', 'orbit-device', 'orbit-bleed')},
     **{n: ['hard-light-sweep'] for n in ('light-wide', 'light-close')},
     **{n: ['looks'] for n in ('art-swirl', 'art-woodblock', 'art-pop')},
-    **{n: ['comic-halftone'] for n in ('comic-hq', 'comic-close', 'comic-launch')},
-    **{n: ['pixel-art-layer'] for n in ('pixel-run', 'pixel-clear')},
+    **{n: ['look-filter-pop-art'] for n in ('comic-hq', 'comic-close', 'comic-launch')},   # once comic-halftone
+    **{n: ['look-filter-pixel'] for n in ('pixel-run', 'pixel-clear')},                   # once pixel-art-layer
     'fox': ['puppet-motion', 'pose-swaps', 'narration'],
     'walk': ['walk-in-place', 'parallax-scene', 'impact-frame'],
     **{n: ['paper-collage'] for n in ('paper-head', 'paper-pad', 'paper-stamp')},
@@ -117,7 +117,9 @@ SHOTS = {
 # Shorter names where a shot's tag would otherwise run past one line in 16:9.
 SHORT = {'overlap-transitions': 'Overlap slide', 'counting-numbers': 'Counting numbers',
          'gauges-and-rings': 'Gauges', 'line-chart-callout': 'Line chart + callout',
-         'springs-with-character': 'Springs', 'image-treatments': 'Image treatments'}
+         'springs-with-character': 'Springs', 'image-treatments': 'Image treatments',
+         # these shots draw the comic panel and the pixel layer by hand, not through the filters
+         'look-filter-pop-art': 'Comic halftone', 'look-filter-pixel': 'Pixel art'}
 TAGS = {seg: [SHORT.get(cap, capabilities.get(cap)['title']) for cap in caps] for seg, caps in SHOTS.items()}
 
 LOOP = True  # the end card comes to rest on the opening's first frame

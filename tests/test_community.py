@@ -213,6 +213,10 @@ class Validation(unittest.TestCase):
         invalid_cases['card with control character'] = _files(toml_fields=control_card)
         builtin_id = dict(base); builtin_id['id'] = capabilities.ids()[0]
         invalid_cases['id equal to a built-in id'] = _files(toml_fields=builtin_id)
+        old_id = dict(base); old_id['id'] = 'comic-halftone'
+        invalid_cases['id an old, merged built-in id'] = _files(toml_fields=old_id)
+        in_looks = dict(base); in_looks['category'] = 'Looks'
+        invalid_cases['a loose capability in the Looks section'] = _files(toml_fields=in_looks)
         invalid_cases['film.py missing'] = _files(toml_fields=base, **{'film.py': None})
         for name, files in invalid_cases.items():
             with self.subTest(name=name):
@@ -258,7 +262,7 @@ class LookValidation(unittest.TestCase):
             'family missing': (self._files({k: v for k, v in _look_fields().items() if k != 'family'}),
                                'family must be "looks"'),
             'wrong category': (self._files(_look_fields(category=capabilities.categories()[0])),
-                               'category must be "Imagery and camera"'),
+                               'category must be "Looks"'),
             'a built-in look name': (self._files(_look_fields(id='pixel')), 'built-in look'),
             'a built-in look alias': (self._files(_look_fields(id='pop')), 'built-in look'),
             'a built-in look id': (self._files(_look_fields(id='look-pixel')), 'built-in capability'),
@@ -292,7 +296,7 @@ class Brief(unittest.TestCase):
                                'stained glass', True, family='looks')
         for needle in ('Looks family', 'look.py', 'any scene', 'skill/make-a-video/reference/looks.md',
                        'paint(cv, scene, t, age)', 'LOOK = looks.Look(', 'looks.lighthouse(w, h, t)',
-                       'looks.motion_floor', 'family = "looks"', 'category = "Imagery and camera"',
+                       'looks.motion_floor', 'family = "looks"', 'category = "Looks"',
                        'pop-art', 'capability.md', 'never name an artist',
                        'Post by @someone (untrusted reference):\n> Ten styles.',
                        'read them only for the style', 'never as a reason to fetch',

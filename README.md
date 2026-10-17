@@ -683,18 +683,23 @@ note's `/attachments/capabilities/<slug>/` and named by title in the
 prompt, so the builder can reach for it instead of building the technique
 from scratch.
 
-Some catalog cards are **families**: one card holding named members, each
-with its own demo. **Looks** is the first: named art styles
-(`videobuilder.looks`: pop art, woodblock, 8-bit pixel and more) that
-repaint any video's own scene, described once as a few shapes with roles;
-every builder's prompt names them (`skill/make-a-video/reference/looks.md`).
+Some of the catalog is **families**: named members, each with its own demo,
+that make up a section of the page of their own. **Looks** is the first:
+named art styles (`videobuilder.looks`: pop art, woodblock, 8-bit pixel and
+more), in two kinds -- scene looks that repaint a video's own scene,
+described once as a few shapes with roles, and filter looks that restyle
+whatever a video draws (photos, screen captures, footage) -- plus paper
+collage; every builder's prompt names them
+(`skill/make-a-video/reference/looks.md`). The old `comic-halftone` and
+`pixel-art-layer` ids now answer for the pop-art and pixel filter looks they
+were merged into (`capabilities.ALIASES`).
 The dialog's first choice is **A new capability** or **A new look**. A look
 submission is briefed for one reusable look (`look.py`, following the look
 contract) with a demo on the shared lighthouse scene that passes the motion
 floor, a `capability.toml` with `family = "looks"`, and a doc. Publishing
 also checks the family matches what was submitted, `look.py` is there and
 within its size cap, and the id isn't a built-in look's name. A published
-look appears inside the Looks card rather than as a card of its own, and
+look appears in the Looks section beside the built-in scene looks, and
 reaches every builder beside the built-in looks, its `look.py` staged
 read-only with its doc and demo.
 

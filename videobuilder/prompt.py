@@ -63,17 +63,30 @@ def _looks_lines(community_looks):
     for how those are staged and treated)."""
     from .capabilities import get
     family = get('looks')
-    names = ', '.join(f"{c['id'].removeprefix('look-')} ({c['title']})" for c in family['children'])
+
+    def named(kind):
+        return ', '.join(f"{c['look']} ({c['title']})" for c in family['children'] if c['kind'] == kind and c['look'])
+    by_hand = [c['title'] for c in family['children'] if not c['look']]
+    filters = {c['look'] for c in family['children'] if c['kind'] == 'filter'}
+    scene_only = [c['look'] for c in family['children'] if c['kind'] == 'scene' and c['look'] and c['look'] not in filters]
     lines = ['## Looks', '',
              'A note that asks for a look or an art style ("make it pop art", "paint it like a woodblock print", '
-             '"try a few looks") means one of these named looks, which repaint this video\'s own scene, each '
-             f'with its own motion: {names}. Read skill/make-a-video/reference/looks.md before using one: '
-             'describe the video\'s picture once as a `looks.Scene` (a few shapes with roles, the sun, a '
-             'beacon), then paint each frame with `looks.paint(cv, name, scene, t)` and draw the video\'s own '
-             'words on top; to try several, `looks.relay` wipes from one to the next. Keep the look\'s motion: '
-             'it is what makes it read as that look. A look paints drawn shapes, so it can\'t restyle a photo, '
-             'a screen capture or footage yet: say so as a shortfall and offer it on a drawn part instead (a '
-             'title card, a backdrop behind the footage). If `from videobuilder import looks` fails, this '
+             '"try a few looks") means one of these named looks, each with its own motion, in two kinds. Scene '
+             'looks repaint a picture this video describes as a `looks.Scene` (a few shapes with roles, the '
+             f'sun, a beacon): {named("scene")}. Filter looks restyle whatever the video draws -- a photo, a '
+             f'screen capture, footage -- every pixel, frame by frame: {named("filter")}. The video decides '
+             'the kind, not the name: a drawn scene takes `looks.paint(cv, name, scene, t)`; anything else (a '
+             'product demo, photos, clips) draws as usual inside `with looks.filter(cv, name, t):`. They share '
+             'names, so "pop art" means the pop-art scene look on a drawn scene and the pop-art filter on '
+             'anything else. Read skill/make-a-video/reference/looks.md before using one, and draw the video\'s '
+             'own words after the look, on top (outside a filter, or a filter turns them into its style too). '
+             'To try several scene looks, `looks.relay` wipes from one to the next. Keep the look\'s motion: it '
+             'is what makes it read as that look. '
+             + (f'{", ".join(by_hand)} {"is" if len(by_hand) == 1 else "are"} a look too, built by hand: see '
+                'its entry in the capabilities catalog. ' if by_hand else '') +
+             f'Looks with no filter ({", ".join(scene_only)}) can\'t restyle a photo, a capture or footage: say so '
+             'as a shortfall and offer the nearest filter, or the look on a drawn part (a title card, a backdrop '
+             'behind the footage). If `from videobuilder import looks` fails, or it has no `looks.filter`, this '
              'video\'s videobuilder is older than the looks: raise the pin in its requirements.txt.']
     if community_looks:
         lines += ['', 'Other creators added these looks; each ships its look.py, a demo film and a reference '

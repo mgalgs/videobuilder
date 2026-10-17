@@ -960,7 +960,7 @@ def publishable_look(case, slug, **overrides):
 
 class LookSubmission(fixtures.AccountMixin, fixtures.LibraryFixture, unittest.TestCase):
     """"A new look": the dialog's second choice, through to a published look
-    inside the Looks family and in every builder's prompt."""
+    in the Looks section and in every builder's prompt."""
 
     def _new_look(self, cookie):
         code, created = self.request('/api/capabilities/new', {'files': 1, 'family': 'looks',
@@ -1015,7 +1015,7 @@ class LookSubmission(fixtures.AccountMixin, fixtures.LibraryFixture, unittest.Te
         self.assertEqual(code, 400, data)
         self.assertIn('family must be left out', data['error'])
 
-    def test_a_published_look_sits_in_the_family_and_reaches_every_builder(self):
+    def test_a_published_look_sits_in_the_looks_section_and_reaches_every_builder(self):
         admin = self.admin_login()
         admin_headers = {'Content-Type': 'application/json', 'Cookie': admin}
         _, _, dana = self.signup('dana', 'longenoughpassword')
@@ -1026,10 +1026,11 @@ class LookSubmission(fixtures.AccountMixin, fixtures.LibraryFixture, unittest.Te
         self.assertEqual(code, 200, data)
         page = self.request('/capabilities', headers={'Cookie': other})[1].decode()
         main = page[page.index('<main>'):page.index('</main>')]
-        self.assertNotIn(f'community:{slug}', main)
-        self.assertIn('<span class="count">9 looks</span>', main)
-        panel = page[page.index('data-family-panel="looks"'):]
-        self.assertIn(f'data-card="community:{slug}"', panel[:panel.index('</section>')])
+        section = main[main.index('<h2>Looks</h2>'):]
+        section = section[:section.index('<h2>', 4)]
+        self.assertEqual(main.count(f'data-card="community:{slug}"'), 1)
+        self.assertIn(f'data-card="community:{slug}"', section)
+        self.assertIn('<span class="count">15 looks</span>', section)
         builder = BuilderContext._ordinary_note(self)
         text = Path(builder.last['note_file']).read_text()
         looks_section = text[text.index('## Looks'):text.index('## Look at your work')]

@@ -202,7 +202,7 @@ def brief(post, capture, has_media, family=None):
 
 def _capability_files(source):
     from . import capabilities
-    categories = ', '.join(capabilities.categories())
+    categories = ', '.join(capabilities.loose_categories())
     return [
         'Add a new capability to videobuilder: a creator saw a technique and wants videobuilder '
         'to be able to do it.',
@@ -311,7 +311,7 @@ def validate(read, published_ids=(), expected_family=None):
     id_ = data['id']
     if not isinstance(id_, str) or not ID_RE.fullmatch(id_):
         raise Invalid('id must be lowercase letters, digits and hyphens, 2-48 characters, starting with a letter')
-    if id_ in capabilities.ids():
+    if id_ in capabilities.ids() or id_ in capabilities.ALIASES:
         raise Invalid(f'id {id_!r} is already used by a built-in capability')
     if id_ in published_ids:
         raise Invalid(f'id {id_!r} is already used by another published capability')
@@ -338,6 +338,9 @@ def validate(read, published_ids=(), expected_family=None):
         raise Invalid(f'category must be one of: {", ".join(capabilities.categories())}')
     if family is not None and category != capabilities.get(family)['category']:
         raise Invalid(f'category must be "{capabilities.get(family)["category"]}", the {family} family\'s own')
+    if family is None and category not in capabilities.loose_categories():
+        raise Invalid(f'category {category!r} holds a family\'s members only: submit it as one of them, or pick '
+                      f'one of: {", ".join(capabilities.loose_categories())}')
     title = _require_line(data['title'], 'title', 80)
     card = _require_line(data['card'], 'card', 160)
     description = _require_text(data['description'], 'description', 1200)

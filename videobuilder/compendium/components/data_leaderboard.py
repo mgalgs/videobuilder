@@ -8,7 +8,7 @@ Items are sorted biggest first whatever order they come in. Rows fill the
 frame's height, so 9:16 gets tall, roomy rows rather than a short list with
 empty bands.
 
-Draws on `examples/capabilities/comic-halftone.py` (the dot fill),
+Draws on `vb.halftone_pattern` (the dot fill, as the old comic-halftone demo did),
 `hard-light-sweep.py` (the gleam) and `staggered-reveals.py`.
 """
 import math

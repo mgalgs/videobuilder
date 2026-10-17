@@ -4,7 +4,7 @@ in at the foot of the frame and out at the head, then ease to a stop with
 the closing line resting in the middle. Two columns either side of a gutter
 in 16:9; stacked role-over-name where the frame is narrow.
 
-Built from `examples/capabilities/comic-halftone.py` (the dot screen) and
+Built from `vb.halftone_pattern` (the dot screen) and
 `eased-entrances.py` (the roll's ease to rest).
 """
 import cairo

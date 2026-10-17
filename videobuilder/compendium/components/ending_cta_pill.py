@@ -4,7 +4,7 @@ cursor exactly on beat 2 -- it squashes, springs back and throws a ring of
 light. A halftone disc in the corner gives the frame a printed, poster feel.
 
 Built from `examples/capabilities/staggered-reveals.py` (the word stagger),
-`pop-on-the-beat.py` (the click) and `comic-halftone.py` (the dot disc).
+`pop-on-the-beat.py` (the click) and `vb.halftone_pattern` (the dot disc).
 """
 import math
 

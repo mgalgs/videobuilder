@@ -70,23 +70,29 @@ outlined, circle vs. triangle).
 
 ## Style-card exceptions
 
-A style card whose whole point is a different look (comic-halftone,
-pixel-art-layer) may define its own palette of at most 5 colours inside its
+A style card whose whole point is a different look (every member of the
+Looks family, paper-collage among them) may define its own palette of at most 5 colours inside its
 demo instead of `_kit`'s, under the same contrast (>= 4.5:1 for small text)
 and colour-blind (hue separation, not lightness alone) rules.
 
 ## The Looks family
 
-Every look's demo (`look-<name>.py`) paints the same scene,
+Every scene look's demo (`look-<name>.py`) paints the same scene,
 `looks.lighthouse`, through `_looks.py`, with the same plaque naming the
 look, so the family's cards compare like for like; each look brings its
-own palette (the style-card exception above). The family card's own demo
-(`looks.py`) wipes through all eight, 0.8 s each, so it runs longer than
-4 s on purpose. A look's demo needs no loop: its motion is the point, and
+own palette (the style-card exception above). Every filter look's demo
+(`look-filter-<name>.py`) restyles a still picture instead -- the committed
+dashboard screenshot (`assets/dashboard.png`) or the fox standing in a
+meadow -- held for all 3 s, so all the motion is the filter's own; its
+plaque is drawn after the filter, so it reads. The family's own demo
+(`looks.py`) wipes through the eight scene looks, 0.8 s each, so it runs
+longer than 4 s on purpose. A look's demo needs no loop: its motion is the point, and
 the motion floor test (tests/test_looks.py) fails one that barely moves.
 
-Six capability demos -- shape-morph, line-chart-callout, hard-light-sweep,
-drawn-on-diagram, comic-halftone, pixel-art-layer -- are after
+Four capability demos -- shape-morph, line-chart-callout, hard-light-sweep,
+drawn-on-diagram -- and two since merged into the pop-art and pixel filter
+looks (comic-halftone, pixel-art-layer; the showcase's comic and pixel
+shots still draw them) are after
 [huashu-art-motion](https://github.com/alchaincyf/huashu-art-motion) (MIT):
 the techniques, reimplemented here in this project's own code, palettes and
 words, not its code, text or palettes.
