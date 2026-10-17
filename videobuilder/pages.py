@@ -236,14 +236,14 @@ LIBRARY_STYLE = (
     '.lib-group{font-size:.78rem;color:#8b8b94;margin:0 0 .8rem;text-transform:uppercase;letter-spacing:.08em;'
     'font-weight:700}'
     '.lib-section{margin:0 0 2.25rem}'
-    '.lib-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:1rem;list-style:none;'
+    '.lib-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:.75rem;list-style:none;'
     'margin:0;padding:0}'
     '.lib-card{display:flex;flex-direction:column;gap:.15rem;width:100%;border:1px solid #26262c;'
-    'border-radius:14px;padding:0 0 .8rem;background:#141417;color:#f4f4f2;text-align:left;cursor:pointer;'
+    'border-radius:12px;padding:0 0 .6rem;background:#141417;color:#f4f4f2;text-align:left;cursor:pointer;'
     'min-height:44px;font:inherit;box-sizing:border-box;overflow:hidden;transition:border-color .15s,transform .15s}'
     '.lib-card:hover,.lib-card:focus-visible{border-color:#e5483b;outline:none;transform:translateY(-2px)}'
     '.lib-poster{position:relative;display:block;aspect-ratio:16/9;overflow:hidden;background:#1a1a1f;'
-    'margin-bottom:.55rem}'
+    'margin-bottom:.45rem}'
     '.lib-poster-fallback{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;'
     'padding:.5rem;text-align:center;font-size:.85rem;color:#5d5d66;overflow-wrap:anywhere}'
     '.lib-poster img{position:relative;display:block;width:100%;height:100%;object-fit:cover}'
@@ -256,8 +256,8 @@ LIBRARY_STYLE = (
     '.lib-sort button{min-height:36px;padding:.3rem .8rem;border:0;border-radius:7px;background:none;'
     'color:#a9a9b2;font:inherit;font-size:.85rem;cursor:pointer}'
     '.lib-sort button[aria-pressed="true"]{background:#26262c;color:#f4f4f2}'
-    '.lib-title{font-weight:700;font-size:.95rem;padding:0 .85rem;overflow-wrap:anywhere}'
-    '.lib-meta{font-size:.8rem;color:#8b8b94;padding:0 .85rem}'
+    '.lib-title{font-weight:700;font-size:.88rem;padding:0 .7rem;overflow-wrap:anywhere}'
+    '.lib-meta{font-size:.75rem;color:#8b8b94;padding:0 .7rem}'
     '.lib-empty{color:#a9a9b2}'
     '.lib-start{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:1rem 2rem;'
     'background:#141417;border:1px solid #26262c;border-radius:16px;padding:1.75rem 2rem;margin:0 0 2.25rem}'
@@ -269,7 +269,10 @@ LIBRARY_STYLE = (
     '.howto p{color:#a9a9b2;margin:.5rem 0 0}.howto .howto-lead{color:#e4e4e8;font-size:1.02rem}'
     '.lib-copy{flex:0 0 auto;min-height:36px;padding:.3rem .7rem;border-radius:8px;border:1px solid #2c2c33;'
     'background:#0d0d10;color:#f4f4f2;font:inherit;font-size:.8rem;cursor:pointer}'
-    '@media (max-width:720px){.lib-grid{grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:.75rem}'
+    '@media (max-width:720px){.lib-grid{grid-template-columns:repeat(auto-fill,minmax(105px,1fr));gap:.5rem}'
+    '.lib-title,.lib-meta{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.lib-upd{display:none}'
+    '.lib-title{font-size:.8rem;padding:0 .5rem}.lib-meta{font-size:.7rem;padding:0 .5rem}'
+    '.lib-pill{top:.3rem;left:.3rem;font-size:.58rem;padding:.1rem .4rem}'
     '.lib-start{padding:1.25rem}.lib-start .btn{width:100%}}'
 )
 
@@ -817,7 +820,7 @@ def index(entries, accounts_enabled, user, host, scheme='http', showcase=False, 
     def card_html(idx, pill):
         c = cards[idx]
         leaf = html.escape(c['leaf'])
-        meta = f'Updated {_ago(c["updated"])}' if c['updated'] else 'Empty'
+        meta = f'<span class="lib-upd">Updated </span>{_ago(c["updated"])}' if c['updated'] else 'Empty'
         pill_html = (f'<span class="lib-pill">{html.escape(c["project"])}</span>'
                      if pill and c['inProject'] else '')
         return (f'<li><button type="button" class="lib-card" data-idx="{idx}">'
