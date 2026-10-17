@@ -11,7 +11,6 @@ import unittest
 from pathlib import Path
 
 from videobuilder import capabilities, pages
-from videobuilder.capabilities import CATALOG
 from videobuilder.starters import STARTERS
 
 
@@ -25,7 +24,7 @@ class StarterCatalogue(unittest.TestCase):
         self.assertEqual(len({s['id'] for s in STARTERS}), 6)
 
     def test_every_starter_poster_is_a_real_capability_id(self):
-        ids = {e['id'] for e in CATALOG}
+        ids = set(capabilities.ids())     # a family's members too (paper-collage is a look): each has its poster
         for s in STARTERS:
             self.assertIn(s['poster'], ids, s['id'])
 
