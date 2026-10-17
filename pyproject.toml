@@ -24,8 +24,8 @@ speech = ["kokoro-onnx>=0.4.7,<0.5"]
 [project.scripts]
 videobuilder = "videobuilder.cli:main"
 
-[tool.setuptools]
-packages = ["videobuilder", "videobuilder.compendium", "videobuilder.compendium.components"]
+[tool.setuptools.packages.find]
+include = ["videobuilder*"]
 
 [tool.setuptools.package-data]
 videobuilder = ["*.html", "*.js", "*.css"]
