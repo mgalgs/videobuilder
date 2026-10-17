@@ -19,8 +19,16 @@ cut-out, `<i>-cutout.png` / `<i>-cutout.thumb.webp`.
 Another pose (Pictures.pose) is a job like any other, asked of artbox with a
 finished picture as its reference: artbox redraws the same character (its
 "KI", keep-identity, mode) from that picture's seed, in the pose the creator
-describes. The reference is built here from the stored job, never taken from
-the client.
+describes. More like this (Pictures.vary) asks for two more in the same
+spirit: the picture is only an inspiration ("I" mode) and no seed is sent, so
+they differ. Either reference is built here from the stored job, never taken
+from the client.
+
+An edit (Pictures.edit: flip, rotate, crop) is done here with Pillow, at once
+and at no cost, and makes a new single-picture set beside the original, which
+is kept; for a cut-out, the cut-out and the original are edited alike. An
+edited picture has no artbox file of its own, so a pose or more like it is
+drawn from the picture it was edited from, and says so.
 
 Network safety: the editor only talks to the configured base URL. Every file
 URL is built from the base, a job id and a url-quoted name taken from the job
@@ -52,6 +60,10 @@ MAX_COUNT = 4
 MAX_PENDING = 2
 MAX_POSE = 300
 POSE_COUNT = 2
+LIKE_COUNT = 2
+# Edited pictures cost nothing to make, so they skip the daily cap; past this
+# many in one video, making another drops the oldest.
+MAX_EDITS = 40
 DEFAULT_DAILY_CAP = 40
 # artbox gives a job up after 12 hours; past that it will never finish.
 GIVE_UP_SECONDS = 12 * 3600
@@ -165,12 +177,13 @@ class Artbox:
             raise ArtboxError(f'{path}: not a JSON object')
         return data
 
-    def submit(self, prompt, n, matte, refs=None, seed=None):
-        """Start a job; with `refs` (["<jobId>/<fileName>"]) artbox keeps the
-        identity of the character in them, and `seed` repeats a picture's seed."""
+    def submit(self, prompt, n, matte, refs=None, seed=None, ref_mode='KI'):
+        """Start a job; with `refs` (["<jobId>/<fileName>"]) artbox draws from
+        them, keeping the identity of the character in them ("KI") or only
+        taking them as inspiration ("I"), and `seed` repeats a picture's seed."""
         body = {'prompt': prompt, 'n': n, 'size': SIZE, 'tag': TAG, 'matte': bool(matte)}
         if refs:
-            body.update(refs=list(refs), refMode='KI')
+            body.update(refs=list(refs), refMode=ref_mode)
         if seed is not None:
             body['seed'] = seed
         job = self._json('/api/images', body)
@@ -373,12 +386,17 @@ class Pictures:
                'status': job['status'], 'message': job.get('message'), 'created': job['created'],
                'retryable': job.get('retryable', True),
                'waited': round(pending_for),
-               'pictures': [{'index': p['index'], 'cutout': p['cutout'], 'posable': bool(p.get('name'))}
+               'pictures': [{'index': p['index'], 'cutout': p['cutout'], 'posable': bool(_ref(job, p))}
                             for p in job.get('pictures', [])]}
-        if job.get('pose_of'):
-            source = job['pose_of']
-            out['poseOf'] = {'id': source['job'], 'index': source['index'], 'prompt': source['prompt'],
+        for key, name in (('pose_of', 'poseOf'), ('like_of', 'likeOf'), ('edit_of', 'editOf')):
+            source = job.get(key)
+            if source:
+                out[name] = {'id': source['job'], 'index': source['index'], 'prompt': source['prompt'],
                              'cutout': source['cutout']}
+                if source.get('edited'):
+                    out[name]['edited'] = True
+                if key == 'edit_of':
+                    out[name].update(edit=source['edit'], label=source['label'])
         return out
 
     def list(self, video):
@@ -428,11 +446,14 @@ class Pictures:
     # ---- starting and retrying ----
 
     def _submit(self, job):
-        source = job.get('pose_of')
+        pose, like = job.get('pose_of'), job.get('like_of')
         try:
-            if source:
-                remote = self.artbox.submit(source['ask'], job['n'], job['cutout'], refs=[source['ref']],
-                                            seed=source['seed'])
+            if pose:
+                remote = self.artbox.submit(pose['ask'], job['n'], job['cutout'], refs=[pose['ref']],
+                                            seed=pose['seed'])
+            elif like:
+                remote = self.artbox.submit(like['ask'], job['n'], job['cutout'], refs=[like['ref']],
+                                            ref_mode='I')
             else:
                 remote = self.artbox.submit(job['prompt'] + (CUTOUT_SUFFIX if job['cutout'] else ''), job['n'],
                                             job['cutout'])
@@ -474,31 +495,102 @@ class Pictures:
         pose = ' '.join(pose.split())
         if len(pose) > MAX_POSE:
             raise PictureError(400, f'That pose is too long. Keep it under {MAX_POSE} characters.')
+        return self._derive(video, job_id, index, author, is_admin, 'pose_of', POSE_COUNT, pose,
+                            "This picture is too old to make another pose of. Make it again first.")
+
+    def vary(self, video, job_id, index, author, is_admin=False):
+        """Start a set of two more like picture `index` of the finished set
+        `job_id`: its words, the picture as a loose reference and no seed, so
+        they differ; cut out if the set was."""
+        return self._derive(video, job_id, index, author, is_admin, 'like_of', LIKE_COUNT, None,
+                            "This picture is too old to make more like it. Make it again first.")
+
+    def _derive(self, video, job_id, index, author, is_admin, kind, n, pose, too_old):
+        """A new artbox set drawn from a finished picture: a pose (`pose` says
+        which) or more like it. The reference is the stored picture's own
+        artbox file, or for an edited picture the one it was edited from."""
         if not LOCAL_ID.fullmatch(job_id or ''):
             raise PictureError(404, 'Those pictures are gone.')
         self.editor.project.video(video)
         with self.lock:
             jobs = self._load(video)
-            base = self._find(jobs, job_id)
-            if base['status'] != 'done':
-                raise PictureError(409, 'Wait for those pictures to finish first.')
-            picture = next((p for p in base.get('pictures', []) if p['index'] == index), None)
-            if picture is None:
-                raise PictureError(404, 'That picture is gone.')
-            if not picture.get('name') or not valid_job_id(base.get('remote')):
-                raise PictureError(409, "This picture is too old to make another pose of. Make it again first.")
+            base, picture = self._finished(jobs, job_id, index)
+            ref = _ref(base, picture)
+            if not ref:
+                raise PictureError(409, too_old)
             self._check_pending(jobs)
-            self.check_daily_cap(author, is_admin, POSE_COUNT)
+            self.check_daily_cap(author, is_admin, n)
             # A pose of a pose is still described by the first picture's words, not the last pose's.
-            described = base['pose_of'].get('described', base['prompt']) if base.get('pose_of') else base['prompt']
-            source = {'job': base['id'], 'index': index, 'prompt': base['prompt'], 'cutout': picture['cutout'],
-                      'ref': f"{base['remote']}/{picture['name']}", 'seed': picture.get('seed'),
-                      'described': described, 'ask': pose_prompt(described, pose)}
-            job = {'id': secrets.token_hex(8), 'video': video, 'prompt': pose, 'n': POSE_COUNT,
-                   'cutout': base['cutout'], 'author': author, 'created': time.time(), 'pose_of': source}
+            described = _described(base)
+            origin = picture.get('origin') or {'job': base['id'], 'index': index, 'cutout': picture['cutout']}
+            source = {'job': origin['job'], 'index': origin['index'], 'prompt': base['prompt'],
+                      'cutout': origin['cutout'], 'ref': ref, 'seed': picture.get('seed'), 'described': described,
+                      'ask': pose_prompt(described, pose) if kind == 'pose_of' else _ask(base)}
+            if picture.get('origin'):
+                source['edited'] = True
+            job = {'id': secrets.token_hex(8), 'video': video, 'prompt': pose if kind == 'pose_of' else base['prompt'],
+                   'n': n, 'cutout': base['cutout'], 'author': author, 'created': time.time(), kind: source}
             self._submit(job)
             jobs.append(job)
             self._save(video, jobs)
+        return self.public(job)
+
+    def _finished(self, jobs, job_id, index):
+        """The finished set `job_id` of `jobs` and its picture `index`."""
+        base = self._find(jobs, job_id)
+        if base['status'] != 'done':
+            raise PictureError(409, 'Wait for those pictures to finish first.')
+        picture = next((p for p in base.get('pictures', []) if p['index'] == index), None)
+        if picture is None:
+            raise PictureError(404, 'That picture is gone.')
+        return base, picture
+
+    # ---- edits ----
+
+    def edit(self, video, job_id, index, edit, author):
+        """Flip, rotate or crop picture `index` of the finished set `job_id`
+        into a new set of one, keeping the original. For a cut-out the
+        original is edited alike, so "See original" still matches. Free, so
+        outside the daily cap; past MAX_EDITS in a video the oldest goes."""
+        if edit not in EDITS:
+            raise PictureError(400, "That isn't an edit this editor can make.")
+        if not LOCAL_ID.fullmatch(job_id or ''):
+            raise PictureError(404, 'Those pictures are gone.')
+        self.editor.project.video(video)
+        with self.lock:
+            jobs = self._load(video)
+            base, picture = self._finished(jobs, job_id, index)
+            folder = self._dir(video) / base['id']
+            stems = [str(index)] + ([f'{index}-cutout'] if picture['cutout'] else [])
+            if not all((folder / f'{stem}.png').is_file() for stem in stems):
+                raise PictureError(404, 'That picture is gone.')
+            new_id = secrets.token_hex(8)
+            tmp = self._dir(video) / f'.{new_id}.tmp'
+            tmp.mkdir(parents=True)
+            try:
+                _edit_files(folder, stems, tmp, edit)
+                os.replace(tmp, self._dir(video) / new_id)
+            finally:
+                shutil.rmtree(tmp, ignore_errors=True)
+            now = time.time()
+            origin = picture.get('origin') or {'job': base['id'], 'index': index, 'cutout': picture['cutout']}
+            edited = {'index': 0, 'cutout': picture['cutout'], 'origin': origin, 'seed': picture.get('seed')}
+            ref = _ref(base, picture)
+            if ref:
+                edited['ref'] = ref
+            job = {'id': new_id, 'video': video, 'prompt': base['prompt'], 'n': 1, 'cutout': base['cutout'],
+                   'author': author, 'created': now, 'finished': now, 'status': 'done', 'message': None,
+                   'pictures': [edited],
+                   'edit_of': {'job': base['id'], 'index': index, 'prompt': base['prompt'],
+                               'cutout': picture['cutout'], 'edit': edit, 'label': EDITS[edit],
+                               'described': _described(base), 'ask': _ask(base)}}
+            jobs.append(job)
+            edits = sorted((j for j in jobs if j.get('edit_of')), key=lambda j: j['created'])
+            for old in edits[:max(0, len(edits) - MAX_EDITS)]:
+                shutil.rmtree(self._dir(video) / old['id'], ignore_errors=True)
+                jobs.remove(old)
+            self._save(video, jobs)
+            self._enforce_cap(video)
         return self.public(job)
 
     def retry(self, video, job_id, author, is_admin=False):
@@ -662,8 +754,104 @@ class Pictures:
         path, _ = self.file(video, job_id, index, cutout, full=True)
         with self.lock:
             job = self._find(self._load(video), job_id)
-        name = f"{_slug(job['prompt'])}-{index + 1}{'-cutout' if cutout else ''}.png"
+        edit = f"-{_slug(job['edit_of']['label'])}" if job.get('edit_of') else ''
+        name = f"{_slug(job['prompt'])}{edit}-{index + 1}{'-cutout' if cutout else ''}.png"
         return self.editor.attachments.upload(video, name, 'image/png', path.read_bytes())
+
+
+def _ref(job, picture):
+    """The artbox reference ("<jobId>/<fileName>") a pose or more like a
+    stored picture is drawn from: its own file, or for an edited picture the
+    one it was edited from; None for a picture from before poses."""
+    if picture.get('ref'):
+        return picture['ref']
+    if picture.get('name') and valid_job_id(job.get('remote')):
+        return f"{job['remote']}/{picture['name']}"
+    return None
+
+
+def _derived(job):
+    return job.get('pose_of') or job.get('like_of') or job.get('edit_of')
+
+
+def _described(job):
+    """The words a set's subject was first described in, through any poses,
+    variations and edits of it."""
+    source = _derived(job)
+    return source.get('described', job['prompt']) if source else job['prompt']
+
+
+def _ask(job):
+    """What artbox was asked to draw a set's pictures."""
+    source = _derived(job)
+    return source['ask'] if source else job['prompt'] + (CUTOUT_SUFFIX if job['cutout'] else '')
+
+
+EDITS = {'flip': 'Flipped', 'rotate-left': 'Rotated left', 'rotate-right': 'Rotated right',
+         'square': 'Cropped square', '16:9': 'Cropped to 16:9', '9:16': 'Cropped to 9:16',
+         'trim': 'Edges trimmed'}
+CROPS = {'square': (1, 1), '16:9': (16, 9), '9:16': (9, 16)}
+# A cut-out's alpha at or under this is empty, for trimming and for finding its middle.
+EMPTY_ALPHA = 8
+
+
+def _crop_box(edit, size, alpha):
+    """The box to crop a picture of `size` to; `alpha` is its cut-out's alpha
+    channel, if it has one. A crop to a shape keeps the cut-out's subject in
+    the middle as far as the edges allow."""
+    w, h = size
+    content = alpha.point(lambda a: 255 if a > EMPTY_ALPHA else 0).getbbox() if alpha else None
+    if edit == 'trim':
+        if alpha is None:
+            raise PictureError(409, 'Only a picture with its background cut out has empty edges to trim.')
+        if content is None:
+            raise PictureError(409, 'This picture is empty, so there is nothing to keep.')
+        if content == (0, 0, w, h):
+            raise PictureError(409, 'This picture has no empty edges to trim.')
+        return content
+    rw, rh = CROPS[edit]
+    cw, ch = (round(h * rw / rh), h) if w * rh > h * rw else (w, round(w * rh / rw))
+    if (cw, ch) == (w, h):
+        raise PictureError(409, 'This picture is already that shape.')
+    cx, cy = ((content[0] + content[2]) / 2, (content[1] + content[3]) / 2) if content else (w / 2, h / 2)
+    left = min(max(round(cx - cw / 2), 0), w - cw)
+    top = min(max(round(cy - ch / 2), 0), h - ch)
+    return left, top, left + cw, top + ch
+
+
+def _edit_files(folder, stems, out, edit):
+    """Write `edit` of each stored `<stem>.png` in `folder` (the original,
+    then its cut-out if any) into `out` as picture 0, with its thumbnail. A
+    crop is worked out on the cut-out and applied to both, scaled if their
+    sizes differ."""
+    from PIL import Image
+    images = []
+    for stem in stems:
+        with Image.open(folder / f'{stem}.png') as im:
+            im.load()
+            images.append(im)
+    if edit in CROPS or edit == 'trim':
+        cutout = images[1] if len(images) > 1 else None
+        alpha = cutout.convert('RGBA').getchannel('A') if cutout else None
+        box = _crop_box(edit, (cutout or images[0]).size, alpha)
+        sized = (cutout or images[0]).size
+        edited = []
+        for im in images:
+            sx, sy = im.size[0] / sized[0], im.size[1] / sized[1]
+            edited.append(im.crop((round(box[0] * sx), round(box[1] * sy), round(box[2] * sx), round(box[3] * sy))))
+    else:
+        turn = {'flip': Image.Transpose.FLIP_LEFT_RIGHT, 'rotate-left': Image.Transpose.ROTATE_90,
+                'rotate-right': Image.Transpose.ROTATE_270}[edit]
+        edited = [im.transpose(turn) for im in images]
+    for stem, mode, im in zip(('0', '0-cutout'), ('RGB', 'RGBA'), edited):
+        im.save(out / f'{stem}.png', 'PNG')
+        _write_thumb(im, out, stem, mode)
+
+
+def _write_thumb(im, folder, stem, mode):
+    thumb = im.convert(mode)
+    thumb.thumbnail((THUMB_SIDE, THUMB_SIDE))
+    thumb.save(folder / f'{stem}.thumb.webp', 'WEBP', quality=82)
 
 
 def _seed(image):
@@ -690,7 +878,6 @@ def _store_png(data, folder, stem, mode):
             thumb = im.convert(mode)
     except Exception:
         return False
-    thumb.thumbnail((THUMB_SIDE, THUMB_SIDE))
     (folder / f'{stem}.png').write_bytes(data)
-    thumb.save(folder / f'{stem}.thumb.webp', 'WEBP', quality=82)
+    _write_thumb(thumb, folder, stem, mode)
     return True

@@ -454,6 +454,19 @@ def _post_picture_pose(self, route, body, identity, editor, user, job_id, index)
     return self._json(201, job)
 
 
+def _post_picture_vary(self, route, body, identity, editor, user, job_id, index):
+    pictures = _pictures(editor)
+    job = _picture_call(pictures.vary, _field(body, 'video', str), job_id, int(index), identity,
+                        _is_admin_account(self, user))
+    return self._json(201, job)
+
+
+def _post_picture_edit(self, route, body, identity, editor, user, job_id, index):
+    pictures = _pictures(editor)
+    job = _picture_call(pictures.edit, _field(body, 'video', str), job_id, int(index), body.get('edit'), identity)
+    return self._json(201, job)
+
+
 def _post_picture_attach(self, route, body, identity, editor, user, job_id, index):
     pictures = _pictures(editor)
     cutout = body.get('cutout', False)
@@ -534,6 +547,8 @@ POST_ROUTES = [
     (re.compile(r'/api/pictures/([0-9a-f]{16})/retry'), _post_picture_retry),
     (re.compile(r'/api/pictures/([0-9a-f]{16})/([0-3])/attach'), _post_picture_attach),
     (re.compile(r'/api/pictures/([0-9a-f]{16})/([0-3])/pose'), _post_picture_pose),
+    (re.compile(r'/api/pictures/([0-9a-f]{16})/([0-3])/vary'), _post_picture_vary),
+    (re.compile(r'/api/pictures/([0-9a-f]{16})/([0-3])/edit'), _post_picture_edit),
     (('/api/roll', '/api/copy', '/api/undo'), _post_edit),
     ('/api/notes', _post_notes),
     ('/api/videos/first-note', _post_first_note),

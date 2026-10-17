@@ -81,6 +81,18 @@ class Base(Server):
         with mock.patch('time.time', return_value=time.time() + self.clock):
             self.editor.pictures.tick()
 
+    def done_set(self, prompt='a cartoon fox, flat colours, thick outlines, on a white background', n=2, cutout=True):
+        _, job = self.make(prompt, n=n, cutout=cutout)
+        self.fake.finish(self.remote_id(job['id']))
+        self.poll()
+        return job
+
+    def pose(self, job_id, index=1, pose='waving, arm raised to the right', video=VIDEO):
+        return self.post(f'/api/pictures/{job_id}/{index}/pose', {'video': video, 'pose': pose})
+
+    def vary(self, job_id, index=0, video=VIDEO, **extra):
+        return self.post(f'/api/pictures/{job_id}/{index}/vary', {'video': video, **extra})
+
     def status(self, path):
         try:
             with urllib.request.urlopen(self.base + path, timeout=20) as r:
@@ -321,15 +333,6 @@ class Limits(Base):
 
 
 class Poses(Base):
-    def done_set(self, prompt='a cartoon fox, flat colours, thick outlines, on a white background', n=2, cutout=True):
-        _, job = self.make(prompt, n=n, cutout=cutout)
-        self.fake.finish(self.remote_id(job['id']))
-        self.poll()
-        return job
-
-    def pose(self, job_id, index=1, pose='waving, arm raised to the right', video=VIDEO):
-        return self.post(f'/api/pictures/{job_id}/{index}/pose', {'video': video, 'pose': pose})
-
     def test_another_pose_redraws_that_picture_from_its_seed(self):
         base = self.done_set()
         remote = self.remote_id(base['id'])
@@ -445,6 +448,242 @@ class Poses(Base):
         code, result = self.pose(base['id'], 0)
         self.assertEqual(code, 429, result)
         self.assertIn('already on the way', result['error'])
+
+
+class MoreLikeThis(Base):
+    def test_more_like_this_is_a_loose_reference_without_a_seed(self):
+        base = self.done_set('a cartoon fox, on a white background', n=2, cutout=True)
+        remote = self.remote_id(base['id'])
+        name = self.fake.jobs[remote]['images'][1]['name']
+        code, job = self.vary(base['id'], 1)
+        self.assertEqual(code, 201, job)
+        self.assertEqual((job['prompt'], job['n'], job['cutout'], job['status']),
+                         ('a cartoon fox, on a white background', 2, True, 'waiting'))
+        self.assertEqual(job['likeOf'], {'id': base['id'], 'index': 1, 'cutout': True,
+                                         'prompt': 'a cartoon fox, on a white background'})
+        self.assertNotIn('poseOf', job)
+        sent = self.fake.submitted[-1]
+        self.assertEqual((sent['refMode'], sent['refs'], sent['n'], sent['matte'], sent['prompt']),
+                         ('I', [f'{remote}/{name}'], 2, True,
+                          'a cartoon fox, on a white background, on a plain mid-grey background'))
+        self.assertNotIn('seed', sent)
+        # Polled and fetched like any set, and a retry asks the same again.
+        self.fake.fail(self.remote_id(job['id']))
+        self.poll()
+        self.assertEqual(self.post(f'/api/pictures/{job["id"]}/retry', {'video': VIDEO})[0], 200)
+        self.assertEqual(self.fake.submitted[-1], sent)
+        self.fake.finish(self.remote_id(job['id']))
+        self.poll()
+        done = next(j for j in self.jobs() if j['id'] == job['id'])
+        self.assertEqual((done['status'], len(done['pictures']), done['pictures'][0]['posable']), ('done', 2, True))
+
+    def test_the_cutout_setting_follows_the_source_and_a_client_cant_name_the_reference(self):
+        base = self.done_set('a teapot', n=1, cutout=False)
+        code, job = self.vary(base['id'], 0, refs=['evil/x.png'], seed=1, n=4, refMode='KI', prompt='other')
+        self.assertEqual(code, 201, job)
+        sent = self.fake.submitted[-1]
+        self.assertEqual((sent['matte'], sent['refMode'], sent['n'], sent['prompt']), (False, 'I', 2, 'a teapot'))
+        self.assertEqual(sent['refs'], [f'{self.remote_id(base["id"])}/'
+                                        f'{self.fake.jobs[self.remote_id(base["id"])]["images"][0]["name"]}'])
+        self.assertNotIn('seed', sent)
+
+    def test_refused_sources(self):
+        _, pending = self.make('a fox')
+        self.assertEqual(self.vary(pending['id'])[0], 409)
+        self.fake.fail(self.remote_id(pending['id']))
+        self.poll()
+        self.assertEqual(self.vary(pending['id'])[0], 409)
+        base = self.done_set(n=1)
+        self.assertEqual(self.vary(base['id'], 1)[0], 404)
+        self.assertEqual(self.vary('0' * 16)[0], 404)
+        other = 'promo/other'
+        (self.root / 'promo' / 'other.py').write_text(self.film.read_text())
+        code, result = self.vary(base['id'], video=other)
+        self.assertEqual(code, 404, result)
+        jobs = self.editor.pictures._load(VIDEO)
+        del next(j for j in jobs if j['id'] == base['id'])['pictures'][0]['name']
+        self.editor.pictures._save(VIDEO, jobs)
+        self.assertEqual(self.vary(base['id'])[0], 409)
+
+    def test_counts_toward_the_daily_cap_and_the_pending_limit(self):
+        base = self.done_set(n=2)
+        self.editor.pictures.daily_cap = 3
+        code, result = self.vary(base['id'])
+        self.assertEqual(code, 429, result)
+        self.editor.pictures.daily_cap = 40
+        self.assertEqual(self.vary(base['id'])[0], 201)
+        self.assertEqual(self.vary(base['id'], 1)[0], 201)
+        code, result = self.vary(base['id'])
+        self.assertEqual(code, 429, result)
+        self.assertIn('already on the way', result['error'])
+
+    def test_more_like_a_pose_asks_what_drew_the_pose(self):
+        base = self.done_set(n=1)
+        _, pose = self.pose(base['id'], 0, 'sitting')
+        asked = self.fake.submitted[-1]['prompt']
+        self.fake.finish(self.remote_id(pose['id']))
+        self.poll()
+        code, job = self.vary(pose['id'], 1)
+        self.assertEqual(code, 201, job)
+        self.assertEqual(self.fake.submitted[-1]['prompt'], asked)
+        self.assertEqual(job['likeOf']['prompt'], 'sitting')
+
+
+class Edits(Base):
+    def edit(self, job_id, edit, index=0, video=VIDEO):
+        return self.post(f'/api/pictures/{job_id}/{index}/edit', {'video': video, 'edit': edit})
+
+    def stored(self, job_id, cutout=False, index=0):
+        data = self.get(f'/api/pictures/{job_id}/{index}?video={VIDEO}&full=1{"&cutout=1" if cutout else ""}')
+        return Image.open(io.BytesIO(data))
+
+    def marked_set(self, cutout=True, size=(8, 4)):
+        """A finished set of one whose picture is `size`, with one red pixel
+        at the top left, and for a cut-out a 2x2 opaque square at (4, 1)."""
+        _, job = self.make('a fox', n=1, cutout=cutout)
+        remote = self.remote_id(job['id'])
+        self.fake.finish(remote)
+        image = self.fake.jobs[remote]['images'][0]
+        im = Image.new('RGB', size, (0, 0, 255))
+        im.putpixel((0, 0), (255, 0, 0))
+        out = io.BytesIO()
+        im.save(out, 'PNG')
+        self.fake.files[f'/files/{remote}/{image["name"]}'] = out.getvalue()
+        if cutout:
+            matte = Image.new('RGBA', size, (0, 0, 0, 0))
+            for x, y in ((4, 1), (5, 1), (4, 2), (5, 2)):
+                matte.putpixel((x, y), (0, 255, 0, 255))
+            out = io.BytesIO()
+            matte.save(out, 'PNG')
+            self.fake.files[f'/files/{remote}/{image["matte"]}'] = out.getvalue()
+        self.poll()
+        return job
+
+    def test_flip_and_rotate_make_new_pictures_and_keep_the_original(self):
+        base = self.marked_set()
+        sent = len(self.fake.submitted)
+        code, flipped = self.edit(base['id'], 'flip')
+        self.assertEqual(code, 201, flipped)
+        self.assertEqual((flipped['status'], flipped['n'], flipped['prompt'], flipped['cutout']),
+                         ('done', 1, 'a fox', True))
+        self.assertEqual(flipped['editOf'], {'id': base['id'], 'index': 0, 'prompt': 'a fox', 'cutout': True,
+                                             'edit': 'flip', 'label': 'Flipped'})
+        self.assertEqual(flipped['pictures'], [{'index': 0, 'cutout': True, 'posable': True}])
+        im = self.stored(flipped['id'])
+        self.assertEqual((im.size, im.getpixel((7, 0)), im.getpixel((0, 0))), ((8, 4), (255, 0, 0), (0, 0, 255)))
+        cut = self.stored(flipped['id'], cutout=True)
+        self.assertEqual((cut.getpixel((2, 1))[3], cut.getpixel((4, 1))[3]), (255, 0))
+        # The thumbnails are there too, and the original is untouched.
+        self.assertEqual(self.status(f'/api/pictures/{flipped["id"]}/0?video={VIDEO}&cutout=1'), 200)
+        self.assertEqual(self.stored(base['id']).getpixel((0, 0)), (255, 0, 0))
+        self.assertEqual(len(self.fake.submitted), sent)  # no artbox
+
+        _, right = self.edit(base['id'], 'rotate-right')
+        im = self.stored(right['id'])
+        self.assertEqual((im.size, im.getpixel((3, 0))), ((4, 8), (255, 0, 0)))  # top left goes to top right
+        self.assertEqual(right['editOf']['label'], 'Rotated right')
+        _, left = self.edit(base['id'], 'rotate-left')
+        im = self.stored(left['id'])
+        self.assertEqual((im.size, im.getpixel((0, 7))), ((4, 8), (255, 0, 0)))  # top left goes to bottom left
+        self.assertEqual(self.stored(left['id'], cutout=True).size, (4, 8))
+        self.assertEqual([j['id'] for j in self.jobs()][:3], [left['id'], right['id'], flipped['id']])
+
+    def test_crops_keep_the_cutouts_subject_in_the_middle(self):
+        base = self.marked_set(size=(16, 8))
+        _, square = self.edit(base['id'], 'square')
+        im, cut = self.stored(square['id']), self.stored(square['id'], cutout=True)
+        # The subject is at x 4-5, so the 8-wide square starts at 1, not the middle's 4.
+        self.assertEqual((im.size, cut.size, im.getpixel((0, 0)), cut.getpixel((3, 1))[3]),
+                         ((8, 8), (8, 8), (0, 0, 255), 255))
+        self.assertEqual(square['editOf']['label'], 'Cropped square')
+        _, tall = self.edit(base['id'], '9:16')
+        self.assertEqual(self.stored(tall['id']).size, (4, 8))
+        self.assertEqual(tall['editOf']['label'], 'Cropped to 9:16')
+        _, wide = self.edit(base['id'], '16:9')
+        self.assertEqual(self.stored(wide['id']).size, (14, 8))  # 16x8 is a little wider than 16:9
+        _, wide = self.edit(square['id'], '16:9')
+        self.assertEqual(self.stored(wide['id']).size, (8, 4))
+        code, result = self.edit(square['id'], 'square')
+        self.assertEqual(code, 409, result)
+        self.assertIn('already', result['error'])
+
+    def test_trim_keeps_only_what_isnt_empty(self):
+        base = self.marked_set()
+        code, trimmed = self.edit(base['id'], 'trim')
+        self.assertEqual(code, 201, trimmed)
+        self.assertEqual(trimmed['editOf']['label'], 'Edges trimmed')
+        im, cut = self.stored(trimmed['id']), self.stored(trimmed['id'], cutout=True)
+        self.assertEqual((im.size, cut.size, cut.getpixel((0, 0))), ((2, 2), (2, 2), (0, 255, 0, 255)))
+        self.assertEqual(self.edit(trimmed['id'], 'trim')[0], 409)  # nothing left to trim
+        plain = self.marked_set(cutout=False)
+        code, result = self.edit(plain['id'], 'trim')
+        self.assertEqual(code, 409, result)
+        _, square = self.edit(plain['id'], 'square')
+        self.assertEqual(self.stored(square['id']).size, (4, 4))
+        self.assertEqual(self.stored(square['id']).getpixel((0, 0)), (0, 0, 255))  # the middle, cut from 8x4
+
+    def test_refused_edits(self):
+        _, pending = self.make('a fox', n=1)
+        self.assertEqual(self.edit(pending['id'], 'flip')[0], 409)
+        base = self.marked_set()
+        for bad in ('', 'spin', None, 3):
+            self.assertEqual(self.edit(base['id'], bad)[0], 400, bad)
+        self.assertEqual(self.edit(base['id'], 'flip', index=1)[0], 404)
+        self.assertEqual(self.edit('0' * 16, 'flip')[0], 404)
+        other = 'promo/other'
+        (self.root / 'promo' / 'other.py').write_text(self.film.read_text())
+        self.assertEqual(self.edit(base['id'], 'flip', video=other)[0], 404)
+
+    def test_edits_are_outside_the_daily_cap_and_the_pending_limit(self):
+        base = self.marked_set()
+        self.editor.pictures.daily_cap = 5
+        self.assertEqual(self.make('one')[0], 201)
+        self.assertEqual(self.make('two')[0], 201)
+        for _ in range(3):
+            self.assertEqual(self.edit(base['id'], 'flip')[0], 201)
+        with self.assertRaises(pictures_module.PictureError):
+            self.editor.pictures.check_daily_cap('anonymous', False, 1)
+        used = sum(n for _, _, n in pictures_module.submissions(self.editor.pictures.root))
+        self.assertEqual(used, 1 + 2 + 2)  # the sets asked of artbox, not the edits
+
+    def test_the_per_video_limit_drops_the_oldest_edit(self):
+        base = self.marked_set()
+        with mock.patch.object(pictures_module, 'MAX_EDITS', 3):
+            made = [self.edit(base['id'], 'flip')[1]['id'] for _ in range(5)]
+        ids = [j['id'] for j in self.jobs()]
+        self.assertEqual(ids, made[:1:-1] + [base['id']])
+        for gone in made[:2]:
+            self.assertEqual(self.status(f'/api/pictures/{gone}/0?video={VIDEO}'), 404)
+            self.assertFalse((self.editor.pictures._dir(VIDEO) / gone).exists())
+
+    def test_an_edited_picture_is_posed_and_varied_from_the_picture_it_came_from(self):
+        base = self.marked_set()
+        remote = self.remote_id(base['id'])
+        ref = f'{remote}/{self.fake.jobs[remote]["images"][0]["name"]}'
+        _, flipped = self.edit(base['id'], 'flip')
+        _, cropped = self.edit(flipped['id'], 'trim')  # an edit of an edit
+        self.assertEqual(cropped['editOf']['id'], flipped['id'])
+        code, pose = self.pose(cropped['id'], 0, 'sitting')
+        self.assertEqual(code, 201, pose)
+        sent = self.fake.submitted[-1]
+        self.assertEqual((sent['refs'], sent['seed'], sent['refMode']), ([ref], 3, 'KI'))
+        self.assertTrue(sent['prompt'].startswith('the same fox from image 1, now sitting. '), sent['prompt'])
+        self.assertEqual(pose['poseOf'], {'id': base['id'], 'index': 0, 'prompt': 'a fox', 'cutout': True,
+                                          'edited': True})
+        code, like = self.vary(flipped['id'])
+        self.assertEqual(code, 201, like)
+        sent = self.fake.submitted[-1]
+        self.assertEqual((sent['refs'], sent['refMode'], sent['prompt']),
+                         ([ref], 'I', 'a fox, on a plain mid-grey background'))
+        self.assertTrue(like['likeOf']['edited'])
+
+    def test_an_edited_picture_is_added_to_a_note_by_its_edit(self):
+        base = self.marked_set()
+        _, flipped = self.edit(base['id'], 'flip')
+        code, record = self.post(f'/api/pictures/{flipped["id"]}/0/attach', {'video': VIDEO, 'cutout': True})
+        self.assertEqual((code, record['name']), (201, 'a-fox-flipped-1-cutout.png'))
+        self.assertEqual(self.get('/api/attachments/' + record['id']),
+                         self.get(f'/api/pictures/{flipped["id"]}/0?video={VIDEO}&full=1&cutout=1'))
 
 
 class PosePrompt(unittest.TestCase):

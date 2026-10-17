@@ -112,7 +112,9 @@ POST /api/music/attach {video,source,track}
                                      upload returns; 404 unknown source/track
 GET  /api/pictures?video=V           {jobs:[{id,prompt,n,cutout,status,message,
                                      created,waited,pictures:[{index,cutout,
-                                     posable}],poseOf?:{id,index,prompt,cutout}}]},
+                                     posable}],poseOf?|likeOf?:{id,index,
+                                     prompt,cutout,edited?},editOf?:{id,index,
+                                     prompt,cutout,edit,label}}]},
                                      newest first; status is waiting, making,
                                      done or failed (see pictures.py). Every
                                      /api/pictures route is 404 without
@@ -136,6 +138,18 @@ POST /api/pictures/<id>/<i>/pose {video,pose}
                                      no such picture in this video; 409 the set
                                      isn't done, or the picture predates poses;
                                      429 as above
+POST /api/pictures/<id>/<i>/vary {video}
+                                     201 a new set of 2 more like that
+                                     picture: its words, no seed; 404/409/429
+                                     as for a pose
+POST /api/pictures/<id>/<i>/edit {video,edit}
+                                     201 a new done set of 1: the picture (and
+                                     its cut-out) with `edit` (flip,
+                                     rotate-left, rotate-right, square, 16:9,
+                                     9:16, trim) applied; the original stays.
+                                     Outside the daily cap. 400 an unknown
+                                     edit; 404 no such picture; 409 the set
+                                     isn't done, or the crop can't apply
 GET  /api/pictures/gpu               {gpu:"free"|"busy"|"unknown"}
 GET  /api/versions?video=V[&limit=50&before=SHA]
                                      {versions:[{n,commit,summary,kind,
