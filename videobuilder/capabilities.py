@@ -897,7 +897,7 @@ _ADD_CAPABILITY_STYLE = """
   padding:1.5rem 1.25rem 1.25rem;max-width:480px;width:calc(100vw - 32px);box-sizing:border-box;
   box-shadow:0 30px 80px rgba(0,0,0,.6)}
 .cap-dialog::backdrop{background:rgba(0,0,0,.65)}
-.cap-dialog h2{margin:0 2.5rem .9rem 0;font-size:1.25rem;letter-spacing:-.01em}
+.cap-dialog h2{margin:0 2.5rem .9rem 0;font-size:1.25rem;letter-spacing:-.01em;text-transform:none;color:#f4f4f2}
 .cap-dialog-close{position:absolute;top:.75rem;right:.75rem;min-height:36px;min-width:36px;
   border-radius:8px;border:1px solid #26262c;background:#0d0d10;color:#f4f4f2;font-size:1.1rem;
   line-height:1;cursor:pointer}
@@ -916,6 +916,15 @@ _ADD_CAPABILITY_STYLE = """
 .drop-hint{color:#8b8b94;font-size:.82rem}
 .drop-files{color:#c9c9cf;font-size:.85rem;overflow-wrap:anywhere}
 .drop-files:empty{display:none}
+#capability-form .kind{display:grid;grid-template-columns:1fr 1fr;gap:.6rem;border:0;margin:0;padding:0;min-width:0}
+#capability-form .kind legend{padding:0;margin:0 0 .45rem;font-size:.85rem;color:#a9a9b2}
+#capability-form .kind label{position:relative;display:flex;flex-direction:column;gap:.2rem;min-height:72px;
+  padding:.7rem .8rem;border:1.5px solid #2c2c33;border-radius:12px;background:#0d0d10;cursor:pointer;color:#a9a9b2}
+#capability-form .kind input{position:absolute;opacity:0;pointer-events:none}
+#capability-form .kind strong{color:#f4f4f2;font-size:.95rem}
+#capability-form .kind small{font-size:.8rem;line-height:1.35}
+#capability-form .kind label:has(input:checked){border-color:#ef5b4c;background:#1a1211}
+#capability-form .kind label:has(input:focus-visible){outline:2px solid #ef5b4c;outline-offset:2px}
 #capability-submit{min-height:48px;border-radius:12px;border:0;background:#e5483b;color:#fff;font:inherit;
   font-weight:700;cursor:pointer}
 #capability-submit:hover{background:#ef5b4c}
@@ -932,9 +941,21 @@ _ADD_CAPABILITY_SCRIPT = """
   var error = document.getElementById('capability-error');
   var submit = document.getElementById('capability-submit');
   var fileInput = form.querySelector('input[type=file]');
+  var heading = dialog.querySelector('h2');
+  var capture = form.querySelector('input[name=capture]');
+  // "A new capability" or a new member of a family ("A new look"): the
+  // heading and the capture hint follow the choice.
+  function syncKind(){
+    var picked = form.querySelector('input[name=family]:checked');
+    var label = picked ? picked.closest('label') : null;
+    heading.textContent = label ? label.getAttribute('data-heading') : 'Add a capability';
+    if(label) capture.placeholder = label.getAttribute('data-placeholder');
+  }
+  form.querySelectorAll('input[name=family]').forEach(function(r){ r.addEventListener('change', syncKind); });
   openBtn.addEventListener('click', function(){
     error.textContent = '';
     form.reset();
+    syncKind();
     var list = form.querySelector('.drop-files');
     if(list) list.textContent = '';
     submit.disabled = false;
@@ -957,6 +978,8 @@ _ADD_CAPABILITY_SCRIPT = """
     var created = null;
     try{
       var body = {files: files.length};
+      var family = data.get('family');
+      if(family) body.family = family;
       if(url) body.url = url;
       if(capture) body.capture = capture;
       var r = await fetch('/api/capabilities/new', {method: 'POST',
@@ -994,13 +1017,28 @@ _ADD_CAPABILITY_SCRIPT = """
 
 
 def _add_capability_html(fetch):
+    from .community import MEMBER_PATHS
     url_field = ('<label>Link (an X post, a blog post, a demo page)<input type="url" name="url" '
                 'placeholder="https://&hellip;"></label>' if fetch else '')
+    kinds = [('', 'A new capability', 'A technique videobuilder can\'t do yet', 'Add a capability',
+              'A one-line description of the effect')]
+    for f in families():
+        if f['id'] in MEMBER_PATHS:
+            singular, plural = f['noun']
+            kinds.append((f['id'], f'A new {singular}', f'Added to {f["title"]}, for any video to ask for',
+                          f'Add a {singular}', f'A one-line description of the {singular}'))
+    options = ''.join(
+        f'<label data-heading="{_esc(heading)}" data-placeholder="{_esc(hint)}">'
+        f'<input type="radio" name="family" value="{_esc(value)}"{" checked" if not value else ""}>'
+        f'<strong>{_esc(title)}</strong><small>{_esc(sub)}</small></label>'
+        for value, title, sub, heading, hint in kinds)
+    kind_field = (f'<fieldset class="kind"><legend>What are you adding?</legend>{options}</fieldset>'
+                  if len(kinds) > 1 else '')
     return (
         '<dialog id="add-capability-dialog" class="cap-dialog">'
         '<button type="button" class="cap-dialog-close" aria-label="Close">&times;</button>'
         '<h2>Add a capability</h2>'
-        '<form id="capability-form">' + url_field +
+        '<form id="capability-form">' + kind_field + url_field +
         '<label id="files-field" class="drop"><input type="file" name="files" multiple accept="image/*,video/*">'
         '<span class="drop-title">Drop a clip or screenshot or <u>browse</u></span>'
         '<span class="drop-hint">Optional</span><span class="drop-files" aria-live="polite"></span></label>'

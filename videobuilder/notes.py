@@ -86,7 +86,8 @@ COMMUNITY_BUDGET = 8 * 1048576
 def _stage_community(attach_dir, entries):
     """Copies each entry's doc and film.py (see library.Library.
     community_for_builder) into attach_dir/capabilities/<slug>/{reference.md,
-    film.py}, stopping once the running total would cross COMMUNITY_BUDGET --
+    film.py} -- plus, for a family member, its own file beside them (a
+    look's look.py) -- stopping once the running total would cross COMMUNITY_BUDGET --
     whatever didn't fit is simply left out, newest-published last since
     `entries` is already oldest-first. Returns the ones actually staged, for
     prompt.render's listing (never naming a file that isn't really there).
@@ -98,13 +99,16 @@ def _stage_community(attach_dir, entries):
         return []
     staged, used = [], 0
     for item in entries:
-        size = len(item['doc_bytes']) + len(item['film_bytes'])
+        member = item.get('member')
+        size = len(item['doc_bytes']) + len(item['film_bytes']) + (len(member[1]) if member else 0)
         if used + size > COMMUNITY_BUDGET:
             break
         dest = root / 'capabilities' / item['slug']
         dest.mkdir(parents=True, exist_ok=True)
         (dest / 'reference.md').write_bytes(item['doc_bytes'])
         (dest / 'film.py').write_bytes(item['film_bytes'])
+        if member:
+            (dest / member[0]).write_bytes(member[1])
         used += size
         staged.append(item)
     return staged

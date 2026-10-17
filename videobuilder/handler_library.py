@@ -231,7 +231,7 @@ class LibraryHandler:
                     body = self._body()
                     try:
                         result = library.submit_capability(user, body.get('url'), body.get('capture'),
-                                                            body.get('files', 0))
+                                                            body.get('files', 0), family=body.get('family'))
                     except community.FailedRead as exc:
                         raise HTTPError(422, str(exc)) from None
                     except ValueError as exc:

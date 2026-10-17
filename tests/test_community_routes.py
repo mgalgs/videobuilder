@@ -55,7 +55,7 @@ def _successful_read_responses(id):
     ]
 
 
-def publishable(case, slug, title='Zoom logo reveal', category=None, id=None, **field_overrides):
+def publishable(case, slug, title='Zoom logo reveal', category=None, id=None, files=None, **field_overrides):
     """Commits a valid film.py/capability.toml/capability.md straight into
     `capabilities/<slug>`'s bare repo, via a local clone + push (not HTTP),
     so a test can publish it without the builder ever having to run. `case`
@@ -73,6 +73,8 @@ def publishable(case, slug, title='Zoom logo reveal', category=None, id=None, **
     (work / 'capability.toml').write_text(toml_text)
     (work / 'capability.md').write_text('# ' + title + '\n\nA short reference doc.\n')
     (work / 'film.py').write_text('import videobuilder as vb\n')
+    for path, text in (files or {}).items():
+        (work / path).write_text(text)
     case.git('add', '.', cwd=work)
     case.git('commit', '-m', 'capability files', cwd=work)
     case.git('push', cwd=work)
@@ -944,6 +946,100 @@ class BuilderContext(fixtures.AccountMixin, fixtures.LibraryFixture, unittest.Te
     def test_no_published_no_forced_attach_dir(self):
         recorder = self._ordinary_note()
         self.assertIsNone(recorder.last.get('attach_dir'))
+
+
+LOOK_PY = ('from videobuilder import looks\n\n\ndef paint(cv, scene, t, age):\n    cv.fill("#123")\n\n\n'
+           'LOOK = looks.Look("stained-glass", "Stained glass", "panes glow", paint)\n')
+
+
+def publishable_look(case, slug, **overrides):
+    """A valid look: family = "looks", the family's category, and a look.py."""
+    return publishable(case, slug, title='Stained glass', id='stained-glass', family='looks',
+                       category=capabilities.get('looks')['category'], files={'look.py': LOOK_PY}, **overrides)
+
+
+class LookSubmission(fixtures.AccountMixin, fixtures.LibraryFixture, unittest.TestCase):
+    """"A new look": the dialog's second choice, through to a published look
+    inside the Looks family and in every builder's prompt."""
+
+    def _new_look(self, cookie):
+        code, created = self.request('/api/capabilities/new', {'files': 1, 'family': 'looks',
+                                                               'capture': 'stained glass windows'},
+                                     headers={'Content-Type': 'application/json', 'Cookie': cookie})
+        self.assertEqual(code, 201, created)
+        return created
+
+    def test_the_dialog_offers_a_new_capability_or_a_new_look(self):
+        _, _, dana = self.signup('dana', 'longenoughpassword')
+        page = self.request('/capabilities', headers={'Cookie': dana})[1].decode()
+        self.assertIn('What are you adding?', page)
+        self.assertIn('<input type="radio" name="family" value="" checked><strong>A new capability</strong>', page)
+        self.assertIn('<input type="radio" name="family" value="looks"><strong>A new look</strong>', page)
+        self.assertIn('data-heading="Add a look"', page)
+
+    def test_a_look_submission_gets_the_look_brief(self):
+        _, _, dana = self.signup('dana', 'longenoughpassword')
+        created = self._new_look(dana)
+        self.assertEqual(self.library.community.get(created['slug'])['family'], 'looks')
+        code, note = self.request(f'/api/capabilities/{created["slug"]}/send', {'attachments': []},
+                                  headers={'Content-Type': 'application/json', 'Cookie': dana})
+        self.assertEqual(code, 200, note)
+        for needle in ('Looks family', 'look.py', 'film.py', 'family = "looks"', 'capability.md',
+                       'reference/looks.md', 'looks.lighthouse', 'looks.FLOOR', 'untrusted', 'stained glass windows'):
+            self.assertIn(needle, note['text'])
+
+    def test_an_unknown_family_is_refused_before_anything_is_made(self):
+        _, _, dana = self.signup('dana', 'longenoughpassword')
+        for family in ('nope', 'eased-entrances', 3, ['looks']):
+            with self.subTest(family=family):
+                code, data, _ = self.request_full('/api/capabilities/new', {'files': 1, 'family': family},
+                                                  headers={'Content-Type': 'application/json', 'Cookie': dana})
+                self.assertEqual(code, 400, data)
+        self.assertEqual(self.library.names(), [])
+        self.assertEqual(self.library.community.all(), {})
+
+    def test_publishing_checks_the_family_and_look_py(self):
+        admin = self.admin_login()
+        admin_headers = {'Content-Type': 'application/json', 'Cookie': admin}
+        _, _, dana = self.signup('dana', 'longenoughpassword')
+        look_slug = self._new_look(dana)['slug']
+        publishable(self, look_slug, title='Stained glass', id='stained-glass',
+                    category=capabilities.get('looks')['category'])         # no family, no look.py
+        code, data, _ = self.request_full(f'/api/capabilities/{look_slug}/publish', {}, headers=admin_headers)
+        self.assertEqual(code, 400, data)
+        self.assertIn('family must be "looks"', data['error'])
+        cap_slug = self.request('/api/capabilities/new', {'files': 1},
+                                headers={'Content-Type': 'application/json', 'Cookie': dana})[1]['slug']
+        publishable_look(self, cap_slug)                                     # a look, sent as a capability
+        code, data, _ = self.request_full(f'/api/capabilities/{cap_slug}/publish', {}, headers=admin_headers)
+        self.assertEqual(code, 400, data)
+        self.assertIn('family must be left out', data['error'])
+
+    def test_a_published_look_sits_in_the_family_and_reaches_every_builder(self):
+        admin = self.admin_login()
+        admin_headers = {'Content-Type': 'application/json', 'Cookie': admin}
+        _, _, dana = self.signup('dana', 'longenoughpassword')
+        _, _, other = self.signup('other', 'longenoughpassword')
+        slug = self._new_look(dana)['slug']
+        publishable_look(self, slug)
+        code, data = self.request(f'/api/capabilities/{slug}/publish', {}, headers=admin_headers)
+        self.assertEqual(code, 200, data)
+        page = self.request('/capabilities', headers={'Cookie': other})[1].decode()
+        main = page[page.index('<main>'):page.index('</main>')]
+        self.assertNotIn(f'community:{slug}', main)
+        self.assertIn('<span class="count">9 looks</span>', main)
+        panel = page[page.index('data-family-panel="looks"'):]
+        self.assertIn(f'data-card="community:{slug}"', panel[:panel.index('</section>')])
+        builder = BuilderContext._ordinary_note(self)
+        text = Path(builder.last['note_file']).read_text()
+        looks_section = text[text.index('## Looks'):text.index('## Look at your work')]
+        self.assertIn('Stained glass (`stained-glass`)', looks_section)
+        self.assertIn(f'/attachments/capabilities/{slug}/look.py', looks_section)
+        self.assertNotIn('## Community capabilities', text)
+        staged = Path(builder.last['attach_dir']) / 'capabilities' / slug
+        self.assertEqual((staged / 'look.py').read_text(), LOOK_PY)
+        self.assertTrue((staged / 'reference.md').is_file())
+        self.assertTrue((staged / 'film.py').is_file())
 
 
 class BackendArgs(unittest.TestCase):

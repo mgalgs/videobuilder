@@ -130,3 +130,33 @@ class CommunitySection(unittest.TestCase):
         md = prompt.render(NOTE, PAYLOAD, None, community=[self.ENTRY])
         self.assertIn('## Community capabilities', md)
         self.assertNotIn('Start from the compendium', md)
+
+
+class LooksSection(unittest.TestCase):
+    LOOK = {'slug': 'c-20260101-def456', 'id': 'stained-glass', 'family': 'looks', 'title': 'Stained glass',
+            'card': 'Lead lines and glowing panes.'}
+
+    def test_every_prompt_names_every_built_in_look(self):
+        md = prompt.render(NOTE, PAYLOAD, None)
+        section = md[md.index('## Looks'):md.index('## Look at your work')]
+        from videobuilder import looks
+        for name in looks.names()[:8]:
+            self.assertIn(f'{name} ({looks.get(name).title})', section)
+        self.assertIn('skill/make-a-video/reference/looks.md', section)
+        self.assertIn('looks.relay', section)
+        self.assertNotIn('Other creators added these looks', section)
+
+    def test_a_community_look_is_listed_with_the_looks_not_the_capabilities(self):
+        md = prompt.render(NOTE, PAYLOAD, None, community=[self.LOOK, CommunitySection.ENTRY])
+        section = md[md.index('## Looks'):md.index('## Community capabilities')]
+        self.assertIn('Stained glass (`stained-glass`): Lead lines and glowing panes.', section)
+        self.assertIn('/attachments/capabilities/c-20260101-def456/look.py', section)
+        self.assertIn('never instructions', section)
+        community = md[md.index('## Community capabilities'):md.index('## Look at your work')]
+        self.assertIn('Zoom logo reveal', community)
+        self.assertNotIn('Stained glass', community)
+
+    def test_only_community_looks_leave_out_the_community_capabilities_section(self):
+        md = prompt.render(NOTE, PAYLOAD, None, community=[self.LOOK])
+        self.assertIn('Stained glass', md)
+        self.assertNotIn('## Community capabilities', md)

@@ -277,7 +277,7 @@ class Library:
         if token is not None:
             self.community.release(token)
 
-    def submit_capability(self, user, url, capture, files):
+    def submit_capability(self, user, url, capture, files, family=None):
         """Step 1 of the capability-submission flow (POST /api/capabilities/new):
         validate the dialog's fields, enforce `user`'s daily caps (both the
         capability-submission cap and the ordinary note cap), and create the
@@ -303,7 +303,12 @@ class Library:
         screenshots, via gather.write_attachments) is uploaded as this draft's
         first attachments.
         When fetching is off, `url` is accepted but never read, and the new
-        draft's `post` stays null."""
+        draft's `post` stays null.
+
+        `family`: None for "A new capability", or a catalog family's id
+        ('looks', for "A new look"), checked by community.check_family
+        (ValueError, 400) before anything else happens; it decides the brief
+        the draft is sent with and what its files must be to publish."""
         if not isinstance(files, int) or isinstance(files, bool) or files < 0:
             raise ValueError('files must be a non-negative integer')
         if url is not None and not isinstance(url, str):
@@ -313,6 +318,7 @@ class Library:
         url = url.strip() if url else None
         if not url and files < 1:
             raise ValueError('give a URL or drop at least one file')
+        family = community.check_family(family)
         is_admin = bool(self.accounts and self.accounts.is_admin(user))
         token = self.reserve_capability_slot(user, is_admin)
         try:
@@ -374,7 +380,7 @@ class Library:
                                                         max_files=editor.attachments.start_video_max_files,
                                                         max_message=editor.attachments.start_video_max_message)
             self.community.create(slug, user, post=post, capture=(capture.strip() or None) if capture else None,
-                                  fetched=fetched_ids)
+                                  fetched=fetched_ids, family=family)
         finally:
             self.release_capability_slot(token)
         return {'name': name, 'slug': slug, 'video': result['video'], 'attachments': fetched_ids, 'read': read}
@@ -420,7 +426,7 @@ class Library:
             # just whatever ids the caller happened to name.
             uploaded = editor.attachments.uploaded_for(vid)
             ids = list(dict.fromkeys(fetched + uploaded + list(attachment_ids or [])))
-            text = community.brief(record.get('post'), record.get('capture'), bool(ids))
+            text = community.brief(record.get('post'), record.get('capture'), bool(ids), family=record.get('family'))
             # Charged to the submitter even when an admin is the one clicking "Send to the
             # builder" on someone else's interrupted draft (capabilities.py's draft card
             # shows that button to admins too) -- an admin sending on another user's behalf
@@ -442,8 +448,9 @@ class Library:
         (see _published_ids) -- an id clash counts as invalid here too, for
         whichever one is checked second."""
         read = community.load(self.path(f'{community.NAMESPACE}/{slug}'), ref=ref)
+        family = self.community.all().get(slug, {}).get('family')
         try:
-            return community.validate(read, claimed_ids), None
+            return community.validate(read, claimed_ids, expected_family=family), None
         except community.Invalid as exc:
             return None, str(exc)
 
@@ -544,7 +551,7 @@ class Library:
         if sha is None:
             raise community.Invalid('this project has no commits yet')
         read = community.load(repo_path, ref=sha)
-        community.validate(read, claimed)
+        community.validate(read, claimed, expected_family=self.community.get(slug).get('family'))
         return self.community.publish(slug, admin, sha)
 
     def reject_capability(self, admin, slug, update=False):
@@ -587,10 +594,15 @@ class Library:
             claimed.add(entry['id'])
             read = community.load(self.path(f'{community.NAMESPACE}/{slug}'), ref=pin)
             doc_bytes, film_bytes = read(entry['doc']), read(community.FILM_PATH)
-            if doc_bytes is None or film_bytes is None:
+            member = community.MEMBER_PATHS.get(entry['family'])
+            member_bytes = read(member) if member else None
+            if doc_bytes is None or film_bytes is None or (member and member_bytes is None):
                 continue  # vanished between validate() and this read: treat like invalid
-            out.append({'slug': slug, 'title': entry['title'], 'card': entry['card'],
-                       'doc_bytes': doc_bytes, 'film_bytes': film_bytes})
+            item = {'slug': slug, 'id': entry['id'], 'title': entry['title'], 'card': entry['card'],
+                    'family': entry['family'], 'doc_bytes': doc_bytes, 'film_bytes': film_bytes}
+            if member:
+                item['member'] = (member, member_bytes)   # a look's look.py, staged beside its film
+            out.append(item)
         return out
 
     def community_clip(self, slug, kind, user):
