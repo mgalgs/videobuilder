@@ -5,7 +5,14 @@ note on the Looks family.
 
     FILM = _looks.film('pop-art')       # one look's 3 s demo
     FILM = _looks.relay_film()          # the family card: every look in turn
+    FILM = _looks.filter_film('pop-art', 'dashboard')   # a filter look on a held screenshot
+
+A filter look's demo restyles a picture instead: the committed screenshot
+(assets/dashboard.png, a made-up analytics app) or the fox photo (the fox
+cut-out standing in a meadow), held still for the whole demo so all the
+motion on screen is the filter's own.
 """
+import math
 import sys
 from pathlib import Path
 
@@ -72,3 +79,46 @@ def relay_film(names=None):
 
     return vb.Film(draw=draw, fps=FPS, frames=HOLD * len(names), formats=(_kit.FORMAT,), background=_kit.BG,
                    keyframes=tuple(k * HOLD + HOLD // 2 for k in range(len(names))))
+
+
+DASHBOARD = vb.Image.load(str(_kit.ASSETS / 'dashboard.png'))
+FOX = vb.Image.load(str(_kit.ASSETS / 'fox' / 'idle.png'))
+
+
+def fox_photo(cv):
+    """The fox standing in a meadow under a summer sky: the demos' "photo"."""
+    w, h = cv.width, cv.height
+    for i in range(24):                                     # the sky, deepening upwards
+        p = i / 23
+        cv.rect(0, h * 0.62 * i / 24, w, h * 0.62 / 24 + 1, tuple(round(a + (b - a) * p) for a, b in
+                                                                   zip((92, 150, 220), (196, 226, 246))))
+    cv.rect(w * 0.70, h * 0.10, w * 0.14, w * 0.14, '#fff4c8', radius=w * 0.07)
+    for k, (y, col) in enumerate(((0.56, '#7aa860'), (0.62, '#5a9a48'), (0.74, '#4a8a3a'))):
+        pts = [(x * w / 32, h * y + h * 0.03 * math.sin(x / 32 * 2 * math.pi * (1 + k) + k * 2)) for x in range(33)]
+        vb.paths.draw(cv, pts + [(w, h), (0, h)], col, closed=True, fill=True)
+    s = min(w, h) * 0.7
+    cv.image(FOX, w * 0.64 - s / 2, h - s * 0.98, s, s)
+
+
+def picture(cv, name):
+    """Draws the demo picture `name` ('dashboard' or 'fox') to fill the frame."""
+    if name == 'fox':
+        fox_photo(cv)
+    else:
+        cv.view(DASHBOARD, (0, 0, cv.width, cv.height), center=(DASHBOARD.w * 0.55, DASHBOARD.h * 0.47),
+                scale=max(cv.width, cv.height) / (DASHBOARD.h * 0.9))
+
+
+def filter_film(name, subject):
+    """A filter look's demo: the picture `subject`, held still, restyled by
+    the filter `name`, its plaque on top (outside the filter, so it reads)."""
+    flt = looks.get_filter(name)
+
+    def draw(n, cv):
+        t = n / FPS
+        with looks.filter(cv, flt.name, t):
+            picture(cv, subject)
+        plaque(cv, flt.title, flt.line)
+
+    return vb.Film(draw=draw, fps=FPS, frames=FRAMES, formats=(_kit.FORMAT,), background=_kit.BG,
+                   keyframes=(FRAMES // 2, FRAMES - 1))

@@ -163,9 +163,10 @@ class ReferenceDoc(unittest.TestCase):
 
     def test_the_doc_covers_every_seeded_look_and_says_what_a_look_cannot_do(self):
         doc = self.DOC.read_text()
-        contract = doc[doc.index('## The contract'):]
-        self.assertIn("can't restyle a photo, a screen capture or footage", contract[:800])
-        self.assertIn('shortfall', contract[:800])
+        self.assertIn('**the video decides which one you use**', doc)
+        cannot = doc[doc.index("What a filter can't do"):]
+        self.assertIn('`swirl`, `melt` and `bauhaus` have no filter yet', cannot[:800])
+        self.assertIn('shortfall', cannot[:800])
         for name in SEEDED:
             self.assertIn(f'| `{name}` |', doc)
 
