@@ -626,7 +626,7 @@ class Edits(Base):
         _, pending = self.make('a fox', n=1)
         self.assertEqual(self.edit(pending['id'], 'flip')[0], 409)
         base = self.marked_set()
-        for bad in ('', 'spin', None, 3):
+        for bad in ('', 'spin', None, 3, [], {}):
             self.assertEqual(self.edit(base['id'], bad)[0], 400, bad)
         self.assertEqual(self.edit(base['id'], 'flip', index=1)[0], 404)
         self.assertEqual(self.edit('0' * 16, 'flip')[0], 404)

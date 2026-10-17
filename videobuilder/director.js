@@ -1401,6 +1401,7 @@ const PICTURE_CROPS=[
   ['9:16','Tall','9:16, like a phone video'],
   ['trim','Trim the empty edges','Down to just what was cut out']
 ];
+const PICTURE_CROP_SHAPES={'square':[1,1],'16:9':[16,9],'9:16':[9,16]};
 function openPictureActions(job,picture,cutout,opener) {
   state.pictureActions={job,picture,cutout,opener,busy:false};
   const thumb=$('picture-actions-thumb');
@@ -1442,9 +1443,17 @@ function renderPictureActions(view) {
   list.replaceChildren();
   if(view==='crop') {
     list.append(pictureAction('back','Back',null,()=>renderPictureActions('main')));
+    // The server refuses a crop to the shape the picture already has, so say so here instead.
+    const thumb=$('picture-actions-thumb');
+    if(!thumb.naturalWidth)thumb.addEventListener('load',()=> {
+      if(state.pictureActions===open&&open.view==='crop')renderPictureActions('crop')
+    },{once: true});
     for(const [edit,label,detail] of PICTURE_CROPS) {
       if(edit==='trim'&&!picture.cutout)continue;
-      list.append(pictureAction('crop',label,detail,()=>editPicture(edit)))
+      const shape=PICTURE_CROP_SHAPES[edit];
+      const already=shape&&thumb.naturalWidth&&
+        Math.abs(thumb.naturalWidth/thumb.naturalHeight/(shape[0]/shape[1])-1)<0.01;
+      list.append(pictureAction('crop',label,already?'It is already this shape':detail,()=>editPicture(edit),already))
     }
   }
   else {

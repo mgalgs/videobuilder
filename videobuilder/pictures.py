@@ -552,7 +552,7 @@ class Pictures:
         into a new set of one, keeping the original. For a cut-out the
         original is edited alike, so "See original" still matches. Free, so
         outside the daily cap; past MAX_EDITS in a video the oldest goes."""
-        if edit not in EDITS:
+        if not isinstance(edit, str) or edit not in EDITS:
             raise PictureError(400, "That isn't an edit this editor can make.")
         if not LOCAL_ID.fullmatch(job_id or ''):
             raise PictureError(404, 'Those pictures are gone.')
