@@ -172,6 +172,24 @@ parallax.draw(cv, LAYERS[3:], camera_x)                  # the foreground passes
 - Lay each format out from its own table (`per_format`): the ground's height,
   the hills' size and the pan differ between 9:16 and 16:9.
 
+## Impact frames
+
+```python
+from videobuilder import impact
+HIT = impact.Hit(at=60)               # push=6, hold=2, settle=14, flash=5, linger=20, zoom=1.15, shake=16, seed=0
+def draw(n, cv):
+    HIT.draw(cv, n, lambda c: scene(c, n), lambda c: fox(c, n), centre=(x, y))
+```
+
+- `scene(cv)` draws the whole ordinary frame; `subject(cv)` only the thing
+  hit, painted as a flat `ink` silhouette on the `hold` held frames, inside a
+  seeded burst of speed lines on `paper`. Outside `HIT.span` it is just `scene`.
+- One hit is one full-frame flash. Keep hits at least a second apart, and
+  never more than two in a second: photosensitive viewers. `check.py --video`
+  counts flashes.
+- The pieces: `impact.speed_lines(cv, cx, cy, seed, inner)`,
+  `impact.silhouette(cv, draw, colour)`, `impact.shake(n, at, frames, amount, seed)`.
+
 ## Images and captures
 
 ```python
