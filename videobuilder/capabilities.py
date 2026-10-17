@@ -193,6 +193,35 @@ CATALOG = (
          'FOX.breath(n, period)  # under every hold'),
         'skill/make-a-video/reference/api.md', 'pose-swaps'),
     _entry(
+        'walk-in-place', 'Motion', 'Walk in place',
+        'A character walks while the camera follows, the ground scrolling past.',
+        'The walk of cut-out TV animation: the character stays in the middle of the frame and bobs on every step '
+        '-- down with a little squash as each foot lands, up as it passes, leaning forward -- while the ground '
+        'and the hills scroll past underneath at a steady speed, so it reads as walking. The steps land on the '
+        'beat. There are no leg drawings: it is a bounce on the spot made from one cut-out picture, not a real '
+        'leg cycle, so it suits a cartoon character better than a realistic one.',
+        ('Have the fox walk along while the camera follows it', 'Make it walk on the beat, two steps a beat',
+         'Scroll the ground past so it looks like it is going somewhere', 'Give the walk a bit more bounce'),
+        ("g = FOX.walk(n, step=GRID.frames_per_beat / 2)  # Gait: lift, sx, sy, lean, phase",
+         'FOX.draw(cv, pose, x, ground_y - g.lift, sx=g.sx, sy=g.sy, lean=g.lean)',
+         'parallax.draw(cv, LAYERS, n * stride / step)  # the ground scrolls one stride a step'),
+        'skill/make-a-video/reference/api.md', 'walk-in-place'),
+    _entry(
+        'impact-frame', 'Motion', 'Impact frame',
+        'The anime hit: a push-in, a flash of silhouette and speed lines, a shake.',
+        'A moment that lands hard, the way anime punctuates a hit: the camera pushes in fast, two frames hold the '
+        'subject as a flat black silhouette in a burst of speed lines on white, then the picture comes back '
+        'shaking and settles while the speed lines linger and fade. Give it the moment ("when the fox lands the '
+        'jump", "when the number hits one million"). It is one bright flash, never a strobe: keep hits at least a '
+        'second apart.',
+        ('Make the landing hit hard, like an anime impact', 'Punctuate the moment the number hits one million',
+         'Flash a silhouette with speed lines when it lands, then shake the screen'),
+        ('HIT = impact.Hit(at=frame)  # push, hold=2, settle, linger, zoom, shake, seed',
+         'HIT.draw(cv, n, scene, subject, centre=(x, y))  # scene(cv): the frame; subject(cv): the thing hit',
+         'impact.speed_lines(cv, cx, cy, seed, inner) / impact.silhouette(cv, draw, colour)',
+         'impact.shake(n, at, frames, amount, seed) -> (dx, dy)'),
+        'skill/make-a-video/reference/api.md', 'impact-frame', poster=60),  # the held silhouette
+    _entry(
         'overlap-transitions', 'Motion', 'Overlap transitions',
         'One segment slides over the outgoing one — no hard cut.',
         'Instead of a hard cut, the next scene starts on its own beat while the one before it keeps drawing '
@@ -387,6 +416,20 @@ CATALOG = (
          'vb.paper_grain(w, h, seed)  # with cairo.OPERATOR_SOFT_LIGHT',
          'stepped_n = n - n % 2  # paper held on twos'),
         'skill/make-a-video/reference/api.md', 'paper-collage', poster=78),  # mid-rip, flaps curling back
+    _entry(
+        'parallax-scene', 'Imagery and camera', 'Parallax scene',
+        'Flat layers slide at their own speeds as the camera pans, giving depth.',
+        'A scene built from five flat layers drawn in code -- a far sky, hills, a row of trees, the ground the '
+        'character stands on, and grass and a signpost in the foreground -- each moving at its own speed as the '
+        'camera pans: the far ones barely, the near ones fast, the foreground sweeping past in front. Every '
+        'layer repeats with no seam, so the camera can pan as far as it likes. Laid out separately for tall, wide '
+        'and square videos.',
+        ('Give the background some depth as the camera pans', 'Put the fox in a landscape with hills and trees behind it',
+         'Have something pass in front of the camera, close up', 'Pan across the scene slowly'),
+        ('parallax.Layer(depth, width, draw)  # draw(cv, x): one tile; depth 0 sky, 1 ground, >1 foreground',
+         'parallax.draw(cv, layers, camera_x)  # far first; each tile repeated across the frame',
+         'parallax.ridge(width, height, seed)  # a rolling skyline whose ends meet'),
+        'skill/make-a-video/reference/api.md', 'parallax-scene'),
     # ---- Timing, sound and formats ----
     _entry(
         'beat-lock', 'Timing, sound and formats', 'Cuts locked to the music',
