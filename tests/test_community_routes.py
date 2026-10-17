@@ -1042,6 +1042,27 @@ class LookSubmission(fixtures.AccountMixin, fixtures.LibraryFixture, unittest.Te
         self.assertTrue((staged / 'reference.md').is_file())
         self.assertTrue((staged / 'film.py').is_file())
 
+    def test_a_look_published_at_the_old_category_stays_in_the_looks_section(self):
+        # Before looks had a category of their own, a look's toml had to say
+        # "Imagery and camera"; one pinned there must not drop off the page.
+        admin = self.admin_login()
+        _, _, dana = self.signup('dana', 'longenoughpassword')
+        _, _, other = self.signup('other', 'longenoughpassword')
+        slug = self._new_look(dana)['slug']
+        publishable(self, slug, title='Stained glass', id='stained-glass', family='looks',
+                    category='Imagery and camera', files={'look.py': LOOK_PY})
+        code, data = self.request(f'/api/capabilities/{slug}/publish', {},
+                                  headers={'Content-Type': 'application/json', 'Cookie': admin})
+        self.assertEqual(code, 200, data)
+        page = self.request('/capabilities', headers={'Cookie': other})[1].decode()
+        main = page[page.index('<main>'):page.index('</main>')]
+        section = main[main.index('<h2>Looks</h2>'):]
+        section = section[:section.index('<h2>', 4)]
+        self.assertIn(f'data-card="community:{slug}"', section)
+        script = page[page.index('<script id="community-data"'):]
+        items = json.loads(script[script.index('>') + 1:script.index('</script>')])
+        self.assertEqual([i['category'] for i in items if i['id'] == f'community:{slug}'], ['Looks'])
+
 
 class BackendArgs(unittest.TestCase):
     def test_capability_project_backend_gets_heavy_args(self):

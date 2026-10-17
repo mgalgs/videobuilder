@@ -261,8 +261,6 @@ class LookValidation(unittest.TestCase):
                                               'family must be one of'),
             'family missing': (self._files({k: v for k, v in _look_fields().items() if k != 'family'}),
                                'family must be "looks"'),
-            'wrong category': (self._files(_look_fields(category=capabilities.categories()[0])),
-                               'category must be "Looks"'),
             'a built-in look name': (self._files(_look_fields(id='pixel')), 'built-in look'),
             'a built-in look alias': (self._files(_look_fields(id='pop')), 'built-in look'),
             'a built-in look id': (self._files(_look_fields(id='look-pixel')), 'built-in capability'),
@@ -272,6 +270,15 @@ class LookValidation(unittest.TestCase):
                 with self.assertRaises(community.Invalid) as cm:
                     community.validate(_read(files), expected_family='looks')
                 self.assertIn(message, str(cm.exception))
+
+    def test_a_look_takes_its_familys_category_whatever_its_toml_says(self):
+        # Looks published before the family got its own "Looks" category are
+        # pinned at a toml that says "Imagery and camera"; they must stay valid.
+        for category in ('Imagery and camera', capabilities.categories()[0], 'Looks'):
+            with self.subTest(category=category):
+                entry = community.validate(_read(self._files(_look_fields(category=category))),
+                                           expected_family='looks')
+                self.assertEqual(entry['category'], 'Looks')
 
     def test_the_family_must_match_what_was_submitted(self):
         with self.assertRaises(community.Invalid) as cm:

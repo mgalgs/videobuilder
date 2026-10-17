@@ -291,9 +291,9 @@ def validate(read, published_ids=(), expected_family=None):
     `family`: 'looks' for "A new look"), or None for a new capability. The
     toml's optional `family` must match it, so a look can't publish as a
     loose capability or the other way round. A family member also needs its
-    own file (MEMBER_PATHS: a look's look.py, within MEMBER_MAX_BYTES), the
-    family's category, and an id that isn't already a built-in look's name
-    or alias."""
+    own file (MEMBER_PATHS: a look's look.py, within MEMBER_MAX_BYTES) and an
+    id that isn't already a built-in look's name or alias; its category is
+    always the family's own, whatever its toml says."""
     from . import capabilities
     raw = read(TOML_PATH)
     if raw is None:
@@ -334,11 +334,16 @@ def validate(read, published_ids=(), expected_family=None):
         if taken is not None:
             raise Invalid(f'id {id_!r} is already the name of the built-in look {taken.name!r}')
     category = data['category']
-    if category not in capabilities.categories():
+    if family is not None:
+        # A family member always sits in its family's category, whatever its
+        # toml says: a family can move category (looks left "Imagery and
+        # camera" for its own "Looks"), and a member published before the
+        # move still carries the old one at its pinned commit -- refusing it
+        # would quietly drop it from the page and every builder's prompt.
+        category = capabilities.get(family)['category']
+    elif category not in capabilities.categories():
         raise Invalid(f'category must be one of: {", ".join(capabilities.categories())}')
-    if family is not None and category != capabilities.get(family)['category']:
-        raise Invalid(f'category must be "{capabilities.get(family)["category"]}", the {family} family\'s own')
-    if family is None and category not in capabilities.loose_categories():
+    elif category not in capabilities.loose_categories():
         raise Invalid(f'category {category!r} holds a family\'s members only: submit it as one of them, or pick '
                       f'one of: {", ".join(capabilities.loose_categories())}')
     title = _require_line(data['title'], 'title', 80)
