@@ -1312,7 +1312,8 @@ function pictureCard(job) {
   if(!job.likeOf)head.append(node('p','picture-prompt',job.editOf?job.editOf.label:job.prompt));
   const count=job.n===1?'1 picture':`${job.n} pictures`;
   const unedited=(job.poseOf||job.likeOf||{}).edited?' · from the picture before it was edited':'';
-  head.append(node('span','picture-meta',`${count}${job.cutout?' · cut out':''}${unedited} · ${relative(job.created*1000)}`));
+  const when=relative(job.created*1000);
+  head.append(node('span','picture-meta',`${count}${job.cutout?' · cut out':''}${unedited} · ${when}`));
   card.append(head);
   if(job.status==='failed') {
     const row=node('div','picture-failed');
@@ -1344,7 +1345,8 @@ function pictureTile(job,picture) {
   const add=node('button','picture-add');
   const img=node('img');
   img.src=pictureUrl(job,picture,showCutout);
-  img.alt=`${job.prompt}, ${job.editOf?job.editOf.label.toLowerCase():`picture ${picture.index+1}`}${showCutout?', background cut out':''}`;
+  const which=job.editOf?job.editOf.label.toLowerCase():`picture ${picture.index+1}`;
+  img.alt=`${job.prompt}, ${which}${showCutout?', background cut out':''}`;
   img.loading='lazy';
   img.decoding='async';
   add.append(img);
@@ -1461,8 +1463,8 @@ function renderPictureActions(view) {
         closePictureActions();
         startPose(job,picture)
       }));
-      list.append(pictureAction('like','More like this',full?'Two sets are on the way. Wait for one.':before||'2 more in the same style',
-        ()=>varyPicture(),full));
+      const likeDetail=full?'Two sets are on the way. Wait for one.':before||'2 more in the same style';
+      list.append(pictureAction('like','More like this',likeDetail,()=>varyPicture(),full));
     }
     list.append(pictureAction('flip','Flip left to right',null,()=>editPicture('flip')));
     list.append(pictureAction('rotate-left','Rotate left',null,()=>editPicture('rotate-left')));
