@@ -1,5 +1,7 @@
 """vb.looks: the registry, the scene vocabulary, every look painting any
 shape of scene, and the motion floor on every look's catalog demo."""
+import re
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -144,6 +146,25 @@ class MotionFloor(unittest.TestCase):
     def test_a_still_picture_fails_the_floor(self):
         film = vb.Film(draw=lambda n, cv: cv.fill('#123456'), fps=30, frames=60, formats=(vb.Format('t', 240, 240),))
         self.assertLess(looks.motion_floor(film, 0, 59), looks.FLOOR)
+
+
+class ReferenceDoc(unittest.TestCase):
+    DOC = ROOT / 'skill' / 'make-a-video' / 'reference' / 'looks.md'
+
+    def test_the_adoption_example_runs_in_both_shapes_and_moves(self):
+        example = next(block for block in re.findall(r'```python\n(.*?)```', self.DOC.read_text(), re.DOTALL)
+                       if 'FILM = ' in block)
+        with tempfile.TemporaryDirectory() as d:
+            Path(d, 'film.py').write_text(example)
+            film = load(str(Path(d, 'film.py')))
+            for fmt in film.formats:
+                film.frame(60, fmt, scale=0.25)
+            self.assertGreaterEqual(looks.motion_floor(film, 0, film.frames - 1), looks.FLOOR)
+
+    def test_the_doc_covers_every_seeded_look(self):
+        doc = self.DOC.read_text()
+        for name in SEEDED:
+            self.assertIn(f'| `{name}` |', doc)
 
 
 if __name__ == '__main__':

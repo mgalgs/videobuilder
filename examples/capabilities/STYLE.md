@@ -75,6 +75,16 @@ pixel-art-layer) may define its own palette of at most 5 colours inside its
 demo instead of `_kit`'s, under the same contrast (>= 4.5:1 for small text)
 and colour-blind (hue separation, not lightness alone) rules.
 
+## The Looks family
+
+Every look's demo (`look-<name>.py`) paints the same scene,
+`looks.lighthouse`, through `_looks.py`, with the same plaque naming the
+look, so the family's cards compare like for like; each look brings its
+own palette (the style-card exception above). The family card's own demo
+(`looks.py`) wipes through all eight, 0.8 s each, so it runs longer than
+4 s on purpose. A look's demo needs no loop: its motion is the point, and
+the motion floor test (tests/test_looks.py) fails one that barely moves.
+
 Six capability demos -- shape-morph, line-chart-callout, hard-light-sweep,
 drawn-on-diagram, comic-halftone, pixel-art-layer -- are after
 [huashu-art-motion](https://github.com/alchaincyf/huashu-art-motion) (MIT):

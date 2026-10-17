@@ -135,6 +135,11 @@ layout, images, views) with the traps each part hides.
   make a PIL image once at import and wrap it with `vb.Image.from_pil`. Seed
   any randomness. No network fetches at render time: anything downloaded is
   vendored first, with its licence.
+- **Looks** (a named art style: "make it pop art", "a woodblock print",
+  "try a few looks"): read `reference/looks.md`. Describe the picture once
+  as a `looks.Scene` (a few shapes with roles, the sun, a beacon) and paint
+  it with `looks.paint(cv, name, scene, t)`; `looks.names()` lists every look,
+  and your note's prompt names them too. Don't hand-restyle what a look does.
 - **3D shots**: build a ManimGX shot to `assets/name.mp4`, commit it, and
   draw its frames with `vb.Clip`. Match its frame count to its storyboard
   segment. See `reference/3d.md` for the build command and the GPU stop rule.
