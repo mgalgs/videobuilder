@@ -7,7 +7,7 @@ generated music bed while a made-up app, Lumen, gets launched.
 Sections: a kinetic-type hook and the title hit; the product (camera, UI,
 Lumi checking off the day, a tester on camera, a diagram), the launch
 numbers on one dashboard, then the looks, which get room to breathe (generated art, 3D, hard light,
-comic, pixel art, a cut-out fox, paper collage), and the timing and formats block before
+one scene in three named looks, comic, pixel art, a cut-out fox, paper collage), and the timing and formats block before
 the end card. Sections meet on catalog moves (a shape morph, an overlap
 slide, the paper rip), cuts within a section land on the beat.
 
@@ -36,7 +36,7 @@ sys.path.insert(0, str(HERE))
 
 import videobuilder as vb  # noqa: E402
 from videobuilder import capabilities, paths  # noqa: E402
-from showcase_scenes import comic, data, fox, imagery, kit, looks, motion, paper, pixel, timing, voice  # noqa: E402
+from showcase_scenes import art, comic, data, fox, imagery, kit, looks, motion, paper, pixel, timing, voice  # noqa: E402
 from showcase_scenes.kit import ACCENT, BG, INK, MUTED  # noqa: E402
 
 GRID = kit.GRID
@@ -55,6 +55,7 @@ SECTIONS = [
     ('styles', [('generated', [('gen-arcs', 3), ('gen-flow', 3), ('gen-tiles', 3)]),
                 ('orbit', [('orbit-type', 3), ('orbit-device', 3), ('orbit-bleed', 4)]),
                 ('light', [('light-wide', 5), ('light-close', 5)]),
+                ('art', [('art-swirl', 2), ('art-woodblock', 2), ('art-pop', 2)]),
                 ('comic', [('comic-hq', 3), ('comic-close', 3), ('comic-launch', 3)]),
                 ('pixel', [('pixel-run', 7), ('pixel-clear', 3)]),
                 ('fox', 5),
@@ -102,6 +103,7 @@ SHOTS = {
     **{n: ['generated-art'] for n in ('gen-arcs', 'gen-flow', 'gen-tiles')},
     **{n: ['orbit-3d', 'image-treatments'] for n in ('orbit-type', 'orbit-device', 'orbit-bleed')},
     **{n: ['hard-light-sweep'] for n in ('light-wide', 'light-close')},
+    **{n: ['looks'] for n in ('art-swirl', 'art-woodblock', 'art-pop')},
     **{n: ['comic-halftone'] for n in ('comic-hq', 'comic-close', 'comic-launch')},
     **{n: ['pixel-art-layer'] for n in ('pixel-run', 'pixel-clear')},
     'fox': ['puppet-motion', 'pose-swaps', 'narration'],
@@ -372,7 +374,7 @@ def end(cv, s, st):
 
 
 SCENES = {'hook-1': hook, 'hook-2': hook, 'hook-3': hook, 'title': title, 'end': end,
-          **motion.SCENES, **data.SCENES, **imagery.SCENES, **looks.SCENES, **comic.SCENES, **pixel.SCENES, **fox.SCENES,
+          **motion.SCENES, **data.SCENES, **imagery.SCENES, **looks.SCENES, **art.SCENES, **comic.SCENES, **pixel.SCENES, **fox.SCENES,
           **paper.SCENES, **timing.SCENES, **voice.SCENES}
 
 

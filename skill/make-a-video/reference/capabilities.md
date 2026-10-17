@@ -417,6 +417,37 @@ What videobuilder can already do, with a worked example for each. Reach for one 
 
 **Worked example:** `examples/capabilities/pixel-art-layer.py` — read it before writing something similar from scratch.
 
+### Looks
+
+**What it looks like:** Named art styles that repaint any scene, each moving its own way. A family of looks: named art styles any video can ask for by name ("make it pop art", "try a few looks"), each repainting that video's own scene with its own signature motion. The video describes its picture once as a few shapes with roles (sky, water, land, buildings, figures, lights) plus the sun and a beacon, and any look paints it. Creators can add looks of their own.
+
+**When to use it:** reach for this when a director says something like:
+- "Make it look like pop art"
+- "Try a few different looks on this and let me pick"
+- "Paint the whole video in the woodblock style"
+- "Give it a dreamy surreal look, things melting"
+
+**How to build it:**
+- `looks.Scene(w, h, [looks.Region(role, points), ...], horizon=, sun=(x, y, r), beacon=(x, y))`
+- `looks.paint(cv, 'pop-art', scene, t, age)`
+- `looks.names() / looks.get(name)`
+- `looks.relay(cv, scene, t, names, hold=2.0)  # try several in turn`
+- `looks.motion_floor(film, start, end) >= looks.FLOOR`
+- Read `skill/make-a-video/reference/looks.md`.
+
+**Worked example:** `examples/capabilities/looks.py` — read it before writing something similar from scratch.
+
+**The looks** (8; ask for any look by name):
+
+- **Post-Impressionist swirl** (`swirl`): Thick dabs of paint; the sky turns in eddies. Ask: "Make it look like a swirling oil painting". Example: `examples/capabilities/look-swirl.py`.
+- **Pointillism** (`pointillism`): Ten thousand dots of colour that shimmer. Ask: "Paint it all in tiny dots". Example: `examples/capabilities/look-pointillism.py`.
+- **Ukiyo-e woodblock** (`woodblock`): Flat colour, thick ink lines, and a great wave that curls. Ask: "Make it look like an old Japanese woodblock print". Example: `examples/capabilities/look-woodblock.py`.
+- **Surrealist melt** (`melt`): A dream: the clock melts, the tower sways like wax. Ask: "Make it surreal, like a dream where things melt". Example: `examples/capabilities/look-melt.py`.
+- **Bauhaus geometry** (`bauhaus`): Primary colours and simple shapes that turn on the beat. Ask: "Make it geometric, all circles and primary colours". Example: `examples/capabilities/look-bauhaus.py`.
+- **Pop-art halftone** (`pop-art`): Loud flat colour, comic dots, and a burst that pops. Ask: "Make it pop art, comic-book dots and bold colours". Example: `examples/capabilities/look-pop-art.py`.
+- **8-bit pixel** (`pixel`): Blocky pixels, everything moving in little steps. Ask: "Make it look like an old 8-bit video game". Example: `examples/capabilities/look-pixel.py`.
+- **Blueprint** (`blueprint`): Chalk lines that draw the scene in on a blue grid. Ask: "Make it look like a blueprint that draws itself". Example: `examples/capabilities/look-blueprint.py`.
+
 ### Paper collage
 
 **What it looks like:** Torn-paper headlines, cut-paper objects, a stamp, and a rip-open transition. The editorial paper-cutout explainer look: a grey-beige paper wall under still window light, a headline printed on a torn scrap, a cut-paper object whose soft shadow follows its outline, hand-drawn marks and a red rubber stamp, all moving in stop-motion steps -- then the wall rips open from the middle, its flaps curling back to reveal one accent colour with the next scene pasted on it. Objects are drawn shapes or images you supply, never generated.
