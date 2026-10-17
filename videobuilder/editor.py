@@ -111,7 +111,8 @@ POST /api/music/attach {video,source,track}
                                      201 {id,name,type,size}, the same shape an
                                      upload returns; 404 unknown source/track
 GET  /api/pictures?video=V           {jobs:[{id,prompt,n,cutout,status,message,
-                                     created,waited,pictures:[{index,cutout}]}]},
+                                     created,waited,pictures:[{index,cutout,
+                                     posable}],poseOf?:{id,index,prompt,cutout}}]},
                                      newest first; status is waiting, making,
                                      done or failed (see pictures.py). Every
                                      /api/pictures route is 404 without
@@ -129,6 +130,12 @@ GET  /api/pictures/<id>/<i>?video=V[&cutout=1][&full=1]
 POST /api/pictures/<id>/<i>/attach {video,cutout?}
                                      201 {id,name,type,size}, the same shape an
                                      upload returns
+POST /api/pictures/<id>/<i>/pose {video,pose}
+                                     201 a new set of 2: the same character as
+                                     that picture, in the pose described; 404
+                                     no such picture in this video; 409 the set
+                                     isn't done, or the picture predates poses;
+                                     429 as above
 GET  /api/pictures/gpu               {gpu:"free"|"busy"|"unknown"}
 GET  /api/versions?video=V[&limit=50&before=SHA]
                                      {versions:[{n,commit,summary,kind,

@@ -110,7 +110,8 @@ class Flow(Base):
         self.poll()
         [done] = self.jobs()
         self.assertEqual(done['status'], 'done')
-        self.assertEqual(done['pictures'], [{'index': 0, 'cutout': False}, {'index': 1, 'cutout': False}])
+        self.assertEqual(done['pictures'], [{'index': 0, 'cutout': False, 'posable': True},
+                                            {'index': 1, 'cutout': False, 'posable': True}])
 
         with urllib.request.urlopen(f'{self.base}/api/pictures/{job["id"]}/0?video={VIDEO}', timeout=20) as r:
             self.assertEqual(r.headers['Content-Type'], 'image/webp')
@@ -139,7 +140,7 @@ class Flow(Base):
         self.fake.finish(self.remote_id(job['id']))
         self.poll()
         [done] = self.jobs()
-        self.assertEqual((done['prompt'], done['pictures']), ('steam rising from a cup', [{'index': 0, 'cutout': True}]))
+        self.assertEqual((done['prompt'], done['pictures']), ('steam rising from a cup', [{'index': 0, 'cutout': True, 'posable': True}]))
         thumb = Image.open(io.BytesIO(self.get(f'/api/pictures/{job["id"]}/0?video={VIDEO}&cutout=1')))
         self.assertEqual(thumb.mode, 'RGBA')
         self.assertEqual(thumb.getpixel((0, 0))[3], 0)
@@ -319,6 +320,156 @@ class Limits(Base):
             Editor(self.root, artbox_url=self.fake.base, account_daily_picture_cap=0)
 
 
+class Poses(Base):
+    def done_set(self, prompt='a cartoon fox, flat colours, thick outlines, on a white background', n=2, cutout=True):
+        _, job = self.make(prompt, n=n, cutout=cutout)
+        self.fake.finish(self.remote_id(job['id']))
+        self.poll()
+        return job
+
+    def pose(self, job_id, index=1, pose='waving, arm raised to the right', video=VIDEO):
+        return self.post(f'/api/pictures/{job_id}/{index}/pose', {'video': video, 'pose': pose})
+
+    def test_another_pose_redraws_that_picture_from_its_seed(self):
+        base = self.done_set()
+        remote = self.remote_id(base['id'])
+        name = self.fake.jobs[remote]['images'][1]['name']
+        code, job = self.pose(base['id'])
+        self.assertEqual(code, 201, job)
+        self.assertEqual((job['prompt'], job['n'], job['cutout'], job['status']),
+                         ('waving, arm raised to the right', 2, True, 'waiting'))
+        self.assertEqual(job['poseOf'], {'id': base['id'], 'index': 1, 'cutout': True,
+                                         'prompt': 'a cartoon fox, flat colours, thick outlines, on a white background'})
+        sent = self.fake.submitted[-1]
+        self.assertEqual((sent['refMode'], sent['refs'], sent['seed'], sent['n'], sent['matte']),
+                         ('KI', [f'{remote}/{name}'], 4, 2, True))
+        self.assertEqual(sent['prompt'],
+                         'the same cartoon fox from image 1, now waving, arm raised towards the right edge of the '
+                         'image. Keep the same face, colours, proportions and outline weight. a cartoon fox, flat '
+                         'colours, thick outlines, on a plain mid-grey background')
+        # It is an ordinary set from here on: polled, fetched, and itself a source for more poses.
+        self.fake.finish(self.remote_id(job['id']))
+        self.poll()
+        done = next(j for j in self.jobs() if j['id'] == job['id'])
+        self.assertEqual((done['status'], len(done['pictures']), done['pictures'][0]['posable']), ('done', 2, True))
+        code, again = self.pose(job['id'], 0, 'sitting')
+        self.assertEqual(code, 201, again)
+        self.assertEqual(again['poseOf']['prompt'], 'waving, arm raised to the right')
+        sent = self.fake.submitted[-1]
+        self.assertEqual(sent['refs'], [f"{self.remote_id(job['id'])}/"
+                                        f"{self.fake.jobs[self.remote_id(job['id'])]['images'][0]['name']}"])
+        # Still the fox of the first description, not "waving" of the last pose.
+        self.assertTrue(sent['prompt'].startswith('the same cartoon fox from image 1, now sitting. '), sent['prompt'])
+        self.assertIn('a cartoon fox, flat colours, thick outlines, on a plain', sent['prompt'])
+
+    def test_matte_follows_the_source_and_a_retry_resends_the_reference(self):
+        base = self.done_set('a teapot', n=1, cutout=False)
+        code, job = self.pose(base['id'], 0, 'tipped over')
+        self.assertEqual(code, 201, job)
+        first = self.fake.submitted[-1]
+        self.assertIs(first['matte'], False)
+        self.assertTrue(first['prompt'].startswith('the same teapot from image 1, now tipped over. '))
+        self.assertTrue(first['prompt'].endswith('a teapot, on a plain mid-grey background'))
+        self.fake.fail(self.remote_id(job['id']))
+        self.poll()
+        self.assertEqual(self.post(f'/api/pictures/{job["id"]}/retry', {'video': VIDEO})[0], 200)
+        again = self.fake.submitted[-1]
+        self.assertEqual(again, first)
+
+    def test_the_seed_is_read_from_the_name_or_left_out(self):
+        _, job = self.make('a fox', n=1)
+        remote = self.remote_id(job['id'])
+        self.fake.finish(remote)
+        del self.fake.jobs[remote]['images'][0]['seed']
+        self.poll()
+        self.pose(job['id'], 0)
+        self.assertEqual(self.fake.submitted[-1]['seed'], 3)  # from "..._seed3_..."
+        _, job = self.make('a fox', n=1)
+        remote = self.remote_id(job['id'])
+        self.fake.finish(remote)
+        image = self.fake.jobs[remote]['images'][0]
+        del image['seed']
+        self.fake.files[f'/files/{remote}/fox.png'] = self.fake.files.pop(f'/files/{remote}/{image["name"]}')
+        image['name'] = 'fox.png'
+        self.poll()
+        self.assertEqual(self.pose(job['id'], 0)[0], 201)
+        self.assertNotIn('seed', self.fake.submitted[-1])
+        self.assertEqual(self.fake.submitted[-1]['refs'], [f'{remote}/fox.png'])
+
+    def test_refused_sources(self):
+        _, pending = self.make('a fox')
+        code, result = self.pose(pending['id'], 0)
+        self.assertEqual(code, 409, result)
+        self.fake.fail(self.remote_id(pending['id']))
+        self.poll()
+        self.assertEqual(self.pose(pending['id'], 0)[0], 409)
+        base = self.done_set(n=1)
+        self.assertEqual(self.pose(base['id'], 1)[0], 404)  # no second picture
+        self.assertEqual(self.pose('0' * 16, 0)[0], 404)
+        self.assertEqual(self.pose(base['id'], 0, '   ')[0], 400)
+        self.assertEqual(self.pose(base['id'], 0, 'x' * 301)[0], 400)
+        self.assertEqual(self.pose(base['id'], 0, None)[0], 400)
+        # The same set, asked for from another video, is not there.
+        other = 'promo/other'
+        (self.root / 'promo' / 'other.py').write_text(self.film.read_text())
+        self.assertIn(other, [v.id for v in self.editor.project.videos()])
+        code, result = self.pose(base['id'], 0, video=other)
+        self.assertEqual(code, 404, result)
+        # A client can't name its own reference: anything but the pose is ignored.
+        sent = len(self.fake.submitted)
+        code, job = self.post(f'/api/pictures/{base["id"]}/0/pose',
+                              {'video': VIDEO, 'pose': 'sitting', 'refs': ['evil/x.png'], 'seed': 1, 'n': 4})
+        self.assertEqual(code, 201, job)
+        self.assertEqual(len(self.fake.submitted), sent + 1)
+        self.assertEqual(self.fake.submitted[-1]['refs'], [f'{self.remote_id(base["id"])}/'
+                                                           f'{self.fake.jobs[self.remote_id(base["id"])]["images"][0]["name"]}'])
+        self.assertEqual(job['n'], 2)
+
+    def test_a_picture_from_before_poses_is_not_posable(self):
+        base = self.done_set(n=1)
+        jobs = self.editor.pictures._load(VIDEO)
+        del jobs[0]['pictures'][0]['name']
+        self.editor.pictures._save(VIDEO, jobs)
+        self.assertIs(self.jobs()[0]['pictures'][0]['posable'], False)
+        self.assertEqual(self.pose(base['id'], 0)[0], 409)
+
+    def test_poses_count_toward_the_daily_cap_and_the_pending_limit(self):
+        base = self.done_set(n=2)
+        self.editor.pictures.daily_cap = 3
+        code, result = self.pose(base['id'], 0)
+        self.assertEqual(code, 429, result)
+        self.assertIn('1 picture left', result['error'])
+        self.editor.pictures.daily_cap = 40
+        self.assertEqual(self.pose(base['id'], 0)[0], 201)
+        self.assertEqual(self.pose(base['id'], 1)[0], 201)
+        code, result = self.pose(base['id'], 0)
+        self.assertEqual(code, 429, result)
+        self.assertIn('already on the way', result['error'])
+
+
+class PosePrompt(unittest.TestCase):
+    def test_subject_and_style(self):
+        pose_prompt = pictures_module.pose_prompt
+        self.assertEqual(pictures_module._subject('A small orange fox standing on a rock, cartoon'), 'small orange fox')
+        self.assertEqual(pictures_module._subject('the robot with a red scarf, waving'), 'robot with a red scarf')
+        self.assertEqual(pictures_module._subject('...'), 'character')
+        self.assertEqual(pictures_module._style('a fox, flat colours, on a white background.'), 'a fox, flat colours')
+        out = pose_prompt('a fox', 'pointing to the left.')
+        self.assertIn('now pointing towards the left edge of the image. Keep', out)
+        # Already said about the picture, or about a hand: left alone.
+        self.assertIn('now pointing towards the left edge of the image. Keep',
+                      pose_prompt('a fox', 'pointing towards the left edge of the image'))
+        self.assertIn('raising its left paw', pose_prompt('a fox', 'raising its left paw'))
+        # The character's own side is not the image's: rewriting it would mirror the pose.
+        self.assertIn('now pointing to his left. Keep', pose_prompt('a fox', 'pointing to his left'))
+        self.assertIn('now looking towards their right. Keep', pose_prompt('a fox', 'looking towards their right'))
+        # Nouns that end in -ing are part of the subject, not what it is doing.
+        self.assertEqual(pictures_module._subject('a cartoon viking with a beard'), 'cartoon viking with a beard')
+        self.assertEqual(pictures_module._subject('a cute duckling'), 'cute duckling')
+        self.assertEqual(pictures_module._subject('A watercolour painting of a fox'), 'watercolour painting of a fox')
+        self.assertEqual(pictures_module._subject('a duckling swimming in a pond'), 'duckling')
+
+
 class NetworkSafety(Base):
     def test_validators(self):
         for good in ('20261016-142016', 'abc_DEF-1'):
@@ -348,7 +499,7 @@ class NetworkSafety(Base):
         self.fake.overrides[remote] = {'id': remote, 'state': 'done', 'images': images}
         self.poll()
         [done] = self.jobs()
-        self.assertEqual(done['pictures'], [{'index': 0, 'cutout': False}])
+        self.assertEqual(done['pictures'], [{'index': 0, 'cutout': False, 'posable': True}])
         fetched = [p for m, p in self.fake.requests if p.startswith('/files/')]
         self.assertEqual(fetched, [f'/files/{remote}/{good}'])
 

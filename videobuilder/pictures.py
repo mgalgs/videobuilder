@@ -16,6 +16,12 @@ sources.py's, a slug plus a hash), holding `jobs.json` ({video, jobs: [...]})
 and one directory per finished job with `<i>.png`, `<i>.thumb.webp` and, for a
 cut-out, `<i>-cutout.png` / `<i>-cutout.thumb.webp`.
 
+Another pose (Pictures.pose) is a job like any other, asked of artbox with a
+finished picture as its reference: artbox redraws the same character (its
+"KI", keep-identity, mode) from that picture's seed, in the pose the creator
+describes. The reference is built here from the stored job, never taken from
+the client.
+
 Network safety: the editor only talks to the configured base URL. Every file
 URL is built from the base, a job id and a url-quoted name taken from the job
 JSON, each checked against a strict pattern first; nothing in a response is
@@ -44,6 +50,8 @@ TAG = 'videobuilder'
 MAX_PROMPT = 1000
 MAX_COUNT = 4
 MAX_PENDING = 2
+MAX_POSE = 300
+POSE_COUNT = 2
 DEFAULT_DAILY_CAP = 40
 # artbox gives a job up after 12 hours; past that it will never finish.
 GIVE_UP_SECONDS = 12 * 3600
@@ -70,6 +78,7 @@ JOB_ID = re.compile(r'[A-Za-z0-9][A-Za-z0-9_-]{0,63}')
 # '.' and '..' (checked in valid_file_name) are refused. The length allows a
 # whole MAX_PROMPT prompt plus the suffix and artbox's timestamp and seed.
 FILE_NAME = re.compile(r'[^\x00-\x1f\x7f/\\.][^\x00-\x1f\x7f/\\]{0,2043}\.png')
+SEED_IN_NAME = re.compile(r'_seed(\d{1,19})_')
 LOCAL_ID = re.compile(r'[0-9a-f]{16}')
 PNG_MAGIC = b'\x89PNG\r\n\x1a\n'
 
@@ -156,8 +165,15 @@ class Artbox:
             raise ArtboxError(f'{path}: not a JSON object')
         return data
 
-    def submit(self, prompt, n, matte):
-        job = self._json('/api/images', {'prompt': prompt, 'n': n, 'size': SIZE, 'tag': TAG, 'matte': bool(matte)})
+    def submit(self, prompt, n, matte, refs=None, seed=None):
+        """Start a job; with `refs` (["<jobId>/<fileName>"]) artbox keeps the
+        identity of the character in them, and `seed` repeats a picture's seed."""
+        body = {'prompt': prompt, 'n': n, 'size': SIZE, 'tag': TAG, 'matte': bool(matte)}
+        if refs:
+            body.update(refs=list(refs), refMode='KI')
+        if seed is not None:
+            body['seed'] = seed
+        job = self._json('/api/images', body)
         if not valid_job_id(job.get('id')):
             raise ArtboxError('the new job has no usable id')
         return job
@@ -249,6 +265,57 @@ def _plain_count(n):
     return '1 picture' if n == 1 else f'{n} pictures'
 
 
+# Where a picture's subject stops and what it is doing begins: "a fox standing
+# on a rock" is about "fox". Words ending in -ing count too, after the first,
+# unless they are one of the common nouns that only look like a verb.
+_SUBJECT_STOP = {'on', 'in', 'at', 'against', 'over', 'under', 'near', 'by', 'from', 'into', 'onto',
+                 'towards', 'toward', 'beside', 'behind', 'above', 'below', 'and', 'that', 'who', 'which'}
+_ING_NOUNS = {'viking', 'duckling', 'gosling', 'hatchling', 'fledgling', 'starling', 'halfling', 'earthling',
+              'sapling', 'seedling', 'dumpling', 'pudding', 'darling', 'sibling', 'offspring', 'painting',
+              'drawing', 'building', 'earring', 'clothing', 'ceiling', 'wedding', 'evening', 'morning'}
+_ARTICLE = {'a', 'an', 'the', 'one', 'some'}
+_SIDEWAYS = re.compile(r'\b(?:to|towards|toward)\s+the\s+(left|right)\b(?!\s+(?:edge|side|of))',
+                       re.IGNORECASE)
+
+
+def _subject(prompt):
+    """The thing a prompt draws, as best a few rules can tell: its first
+    clause, without a leading article, cut where a place or action starts."""
+    clause = re.split(r'[,;.:!?\n]| - ', prompt, maxsplit=1)[0]
+    words = clause.split()
+    if words and words[0].lower() in _ARTICLE:
+        words = words[1:]
+    out = []
+    for word in words:
+        bare = word.lower().strip('"\'()')
+        if out and (bare in _SUBJECT_STOP or (bare.endswith('ing') and len(bare) > 4 and bare not in _ING_NOUNS)):
+            break
+        out.append(word)
+        if len(out) == 8:
+            break
+    return ' '.join(out) or 'character'
+
+
+def _style(prompt):
+    """The base prompt, standing in for its style, without any clause about
+    a background: the pose is always drawn on mid-grey."""
+    clauses = [c.strip() for c in re.split(r'[,;]', prompt)]
+    kept = [c for c in clauses if c and 'background' not in c.lower()]
+    return ', '.join(kept).rstrip(' .') or 'the same style'
+
+
+def pose_prompt(base_prompt, pose):
+    """artbox's prompt for another pose of a picture made from `base_prompt`.
+    A direction said about the character ("pointing to the left") is put
+    about the picture instead, which is what artbox follows. The character's
+    own side ("to his left") is left as said: facing the viewer, that is the
+    image's other side, so rewriting it would mirror the pose."""
+    pose = _SIDEWAYS.sub(lambda m: f'towards the {m.group(1).lower()} edge of the image', pose.strip().rstrip('.'))
+    return (f'the same {_subject(base_prompt)} from image 1, now {pose}. '
+            'Keep the same face, colours, proportions and outline weight. '
+            f'{_style(base_prompt)}{CUTOUT_SUFFIX}')
+
+
 def _slug(prompt):
     words = re.findall(r'[A-Za-z0-9]+', prompt.lower())
     out = ''
@@ -302,11 +369,17 @@ class Pictures:
 
     def public(self, job):
         pending_for = time.time() - job['submitted'][-1] if job['status'] in PENDING else 0
-        return {'id': job['id'], 'prompt': job['prompt'], 'n': job['n'], 'cutout': job['cutout'],
-                'status': job['status'], 'message': job.get('message'), 'created': job['created'],
-                'retryable': job.get('retryable', True),
-                'waited': round(pending_for),
-                'pictures': [{'index': p['index'], 'cutout': p['cutout']} for p in job.get('pictures', [])]}
+        out = {'id': job['id'], 'prompt': job['prompt'], 'n': job['n'], 'cutout': job['cutout'],
+               'status': job['status'], 'message': job.get('message'), 'created': job['created'],
+               'retryable': job.get('retryable', True),
+               'waited': round(pending_for),
+               'pictures': [{'index': p['index'], 'cutout': p['cutout'], 'posable': bool(p.get('name'))}
+                            for p in job.get('pictures', [])]}
+        if job.get('pose_of'):
+            source = job['pose_of']
+            out['poseOf'] = {'id': source['job'], 'index': source['index'], 'prompt': source['prompt'],
+                             'cutout': source['cutout']}
+        return out
 
     def list(self, video):
         with self.lock:
@@ -355,9 +428,14 @@ class Pictures:
     # ---- starting and retrying ----
 
     def _submit(self, job):
-        prompt = job['prompt'] + (CUTOUT_SUFFIX if job['cutout'] else '')
+        source = job.get('pose_of')
         try:
-            remote = self.artbox.submit(prompt, job['n'], job['cutout'])
+            if source:
+                remote = self.artbox.submit(source['ask'], job['n'], job['cutout'], refs=[source['ref']],
+                                            seed=source['seed'])
+            else:
+                remote = self.artbox.submit(job['prompt'] + (CUTOUT_SUFFIX if job['cutout'] else ''), job['n'],
+                                            job['cutout'])
         except ArtboxError as exc:
             print(f'[editor] pictures: start failed: {exc}', file=sys.stderr, flush=True)
             raise PictureError(502, "The picture maker isn't answering right now. Try again in a moment.") from None
@@ -383,6 +461,41 @@ class Pictures:
             self.check_daily_cap(author, is_admin, n)
             job = {'id': secrets.token_hex(8), 'video': video, 'prompt': prompt, 'n': n, 'cutout': cutout,
                    'author': author, 'created': time.time()}
+            self._submit(job)
+            jobs.append(job)
+            self._save(video, jobs)
+        return self.public(job)
+
+    def pose(self, video, job_id, index, pose, author, is_admin=False):
+        """Start another pose of picture `index` of the finished set `job_id`:
+        two pictures of the same character, cut out if the set was."""
+        if not isinstance(pose, str) or not pose.strip():
+            raise PictureError(400, 'Say what the new pose is first.')
+        pose = ' '.join(pose.split())
+        if len(pose) > MAX_POSE:
+            raise PictureError(400, f'That pose is too long. Keep it under {MAX_POSE} characters.')
+        if not LOCAL_ID.fullmatch(job_id or ''):
+            raise PictureError(404, 'Those pictures are gone.')
+        self.editor.project.video(video)
+        with self.lock:
+            jobs = self._load(video)
+            base = self._find(jobs, job_id)
+            if base['status'] != 'done':
+                raise PictureError(409, 'Wait for those pictures to finish first.')
+            picture = next((p for p in base.get('pictures', []) if p['index'] == index), None)
+            if picture is None:
+                raise PictureError(404, 'That picture is gone.')
+            if not picture.get('name') or not valid_job_id(base.get('remote')):
+                raise PictureError(409, "This picture is too old to make another pose of. Make it again first.")
+            self._check_pending(jobs)
+            self.check_daily_cap(author, is_admin, POSE_COUNT)
+            # A pose of a pose is still described by the first picture's words, not the last pose's.
+            described = base['pose_of'].get('described', base['prompt']) if base.get('pose_of') else base['prompt']
+            source = {'job': base['id'], 'index': index, 'prompt': base['prompt'], 'cutout': picture['cutout'],
+                      'ref': f"{base['remote']}/{picture['name']}", 'seed': picture.get('seed'),
+                      'described': described, 'ask': pose_prompt(described, pose)}
+            job = {'id': secrets.token_hex(8), 'video': video, 'prompt': pose, 'n': POSE_COUNT,
+                   'cutout': base['cutout'], 'author': author, 'created': time.time(), 'pose_of': source}
             self._submit(job)
             jobs.append(job)
             self._save(video, jobs)
@@ -500,9 +613,8 @@ class Pictures:
                     else:
                         print(f'[editor] pictures: refused a file name in job {job["remote"]}', file=sys.stderr,
                               flush=True)
-                seed = image.get('seed')
-                pictures.append({'index': index, 'cutout': cutout,
-                                 'seed': seed if isinstance(seed, int) and not isinstance(seed, bool) else None})
+                pictures.append({'index': index, 'cutout': cutout, 'name': image['name'],
+                                 'seed': _seed(image)})
             shutil.rmtree(final, ignore_errors=True)
             os.replace(tmp, final)
         finally:
@@ -552,6 +664,16 @@ class Pictures:
             job = self._find(self._load(video), job_id)
         name = f"{_slug(job['prompt'])}-{index + 1}{'-cutout' if cutout else ''}.png"
         return self.editor.attachments.upload(video, name, 'image/png', path.read_bytes())
+
+
+def _seed(image):
+    """An artbox image's seed: its own `seed`, or the one artbox writes into
+    its file name ("..._seed1234_..."); None when neither says."""
+    seed = image.get('seed')
+    if isinstance(seed, int) and not isinstance(seed, bool) and 0 <= seed < 2 ** 63:
+        return seed
+    match = SEED_IN_NAME.search(image['name'])
+    return int(match.group(1)) if match and int(match.group(1)) < 2 ** 63 else None
 
 
 def _store_png(data, folder, stem, mode):

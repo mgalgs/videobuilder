@@ -447,6 +447,13 @@ def _post_picture_retry(self, route, body, identity, editor, user, job_id):
                                          _is_admin_account(self, user)))
 
 
+def _post_picture_pose(self, route, body, identity, editor, user, job_id, index):
+    pictures = _pictures(editor)
+    job = _picture_call(pictures.pose, _field(body, 'video', str), job_id, int(index), body.get('pose'), identity,
+                        _is_admin_account(self, user))
+    return self._json(201, job)
+
+
 def _post_picture_attach(self, route, body, identity, editor, user, job_id, index):
     pictures = _pictures(editor)
     cutout = body.get('cutout', False)
@@ -526,6 +533,7 @@ POST_ROUTES = [
     ('/api/pictures', _post_pictures),
     (re.compile(r'/api/pictures/([0-9a-f]{16})/retry'), _post_picture_retry),
     (re.compile(r'/api/pictures/([0-9a-f]{16})/([0-3])/attach'), _post_picture_attach),
+    (re.compile(r'/api/pictures/([0-9a-f]{16})/([0-3])/pose'), _post_picture_pose),
     (('/api/roll', '/api/copy', '/api/undo'), _post_edit),
     ('/api/notes', _post_notes),
     ('/api/videos/first-note', _post_first_note),
