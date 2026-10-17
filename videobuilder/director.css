@@ -1231,6 +1231,44 @@ button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible,
   gap: 5px;
 }
 
+/* With chips, the row is the composer's full width, so an image's chip can take half of it. */
+#attachments:has(.file-chip) {
+  width: 100%;
+}
+
+/* An image's chip leads with a thumbnail; its name is cut short so a phone fits two to a row. */
+#attachments .file-chip.with-thumb {
+  gap: 8px;
+  padding: 0 0 0 3px;
+  min-height: 44px;
+  max-width: min(240px,calc(50% - 3px));
+  overflow-wrap: normal;
+}
+
+.file-thumb {
+  flex: none;
+  width: 38px;
+  height: 38px;
+  border-radius: 6px;
+  object-fit: cover;
+  background: #ffffff14;
+}
+
+.file-chip.with-thumb .file-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-size: 13px;
+}
+
+#attachments .file-chip.with-thumb button {
+  flex: none;
+  min-width: 36px;
+  min-height: 44px;
+}
+
 #attachments .file-chip button {
   min-width: 28px;
   min-height: 28px;
@@ -1803,6 +1841,110 @@ button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible,
   font-weight: 600;
   -webkit-backdrop-filter: blur(6px);
   backdrop-filter: blur(6px);
+}
+
+/* "Make another pose of this": opposite the cut-out toggle, so both fit a phone-width tile. */
+.picture-pose {
+  position: absolute;
+  right: 6px;
+  bottom: 6px;
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: #000000b3;
+  color: #fff;
+  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(6px);
+}
+
+.picture-pose:active {
+  transform: scale(.94);
+}
+
+.pictures-pose {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 0 6px 6px;
+  border: 1px solid #34343c;
+  border-radius: 12px;
+  background: #1d1d22;
+}
+
+.pictures-pose img,.picture-pose-of img {
+  flex: none;
+  object-fit: contain;
+  background: #2a2a31;
+}
+
+.pictures-pose img {
+  width: 48px;
+  height: 48px;
+  border-radius: 8px;
+}
+
+.pictures-pose img.checker,.picture-pose-of img.checker {
+  background-color: #ededf1;
+  background-image: conic-gradient(#cfcfd6 25%,transparent 0 50%,#cfcfd6 0 75%,transparent 0);
+  background-size: 10px 10px;
+}
+
+.pictures-pose-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.pictures-pose-text strong {
+  font-size: 14px;
+}
+
+.pictures-pose-text span {
+  font-size: 13px;
+  color: var(--muted);
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.pictures-form.posing .pictures-options {
+  display: none;
+}
+
+.pictures-hint {
+  margin: -2px 0 0;
+  font-size: 13px;
+  line-height: 1.4;
+  color: var(--muted);
+}
+
+.picture-pose-of {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+  font-size: 12px;
+  color: var(--muted);
+  min-width: 0;
+}
+
+.picture-pose-of img {
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+}
+
+.picture-pose-of span {
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
 }
 
 .picture-wait {

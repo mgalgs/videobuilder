@@ -404,8 +404,23 @@
 </div>
     <div class="pictures-scroll">
     <form id="pictures-form" class="pictures-form">
+<div id="pictures-pose" class="pictures-pose" hidden>
+<img id="pictures-pose-thumb" alt="">
+<div class="pictures-pose-text">
+<strong>Another pose of this</strong>
+<span id="pictures-pose-source">
+</span>
+</div>
+<button id="pictures-pose-cancel" class="dialog-close" type="button" aria-label="Stop making a pose, describe a new picture instead">
+<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+<path d="M6 6l12 12M18 6L6 18">
+</path>
+</svg>
+</button>
+</div>
 <label class="sr-only" for="pictures-prompt">Describe a picture</label>
 <textarea id="pictures-prompt" rows="2" maxlength="1000" placeholder="Describe a picture&hellip;" enterkeyhint="go"></textarea>
+<p id="pictures-hint" class="pictures-hint" hidden>Say left and right as they look in the picture, like &ldquo;towards the left edge of the image&rdquo;.</p>
 <div class="pictures-options">
 <div id="pictures-count" class="pictures-count" role="radiogroup" aria-label="How many pictures">
 <button type="button" role="radio" data-n="1">1</button>
@@ -509,6 +524,14 @@
 <template id="icon-check">
 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
 <path d="M5 12.5l4.5 4.5L19 7.5">
+</path>
+</svg>
+</template>
+<template id="icon-pose">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+<circle cx="11" cy="4.5" r="2">
+</circle>
+<path d="M11 8v6.5l-3 6M11 14.5l3 6M11 9.5L6.5 12M11 9.5l4.5-4.5M18.5 13.5v5M16 16h5">
 </path>
 </svg>
 </template>

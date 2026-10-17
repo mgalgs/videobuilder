@@ -40,6 +40,8 @@ const state = {
   pictureGpuAt: 0,
   pictureMaking: false,
   pictureOriginals: new Set(),
+  picturesAbsent: false,
+  pose: null,
   steps: {},
   pendingAnswers: {},
   sources: [],
@@ -1024,11 +1026,39 @@ async function upgradeVideo() {
   }
 }
 // ---- File attachments and the music picker ----
+// A chip's thumbnail: a picked or dropped image's own object URL (made once, revoked once the
+// file leaves the note), a picture's stored thumbnail, or an uploaded image's attachment.
+const chipUrls=new Map();
+const isImage=f=>/^image\/(png|jpeg|webp|gif)$/.test(f.type||'')||/\.(png|jpe?g|webp|gif)$/i.test(f.name||'');
+function chipThumb(f) {
+  if(!isImage(f))return null;
+  if(f instanceof Blob) {
+    if(!chipUrls.has(f))chipUrls.set(f,URL.createObjectURL(f));
+    return chipUrls.get(f)
+  }
+  return f.thumb||(f.id?attachmentUrl(f.id):null)
+}
 function renderFiles() {
   const wrap=$('attachments');
   wrap.replaceChildren();
   state.files.forEach((f,i)=> {
-    const chip=node('span','file-chip',f.name);
+    const thumb=chipThumb(f);
+    const chip=node('span','file-chip');
+    if(thumb) {
+      chip.classList.add('with-thumb');
+      const img=node('img','file-thumb');
+      img.alt='';
+      img.decoding='async';
+      // An attachment past its expiry has nothing to show: back to the plain chip.
+      img.onerror=()=> {
+        img.remove();
+        chip.classList.remove('with-thumb')
+      };
+      img.src=thumb;
+      chip.append(img)
+    }
+    chip.append(node('span','file-name',f.name));
+    chip.title=f.name;
     const remove=node('button');
     remove.append(icon('close'));
     remove.setAttribute('aria-label',`Remove ${f.name}`);
@@ -1038,7 +1068,11 @@ function renderFiles() {
     };
     chip.append(remove);
     wrap.append(chip);
-  })
+  });
+  for(const [f,url] of chipUrls)if(!state.files.includes(f)) {
+    URL.revokeObjectURL(url);
+    chipUrls.delete(f)
+  }
 }
 function addFiles(files) {
   for(const f of files)state.files.push(f);
@@ -1180,14 +1214,16 @@ function picturesOpen() {
 async function loadPictures() {
   const video=state.video;
   let data;
+  lastPicturesPoll=Date.now();
   try {
     data=await json('pictures', {
       video
     })
   }
   catch(e) {
-    if(e.status===404) {
+    if(e.status===404&&video===state.video) {
       state.pictures=null;
+      state.picturesAbsent=true;
       $('pictures-button').hidden=true
     }
     return
@@ -1224,6 +1260,7 @@ function openPictures() {
   loadPictureGpu()
 }
 function closePictures() {
+  endPose();
   $('pictures-dialog').hidden=true;
   $('pictures-shade').hidden=true;
   $('pictures-prompt').blur()
@@ -1239,6 +1276,7 @@ const picturesPending=()=>(state.pictures||[]).filter(j=>j.status==='waiting'||j
 function renderPictureStatus() {
   const status=$('pictures-status'),full=picturesPending().length>=2;
   $('pictures-make').disabled=full||state.pictureMaking;
+  $('pictures-make').textContent=state.pictureMaking?'Starting…':state.pose?'Make 2 poses':'Make';
   status.textContent=full?'Two sets are on the way. You can make more when one is done.'
     : state.pictureGpu==='free'?'GPU free: about a minute'
     : state.pictureGpu==='busy'?'The GPU is busy. Your pictures will wait in line and show up here.'
@@ -1265,6 +1303,7 @@ function renderPictures() {
 function pictureCard(job) {
   const card=node('section','picture-card');
   const head=node('div','picture-card-head');
+  if(job.poseOf)head.append(poseOfRow(job.poseOf));
   head.append(node('p','picture-prompt',job.prompt));
   const count=job.n===1?'1 picture':`${job.n} pictures`;
   head.append(node('span','picture-meta',`${count}${job.cutout?' · cut out':''} · ${relative(job.created*1000)}`));
@@ -1324,7 +1363,65 @@ function pictureTile(job,picture) {
     };
     tile.append(flip)
   }
+  if(picture.posable) {
+    const pose=node('button','picture-pose');
+    pose.type='button';
+    pose.append(icon('pose'));
+    pose.title='Make another pose of this';
+    pose.setAttribute('aria-label',`Make another pose of picture ${picture.index+1}`);
+    pose.onclick=()=>startPose(job,picture);
+    tile.append(pose)
+  }
   return tile
+}
+// Which picture a set of poses was made from: its thumbnail, while the set is still kept, and its words.
+function poseOfRow(source) {
+  const row=node('div','picture-pose-of');
+  const img=node('img');
+  img.alt='';
+  img.loading='lazy';
+  img.decoding='async';
+  img.onerror=()=>img.remove();
+  img.src=pictureUrl({id:source.id}, {index:source.index},source.cutout);
+  if(source.cutout)img.className='checker';
+  row.append(img,node('span',null,`Pose of: ${source.prompt}`));
+  return row
+}
+// "Make another pose of this" turns the form at the top into a pose form for that picture: the
+// description becomes the pose, and the set's size and cut-out follow the picture. What was being
+// described waits, and comes back after.
+function startPose(job,picture) {
+  if(!state.pose)state.picturePrompt=$('pictures-prompt').value;
+  state.pose={job,picture};
+  const prompt=$('pictures-prompt');
+  prompt.value='';
+  prompt.maxLength=300;
+  prompt.placeholder='The new pose, like “waving, arm raised towards the right edge of the image”';
+  $('pictures-form').classList.add('posing');
+  $('pictures-pose').hidden=false;
+  $('pictures-hint').hidden=false;
+  const thumb=$('pictures-pose-thumb');
+  const cutout=picture.cutout;
+  thumb.classList.toggle('checker',cutout);
+  thumb.src=pictureUrl(job,picture,cutout);
+  $('pictures-pose-source').textContent=job.prompt;
+  $('pictures-error').hidden=true;
+  renderPictureStatus();
+  document.querySelector('.pictures-scroll').scrollTop=0;
+  prompt.focus({preventScroll: true})
+}
+function endPose() {
+  if(!state.pose)return;
+  state.pose=null;
+  const prompt=$('pictures-prompt');
+  prompt.value=state.picturePrompt||'';
+  prompt.maxLength=1000;
+  prompt.placeholder='Describe a picture…';
+  $('pictures-form').classList.remove('posing');
+  $('pictures-pose').hidden=true;
+  $('pictures-hint').hidden=true;
+  $('pictures-pose-thumb').removeAttribute('src');
+  renderPictureStatus()
 }
 async function addPicture(job,picture,cutout,tile) {
   const key=pictureKey(job,picture,cutout);
@@ -1339,7 +1436,7 @@ async function addPicture(job,picture,cutout,tile) {
     const record=await json(`pictures/${job.id}/${picture.index}/attach`,null, {
       video:state.video,cutout
     });
-    addFiles([{...record,pictureKey:key}]);
+    addFiles([{...record,pictureKey:key,thumb:pictureUrl(job,picture,cutout)}]);
     tile.replaceWith(pictureTile(job,picture));
     showPictureAdded('Added to your note')
   }
@@ -1369,14 +1466,19 @@ async function makePictures(e) {
   }
   if(state.pictureMaking)return;
   state.pictureMaking=true;
-  $('pictures-make').textContent='Starting…';
   $('pictures-error').hidden=true;
   renderPictureStatus();
+  const pose=state.pose;
   try {
-    const job=await json('pictures',null, {
-      video:state.video,prompt,n:state.pictureCount,cutout:$('pictures-cutout').checked
-    });
+    const job=pose
+      ? await json(`pictures/${pose.job.id}/${pose.picture.index}/pose`,null, {
+        video:state.video,pose:prompt
+      })
+      : await json('pictures',null, {
+        video:state.video,prompt,n:state.pictureCount,cutout:$('pictures-cutout').checked
+      });
     state.pictures=[job,...(state.pictures||[]).filter(j=>j.id!==job.id)];
+    if(pose&&state.pose===pose)endPose();
     // Down goes the keyboard, so the new set is in view; the words stay, to tweak and make again.
     $('pictures-prompt').blur();
     document.querySelector('.pictures-scroll').scrollTop=0
@@ -1387,7 +1489,6 @@ async function makePictures(e) {
   }
   finally {
     state.pictureMaking=false;
-    $('pictures-make').textContent='Make';
     renderPictures()
   }
 }
@@ -1412,6 +1513,10 @@ $('pictures-close').onclick=closePictures;
 $('pictures-shade').onclick=closePictures;
 $('pictures-back').onclick=closePictures;
 $('pictures-form').onsubmit=makePictures;
+$('pictures-pose-cancel').onclick=()=> {
+  endPose();
+  $('pictures-prompt').focus({preventScroll: true})
+};
 $('pictures-prompt').onkeydown=e=> {
   if(e.key==='Enter'&&!e.shiftKey) {
     e.preventDefault();
@@ -1426,13 +1531,16 @@ for(const b of $('pictures-count').children) {
 }
 let lastPicturesPoll=0;
 setInterval(()=> {
-  if(document.hidden||!state.video||!state.pictures||state.signedOut||state.restarting)return;
+  if(document.hidden||!state.video||state.signedOut||state.restarting)return;
+  // A first load that failed (the editor busy or restarting) is tried again, so the button
+  // still turns up without a reload; only a 404, no picture service at all, stops it.
+  if(!state.pictures) {
+    if(!state.picturesAbsent&&Date.now()-lastPicturesPoll>=20000)loadPictures();
+    return
+  }
   const pending=picturesPending().length>0;
   const every=picturesOpen()?(pending?3000:15000):pending?15000:0;
-  if(every&&Date.now()-lastPicturesPoll>=every) {
-    lastPicturesPoll=Date.now();
-    loadPictures()
-  }
+  if(every&&Date.now()-lastPicturesPoll>=every)loadPictures();
   if(picturesOpen()&&Date.now()-(state.pictureGpuAt||0)>=30000) {
     state.pictureGpuAt=Date.now();
     loadPictureGpu()
@@ -1748,7 +1856,7 @@ async function uploadFiles(files) {
     });
     const data=await parseJSON(r);
     if(!r.ok)throw httpError(r,data);
-    out.push({id:data.id,name:files[i].name})
+    out.push({id:data.id,name:files[i].name,type:files[i].type})
   }
   return out
 }
@@ -1864,6 +1972,7 @@ async function openVideo(video) {
   renderUpgrade();
   loadPending();
   state.pictures=null;
+  state.picturesAbsent=false;
   $('pictures-badge').hidden=true;
   loadPictures();
   try {
