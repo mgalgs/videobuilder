@@ -161,8 +161,11 @@ class ReferenceDoc(unittest.TestCase):
                 film.frame(60, fmt, scale=0.25)
             self.assertGreaterEqual(looks.motion_floor(film, 0, film.frames - 1), looks.FLOOR)
 
-    def test_the_doc_covers_every_seeded_look(self):
+    def test_the_doc_covers_every_seeded_look_and_says_what_a_look_cannot_do(self):
         doc = self.DOC.read_text()
+        contract = doc[doc.index('## The contract'):]
+        self.assertIn("can't restyle a photo, a screen capture or footage", contract[:800])
+        self.assertIn('shortfall', contract[:800])
         for name in SEEDED:
             self.assertIn(f'| `{name}` |', doc)
 

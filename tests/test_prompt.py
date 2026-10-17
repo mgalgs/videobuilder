@@ -144,6 +144,7 @@ class LooksSection(unittest.TestCase):
             self.assertIn(f'{name} ({looks.get(name).title})', section)
         self.assertIn('skill/make-a-video/reference/looks.md', section)
         self.assertIn('looks.relay', section)
+        self.assertIn("can't restyle a photo, a screen capture or footage yet: say so as a shortfall", section)
         self.assertNotIn('Other creators added these looks', section)
 
     def test_a_community_look_is_listed_with_the_looks_not_the_capabilities(self):

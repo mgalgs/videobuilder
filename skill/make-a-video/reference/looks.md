@@ -31,6 +31,11 @@ A look paints a **scene description**, not pixels: a few shapes with
 roles, the sun, a beacon and stars. The video describes its picture once in
 this vocabulary; every look can then paint it its own way.
 
+So a look **can't restyle a photo, a screen capture or footage** yet. When a
+note asks for a look on a video built from those, say so as a shortfall
+(the `shortfalls` block, kind "cannot") and offer the look on a drawn scene
+instead: a title card, an end card, or a backdrop behind the footage.
+
 ```python
 scene = looks.Scene(w, h, regions, horizon=None, sun=None, beacon=None, stars=None, bpm=120)
 looks.paint(cv, name, scene, t, age=None, **options)
@@ -67,7 +72,6 @@ Describe the scene from the frame's own size (so it fits every format), as
 a function of time if anything moves, and paint it first in `draw`:
 
 ```python
-import math
 import videobuilder as vb
 from videobuilder import looks
 
