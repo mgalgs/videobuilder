@@ -314,8 +314,8 @@ STARTER_STYLE = (
     '.starter-title{font-weight:600;font-size:.78rem;color:#8b8b94;padding:0 .85rem}'
     # min-height keeps the posters level across a row of cards whose prompts differ in length.
     # Margin, not padding: a line-clamped box shows the clipped line through its padding.
-    '.starter-prompt{font-size:.95rem;line-height:1.4;color:#f4f4f2;margin:.85rem .85rem .75rem;'
-    'display:-webkit-box;-webkit-line-clamp:4;-webkit-box-orient:vertical;overflow:hidden;min-height:5.6em}'
+    '.starter-prompt{font-size:.95rem;line-height:1.4;color:#d9d9d4;font-style:italic;margin:.85rem .85rem .75rem;'
+    'border-left:3px solid #e5483b;padding-left:.65rem;display:-webkit-box;-webkit-line-clamp:4;-webkit-box-orient:vertical;overflow:hidden;min-height:5.6em}'
     '.starters.hero .starter-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));'
     'overflow:visible}'
     '@media (max-width:720px){.starters.hero .starter-grid{grid-template-columns:repeat(auto-fill,minmax(150px,1fr));'
@@ -590,10 +590,10 @@ def _starter_card_html(s):
             f'<span class="starter-title">{html.escape(s["title"])}</span></a>')
 
 
-def _starter_section_html(hero, heading='Starter prompts'):
+def _starter_section_html(hero):
     cls = 'starters hero' if hero else 'starters'
     cards = ''.join(_starter_card_html(s) for s in STARTERS)
-    return (f'<section class="{cls}"><h2>{heading}</h2>'
+    return (f'<section class="{cls}"><h2>Starter prompts</h2>'
            f'<div class="starter-grid">{cards}</div></section>')
 
 
@@ -855,9 +855,9 @@ def index(entries, accounts_enabled, user, host, scheme='http', showcase=False, 
                 'Or pick a starter below and fill in the blanks.</p></div>' +
                 ('<a class="btn btn-primary" href="/new">Start your first video</a>' if can_create else '') +
                 '</section>')
-        content = body + _starter_section_html(True, heading='Starter prompts')
+        content = body + _starter_section_html(True)
     else:
-        content = ''.join(rows) + _starter_section_html(False, heading='Start from a starter prompt')
+        content = ''.join(rows) + _starter_section_html(False)
     count = len(entries)
     sub = f'<p>{count} video{"" if count == 1 else "s"}</p>' if count else ''
     sort = ''
