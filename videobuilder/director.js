@@ -42,6 +42,7 @@ const state = {
   pictureOriginals: new Set(),
   picturesAbsent: false,
   pose: null,
+  pictureActions: null,
   steps: {},
   pendingAnswers: {},
   sources: [],
@@ -1260,6 +1261,7 @@ function openPictures() {
   loadPictureGpu()
 }
 function closePictures() {
+  closePictureActions();
   endPose();
   $('pictures-dialog').hidden=true;
   $('pictures-shade').hidden=true;
@@ -1303,10 +1305,14 @@ function renderPictures() {
 function pictureCard(job) {
   const card=node('section','picture-card');
   const head=node('div','picture-card-head');
-  if(job.poseOf)head.append(poseOfRow(job.poseOf));
-  head.append(node('p','picture-prompt',job.prompt));
+  // A set made from another picture is headed by it: a pose and an edit say what is new, more like it doesn't.
+  if(job.poseOf)head.append(sourceRow(job.poseOf,'Pose of'));
+  if(job.likeOf)head.append(sourceRow(job.likeOf,'More like'));
+  if(job.editOf)head.append(sourceRow(job.editOf,'Edit of'));
+  if(!job.likeOf)head.append(node('p','picture-prompt',job.editOf?job.editOf.label:job.prompt));
   const count=job.n===1?'1 picture':`${job.n} pictures`;
-  head.append(node('span','picture-meta',`${count}${job.cutout?' · cut out':''} · ${relative(job.created*1000)}`));
+  const unedited=(job.poseOf||job.likeOf||{}).edited?' · from the picture before it was edited':'';
+  head.append(node('span','picture-meta',`${count}${job.cutout?' · cut out':''}${unedited} · ${relative(job.created*1000)}`));
   card.append(head);
   if(job.status==='failed') {
     const row=node('div','picture-failed');
@@ -1338,7 +1344,7 @@ function pictureTile(job,picture) {
   const add=node('button','picture-add');
   const img=node('img');
   img.src=pictureUrl(job,picture,showCutout);
-  img.alt=`${job.prompt}, picture ${picture.index+1}${showCutout?', background cut out':''}`;
+  img.alt=`${job.prompt}, ${job.editOf?job.editOf.label.toLowerCase():`picture ${picture.index+1}`}${showCutout?', background cut out':''}`;
   img.loading='lazy';
   img.decoding='async';
   add.append(img);
@@ -1363,19 +1369,18 @@ function pictureTile(job,picture) {
     };
     tile.append(flip)
   }
-  if(picture.posable) {
-    const pose=node('button','picture-pose');
-    pose.type='button';
-    pose.append(icon('pose'));
-    pose.title='Make another pose of this';
-    pose.setAttribute('aria-label',`Make another pose of picture ${picture.index+1}`);
-    pose.onclick=()=>startPose(job,picture);
-    tile.append(pose)
-  }
+  const more=node('button','picture-more');
+  more.type='button';
+  more.append(icon('more'));
+  more.title='More you can do with this picture';
+  more.setAttribute('aria-label',`More for picture ${picture.index+1}`);
+  more.setAttribute('aria-haspopup','dialog');
+  more.onclick=()=>openPictureActions(job,picture,showCutout,more);
+  tile.append(more);
   return tile
 }
-// Which picture a set of poses was made from: its thumbnail, while the set is still kept, and its words.
-function poseOfRow(source) {
+// Which picture a set was made from: its thumbnail, while the set is still kept, and its words.
+function sourceRow(source,label) {
   const row=node('div','picture-pose-of');
   const img=node('img');
   img.alt='';
@@ -1384,9 +1389,117 @@ function poseOfRow(source) {
   img.onerror=()=>img.remove();
   img.src=pictureUrl({id:source.id}, {index:source.index},source.cutout);
   if(source.cutout)img.className='checker';
-  row.append(img,node('span',null,`Pose of: ${source.prompt}`));
+  row.append(img,node('span',null,`${label}: ${source.prompt}`));
   return row
 }
+// ---- A picture's actions: one "⋯" per tile opens a small sheet over the Pictures sheet ----
+const PICTURE_CROPS=[
+  ['square','Square',null],
+  ['16:9','Wide','16:9, like a landscape video'],
+  ['9:16','Tall','9:16, like a phone video'],
+  ['trim','Trim the empty edges','Down to just what was cut out']
+];
+function openPictureActions(job,picture,cutout,opener) {
+  state.pictureActions={job,picture,cutout,opener,busy:false};
+  const thumb=$('picture-actions-thumb');
+  thumb.classList.toggle('checker',cutout);
+  thumb.src=pictureUrl(job,picture,cutout);
+  $('picture-actions-title').textContent=job.editOf?job.editOf.label:`Picture ${picture.index+1}`;
+  $('picture-actions-prompt').textContent=job.prompt;
+  $('picture-actions-error').hidden=true;
+  $('picture-actions').hidden=false;
+  $('picture-actions-shade').hidden=false;
+  renderPictureActions('main');
+  $('picture-actions-list').querySelector('button')?.focus({preventScroll: true})
+}
+function closePictureActions() {
+  const open=state.pictureActions;
+  if(!open)return;
+  state.pictureActions=null;
+  $('picture-actions').hidden=true;
+  $('picture-actions-shade').hidden=true;
+  $('picture-actions-thumb').removeAttribute('src');
+  if(open.opener.isConnected)open.opener.focus({preventScroll: true})
+}
+function pictureAction(iconName,label,detail,onclick,disabled) {
+  const b=node('button','picture-action');
+  b.type='button';
+  b.append(icon(iconName));
+  const text=node('span','picture-action-text');
+  text.append(node('span',null,label));
+  if(detail)text.append(node('small',null,detail));
+  b.append(text);
+  b.disabled=!!disabled;
+  b.onclick=onclick;
+  return b
+}
+function renderPictureActions(view) {
+  const open=state.pictureActions,list=$('picture-actions-list');
+  const {job,picture,cutout}=open;
+  open.view=view;
+  list.replaceChildren();
+  if(view==='crop') {
+    list.append(pictureAction('back','Back',null,()=>renderPictureActions('main')));
+    for(const [edit,label,detail] of PICTURE_CROPS) {
+      if(edit==='trim'&&!picture.cutout)continue;
+      list.append(pictureAction('crop',label,detail,()=>editPicture(edit)))
+    }
+  }
+  else {
+    const key=pictureKey(job,picture,cutout),added=state.files.some(f=>f.pictureKey===key);
+    list.append(pictureAction(added?'check':'add',added?'In your note':'Add to note',null,()=> {
+      // The list may have been redrawn by a poll while the sheet was open: then its tile is a new one.
+      const tile=open.opener.isConnected?open.opener.closest('.picture-tile'):null;
+      closePictureActions();
+      addPicture(job,picture,cutout,tile)
+    },added));
+    if(picture.posable) {
+      // An edit has no drawing of its own to start from, so these start from the picture before it.
+      const before=job.editOf?'From the picture before it was edited':null;
+      const full=picturesPending().length>=2;
+      list.append(pictureAction('pose','Another pose',before,()=> {
+        closePictureActions();
+        startPose(job,picture)
+      }));
+      list.append(pictureAction('like','More like this',full?'Two sets are on the way. Wait for one.':before||'2 more in the same style',
+        ()=>varyPicture(),full));
+    }
+    list.append(pictureAction('flip','Flip left to right',null,()=>editPicture('flip')));
+    list.append(pictureAction('rotate-left','Rotate left',null,()=>editPicture('rotate-left')));
+    list.append(pictureAction('rotate-right','Rotate right',null,()=>editPicture('rotate-right')));
+    list.append(pictureAction('crop','Crop…',picture.cutout?'Square, wide, tall or trimmed':'Square, wide or tall',
+      ()=>renderPictureActions('crop')))
+  }
+  for(const b of list.children)if(open.busy)b.disabled=true
+}
+// Runs one action of the open sheet; the new set goes to the top of the list, the sheet closes.
+async function runPictureAction(path,body) {
+  const open=state.pictureActions;
+  if(!open||open.busy)return;
+  open.busy=true;
+  for(const b of $('picture-actions-list').children)b.disabled=true;
+  $('picture-actions-error').hidden=true;
+  try {
+    const job=await json(`pictures/${open.job.id}/${open.picture.index}/${path}`,null, {
+      video:state.video,...body
+    });
+    state.pictures=[job,...(state.pictures||[]).filter(j=>j.id!==job.id)];
+    if(state.pictureActions===open)closePictureActions();
+    renderPictures();
+    const card=$('pictures-list').firstElementChild;
+    card?.classList.add('fresh');
+    card?.scrollIntoView({block:'nearest'})
+  }
+  catch(e) {
+    if(state.pictureActions!==open)return;
+    open.busy=false;
+    $('picture-actions-error').textContent=e.message;
+    $('picture-actions-error').hidden=false;
+    renderPictureActions(open.view)
+  }
+}
+const varyPicture=()=>runPictureAction('vary', {});
+const editPicture=edit=>runPictureAction('edit', {edit});
 // "Make another pose of this" turns the form at the top into a pose form for that picture: the
 // description becomes the pose, and the set's size and cut-out follow the picture. What was being
 // described waits, and comes back after.
@@ -1429,6 +1542,7 @@ async function addPicture(job,picture,cutout,tile) {
     showPictureAdded('Already in your note');
     return
   }
+  tile=tile||node('div');
   if(tile.classList.contains('adding'))return;
   tile.classList.add('adding');
   $('pictures-error').hidden=true;
@@ -1437,7 +1551,8 @@ async function addPicture(job,picture,cutout,tile) {
       video:state.video,cutout
     });
     addFiles([{...record,pictureKey:key,thumb:pictureUrl(job,picture,cutout)}]);
-    tile.replaceWith(pictureTile(job,picture));
+    if(tile.isConnected)tile.replaceWith(pictureTile(job,picture));
+    else renderPictures();
     showPictureAdded('Added to your note')
   }
   catch(e) {
@@ -1513,6 +1628,14 @@ $('pictures-close').onclick=closePictures;
 $('pictures-shade').onclick=closePictures;
 $('pictures-back').onclick=closePictures;
 $('pictures-form').onsubmit=makePictures;
+$('picture-actions-close').onclick=closePictureActions;
+$('picture-actions-shade').onclick=closePictureActions;
+$('picture-actions').onkeydown=e=> {
+  if(e.key==='Escape') {
+    e.stopPropagation();
+    closePictureActions()
+  }
+};
 $('pictures-pose-cancel').onclick=()=> {
   endPose();
   $('pictures-prompt').focus({preventScroll: true})

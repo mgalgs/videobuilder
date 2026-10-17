@@ -1780,14 +1780,16 @@ button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible,
   background: #222228;
 }
 
-/* A cut-out sits on a checkerboard, so its transparency reads as transparency. */
-.picture-tile.checker {
+/* A cut-out sits on a checkerboard, so its transparency reads as transparency. The board is the
+   picture's own box, not the tile's, so a crop to 9:16 or 16:9 shows its shape. */
+.picture-tile.checker img {
   background-color: #ededf1;
   background-image: conic-gradient(#cfcfd6 25%,transparent 0 50%,#cfcfd6 0 75%,transparent 0);
   background-size: 18px 18px;
 }
 
 .picture-add {
+  position: relative;
   display: block;
   width: 100%;
   height: 100%;
@@ -1797,10 +1799,12 @@ button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible,
 }
 
 .picture-add img {
+  position: absolute;
+  inset: 0;
   display: block;
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
+  margin: auto;
+  max-width: 100%;
+  max-height: 100%;
   transition: transform .15s ease, opacity .15s ease;
 }
 
@@ -1843,8 +1847,8 @@ button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible,
   backdrop-filter: blur(6px);
 }
 
-/* "Make another pose of this": opposite the cut-out toggle, so both fit a phone-width tile. */
-.picture-pose {
+/* "⋯", a picture's actions: opposite the cut-out toggle, so both fit a phone-width tile. */
+.picture-more {
   position: absolute;
   right: 6px;
   bottom: 6px;
@@ -1861,7 +1865,7 @@ button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible,
   backdrop-filter: blur(6px);
 }
 
-.picture-pose:active {
+.picture-more:active {
   transform: scale(.94);
 }
 
@@ -1875,7 +1879,7 @@ button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible,
   background: #1d1d22;
 }
 
-.pictures-pose img,.picture-pose-of img {
+.pictures-pose img,.picture-pose-of img,.picture-actions-head img {
   flex: none;
   object-fit: contain;
   background: #2a2a31;
@@ -1887,7 +1891,7 @@ button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible,
   border-radius: 8px;
 }
 
-.pictures-pose img.checker,.picture-pose-of img.checker {
+.pictures-pose img.checker,.picture-pose-of img.checker,.picture-actions-head img.checker {
   background-color: #ededf1;
   background-image: conic-gradient(#cfcfd6 25%,transparent 0 50%,#cfcfd6 0 75%,transparent 0);
   background-size: 10px 10px;
@@ -2009,6 +2013,139 @@ button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible,
   font-weight: 700;
 }
 
+/* A set just made from a picture's actions, so the eye finds it. */
+.picture-card.fresh {
+  animation: picture-fresh 1.6s ease-out;
+}
+
+.picture-actions-shade {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  background: #0009;
+}
+
+/* A picture's actions: a small sheet up from the Pictures sheet's bottom edge, at any width. */
+.picture-actions {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 3;
+  max-height: 85%;
+  display: flex;
+  flex-direction: column;
+  background: var(--panel);
+  border-top: 1px solid #34343c;
+  border-radius: 16px 16px 0 0;
+  padding-bottom: env(safe-area-inset-bottom);
+  box-shadow: 0 -8px 30px #0008;
+  animation: picture-rise-sheet .18s ease-out;
+}
+
+.picture-actions-head {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 4px 8px 14px;
+  border-bottom: 1px solid var(--line);
+}
+
+.picture-actions-head img {
+  width: 44px;
+  height: 44px;
+  border-radius: 8px;
+}
+
+.picture-actions-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.picture-actions-text strong {
+  font-size: 14px;
+}
+
+.picture-actions-text span {
+  font-size: 13px;
+  color: var(--muted);
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.picture-actions-list {
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  display: flex;
+  flex-direction: column;
+  padding: 6px 0;
+}
+
+.picture-action {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-height: 48px;
+  padding: 6px 18px;
+  border: 0;
+  background: none;
+  color: #fff;
+  font-size: 15px;
+  text-align: left;
+}
+
+.picture-action:hover:not(:disabled),.picture-action:focus-visible {
+  background: #ffffff0f;
+}
+
+.picture-action:active:not(:disabled) {
+  background: #ffffff1a;
+}
+
+.picture-action:disabled {
+  color: var(--muted);
+}
+
+.picture-action svg {
+  flex: none;
+}
+
+.picture-action-text {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.picture-action-text small {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.picture-actions .composer-error {
+  margin: 0 18px 12px;
+}
+
+@keyframes picture-fresh {
+  from {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 2px var(--accent);
+  }
+
+}
+@keyframes picture-rise-sheet {
+  from {
+    transform: translateY(24px);
+    opacity: 0;
+  }
+
+}
 @keyframes picture-wait {
   0% {
     background-position: 100% 0;
@@ -2034,7 +2171,7 @@ button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible,
 
 }
 @media (prefers-reduced-motion: reduce) {
-  .picture-wait,.picture-added-mark,.pictures-added.pop {
+  .picture-wait,.picture-added-mark,.pictures-added.pop,.picture-card.fresh,.picture-actions {
     animation: none;
   }
 
