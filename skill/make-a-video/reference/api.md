@@ -211,6 +211,23 @@ FOX.draw(cv, pose, x, ground_y, sx=sx, sy=sy, lean=0.03, angle=0, mark='fox')   
 - The pictures must have their backgrounds cut out; `age` is 0 on the
   frame a pose snaps in, for a 2-3 frame pop.
 
+### A walk without leg drawings
+
+```python
+STEP = GRID.frames_per_beat / 2                     # two steps a beat
+g = FOX.walk(n, STEP, rise=0.035, squash=0.05, lean=0.04)   # Gait(lift, sx, sy, lean, phase)
+FOX.draw(cv, 'idle', x, ground_y - g.lift, sx=-g.sx, sy=g.sy, lean=g.lean)   # -sx: mirrored to face the way
+parallax.draw(cv, LAYERS, n * STRIDE / STEP)        # the ground passes one stride a step
+```
+
+- The bounce-walk of cut-out TV animation: down with a squash on each
+  contact (`phase` 0), up `rise` x its height on the passing position,
+  leaning forward. It stays put; the ground scrolling past at a steady
+  speed is what makes it walk. Say so if asked for a real leg cycle:
+  that needs leg drawings.
+- A whole number of steps across a loop, and the scroll's travel a whole
+  number of each layer's tiles, keep the seam clean.
+
 ## Text
 
 ```python

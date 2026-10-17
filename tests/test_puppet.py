@@ -91,5 +91,23 @@ class Puppet(unittest.TestCase):
             vb.Puppet({'idle': PILImage.new('RGB', (10, 10))}, height=10)
 
 
+class Walk(unittest.TestCase):
+    def test_down_and_squashed_on_contact_up_on_the_passing_position(self):
+        p = vb.Puppet({'idle': figure()}, height=100)
+        contact, passing = p.walk(0, 8), p.walk(4, 8)
+        self.assertEqual(contact.lift, 0)
+        self.assertGreater(contact.sx, 1)
+        self.assertLess(contact.sy, 1)
+        self.assertAlmostEqual(passing.lift, 0.035 * 100)
+        self.assertAlmostEqual(passing.sx, 1)
+        self.assertGreater(contact.lean, passing.lean)
+        self.assertGreater(passing.lean, 0)
+
+    def test_one_step_every_step_frames_from_start(self):
+        p = vb.Puppet({'idle': figure()}, height=100)
+        self.assertEqual(p.walk(3, 7.5, start=3), p.walk(3 + 15, 7.5, start=3))
+        self.assertAlmostEqual(p.walk(3 + 3.75, 7.5, start=3).phase, 0.5)
+
+
 if __name__ == '__main__':
     unittest.main()

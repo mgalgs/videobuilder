@@ -3,8 +3,11 @@
     fox = vb.Puppet({'idle': 'fox/idle.png', 'talk': 'fox/talk.png'}, height=380)
     pose, age = fox.pose_at(n, [(0, 'idle'), (12, 'talk'), (16, 'idle')])
     fox.draw(cv, pose, x, ground_y, sx=1.02, sy=0.98, mark='fox')
+    g = fox.walk(n, step=7.5)       # a bounce-walk on the spot, two steps a beat at 120 bpm
+    fox.draw(cv, 'idle', x, ground_y - g.lift, sx=g.sx, sy=g.sy, lean=g.lean)
 """
 import math
+from collections import namedtuple
 
 import cairo
 from PIL import Image as PILImage
@@ -27,6 +30,11 @@ def _measure(pil):
     band = max(1, round((y1 - y0) * _FEET_BAND))
     fx0, _, fx1, _ = alpha.crop((x0, y1 - band, x1, y1)).getbbox()
     return bbox, (x0 + (fx0 + fx1) / 2, y1)
+
+
+Gait = namedtuple('Gait', 'lift sx sy lean phase')
+Gait.__doc__ = """One frame of `Puppet.walk`: `lift` px off the ground, `sx`/`sy` and
+`lean` for `Puppet.draw`, and `phase`, 0..1 through the step (0 on contact)."""
 
 
 class Puppet:
@@ -115,3 +123,20 @@ class Puppet:
         frames. A whole number of periods across a loop keeps the seam clean."""
         s = math.sin(2 * math.pi * n / period)
         return 1 - depth / 3 * s, 1 + depth * s
+
+    def walk(self, n, step, rise=0.035, squash=0.05, lean=0.04, start=0):
+        """A Gait for frame `n` of a bounce-walk on the spot, the cut-out TV
+        walk for a character with no leg drawings: one step every `step`
+        frames from frame `start` (put steps on the beat: `step =
+        GRID.frames_per_beat / 2` is two a beat). On each contact the body is
+        down on the ground with a quick squash (`squash`: share wider and
+        shorter); halfway through the step, on the passing position, it's up
+        `rise` x its height. It leans forward `lean` the whole time, a little
+        more as it comes down. Moving the ground and background past
+        underneath at a steady speed is what makes it read as walking; a
+        whole number of steps across a loop keeps the seam clean."""
+        phase = ((n - start) / step) % 1.0
+        up = math.sin(math.pi * phase)                           # 0 on contact, 1 passing; a sharp bounce off the ground
+        contact = max(0.0, math.cos(2 * math.pi * phase)) ** 4   # a short pulse about each contact
+        return Gait(lift=rise * self.height * up, sx=1 + squash * contact, sy=1 - squash * contact,
+                    lean=lean * (1 + 0.35 * contact), phase=phase)
