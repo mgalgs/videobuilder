@@ -192,6 +192,15 @@ class DirectorPageRoutes(API):
         self.assertIn("api('sources/'", js)
         self.assertIn("json('sources'", js)
 
+    def test_a_video_without_a_timeline_file_has_no_timeline(self):
+        from tests.test_project import git
+        git(self.root, 'branch', '-M', 'main')
+        t = self.get('/api/timeline?video=promo/film')
+        self.assertEqual(t, {'commit': git(self.root, 'rev-parse', 'main').strip(), 'timeline': None})
+        code, out = self.post('/api/timeline', {'video': 'promo/film', 'base': t['commit'],
+                                                'timeline': {'version': 1, 'clips': [{'id': 'a', 'dir': 'a'}]}})
+        self.assertEqual((code, out['error']), (400, 'this video is not a film of clips: it has no timeline.json'))
+
     def test_signed_out_handling_pins_resume_probe_banner_and_draft_order(self):
         # A session can expire while the director tab sits open: the 401 handler
         # must show the banner, stop polling, keep whatever was typed, and the

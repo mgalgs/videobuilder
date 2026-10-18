@@ -100,7 +100,8 @@ sound that is speech plays, each over its own span: the `Sound`s of a clip
 directory's film (the spans its render reports, so a 2 s voice-over in a 10 s
 clip dips the lane for 2 s), the caption cues of a footage clip with a caption
 file beside its source (`sources/boat.vtt` beside `sources/boat.mp4`), or the
-whole of a clip's sound when it is marked `dialogue`.
+whole of a clip's sound when it is marked `dialogue`. `mute: true` leaves a
+lane out of the mix, items and all, without removing it.
 
 **Footage and big sounds** live in the video's `sources/`: uploaded to the
 editor, linked into every checkout and render, and never committed. A small

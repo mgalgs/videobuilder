@@ -80,6 +80,19 @@ class TimelineFile(unittest.TestCase):
         self.assertEqual(t.lanes[0].items[0], tf.LaneItem('sources/theme.mp4', 0, 240, 0, -3.0))
         self.assertIs(t.clip('boat'), boat)
 
+    def test_a_muted_lane_stays_in_the_file_and_out_of_the_mix(self):
+        d = good()
+        d['lanes'][1] = {'mute': True, 'items': [{'sound': 'theme.wav', 'at': 0, 'frames': 30}]}
+        t = tf.parse(d)
+        self.assertEqual((t.lanes[0].mute, t.lanes[1].mute), (False, True))
+        with tempfile.TemporaryDirectory() as root:
+            for name in ('theme.wav', 'sources/theme.mp4'):
+                (Path(root) / name).parent.mkdir(parents=True, exist_ok=True)
+                (Path(root) / name).write_bytes(b'')
+            self.assertEqual([len(sounds) for _, sounds in assembly.lane_sounds(t, root)], [1, 0])
+        self.assertIn('lanes[1] (Audio 2): mute must be true or false, not a string', problems({**d, 'lanes': [
+            d['lanes'][0], {'mute': 'yes', 'items': []}]}))
+
     def test_the_least_a_file_needs(self):
         t = tf.loads('{"version": 1, "clips": [{"id": "a", "dir": "a"}]}')
         self.assertEqual((t.fps, t.formats, t.acts, t.lanes), (30, ('16x9',), (), ()))
@@ -542,12 +555,12 @@ class Assembly(unittest.TestCase):
             self.assemble()
 
 
-@unittest.skipUnless(HAS_FFMPEG, 'needs ffmpeg')
-class EditorAssembly(TempProject):
-    """The editor serves a film of clips' assembly from /api/video, and one
-    clip's render from /api/clip, through the render queue."""
+class FilmOfClips(TempProject):
+    """An editor on a project whose `promo/film` is a film of clips, its clips
+    rendered locally (the ids rendered in `self.rendered`)."""
     start = fixtures.API.start
     get = fixtures.API.get
+    post = fixtures.API.post
 
     def setUp(self):
         super().setUp()
@@ -577,6 +590,12 @@ class EditorAssembly(TempProject):
             self.assertIn(body['state'], ('queued', 'rendering'), body)
             time.sleep(0.2)
         self.fail('render did not finish')
+
+
+@unittest.skipUnless(HAS_FFMPEG, 'needs ffmpeg')
+class EditorAssembly(FilmOfClips):
+    """The editor serves a film of clips' assembly from /api/video, and one
+    clip's render from /api/clip, through the render queue."""
 
     def test_video_and_clip(self):
         data = self.wait(f'/api/video?video=promo/film&commit={self.sha}')
@@ -624,6 +643,119 @@ class EditorAssembly(TempProject):
         self.editor.renders.evict('promo/film')
         self.assertFalse(old_c.exists())
         self.assertTrue(self.editor.renders.clip_path('promo/film', sha, '1x1', 'a').is_file())
+
+
+
+@unittest.skipUnless(HAS_FFMPEG, 'needs ffmpeg')
+class EditorTimeline(FilmOfClips):
+    """The editor's timeline API: GET /api/timeline reads the file at main with
+    each clip's render state; POST /api/timeline commits only the file, as an
+    edit, refusing what the loader refuses and an edit made against a stale
+    timeline; and an edit to the file renders no clip again."""
+
+    def timeline(self):
+        return self.get('/api/timeline?video=promo/film')
+
+    def edit(self, change, base=None, summary=None):
+        t = self.timeline()
+        data = json.loads(json.dumps(t['timeline']))
+        change(data)
+        body = {'video': 'promo/film', 'timeline': data, 'base': base or t['commit']}
+        if summary:
+            body['summary'] = summary
+        return self.post('/api/timeline', body)
+
+    def test_read(self):
+        t = self.timeline()
+        self.assertEqual((t['commit'], t['format'], t['fps'], t['formats']), (self.sha, '1x1', 30, ['1x1']))
+        self.assertEqual(t['timeline'], three_clips())
+        a, boat, c = t['clips']
+        self.assertEqual((a['id'], a['kind'], boat['kind'], c['id']), ('a', 'clip', 'footage', 'c'))
+        tree = GitTree(self.root, self.sha, 'promo')
+        timeline = tf.parse(three_clips())
+        self.assertEqual(a['key'], clip_key(tree, timeline.clip('a'), '1x1'))
+        self.assertIsNone(boat['key'])
+        # The footage is there to cut from; the clips render with the assembly the read asked for.
+        self.assertEqual((boat['state'], boat['frames'], boat['audio'], boat['speech']), ('ready', 60, True, [[0, 60]]))
+        self.assertIn(a['state'], ('building', 'none'))
+        self.assertIsNone(a['frames'])
+        self.wait(f'/api/video?video=promo/film&commit={self.sha}')
+        a = self.timeline()['clips'][0]
+        self.assertEqual((a['state'], a['frames'], a['audio']), ('ready', 30, False))
+        thumb = self.get(f'/api/timeline/thumb?video=promo/film&clip=a&commit={self.sha}')
+        self.assertEqual(thumb[:2], b'\xff\xd8')
+
+    def test_a_valid_edit_commits_only_the_timeline_file_as_an_edit(self):
+        (self.root / 'promo' / 'README.md').write_text('not part of the edit\n')
+
+        def dissolve_into_c(t):
+            t['clips'][2]['cut'] = {'transition': 'dissolve', 'frames': 9}
+        code, out = self.edit(dissolve_into_c, summary='dissolve into c')
+        self.assertEqual(code, 200, out)
+        self.assertTrue(out['changed'])
+        commit = git(self.root, 'rev-parse', 'main').strip()
+        self.assertEqual((out['commit'], out['n']), (commit, len(self.log())))
+        self.assertNotEqual(commit, self.sha)
+        self.assertEqual(self.files_in(commit), ['promo/timeline.json'])
+        message = git(self.root, 'show', '-s', '--format=%B', commit)
+        self.assertTrue(message.startswith('timeline(promo/film): dissolve into c\n'), message)
+        self.assertIn('Version-kind: edit\nDirected-by: ', message)
+        self.assertEqual(out['timeline']['clips'][2]['cut'], {'transition': 'dissolve', 'frames': 9})
+        versions = self.get('/api/versions?video=promo/film')['versions']
+        self.assertEqual((versions[0]['commit'], versions[0]['kind']), (commit, 'edit'))
+        # The same file again is no new version.
+        code, again = self.edit(lambda t: None)
+        self.assertEqual((code, again['changed'], again['commit']), (200, False, commit))
+
+    def test_an_invalid_edit_is_refused_with_the_loaders_message(self):
+        def trim(t):
+            t['clips'][0]['trim'] = 4
+        code, out = self.edit(trim)
+        self.assertEqual(code, 400)
+        self.assertIn('clips[0] "a": unknown key "trim" (trim with "head" and "tail", frames off each end)',
+                      out['error'])
+        self.assertEqual(git(self.root, 'rev-parse', 'main').strip(), self.sha)
+
+    def test_an_edit_against_a_stale_timeline_is_refused(self):
+        code, _ = self.edit(lambda t: t['clips'][0].update(tail=6))
+        self.assertEqual(code, 200)
+        code, out = self.edit(lambda t: t['lanes'].append({'items': []}), base=self.sha)
+        self.assertEqual(code, 409)
+        self.assertIn('the timeline changed since you opened it', out['error'])
+        self.assertEqual(self.timeline()['timeline']['lanes'], three_clips()['lanes'])
+        # A commit that leaves the timeline file alone doesn't make the edit stale.
+        latest = self.timeline()['commit']
+        (self.root / 'promo' / 'notes.txt').write_text('elsewhere\n')
+        git(self.root, 'add', '-A')
+        git(self.root, 'commit', '-qm', 'something else')
+        code, out = self.edit(lambda t: t['lanes'].append({'items': []}), base=latest)
+        self.assertEqual(code, 200, out)
+        self.assertEqual(len(out['timeline']['lanes']), 2)
+
+    def test_a_trim_renders_no_clip(self):
+        self.wait(f'/api/video?video=promo/film&commit={self.sha}')
+        self.assertEqual(sorted(self.rendered), ['a', 'c'])
+        self.rendered.clear()
+        code, out = self.edit(lambda t: t['clips'][2].update(head=4, tail=2))
+        self.assertEqual(code, 200, out)
+        self.assertEqual([c['state'] for c in out['clips']], ['ready'] * 3)
+        data = self.wait(f'/api/video?video=promo/film&commit={out["commit"]}')
+        self.assertEqual(data[4:8], b'ftyp')
+        self.assertEqual(frame_count_bytes(data), 27 + 30 + 24 - 6 - 6)
+        self.assertEqual(self.rendered, [])
+
+    def test_a_trim_a_clip_is_too_short_for_is_refused(self):
+        self.wait(f'/api/video?video=promo/film&commit={self.sha}')
+        code, out = self.edit(lambda t: t['clips'][2].update(head=20, tail=8))
+        self.assertEqual(code, 400)
+        self.assertIn('clip "c": its transitions (6 in, 0 out) are longer than the 2 frames it shows', out['error'])
+
+
+def frame_count_bytes(data):
+    with tempfile.NamedTemporaryFile(suffix='.mp4') as f:
+        f.write(data)
+        f.flush()
+        return frame_count(f.name)
 
 
 if __name__ == '__main__':

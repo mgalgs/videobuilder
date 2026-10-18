@@ -166,6 +166,7 @@ class Lane:
     items: tuple = ()
     duck: bool = False
     duck_db: float = DEFAULT_DUCK_DB
+    mute: bool = False            # kept in the file, left out of the mix
 
 
 @dataclass(frozen=True)
@@ -357,9 +358,10 @@ def _parse_clip(ck, i, raw, seen):
 def _parse_lane(ck, i, raw):
     name = lane_name(i)
     where = f'lanes[{i}] ({name})'
-    if not ck.keys(where, raw, ('items', 'duck', 'duck_db')):
+    if not ck.keys(where, raw, ('items', 'duck', 'duck_db', 'mute')):
         return Lane(name)
     duck = ck.bool_(where, raw, 'duck')
+    mute = ck.bool_(where, raw, 'mute')
     duck_db = ck.num(where, raw, 'duck_db', DEFAULT_DUCK_DB, lo=-60.0, hi=0.0)
     if 'duck_db' in raw and not duck:
         ck.bad(where, 'duck_db is set but duck is not true')
@@ -377,7 +379,7 @@ def _parse_lane(ck, i, raw):
                             ck.int_(w, item, 'frames', 1, minimum=1), ck.int_(w, item, 'offset'),
                             ck.num(w, item, 'gain_db'), ck.int_(w, item, 'fade_in', DEFAULT_FADE),
                             ck.int_(w, item, 'fade_out', DEFAULT_FADE)))
-    return Lane(name, tuple(out), duck, duck_db)
+    return Lane(name, tuple(out), duck, duck_db, mute)
 
 
 def _parse_acts(ck, raw, order):

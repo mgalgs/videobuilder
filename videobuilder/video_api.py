@@ -13,6 +13,7 @@ from .editor import HTTPError, _field, _need, _page
 from .gitutil import git
 from .music import FetchError, TooLarge, extension_for, fetch_binary
 from .notes import FINAL
+from .timeline_api import get_thumb, get_timeline, post_timeline
 from .transcript import feed_source, read_feed
 from .versions import Refused
 
@@ -364,6 +365,8 @@ GET_ROUTES = [
     ('/api/versions', _get_versions),
     ('/api/video', _get_video),
     ('/api/clip', _get_clip),
+    ('/api/timeline', get_timeline),
+    ('/api/timeline/thumb', get_thumb),
     ('/api/thumbnail', _get_thumbnail),
     ('/capabilities', _get_capabilities),
     (re.compile(r'/capabilities/community/([a-z][a-z0-9-]*)\.(mp4|jpg)'), _get_community_clip),
@@ -574,6 +577,7 @@ POST_ROUTES = [
     ('/api/video/retry', _post_video_retry),
     ('/api/versions/restore', _post_versions_restore),
     ('/api/upgrade', _post_upgrade),
+    ('/api/timeline', post_timeline),
     (('/api/draft/accept', '/api/draft/drop'), _post_draft_action),
     ('/api/compendium/vote', _post_compendium_vote),
     ('/api/music/attach', _post_music_attach),

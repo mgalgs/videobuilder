@@ -212,12 +212,13 @@ def clip_sounds(timeline, placements, media):
 
 
 def lane_sounds(timeline, root):
-    """[(lane, [Sound])] for every Audio lane, its items as Sounds."""
+    """[(lane, [Sound])] for every Audio lane, its items as Sounds (none for a muted lane)."""
     out = []
     for lane in timeline.lanes:
+        items = () if lane.mute else lane.items
         out.append((lane, [Sound(resolve(root, it.sound), at=it.at, start=it.offset / timeline.fps,
                                  frames=it.frames, gain_db=it.gain_db, fade_in_frames=it.fade_in,
-                                 fade_out_frames=it.fade_out) for it in lane.items]))
+                                 fade_out_frames=it.fade_out) for it in items]))
     return out
 
 
