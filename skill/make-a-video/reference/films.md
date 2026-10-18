@@ -110,3 +110,10 @@ python -m videobuilder assemble . [--format 16x9|all] [--out film.mp4]
 
 Clip renders are kept in `.vb-cache/clips/`; a second run renders only the
 clips that changed, and a change to the timeline file alone renders none.
+
+To check the timeline file without rendering anything, add `--check`: it
+validates the file and that every clip directory it names has its film
+file, and lists footage and sounds that aren't on disk (fine for uploads
+that aren't in this checkout). A clip directory imports `shared` with the
+video's root on its import path, so run its own tools that way:
+`PYTHONPATH=. python -m videobuilder still clips/01-opening/film.py 0`.

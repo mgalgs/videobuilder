@@ -368,6 +368,29 @@ def build(timeline, fmt, out, root, tree, cache, render_clip, log=sys.stderr):
     return Result(str(out), frames, rendered, reused, copied)
 
 
+def check_dir(root):
+    """`python -m videobuilder assemble --check`: the timeline at `root`
+    validated, without rendering anything. Returns (timeline, problems,
+    missing): problems are clip directories without their film file; missing
+    are footage and lane sounds not on disk (an upload that isn't in this
+    checkout is not a mistake in the file). Raises TimelineError for a file
+    that doesn't validate."""
+    root = Path(root).resolve()
+    timeline = load_timeline(root / 'timeline.json')
+    problems, missing = [], []
+    for c in timeline.clips:
+        if c.is_footage:
+            if not (root / c.footage).is_file():
+                missing.append(c.footage)
+        elif not (root / c.dir).is_dir():
+            problems.append(f'clip "{c.id}": no directory {c.dir}')
+        elif not (root / c.film_path).is_file():
+            problems.append(f'clip "{c.id}": no film file {c.film_path}')
+    for lane in timeline.lanes:
+        missing += [i.sound for i in lane.items if not (root / i.sound).is_file()]
+    return timeline, problems, list(dict.fromkeys(missing))
+
+
 def assemble_dir(root, fmt=None, out=None, cache_dir=None, render_clip=None, jobs=None, log=sys.stderr):
     """`python -m videobuilder assemble`: the timeline at `root`, as the files
     are on disk, to `out` (default `<root>/<root name>-<fmt>.mp4`), keeping

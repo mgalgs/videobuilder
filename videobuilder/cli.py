@@ -1,7 +1,7 @@
 """Command line: render, still, sheet, preview, edit, editor.
 
     python -m videobuilder render  film.py [--format 9x16|16x9|1x1|all] [--jobs N] [--out FILE]
-    python -m videobuilder assemble DIR [--format F|all] [--out FILE] [--cache DIR] [--jobs N]
+    python -m videobuilder assemble DIR [--format F|all] [--out FILE] [--cache DIR] [--jobs N] [--check]
     python -m videobuilder still   film.py FRAME [FRAME ...] [--format F] [--out PATH] [--overlay]
     python -m videobuilder sheet   film.py [--format F] [--every N | --frames 0,30,60] [--out FILE] [--width W] [--cols C]
     python -m videobuilder preview film.py [--port 8000] [--host 127.0.0.1]
@@ -362,8 +362,21 @@ def cmd_say(a):
 
 
 def cmd_assemble(a):
-    from .assembly import assemble_dir
+    from .assembly import assemble_dir, check_dir
     from .timeline_file import TimelineError, load as load_timeline
+    if a.check:
+        try:
+            timeline, problems, missing = check_dir(a.dir)
+        except FileNotFoundError:
+            sys.exit(f'{a.dir}: no timeline.json')
+        except TimelineError as e:
+            sys.exit(str(e))
+        for path in missing:
+            print(f'not on disk here (fine if it is an upload): {path}', file=sys.stderr)
+        if problems:
+            sys.exit('timeline.json:\n  ' + '\n  '.join(problems))
+        print(f'timeline.json: ok, {len(timeline.clips)} clips')
+        return
     try:
         timeline = load_timeline(os.path.join(a.dir, 'timeline.json'))
     except FileNotFoundError:
@@ -402,6 +415,8 @@ def main(argv=None):
     asm.add_argument('dir')
     asm.add_argument('--format', help="a format name, or 'all' (default: the timeline's first)")
     asm.add_argument('--out', help='output file (default: <dir>/<dir name>-<format>.mp4)')
+    asm.add_argument('--check', action='store_true',
+                     help='validate timeline.json and the clip directories it names; render nothing')
     asm.add_argument('--cache', help='where clip renders are kept (default: <dir>/.vb-cache/clips)')
     asm.add_argument('--jobs', type=int, help='worker processes per clip render (default: CPU count)')
     asm.set_defaults(fn=cmd_assemble)
