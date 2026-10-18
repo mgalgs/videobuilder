@@ -322,91 +322,6 @@ STARTER_STYLE = (
     'gap:.75rem}.starters.hero .starter-prompt{-webkit-line-clamp:5;min-height:7em;font-size:.88rem}}'
 )
 
-# The New video page: one centred column, prompt first. Inputs follow the sign-in
-# pages' style; focus is a neutral lift, not red, so it never reads as an error.
-NEW_VIDEO_STYLE = (
-    '.new-wrap{max-width:780px;margin:0 auto}'
-    '.new-wrap .page-head{margin-bottom:1.25rem}'
-    '#new-video [hidden]{display:none !important}'
-    '#new-video{display:flex;flex-direction:column;gap:1.5rem}'
-    '#new-video label{display:flex;flex-direction:column;gap:.4rem;font-size:.88rem;color:#a9a9b2}'
-    # 16px, not the label's .88rem: iOS zooms the page into any smaller field it focuses.
-    '#new-video input:not([type=radio]):not([type=file]),#new-video textarea{font:inherit;font-size:16px;'
-    'color:#f4f4f2;'
-    'min-height:46px;padding:.7rem .85rem;border-radius:10px;border:1px solid #2c2c33;background:#0d0d10;'
-    'outline:none;box-sizing:border-box;width:100%;transition:border-color .15s,box-shadow .15s}'
-    '#new-video input:not([type=radio]):not([type=file]):focus,#new-video textarea:focus{border-color:#6b6b75;'
-    'box-shadow:0 0 0 3px rgba(244,244,242,.08)}'
-    '#new-video ::placeholder{color:#62626b}'
-    '#new-video textarea{min-height:88px;resize:vertical}'
-    '#prompt-fields{display:flex;flex-direction:column;gap:1.5rem}'
-    '#new-video .prompt{font-size:1.35rem;color:#f4f4f2;font-weight:800;letter-spacing:-.015em;gap:.75rem}'
-    '#new-video .prompt textarea{min-height:170px;padding:1rem 1.1rem;font-size:1.08rem;font-weight:400;'
-    'line-height:1.55;letter-spacing:0;background:#141417;border-color:#2c2c33;border-radius:14px;'
-    'box-shadow:0 20px 60px rgba(0,0,0,.35)}'
-    '#new-video .prompt textarea:focus{border-color:#6b6b75;'
-    'box-shadow:0 0 0 3px rgba(244,244,242,.08),0 20px 60px rgba(0,0,0,.35)}'
-    '.details{display:flex;flex-direction:column;gap:1.1rem;background:#141417;border:1px solid #26262c;'
-    'border-radius:16px;padding:1.5rem}'
-    '.details>h2{margin:0;font-size:.78rem;color:#8b8b94;text-transform:uppercase;letter-spacing:.08em;'
-    'font-weight:700}'
-    '#scratch-fields{display:flex;flex-direction:column;gap:1.1rem}'
-    '.start-from{border:0;margin:0;padding:0;min-width:0}'
-    '.start-from legend{color:#a9a9b2;font-size:.88rem;padding:0;margin:0 0 .4rem}'
-    '.choices{display:grid;grid-template-columns:1fr 1fr;gap:.6rem}'
-    '#new-video .choice{position:relative;flex-direction:row;align-items:center;gap:.65rem;min-height:48px;'
-    'padding:.6rem .85rem;border:1px solid #2c2c33;border-radius:10px;background:#0d0d10;color:#f4f4f2;'
-    'font-size:.95rem;cursor:pointer;transition:border-color .15s,background .15s}'
-    '#new-video .choice:hover{border-color:#3a3a42}'
-    '.choice input{position:absolute;opacity:0;width:1px;height:1px;margin:0}'
-    '.choice-dot{flex:none;width:18px;height:18px;border-radius:50%;border:2px solid #4a4a52;box-sizing:border-box}'
-    '#new-video .choice:has(input:checked){border-color:#ef5b4c;background:#1d1312}'
-    '.choice:has(input:checked) .choice-dot{border:5px solid #ef5b4c}'
-    '.choice:has(input:focus-visible){box-shadow:0 0 0 3px rgba(244,244,242,.12)}'
-    '.files-label{color:#a9a9b2;font-size:.88rem;margin:0 0 -.7rem}'
-    '#new-video .drop{position:relative;align-items:center;justify-content:center;gap:.25rem;min-height:120px;'
-    'padding:1.25rem 1rem;border:1.5px dashed #3a3a42;border-radius:12px;background:#0d0d10;text-align:center;'
-    'cursor:pointer;transition:border-color .15s,background .15s}'
-    '#new-video .drop:hover,#new-video .drop.over{border-color:#ef5b4c;background:#1a1211}'
-    '.drop:has(input:focus-visible){box-shadow:0 0 0 3px rgba(244,244,242,.12)}'
-    '.drop input{position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer}'
-    '.drop-title{color:#f4f4f2;font-weight:600;font-size:.98rem}'
-    '.drop-title u{color:#ef5b4c;text-decoration:none}'
-    '.drop-hint{color:#8b8b94;font-size:.82rem}'
-    '.drop-files{color:#c9c9cf;font-size:.85rem;overflow-wrap:anywhere}'
-    '.drop-files:empty{display:none}'
-    '#create{min-height:52px;border-radius:12px;border:0;background:#e5483b;color:#fff;font:inherit;'
-    'font-weight:700;font-size:1.05rem;cursor:pointer}'
-    '#create:hover{background:#ef5b4c}#create:disabled{opacity:.6;cursor:default}'
-    '#error{color:#ff8a80;margin:-.75rem 0 0;font-size:.9rem}#error:empty{display:none}'
-    '#skipped{color:#f3c969;font-size:.85rem;margin:1rem 0 0}#skipped:empty{display:none}'
-    '#skipped-continue[hidden]{display:none}'
-    '#skipped-continue{margin-top:.5rem}'
-    '@media (max-width:720px){.details{padding:1.1rem}.choices{grid-template-columns:1fr}'
-    '#new-video .prompt{font-size:1.2rem}#new-video .prompt textarea{min-height:150px}}'
-)
-
-ORDER_STYLE = (
-    '#order-step{display:flex;flex-direction:column;gap:1rem}'
-    '#order-step[hidden]{display:none}'
-    '#order-step h2{font-size:1.2rem;margin:0}'
-    '#order-step p{color:#a9a9b2;margin:0}'
-    '.order-list{display:flex;flex-wrap:wrap;gap:.6rem;list-style:none;margin:0;padding:0}'
-    '.order-item{width:120px;display:flex;flex-direction:column;gap:.3rem;border:1px solid #26262c;'
-    'border-radius:10px;padding:.4rem;background:#141417;touch-action:none}'
-    '.order-item img{width:100%;height:90px;object-fit:cover;border-radius:6px;display:block;background:#0d0d10}'
-    '.order-name{font-size:.75rem;color:#a9a9b2;overflow-wrap:anywhere;word-break:break-all}'
-    '.order-controls{display:flex;gap:.3rem}'
-    '.order-controls button{flex:1;min-height:44px;min-width:44px;border-radius:8px;border:1px solid #26262c;'
-    'background:#0d0d10;color:#f4f4f2;font-size:1rem}'
-    '.order-controls button:disabled{opacity:.3}'
-    '#order-others ul{margin:.3rem 0;padding-left:1.1rem;color:#a9a9b2;font-size:.85rem}'
-    '#order-start{min-height:52px;border-radius:12px;border:0;background:#e5483b;color:#fff;font:inherit;'
-    'font-weight:700;font-size:1.05rem;cursor:pointer}'
-    '#order-start:hover{background:#ef5b4c}'
-    '#order-error{color:#ff8a80;margin:0;font-size:.9rem}#order-error:empty{display:none}'
-)
-
 # The drop zone is a real file input stretched over it, so a click (or a tap) opens
 # the picker natively; a drop sets the same input's files, and the form reads it as before.
 DROP_SCRIPT = (
@@ -422,162 +337,6 @@ DROP_SCRIPT = (
     'if(e.dataTransfer&&e.dataTransfer.files.length){input.files=e.dataTransfer.files;show()}});'
     '})()</script>'
 )
-
-NEW_VIDEO_SCRIPT = (
-    '<script>'
-    'const form=document.querySelector("#new-video");'
-    'const sourceField=document.querySelector("#source-field");'
-    'const scratchFields=document.querySelector("#scratch-fields");'
-    'for(const r of form.querySelectorAll("input[name=start]"))r.onchange=()=>{'
-    'const copy=form.start.value==="copy";sourceField.hidden=!copy;scratchFields.hidden=copy;'
-    'document.querySelector("#prompt-fields").hidden=copy};'
-    'function splitLines(s){return (s||"").split("\\n").map(x=>x.trim()).filter(Boolean)}'
-    'async function uploadAll(name,video,files){'
-    'const records=[],skipped=[];'
-    'for(const file of files){'
-    'const r=await fetch(`/v/${encodeURIComponent(name)}/api/attachments?`+new URLSearchParams('
-    '{video,name:file.name}),{method:"POST",headers:{"Content-Type":file.type||"application/octet-stream"},'
-    'body:file});'
-    'const data=await r.json();'
-    'if(!r.ok)throw Error(data.error||"could not upload "+file.name);'
-    'if(/\\.zip$/i.test(file.name)){'
-    'records.push(...data.attachments);'
-    'for(const s of data.skipped||[])skipped.push(s.name+" ("+s.reason+")")'
-    '}else{records.push(data)}}'
-    'return {records,skipped}}'
-    'function showSkipped(skipped){'
-    'const el=document.querySelector("#skipped");'
-    'el.textContent=skipped.length?'
-    '`Skipped ${skipped.length} file${skipped.length===1?"":"s"}: `+skipped.join(", "):""}'
-    'function waitIfSkipped(skipped){'
-    'if(!skipped.length)return Promise.resolve();'
-    'const btn=document.querySelector("#skipped-continue");'
-    'btn.hidden=false;'
-    'return new Promise(resolve=>{btn.onclick=()=>{btn.hidden=true;resolve()}})}'
-    'function naturalSort(records){'
-    'return records.slice().sort((a,b)=>a.name.localeCompare(b.name,undefined,{numeric:true}))}'
-    'async function startVideo(path,description,links,attachments){'
-    'const r=await fetch(`/v/${path}/api/videos/first-note`,{method:"POST",'
-    'headers:{"Content-Type":"application/json"},body:JSON.stringify({description,attachments,links})});'
-    'const note=await r.json();'
-    'if(!r.ok)throw Error(note.error||"could not start the video")}'
-    'let order=[];'
-    'function moveItem(from,to){'
-    'if(to<0||to>=order.length)return;'
-    'const item=order.splice(from,1)[0];'
-    'order.splice(to,0,item)}'
-    'function startDrag(e,li,index,path){'
-    'if(e.target.closest("button"))return;'
-    'li.setPointerCapture(e.pointerId);'
-    'const list=document.querySelector("#order-list");'
-    'let to=index;'
-    'const onMove=ev=>{'
-    'const target=document.elementFromPoint(ev.clientX,ev.clientY);'
-    'const item=target&&target.closest(".order-item");'
-    'if(item&&item.parentElement===list){'
-    'const idx=Array.prototype.indexOf.call(list.children,item);'
-    'if(idx>=0)to=idx}};'
-    'const onUp=()=>{'
-    'li.removeEventListener("pointermove",onMove);li.removeEventListener("pointerup",onUp);'
-    'if(to!==index)moveItem(index,to);'
-    'renderOrder(path)};'
-    'li.addEventListener("pointermove",onMove);'
-    'li.addEventListener("pointerup",onUp)}'
-    'function renderOrder(path){'
-    'const ul=document.querySelector("#order-list");'
-    'ul.innerHTML="";'
-    'order.forEach((att,i)=>{'
-    'const li=document.createElement("li");'
-    'li.className="order-item";li.dataset.id=att.id;'
-    'const img=document.createElement("img");'
-    'img.src=`/v/${path}/api/attachments/${att.id}`;img.alt=att.name;img.draggable=false;'
-    'const name=document.createElement("div");'
-    'name.className="order-name";name.textContent=att.name;'
-    'const controls=document.createElement("div");'
-    'controls.className="order-controls";'
-    'const up=document.createElement("button");'
-    'up.type="button";up.textContent="\\u25c0";up.setAttribute("aria-label","Move "+att.name+" earlier");'
-    'up.disabled=i===0;up.onclick=()=>{moveItem(i,i-1);renderOrder(path)};'
-    'const down=document.createElement("button");'
-    'down.type="button";down.textContent="\\u25b6";down.setAttribute("aria-label","Move "+att.name+" later");'
-    'down.disabled=i===order.length-1;down.onclick=()=>{moveItem(i,i+1);renderOrder(path)};'
-    'controls.append(up,down);'
-    'li.append(img,name,controls);'
-    'li.onpointerdown=e=>startDrag(e,li,i,path);'
-    'ul.appendChild(li)})}'
-    'function startOrderStep(path,description,links,records){'
-    'form.hidden=true;'
-    'const images=naturalSort(records.filter(r=>r.type.startsWith("image/")));'
-    'const others=naturalSort(records.filter(r=>!r.type.startsWith("image/")));'
-    'order=images;'
-    'renderOrder(path);'
-    'const othersEl=document.querySelector("#order-others");'
-    'othersEl.innerHTML=others.length?'
-    '"<p>Other files:</p><ul>"+others.map(o=>`<li>${o.name}</li>`).join("")+"</ul>":"";'
-    'document.querySelector("#order-step").hidden=false;'
-    'document.querySelector("#order-start").onclick=async()=>{'
-    'const startButton=document.querySelector("#order-start");'
-    'startButton.disabled=true;'
-    'try{'
-    'await startVideo(path,description,links,[...order,...others].map(a=>a.id));'
-    'location.href="/v/"+path+"/"'
-    '}catch(err){'
-    'document.querySelector("#order-error").textContent=err.message;'
-    'startButton.disabled=false}}}'
-    'form.onsubmit=async e=>{'
-    'e.preventDefault();'
-    'const error=document.querySelector("#error"),button=document.querySelector("#create");'
-    'error.textContent="";button.disabled=true;'
-    'const data=new FormData(form);'
-    'const name=data.get("name").trim(),start=data.get("start");'
-    'try{'
-    'const body={name,start};'
-    'if(start==="copy")body.from=data.get("from").trim();'
-    'const r=await fetch("/api/videos/new",{method:"POST",headers:{"Content-Type":"application/json"},'
-    'body:JSON.stringify(body)});'
-    'const result=await r.json();'
-    'if(!r.ok)throw Error(result.error||"could not create the video");'
-    'const path=name.split("/").map(encodeURIComponent).join("/");'
-    'if(start==="blank"){'
-    'const description=data.get("description")||"";'
-    'const links=splitLines(data.get("links"));'
-    'const files=data.getAll("files").filter(f=>f&&f.size);'
-    'if(description.trim()||links.length||files.length){'
-    'button.textContent="Uploading…";'
-    'const {records,skipped}=await uploadAll(name,result.video,files);'
-    'showSkipped(skipped);'
-    'const images=records.filter(r=>r.type.startsWith("image/"));'
-    'if(images.length>=2){'
-    'startOrderStep(path,description,links,records);'
-    'return}'
-    'button.textContent="Starting…";'
-    'await startVideo(path,description,links,records.map(a=>a.id));'
-    'await waitIfSkipped(skipped)'
-    '}}'
-    'location.href="/v/"+path+"/"'
-    '}catch(err){error.textContent=err.message;button.disabled=false;button.textContent="Start building"}'
-    '}'
-    '</script>'
-)
-
-# The library's starter cards link to /new?starter=<id>; this fills the prompt in.
-STARTER_SCRIPT = (
-    '<script>'
-    '(function(){'
-    'const prompts=' + json.dumps({s['id']: s['prompt'] for s in STARTERS}).replace('</', '<\\/') + ';'
-    'const prompt=prompts[new URLSearchParams(location.search).get("starter")];'
-    'if(!prompt)return;'
-    'const form=document.querySelector("#new-video");'
-    'const blank=form.querySelector("input[name=start][value=blank]");'
-    'blank.checked=true;blank.dispatchEvent(new Event("change"));'
-    'form.description.value=prompt;'
-    'form.description.focus();'
-    'const m=/\\[[^\\]]*\\]/.exec(prompt);'
-    'if(m)form.description.setSelectionRange(m.index,m.index+m[0].length)'
-    '})();'
-    '</script>'
-)
-
 
 def _starter_poster_html(poster):
     return (f'<span class="starter-poster"><img src="/capabilities/{poster}.jpg" alt="" loading="lazy" '
@@ -882,53 +641,110 @@ def index(entries, accounts_enabled, user, host, scheme='http', showcase=False, 
             content + _LIB_DETAIL_HTML + script + '</main>' + tour_html + '</body></html>').encode()
 
 
+# The looks New video offers, by their `vb.looks` names ("as-shot" keeps
+# footage as it is), with the mockup's swatches and copy.
+NEW_VIDEO_LOOKS = (
+    {'id': 'as-shot', 'name': 'As shot', 'd': 'Keep my footage’s own look', 'sw': ['#5aa0e6', '#e9f0f7', '#2a2f3a']},
+    {'id': 'woodblock', 'name': 'Woodblock', 'd': 'Carved flat colour, paper grain',
+     'sw': ['#1d2340', '#3f7f86', '#efe3c8', '#e0a54a', '#d64933']},
+    {'id': 'bauhaus', 'name': 'Bauhaus', 'd': 'Primary shapes, bold grid',
+     'sw': ['#d62828', '#f7c600', '#1d3fb8', '#111', '#f2efe6']},
+    {'id': 'blueprint', 'name': 'Blueprint', 'd': 'White lines on blue', 'sw': ['#0f3a78', '#1e5aa8', '#e8f0ff']},
+    {'id': 'pop-art', 'name': 'Pop art', 'd': 'Halftone dots, loud colour', 'sw': ['#ff3d7f', '#ffd400', '#00b3ff', '#111']},
+    {'id': 'pixel', 'name': 'Pixel', 'd': 'Chunky 16-bit pixels', 'sw': ['#2b2d42', '#8ac926', '#ffca3a', '#ff595e']},
+    {'id': 'pointillism', 'name': 'Pointillism', 'd': 'Painted in dots', 'sw': ['#6a994e', '#f2e8cf', '#bc4749', '#386641']},
+    {'id': 'melt', 'name': 'Melt', 'd': 'Colours that drip and run', 'sw': ['#ff7b00', '#ffb700', '#7b2cbf']},
+    {'id': 'swirl', 'name': 'Swirl', 'd': 'Brush strokes in eddies', 'sw': ['#003049', '#fcbf49', '#f77f00']},
+)
+
+_NEW_VIDEO_WAYS = (
+    ('reel', '<rect x="3" y="6" width="13" height="12" rx="2"/><path d="M16 10l5-3v10l-5-3"/>',
+     'Drop clips and music', 'Your footage and a song. Drag the clips into a rough order and say how to cut it.',
+     'A highlight reel, a trip, a wedding'),
+    ('short', '<path d="M5 4h14v12l-4 4H5z"/><path d="M15 20v-4h4M8 9h8M8 13h5"/>',
+     'Describe a short video', 'A few lines about what you want. Add a look, pictures or a logo if you have them.',
+     'A 30-second explainer, an ad, a promo'),
+    ('epic', '<path d="M5 4h11a3 3 0 0 1 3 3v13H8a3 3 0 0 1-3-3z"/><path d="M5 17a3 3 0 0 1 3-3h11"/>',
+     'Plan a film (acts and scenes)', 'Characters, a world, acts and a line for each clip. Build it clip by clip.',
+     'A short film, a story in chapters'),
+)
+_NEW_VIDEO_PARTS = (('about', 'In a few words', 'What it is, or how to cut it'),
+                    ('look', 'Look', 'One look for the whole video'),
+                    ('bible', 'Characters and world', 'Who is in it and where it happens'),
+                    ('clips', 'Clips', 'Your footage, or a line for each clip you want made'),
+                    ('audio', 'Audio', 'Songs, voice-over, sound. Each lane can hold anything'),
+                    ('files', 'Pictures and other files', 'Logos, references, screenshots, PDFs'))
+
+
+def _svg(path, size=18):
+    return (f'<svg width="{size}" height="{size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" '
+            'stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + path + '</svg>')
+
+
+def new_video_projects(names):
+    """The projects a new video can go in: the `project/` prefixes of the
+    library's names (see pages.index), less the reserved capabilities one."""
+    from .community import is_reserved
+    return sorted({n.split('/', 1)[0] for n in names if '/' in n and not is_reserved(n)})
+
+
 def new_video_page(names, user=None):
-    """`user`: who is signed in, for the header's account menu; None without accounts."""
-    options = ''.join(f'<option value="{html.escape(n)}"></option>' for n in names)
-    return (_head('New video', APP_STYLE + NEW_VIDEO_STYLE + ORDER_STYLE) +
-            '<body>' + app_header('new', user) + '<main class="app-main"><div class="new-wrap">'
-            '<div class="page-head"><h1>New video</h1></div>'
-            '<form id="new-video">'
-            '<div id="prompt-fields">'
-            '<label class="prompt">What do you want to make?<textarea name="description" rows="6" autofocus '
-            'placeholder="A 30-second launch video for our app: open on the problem, show three features, '
-            'end on the download button. Bold type, upbeat."></textarea></label>'
-            '</div>'
-            '<section class="details"><h2>Details</h2>'
-            '<label>Name<input name="name" placeholder="name, or project/name to group it in a project" '
-            'required autocapitalize="off" autocorrect="off" spellcheck="false"></label>'
-            '<fieldset class="start-from"><legend>Start from</legend><div class="choices">'
-            '<label class="choice"><input type="radio" name="start" value="blank" checked>'
-            '<span class="choice-dot" aria-hidden="true"></span> Blank</label>'
-            '<label class="choice"><input type="radio" name="start" value="copy">'
-            '<span class="choice-dot" aria-hidden="true"></span> A copy of an existing video</label>'
-            '</div></fieldset>'
-            f'<label id="source-field" hidden>Video to copy<input name="from" list="existing-videos" '
-            f'placeholder="project/name"><datalist id="existing-videos">{options}</datalist></label>'
-            '<div id="scratch-fields">'
-            '<p class="files-label">Files</p>'
-            '<label id="files-field" class="drop"><input name="files" type="file" multiple '
-            'accept="image/*,video/*,audio/*,.pdf,.txt,.md,.zip" aria-label="Files">'
-            '<span class="drop-title">Drop files here or <u>browse</u></span>'
-            '<span class="drop-hint">Photos, video, audio, PDF, text, or a .zip of them</span>'
-            '<span class="drop-files" aria-live="polite"></span></label>'
-            '<label id="links-field">Links (one per line)<textarea name="links" rows="3" '
-            'placeholder="https://example.com/the-feature"></textarea></label>'
-            '</div></section>'
-            '<button id="create" type="submit">Start building</button>'
-            '<p id="error" role="alert"></p>'
-            '</form>'
-            '<p id="skipped" role="status"></p>'
-            '<button id="skipped-continue" class="btn" type="button" hidden>Continue</button>'
-            '<div id="order-step" hidden>'
-            '<h2>Order your images</h2>'
-            '<p>Drag to reorder, or use the arrows below each photo. Then press Start.</p>'
-            '<ul id="order-list" class="order-list"></ul>'
-            '<div id="order-others"></div>'
-            '<button id="order-start" type="button">Start</button>'
-            '<p id="order-error" role="alert"></p>'
-            '</div>'
-            '</div></main>' + NEW_VIDEO_SCRIPT + STARTER_SCRIPT + DROP_SCRIPT + '</body></html>').encode()
+    """The New video page: the name (and project) up top, then the ways to
+    start and the optional parts, drawn by new_video.js. `names` are the
+    videos this user may see: their projects fill the dropdown, and they can
+    be copied. `user`: who is signed in, for the header's account menu; None
+    without accounts."""
+    projects = new_video_projects(names)
+    files = resources.files(__package__)
+    data = json.dumps({'starters': {s['id']: s['prompt'] for s in STARTERS}, 'looks': NEW_VIDEO_LOOKS})
+    data = data.replace('<', '\\u003c').replace('>', '\\u003e').replace('&', '\\u0026')
+    options = ('<option value="" selected>None</option>' +
+               ''.join(f'<option value="{html.escape(p)}">{html.escape(p)}</option>' for p in projects) +
+               '<option value="+new">New project…</option>')
+    tick, plus = _svg('<path d="M5 12.5l4.5 4.5L19 7.5"/>', 14), _svg('<path d="M12 5v14M5 12h14"/>')
+    ways = ''.join(
+        f'<button type="button" class="way" data-act="way" data-way="{key}" aria-pressed="false">'
+        f'<span class="wi">{_svg(icon, 22)}</span>'
+        f'<span style="display:flex;flex-direction:column;gap:4px;min-width:0"><b>{title}</b><small>{d}</small></span>'
+        f'<span class="eg">{eg}</span><span class="on">{tick}'
+        'Started here</span></button>' for key, icon, title, d, eg in _NEW_VIDEO_WAYS)
+    parts = ''.join(
+        f'<section class="part closed" id="part-{key}"><header role="button" tabindex="0" aria-expanded="false">'
+        f'<span class="pi">{plus}</span>'
+        f'<span class="pt"><b>{title}</b><small>{hint}</small></span></header></section>'
+        for key, title, hint in _NEW_VIDEO_PARTS)
+    copy = ''
+    if names:
+        copy = ('<details class="copy-from"><summary>Or start from a copy of one of your videos</summary>'
+                '<div class="row"><select id="copy-from" aria-label="Video to copy">' +
+                ''.join(f'<option value="{html.escape(n)}">{html.escape(n)}</option>' for n in names) +
+                '</select><button type="button" class="btn" id="copy-go">Copy it</button></div></details>')
+    style = APP_STYLE + files.joinpath('new_video.css').read_text()
+    return (_head('New video', style) +
+            '<body>' + app_header('new', user) + '<main class="nv">'
+            '<div class="lead-head"><h1>New video</h1><p class="help">Drop clips and a song and say how to cut '
+            'them, describe a short video in a few lines, or plan a film in acts.</p></div>'
+            '<section class="required" aria-label="Required"><div class="fields">'
+            '<div class="f name"><label for="name">Name</label><input id="name" class="tx" '
+            'placeholder="snow-day-reel" required autocapitalize="off" autocorrect="off" spellcheck="false"></div>'
+            '<div class="f"><label for="project">Project <i>(optional)</i></label>'
+            f'<select id="project">{options}</select>'
+            '<input id="new-project" class="tx" placeholder="New project name" aria-label="New project name" '
+            'autocapitalize="off" autocorrect="off" spellcheck="false" hidden></div></div>'
+            '<p class="field-error" id="name-error" role="alert"></p></section>'
+            '<p class="optional-note">Everything below is optional, and you can change any of it as you go.</p>'
+            f'<div class="ways" role="group" aria-label="How do you want to start?">{ways}</div>'
+            f'<p class="dropall">{_svg(_ATTACH_ICON, 16)}Or drop files anywhere on this page to start with them.</p>'
+            f'<div id="parts" style="margin-top:22px">{parts}</div>{copy}</main>'
+            '<div class="gobar"><div class="gobar-in"><div class="what" id="what" aria-live="polite"></div>'
+            '<button type="button" class="btn btn-primary go" id="go">Start building</button></div></div>'
+            '<input type="file" id="nv-pick" multiple hidden>'
+            f'<script type="application/json" id="nv-data">{data}</script>'
+            f'<script>{files.joinpath("new_video.js").read_text()}</script></body></html>').encode()
+
+
+_ATTACH_ICON = ('<path d="M20 11.5l-8.2 8.2a5 5 0 0 1-7.1-7.1L13 4.3a3.3 3.3 0 0 1 4.7 4.7l-8.3 8.3a1.7 1.7 0 0 1'
+                '-2.4-2.4L14.6 7.3"/>')
 
 
 _ACCOUNT_STYLE = (

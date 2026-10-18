@@ -90,15 +90,58 @@ class StarterCardsOnPages(unittest.TestCase):
         self.assertNotIn('starter-card', page)
         for s in STARTERS:
             self.assertIn(json.dumps(s['id']) + ':', page)
-        self.assertIn('id="files-field"', page)
-        self.assertIn('id="links-field"', page)
 
-    def test_new_video_page_has_the_order_step_markup_hidden_by_default(self):
-        page = pages.new_video_page(['acme/launch']).decode()
-        self.assertIn('<div id="order-step" hidden>', page)
-        self.assertIn('id="order-list"', page)
-        self.assertIn('id="order-others"', page)
-        self.assertIn('id="order-start"', page)
+
+class NewVideoPage(unittest.TestCase):
+    def _page(self, names=('acme/launch', 'acme/teaser', 'solo', 'zeta/one', 'capabilities/demo')):
+        return pages.new_video_page(list(names)).decode()
+
+    def test_the_required_section_comes_first_with_the_optional_line_under_it(self):
+        page = self._page()
+        required = page.index('<section class="required"')
+        self.assertLess(required, page.index('id="name"'))
+        self.assertLess(page.index('id="name"'), page.index('id="project"'))
+        self.assertLess(page.index('id="project"'), page.index('class="optional-note"'))
+        self.assertIn('<p class="optional-note">Everything below is optional, and you can change any of it as '
+                      'you go.</p>', page)
+        self.assertLess(page.index('class="optional-note"'), page.index('class="ways"'))
+        self.assertLess(page.index('class="ways"'), page.index('id="parts"'))
+        self.assertIn('Project <i>(optional)</i>', page)
+        # No per-part "Optional" tags, no callout about acts, no project/name syntax.
+        self.assertNotIn('project/name', page)
+        self.assertNotIn('Acts are optional', page)
+        self.assertNotIn('>Optional<', page)
+
+    def test_the_project_dropdown_lists_the_projects_then_a_new_one_and_defaults_to_none(self):
+        page = self._page()
+        select = re.search(r'<select id="project">(.*?)</select>', page).group(1)
+        options = re.findall(r'<option value="([^"]*)"( selected)?>([^<]*)</option>', select)
+        self.assertEqual([(v, label) for v, _, label in options],
+                         [('', 'None'), ('acme', 'acme'), ('zeta', 'zeta'), ('+new', 'New project…')])
+        self.assertEqual([v for v, sel, _ in options if sel], [''])
+        self.assertIn('id="new-project"', page)
+        self.assertEqual(pages.new_video_projects([]), [])
+
+    def test_the_three_ways_and_six_parts_in_order(self):
+        page = self._page()
+        self.assertEqual(re.findall(r'data-way="(\w+)"', page), ['reel', 'short', 'epic'])
+        for title in ('Drop clips and music', 'Describe a short video', 'Plan a film (acts and scenes)'):
+            self.assertIn(f'<b>{title}</b>', page)
+        self.assertEqual(re.findall(r'id="part-(\w+)"', page), ['about', 'look', 'bible', 'clips', 'audio', 'files'])
+        self.assertIn('Start building', page)
+
+    def test_every_look_on_offer_is_a_real_look(self):
+        from videobuilder import looks
+        ids = [l['id'] for l in pages.NEW_VIDEO_LOOKS]
+        self.assertEqual(ids[0], 'as-shot')
+        for i in ids[1:]:
+            self.assertEqual(looks.get(i).name, i)
+
+    def test_audio_lanes_are_numbered_never_named_by_kind(self):
+        script = (resources.files('videobuilder') / 'new_video.js').read_text()
+        self.assertIn('Audio ${i+1}', script)
+        for word in ('Music lane', 'Ambience', 'Dialogue lane'):
+            self.assertNotIn(word, script)
 
 
 class LibrarySort(unittest.TestCase):
@@ -169,10 +212,13 @@ class EditorPageHeader(unittest.TestCase):
 @unittest.skipUnless(shutil.which('node'), 'node is not available in this environment')
 class InlineScriptsParse(unittest.TestCase):
     def _check(self, html_bytes):
-        scripts = re.findall(rb'<script(?: [^>]*)?>(.*?)</script>', html_bytes, re.S)
+        scripts = re.findall(rb'<script( [^>]*)?>(.*?)</script>', html_bytes, re.S)
         self.assertTrue(scripts)
-        for script in scripts:
+        for attrs, script in scripts:
             if not script.strip():
+                continue
+            if b'application/json' in (attrs or b''):
+                json.loads(script)  # a data block, not a script
                 continue
             result = subprocess.run(['node', '--check', '-'], input=script, capture_output=True)
             self.assertEqual(result.returncode, 0, result.stderr.decode())

@@ -209,10 +209,10 @@ class HostedGit(LibraryFixture, unittest.TestCase):
     def test_new_video_page_is_reachable_without_accounts(self):
         code, page = self.request('/new')
         self.assertEqual(code, 200)
-        self.assertIn(b'id="new-video"', page)
-        self.assertIn(b'name="start"', page)
-        self.assertIn(b'name="description"', page)
-        self.assertIn(b'name="links"', page)
+        self.assertIn(b'<section class="required"', page)
+        self.assertIn(b'id="name"', page)
+        self.assertIn(b'id="project"', page)
+        self.assertIn(b'id="nv-data"', page)
 
     def test_library_page_starter_cards_are_a_hero_when_empty_then_a_compact_row(self):
         page = self.request('/')[1]
