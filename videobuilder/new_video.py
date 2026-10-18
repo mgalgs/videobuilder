@@ -340,7 +340,8 @@ def note_lines(start, sources):
         songs = [f'{timeline_file.lane_name(i)} (sources/{sources[l["sound"]]["name"]}.'
                  f'{sources[l["sound"]]["ext"]})' for i, l in enumerate(start.lanes) if l['sound'] in sources]
         if songs:
-            lines.append(f'Cut these clips to the song on {songs[0]}.' if len(songs) == 1 else
+            lines.append(f'Cut these clips to the song on {songs[0]}: a reel, every cut on a beat '
+                         '(films.md, "Cutting a reel").' if len(songs) == 1 else
                          'Cut these clips to the sound on ' + ', '.join(songs) + '.')
     if start.planned:
         lines.append('Make the clips of this film as planned in bible/bible.md: a clip directory for each clip '

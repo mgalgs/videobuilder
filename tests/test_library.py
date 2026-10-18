@@ -468,7 +468,8 @@ class NewVideoStart(LibraryFixture, unittest.TestCase):
                      'lanes': [{'sound': song['name']}]}})
         self.assertEqual(code, 200, note)
         for line in ('Cut to the beat.', 'Length: about 2:30.', "Look: as shot. The footage keeps its own look",
-                     'Cut these clips to the song on Audio 1 (sources/avalanche.mp3).'):
+                     'Cut these clips to the song on Audio 1 (sources/avalanche.mp3): a reel, every cut on a beat '
+                     '(films.md, "Cutting a reel").'):
             self.assertIn(line, note['text'])
 
         clone = self._clone('snow/day-reel')

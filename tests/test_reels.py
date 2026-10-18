@@ -385,7 +385,7 @@ class DoneWhenReel(unittest.TestCase):
             start = new_video.Start(clips=[{'source': n, 'act': None} for n in sources if n != 'song'],
                                     lanes=[{'sound': 'song', 'act': None}])
             data = new_video.timeline(start, sources)
-            self.assertIn('Cut these clips to the song on Audio 1 (sources/song.wav).',
+            self.assertIn('Cut these clips to the song on Audio 1 (sources/song.wav): a reel, every cut on a beat',
                           ' '.join(new_video.note_lines(start, sources)))
             self.assertEqual((len(data['clips']), 'beats' in data), (12, False))
 
