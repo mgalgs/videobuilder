@@ -55,8 +55,10 @@ Lanes: Audio lanes, shown as "Audio 1", "Audio 2"... by position (they have no
 other name). Each has `items`, a sound placed at timeline frame `at`, playing
 `frames` frames from `offset` frames into the file, with `gain_db` and
 `fade_in`/`fade_out` frames; `duck` dips the lane by `duck_db` (default -12)
-under every clip sound that is speech: marked `dialogue`, or a footage clip
-whose source has a caption file beside it (`sources/boat.vtt`).
+while clip sound that is speech plays: a clip directory's film's `Sound`s,
+each over its own span (as one film's music ducks under them); a footage
+clip's caption cues, when its source has a caption file beside it
+(`sources/boat.vtt`); or all of a clip's sound, when marked `dialogue`.
 
 Paths are relative to the video's root, POSIX, inside it. Footage and big
 sounds live in the video's `sources/` (uploaded to the editor, hardlinked into

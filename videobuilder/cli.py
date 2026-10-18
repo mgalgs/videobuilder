@@ -27,6 +27,7 @@ def _formats(film, arg):
 
 
 def cmd_render(a):
+    from .assembly import SPANS_ENV, write_spans
     from .render import render
     film = load(a.film)
     fmts = _formats(film, a.format)
@@ -37,6 +38,10 @@ def cmd_render(a):
             root, ext = os.path.splitext(a.out)
             out = f'{root}-{fmt.name}{ext or ".mp4"}'
         render(film, out, fmt, jobs=a.jobs, chunk=a.chunk, crf=a.crf, frames=frames, stall=a.stall)
+    spans = os.environ.get(SPANS_ENV)
+    if spans:
+        # A clip render's Sound spans, for the assembly's ducked lanes (see `assembly.speech_spans`).
+        write_spans(film, spans, frames)
 
 
 def _still(film, n, fmt, overlay=False, scale=1.0):

@@ -13,7 +13,8 @@
 3. The sound is mixed with the same code as one film's (`render.sound_chain`,
    `render.duck_filter`, `render.join_mix`, the loudness gain and limiter):
    each clip's own sound under its picture, extended by its J/L overlap, plus
-   every Audio lane item, ducked lanes dipping under clip sound that is speech.
+   every Audio lane item, ducked lanes dipping under clip sound that is speech
+   (see `speech_spans`).
 
 So a change to a transition, a trim, a J/L cut, clip order or a lane only
 re-assembles: no clip renders again. A change inside one clip's directory
@@ -29,14 +30,20 @@ from dataclasses import dataclass, field
 from fractions import Fraction
 from pathlib import Path
 
+from . import captions
 from . import render as _render
-from .clip_cache import ClipCache, FileTree, clip_key
+from .clip_cache import ClipCache, FileTree, clip_key, spans_path
 from .film import DEFAULT_LOUDNESS, Sound, as_format
 from .timeline_file import DEFAULT_FADE, load as load_timeline, place
 
 XFADE = {'dissolve': 'fade', 'wipe': 'wipe{direction}'}
 SEEK_MARGIN = 1   # seconds a footage input is seeked short of its first frame
 CAPTION_EXTS = ('vtt', 'srt')
+CAPTION_GAP = 1.0   # seconds of silence between caption words that lets a ducked lane back up
+# `videobuilder render` writes the film's Sound spans to the file this names
+# (`write_spans`). An environment variable, not a flag, so a clip pinned to a
+# videobuilder from before it renders all the same, only without spans.
+SPANS_ENV = 'VIDEOBUILDER_SOUND_SPANS'
 
 
 @dataclass
@@ -74,11 +81,53 @@ def probe(path):
     return rate, duration, any(s.get('codec_type') == 'audio' for s in streams)
 
 
+def write_spans(film, path, frames=None):
+    """Write the spans of `film`'s Sounds over frames a..z (default the whole
+    film), in frames from `a`, to the JSON file `path`: what a clip's render
+    leaves for the assembly to duck its lanes under."""
+    a, z = frames or (0, film.frames)
+    spans = []
+    for s in film.sounds:
+        lo, hi = max(s.at, a), min(s.at + s.frames, z)
+        if hi > lo:
+            spans.append({'at': lo - a, 'frames': hi - lo, 'fade_in': s.fade_in_frames,
+                          'fade_out': s.fade_out_frames})
+    Path(path).write_text(json.dumps(spans))
+
+
+def read_spans(path):
+    """[(at, frames, fade_in, fade_out)] from a spans sidecar; None when there
+    is none (a clip rendered by a videobuilder that doesn't write them)."""
+    try:
+        data = json.loads(Path(path).read_text())
+    except FileNotFoundError:
+        return None
+    return [(int(d['at']), int(d['frames']), int(d['fade_in']), int(d['fade_out'])) for d in data]
+
+
+def caption_spans(path, fps):
+    """[(at, frames, fade_in, fade_out)] in frames of the caption file `path`'s
+    speech: its words, joined where less than `CAPTION_GAP` apart."""
+    runs = []
+    for w in captions.load(path).words:
+        if runs and w.start - runs[-1][1] < CAPTION_GAP:
+            runs[-1][1] = max(runs[-1][1], w.end)
+        else:
+            runs.append([w.start, w.end])
+    spans = []
+    for t0, t1 in runs:
+        at = int(t0 * fps)
+        spans.append((at, max(1, -int(-t1 * fps) - at), DEFAULT_FADE, DEFAULT_FADE))
+    return spans
+
+
 def render_clip_local(root, clip, fmt, out, jobs=None, log=sys.stderr):
-    """Render clip directory `clip` of the video at `root` to `out`, in a child
-    Python running this videobuilder with the video's root on the import path
-    (so the clip can import `shared`). Not sandboxed: for local use."""
+    """Render clip directory `clip` of the video at `root` to `out`, and its
+    Sound spans to `spans_path(out)`, in a child Python running this
+    videobuilder with the video's root on the import path (so the clip can
+    import `shared`). Not sandboxed: for local use."""
     env = dict(os.environ)
+    env[SPANS_ENV] = str(spans_path(out))
     here = str(Path(__file__).resolve().parent.parent)  # this videobuilder, installed or not
     env['PYTHONPATH'] = os.pathsep.join(p for p in (str(root), here, env.get('PYTHONPATH')) if p)
     cmd = [sys.executable, '-m', 'videobuilder', 'render', str(Path(root) / clip.film_path),
@@ -106,25 +155,48 @@ def clip_renders(timeline, fmt, tree, cache, render_clip):
     return paths, rendered, reused
 
 
-def _has_speech(root, clip):
-    """Whether a clip's sound counts as speech for ducking: marked `dialogue`,
-    or footage with a caption file beside its source."""
+def speech_spans(clip, path, frames, fps):
+    """[(at, frames, fade_in, fade_out)]: where in its media (`path`, `frames`
+    long) a clip's sound is speech, in its media's frames, for ducked lanes to
+    dip under. All of it when marked `dialogue`; for footage, its caption
+    file's cue times (`sources/boat.vtt` beside `sources/boat.mp4`); for a
+    clip directory, the spans of its film's Sounds, as one film's music ducks
+    under them (the sidecar its render wrote; none from a videobuilder too old
+    to write one)."""
     if clip.sound.dialogue:
-        return True
+        return [(0, frames, DEFAULT_FADE, DEFAULT_FADE)]
     if clip.is_footage:
-        stem = os.path.splitext(os.path.join(root, clip.footage))[0]
-        return any(os.path.isfile(f'{stem}.{e}') for e in CAPTION_EXTS)
-    return False
+        stem = os.path.splitext(path)[0]
+        found = next((f'{stem}.{e}' for e in CAPTION_EXTS if os.path.isfile(f'{stem}.{e}')), None)
+        return caption_spans(found, fps) if found else []
+    return read_spans(spans_path(path)) or []
+
+
+def _placed_speech(spans, p, sound, early, late):
+    """`spans` (in clip media frames) as Sounds on the timeline, cut to the
+    part of the media placement `p` plays: its picture, `early`/`late` wider."""
+    lo, hi = p.source - early, p.source + p.frames + late
+    out = []
+    for at, frames, fade_in, fade_out in spans:
+        a, z = max(at, lo), min(at + frames, hi)
+        if z <= a:
+            continue
+        out.append(Sound('', at=p.start + a - p.source, start=0.0, frames=z - a,
+                         fade_in_frames=fade_in if a == at else sound.fade_in_frames,
+                         fade_out_frames=fade_out if z == at + frames else sound.fade_out_frames))
+    return out
 
 
 def clip_sounds(timeline, placements, media):
-    """[(Sound, is_speech)]: each clip's own sound placed under its picture,
-    `early`/`late` frames wider for a J/L cut where the clip's media has sound
-    there. `media` is {clip id: (path, has_audio, is_speech)}."""
+    """[(Sound, [speech Sound])]: each clip's own sound placed under its
+    picture, `early`/`late` frames wider for a J/L cut where the clip's media
+    has sound there, with the spans of it that are speech placed with it.
+    `media` is {clip id: (path, has_audio, speech spans)}, the spans in the
+    clip media's frames (`speech_spans`)."""
     out = []
     for i, p in enumerate(placements):
         c = p.clip
-        path, has_audio, speech = media[c.id]
+        path, has_audio, spans = media[c.id]
         if not has_audio:
             continue
         early = min(c.sound.early, p.source)
@@ -135,7 +207,7 @@ def clip_sounds(timeline, placements, media):
                       frames=p.frames + early + late, gain_db=c.sound.gain_db,
                       fade_in_frames=d_in if d_in and not early else DEFAULT_FADE,
                       fade_out_frames=d_out if d_out and not late else DEFAULT_FADE)
-        out.append((sound, speech))
+        out.append((sound, _placed_speech(spans, p, sound, early, late)))
     return out
 
 
@@ -151,10 +223,10 @@ def lane_sounds(timeline, root):
 
 def mix_graph(clips, lanes, frames, fps, start_idx=0):
     """(inputs, filter_complex graph, output label) mixing `clips`
-    [(Sound, is_speech)] and `lanes` [(Lane, [Sound])] over `frames`, before the
-    final gain and limiter. A ducked lane dips by its `duck_db` under the
-    speech among `clips` (the `duck_envelope_expr` of their spans)."""
-    speech = [s for s, is_speech in clips if is_speech]
+    [(Sound, [speech Sound])] and `lanes` [(Lane, [Sound])] over `frames`,
+    before the final gain and limiter. A ducked lane dips by its `duck_db`
+    under the clips' speech (the `duck_envelope_expr` of its spans)."""
+    speech = [x for _, spans in clips for x in spans]
     branches = [(s, '') for s, _ in clips]
     for lane, sounds in lanes:
         after = _render.duck_filter(lane.duck_db, speech, fps, 0) if lane.duck and speech else ''
@@ -241,7 +313,7 @@ def assemble(timeline, fmt, out, root, renders, crf=18, log=sys.stderr):
         if not c.is_footage and rate != fps:
             raise ValueError(f'clip "{c.id}" renders at {rate} fps; the timeline is {fps} fps')
         lengths[c.id] = round(duration * fps)
-        media[c.id] = (path, has_audio, _has_speech(root, c))
+        media[c.id] = (path, has_audio, speech_spans(c, path, lengths[c.id], fps))
     placements, total = place(timeline, lengths)
     clips = clip_sounds(timeline, placements, media)
     lanes = lane_sounds(timeline, root)

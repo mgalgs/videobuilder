@@ -18,7 +18,7 @@ import tempfile
 import threading
 
 from . import assembly, timeline_file
-from .clip_cache import ClipCache, GitTree, clip_key, timeline_keys
+from .clip_cache import ClipCache, GitTree, clip_key, discard, finish, spans_path, timeline_keys
 from .drafts import git
 from .workers import child_environment, sandbox_command
 
@@ -41,7 +41,7 @@ class Renders:
         for stale in self.root.glob('*/*.mp4.partial'):
             stale.unlink(missing_ok=True)
         for stale in self.root.glob('*/clips/*.partial.mp4'):
-            stale.unlink(missing_ok=True)
+            discard(stale)
         self.lock = threading.RLock()
         self.queue = deque()
         self.status = {}
@@ -161,16 +161,17 @@ class Renders:
                     if not output.is_file():
                         if len(key) == 4:
                             self._render_one_clip(video, sha, fmt, key[3], partial)
+                            finish(partial, output)
                         else:
                             self.renderer(video, sha, fmt, partial)
-                        os.replace(partial, output)
+                            os.replace(partial, output)
                 finally:
                     RENDER_LOCK.release()
                 with self.lock:
                     self.status.pop(key, None)
                 self.evict(video, sha)
             except Exception as exc:
-                partial.unlink(missing_ok=True)
+                discard(partial)
                 if self.stopping.is_set():
                     # Cut off by shutdown, not failed: a drain-time poll still reads 'rendering'.
                     return
@@ -228,22 +229,28 @@ class Renders:
 
     def _render_clip(self, video, work, root, clip, fmt, output):
         """Render one clip directory in the sandbox, its video's root on the
-        import path so it can import `shared`."""
+        import path so it can import `shared`, and its Sound spans beside
+        `output` (`clip_cache.spans_path`) when its videobuilder writes them."""
         # render-: the startup sweep clears it if the editor dies mid-render.
         with tempfile.TemporaryDirectory(prefix='render-clip-', dir=self.root) as home:
             name = f'{clip.id}-{fmt}.mp4'
-            self._sandboxed_render(root / clip.film_path, work, Path(home), fmt, name, path=root)
+            spans = spans_path(Path(home) / name)
+            self._sandboxed_render(root / clip.film_path, work, Path(home), fmt, name, path=root,
+                                   extra_env={assembly.SPANS_ENV: str(spans)})
+            if spans.is_file():
+                shutil.copyfile(spans, spans_path(output))
             shutil.copyfile(Path(home) / name, output)
 
-    def _sandboxed_render(self, film, work, home, fmt, name, path=None):
+    def _sandboxed_render(self, film, work, home, fmt, name, path=None, extra_env=None):
         """`videobuilder render` of `film` in the checkout `work`, in the
-        sandbox, to `home/name`; `path` goes on the film's import path."""
+        sandbox, to `home/name`; `path` goes on the film's import path, `extra_env`
+        into its environment."""
         python, key, _ = self.editor.envs.python(film, work)
         source = Path(__file__).resolve().parent.parent if key == 'current' else None
         command = sandbox_command(python, work, home, source=source, command=[
             python, '-m', 'videobuilder', 'render', str(film), '--format', fmt,
             '--out', str(home / name), '--jobs', str(self.jobs)])
-        env = child_environment(home, source)
+        env = {**child_environment(home, source), **(extra_env or {})}
         if path is not None:
             env['PYTHONPATH'] = os.pathsep.join(p for p in (str(path), env.get('PYTHONPATH')) if p)
         with tempfile.TemporaryFile() as log:

@@ -82,7 +82,8 @@ shorter. `whip`, `flash` and `match` are reserved for later.
 its picture (a J-cut) and `late` frames it runs on after (an L-cut). J/L
 reveal sound from the trimmed head or tail (for footage, from the file beyond
 `in`/`out`), so trim the picture first; where there is nothing trimmed there
-is nothing to reveal. `dialogue: true` marks the sound as speech.
+is nothing to reveal. `dialogue: true` marks all of the sound as speech
+(for a clip whose speech isn't its film's `Sound`s or its captions).
 
 **Acts**: optional titles over runs of consecutive clips, in order.
 
@@ -91,8 +92,11 @@ is nothing to reveal. `dialogue: true` marks the sound as speech.
 file placed at timeline frame `at`, playing `frames` frames from `offset`
 frames into the file, with `gain_db` and `fade_in`/`fade_out` frames (default
 3). `duck: true` dips the lane by `duck_db` (default -12) while any clip
-sound that is speech plays: marked `dialogue`, or footage with a caption file
-beside its source (`sources/boat.vtt`).
+sound that is speech plays, each over its own span: the `Sound`s of a clip
+directory's film (the spans its render reports, so a 2 s voice-over in a 10 s
+clip dips the lane for 2 s), the caption cues of a footage clip with a caption
+file beside its source (`sources/boat.vtt` beside `sources/boat.mp4`), or the
+whole of a clip's sound when it is marked `dialogue`.
 
 **Footage and big sounds** live in the video's `sources/`: uploaded to the
 editor, linked into every checkout and render, and never committed. A small

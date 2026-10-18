@@ -13,7 +13,7 @@ import urllib.error
 from pathlib import Path
 
 from videobuilder import assembly, timeline_file as tf
-from videobuilder.clip_cache import ClipCache, FileTree, GitTree, clip_key, timeline_keys
+from videobuilder.clip_cache import ClipCache, FileTree, GitTree, clip_key, spans_path, timeline_keys
 from videobuilder.film import Sound
 
 from tests import fixtures
@@ -303,10 +303,12 @@ class RenderKey(unittest.TestCase):
         def render(out):
             calls.append(out.name)
             out.write_bytes(b'mp4')
+            spans_path(out).write_text('[]')
 
         path, fresh = cache.get('a' * 40, '1x1', render)
         self.assertEqual((path.name, fresh, calls), ('a' * 40 + '-1x1.mp4', True, ['a' * 40 + '-1x1.partial.mp4']))
         self.assertEqual(cache.get('a' * 40, '1x1', render), (path, False))
+        self.assertEqual(spans_path(path).read_text(), '[]')  # its spans moved in beside it
 
         def broken(out):
             out.write_bytes(b'half')
@@ -314,10 +316,11 @@ class RenderKey(unittest.TestCase):
 
         with self.assertRaises(RuntimeError):
             cache.get('b' * 40, '1x1', broken)
-        self.assertEqual(sorted(p.name for p in cache.root.iterdir()), [path.name])
+        self.assertEqual(sorted(p.name for p in cache.root.iterdir()), [path.name, spans_path(path).name])
         cache.get('b' * 40, '1x1', render)
         cache.evict({'b' * 40})
-        self.assertEqual(sorted(p.name for p in cache.root.iterdir()), ['b' * 40 + '-1x1.mp4'])
+        self.assertEqual(sorted(p.name for p in cache.root.iterdir()),
+                         ['b' * 40 + '-1x1.mp4', 'b' * 40 + '-1x1.spans.json'])
 
 
 class Mix(unittest.TestCase):
@@ -332,7 +335,8 @@ class Mix(unittest.TestCase):
             {'id': 'c', 'dir': 'c', 'sound': {'early': 6, 'late': 6}},
         ]})
         self.placed, self.total = tf.place(self.t, {'a': 60, 'b': 300, 'c': 30})
-        self.media = {'a': ('a.mp4', True, False), 'b': ('b.mp4', True, True), 'c': ('c.mp4', True, False)}
+        # b's sound is all speech (marked dialogue, say): one span over the whole of its media.
+        self.media = {'a': ('a.mp4', True, []), 'b': ('b.mp4', True, [(0, 300, 3, 3)]), 'c': ('c.mp4', True, [])}
 
     def test_clip_sound_follows_the_picture_and_its_j_l_overlap(self):
         (a, _), (b, b_speech), (c, _) = assembly.clip_sounds(self.t, self.placed, self.media)
@@ -349,11 +353,11 @@ class Mix(unittest.TestCase):
         t = tf.parse({'version': 1, 'clips': [
             {'id': 'a', 'dir': 'a'}, {'id': 'b', 'dir': 'b', 'cut': {'transition': 'dissolve', 'frames': 8}}]})
         placed, _ = tf.place(t, {'a': 30, 'b': 30})
-        (a, _), (b, _) = assembly.clip_sounds(t, placed, {'a': ('a.mp4', True, False), 'b': ('b.mp4', True, False)})
+        (a, _), (b, _) = assembly.clip_sounds(t, placed, {'a': ('a.mp4', True, []), 'b': ('b.mp4', True, [])})
         self.assertEqual((a.fade_out_frames, b.fade_in_frames, b.at), (8, 8, 22))
 
     def test_clips_without_sound_add_nothing(self):
-        media = {**self.media, 'a': ('a.mp4', False, False)}
+        media = {**self.media, 'a': ('a.mp4', False, [])}
         self.assertEqual(len(assembly.clip_sounds(self.t, self.placed, media)), 2)
 
     def test_a_ducked_lane_dips_under_speech_only(self):
@@ -374,8 +378,48 @@ class Mix(unittest.TestCase):
         self.assertNotIn('volume=eval', chains[4])
         self.assertTrue(all('volume=eval' not in c for c in chains[:3]))
 
+    def test_speech_ducks_over_its_own_span_where_the_clip_plays(self):
+        # c (placed at the end, nothing trimmed) speaks over frames 10..16 of its 30, and 25..45 of a
+        # longer film: the lanes dip over each span moved to where c plays, cut where c's sound ends.
+        media = {**self.media, 'b': ('b.mp4', True, []), 'c': ('c.mp4', True, [(10, 6, 2, 4), (25, 20, 3, 3)])}
+        (_, a), (_, b), (c_sound, c) = assembly.clip_sounds(self.t, self.placed, media)
+        self.assertEqual((a, b), ([], []))
+        start = self.placed[2].start
+        self.assertEqual([(s.at, s.frames, s.fade_in_frames, s.fade_out_frames) for s in c],
+                         [(start + 10, 6, 2, 4), (start + 25, 5, 3, c_sound.fade_out_frames)])
+        lane = tf.Lane('Audio 1', (), True, -10.0)
+        bed = Sound('bed.wav', at=0, start=0.0, frames=self.total)
+        _, graph, _ = assembly.mix_graph([(c_sound, c)], [(lane, [bed])], self.total, 30)
+        ducked = graph.split(';')[1]
+        self.assertEqual(ducked.count('clip((t-'), 2)
+        self.assertIn(f'clip((t-{(start + 10) / 30:.6f})', ducked)
+
+    def test_where_a_clip_speaks(self):
+        t = tf.parse({'version': 1, 'clips': [
+            {'id': 'a', 'dir': 'a'}, {'id': 'boat', 'footage': 'boat.mp4', 'out': 30}, {'id': 'mute', 'footage': 'mute.mp4', 'out': 30},
+            {'id': 'said', 'dir': 'said', 'sound': {'dialogue': True}}]})
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp = Path(tmp)
+            # A clip directory: the spans its render wrote beside its MP4; none from an older one.
+            film = type('F', (), {'frames': 60, 'sounds': (Sound('v.wav', at=12, start=0.0, frames=30),
+                                                          Sound('w.wav', at=50, start=0.0, frames=30))})
+            assembly.write_spans(film, spans_path(tmp / 'a.mp4'))
+            self.assertEqual(assembly.speech_spans(t.clip('a'), str(tmp / 'a.mp4'), 60, 30),
+                             [(12, 30, 3, 3), (50, 10, 3, 3)])
+            self.assertEqual(assembly.speech_spans(t.clip('a'), str(tmp / 'old.mp4'), 60, 30), [])
+            # Footage: its caption cues, words under a second apart run together.
+            (tmp / 'boat.vtt').write_text('WEBVTT\n\n00:00:01.000 --> 00:00:02.000\nhello there\n\n'
+                                          '00:00:02.500 --> 00:00:03.000\nfriend\n\n'
+                                          '00:00:05.000 --> 00:00:05.500\nbye\n')
+            self.assertEqual(assembly.speech_spans(t.clip('boat'), str(tmp / 'boat.mp4'), 300, 30),
+                             [(30, 60, tf.DEFAULT_FADE, tf.DEFAULT_FADE), (150, 15, tf.DEFAULT_FADE, tf.DEFAULT_FADE)])
+            self.assertEqual(assembly.speech_spans(t.clip('mute'), str(tmp / 'mute.mp4'), 300, 30), [])
+            # Marked dialogue: all of it.
+            self.assertEqual(assembly.speech_spans(t.clip('said'), str(tmp / 'said.mp4'), 90, 30),
+                             [(0, 90, tf.DEFAULT_FADE, tf.DEFAULT_FADE)])
+
     def test_no_speech_no_ducking_and_input_numbering(self):
-        media = {k: (p, True, False) for k, (p, _, _) in self.media.items()}
+        media = {k: (p, True, []) for k, (p, _, _) in self.media.items()}
         clips = assembly.clip_sounds(self.t, self.placed, media)
         lane = tf.Lane('Audio 1', (), True)
         inputs, graph, _ = assembly.mix_graph(clips, [(lane, [Sound('bed.wav', 0, 0.0, 10)])], self.total, 30,
@@ -438,10 +482,17 @@ class Assembly(unittest.TestCase):
         self.assertAlmostEqual(audio_seconds(first.out), 75 / 30, delta=0.05)
         self.assertFalse(first.copied)
 
+        cache = self.root / '.vb-cache' / 'clips'
+        self.assertEqual([json.loads(p.read_text()) for p in cache.glob('*.spans.json')], [[], []])
+
         self.rendered.clear()
-        write_clip(self.root, 'c', mark='#ff0000')
+        write_clip(self.root, 'c', mark='#ff0000',
+                   audio=", sounds=(vb.Sound('sources/bed.wav', at=10, start=0.0, frames=6),)")
         second = self.assemble()
         self.assertEqual((self.rendered, second.reused), (['c'], ['a']))
+        # Its render reports where c speaks, for the ducked lane.
+        spans = sorted(json.loads(p.read_text()) for p in cache.glob('*.spans.json'))
+        self.assertIn([{'at': 10, 'frames': 6, 'fade_in': 3, 'fade_out': 3}], spans)
 
         self.rendered.clear()
         t = three_clips('cut')

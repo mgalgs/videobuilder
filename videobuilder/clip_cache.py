@@ -25,7 +25,7 @@ from pathlib import Path, PurePosixPath
 
 SHARED = 'shared'
 REQUIREMENTS = 'requirements.txt'
-KEY_VERSION = 'clip-render-1'
+KEY_VERSION = 'clip-render-2'  # 2: a render keeps its Sound spans beside it
 # Never part of a clip's content: build droppings, and the editor's synced sources.
 _IGNORED_DIRS = {'__pycache__', 'sources', '.git'}
 _IGNORED_SUFFIXES = ('.pyc',)
@@ -123,10 +123,34 @@ def timeline_keys(timeline, tree, formats=None):
     return keys
 
 
+def spans_path(mp4):
+    """The Sound spans sidecar of a clip render `mp4` (`x.mp4` -> `x.spans.json`):
+    where its film's Sounds play, for an assembly's ducked lanes."""
+    mp4 = Path(mp4)
+    return mp4.with_name(mp4.name.removesuffix('.mp4') + '.spans.json')
+
+
+def finish(partial, out):
+    """Move a finished clip render `partial` and its spans sidecar, if it
+    wrote one, into place at `out`: the sidecar first, so a whole MP4 always
+    has its spans beside it."""
+    if spans_path(partial).is_file():
+        os.replace(spans_path(partial), spans_path(out))
+    os.replace(partial, out)
+
+
+def discard(partial):
+    """Delete a clip render `partial` and its sidecar."""
+    Path(partial).unlink(missing_ok=True)
+    spans_path(partial).unlink(missing_ok=True)
+
+
 class ClipCache:
     """`<root>/<key>-<format>.mp4`, written atomically: a render goes to
     `<key>-<format>.partial.mp4` (ffmpeg picks the container from the
-    extension) and is renamed into place, so a finished name is always whole."""
+    extension) and is renamed into place, so a finished name is always whole.
+    Beside each, `<key>-<format>.spans.json` (`spans_path`), when the
+    renderer wrote one."""
 
     def __init__(self, root):
         self.root = Path(root)
@@ -144,18 +168,18 @@ class ClipCache:
         partial = out.with_name(f'{key}-{fmt}.partial.mp4')
         try:
             render(partial)
-            os.replace(partial, out)
+            finish(partial, out)
         finally:
-            partial.unlink(missing_ok=True)
+            discard(partial)
         return out, True
 
     def evict(self, keep):
         """Delete every cached render whose key isn't in `keep`."""
-        for p in self.root.glob('*.mp4'):
-            if p.name[:40] not in keep and not p.name.endswith('.partial.mp4'):
+        for p in [*self.root.glob('*.mp4'), *self.root.glob('*.spans.json')]:
+            if p.name[:40] not in keep and '.partial.' not in p.name:
                 p.unlink(missing_ok=True)
 
     def sweep_partials(self):
         """Delete what a render killed with its process left behind."""
         for p in self.root.glob('*.partial.mp4'):
-            p.unlink(missing_ok=True)
+            discard(p)
