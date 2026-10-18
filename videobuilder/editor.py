@@ -20,10 +20,16 @@ GET  /api/notes[?video=V]            {notes:[...]}, oldest first; advances runs.
                                      notes[].cost_usd/tokens (see POST below)
                                      are admin-only when accounts are on,
                                      stripped entirely for anyone else
-POST /api/notes {video,text,format?,time?,attachments?:[id...]}
+POST /api/notes {video,text,format?,time?,attachments?:[id...],clip?}
                                      200 note; `time` is seconds, optional.
                                      Legacy `frame` also works. Without either,
                                      frame/time are null and there is no PNG.
+                                     `clip`, on a film of clips only, is a clip
+                                     id in its timeline.json at main: the note
+                                     is about that clip (400 any other clip,
+                                     or any clip on a video without one).
+                                     Every note carries `clip`, null for the
+                                     whole video.
                                      429 {error} once the author's account has
                                      hit account_daily_note_cap or
                                      account_daily_cost_cap_usd, naming in plain
@@ -403,6 +409,7 @@ from .drafts import Drafts, git
 from .pages import account_page
 from .render import default_jobs
 from .renders import Renders
+from .film_brief import FilmBrief
 from .attachments import Attachments
 from .music import MusicLibrary
 from .sources import Sources
@@ -537,6 +544,7 @@ class Editor:
         self.library = None
         self.renders = Renders(self, _positive(cfg, 'render_jobs', min(4, default_jobs())),
                                _positive(cfg, 'render_keep', 20))
+        self.notes.film = FilmBrief(self)
         from .thumbnails import Thumbnails
         self.thumbnails = Thumbnails(self)
         self.allowed_hosts = {h.lower().rstrip('.') for h in
@@ -719,6 +727,7 @@ class Editor:
         if frame is not None and (isinstance(frame, bool) or not isinstance(frame, int)):
             raise HTTPError(400, 'frame must be an integer')
         fmt = body.get('format') or None
+        clip = self._note_clip(vid, body.get('clip'))
         try:
             attachments = self.attachments.validate(vid, body.get('attachments', []))
         except (ValueError, KeyError) as exc:
@@ -741,10 +750,30 @@ class Editor:
             png = s.request('frame', frame=frame, format=fmt, scale=NOTE_SCALE) if frame is not None else None
         try:
             return self.notes.add(vid, fmt, frame, segment, body.get('text'), png, author=author,
-                                  time=timestamp, attachments=attachments,
+                                  time=timestamp, attachments=attachments, clip=clip,
                                   beat=frame / tl['frames_per_beat'] if tl and frame is not None else None)
         except ValueError as e:
             raise HTTPError(400, str(e)) from None
+
+    def _note_clip(self, video, clip):
+        """A note's `clip`, checked: None for the whole video, else the id of a
+        clip in the video's timeline file at main (400 otherwise, and for any
+        clip on a video that isn't a film of clips)."""
+        if clip is None:
+            return None
+        if not isinstance(clip, str):
+            raise HTTPError(400, 'clip must be a clip id')
+        try:
+            timeline = self.renders.timeline(video, git(self.root, 'rev-parse', '--verify', 'refs/heads/main'))
+        except ValueError as exc:
+            raise HTTPError(400, f'cannot read the timeline file: {exc}') from None
+        if timeline is None:
+            raise HTTPError(400, 'this video is not a film of clips, so a note cannot name a clip')
+        try:
+            timeline.clip(clip)
+        except KeyError:
+            raise HTTPError(400, f'no clip {clip!r} in the timeline file') from None
+        return clip
 
     def start_video(self, body, author, is_admin=False):
         """The first note for a video just started from scratch: the

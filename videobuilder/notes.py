@@ -45,6 +45,14 @@ community_for_builder) is staged read-only under a note's own
 /attachments/capabilities/<slug>/ the same way a source video is, and
 listed by title in the prompt -- see NoteStore's `community` callable and
 prompt.render's community section.
+
+On a film made of clips (a video with a timeline.json), a note may name one
+clip, `clip` (validated by the editor; None means the whole video, and every
+note read back carries the key). NoteStore's `film` callable (film_brief.
+FilmBrief) gives the prompt the film's clips, its bible and the clip's place
+in it, and the neighbouring clips' edge frames, staged under /attachments
+beside the pinned frame. A video without a timeline gets no brief, and the
+same prompt as before films.
 """
 import hashlib
 from pathlib import Path
@@ -266,6 +274,9 @@ class NoteStore:
         # currently-valid capabilities (see library.Library.community_for_builder); [] in
         # single-project mode, where there is no community feature at all.
         self.community = community or (lambda: [])
+        # film, when set, is a callable (video, note, state) -> (brief, grabs) for a film
+        # made of clips, or None for a single film (see film_brief.brief); set by Editor.
+        self.film = None
 
     def video_lock(self, video):
         with self.lock:
@@ -350,9 +361,13 @@ class NoteStore:
     def get(self, nid):
         try:
             with open(self._path(nid, 'json'), encoding='utf-8') as fh:
-                return json.load(fh)
+                note = json.load(fh)
         except FileNotFoundError:
             raise KeyError(nid) from None
+        # The clip of a film made of clips the note is about; None for the whole video
+        # (and for every note saved before films had clips).
+        note.setdefault('clip', None)
+        return note
 
     def current(self, nid):
         """One note after polling its video's backend, as list() does."""
@@ -459,12 +474,19 @@ class NoteStore:
             sources = self.sources.list(video) if self.sources else []
             any_ready = any(s.get('preview_ready') for s in sources)
             community_entries = self.community()
+            film, grabs = (self.film(video, note, state) if self.film else None) or (None, [])
             if self.attachments:
                 self.attachments.expire()
-                payload['attach_dir'] = self.attachments.stage(note, image, force=any_ready or bool(community_entries))
+                payload['attach_dir'] = self.attachments.stage(
+                    note, image, force=any_ready or bool(community_entries) or bool(grabs))
                 if image:
                     from .attachments import FRAME_NAME
                     image = '/attachments/' + FRAME_NAME
+            if grabs and payload.get('attach_dir'):
+                # After the uploads, like the pinned frame, so the prompt's names stay true.
+                for side, name, grab in grabs:
+                    if grab(Path(payload['attach_dir']) / name):
+                        film[side]['frame'] = '/attachments/' + name
             staged_community = (_stage_community(payload['attach_dir'], community_entries)
                                if community_entries and payload.get('attach_dir') else [])
             if sources and payload.get('attach_dir'):
@@ -476,7 +498,8 @@ class NoteStore:
             compendium = bool(compendium_source(payload)) if compendium_source else False
             votes = self.compendium_votes() if compendium and self.compendium_votes else None
             path.write_text(prompt.render(note, payload, image, compendium=compendium, votes=votes,
-                                          sources=sources, community=staged_community), encoding='utf-8')
+                                          sources=sources, community=staged_community, film=film),
+                            encoding='utf-8')
             payload['note_file'] = str(path)
             note['handle'] = self.backend.submit(payload)
             note['started'] = time.time()
@@ -559,7 +582,7 @@ class NoteStore:
             state.pop('rejection', None)
             self.save_session(video, state)
             png = self.image(nid) if note.get('frame') is not None else None
-            context = {k: note[k] for k in ('time', 'beat', 'attachments', 'no_questions') if k in note}
+            context = {k: note[k] for k in ('time', 'beat', 'attachments', 'no_questions', 'clip') if k in note}
             new = self.add(video, note['format'], note['frame'], note['segment'], note['text'], png,
                            author=author or note.get('author'), retried_from=nid, **context)
             note['retried'] = new['id']
@@ -590,7 +613,7 @@ class NoteStore:
                 parts += [f"Q: {q['text']}\nA: {a.strip()}" for q, a in zip(questions, answers)]
                 text = '\n\n'.join(parts)
             png = self.image(nid) if note.get('frame') is not None else None
-            context = {k: note[k] for k in ('time', 'beat', 'attachments') if k in note}
+            context = {k: note[k] for k in ('time', 'beat', 'attachments', 'clip') if k in note}
             new = self.add(video, note['format'], note['frame'], note['segment'], text, png,
                            author=author or note.get('author'), answered_from=nid, no_questions=True, **context)
             note['answered'] = new['id']

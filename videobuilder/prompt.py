@@ -114,7 +114,130 @@ def _community_lines(community):
     return lines
 
 
-def render(note, payload, image, compendium=False, votes=None, sources=None, community=None):
+FILMS_DOC = 'skill/make-a-video/reference/films.md'
+
+
+def _clip_line(c):
+    """One clip of a film, for a list: number, id, where it is, its act."""
+    where = (f"footage, {c['footage']} from frame {c['in']} to {c['out']}" if c['footage']
+             else c['dir'])
+    return f"{c['number']}. `{c['id']}`: {where}" + (f" (act \"{c['act']}\")" if c['act'] else '')
+
+
+def _bible_lines(film, clip_note):
+    if not film['bible']:
+        return []
+    lines = ['## The bible', '',
+             f"`{film['bible_dir']}/` describes the whole film: its look, world, tone and outline "
+             f"(`bible.md`) and its characters (`characters/`). Read it first, and keep characters "
+             f"and the look consistent with it. Open its pictures with the Read tool.", '']
+    lines += [f'- {p}' for p in film['bible']]
+    if film['bible_more']:
+        lines.append(f"- and {film['bible_more']} more files under {film['bible_dir']}/")
+    lines += ['', 'A clip note never changes the bible: when this clip has to depart from it, say so '
+              'in your reply.' if clip_note else 'Change the bible only when the note asks for '
+              'something the bible describes (a character, the look, the outline), and keep it '
+              'true to the film as you leave it.']
+    return lines
+
+
+def _neighbour_line(label, n, cut, edge):
+    where = f"footage from {n['footage']}" if n['footage'] else n['dir']
+    line = f"{label}: clip {n['number']}, `{n['id']}` ({where}); {cut}."
+    if n['frame']:
+        line += f" Its {edge} frame, as the film shows it, is {n['frame']}."
+    return line
+
+
+def _clip_note_lines(film):
+    c = film['clip']
+    total = len(film['clips'])
+    lines = ['## This note is about one clip', '',
+             f"This video is a film made of clips: `{film['timeline']}` lists them in order, each "
+             f"built and rendered on its own, then cut together (read {FILMS_DOC}). This note is "
+             f"about clip {c['number']} of {total}, `{c['id']}`"
+             + (f", in the act \"{c['act']}\"" if c['act'] else '')
+             + (f", whose film is `{c['film']}`." if c['film'] else
+                f": footage, {c['footage']} from frame {c['in']} to {c['out']}, with no code of its own.")]
+    if c['about']:
+        lines.append(f"What it is for: {c['about']}")
+    before, after = film['before'], film['after']
+    lines.append(_neighbour_line('Before it', before, f"it cuts into this clip with {before['cut']}", 'last')
+                 if before else 'It is the first clip.')
+    lines.append(_neighbour_line('After it', after, f"this clip cuts into it with {after['cut']}", 'first')
+                 if after else 'It is the last clip.')
+    frames = [n['frame'] for n in (before, after) if n and n['frame']]
+    lines.append('Keep the edges consistent: unless the note asks otherwise, this clip begins where the one '
+                 'before it leaves off and ends where the one after it picks up, with the same characters, '
+                 'colours, light and framing either side of each cut'
+                 + (' -- open ' + ' and '.join(frames) + ' before you start.' if frames else '.'))
+    if c['film']:
+        lines.append(f"A clip imports shared code as `from shared import ...`, with the video's directory on "
+                     f"its import path: add that directory to PYTHONPATH beside the videobuilder this video "
+                     f"renders with (the pinned source, if one is named below), not in place of it, "
+                     f"`PYTHONPATH={film['directory']}:$PYTHONPATH python -m videobuilder still {c['film']} 0`.")
+    return lines
+
+
+def _check_line(film):
+    """How to check the timeline file before committing, with the videobuilder
+    this video renders with: `load` works on every version that has films,
+    `assemble --check` only on newer ones."""
+    return (f"Before you commit, check the timeline file with the videobuilder this video renders with: "
+            f"`python -c \"from videobuilder.timeline_file import load; load('{film['timeline']}')\"` "
+            f"validates it, and, when `python -m videobuilder assemble --help` lists `--check`, "
+            f"`python -m videobuilder assemble {film['directory']} --check` also checks every clip directory "
+            f"it names, rendering nothing. Fix everything they report.")
+
+
+def _film_lines(film):
+    """The film-of-clips section of a note on one (see film_brief)."""
+    if film['clip']:
+        return _clip_note_lines(film)
+    lines = ['## A film made of clips', '',
+             f"This video is a film made of clips (read {FILMS_DOC} first): `{film['timeline']}` lists them "
+             f"in order, each built and rendered on its own, then cut together."]
+    if film['error']:
+        lines.append(f"At the commit you start from, it does not validate:\n{film['error']}\nFix that first.")
+        if film['named']:
+            lines.append(f"This note was written about the clip `{film['named']}`: once the timeline file "
+                         f"validates, make the change it asks for in that clip.")
+    elif film['clips']:
+        lines += ['', *[_clip_line(c) for c in film['clips']], '']
+    if film['missing']:
+        lines.append(f"This note was written about the clip `{film['missing']}`, which is no longer in the "
+                     f"timeline file: treat it as a note about the whole video.")
+    lines.append(f"This note is about the whole video. You may edit `{film['timeline']}` (clip order, trims, "
+                 f"transitions, J/L cuts, Audio lanes), add, split or remove clip directories (each its own "
+                 f"film, at the timeline's fps and in each of its formats, named in the timeline file), and "
+                 f"edit `{film['shared']}/` (code every clip imports: a change there re-renders every clip) "
+                 f"and `{film['bible_dir']}/`. Keep the root film file small: it is how the editor finds this "
+                 f"video, not what it shows.")
+    lines.append(_check_line(film) + f" `python -m videobuilder assemble {film['directory']}` renders the "
+                 f"whole film.")
+    return lines
+
+
+def _film_scope(film, directory):
+    """The 'Change files only under' line(s) for a note on a film of clips."""
+    c = film['clip']
+    if not c:
+        return [f'Change files only under {directory}.']
+    if c['footage']:
+        return [f"This clip is footage, so change only its own entry in {film['timeline']} (its in, out, head, "
+                f"tail, cut and sound), or, when the note asks for something drawn over or instead of the "
+                f"footage, make it a clip directory: a new one under {directory}/clips/ whose film reads the "
+                f"footage with `vb.Clip`, with this entry naming it by `dir` in place of `footage`. Change "
+                f"nothing else. " + _check_line(film)]
+    return [f"Change files only under {c['dir']}.",
+            f"Only when the note asks for something every clip uses (a shared palette, font or character "
+            f"drawing) may you change {film['shared']}/ too: that re-renders every clip, so look at another "
+            f"clip afterwards and say in your reply that you changed it. Never change {film['timeline']} or "
+            f"another clip's directory in a clip note; if the note needs that, build what you can in this "
+            f"clip and say what else it needs."]
+
+
+def render(note, payload, image, compendium=False, votes=None, sources=None, community=None, film=None):
     """The exact text written to `<state>/sessions/<slug>/<note-id>.md`, the file
     the submitted payload's `note_file` points the builder at. `payload` is the
     note merged with its context and session fields (see NoteStore._submit);
@@ -132,7 +255,9 @@ def render(note, payload, image, compendium=False, votes=None, sources=None, com
     {slug,title,card,...} dict; falsy for none, leaving the section out
     entirely the same way `sources` does. A community look (`family` ==
     'looks') is listed under the Looks section instead, beside the built-in
-    looks every prompt names.
+    looks every prompt names. `film` is film_brief.brief's brief for a film
+    made of clips (the note's clip and its neighbours, or the whole film; the
+    bible), or None for a single film, whose prompt it leaves untouched.
     """
     lines = ['# Review request', '', *([note['rejection']] if note.get('rejection') else []), note['text'], '']
     if note.get('time') is not None:
@@ -147,6 +272,11 @@ def render(note, payload, image, compendium=False, votes=None, sources=None, com
         lines += _sources_lines(sources, payload.get('directory', payload.get('video')))
     for key in ('video', 'film', 'format', 'frame', 'segment', 'beat', 'time', 'image', 'draft'):
         lines.append(f"{key}: {image if key == 'image' else payload.get(key)}")
+    if film:
+        lines += ['', *_film_lines(film)]
+        bible = _bible_lines(film, bool(film['clip']))
+        if bible:
+            lines += ['', *bible]
     asking_enabled = not (note.get('no_questions') or note.get('automatic'))
     if not asking_enabled:
         lines += ['', '## No more questions', '',
@@ -221,7 +351,8 @@ def render(note, payload, image, compendium=False, votes=None, sources=None, com
               '`sheet --frames` around the moment.',
               'Open your final frames before you reply, and say in the reply what you saw wrong '
               'and what it looks like now.',
-              '', f"Change files only under {payload.get('directory', payload.get('video'))}.",
+              '', *(_film_scope(film, payload.get('directory', payload.get('video'))) if film else
+                    [f"Change files only under {payload.get('directory', payload.get('video'))}."]),
               'Commit only changes to the video. Never commit a reply or notes file: '
               'end with a short answer for the reviewer as your final message, '
               'and it is shown to them as your reply.',

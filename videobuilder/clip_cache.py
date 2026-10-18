@@ -53,11 +53,20 @@ class GitTree:
             result = subprocess.run(cmd, cwd=self.repo, capture_output=True, text=True)
             if result.returncode:
                 raise ValueError(f'cannot read commit {self.sha}: {result.stderr.strip()}')
-            self._ids = {}
+            self._ids, self._blobs = {}, []
             for entry in filter(None, result.stdout.split('\0')):
                 meta, name = entry.split('\t', 1)
                 self._ids[name] = meta.split()[2]
+                if meta.split()[1] == 'blob':
+                    self._blobs.append(name)
         return self._ids.get(self._full(path))
+
+    def files(self, path):
+        """Every file under directory `path` at the commit, relative to the
+        video's directory, sorted; [] when there is no such directory."""
+        self.id(path)
+        under = self._full(path).rstrip('/') + '/'
+        return sorted(name[len(self.prefix):] for name in self._blobs if name.startswith(under))
 
     def read(self, path):
         """The bytes of `path` at the commit, or None."""

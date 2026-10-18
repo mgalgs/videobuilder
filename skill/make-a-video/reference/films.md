@@ -26,6 +26,10 @@ clips/
   01-opening/film.py      one clip: its own film, rendered on its own
   03-credits/film.py
 shared/                   code any clip imports: from shared import palette
+bible/                    optional: what every clip's builder reads first
+  bible.md
+  characters/mara.md
+  characters/mara.png
 sources/                  uploaded footage and sounds (never committed)
 ```
 
@@ -117,3 +121,36 @@ file, and lists footage and sounds that aren't on disk (fine for uploads
 that aren't in this checkout). A clip directory imports `shared` with the
 video's root on its import path, so run its own tools that way:
 `PYTHONPATH=. python -m videobuilder still clips/01-opening/film.py 0`.
+
+## The bible
+
+An optional `bible/` directory at the video's root describes the film as a
+whole, for every builder that works on it: `bible.md` (the look, the world,
+the tone, the outline: what each clip is for, in order) and
+`characters/<name>.md`, one per character, each optionally with pictures
+beside it (`characters/mara.png`). Builders read it first and keep the
+characters and the look consistent with it; nothing renders it. A clip's
+film file starts its docstring with one line saying what the clip is for;
+builders are shown that line too.
+
+## Notes on a film of clips
+
+A note in the editor is about one clip (`clip`, a clip id in `timeline.json`
+on main) or about the whole video.
+
+- **A clip note** tells the builder which clip (its id, its number, its act),
+  what it is for, the cuts either side of it, and, as `/attachments/
+  previous-clip-last-frame.png` and `/attachments/next-clip-first-frame.png`,
+  the last frame of the clip before it and the first frame of the clip after
+  it, as the film shows them (trims applied), when those renders are cached
+  (a footage clip's frame comes from its source). The builder changes files
+  only under that clip's directory. It may change `shared/` too, only when
+  the note asks for something every clip uses: that re-renders every clip.
+  It never changes `timeline.json`, the bible or another clip in a clip
+  note. A note on a footage clip may change only that clip's entry in
+  `timeline.json`, or turn it into a clip directory that reads the footage.
+- **A whole-video note** may edit `timeline.json`, add, split or remove clip
+  directories, and edit `shared/` and `bible/`, checking the timeline file
+  before it commits with the videobuilder the video renders with:
+  `timeline_file.load` on any version, and `assemble --check` where that
+  version has it.

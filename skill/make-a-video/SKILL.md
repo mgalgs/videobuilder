@@ -229,7 +229,44 @@ See `reference/music.md`. In short:
   held frames. List deliberate overlaps in the film: `OVERLAP_OK = {('chart',
   'label')}`.
 
-## 8. Review before calling it done
+## 8. Films made of clips
+
+For a longer film, a story in scenes, or a mix of drawn shots and footage,
+make a *film made of clips*: each clip its own small film, built and
+rendered on its own, cut together by a `timeline.json`. One note can then
+change one clip without re-rendering the rest. A single short film doesn't
+need one. Read `reference/films.md` for the file format.
+
+From scratch:
+
+- At the video's root, a small `film.py`: a `FILM` with a `Timeline` (a
+  title card will do) at the timeline's fps and formats. It is how the
+  editor finds the video; the clips are what it shows.
+- `timeline.json`: the clips in order, with their cuts, trims and transitions,
+  optional acts, and Audio lanes for music under the whole film.
+- A directory per clip, `clips/01-opening/film.py` and so on, each a film
+  like any other at the same fps and in every format the timeline lists.
+  Start its docstring with one line saying what the clip is for: builders
+  are shown it.
+- `shared/` for code more than one clip uses (palette, fonts, a character's
+  drawing): `from shared import palette`.
+- `bible/`, optional: `bible.md` for the look, world, tone and outline, and
+  `characters/<name>.md`, each with pictures beside it if you have them.
+  Read it before every clip; nothing renders it.
+
+Keep the clip edges consistent: a clip begins where the one before it leaves
+off and ends where the next picks up (characters, colours, light, framing),
+so the cuts read as one film. Still the last frame of one clip and the first
+of the next and look at them side by side.
+
+Check it: `python -m videobuilder assemble . --check` validates the timeline
+file and the clip directories it names without rendering;
+`python -m videobuilder assemble .` renders the whole film, re-rendering
+only the clips that changed. A clip imports `shared` with the video's root
+on its import path: `PYTHONPATH=. python -m videobuilder still
+clips/01-opening/film.py 0`.
+
+## 9. Review before calling it done
 
 Review each note at named frames with stills and a sheet; use `check.py --motion` for mark trajectories (`reference/motion.md`). Render, then:
 
@@ -249,7 +286,7 @@ Report to the user: the MP4 paths, length and formats, the storyboard, what
 you chose (fonts, colours, music) and anything placeholder, and the check
 results. Don't call it done with a FAIL standing.
 
-## 9. Traps (details in `reference/api.md`)
+## 10. Traps (details in `reference/api.md`)
 
 - Frame math: `vb.round_half_up` (or `GRID.b(beat)`), never `round()`.
 - Springs are real physics: `vb.critical(k)` for a settle with no
