@@ -79,6 +79,17 @@ class Store(unittest.TestCase):
             with self.subTest(bad=bad), self.assertRaises(KeyError):
                 store.get(bad)
 
+    def test_a_hand_edited_entry_that_is_not_one_is_skipped(self):
+        state = self.root / 'state'
+        cli('add', '--state', str(state), '--title', 'Good', '--date', '2026-10-18')
+        for name, body in (('2026-10-01', '{"title": "No date"}'), ('2026-10-02', '[1, 2]'),
+                           ('2026-10-03', '{"title": 7, "date": "2026-10-03"}')):
+            (state / 'whats-new' / name).mkdir()
+            (state / 'whats-new' / name / 'entry.json').write_text(body)
+        store = WhatsNew(state)
+        self.assertEqual([e['id'] for e in store.local()], ['2026-10-18'])
+        self.assertIsNotNone(store.newest_key())  # every library page calls this; it must not raise
+
     def test_notes_are_paragraphs_and_lists_and_nothing_else(self):
         self.assertEqual(notes_html('One\nline two\n\n- a\n* <b>b</b>\nafter'),
                          '<p>One<br>line two</p><ul><li>a</li><li>&lt;b&gt;b&lt;/b&gt;</li></ul><p>after</p>')

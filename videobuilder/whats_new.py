@@ -348,6 +348,13 @@ class WhatsNew:
             entry = json.loads((folder / 'entry.json').read_text(encoding='utf-8'))
         except (OSError, ValueError):
             return None
+        # A hand-edited entry.json reaches every library page (via newest_key): skip
+        # one that isn't an entry rather than fail them all.
+        if not isinstance(entry, dict) or not all(isinstance(entry.get(k), str) for k in ('title', 'date')):
+            return None
+        entry['id'] = folder.name
+        entry.setdefault('versions', '')
+        entry.setdefault('notes', '')
         entry['videos'] = [f for f in FORMATS if (folder / f'{f}.mp4').is_file()]
         return entry
 
