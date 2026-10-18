@@ -47,6 +47,9 @@ from .attachments import TYPES, _validate_content
 from .clip import _displayed_size, _fps_and_cfr
 
 EXTS = ('mp4', 'mov', 'webm')
+# A sound a film of clips plays on an Audio lane (a song dropped on New video's
+# Audio, say): stored, synced and staged like footage, with no picture.
+AUDIO_EXTS = ('mp3', 'm4a', 'wav', 'aac', 'ogg')
 CAPTION_EXTS = ('vtt', 'srt')
 STREAM_CHUNK = 1 << 20
 CAPTION_MAX_BYTES = 2 * 1048576
@@ -118,7 +121,7 @@ def _basename(name):
     return Path(str(name).replace('\\', '/')).name
 
 
-def probe(path):
+def probe(path, audio_only=False):
     """(duration, width, height, has_audio) of the video at `path` -- width and
     height are the size as displayed, after ffmpeg's own auto-rotation (see
     `.clip._displayed_size`), matching what `vb.Clip` reports for the same
@@ -127,7 +130,8 @@ def probe(path):
     picking the two top-level sections): ffprobe's entry filter doesn't
     recurse into a nested field like `side_data_list`, so asking for it by
     name back silently returns empty objects instead of the rotation it
-    holds."""
+    holds. `audio_only`: the file is a sound (AUDIO_EXTS), so it needs an
+    audio stream instead, and its width and height are None."""
     result = subprocess.run(
         ['ffprobe', '-v', 'error', '-show_format', '-show_streams', '-of', 'json', str(path)],
         capture_output=True, text=True)
@@ -138,14 +142,18 @@ def probe(path):
     except ValueError:
         raise ValueError('could not read this video file') from None
     streams = data.get('streams') or []
-    video = next((s for s in streams if s.get('codec_type') == 'video'), None)
-    if video is None:
-        raise ValueError('this file has no video stream')
     has_audio = any(s.get('codec_type') == 'audio' for s in streams)
     try:
         duration = float((data.get('format') or {}).get('duration') or 0)
     except (TypeError, ValueError):
         duration = 0.0
+    if audio_only:
+        if not has_audio:
+            raise ValueError('this file has no audio stream')
+        return duration, None, None, True
+    video = next((s for s in streams if s.get('codec_type') == 'video'), None)
+    if video is None:
+        raise ValueError('this file has no video stream')
     if video.get('width') and video.get('height'):
         width, height = _displayed_size(video)
     else:
@@ -319,8 +327,9 @@ class Sources:
         if content_length == 0:
             raise ValueError('the upload is empty')
         ext = Path(_basename(filename)).suffix.lstrip('.').lower()
-        if ext not in EXTS:
-            raise ValueError('source videos must be .mp4, .mov or .webm')
+        if ext not in EXTS + AUDIO_EXTS:
+            raise ValueError('source videos must be .mp4, .mov or .webm (or a sound: .mp3, .m4a, .wav, .aac '
+                             'or .ogg)')
         base = _basename(filename).rsplit('.', 1)[0]
         slug = _slug(name) if name else _slug(base)
         video_dir = self._video_dir(video)
@@ -352,7 +361,7 @@ class Sources:
                     fh.write(chunk)
                     remaining -= len(chunk)
             _validate_content(content_type, first_chunk, ext)
-            duration, width, height, has_audio = probe(tmp)
+            duration, width, height, has_audio = probe(tmp, audio_only=ext in AUDIO_EXTS)
             try:
                 dest.mkdir()
             except FileExistsError:
@@ -489,16 +498,22 @@ class Sources:
             meta = self.get(video, name)
         except KeyError:
             return
+        src = self._dir(video, name) / f"{meta['name']}.{meta['ext']}"
+        tmp = self._tmp_dir / ('.tmp-' + secrets.token_hex(8))
+        if meta['ext'] in AUDIO_EXTS:
+            # A sound has no picture to shrink: its copy is the same audio as
+            # stereo AAC, in an MP4 container whatever its name says, like a video's.
+            self._publish_preview(video, name, tmp, ['ffmpeg', '-y', '-i', str(src), '-vn', '-c:a', 'aac',
+                                                     '-ac', '2', '-b:a', '96k', '-f', 'mp4', str(tmp)])
+            return
         dims = _preview_dims(meta.get('width'), meta.get('height'))
         if dims is None:
             return
         width, height = dims
-        src = self._dir(video, name) / f"{meta['name']}.{meta['ext']}"
         try:
             fps, cfr = _source_fps(src)
         except (OSError, subprocess.CalledProcessError, IndexError, KeyError, ValueError, ZeroDivisionError):
             return
-        tmp = self._tmp_dir / ('.tmp-' + secrets.token_hex(8))
         audio = ['-c:a', 'aac', '-ac', '2', '-b:a', '96k'] if meta.get('has_audio') else ['-an']
         # Forcing the same constant rate Clip reports for the source (even when the
         # source itself is variable-rate) is what keeps a frame number meaning the
@@ -515,6 +530,11 @@ class Sources:
         command = ['ffmpeg', '-y', '-i', str(src), '-vf', vf, '-c:v', 'libx264',
                   '-preset', 'veryfast', '-crf', '28',
                   '-pix_fmt', 'yuv420p', *audio, '-movflags', '+faststart', '-f', 'mp4', str(tmp)]
+        self._publish_preview(video, name, tmp, command)
+
+    def _publish_preview(self, video, name, tmp, command):
+        """Run the preview encode `command` (writing `tmp`), then publish its
+        result under the source's lock -- see _build_preview."""
         try:
             result = subprocess.run(command, capture_output=True)
         except OSError:

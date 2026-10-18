@@ -94,7 +94,8 @@ GET  /api/sources?video=V            {sources:[{name,ext,size,duration,width,
                                      preview_ready flips true once a small
                                      copy for the builder's sandbox exists
                                      (built in the background after upload)
-POST /api/sources?video=V&filename=F[&name=N]  raw body with Content-Type,
+POST /api/sources?video=V&filename=F[&name=N]  raw body with Content-Type
+                                     (a video, or a sound: mp3/m4a/wav/aac/ogg),
                                      streamed to disk as it arrives; name
                                      defaults to filename's stem, sanitized
                                      to a slug unique per video; 201 the
@@ -204,14 +205,17 @@ POST /api/videos/new {name,start:"blank"|"copy",from?}
                                      name under the reserved `capabilities/`
                                      namespace (see community.is_reserved)
 POST /v/<name>/api/videos/first-note {description?,attachments?:[id...],
-                                      links?:[url...]}
+                                      links?:[url...],look?,length?,film?}
                                      200 note: the video's first note, built
                                      from the brief, the already-uploaded
                                      attachments and any gathered pages (see
                                      gather.py); still queues with whatever
                                      was gathered and a line on what failed
                                      when gathering only partly succeeds; 429
-                                     as POST /api/notes above
+                                     as POST /api/notes above. `film` (see
+                                     new_video.py) first commits a film of
+                                     the uploaded footage clips (timeline.json)
+                                     or a planned film's bible; 400 a bad one
 
 Library-only, when the library has accounts (`--admin`):
 GET  /login, /signup                 sign-in / sign-up pages
@@ -401,8 +405,9 @@ import threading
 import time
 from http.server import ThreadingHTTPServer
 from importlib import resources
+from pathlib import Path, PurePosixPath
 
-from . import edits
+from . import assembly, edits, new_video
 from .notes import NoteStore
 from .agents import backend_from_config
 from .drafts import Drafts, git
@@ -801,11 +806,35 @@ class Editor:
         if not all(links) or len(links) > 20:
             raise HTTPError(400, 'links must be a list of up to 20 URLs')
         try:
-            attachments = self.attachments.validate(vid, body.get('attachments', []),
+            start = new_video.parse(body)
+        except ValueError as exc:
+            raise HTTPError(400, str(exc)) from None
+        attachment_ids = body.get('attachments', [])
+        picture_ids = start.picture_ids()
+        try:
+            # A character's pictures go into the bible, not on the note, but share its budget.
+            attachments = self.attachments.validate(vid, (attachment_ids if isinstance(attachment_ids, list)
+                                                          else [None]) + picture_ids,
                                                     max_files=self.attachments.start_video_max_files,
                                                     max_message=self.attachments.start_video_max_message)
-        except (ValueError, KeyError) as exc:
+        except (ValueError, KeyError, TypeError) as exc:
+            raise HTTPError(400, str(exc) if not isinstance(exc, TypeError) else 'attachments must be ids') from None
+        attachments = attachments[:len(attachments) - len(picture_ids)]
+        sources = {m['name']: m for m in self.sources.list(vid)}
+        try:
+            # A footage clip's length is its picture's, as the assembly measures
+            # it: the container's can run longer with a trailing audio tail.
+            for c in start.footage:
+                if sources.get(c['source'], {}).get('width') is not None:
+                    _, path = self.sources.file_path(vid, c['source'])
+                    sources[c['source']] = dict(sources[c['source']], duration=assembly.probe(path)[1])
+            files = new_video.start_files(self._title(), (description or '').strip(), start, sources,
+                                          self._character_pictures(vid, start))
+        except ValueError as exc:
             raise HTTPError(400, str(exc)) from None
+        if files:
+            self._commit_start(vid, files, start, author)
+        extra = new_video.note_lines(start, sources)
         s = self.session(vid)
         info = s.request('info')
         if 'frames' not in info:
@@ -814,16 +843,64 @@ class Editor:
 
         if not links:
             try:
-                return self.notes.add(vid, fmt, None, None, _first_brief(description, attachments, [], []), None,
-                                      author=author, attachments=attachments)
+                return self.notes.add(vid, fmt, None, None, _first_brief(description, attachments, [], [], extra),
+                                      None, author=author, attachments=attachments)
             except ValueError as e:
                 raise HTTPError(400, str(e)) from None
 
         # `gather` is what _resume_gathering needs to crawl again after a restart.
         note = self.notes.start_gathering(vid, fmt, text=description, author=author, attachments=attachments,
-                                          gather={'description': description, 'links': links})
+                                          gather={'description': description, 'links': links, 'extra': extra})
         self._start_gather(note)
         return note
+
+    def _title(self):
+        """The video's name as a title: `acme/snow-day-reel` is "Snow day reel"."""
+        leaf = os.path.basename(os.path.abspath(self.root)).split('--')[-1]
+        words = leaf.replace('-', ' ').replace('_', ' ').strip()
+        return (words[:1].upper() + words[1:]) or 'New video'
+
+    def _character_pictures(self, vid, start):
+        """[(character slug, file name, bytes)...] for the bible: each picture
+        the page uploaded for a character, numbered after the character."""
+        out = []
+        for c in start.characters:
+            for n, ident in enumerate(c['pictures'], 1):
+                meta, path = self.attachments.get(ident, vid)
+                if not meta['type'].startswith('image/'):
+                    raise ValueError(f'{meta["name"]} is not a picture')
+                out.append((c['slug'], new_video.picture_name(c['slug'], n, meta['name']), path.read_bytes()))
+        return out
+
+    def _commit_start(self, vid, files, start, author):
+        """Commit what Start building wrote (see new_video.start_files) on
+        main, in the video's own directory, the way an upgrade commits."""
+        base = Path(self.project.video(vid).path).parent
+        if start.footage:
+            n = len(start.footage)
+            summary = f'Start the film: {n} clip{"" if n == 1 else "s"}' + (' and a song' if start.lanes else '')
+        else:
+            summary = 'Start the film: its bible'
+        with self.lock:
+            if self.sync:
+                self.sync.before_commit()
+            if git(self.root, 'status', '--porcelain'):
+                raise HTTPError(409, 'main checkout has local changes')
+            relative = []
+            for rel, data in files.items():
+                path = base / rel
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_bytes(data)
+                relative.append(str(PurePosixPath(path.resolve().relative_to(Path(self.root).resolve()))))
+            git(self.root, 'add', '--', *relative)
+            if git(self.root, 'diff', '--cached', '--quiet', check=False).returncode == 0:
+                return
+            git(self.root, 'commit', '-m', f'{summary}\n\nVersion-kind: edit\nDirected-by: {author or "anonymous"}',
+                '--', *relative)
+            commit = git(self.root, 'rev-parse', 'main')
+            if self.sync:
+                self.sync.after_commit()
+        self.render_first(vid, commit)
 
     def _start_gather(self, note):
         description, links = note['gather']['description'], note['gather']['links']
@@ -844,7 +921,8 @@ class Editor:
                                                     for k in ('id', 'name', 'type', 'size')} for i in gathered]
             except Exception as exc:
                 gather_errors = [('(gathering)', str(exc))]
-            self.notes.finish_gathering(note['id'], _first_brief(description, attachments, links, gather_errors),
+            self.notes.finish_gathering(note['id'], _first_brief(description, attachments, links, gather_errors,
+                                                                 note['gather'].get('extra', ())),
                                         final_attachments)
 
         threading.Thread(target=gather_then_queue, daemon=True).start()
@@ -889,13 +967,17 @@ class Editor:
             raise HTTPError(400, str(e)) from None
 
 
-def _first_brief(description, attachments, links, gather_errors):
-    """A started video's first note text: the creator's description, the chosen
-    image order, and (with links) the gathered pages' caveat and any failures."""
+def _first_brief(description, attachments, links, gather_errors, extra=()):
+    """A started video's first note text: the creator's description, `extra`
+    (new_video.note_lines: the length, the look, and what Start building
+    wrote), the chosen image order, and (with links) the gathered pages'
+    caveat and any failures."""
     image_names = [a['name'] for a in attachments if a['type'].startswith('image/')]
     lines = []
     if description and description.strip():
         lines.append(description.strip())
+    if extra:
+        lines += ([''] if lines else []) + list(extra)
     if len(image_names) >= 2:
         lines += ['', 'Use the attached images in this order:']
         lines += [f'{n}. {name}' for n, name in enumerate(image_names, 1)]
