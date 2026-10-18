@@ -1038,13 +1038,13 @@ WHATS_NEW_STYLE = (
     '.wn-admin summary{padding:0 1.1rem}.wn-admin fieldset{grid-template-columns:1fr}}'
 )
 
-# Picks each entry's video for the screen (9:16 when the window is taller than
-# wide, else 16:9, falling back to whatever the entry has) and swaps it if the
+# Picks each entry's video for the screen (9:16 on a phone-sized window taller
+# than wide, else 16:9, falling back to whatever the entry has) and swaps it if the
 # window turns while it isn't playing; marks the newest entry seen for the app
 # bar's dot; and drives the admin form and remove buttons.
 WHATS_NEW_SCRIPT = (
     '<script>(()=>{'
-    'const tall=matchMedia("(max-aspect-ratio:1/1)");'
+    'const tall=matchMedia("(max-aspect-ratio:1/1) and (max-width:900px)");'
     'const load=box=>{const src=JSON.parse(box.dataset.videos),v=box.querySelector("video");'
     'const f=(tall.matches?["9x16","1x1","16x9"]:["16x9","1x1","9x16"]).find(k=>src[k]);'
     'if(!f||box.dataset.fmt===f||(box.dataset.fmt&&!v.paused))return;box.dataset.fmt=f;v.src=src[f]};'
