@@ -100,12 +100,13 @@ class TimelineFile(unittest.TestCase):
     def test_every_problem_is_named_with_where_it_is(self):
         d = good()
         d['clips'][0]['trim'] = 4
-        d['clips'][1]['cut'] = {'transition': 'whip', 'frames': 4}
+        d['clips'][1]['cut'] = {'transition': 'match', 'frames': 4}
         d['clips'][2]['cut'] = {'transition': 'dissolve'}
         d['lanes'][0]['items'][0].pop('at')
         found = problems(d)
         self.assertIn('clips[0] "opening": unknown key "trim" (trim with "head" and "tail", frames off each end)', found)
-        self.assertIn('clips[1] "boat".cut: transition "whip" is not available yet; use one of cut, dissolve, wipe',
+        self.assertIn('clips[1] "boat".cut: transition "match" is not available yet; use one of cut, dissolve, wipe, '
+                      'whip, flash',
                       found)
         self.assertIn('clips[2] "credits".cut: a dissolve needs "frames", its length', found)
         self.assertIn('Audio 1, item 1: needs "at"', found)
@@ -138,10 +139,10 @@ class TimelineFile(unittest.TestCase):
             ({'version': 1, 'clips': [{'id': 'a', 'dir': 'a'}, {'id': 'b', 'dir': 'b',
                                                                'cut': {'transition': 'dissolve', 'frames': 5,
                                                                        'direction': 'up'}}]},
-             'direction is for a wipe only'),
+             'direction is for a wipe or a whip only'),
             ({'version': 1, 'clips': [{'id': 'a', 'dir': 'a'}, {'id': 'b', 'dir': 'b',
                                                                'cut': {'transition': 'spin', 'frames': 5}}]},
-             'transition must be one of cut, dissolve, wipe, not "spin"'),
+             'transition must be one of cut, dissolve, wipe, whip, flash, not "spin"'),
             ({'version': 1, 'clips': [{'id': 'a', 'footage': 'f.mp4', 'out': 10},
                                       {'id': 'b', 'dir': 'b', 'cut': {'transition': 'dissolve', 'frames': 20}}]},
              'longer than the 10 frames it shows'),

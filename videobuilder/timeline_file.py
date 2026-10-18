@@ -41,8 +41,10 @@ of a cut are the outgoing clip's `tail` and the incoming clip's `head`.
 `cut` is the cut *into* this clip from the one before (so it moves with the
 clip when clips are reordered): `transition` is one of `TRANSITIONS`, and
 `frames` its length (0 for `cut`). A dissolve or wipe overlaps the two clips
-by `frames`, so the film gets that much shorter. `wipe` takes a `direction`
-(left, right, up, down; default left). The first clip has no cut into it.
+by `frames`, so the film gets that much shorter, and so do a whip (a fast
+slide with motion blur) and a flash (a short cut through white). `wipe` and
+`whip` take a `direction` (left, right, up, down; default left): the way the
+picture moves. The first clip has no cut into it.
 `sound` is the clip's own sound: `gain_db`; `early` frames it starts before
 the clip's picture (a J-cut) and `late` frames it runs on after it (an
 L-cut), revealing sound from the trimmed head/tail (or, for footage, the
@@ -74,10 +76,11 @@ from pathlib import PurePosixPath
 
 NAME = 'timeline.json'
 VERSION = 1
-TRANSITIONS = ('cut', 'dissolve', 'wipe')
+TRANSITIONS = ('cut', 'dissolve', 'wipe', 'whip', 'flash')
 # Reserved for later; named so a file using one gets "not available yet", not "unknown".
-LATER_TRANSITIONS = ('whip', 'flash', 'match')
+LATER_TRANSITIONS = ('match',)
 WIPE_DIRECTIONS = ('left', 'right', 'up', 'down')
+DIRECTED = ('wipe', 'whip')   # the transitions that take a direction
 DEFAULT_DUCK_DB = -12.0
 DEFAULT_FADE = 3
 # Keys a builder may reach for that mean something else here.
@@ -108,7 +111,7 @@ class Cut:
     """The cut into a clip from the one before it."""
     transition: str = 'cut'
     frames: int = 0
-    direction: str = 'left'   # wipe only
+    direction: str = 'left'   # wipe and whip only
 
 
 @dataclass(frozen=True)
@@ -273,8 +276,8 @@ def _parse_cut(ck, where, raw, first):
         return Cut()
     frames = ck.int_(w, raw, 'frames', 0)
     direction = raw.get('direction', 'left')
-    if 'direction' in raw and kind != 'wipe':
-        ck.bad(w, 'direction is for a wipe only')
+    if 'direction' in raw and kind not in DIRECTED:
+        ck.bad(w, 'direction is for a wipe or a whip only')
     elif direction not in WIPE_DIRECTIONS:
         ck.bad(w, f'direction must be one of {", ".join(WIPE_DIRECTIONS)}, not {json.dumps(direction)}')
         direction = 'left'
@@ -510,7 +513,7 @@ class Placement:
 def place(timeline, lengths):
     """([Placement] for every clip, the film's total frames), given `lengths`
     {clip id: frames} of each clip directory's render and, optionally, of each
-    footage file (else taken to end at `out`). A dissolve or wipe of d frames overlaps the clip with the
+    footage file (else taken to end at `out`). A transition of d frames overlaps the clip with the
     one before it by d. Raises ValueError for trims or transitions a clip is
     too short for."""
     out, at = [], 0

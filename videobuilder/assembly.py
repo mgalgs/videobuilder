@@ -9,7 +9,7 @@
    renders are joined with the concat demuxer, no re-encode. Otherwise the
    picture is encoded once through one filter graph: each clip trimmed (and
    footage scaled to cover and centre-cropped), hard cuts `concat`ed and
-   dissolves and wipes `xfade`d over their overlap.
+   transitions `xfade`d over their overlap (see `XFADE`).
 3. The sound is mixed with the same code as one film's (`render.sound_chain`,
    `render.duck_filter`, `render.join_mix`, the loudness gain and limiter):
    each clip's own sound under its picture, extended by its J/L overlap, plus
@@ -36,7 +36,13 @@ from .clip_cache import ClipCache, FileTree, clip_key, spans_path
 from .film import DEFAULT_LOUDNESS, Sound, as_format
 from .timeline_file import DEFAULT_FADE, load as load_timeline, place
 
-XFADE = {'dissolve': 'fade', 'wipe': 'wipe{direction}'}
+# The xfade transition of each of ours; every filter here is in ffmpeg 7.1 (the editor's image) and later.
+# A whip is a slide with a blur along it over the slide, stronger over its middle (`whip_blur`).
+# A flash is a cut through white: a dissolve between the outgoing clip fading up to white over
+# the first half and the incoming one fading down from white over the second (`flash_fades`), so
+# its middle frame is all white (xfade's own `fadewhite` never quite gets there).
+XFADE = {'dissolve': 'fade', 'wipe': 'wipe{direction}', 'whip': 'slide{direction}', 'flash': 'fade'}
+WHIP_BLUR = (1 / 24, 1 / 10)   # avgblur sizes, as fractions of the frame along the whip: all of it, its middle third
 SEEK_MARGIN = 1   # seconds a footage input is seeked short of its first frame
 CAPTION_EXTS = ('vtt', 'srt')
 CAPTION_GAP = 1.0   # seconds of silence between caption words that lets a ducked lane back up
@@ -259,6 +265,8 @@ def picture_graph(timeline, placements, fmt, inputs, seeks=None):
                  f'crop={w}:{h}')
         else:
             f = trim
+        nxt = placements[k + 1].clip.cut if k + 1 < len(placements) else None
+        f += flash_fades(p.clip.cut if k else None, nxt, p.frames)
         chains.append(f'[{inputs[k]}:v]{f},fps={fps},setsar=1,format=yuv420p,settb=AVTB[c{k}]')
     acc = 'c0'
     for k, p in enumerate(placements[1:], start=1):
@@ -270,8 +278,41 @@ def picture_graph(timeline, placements, fmt, inputs, seeks=None):
             kind = XFADE[cut.transition].format(direction=cut.direction)
             chains.append(f'[{acc}][c{k}]xfade=transition={kind}:duration={cut.frames / fps:.6f}:'
                           f'offset={p.start / fps:.6f}[{nxt}]')
+            if cut.transition == 'whip':
+                chains.append(f'[{nxt}]{whip_blur(cut, p.start, fmt, fps)}[{nxt}b]')
+                nxt += 'b'
         acc = nxt
     return ';'.join(chains), acc
+
+def flash_fades(cut_in, cut_out, frames):
+    """The fades to white on a clip `frames` long that a flash into it
+    (`cut_in`) or out of it (`cut_out`) needs: down from white over the
+    second half of the flash in, up to white over the first half of the one
+    out. '' for none."""
+    out = ''
+    if cut_in and cut_in.transition == 'flash':
+        out += f',fade=t=in:start_frame={cut_in.frames // 2}:nb_frames={max(1, (cut_in.frames + 1) // 2)}:color=white'
+    if cut_out and cut_out.transition == 'flash':
+        out += (f',fade=t=out:start_frame={frames - cut_out.frames}:nb_frames={max(1, cut_out.frames // 2)}'
+                ':color=white')
+    return out
+
+
+def whip_blur(cut, start, fmt, fps):
+    """The motion blur over a whip into a clip that starts at frame `start`:
+    a box blur along the whip's direction (`avgblur`, with `enable` for its
+    frames), over the whole slide and again, stronger, over its middle third."""
+    across = cut.direction in ('left', 'right')
+    size = fmt.width if across else fmt.height
+    out = []
+    for share, (a, z) in zip(WHIP_BLUR, ((0, cut.frames), (cut.frames / 3, cut.frames * 2 / 3))):
+        r = max(1, round(size * share))
+        sx, sy = (r, 1) if across else (1, r)
+        # Frame times sit on whole frames: half a frame either way keeps the ends in.
+        t0, t1 = (start + a - .5) / fps, (start + z - .5) / fps
+        out.append(f"avgblur=sizeX={sx}:sizeY={sy}:enable='between(t,{t0:.6f},{t1:.6f})'")
+    return ','.join(out)
+
 
 
 def footage_seek(source, fps):
