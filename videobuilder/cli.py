@@ -1,7 +1,8 @@
 """Command line: render, still, sheet, preview, edit, editor.
 
     python -m videobuilder render  film.py [--format 9x16|16x9|1x1|all] [--jobs N] [--out FILE]
-    python -m videobuilder assemble DIR [--format F|all] [--out FILE] [--cache DIR] [--jobs N] [--check]
+    python -m videobuilder assemble DIR [--format F|all] [--out FILE] [--cache DIR] [--jobs N] [--check] [--snap]
+    python -m videobuilder beats   song.mp3 [--fps N] [--bpm N]
     python -m videobuilder still   film.py FRAME [FRAME ...] [--format F] [--out PATH] [--overlay]
     python -m videobuilder sheet   film.py [--format F] [--every N | --frames 0,30,60] [--out FILE] [--width W] [--cols C]
     python -m videobuilder preview film.py [--port 8000] [--host 127.0.0.1]
@@ -411,8 +412,18 @@ def cmd_say(a):
 
 
 def cmd_assemble(a):
-    from .assembly import assemble_dir, check_dir
+    from .assembly import assemble_dir, beat_warnings, check_dir, snap_dir
     from .timeline_file import TimelineError, load as load_timeline
+    if a.snap:
+        try:
+            moves = snap_dir(a.dir, cache_dir=a.cache)
+        except FileNotFoundError:
+            sys.exit(f'{a.dir}: no timeline.json')
+        except ValueError as e:
+            sys.exit(str(e))
+        print('\n'.join(moves) if moves else 'timeline.json: every cut was on a beat already')
+        if not a.check:
+            return
     if a.check:
         try:
             timeline, problems, missing = check_dir(a.dir)
@@ -424,7 +435,15 @@ def cmd_assemble(a):
             print(f'not on disk here (fine if it is an upload): {path}', file=sys.stderr)
         if problems:
             sys.exit('timeline.json:\n  ' + '\n  '.join(problems))
-        print(f'timeline.json: ok, {len(timeline.clips)} clips')
+        warnings = beat_warnings(a.dir, timeline, cache_dir=a.cache)
+        for warning in warnings:
+            print(f'off the beat: {warning}', file=sys.stderr)
+        beats = ''
+        if timeline.beats:
+            beats = f', a reel at {timeline.beats.bpm:g} bpm' + (
+                f' with {len(warnings)} warning{"" if len(warnings) == 1 else "s"}' if warnings else
+                ', every cut on a beat')
+        print(f'timeline.json: ok, {len(timeline.clips)} clips{beats}')
         return
     try:
         timeline = load_timeline(os.path.join(a.dir, 'timeline.json'))
@@ -465,7 +484,10 @@ def main(argv=None):
     asm.add_argument('--format', help="a format name, or 'all' (default: the timeline's first)")
     asm.add_argument('--out', help='output file (default: <dir>/<dir name>-<format>.mp4)')
     asm.add_argument('--check', action='store_true',
-                     help='validate timeline.json and the clip directories it names; render nothing')
+                     help='validate timeline.json and the clip directories it names; render nothing. '
+                          'On a reel (a timeline with "beats"), warn of each cut off a beat')
+    asm.add_argument('--snap', action='store_true',
+                     help='on a reel, move every cut off a beat onto one, writing timeline.json; render nothing')
     asm.add_argument('--cache', help='where clip renders are kept (default: <dir>/.vb-cache/clips)')
     asm.add_argument('--jobs', type=int, help='worker processes per clip render (default: CPU count)')
     asm.set_defaults(fn=cmd_assemble)
@@ -665,9 +687,17 @@ def main(argv=None):
     f.add_argument('films', nargs='+')
     f.set_defaults(fn=cmd_frames)
 
+    # Its own parser (`beats.main`): every argument after `beats` is passed to it as it is.
+    sub.add_parser('beats', help="a song's BPM, first beat and beat grid, for a reel's timeline.json (see films.md)",
+                   add_help=False)
+
     w = sub.add_parser('worker', help='serve the versioned film worker protocol on standard streams')
     w.set_defaults(fn=lambda a: __import__('videobuilder.worker', fromlist=['serve']).serve())
 
+    argv = sys.argv[1:] if argv is None else list(argv)
+    if argv[:1] == ['beats']:
+        from .beats import main as beats_main
+        return beats_main(argv[1:])
     a = p.parse_args(argv)
     a.fn(a)
 

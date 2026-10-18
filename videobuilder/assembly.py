@@ -34,7 +34,7 @@ from . import captions
 from . import render as _render
 from .clip_cache import ClipCache, FileTree, clip_key, spans_path
 from .film import DEFAULT_LOUDNESS, Sound, as_format
-from .timeline_file import DEFAULT_FADE, load as load_timeline, place
+from .timeline_file import DEFAULT_FADE, load as load_timeline, offbeat, place
 
 # The xfade transition of each of ours; every filter here is in ffmpeg 7.1 (the editor's image) and later.
 # A whip is a slide with a blur along it over the slide, stronger over its middle (`whip_blur`).
@@ -284,6 +284,7 @@ def picture_graph(timeline, placements, fmt, inputs, seeks=None):
         acc = nxt
     return ';'.join(chains), acc
 
+
 def flash_fades(cut_in, cut_out, frames):
     """The fades to white on a clip `frames` long that a flash into it
     (`cut_in`) or out of it (`cut_out`) needs: down from white over the
@@ -312,7 +313,6 @@ def whip_blur(cut, start, fmt, fps):
         t0, t1 = (start + a - .5) / fps, (start + z - .5) / fps
         out.append(f"avgblur=sizeX={sx}:sizeY={sy}:enable='between(t,{t0:.6f},{t1:.6f})'")
     return ','.join(out)
-
 
 
 def footage_seek(source, fps):
@@ -358,6 +358,8 @@ def assemble(timeline, fmt, out, root, renders, crf=18, log=sys.stderr):
         lengths[c.id] = round(duration * fps)
         media[c.id] = (path, has_audio, speech_spans(c, path, lengths[c.id], fps))
     placements, total = place(timeline, lengths)
+    for warning in offbeat(timeline, placements):
+        print(f'off the beat: {warning}', file=log)
     clips = clip_sounds(timeline, placements, media)
     lanes = lane_sounds(timeline, root)
     _render.ensure_has_audio(s.path for _, sounds in lanes for s in sounds)
@@ -431,6 +433,65 @@ def check_dir(root):
     for lane in timeline.lanes:
         missing += [i.sound for i in lane.items if not (root / i.sound).is_file()]
     return timeline, problems, list(dict.fromkeys(missing))
+
+
+def known_lengths(root, timeline, fmt=None, cache_dir=None):
+    """{clip id: frames} of every clip whose media is on disk: footage files
+    and the clip directories with a render in the cache (`cache_dir`, default
+    `<root>/.vb-cache/clips`) for `fmt` (default the timeline's first format).
+    Renders nothing."""
+    root = Path(root).resolve()
+    fmt = fmt or timeline.formats[0]
+    cache_dir = Path(cache_dir or root / '.vb-cache' / 'clips')
+    cache = ClipCache(cache_dir) if cache_dir.is_dir() else None
+    tree, lengths = FileTree(root), {}
+    for c in timeline.clips:
+        try:
+            if c.is_footage:
+                path = resolve(root, c.footage)
+            elif cache is None:
+                continue
+            else:
+                path = cache.path(clip_key(tree, c, fmt), fmt)
+                if not path.is_file():
+                    continue
+            lengths[c.id] = round(probe(path)[1] * timeline.fps)
+        except ValueError:
+            continue
+    return lengths
+
+
+def beat_warnings(root, timeline, cache_dir=None):
+    """`assemble --check`'s warnings for a reel: every cut its beat grid has
+    off a beat (`timeline_file.offbeat`), as far as clip lengths are known
+    without rendering (`known_lengths`), and where that stops."""
+    if timeline.beats is None:
+        return []
+    lengths = known_lengths(root, timeline, cache_dir=cache_dir)
+    try:
+        placements, _ = place(timeline, lengths, known=True)
+    except ValueError as exc:
+        return [str(exc)]
+    out = offbeat(timeline, placements)
+    if len(placements) < len(timeline.clips):
+        c = timeline.clips[len(placements)]
+        out.append(f'clip "{c.id}" has no render yet: the beat of the cuts from it on is checked once it renders')
+    return out
+
+
+def snap_dir(root, cache_dir=None):
+    """`python -m videobuilder assemble --snap`: move every cut of the
+    reel at `root` onto a beat (`timeline_file.snap_cuts`), writing its
+    timeline.json. Returns what moved."""
+    from .timeline_file import snap_cuts
+    root = Path(root).resolve()
+    path = root / 'timeline.json'
+    data = json.loads(path.read_text(encoding='utf-8'))
+    timeline = load_timeline(path)
+    snapped, moves = snap_cuts(data, known_lengths(root, timeline, cache_dir=cache_dir))
+    if snapped != data:
+        path.write_text(json.dumps(snapped, indent=2, ensure_ascii=False) + '\n', encoding='utf-8')
+    return moves
 
 
 def assemble_dir(root, fmt=None, out=None, cache_dir=None, render_clip=None, jobs=None, log=sys.stderr):

@@ -26,7 +26,8 @@ Every time in the file is a whole number of frames at the file's `fps`.
       "lanes": [
         {"duck": true, "items": [
           {"sound": "sources/theme.mp4", "at": 0, "offset": 0, "frames": 240, "gain_db": -3}]}
-      ]
+      ],
+      "beats": {"lane": 1, "item": 1, "bpm": 120, "first": 12}
     }
 
 Clips, in order. Each is either
@@ -66,6 +67,17 @@ Paths are relative to the video's root, POSIX, inside it. Footage and big
 sounds live in the video's `sources/` (uploaded to the editor, hardlinked into
 every checkout and render worktree by `videobuilder.sources`, never committed);
 a small committed file anywhere in the repo works too.
+
+Beats: an optional beat grid, for a reel cut to a song. `lane` and `item`
+(counted from 1, as "Audio 1, item 1") name the lane item playing the song;
+`bpm` is its tempo, `first` the frame of its first beat counted from the
+start of its file at `fps`, `bar` its beats to a bar (default 4). Beat k is
+at `first + k * fps * 60 / bpm` frames into the file (rounded half up), so
+on the timeline at `at - offset` plus that, for as long as the item plays
+(`beat_grid`). A timeline with a grid is a reel: its cuts belong on beats,
+and `offbeat` names the ones that aren't, as warnings, never as errors.
+Where a cut is: a hard cut's first frame of the incoming clip; a transition's
+middle (its first frame plus half its frames, rounded down).
 """
 import difflib
 import json
@@ -173,6 +185,17 @@ class Lane:
 
 
 @dataclass(frozen=True)
+class Beats:
+    """A reel's beat grid: the song on Audio `lane`, its item `item` (both
+    counted from 1), at `bpm`, its first beat `first` frames into its file."""
+    lane: int
+    item: int
+    bpm: float
+    first: int = 0
+    bar: int = 4
+
+
+@dataclass(frozen=True)
 class Timeline:
     fps: int
     formats: tuple
@@ -180,6 +203,7 @@ class Timeline:
     acts: tuple = ()
     lanes: tuple = ()
     version: int = VERSION
+    beats: Beats | None = None
 
     def clip(self, clip_id):
         for c in self.clips:
@@ -417,12 +441,34 @@ def _parse_acts(ck, raw, order):
     return tuple(acts)
 
 
+BEATS_KEYS = ('lane', 'item', 'bpm', 'first', 'bar')
+
+
+def _parse_beats(ck, raw, lanes):
+    if not ck.keys('beats', raw, BEATS_KEYS, ('lane', 'item', 'bpm')):
+        return None
+    lane = ck.int_('beats', raw, 'lane', 1, minimum=1)
+    item = ck.int_('beats', raw, 'item', 1, minimum=1)
+    bpm = ck.num('beats', raw, 'bpm', 120.0, lo=30.0, hi=300.0)
+    first = ck.int_('beats', raw, 'first')
+    bar = ck.int_('beats', raw, 'bar', 4, minimum=1)
+    if bar > 16:
+        ck.bad('beats', f'bar must be at most 16 beats, not {bar}')
+    if lane > len(lanes):
+        ck.bad('beats', f'lane {lane}: there is no Audio {lane} (the timeline has {len(lanes)} '
+                        f'lane{"" if len(lanes) == 1 else "s"})')
+    elif item > len(lanes[lane - 1].items):
+        ck.bad('beats', f'item {item}: Audio {lane} has {len(lanes[lane - 1].items)} item'
+                        f'{"" if len(lanes[lane - 1].items) == 1 else "s"}')
+    return Beats(lane, item, bpm, first, bar)
+
+
 def parse(data, source=NAME):
     """The `Timeline` of an already-decoded timeline file; raises
     `TimelineError` naming every problem found."""
     from .film import FORMATS
     ck = _Checker()
-    if not ck.keys('', data, ('version', 'fps', 'formats', 'clips', 'acts', 'lanes'), ('version', 'clips')):
+    if not ck.keys('', data, ('version', 'fps', 'formats', 'clips', 'acts', 'lanes', 'beats'), ('version', 'clips')):
         raise TimelineError(source, ck.problems)
     if data.get('version') != VERSION:
         ck.bad('version', f'must be {VERSION}, not {json.dumps(data.get("version"))}')
@@ -453,9 +499,10 @@ def parse(data, source=NAME):
         ck.bad('lanes', f'must be a list, not {_kind(raw_lanes)}')
         raw_lanes = []
     lanes = tuple(_parse_lane(ck, i, raw) for i, raw in enumerate(raw_lanes))
+    beats = _parse_beats(ck, data['beats'], lanes) if 'beats' in data else None
     if ck.problems:
         raise TimelineError(source, ck.problems)
-    return Timeline(fps, tuple(formats), tuple(clips), acts, lanes)
+    return Timeline(fps, tuple(formats), tuple(clips), acts, lanes, beats=beats)
 
 
 def _check_overlaps(ck, clips):
@@ -510,14 +557,18 @@ class Placement:
         return self.start + self.frames
 
 
-def place(timeline, lengths):
+def place(timeline, lengths, known=False):
     """([Placement] for every clip, the film's total frames), given `lengths`
     {clip id: frames} of each clip directory's render and, optionally, of each
     footage file (else taken to end at `out`). A transition of d frames overlaps the clip with the
     one before it by d. Raises ValueError for trims or transitions a clip is
-    too short for."""
+    too short for. With `known`, stops at the first clip directory whose
+    length isn't in `lengths` (its placements are the clips before it; the
+    total, where they end)."""
     out, at = [], 0
     for i, c in enumerate(timeline.clips):
+        if known and not c.is_footage and c.id not in lengths:
+            break
         if c.is_footage:
             media, source = lengths.get(c.id, c.out_frame), c.in_frame + c.head
             frames = c.out_frame - c.in_frame - c.head - c.tail
@@ -538,3 +589,114 @@ def place(timeline, lengths):
         out.append(Placement(c, start, frames, source, media))
         at = start + frames
     return out, at
+
+
+# ---- beats ----
+
+def beat_grid(timeline):
+    """The `beats.BeatGrid` of a reel's song on the timeline, or None for a
+    timeline with no beat grid: its beats from where the song's item starts
+    playing to where it stops."""
+    from .beats import BeatGrid
+    b = timeline.beats
+    if b is None:
+        return None
+    item = timeline.lanes[b.lane - 1].items[b.item - 1]
+    return BeatGrid(timeline.fps, b.bpm, zero=item.at - item.offset + b.first, lo=item.at,
+                    hi=item.at + item.frames, bar=b.bar)
+
+
+def cut_frame(placement):
+    """Where the cut into a placed clip is on the timeline: a hard cut's first
+    frame of the clip; a transition's middle (rounded down)."""
+    return placement.start + placement.clip.cut.frames // 2
+
+
+def offbeat(timeline, placements):
+    """Warnings, one per cut in `placements` that a reel's beat grid has off
+    its beats (none without a grid, and none for a cut outside the song)."""
+    grid = beat_grid(timeline)
+    if grid is None:
+        return []
+    out = []
+    for i, p in enumerate(placements[1:], start=1):
+        f = cut_frame(p)
+        if not grid.lo <= f <= grid.hi:
+            continue
+        off = grid.off(f)
+        if off:
+            near = grid.snap(f)
+            other = grid.step(f, 1 if off > 0 else -1)
+            what = 'cut' if p.clip.cut.transition == 'cut' else f'{p.clip.cut.transition}\'s middle'
+            out.append(f'clips[{i}] "{p.clip.id}": the {what} into it is at frame {f}, {abs(off)} '
+                       f'frame{"" if abs(off) == 1 else "s"} {"after" if off > 0 else "before"} '
+                       f'{grid.describe(near)} (frame {near}); put it on {near} or {other}')
+    return out
+
+
+def snap_cuts(data, lengths=None):
+    """(a copy of the timeline file `data` with every cut that its beat grid
+    has off a beat moved onto one, [what moved]). A cut moves by changing how
+    long the clip before it shows: a footage clip's `out` (or its `tail`,
+    while it has one to give back), a clip directory's `tail`. It goes to the
+    nearest beat, or the beat on its other side when the clip can't reach
+    that one (too short, or its file ends). `lengths` is as for `place`: a
+    clip directory with no length stops the snapping there, as do cuts
+    after it. Raises ValueError for a timeline with no beat grid."""
+    import copy
+    data = copy.deepcopy(data)
+    lengths = dict(lengths or {})
+    timeline = parse(data)
+    grid = beat_grid(timeline)
+    if grid is None:
+        raise ValueError('the timeline has no beat grid ("beats"): there are no beats to snap to')
+    moves = []
+    for i in range(1, len(timeline.clips)):
+        placements, _ = place(parse(data), lengths, known=True)
+        if len(placements) <= i:
+            moves.append(f'stopped at clips[{len(placements)}]: its length is known once it renders')
+            break
+        f = cut_frame(placements[i])
+        if not grid.lo <= f <= grid.hi or grid.on_beat(f):
+            continue
+        near = grid.snap(f)
+        for target in (near, grid.step(f, -1 if near > f else 1)):
+            trial = _moved(data, i - 1, target - f)
+            if trial is None:
+                continue
+            try:
+                place(parse(trial), lengths, known=True)
+            except (ValueError, TimelineError):
+                continue
+            data = trial
+            moves.append(f'clips[{i}] "{placements[i].clip.id}": cut moved from frame {f} to {target} '
+                         f'({grid.describe(target)})')
+            break
+        else:
+            moves.append(f'clips[{i}] "{placements[i].clip.id}": the cut at frame {f} cannot reach a beat; '
+                         'change the clips either side of it')
+    return data, moves
+
+
+def _moved(data, i, delta):
+    """A copy of `data` with clip `i` showing `delta` frames more (fewer, if
+    negative), or None when it can't."""
+    import copy
+    data = copy.deepcopy(data)
+    c = data['clips'][i]
+    tail = c.get('tail', 0)
+    if 'footage' in c:
+        give = min(tail, delta) if delta > 0 else 0
+        tail -= give
+        c['out'] = c['out'] + delta - give
+        if c['out'] <= c.get('in', 0):
+            return None
+    else:
+        tail -= delta
+        if tail < 0:
+            return None
+    if tail:
+        c['tail'] = tail
+    else:
+        c.pop('tail', None)
+    return data
