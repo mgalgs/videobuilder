@@ -2,6 +2,7 @@
 import io
 import json
 import os
+import shutil
 import tempfile
 import threading
 import unittest
@@ -179,7 +180,8 @@ class DirectorPageRoutes(API):
         expected = {'project','name','info','frame','video','notes','versions','versions/restore',
                     'attachments','video/retry','roll','copy','undo','draft','draft/info','draft/frame',
                     'draft/accept','draft/drop','upgrade','access','music/sources','music/tracks','music/attach',
-                    'videos/first-note','sources','pictures','pictures/gpu'}
+                    'videos/first-note','sources','pictures','pictures/gpu',
+                    'clip','timeline','timeline/thumb','timeline/footage'}
         # Dynamic attachment, draft and source actions have their own router patterns.
         self.assertTrue(paths - {'attachments/', 'draft/', 'sources/', 'pictures/'} <= expected, paths - expected)
         # The route literals live wherever make_handler's pieces do now, not all in editor.py.
@@ -222,6 +224,131 @@ class DirectorPageRoutes(API):
         send_now = re.search(r'async function sendNow\(\) \{(.*?)\n\}', js, re.S).group(1)
         self.assertLess(send_now.index("await json('notes'"), send_now.index("$('message').value=''"),
                          'the typed note must only be cleared after the send succeeds')
+
+    def test_timeline_wiring(self):
+        # A film of clips' timeline in director.js: notes say which clip they are about and the
+        # chat shows those, falling back to every note when the server sends no `clip`; each
+        # direct edit posts the whole file against the commit it was made on.
+        import re
+        js = (PKG / 'director.js').read_text()
+        for name in ('sendPending', 'sendNow'):
+            body = re.search(r'async function ' + name + r'\(\) \{(.*?)\n\}', js, re.S).group(1)
+            self.assertIn('...noteScope()', body, name)
+        self.assertIn('for(const note of notesInView())', js)
+        in_view = re.search(r'function notesInView\(\) \{(.*?)\n\}', js, re.S).group(1)
+        self.assertIn("if(!state.tl||!all.some(n=>'clip' in n))return all;", in_view)
+        save = re.search(r'async function saveTimeline\(\) \{(.*?)\n\}', js, re.S).group(1)
+        self.assertIn("json('timeline',null,{video:state.video,timeline:sent,base:t.commit", save)
+        self.assertLess(save.index('await ensureName()'), save.index("json('timeline'"))
+        # A video without a timeline file shows no timeline and no This clip / Whole video switch.
+        render = re.search(r'function renderTimeline\(\) \{(.*?)\n\}', js, re.S).group(1)
+        self.assertIn("$('play-scope').hidden=!t;", render)
+        html = (PKG / 'editor.html').read_text()
+        for marker in ('id="timeline" class="tl-card collapsed" aria-label="Timeline" hidden',
+                       'id="play-scope" class="play-scope" role="group" aria-label="What the player plays" hidden'):
+            self.assertIn(marker, html)
+
+    @unittest.skipUnless(shutil.which('node'), 'node is not available in this environment')
+    def test_moving_a_clip_keeps_acts_runs_of_clips(self):
+        # tlMove, run as it is in director.js: the moved clip joins its new left neighbour's act
+        # (else its right one's), and an act left with no clip goes.
+        import re
+        import subprocess
+        js = (PKG / 'director.js').read_text()
+        move = ''.join(re.search(r'\nfunction ' + name + r'\(data,.*?\n\}', js, re.S).group(0)
+                       for name in ('tlInsert', 'tlMove'))
+        cases = [
+            ('d', 0, ['d', 'a', 'b', 'c'], [['d', 'a', 'b'], ['c']]),
+            ('a', 3, ['b', 'c', 'd', 'a'], [['b'], ['c', 'd', 'a']]),
+            ('c', 1, ['a', 'c', 'b', 'd'], [['a', 'c', 'b'], ['d']]),
+        ]
+        script = move + """
+const out=[];
+for(const [id,to] of %s){
+  const data={clips:['a','b','c','d'].map(id=>({id})),acts:[{title:'One',clips:['a','b']},{title:'Two',clips:['c','d']}]};
+  tlMove(data,id,to);
+  out.push([data.clips.map(c=>c.id),data.acts.map(a=>a.clips)]);
+}
+const lone={clips:['a','b','c'].map(id=>({id})),acts:[{title:'One',clips:['a']},{title:'Two',clips:['b','c']}]};
+tlMove(lone,'a',2);
+out.push([lone.clips.map(c=>c.id),lone.acts.map(a=>a.title+':'+a.clips.join(''))]);
+console.log(JSON.stringify(out));
+""" % json.dumps([[c[0], c[1]] for c in cases])
+        result = subprocess.run(['node', '-'], input=script.encode(), capture_output=True)
+        self.assertEqual(result.returncode, 0, result.stderr.decode())
+        out = json.loads(result.stdout)
+        self.assertEqual(out[:3], [[order, acts] for _, _, order, acts in cases])
+        self.assertEqual(out[3], [['b', 'c', 'a'], ['Two:bca']])
+
+    @unittest.skipUnless(shutil.which('node'), 'node is not available in this environment')
+    def test_inserting_footage_inside_an_act_keeps_it_a_run_of_clips(self):
+        # tlInsert, as tlAddFootage uses it: a footage clip added at a cut inside an act joins
+        # that act, at an act boundary the left act, and the result passes the loader.
+        import re
+        import subprocess
+        from videobuilder import timeline_file
+        js = (PKG / 'director.js').read_text()
+        insert = re.search(r'\nfunction tlInsert\(data,.*?\n\}', js, re.S).group(0)
+        script = insert + """
+const out=[];
+for(const to of [1,2,0,4]){
+  const data={version:VERSION,clips:['a','b','c','d'].map(id=>({id,footage:`sources/${id}.mp4`,out:30})),acts:[{title:'One',clips:['a','b']},{title:'Two',clips:['c','d']}]};
+  tlInsert(data,{id:'new',footage:'sources/new.mp4',in:0,out:30},to);
+  out.push(data);
+}
+console.log(JSON.stringify(out));
+""".replace('VERSION', json.dumps(timeline_file.VERSION))
+        result = subprocess.run(['node', '-'], input=script.encode(), capture_output=True)
+        self.assertEqual(result.returncode, 0, result.stderr.decode())
+        out = json.loads(result.stdout)
+        for data in out:
+            timeline_file.parse(data)
+        self.assertEqual([[a['clips'] for a in d['acts']] for d in out], [
+            [['a', 'new', 'b'], ['c', 'd']],
+            [['a', 'b', 'new'], ['c', 'd']],
+            [['new', 'a', 'b'], ['c', 'd']],
+            [['a', 'b'], ['c', 'd', 'new']],
+        ])
+
+    @unittest.skipUnless(shutil.which('node'), 'node is not available in this environment')
+    def test_a_refused_timeline_edit_is_not_left_on_screen(self):
+        # saveTimeline and loadTimeline, run as they are in director.js against a server that
+        # refuses the POST (or a user who gives no name) while main stays at the same commit: the
+        # strip goes back to main's file, so the next edit isn't built on the one that was refused.
+        import re
+        import subprocess
+        js = (PKG / 'director.js').read_text()
+        parts = [re.search(r'\n(async )?function ' + name + r'\(.*?\n\}', js, re.S).group(0)
+                 for name in ('tlSetStatus', 'loadTimeline', 'tlTake', 'tlChange', 'saveTimeline', 'tlUnsaved')]
+        script = '\n'.join(parts) + """
+const main={clips:[{id:'a',trim:{after:0}},{id:'b'}]};
+const tlClone=x=>JSON.parse(JSON.stringify(x));
+let named=true;
+const toasts=[];
+const state={video:'v',format:''};
+const $=()=>null,toast=m=>toasts.push(m),renderTimeline=()=>{},renderScope=()=>{},loadVersions=()=>{};
+const ensureName=async()=>named;
+const json=async(path,query,body)=>{
+  if(body)throw new Error('trim runs past the clip');
+  return {timeline:tlClone(main),commit:'c1',fps:30,clips:{a:{state:'done'}}};
+};
+const setTimeout=()=>0,clearTimeout=()=>{};
+(async()=>{
+  const out=[];
+  for(const name of [true,false]){
+    named=name;
+    await loadTimeline(true);
+    tlChange(d=>{d.clips[0].trim.after=99},'trim');
+    await saveTimeline();
+    out.push([state.tl.data,state.tl.status,state.tl.dirty]);
+  }
+  console.log(JSON.stringify(out));
+})();
+"""
+        result = subprocess.run(['node', '-'], input=script.encode(), capture_output=True)
+        self.assertEqual(result.returncode, 0, result.stderr.decode())
+        main = {'clips': [{'id': 'a', 'trim': {'after': 0}}, {'id': 'b'}]}
+        self.assertEqual(json.loads(result.stdout), [[main, 'Not saved', False]] * 2)
 
     def test_fine_tuning_edit_endpoints(self):
         self.assertIn(b'id="pane-copy"', self.get('/tuning.html'))

@@ -677,6 +677,8 @@ class EditorTimeline(FilmOfClips):
         self.assertIsNone(boat['key'])
         # The footage is there to cut from; the clips render with the assembly the read asked for.
         self.assertEqual((boat['state'], boat['frames'], boat['audio'], boat['speech']), ('ready', 60, True, [[0, 60]]))
+        footage = self.get('/api/timeline/footage?video=promo/film&clip=boat')
+        self.assertEqual(footage, (self.root / 'promo' / 'sources' / 'boat.mp4').read_bytes())
         self.assertIn(a['state'], ('building', 'none'))
         self.assertIsNone(a['frames'])
         self.wait(f'/api/video?video=promo/film&commit={self.sha}')

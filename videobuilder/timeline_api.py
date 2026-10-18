@@ -9,6 +9,8 @@
     GET  /api/timeline/thumb?video=V&clip=C[&commit=S&format=F]
          a small JPEG of the clip: from its render (once there is one) or its
          footage; 404 until then
+    GET  /api/timeline/footage?video=V&clip=C
+         a footage clip's file, uploaded or committed, for "This clip" to play
 
 An edit commits only the timeline file, so it re-renders no clip: a clip's
 render is keyed by its directory's content (`clip_cache`), and the assembly
@@ -279,6 +281,21 @@ def get_thumb(self, route, q, editor, user):
     if data is None:
         raise HTTPError(404, 'no render of this clip yet')
     return self._send(200, data, 'image/jpeg', {'Cache-Control': 'private, max-age=3600'})
+
+
+def get_footage(self, route, q, editor, user):
+    from .attachments import TYPES
+    video, clip_id = _need(q, 'video'), _need(q, 'clip')
+    _video(editor, video)
+    timeline = editor.renders.timeline(video, _main(editor))
+    clip = next((c for c in timeline.clips if c.id == clip_id and c.is_footage), None) if timeline else None
+    if clip is None:
+        raise HTTPError(404, 'no footage clip with that id in this video\'s timeline')
+    path = _footage_path(editor, video, clip)
+    kind = TYPES.get(os.path.splitext(clip.footage)[1].lstrip('.').lower())
+    if path is None or not (kind or '').startswith('video/'):
+        raise HTTPError(404, f'{clip.footage}: no such video file in the video\'s sources')
+    return self._send_ranged_file(Path(path), kind, {'Accept-Ranges': 'bytes'})
 
 
 def post_timeline(self, route, body, identity, editor, user):

@@ -176,6 +176,10 @@
 </svg>
 </button>
         <span id="time-display">0:00 / 0:00</span>
+        <span id="play-scope" class="play-scope" role="group" aria-label="What the player plays" hidden>
+<button id="scope-clip" aria-pressed="false">This clip</button>
+<button id="scope-whole" aria-pressed="true">Whole video</button>
+</span>
         <div id="desktop-formats" class="desktop-only format-list">
 </div>
         <button id="mute" class="round" aria-label="Mute" aria-pressed="false">
@@ -251,6 +255,8 @@
 </button>
 </div>
       <div id="chat-view" class="panel-view">
+        <div id="chat-scope" class="chat-scope" hidden>
+</div>
         <div id="note-list" class="scroll-list" aria-live="polite">
 </div>
         <div id="composer" class="composer">
@@ -365,6 +371,12 @@
 </div>
     </aside>
   </main>
+  <section id="timeline" class="tl-card collapsed" aria-label="Timeline" hidden>
+</section>
+  <div id="tl-shade" class="tl-shade" hidden>
+</div>
+  <div id="tl-toast" class="tl-toast" role="status" hidden>
+</div>
   <div id="toast" role="status" hidden>
 </div>
   <div id="music-shade" class="music-shade" hidden>

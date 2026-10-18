@@ -295,6 +295,7 @@ async function setFormat(format) {
     // Private browsing can deny storage.
   }
   renderFormats();
+  loadTimeline();
   await loadPlayer()
 }
 async function loadPlayer(retry=false) {
@@ -307,8 +308,8 @@ async function loadPlayer(retry=false) {
   player.pause();
   player.removeAttribute('src');
   player.load();
-  const url=videoUrl();
-  const poster=frameUrl();
+  const url=playUrl();
+  const poster=tlNoteClip()?tlPoster():frameUrl();
   player.poster=poster;
   $('poster').src=poster;
   const v=currentVersion();
@@ -321,7 +322,7 @@ async function loadPlayer(retry=false) {
   if(retry) {
     try {
       await json('video/retry',null, {
-        video:state.video,commit:state.commit,format:state.format
+        video:state.video,commit:state.commit,format:state.format,...(tlNoteClip()?{clip:tlNoteClip()}:{})
       })
     }
     catch(e) {
@@ -332,15 +333,16 @@ async function loadPlayer(retry=false) {
   }
   $('render-status').hidden=false;
   for(const id of ['rail-save','desktop-save'])$(id).removeAttribute('href');
-  $('render-text').textContent=`Rendering v${v?.n||'…'}…`;
+  const what=tlNoteClip()?`clip ${state.tl.data.clips.findIndex(c=>c.id===tlNoteClip())+1}`:`v${v?.n||'…'}`;
+  $('render-text').textContent=`Rendering ${what}…`;
   $('retry-render').hidden=true;
   try {
-    const r=await reach(url, {headers: {Range: 'bytes=0-0', Accept: 'application/json'}});
-    if(url!==videoUrl())return;
+    const r=await reach(url.split('#')[0], {headers: {Range: 'bytes=0-0', Accept: 'application/json'}});
+    if(url!==playUrl())return;
     if(r.status===202) {
       const body=await parseJSON(r);
       const position=body.position ? ` · queue position ${body.position}` : '';
-      $('render-text').textContent=`Rendering v${v?.n||'…'}…${position}`;
+      $('render-text').textContent=`Rendering ${what}…${position}`;
       $('poster').hidden=false;
       state.renderTimer=setTimeout(()=>loadPlayer(),document.hidden ? 15000 : 2000);
       return
@@ -353,7 +355,7 @@ async function loadPlayer(retry=false) {
     await r.body?.cancel();
     state.videoReady=true;
     setPlayState('play');
-    for(const id of ['rail-save','desktop-save'])$(id).href=url;
+    for(const id of ['rail-save','desktop-save'])$(id).href=videoUrl();
     $('poster').hidden=true;
     $('render-status').hidden=true;
     player.src=url;
@@ -402,7 +404,8 @@ function updateTime() {
   const percent=duration ? Math.min(100, 100*player.currentTime/duration) : 0;
   $('progress-fill').style.width=`${percent}%`;
   $('progress').setAttribute('aria-valuenow', Math.round(percent));
-  if(state.stamp)stampLabel()
+  if(state.stamp)stampLabel();
+  tlPlayhead()
 }
 function stampLabel() {
   const b=$('timestamp');
@@ -739,7 +742,7 @@ async function sendAnswers(note, button, answers) {
 function renderNotes() {
   const list=$('note-list'),atBottom=list.scrollHeight-list.scrollTop-list.clientHeight<80;
   list.replaceChildren();
-  for(const note of state.notes) {
+  for(const note of notesInView()) {
     const mine=note.author===state.name;
     const row=node('div','bubble-row'+(mine?' mine':''));
     const bubble=node('div','bubble');
@@ -2064,7 +2067,7 @@ async function sendPending() {
   showError('Sending…');
   try {
     await json('notes',null, {
-      video:state.video,format:state.format,...batchBody(state.pending)
+      video:state.video,format:state.format,...noteScope(),...batchBody(state.pending)
     });
     state.pending=[];
     savePending();
@@ -2100,6 +2103,9 @@ async function openVideo(video) {
   state.notes=[];
   state.versionCursor=null;
   state.steps={};
+  state.tl=null;
+  renderTimeline();
+  renderScope();
   clearTimeout(state.renderTimer);
   $('video-title').textContent=libName||video;
   $('video-picker').value=video;
@@ -2123,6 +2129,7 @@ async function openVideo(video) {
     const preferred=window.innerWidth<=700 ? formats.find(f=>f.name==='9x16')?.name : null;
     state.format=formats.find(f=>f.name===saved)?.name || preferred || formats[0]?.name;
     renderFormats();
+    await loadTimeline();
     await loadVersions();
     await loadNotes();
   }
@@ -2375,7 +2382,7 @@ async function sendNow() {
   try {
     const attachments=await uploadFiles([...state.files]);
     await json('notes',null, {
-      video:state.video,format:state.format,...batchBody([{text,time,attachments}])
+      video:state.video,format:state.format,...noteScope(),...batchBody([{text,time,attachments}])
     });
     $('message').value='';
     fitMessage();
@@ -2426,6 +2433,942 @@ $('panel').ondrop=e=> {
   setView('chat');
   addFiles(e.dataTransfer.files)
 };
+// ---- Timeline: a film made of clips (timeline.json) ----
+// The strip under the player and the chat, for a video with a timeline file. Its direct edits
+// (order, trims, transitions, J/L cuts, Audio lanes) each commit the timeline file alone
+// (POST api/timeline, against the commit they were made on); everything else is a note.
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const svg=(p,w=18)=>`<svg width="${w}" height="${w}" viewBox="0 0 24 24" fill="none" stroke="currentColor" `+
+  `stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${p}</svg>`;
+const TL_ICON={
+  film:'<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18M3 15h18M8 4v5M16 4v5M8 15v5M16 15v5"/>',
+  down:'<path d="M6 9l6 6 6-6"/>',plus:'<path d="M12 5v14M5 12h14"/>',minus:'<path d="M5 12h14"/>',
+  flag:'<path d="M5 21V4h11l-2 4 2 4H5"/>',audio:'<path d="M3 12h2M7 8v8M11 5v14M15 9v6M19 7v10"/>',
+  dots:'<circle cx="5" cy="12" r="1.3"/><circle cx="12" cy="12" r="1.3"/><circle cx="19" cy="12" r="1.3"/>',
+  zin:'<circle cx="11" cy="11" r="7"/><path d="M21 21l-5-5M8 11h6M11 8v6"/>',
+  zout:'<circle cx="11" cy="11" r="7"/><path d="M21 21l-5-5M8 11h6"/>',
+  fit:'<path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/>',ready:'<path d="M5 12.5l4.5 4.5L19 7.5"/>',
+  building:'<path class="tl-spin" d="M12 3a9 9 0 1 0 9 9"/>',
+  waiting:'<circle cx="12" cy="12" r="8"/><path d="M12 8v4l3 2"/>',
+  failed:'<path d="M12 3l9 16H3z"/><path d="M12 10v4M12 17v.5"/>',music:'<path d="M9 18V5l11-2v13"/>'+
+    '<circle cx="6.5" cy="18" r="2.5"/><circle cx="17.5" cy="16" r="2.5"/>',
+  sound:'<path d="M4 9v6h4l5 4V5L8 9z"/><path d="M16 9a4 4 0 0 1 0 6"/>',
+  speech:'<path d="M4 5.5h16v10H9l-4.5 3.5v-3.5H4z"/>',trash:'<path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/>',
+  muted:'<path d="M4 9v6h4l5 4V5L8 9z"/><path d="M17 9l5 6M22 9l-5 6"/>',duck:'<path d="M3 8h5l3 8h2l3-8h5"/>',
+  clip:'<rect x="3" y="6" width="13" height="12" rx="2"/><path d="M16 10l5-3v10l-5-3"/>',
+  cut:'<path d="M12 3v18"/>',dissolve:'<circle cx="9" cy="12" r="6"/><circle cx="15" cy="12" r="6"/>',
+  wipe:'<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M12 5v14M15 9l3 3-3 3"/>',
+  whip:'<path d="M3 8h13M3 12h18M3 16h13"/>',flash:'<path d="M13 2L5 14h6l-1 8 8-12h-6z"/>',
+  match:'<path d="M4 12h6M14 12h6"/><circle cx="12" cy="12" r="2.5"/>'
+};
+const TL_TRANSITIONS=[['cut','Cut','Straight cut'],['dissolve','Dissolve','One clip fades into the next'],
+  ['wipe','Wipe','The next clip slides across']];
+const TL_LATER=[['whip','Whip pan'],['flash','Flash'],['match','Match cut']];
+const TL_WORD={ready:'Ready',building:'Rendering',waiting:'Not rendered yet',failed:'Render failed',
+  missing:'Missing'};
+const tlClone=o=>JSON.parse(JSON.stringify(o));
+const tlPhone=()=>window.innerWidth<=700;
+const tlClock=frames=> {
+  const s=frames/state.tl.fps,m=Math.floor(s/60),r=s-m*60;
+  return `${m}:${String(Math.floor(r)).padStart(2,'0')}${r%1>.01&&s<60?'.'+Math.round((r%1)*10)%10:''}`
+};
+const tlSecs=frames=>`${(frames/state.tl.fps).toFixed(frames%state.tl.fps?2:0)} s`;
+const tlTitle=c=>c.id.replace(/-/g,' ');
+const tlInfo=id=>state.tl.clips.find(c=>c.id===id)||{state:'waiting',frames:null,speech:[]};
+const tlFootage=c=>'footage' in c;
+function tlState(info) {
+  if(info.state==='ready'||info.state==='missing'||info.state==='failed'||info.state==='building')return info.state;
+  return info.state==='queued'||info.state==='rendering'?'building':'waiting'
+}
+// Where every clip lands, as timeline_file.place does it. A clip not rendered yet has no known
+// length: it is drawn 3 s long (dashed) until its render says.
+function tlPlace(data=state.tl.data) {
+  const fps=state.tl.fps,out=[];
+  let at=0;
+  data.clips.forEach((c,i)=> {
+    const info=tlInfo(c.id),foot=tlFootage(c);
+    const span=foot?c.out-(c.in||0):(info.frames??3*fps);
+    const frames=Math.max(1,span-(c.head||0)-(c.tail||0));
+    const start=at-(i?c.cut?.frames||0:0);
+    const source=(foot?c.in||0:0)+(c.head||0);
+    const media=info.frames;
+    // What a J/L cut can reveal: the trimmed media before and after what the clip shows.
+    const before=source,after=media==null?(foot?0:c.tail||0):Math.max(0,media-source-frames);
+    out.push({c,i,info,start,frames,end:start+frames,source,media,before,after,guess:!foot&&info.frames==null});
+    at=start+frames
+  });
+  return {places:out,total:Math.max(1,at)}
+}
+function tlLabelWidth() {
+  return tlPhone()?46:104
+}
+function tlFit(total) {
+  const w=($('timeline').clientWidth||window.innerWidth)-tlLabelWidth()-16;
+  return Math.max(0.05,w/total)
+}
+function tlZoom(total) {
+  return state.tl.z??tlFit(total)
+}
+// Speech on the timeline, [from, to) frames: where a ducked lane dips.
+function tlSpeech(places) {
+  const out=[];
+  for(const p of places) {
+    if(!p.info.audio)continue;
+    const early=Math.min(p.c.sound?.early||0,p.before),late=Math.min(p.c.sound?.late||0,p.after);
+    const lo=p.source-early,hi=p.source+p.frames+late;
+    for(const [at,n] of p.info.speech||[]) {
+      const a=Math.max(at,lo),b=Math.min(at+n,hi);
+      if(b>a)out.push([p.start+a-p.source,p.start+b-p.source])
+    }
+  }
+  return out
+}
+function tlThumbUrl(c,info) {
+  if(info.state!=='ready')return '';
+  const k=info.key||`${c.footage}:${c.in||0}:${c.head||0}`;
+  return api('timeline/thumb',{video:state.video,clip:c.id,format:state.tl.format,k})
+}
+function tlThumb(c,info) {
+  const src=tlThumbUrl(c,info);
+  return src?`<img src="${esc(src)}" alt="" loading="lazy" draggable="false">`:''
+}
+function tlBlock(p,z) {
+  const t=state.tl,c=p.c,info=p.info,n=p.i+1,st=tlState(info);
+  // Neighbours overlapping in a transition meet at its middle, where its + is.
+  const din=p.i?c.cut?.frames||0:0,dout=t.data.clips[p.i+1]?.cut?.frames||0;
+  const left=(p.start+din/2)*z,w=Math.max(8,(p.frames-din/2-dout/2)*z);
+  const sel=!t.whole&&t.sel===c.id;
+  const unknown=!tlFootage(c)&&info.frames==null;
+  const talk=info.speech?.length>0;
+  const band=unknown?'':talk?'speech':info.audio?'clip sound':'no sound';
+  const bandIcon=talk?TL_ICON.speech:info.audio?TL_ICON.sound:'';
+  const len=unknown?'length known once it renders':tlClock(p.frames);
+  const label=`Clip ${n}: ${tlTitle(c)}, ${len}, ${TL_WORD[st]}${tlFootage(c)?', footage':''}`;
+  return `<button class="tl-blk st-${st}${sel?' sel':''}${p.guess?' guess':''}" data-tl="pick" data-id="${esc(c.id)}"`+
+    ` style="left:${left}px;width:${w}px" aria-label="${esc(label)}" title="${esc(label)}"`+
+    ` aria-pressed="${sel}">${tlThumb(c,info)}<span class="tl-bn">${n}</span>`+
+    `${st!=='ready'||w>44?`<span class="tl-bst">${svg(TL_ICON[st==='missing'?'failed':st],12)}</span>`:''}`+
+    `${w>60?`<span class="tl-bt">${esc(tlTitle(c))}</span>`:''}`+
+    `<span class="tl-snd${talk?' talk':''}${band==='no sound'?' none':''}">`+
+    `${w>40&&bandIcon?svg(bandIcon,10):''}${w>64?band:''}</span></button>`
+}
+// The clip's own sound reaching across a cut: J before its picture, L after it.
+function tlOverhangs(places,z) {
+  let h='';
+  for(const p of places) {
+    const early=Math.min(p.c.sound?.early||0,p.before),late=Math.min(p.c.sound?.late||0,p.after);
+    if(early)h+=`<span class="tl-jl j" style="left:${(p.start-early)*z}px;width:${Math.max(6,early*z)}px"`+
+      ` title="J-cut: ${esc(tlTitle(p.c))}’s sound starts ${tlSecs(early)} early"><b>J</b></span>`;
+    if(late)h+=`<span class="tl-jl l" style="left:${p.end*z}px;width:${Math.max(6,late*z)}px"`+
+      ` title="L-cut: ${esc(tlTitle(p.c))}’s sound runs ${tlSecs(late)} on"><b>L</b></span>`
+  }
+  return h
+}
+function tlPluses(places,z) {
+  return places.slice(1).map(p=> {
+    const c=p.c,d=c.cut?.frames||0,prev=places[p.i-1];
+    const kind=c.cut?.transition||'cut';
+    const jl=(c.sound?.early&&p.before)?'J':(prev.c.sound?.late&&prev.after)?'L':'';
+    const what=`${TL_TRANSITIONS.find(x=>x[0]===kind)?.[1]||kind}${jl?`, ${jl}-cut`:''}`;
+    return `<button class="tl-plus" data-tl="cut" data-i="${p.i}" style="left:${(p.start+d/2)*z}px"`+
+      ` aria-label="Between ${p.i} and ${p.i+1}: ${what}. Insert a clip, trim, transition, sound"`+
+      ` title="${esc(what)}">${svg(TL_ICON.plus,13)}`+
+      `${kind!=='cut'?`<span class="tl-pg">${svg(TL_ICON[kind],12)}</span>`:''}`+
+      `${jl?`<span class="tl-pj">${jl}</span>`:''}</button>`
+  }).join('')
+}
+function tlTicks(total,z) {
+  const fps=state.tl.fps;
+  const step=[.5,1,2,5,10,15,30,60,120,300,600].find(s=>s*fps*z>=56)||600;
+  let h='';
+  for(let s=0;s*fps<=total;s+=step)h+=`<span class="tl-tick" style="left:${s*fps*z}px">${tlClock(s*fps)}</span>`;
+  return h
+}
+function tlLaneRow(lane,k,speech,z,total) {
+  const items=lane.items||[];
+  if(!items.length)return `<div class="tl-r tl-r-lane${lane.mute?' muted':''}"><div class="tl-lanedrop" `+
+    `style="width:${Math.max(160,Math.min(total*z,600))}px">${svg(TL_ICON.audio,15)}Empty: add a sound from its menu, `+
+    `or describe one in a note</div></div>`;
+  return `<div class="tl-r tl-r-lane${lane.mute?' muted':''}">${items.map(it=> {
+    const a=it.at,b=it.at+it.frames,w=Math.max(4,(b-a)*z),h=34;
+    const dips=lane.duck?speech.filter(([x,y])=>y>a&&x<b).map(([x,y])=>[Math.max(x,a),Math.min(y,b)]):[];
+    const r=Math.max(3,.1*state.tl.fps*z),hi=h*.3,lo=h*.72;
+    const pts=[[0,hi]];
+    for(const [x,y] of dips)pts.push([(x-a)*z-r,hi],[(x-a)*z,lo],[(y-a)*z,lo],[(y-a)*z+r,hi]);
+    pts.push([w,hi]);
+    const poly=pts.map(q=>q.map(v=>Math.round(Math.max(0,Math.min(w,v))*10)/10).join(',')).join(' ');
+    const name=it.sound.split('/').pop();
+    return `<div class="tl-lanebar" style="left:${a*z}px;width:${w}px" title="${esc(name)}${dips.length?
+      ': dips under speech':''}"><svg viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" aria-hidden="true">`+
+      `<polygon points="0,${h} ${poly} ${w},${h}" fill="#ffffff1c"/><polyline points="${poly}" fill="none" `+
+      `stroke="#fff" stroke-width="1.5" vector-effect="non-scaling-stroke"/></svg><span class="tl-ln">`+
+      `${svg(TL_ICON.music,11)}${esc(name)}${lane.mute?' · muted':''}</span></div>`
+  }).join('')}</div>`
+}
+function renderTimeline() {
+  const t=state.tl,box=$('timeline');
+  document.body.classList.toggle('has-timeline',!!t);
+  $('play-scope').hidden=!t;
+  if(!t) {
+    box.hidden=true;
+    box.replaceChildren();
+    return
+  }
+  const keep=$('tl-scroll')?.scrollLeft;
+  const {places,total}=tlPlace(),d=t.data,acts=d.acts||[],lanes=d.lanes||[];
+  box.hidden=false;
+  box.className='tl-card '+(t.open?'open':'collapsed');
+  const count=`${places.length} clip${places.length===1?'':'s'} · ${tlClock(total)}`;
+  const head=`<button class="tl-head" data-tl="toggle" aria-expanded="${t.open}">${svg(TL_ICON.film,16)}`+
+    `<b>Timeline</b><span class="tl-tot">${count}</span><span id="tl-status" class="tl-status">`+
+    `${esc(t.status||'')}</span><span class="tl-chev">${svg(TL_ICON.down)}</span></button>`;
+  if(!t.open) {
+    box.innerHTML=head;
+    return
+  }
+  const z=tlZoom(total),W=Math.ceil(total*z)+(tlPhone()?60:16);
+  const L=(cls,icon,text,sub='')=>`<div class="tl-l ${cls}">${icon?svg(TL_ICON[icon],15):''}<span class="tl-lt">`+
+    `${text}${sub?`<small>${sub}</small>`:''}</span></div>`;
+  const byId=Object.fromEntries(places.map(p=>[p.c.id,p]));
+  const actRow=acts.map((a,k)=> {
+    const s=byId[a.clips[0]]?.start??0,e=byId[a.clips.at(-1)]?.end??s,w=(e-s)*z-4;
+    return `<span class="tl-act" style="left:${s*z+2}px;width:${Math.max(4,w)}px" title="Act ${k+1}: `+
+      `${esc(a.title)}">${svg(TL_ICON.flag,12)}Act ${k+1}${w>110?` <span>${esc(a.title)}</span>`:''}</span>`
+  }).join('');
+  const actLines=acts.slice(1).map(a=>`<i class="tl-actline" style="left:${(byId[a.clips[0]]?.start??0)*z}px"></i>`)
+    .join('');
+  const labels=L('tl-l-ruler','','')+(acts.length?L('tl-l-acts','flag','Acts'):'')+L('tl-l-cuts','plus','Between')+
+    L('tl-l-clips','film','Clips','with own sound')+lanes.map((lane,k)=>`<div class="tl-l tl-l-lane`+
+    `${t.newLane===k?' new':''}${lane.mute?' muted':''}"><span class="tl-lane-name">`+
+    `${svg(TL_ICON[lane.mute?'muted':'audio'],15)}<span>Audio ${k+1}</span></span><button class="tl-lmenu" `+
+    `data-tl="lane" data-k="${k}" aria-label="Audio ${k+1} options">${svg(TL_ICON.dots,16)}</button></div>`).join('');
+  const speech=tlSpeech(places);
+  box.innerHTML=head+`<div class="tl-tools"><button class="tl-icon" data-tl="zoom" data-d="0.6" aria-label="Zoom out">`+
+    `${svg(TL_ICON.zout)}</button><button class="tl-icon" data-tl="zoom" data-d="1.6" aria-label="Zoom in">`+
+    `${svg(TL_ICON.zin)}</button><button class="tl-icon" data-tl="fit" aria-label="Fit the whole video">`+
+    `${svg(TL_ICON.fit)}</button><span class="tl-hint">Drag a clip to move it; tap + between clips to cut.</span>`+
+    `<button class="tl-btn" data-tl="addlane">${svg(TL_ICON.plus,16)}Audio lane</button></div>`+
+    `<div class="tl-grid"><div class="tl-labels">${labels}</div><div class="tl-scroll" id="tl-scroll">`+
+    `<div class="tl-track" id="tl-track" style="width:${W}px"><div class="tl-r tl-r-ruler" data-tl="seek">`+
+    `${tlTicks(total,z)}</div>${acts.length?`<div class="tl-r tl-r-acts">${actRow}</div>`:''}`+
+    `<div class="tl-r tl-r-cuts">${tlPluses(places,z)}</div><div class="tl-r tl-r-clips" id="tl-clips">`+
+    `${places.map(p=>tlBlock(p,z)).join('')}${tlOverhangs(places,z)}</div>`+
+    `${lanes.map((lane,k)=>tlLaneRow(lane,k,speech,z,total)).join('')}${actLines}`+
+    `<span class="tl-playhead" id="tl-playhead" hidden></span></div></div></div>`;
+  const sc=$('tl-scroll');
+  if(keep!=null&&!t.recenter)sc.scrollLeft=keep;
+  else if(t.sel&&byId[t.sel]) {
+    const p=byId[t.sel];
+    sc.scrollLeft=Math.max(0,(p.start+p.frames/2)*z-sc.clientWidth/2)
+  }
+  t.recenter=false;
+  tlWire(sc);
+  tlPlayhead()
+}
+function tlPlayhead() {
+  const t=state.tl,ph=$('tl-playhead');
+  if(!t||!ph||!state.videoReady)return;
+  const {places,total}=tlPlace(),z=tlZoom(total),f=player.currentTime*t.fps;
+  let at=f;
+  if(!t.whole&&t.sel) {
+    const p=places.find(x=>x.c.id===t.sel);
+    if(!p)return;
+    at=p.start+Math.max(0,Math.min(p.frames,f-(tlFootage(p.c)?p.source:p.c.head||0)))
+  }
+  ph.hidden=false;
+  ph.style.left=`${Math.min(total,at)*z}px`
+}
+function tlSetStatus(text) {
+  state.tl.status=text;
+  if($('tl-status'))$('tl-status').textContent=text
+}
+// `force` takes main's file even when it looks unchanged: after a refused save the strip holds
+// the edit main never got, at the same commit.
+async function loadTimeline(force) {
+  if(!state.video)return;
+  const video=state.video;
+  try {
+    const r=await json('timeline',{video,format:state.format||''});
+    if(video!==state.video)return;
+    const t=state.tl;
+    if(t&&(t.saving||t.dirty))return;
+    if(!r.timeline) {
+      if(t||r.error) {
+        state.tl=null;
+        renderTimeline();
+        renderScope()
+      }
+      if(r.error)toast(`The timeline file doesn't load: ${r.error}`);
+      return
+    }
+    if(!force&&t&&t.commit===r.commit&&JSON.stringify(t.clips)===JSON.stringify(r.clips))return;
+    tlTake(r);
+    renderTimeline();
+    renderScope()
+  }
+  catch(e) {
+    // A poll that fails says nothing; the next one catches up.
+  }
+}
+function tlTake(r) {
+  const prev=state.tl||{open:false,z:null,sel:null,whole:true,status:''};
+  state.tl={...prev,data:r.timeline,commit:r.commit,fps:r.fps,format:r.format,formats:r.formats,clips:r.clips,
+    dirty:false};
+  if(state.tl.sel&&!r.timeline.clips.some(c=>c.id===state.tl.sel)) {
+    state.tl.sel=null;
+    state.tl.whole=true
+  }
+}
+// One direct edit: `change` edits a copy of the timeline (or returns a whole new one); it is drawn
+// at once and saved shortly after, so steppers clicked in a row commit once.
+function tlChange(change,summary,after) {
+  const t=state.tl,before=JSON.stringify(t.data);
+  const data=tlClone(t.data);
+  const next=change(data)||data;
+  const first=next.clips[0];
+  if(first?.cut)delete first.cut;
+  for(const c of next.clips)if(c.sound&&!Object.keys(c.sound).length)delete c.sound;
+  if(next.acts&&!next.acts.length)delete next.acts;
+  if(JSON.stringify(next)===before)return false;
+  t.data=next;
+  t.dirty=true;
+  t.summary=summary;
+  t.after=after||null;
+  t.undo=t.undo||JSON.parse(before);
+  tlSetStatus('Saving…');
+  renderTimeline();
+  clearTimeout(t.saveTimer);
+  t.saveTimer=setTimeout(saveTimeline,after?0:700);
+  return true
+}
+async function saveTimeline() {
+  const t=state.tl;
+  if(!t||!t.dirty)return;
+  if(t.saving) {
+    t.again=true;
+    return
+  }
+  if(!await ensureName()) {
+    // Every version says who directed it: no name, no edit.
+    t.dirty=false;
+    tlUnsaved(t.undo);
+    t.undo=null;
+    return loadTimeline(true)
+  }
+  t.saving=true;
+  t.dirty=false;
+  const sent=tlClone(t.data),after=t.after,undo=t.undo;
+  t.after=null;
+  t.undo=null;
+  try {
+    const r=await json('timeline',null,{video:state.video,timeline:sent,base:t.commit,summary:t.summary});
+    t.commit=r.commit;
+    t.clips=r.clips;
+    if(!t.dirty)t.data=r.timeline;
+    tlSetStatus(r.changed?`Saved · v${r.n}`:'Saved');
+    if(after)after(undo);
+    loadVersions()
+  }
+  catch(e) {
+    // Refused (the loader's message) or stale (409): show why, and the timeline as it is on main.
+    t.dirty=false;
+    t.again=false;
+    t.undo=null;
+    tlUnsaved(undo);
+    toast(e.message);
+    t.saving=false;
+    await loadTimeline(true);
+    return
+  }
+  finally {
+    t.saving=false;
+    renderTimeline()
+  }
+  if(t.again||t.dirty) {
+    t.again=false;
+    saveTimeline()
+  }
+}
+// A save that didn't happen: put back the file the edits started from, so nothing on screen (or
+// in the next edit) claims what main never got. The reload that follows confirms it from main.
+function tlUnsaved(undo) {
+  const t=state.tl;
+  if(undo)t.data=undo;
+  tlSetStatus('Not saved');
+  renderTimeline()
+}
+function tlUndoToast(text,undo,summary) {
+  const box=$('tl-toast');
+  box.replaceChildren(node('span',null,text));
+  const b=node('button',null,'Undo');
+  b.onclick=()=> {
+    box.hidden=true;
+    tlChange(()=>tlClone(undo),summary,()=>toast('Undone'))
+  };
+  box.append(b);
+  box.hidden=false;
+  clearTimeout(box.timer);
+  box.timer=setTimeout(()=>box.hidden=true,8000)
+}
+// ---- Timeline: what the player plays, and which notes the chat shows ----
+function tlNoteClip() {
+  const t=state.tl;
+  return t&&!t.whole&&t.sel?t.sel:null
+}
+function noteScope() {
+  const clip=tlNoteClip();
+  return clip?{clip}:{}
+}
+// The selected clip's thumbnail stands in for the poster frame (the root film's is a title card).
+function tlPoster() {
+  const c=state.tl.data.clips.find(x=>x.id===tlNoteClip());
+  return c?tlThumbUrl(c,tlInfo(c.id)):''
+}
+function playUrl() {
+  const t=state.tl,clip=tlNoteClip();
+  if(!clip)return videoUrl();
+  const c=t.data.clips.find(x=>x.id===clip);
+  if(c&&tlFootage(c)) {
+    const from=((c.in||0)+(c.head||0))/t.fps,to=(c.out-(c.tail||0))/t.fps;
+    return api('timeline/footage',{video:state.video,clip})+`#t=${from},${to}`
+  }
+  const fmt=t.formats.includes(state.format)?state.format:t.format;
+  return api('clip',{video:state.video,clip,format:fmt,...(state.commit?{commit:state.commit}:{})})
+}
+function notesInView() {
+  const all=state.notes,clip=tlNoteClip();
+  // A server that doesn't know which clip a note is about sends no `clip`: show every note.
+  if(!state.tl||!all.some(n=>'clip' in n))return all;
+  return all.filter(n=>(n.clip??null)===clip)
+}
+function renderScope() {
+  const t=state.tl,clip=tlNoteClip(),card=$('chat-scope');
+  $('scope-clip').setAttribute('aria-pressed',String(!!clip));
+  $('scope-whole').setAttribute('aria-pressed',String(!clip));
+  if(!t) {
+    card.hidden=true;
+    $('message').placeholder='Note for the builder…';
+    return
+  }
+  const i=clip?t.data.clips.findIndex(c=>c.id===clip):-1;
+  card.hidden=false;
+  card.replaceChildren();
+  if(clip) {
+    card.append(node('strong',null,`Notes on clip ${i+1}: ${tlTitle(t.data.clips[i])}`),
+      node('span',null,'What it shows, its motion, its own sound. The builder changes this clip only.'));
+    $('message').placeholder=`Note on clip ${i+1}…`
+  }
+  else {
+    card.append(node('strong',null,'Notes on the whole video'),
+      node('span',null,'For the story, the order, new clips and the sound. A note here can change many clips.'));
+    $('message').placeholder='Note on the whole video…'
+  }
+}
+function tlPick(id,whole=false) {
+  const t=state.tl;
+  t.sel=id;
+  t.whole=whole;
+  renderTimeline();
+  renderScope();
+  renderNotes();
+  loadPlayer()
+}
+// ---- Timeline: the + sheet, the lane menu and inserting a clip ----
+function tlOpenSheet(html,label) {
+  const shade=$('tl-shade');
+  shade.innerHTML=`<div class="tl-sheet" role="dialog" aria-modal="true" aria-label="${esc(label)}">${html}</div>`;
+  shade.hidden=false;
+  shade.querySelector('button')?.focus({preventScroll:true});
+  return shade.firstElementChild
+}
+function tlCloseSheet() {
+  const shade=$('tl-shade');
+  shade.hidden=true;
+  shade.replaceChildren();
+  state.tl&&(state.tl.sheet=null);
+  if(state.tl)renderTimeline()
+}
+function tlStepper(label,key,value,hint) {
+  return `<div class="tl-stepper"><span>${label}${hint?`<small>${hint}</small>`:''}</span>`+
+    `<button class="tl-icon" data-step="${key}" data-d="-1" aria-label="${esc(label)}: one frame less">`+
+    `${svg(TL_ICON.minus,16)}</button><output>${value}</output><button class="tl-icon" data-step="${key}" `+
+    `data-d="1" aria-label="${esc(label)}: one frame more">${svg(TL_ICON.plus,16)}</button></div>`
+}
+function tlOpt(attrs,on,icon,title,detail,disabled) {
+  return `<button class="tl-opt" ${attrs} aria-pressed="${on}"${disabled?' disabled':''}>`+
+    `<span class="tl-ico">${icon}</span><span><b>${title}</b><small>${detail}</small></span>`+
+    `<span class="tl-tick-on">${svg(TL_ICON.ready,16)}</span></button>`
+}
+function tlCutSheet(i) {
+  const t=state.tl;
+  t.sheet={kind:'cut',i};
+  const {places}=tlPlace(),pa=places[i-1],pb=places[i],a=pa.c,b=pb.c,fps=t.fps;
+  const kind=b.cut?.transition||'cut',len=b.cut?.frames||0;
+  const trim=(f)=>f?`−${tlSecs(f)}`:'0 s';
+  const jAvail=pb.before,lAvail=pa.after;
+  const mode=b.sound?.early?'J':a.sound?.late?'L':'none';
+  const jl=mode==='J'?b.sound.early:mode==='L'?a.sound.late:0;
+  const na=`${i}. ${esc(tlTitle(a))}`,nb=`${i+1}. ${esc(tlTitle(b))}`;
+  const trans=TL_TRANSITIONS.map(([k,name,d])=>tlOpt(`data-x="t" data-k="${k}"`,kind===k,svg(TL_ICON[k],16),name,d))
+    .join('')+TL_LATER.map(([k,name])=>tlOpt('',false,svg(TL_ICON[k],16),name,'Coming soon',true)).join('');
+  const dirs=kind==='wipe'?`<div class="tl-dirs" role="group" aria-label="Wipe direction">${['left','right','up','down']
+    .map(dd=>`<button data-x="dir" data-k="${dd}" aria-pressed="${(b.cut.direction||'left')===dd}">${dd}</button>`)
+    .join('')}</div>`:'';
+  const sounds=[
+    tlOpt('data-x="jl" data-k="none"',mode==='none',svg(TL_ICON.minus,16),'None','The sound changes at the cut'),
+    tlOpt('data-x="jl" data-k="J"',mode==='J','J',`J-cut: ${nb}’s sound starts early`,jAvail?
+      `Heard over the end of ${na}`:`Trim the start of ${nb} first: a J-cut reveals its trimmed sound`,!jAvail),
+    tlOpt('data-x="jl" data-k="L"',mode==='L','L',`L-cut: ${na}’s sound runs on`,lAvail?
+      `Heard over the start of ${nb}`:`Trim the end of ${na} first: an L-cut reveals its trimmed sound`,!lAvail)
+  ].join('');
+  const html=`<div class="tl-cutsheet"><h3>Between ${na} and ${nb}</h3><p class="tl-sub">How clip ${i} hands over `+
+    `to clip ${i+1}. Each change saves a version; no clip renders again.</p><button class="tl-insert" data-x="insert">`+
+    `${svg(TL_ICON.plus)}Insert a clip here</button><div class="tl-sec">Trim at this cut</div>`+
+    tlStepper(`End of ${na}`,'tail',trim(a.tail||0),'')+tlStepper(`Start of ${nb}`,'head',trim(b.head||0),'')+
+    `<p class="tl-sub">Tap for a frame; hold, or Shift-click, for a second.</p><div class="tl-sec">Transition</div>`+
+    `<div class="tl-two">${trans}</div>${kind!=='cut'?tlStepper('Length','len',tlSecs(len),`${len} frames`):''}`+
+    `${dirs}<div class="tl-sec">Sound across this cut</div>${sounds}`+
+    `${mode!=='none'?tlStepper(mode==='J'?'Starts early by':'Runs on for','jl',tlSecs(jl),`${jl} frames`):''}`+
+    `<div class="tl-sheet-foot"><button class="tl-btn" data-x="close">Done</button></div></div>`;
+  const was=document.activeElement?.closest?.('.tl-sheet [data-step],.tl-sheet [data-x]');
+  const again=was&&(was.dataset.step?`[data-step="${was.dataset.step}"][data-d="${was.dataset.d}"]`:
+    `[data-x="${was.dataset.x}"]${was.dataset.k?`[data-k="${was.dataset.k}"]`:''}`);
+  const sheet=tlOpenSheet(html,`Between clip ${i} and clip ${i+1}`);
+  if(again)sheet.querySelector(again)?.focus({preventScroll:true});
+  tlWireSheet(sheet,i,fps)
+}
+function tlStep(i,key,d) {
+  const {places}=tlPlace(),pa=places[i-1],pb=places[i];
+  // Frames a clip can still lose and keep at least one beyond its transitions.
+  const room=p=>p.media==null&&!tlFootage(p.c)?Infinity:p.frames-1-(p.c.cut?.frames||0)-
+    (places[p.i+1]?.c.cut?.frames||0);
+  return tlChange(data=> {
+    const a=data.clips[i-1],b=data.clips[i];
+    if(key==='tail'||key==='head') {
+      const c=key==='tail'?a:b,add=d>0?Math.min(d,room(key==='tail'?pa:pb)):d;
+      if(add<=0&&d>0)return;
+      const v=Math.max(0,(c[key]||0)+add);
+      if(v)c[key]=v;
+      else delete c[key]
+    }
+    else if(key==='len') {
+      const cur=b.cut.frames,max=Math.max(1,Math.min(room(pa),room(pb))+1+cur);
+      b.cut.frames=Math.max(1,Math.min(max,cur+d))
+    }
+    else if(key==='jl') {
+      if(b.sound?.early)b.sound.early=Math.max(1,Math.min(pb.before,b.sound.early+d));
+      else if(a.sound?.late)a.sound.late=Math.max(1,Math.min(pa.after,a.sound.late+d))
+    }
+  },{tail:`trim the end of ${pa.c.id}`,head:`trim the start of ${pb.c.id}`,len:`transition into ${pb.c.id}`,
+    jl:`sound across the cut into ${pb.c.id}`}[key])
+}
+// A stepper held down steps a second at a time. The sheet is drawn again after every step, so
+// the hold lives here, not on the sheet, and any pointerup ends it.
+const tlHold={timer:null,repeat:null,held:false};
+function tlHoldStop() {
+  clearTimeout(tlHold.timer);
+  clearInterval(tlHold.repeat);
+  tlHold.timer=tlHold.repeat=null
+}
+window.addEventListener('pointerup',tlHoldStop);
+window.addEventListener('pointercancel',tlHoldStop);
+function tlWireSheet(sheet,i,fps) {
+  sheet.onpointerdown=e=> {
+    const b=e.target.closest('[data-step]');
+    if(!b)return;
+    tlHoldStop();
+    tlHold.held=false;
+    const key=b.dataset.step,d=+b.dataset.d;
+    tlHold.timer=setTimeout(()=> {
+      tlHold.held=true;
+      const go=()=> {
+        tlStep(i,key,d*fps);
+        tlCutSheet(i)
+      };
+      go();
+      tlHold.repeat=setInterval(go,450)
+    },450)
+  };
+  sheet.onclick=e=> {
+    const b=e.target.closest('[data-step],[data-x]');
+    if(!b||b.disabled)return;
+    const t=state.tl;
+    if(b.dataset.step) {
+      tlHoldStop();
+      if(!tlHold.held)tlStep(i,b.dataset.step,+b.dataset.d*(e.shiftKey?fps:1));
+      tlHold.held=false;
+      return tlCutSheet(i)
+    }
+    const x=b.dataset.x,k=b.dataset.k,id=t.data.clips[i].id;
+    if(x==='close')return tlCloseSheet();
+    if(x==='insert')return tlInsertSheet(i);
+    if(x==='t')tlChange(data=> {
+      const c=data.clips[i];
+      if(k==='cut')delete c.cut;
+      else if(c.cut?.transition!==k)c.cut={transition:k,frames:c.cut?.frames||Math.round(fps/2),
+        ...(k==='wipe'?{direction:'left'}:{})}
+    },`${k} into ${id}`);
+    if(x==='dir')tlChange(data=> {
+      data.clips[i].cut.direction=k
+    },`wipe ${k} into ${id}`);
+    if(x==='jl') {
+      const {places}=tlPlace();
+      tlChange(data=> {
+        const a=data.clips[i-1],b=data.clips[i];
+        if(b.sound)delete b.sound.early;
+        if(a.sound)delete a.sound.late;
+        if(k==='J')(b.sound??={}).early=Math.min(fps,places[i].before);
+        if(k==='L')(a.sound??={}).late=Math.min(fps,places[i-1].after)
+      },k==='none'?`no J/L cut into ${id}`:`${k}-cut into ${id}`)
+    }
+    tlCutSheet(i)
+  }
+}
+const tlNewId=(name,data)=> {
+  const base=(name.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'')||'clip').slice(0,60);
+  let id=base,n=2;
+  while(data.clips.some(c=>c.id===id))id=`${base}-${n++}`;
+  return id
+};
+function tlAddFootage(i,source) {
+  const fps=state.tl.fps,out=Math.floor((source.duration||0)*fps);
+  if(out<1)return toast('That source has no length yet; try again in a moment.');
+  tlChange(data=> {
+    tlInsert(data,{id:tlNewId(source.name,data),footage:`sources/${source.name}.${source.ext}`,in:0,out},i)
+  },`add footage ${source.name}`,()=>toast(`Footage “${source.name}” added as clip ${i+1}`));
+  tlCloseSheet()
+}
+async function tlUploadFootage(i,file,status) {
+  try {
+    status.textContent=`Uploading ${file.name}…`;
+    const record=await xhrUpload('sources',{video:state.video,filename:file.name},file,
+      f=>status.textContent=`Uploading ${file.name}… ${Math.round(f*100)}%`);
+    loadSources();
+    tlAddFootage(i,record)
+  }
+  catch(e) {
+    status.textContent=e.message
+  }
+}
+async function tlInsertSheet(i) {
+  const t=state.tl,a=t.data.clips[i-1],b=t.data.clips[i];
+  const where=b?`between ${i}. ${tlTitle(a)} and ${i+1}. ${tlTitle(b)}`:`after ${i}. ${tlTitle(a)}`;
+  const sheet=tlOpenSheet(`<div class="tl-cutsheet"><h3>New clip ${esc(where)}</h3><p class="tl-sub">Say what `+
+    `happens in it and the builder makes it, or add footage of your own.</p><label class="sr-only" for="tl-new-text">`+
+    `What happens in the new clip</label><textarea id="tl-new-text" rows="3" placeholder="What happens in it…">`+
+    `</textarea><div class="tl-sheet-foot"><button class="tl-btn" data-x="close">Cancel</button><button `+
+    `class="tl-btn accent" data-x="send">Send to the builder</button></div><div class="tl-sec">Or add footage</div>`+
+    `<div class="tl-drop" id="tl-drop">${svg(TL_ICON.clip,18)}Drop a video file here, or <button data-x="pick">`+
+    `choose one</button></div><input id="tl-file" type="file" accept=".mp4,.mov,.webm" hidden><p class="tl-sub" `+
+    `id="tl-up"></p><div id="tl-sources"></div></div>`,'Insert a clip');
+  sheet.querySelector('textarea').focus();
+  const status=sheet.querySelector('#tl-up'),drop=sheet.querySelector('#tl-drop');
+  drop.ondragover=e=> {
+    e.preventDefault();
+    drop.classList.add('over')
+  };
+  drop.ondragleave=()=>drop.classList.remove('over');
+  drop.ondrop=e=> {
+    e.preventDefault();
+    const f=e.dataTransfer.files[0];
+    if(f)tlUploadFootage(i,f,status)
+  };
+  sheet.querySelector('#tl-file').onchange=e=>e.target.files[0]&&tlUploadFootage(i,e.target.files[0],status);
+  sheet.onclick=async e=> {
+    const btn=e.target.closest('[data-x]');
+    if(!btn)return;
+    const x=btn.dataset.x;
+    if(x==='close')return tlCloseSheet();
+    if(x==='pick')return sheet.querySelector('#tl-file').click();
+    if(x==='source')return tlAddFootage(i,state.sources.find(s=>s.name===btn.dataset.k));
+    if(x==='send') {
+      const text=sheet.querySelector('textarea').value.trim();
+      if(!text)return sheet.querySelector('textarea').focus();
+      if(!await ensureName())return;
+      btn.disabled=true;
+      try {
+        await json('notes',null,{video:state.video,format:state.format,
+          text:`Insert a new clip ${where}: ${text}`});
+        tlCloseSheet();
+        if(tlNoteClip())tlPick(state.tl.sel,true);
+        toast('Sent to the builder as a note on the whole video');
+        loadNotes()
+      }
+      catch(err) {
+        status.textContent=err.message;
+        btn.disabled=false
+      }
+    }
+  };
+  try {
+    await loadSources();
+  } catch (_) {
+    // The list is a convenience; dropping a file still works.
+  }
+  const usable=(state.sources||[]).filter(s=>s.duration);
+  if(usable.length&&sheet.isConnected)sheet.querySelector('#tl-sources').innerHTML=`<p class="tl-sub">Or one `+
+    `of this video’s sources:</p>`+usable.map(s=>`<button class="tl-opt" data-x="source" data-k="${esc(s.name)}">`+
+    `<span class="tl-ico">${svg(TL_ICON.clip,16)}</span><span><b>${esc(s.name)}</b><small>${esc(s.ext)} · `+
+    `${Math.round(s.duration)} s</small></span></button>`).join('')
+}
+async function tlLaneSheet(k) {
+  const t=state.tl,lane=t.data.lanes[k],n=k+1;
+  const items=(lane.items||[]).map(it=>esc(it.sound.split('/').pop())).join(', ')||'Empty';
+  const sheet=tlOpenSheet(`<div class="tl-cutsheet"><h3>Audio ${n}</h3><p class="tl-sub">${items}</p>`+
+    tlOpt('data-x="add"',false,svg(TL_ICON.plus,16),'Add a sound','From this video’s sources, where the '+
+      (tlNoteClip()?'selected clip starts':'video starts'))+'<div id="tl-lane-sources"></div>'+
+    tlOpt('data-x="duck"',!!lane.duck,svg(TL_ICON.duck,16),'Dip under speech','Quieter wherever a clip speaks')+
+    tlOpt('data-x="mute"',!!lane.mute,svg(TL_ICON.muted,16),lane.mute?'Muted':'Mute this lane',
+      'Kept on the timeline, left out of the sound')+
+    tlOpt('data-x="remove"',false,svg(TL_ICON.trash,16),`Remove Audio ${n}`,lane.items?.length?
+      'Its sounds are removed too':'It’s empty')+
+    `<div class="tl-sheet-foot"><button class="tl-btn" data-x="close">Done</button></div></div>`,`Audio ${n}`);
+  sheet.onclick=async e=> {
+    const b=e.target.closest('[data-x]');
+    if(!b)return;
+    const x=b.dataset.x;
+    if(x==='close')return tlCloseSheet();
+    if(x==='duck'||x==='mute') {
+      tlChange(data=> {
+        const l=data.lanes[k];
+        if(l[x]) {
+          delete l[x];
+          if(x==='duck')delete l.duck_db
+        }
+        else l[x]=true
+      },`${x==='duck'?'dip':'mute'} Audio ${n}${lane[x]?' off':''}`);
+      return tlLaneSheet(k)
+    }
+    if(x==='remove') {
+      tlCloseSheet();
+      tlChange(data=> {
+        data.lanes.splice(k,1)
+      },`remove Audio ${n}`,undo=>tlUndoToast(`Audio ${n} removed`,undo,`bring back Audio ${n}`));
+      return
+    }
+    if(x==='add') {
+      const box=sheet.querySelector('#tl-lane-sources');
+      box.textContent='Loading sources…';
+      try {
+        await loadSources()
+      } catch (_) {
+        // Shown as no sources below.
+      }
+      const usable=(state.sources||[]).filter(s=>s.has_audio&&s.duration);
+      box.innerHTML=usable.length?usable.map(s=>`<button class="tl-opt" data-x="sound" data-k="${esc(s.name)}">`+
+        `<span class="tl-ico">${svg(TL_ICON.music,16)}</span><span><b>${esc(s.name)}</b>`+
+        `<small>${Math.round(s.duration)} s</small></span></button>`).join(''):
+        '<p class="tl-sub">No source with sound yet. Add one under Sources (a video file with sound), '+
+        'or describe the sound in a note.</p>';
+      return
+    }
+    if(x==='sound') {
+      const s=state.sources.find(v=>v.name===b.dataset.k),{places,total}=tlPlace();
+      const at=tlNoteClip()?places.find(p=>p.c.id===t.sel).start:0;
+      const frames=Math.max(1,Math.min(Math.floor(s.duration*t.fps),total-at));
+      tlChange(data=> {
+        data.lanes[k].items=[...data.lanes[k].items||[],{sound:`sources/${s.name}.${s.ext}`,at,frames}]
+      },`add ${s.name} to Audio ${n}`);
+      tlCloseSheet()
+    }
+  }
+}
+// ---- Timeline: moving clips, zoom and the strip's own events ----
+// The act a clip put in at `to` (moved or new) lands in is its left neighbour's (else its right
+// one's), so every act stays a run of consecutive clips.
+function tlInsert(data,c,to) {
+  const actOf=new Map();
+  (data.acts||[]).forEach((a,k)=>a.clips.forEach(x=>actOf.set(x,k)));
+  data.clips.splice(to,0,c);
+  if(data.acts) {
+    const left=data.clips[to-1],right=data.clips[to+1];
+    const k=left&&actOf.has(left.id)?actOf.get(left.id):right&&actOf.has(right.id)?actOf.get(right.id):undefined;
+    if(k===undefined)actOf.delete(c.id);
+    else actOf.set(c.id,k);
+    data.acts=data.acts.map((a,j)=>({...a,clips:data.clips.filter(x=>actOf.get(x.id)===j).map(x=>x.id)}))
+      .filter(a=>a.clips.length)
+  }
+}
+function tlMove(data,id,to) {
+  const [c]=data.clips.splice(data.clips.findIndex(c=>c.id===id),1);
+  tlInsert(data,c,to)
+}
+function tlMoveTo(id,to) {
+  const from=state.tl.data.clips.findIndex(c=>c.id===id);
+  if(to===from)return;
+  tlChange(data=>tlMove(data,id,to),`move ${id} to ${to+1}`)
+}
+let tlDrag=null;
+function tlWire(sc) {
+  const pts=new Map();
+  let d0=0,z0=0;
+  sc.addEventListener('pointerdown',e=> {
+    if(e.pointerType!=='touch')return;
+    pts.set(e.pointerId,e.clientX);
+    if(pts.size===2) {
+      const [a,b]=[...pts.values()];
+      d0=Math.abs(a-b);
+      z0=tlZoom(tlPlace().total)
+    }
+  });
+  sc.addEventListener('pointermove',e=> {
+    if(!pts.has(e.pointerId))return;
+    pts.set(e.pointerId,e.clientX);
+    if(pts.size===2&&d0>20) {
+      const [a,b]=[...pts.values()],total=tlPlace().total;
+      state.tl.z=Math.max(tlFit(total)*.5,Math.min(40,z0*Math.abs(a-b)/d0))
+    }
+  });
+  const end=e=> {
+    if(pts.delete(e.pointerId)&&pts.size<2&&d0) {
+      d0=0;
+      renderTimeline()
+    }
+  };
+  sc.addEventListener('pointerup',end);
+  sc.addEventListener('pointercancel',end);
+  sc.addEventListener('wheel',e=> {
+    if(!e.ctrlKey)return;
+    e.preventDefault();
+    tlZoomBy(e.deltaY<0?1.15:.87)
+  },{passive:false});
+  // Once a drag has begun (a long press on touch), the strip must not scroll under it.
+  sc.addEventListener('touchmove',e=> {
+    if(tlDrag?.active)e.preventDefault()
+  },{passive:false});
+  $('tl-clips').addEventListener('pointerdown',tlDragStart)
+}
+function tlZoomBy(f) {
+  const t=state.tl,total=tlPlace().total;
+  t.z=Math.max(tlFit(total)*.5,Math.min(40,tlZoom(total)*f));
+  renderTimeline()
+}
+function tlDragStart(e) {
+  const blk=e.target.closest('.tl-blk');
+  if(!blk||e.button>0)return;
+  const x0=e.clientX,touch=e.pointerType==='touch',id=blk.dataset.id;
+  const drag=tlDrag={id,active:false,moved:false};
+  let timer=null,marker=null;
+  const begin=()=> {
+    drag.active=true;
+    blk.classList.add('dragging');
+    marker=node('i','tl-dropmark');
+    $('tl-clips').append(marker)
+  };
+  const target=ev=> {
+    const {places,total}=tlPlace(),z=tlZoom(total);
+    const x=(ev.clientX-$('tl-track').getBoundingClientRect().left)/z;
+    const others=places.filter(p=>p.c.id!==id);
+    const to=others.filter(p=>p.start+p.frames/2<x).length;
+    return {to,at:to<others.length?others[to].start*z:places.at(-1).end*z}
+  };
+  const move=ev=> {
+    if(!drag.active) {
+      if(Math.abs(ev.clientX-x0)<6)return;
+      if(touch)return cleanup();
+      begin()
+    }
+    ev.preventDefault();
+    drag.moved=true;
+    blk.style.transform=`translateX(${ev.clientX-x0}px)`;
+    marker.style.left=`${target(ev).at}px`
+  };
+  const up=ev=> {
+    const done=drag.active&&drag.moved;
+    cleanup();
+    if(done) {
+      blk.addEventListener('click',x=>x.stopPropagation(),{capture:true,once:true});
+      tlMoveTo(id,target(ev).to)
+    }
+  };
+  function cleanup() {
+    clearTimeout(timer);
+    window.removeEventListener('pointermove',move);
+    window.removeEventListener('pointerup',up);
+    window.removeEventListener('pointercancel',cleanup);
+    blk.classList.remove('dragging');
+    blk.style.transform='';
+    marker?.remove();
+    setTimeout(()=>tlDrag===drag&&(tlDrag=null),0)
+  }
+  if(touch)timer=setTimeout(begin,400);
+  window.addEventListener('pointermove',move);
+  window.addEventListener('pointerup',up);
+  window.addEventListener('pointercancel',cleanup)
+}
+const TL_ACT={
+  toggle() {
+    const t=state.tl;
+    t.open=!t.open;
+    t.recenter=true;
+    renderTimeline();
+    resizePlayer();
+    if(t.open&&!tlPhone())$('timeline').scrollIntoView({block:'nearest'})
+  },
+  pick(b) {
+    if(tlDrag?.moved)return;
+    tlPick(b.dataset.id)
+  },
+  cut(b) {
+    tlCutSheet(+b.dataset.i)
+  },
+  lane(b) {
+    tlLaneSheet(+b.dataset.k)
+  },
+  zoom(b) {
+    state.tl.recenter=true;
+    tlZoomBy(+b.dataset.d)
+  },
+  fit() {
+    state.tl.z=null;
+    renderTimeline()
+  },
+  addlane() {
+    const n=(state.tl.data.lanes||[]).length+1;
+    state.tl.newLane=n-1;
+    tlChange(data=> {
+      (data.lanes??=[]).push({items:[]})
+    },`add Audio ${n}`,()=>toast(`Audio ${n} added. Add a sound from its menu, or describe one in a note.`))
+  },
+  seek(b,e) {
+    if(!state.videoReady)return;
+    const {total}=tlPlace(),z=tlZoom(total);
+    const f=(e.clientX-$('tl-track').getBoundingClientRect().left)/z;
+    if(tlNoteClip())return tlPick(state.tl.sel,true);
+    player.currentTime=Math.max(0,f/state.tl.fps)
+  }
+};
+$('timeline').onclick=e=> {
+  const b=e.target.closest('[data-tl]');
+  if(b)TL_ACT[b.dataset.tl]?.(b,e)
+};
+$('timeline').onkeydown=e=> {
+  // Alt+arrows move the focused clip: the keyboard's drag.
+  const b=e.target.closest?.('.tl-blk');
+  if(!b||!e.altKey||!['ArrowLeft','ArrowRight'].includes(e.key))return;
+  e.preventDefault();
+  const clips=state.tl.data.clips,from=clips.findIndex(c=>c.id===b.dataset.id);
+  const to=Math.max(0,Math.min(clips.length-1,from+(e.key==='ArrowLeft'?-1:1)));
+  tlMoveTo(b.dataset.id,to);
+  requestAnimationFrame(()=>document.querySelector(`.tl-blk[data-id="${CSS.escape(b.dataset.id)}"]`)?.focus())
+};
+$('tl-shade').onclick=e=> {
+  if(e.target===$('tl-shade'))tlCloseSheet()
+};
+document.addEventListener('keydown',e=> {
+  if(e.key==='Escape'&&!$('tl-shade').hidden)tlCloseSheet()
+});
+$('scope-clip').onclick=()=> {
+  const t=state.tl;
+  if(t)tlPick(t.sel||t.data.clips[0].id)
+};
+$('scope-whole').onclick=()=> {
+  const t=state.tl;
+  if(t&&!t.whole)tlPick(t.sel,true)
+};
+window.addEventListener('resize',()=> {
+  if(state.tl?.open)renderTimeline()
+});
 // ---- Startup and periodic polling ----
 stampLabel();
 init();
@@ -2442,6 +3385,16 @@ setInterval(()=> {
 setInterval(()=> {
   if(state.video&&!state.signedOut&&!state.restarting)loadVersions()
 },15000);
+// A film of clips: fast while a clip renders, slow otherwise (the builder may change the file too).
+let lastTimelinePoll=0;
+setInterval(()=> {
+  const t=state.tl,busy=t?.clips.some(c=>!['ready','missing','failed'].includes(c.state));
+  if(!t||document.hidden||state.signedOut||state.restarting)return;
+  if(Date.now()-lastTimelinePoll>=(busy?4000:15000)) {
+    lastTimelinePoll=Date.now();
+    loadTimeline()
+  }
+},1000);
 setInterval(()=> {
   if(document.hidden||state.signedOut||state.restarting)return;
   for(const note of state.notes) {
