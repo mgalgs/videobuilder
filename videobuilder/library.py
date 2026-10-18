@@ -34,7 +34,7 @@ class Library:
                  compendium_dir=None, music_sources=None, account_daily_note_cap=None, account_daily_cost_cap_usd=None,
                  compendium_for_builder=None, source_max_mb=None, source_max_total_mb=None,
                  capability_agent_extra_args=None, capability_fetch=True, artbox_url=None,
-                 account_daily_picture_cap=None):
+                 account_daily_picture_cap=None, whats_new_repo=None, whats_new_videos=True):
         self.capabilities_dir = capabilities_dir
         self.capability_agent_extra_args = capability_agent_extra_args
         self.capability_fetch = capability_fetch
@@ -77,8 +77,9 @@ class Library:
         self.accounts = Accounts(str(self.state_dir), admins) if admins else None
         self.access = Access(str(self.state_dir))
         self.community = community.Store(str(self.state_dir))
-        from .whats_new import WhatsNew
-        self.whats_new = WhatsNew(self.state_dir)
+        from .whats_new import DEFAULT_REPO, WhatsNew
+        self.whats_new = WhatsNew(self.state_dir, repo=whats_new_repo or DEFAULT_REPO,
+                                  remote_videos=whats_new_videos)
 
     def path(self, name):
         if not valid_name(name):
@@ -657,11 +658,11 @@ class Library:
         tour = bool(self.accounts and user and not self.accounts.tour_seen(user))
         return pages.index(entries, self.accounts is not None, user, host, scheme,
                            showcase=showcase_available(self.capabilities_dir), tour=tour,
-                           whats_new=self.whats_new.newest_id())
+                           whats_new=self.whats_new.newest_key())
 
     def new_video_page(self, names=None, user=None):
         return pages.new_video_page(names if names is not None else self.names(),
-                                    user if self.accounts else None, whats_new=self.whats_new.newest_id())
+                                    user if self.accounts else None, whats_new=self.whats_new.newest_key())
 
     def tick(self):
         """Advance unfinished notes in every repo, opening an editor only where one is pending."""

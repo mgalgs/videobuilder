@@ -53,7 +53,8 @@ class LibraryHandler:
         if route == '/whats-new' and method == 'GET':
             can_create = bool(user) if library.accounts else True
             today = datetime.datetime.now(datetime.timezone.utc).date().isoformat()
-            page = whats_new_page(store.list(), user if library.accounts else None, can_create,
+            store.fetch_missing()
+            page = whats_new_page(store.entries(), user if library.accounts else None, can_create,
                                   _is_admin(self, user), store.max_video_bytes, today)
             return self._send(200, page, 'text/html; charset=utf-8')
         m = re.fullmatch(r'/whats-new/([^/]+)/([0-9x]+)\.mp4', route)
@@ -185,7 +186,7 @@ class LibraryHandler:
                 if library.accounts and route == '/account' and method == 'GET':
                     limits = library.admin_limits() if library.accounts.is_admin(user) else None
                     return self._send(200, account_page(user, library.accounts.list_keys(user), limits,
-                                                        library.whats_new.newest_id()),
+                                                        library.whats_new.newest_key()),
                                       'text/html; charset=utf-8')
                 if library.accounts and route == '/api/account/keys' and method == 'POST':
                     body = self._body()

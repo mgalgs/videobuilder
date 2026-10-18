@@ -722,24 +722,33 @@ agent.
 
 ### What's new
 
-A library has a What's new page (`/whats-new`) for short release-notes
-videos: each entry has a title, a date, a version range, a few lines of
-notes (paragraphs, and lines starting `- ` as a list; nothing else is
-markup) and up to one MP4 per format. Viewers see the 9:16 video on a
-phone and the 16:9 one on a wide screen. The app bar links to the page once
-there is an entry, with a dot until the viewer has opened the newest one
-(kept in the browser, not on the server).
+A library has a What's new page (`/whats-new`), linked from the app bar
+with a dot until the viewer has opened the newest entry (kept in the
+browser, not on the server). It lists, newest first:
 
-Entries live in the state directory, never in git:
-`<state-dir>/whats-new/<id>/entry.json` beside `9x16.mp4`, `16x9.mp4` and
-`1x1.mp4`. The id is the entry's date (`2026-10-18`, then `2026-10-18-02`).
-An admin (anyone, without accounts) can add and remove entries on the page
-itself, with uploads capped at 300 MB per video, or on the server:
+- **The project's named releases.** Each ships in the package as a text file
+  in `videobuilder/release_notes/` (see [docs/RELEASES.md](docs/RELEASES.md)),
+  shown once the instance runs that release's version. Its video is an asset
+  of the project's GitHub release: the server downloads it once, the first
+  time someone opens the page, into `<state-dir>/whats-new-cache/` and serves
+  it itself, so viewers' browsers never contact GitHub. A download has a
+  timeout and a size cap, and a failed one waits an hour before another try;
+  until then the entry shows its text only. Pass `--no-whats-new-videos` to
+  never download them (the entries keep their text), or `--whats-new-repo
+  OWNER/NAME` to take them from a fork's releases.
+- **This instance's own entries**, for notes of your own. They live in
+  `<state-dir>/whats-new/<id>/` (`entry.json` beside `9x16.mp4`, `16x9.mp4`
+  and `1x1.mp4`), never in git; the id is the entry's date (`2026-10-18`,
+  then `2026-10-18-02`). An admin (anyone, without accounts) adds and
+  removes them on the page, with uploads capped at 300 MB per video, or on
+  the server:
 
-    python -m videobuilder whats-new add --state DIR3 --title "Clips and a timeline" \
-        --versions "0.1.81–0.1.88" --notes notes.txt --video 9x16=v.mp4 --video 16x9=w.mp4
-    python -m videobuilder whats-new list --state DIR3
-    python -m videobuilder whats-new remove --state DIR3 2026-10-18
+      python -m videobuilder whats-new add --state DIR3 --title "New fonts" \
+          --versions "0.1.88" --notes notes.txt --video 9x16=v.mp4 --video 16x9=w.mp4
+      python -m videobuilder whats-new list --state DIR3
+      python -m videobuilder whats-new remove --state DIR3 2026-10-18
+
+Viewers see the 9:16 video on a phone and the 16:9 one on a wide screen.
 
 ## The authoring loop
 

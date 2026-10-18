@@ -231,7 +231,8 @@ def cmd_editor(a):
                           source_max_mb=a.source_max_mb, source_max_total_mb=a.source_max_total_mb,
                           capability_agent_extra_args=a.capability_agent_extra_arg,
                           capability_fetch=not a.no_capability_fetch, artbox_url=a.artbox_url,
-                          account_daily_picture_cap=a.account_daily_picture_cap)
+                          account_daily_picture_cap=a.account_daily_picture_cap,
+                          whats_new_repo=a.whats_new_repo, whats_new_videos=not a.no_whats_new_videos)
         else:
             if not a.project:
                 raise ValueError('provide PROJECT or --library DIR')
@@ -251,6 +252,8 @@ def cmd_editor(a):
                 raise ValueError('--capability-agent-extra-arg is only for --library mode')
             if a.no_capability_fetch:
                 raise ValueError('--no-capability-fetch is only for --library mode')
+            if a.whats_new_repo or a.no_whats_new_videos:
+                raise ValueError("--whats-new-repo and --no-whats-new-videos are only for --library mode")
             serve(a.project, host=a.host, port=a.port, state_dir=a.state_dir, open_browser=a.open,
                   agent=agent, allowed_hosts=a.allow_host, unsandboxed_previews=a.unsandboxed_previews,
                   envs=a.envs, sync_remote=a.sync_remote, capabilities_dir=a.capabilities_dir,
@@ -291,7 +294,7 @@ def cmd_whats_new(a):
     from .whats_new import WhatsNew
     store = WhatsNew(a.state)
     if a.whats_new_cmd == 'list':
-        for e in store.list():
+        for e in store.local():
             extra = ' '.join(x for x in (e['versions'], ','.join(e['videos'])) if x)
             print(f"{e['id']}  {e['title']}" + (f'  ({extra})' if extra else ''))
         return
@@ -588,6 +591,12 @@ def main(argv=None):
     d.add_argument('--no-capability-fetch', action='store_true',
                    help='--library mode only: never read the X post a capability submission names; the '
                         'dialog then asks only for files')
+    d.add_argument('--whats-new-repo', metavar='OWNER/NAME',
+                   help="--library mode only: the GitHub repository whose releases hold the What's new "
+                        "videos (default: the project's own); the server fetches them into the state dir")
+    d.add_argument('--no-whats-new-videos', action='store_true',
+                   help="--library mode only: never fetch the What's new videos from GitHub; the "
+                        "project's entries show their text only (local entries keep their uploaded videos)")
     d.set_defaults(fn=cmd_editor)
 
     cap = sub.add_parser('capabilities', help="the capabilities catalog's clips and builder sheet")
@@ -613,10 +622,11 @@ def main(argv=None):
     compb.add_argument('--crf', type=int, default=30, help='x264 quality (default 30: small clips over sharpness)')
     compb.set_defaults(fn=cmd_compendium)
 
-    wn = sub.add_parser('whats-new', help="the What's new page's entries, kept in a library's state directory")
+    wn = sub.add_parser('whats-new', help="this instance's own What's new entries, kept in a library's state "
+                                          "directory (beside the project's releases, which ship in the package)")
     wnsub = wn.add_subparsers(dest='whats_new_cmd', required=True)
     wna = wnsub.add_parser('add', help='add an entry (its id is its date)')
-    wnl = wnsub.add_parser('list', help='list the entries, newest first')
+    wnl = wnsub.add_parser('list', help="list this instance's entries, newest first (not the project's releases)")
     wnr = wnsub.add_parser('remove', help='remove an entry and its videos')
     for x in (wna, wnl, wnr):
         x.add_argument('--state', required=True,

@@ -235,8 +235,8 @@ class InlineScriptsParse(unittest.TestCase):
         self._check(pages.account_page('dana', []))
 
     def test_whats_new_page_scripts_parse(self):
-        entry = {'id': '2026-10-18', 'title': 'T', 'date': '2026-10-18', 'versions': '1', 'notes': 'n',
-                 'videos': ['9x16']}
+        entry = {'id': '2026-10-18', 'kind': 'local', 'title': 'T', 'headline': '', 'date': '2026-10-18',
+                 'versions': '1', 'notes': 'n', 'videos': ['9x16'], 'key': '2026-10-18 2026-10-18'}
         self._check(pages.whats_new_page([entry], 'dana', is_admin=True, max_bytes=1048576, today='2026-10-18'))
         self._check(pages.whats_new_page([]))
 

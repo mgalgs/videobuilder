@@ -187,7 +187,7 @@ APP_HEADER_SCRIPT = (
     'location.href="/login"};'
     'const m=document.querySelector(".app-account");'
     'if(m)document.addEventListener("click",e=>{if(m.open&&!m.contains(e.target))m.open=false});'
-    # The What's new dot: the newest entry is newer than the last one this browser
+    # The What's new dot: the newest entry's key (date, then id) sorts after the last one this browser
     # opened. No storage (private mode, blocked) just means no dot.
     'const w=document.querySelector("[data-whats-new]");'
     'if(w)try{const s=localStorage.getItem("vb-whats-new-seen");'
@@ -200,7 +200,8 @@ _NAV = (('library', '/', 'Library'), ('capabilities', '/capabilities', 'Capabili
 def app_header(active, user=None, can_create=True, whats_new=None):
     """The shared signed-in header: the brand (back to the library), Library
     and Capabilities, What's new (only when `whats_new`, the newest entry's
-    id, is set: an instance with no entries shows no link), + New video, and,
+    key from whats_new.WhatsNew.newest_key(), is set: with no entries there
+    is no link), + New video, and,
     when there are accounts (`user` set), a compact account menu. `active` is
     the nav item to mark current ('library', 'capabilities', 'whats-new' or
     None)."""
@@ -998,6 +999,7 @@ WHATS_NEW_STYLE = (
     '.wn-entry{background:#141417;border:1px solid #26262c;border-radius:16px;padding:1.5rem;'
     'display:flex;flex-direction:column;gap:1rem}'
     '.wn-entry h2{margin:0;font-size:1.3rem;line-height:1.25;letter-spacing:-.01em;overflow-wrap:anywhere}'
+    '.wn-headline{margin:.15rem 0 0;color:#f4f4f2;font-size:1.05rem;font-weight:600;overflow-wrap:anywhere}'
     '.wn-meta{display:flex;flex-wrap:wrap;align-items:center;gap:.4rem .6rem;margin:.3rem 0 0;color:#a9a9b2;'
     'font-size:.9rem}'
     '.wn-ver{padding:.05rem .55rem;border-radius:999px;background:#1f1f25;color:#c9c9cf;font-size:.82rem;'
@@ -1093,10 +1095,13 @@ def _whats_new_entry_html(e, is_admin):
              '<video controls playsinline preload="metadata"></video></div>' if videos else '')
     versions = f'<span class="wn-ver">{html.escape(e["versions"])}</span>' if e.get('versions') else ''
     notes = notes_html(e.get('notes') or '')
+    # Only this instance's own entries can go; the project's releases ship in the package.
     remove = (f'<button type="button" class="wn-remove" data-id="{html.escape(e["id"])}" '
-              f'data-title="{html.escape(e["title"])}">Remove</button>' if is_admin else '')
+              f'data-title="{html.escape(e["title"])}">Remove</button>'
+              if is_admin and e.get('kind') == 'local' else '')
+    headline = f'<p class="wn-headline">{html.escape(e["headline"])}</p>' if e.get('headline') else ''
     return (f'<li><article class="wn-entry" id="{html.escape(e["id"])}"><header>'
-            f'<h2>{html.escape(e["title"])}</h2><p class="wn-meta">'
+            f'<h2>{html.escape(e["title"])}</h2>{headline}<p class="wn-meta">'
             f'<time datetime="{html.escape(e["date"])}">{_whats_new_date(e["date"])}</time>{versions}</p>'
             '</header>' + (f'<div class="wn-notes">{notes}</div>' if notes else '') + video + remove +
             '</article></li>')
@@ -1122,11 +1127,12 @@ def _whats_new_form_html(max_bytes, today):
 
 
 def whats_new_page(entries, user=None, can_create=True, is_admin=False, max_bytes=0, today=''):
-    """What's new: the instance's entries (whats_new.WhatsNew.list(), newest
-    first), each with its notes and its video for the screen; for an admin,
-    a form to add one and a remove button on each. `user`: for the header's
-    account menu, None without accounts."""
-    newest = entries[0]['id'] if entries else ''
+    """What's new: whats_new.WhatsNew.entries() (the project's releases and
+    this instance's own entries, newest first), each with its notes and its
+    video for the screen; for an admin, a form to add an entry and a remove
+    button on each local one. `user`: for the header's account menu, None
+    without accounts."""
+    newest = entries[0]['key'] if entries else ''
     if entries:
         body = '<ol class="wn-list">' + ''.join(_whats_new_entry_html(e, is_admin) for e in entries) + '</ol>'
     else:

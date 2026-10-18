@@ -1318,7 +1318,8 @@ def serve_library(root, host='127.0.0.1', port=8100, checkouts=None, state_dir=N
                   admins=(), capabilities_dir=None, compendium_dir=None, music_sources=None,
                   account_daily_note_cap=None, account_daily_cost_cap_usd=None, compendium_for_builder=None,
                   source_max_mb=None, source_max_total_mb=None, capability_agent_extra_args=None,
-                  capability_fetch=True, artbox_url=None, account_daily_picture_cap=None):
+                  capability_fetch=True, artbox_url=None, account_daily_picture_cap=None,
+                  whats_new_repo=None, whats_new_videos=True):
     from .library import Library
     library = Library(root, checkouts=checkouts, state_dir=state_dir, host=host, agent=agent,
                       allowed_hosts=allowed_hosts, unsandboxed_previews=unsandboxed_previews, envs=envs,
@@ -1329,7 +1330,8 @@ def serve_library(root, host='127.0.0.1', port=8100, checkouts=None, state_dir=N
                       source_max_total_mb=source_max_total_mb,
                       capability_agent_extra_args=capability_agent_extra_args,
                       capability_fetch=capability_fetch, artbox_url=artbox_url,
-                      account_daily_picture_cap=account_daily_picture_cap)
+                      account_daily_picture_cap=account_daily_picture_cap,
+                      whats_new_repo=whats_new_repo, whats_new_videos=whats_new_videos)
     httpd = Server((host, port), make_handler(library, hook))
     stop = threading.Event()
     loops = [_ticker(library.tick, stop)]
