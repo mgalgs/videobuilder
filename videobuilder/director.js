@@ -2502,6 +2502,41 @@ function tlPlace(data=state.tl.data) {
   });
   return {places:out,total:Math.max(1,at)}
 }
+// Where the cut into a placed clip is (timeline_file.cut_frame): a transition's middle.
+const tlCutAt=p=>p.start+((p.c.cut?.frames||0)>>1);
+// A reel's beat grid (timeline_file.beat_grid, beats.BeatGrid): beat k of the song on Audio `lane`,
+// item `item`, is `zero` plus k beats rounded half up, from where the item starts playing to where
+// it stops. Null for a timeline with no grid.
+function tlGrid(data=state.tl.data) {
+  const b=data.beats,it=b&&data.lanes?.[b.lane-1]?.items?.[b.item-1];
+  if(!it)return null;
+  const fpb=state.tl.fps*60/b.bpm,zero=it.at-(it.offset||0)+(b.first||0),lo=it.at,hi=it.at+it.frames;
+  const bar=b.bar||4,frame=k=>zero+Math.floor(k*fpb+.5);
+  let first=Math.max(0,Math.ceil((lo-zero)/fpb)-1),last=Math.max(-1,Math.floor((hi-zero)/fpb)+1);
+  while(frame(first)<lo)first++;
+  while(last>=0&&frame(last)>hi)last--;
+  if(last<first)return null;
+  const index=f=> {
+    const k=Math.min(last,Math.max(first,Math.floor((f-zero)/fpb)));
+    let best=null;
+    for(const j of [k-1,k,k+1]) {
+      if(j>=first&&j<=last&&(best==null||Math.abs(frame(j)-f)<=Math.abs(frame(best)-f)))best=j
+    }
+    return best
+  };
+  // n beats on from frame f (back, for n<0); from between beats, the next (or previous) is the first.
+  const step=(f,n)=> {
+    const k=index(f),at=frame(k);
+    if(n>0&&at>f||n<0&&at<f)n-=Math.sign(n);
+    return frame(Math.max(first,Math.min(last,k+n)))
+  };
+  const name=f=> {
+    const k=index(f);
+    return k%bar?`beat ${k+1}`:`bar ${k/bar+1}`
+  };
+  return {fpb,bar,bpm:b.bpm,first,last,lo,hi,frame,index,step,name,snap:f=>frame(index(f)),
+    off:f=>f<lo||f>hi?0:f-frame(index(f))}
+}
 function tlLabelWidth() {
   return tlPhone()?46:104
 }
@@ -2568,17 +2603,32 @@ function tlOverhangs(places,z) {
   return h
 }
 function tlPluses(places,z) {
+  const grid=tlGrid();
   return places.slice(1).map(p=> {
     const c=p.c,d=c.cut?.frames||0,prev=places[p.i-1];
     const kind=c.cut?.transition||'cut';
     const jl=(c.sound?.early&&p.before)?'J':(prev.c.sound?.late&&prev.after)?'L':'';
-    const what=`${TL_TRANSITIONS.find(x=>x[0]===kind)?.[1]||kind}${jl?`, ${jl}-cut`:''}`;
-    return `<button class="tl-plus" data-tl="cut" data-i="${p.i}" style="left:${(p.start+d/2)*z}px"`+
+    // Off the beat: a cut a reel's grid doesn't have on a beat (it can't tell while a length is a guess).
+    const off=grid&&!places.slice(0,p.i).some(q=>q.guess)?grid.off(tlCutAt(p)):0;
+    const what=`${TL_TRANSITIONS.find(x=>x[0]===kind)?.[1]||kind}${jl?`, ${jl}-cut`:''}`+
+      `${off?`, ${Math.abs(off)} frame${Math.abs(off)===1?'':'s'} off the beat`:''}`;
+    return `<button class="tl-plus${off?' off':''}" data-tl="cut" data-i="${p.i}" style="left:${(p.start+d/2)*z}px"`+
       ` aria-label="Between ${p.i} and ${p.i+1}: ${what}. Insert a clip, trim, transition, sound"`+
       ` title="${esc(what)}">${svg(TL_ICON.plus,13)}`+
       `${kind!=='cut'?`<span class="tl-pg">${svg(TL_ICON[kind],12)}</span>`:''}`+
       `${jl?`<span class="tl-pj">${jl}</span>`:''}</button>`
   }).join('')
+}
+// A reel's beats on the ruler: every beat while they are 5 px apart, else every bar's first.
+function tlBeatTicks(z) {
+  const g=tlGrid();
+  if(!g)return '';
+  const every=g.fpb*z>=5?1:g.fpb*g.bar*z>=5?g.bar:0;
+  let h='';
+  for(let k=g.first;every&&k<=g.last;k++) {
+    if(k%every===0)h+=`<i class="tl-beat${k%g.bar?'':' bar'}" style="left:${g.frame(k)*z}px"></i>`
+  }
+  return h
 }
 function tlTicks(total,z) {
   const fps=state.tl.fps;
@@ -2649,11 +2699,12 @@ function renderTimeline() {
   box.innerHTML=head+`<div class="tl-tools"><button class="tl-icon" data-tl="zoom" data-d="0.6" aria-label="Zoom out">`+
     `${svg(TL_ICON.zout)}</button><button class="tl-icon" data-tl="zoom" data-d="1.6" aria-label="Zoom in">`+
     `${svg(TL_ICON.zin)}</button><button class="tl-icon" data-tl="fit" aria-label="Fit the whole video">`+
-    `${svg(TL_ICON.fit)}</button><span class="tl-hint">Drag a clip to move it; tap + between clips to cut.</span>`+
+    `${svg(TL_ICON.fit)}</button><span class="tl-hint">${tlGrid()?`A reel at ${tlGrid().bpm} bpm: cuts go on `+
+    'the beat. ':''}Drag a clip to move it; tap + between clips to cut.</span>`+
     `<button class="tl-btn" data-tl="addlane">${svg(TL_ICON.plus,16)}Audio lane</button></div>`+
     `<div class="tl-grid"><div class="tl-labels">${labels}</div><div class="tl-scroll" id="tl-scroll">`+
     `<div class="tl-track" id="tl-track" style="width:${W}px"><div class="tl-r tl-r-ruler" data-tl="seek">`+
-    `${tlTicks(total,z)}</div>${acts.length?`<div class="tl-r tl-r-acts">${actRow}</div>`:''}`+
+    `${tlTicks(total,z)}${tlBeatTicks(z)}</div>${acts.length?`<div class="tl-r tl-r-acts">${actRow}</div>`:''}`+
     `<div class="tl-r tl-r-cuts">${tlPluses(places,z)}</div><div class="tl-r tl-r-clips" id="tl-clips">`+
     `${places.map(p=>tlBlock(p,z)).join('')}${tlOverhangs(places,z)}</div>`+
     `${lanes.map((lane,k)=>tlLaneRow(lane,k,speech,z,total)).join('')}${actLines}`+
@@ -2891,11 +2942,16 @@ function tlCloseSheet() {
   state.tl&&(state.tl.sheet=null);
   if(state.tl)renderTimeline()
 }
-function tlStepper(label,key,value,hint) {
+function tlStepper(label,key,value,hint,unit='frame') {
   return `<div class="tl-stepper"><span>${label}${hint?`<small>${hint}</small>`:''}</span>`+
-    `<button class="tl-icon" data-step="${key}" data-d="-1" aria-label="${esc(label)}: one frame less">`+
+    `<button class="tl-icon" data-step="${key}" data-d="-1" aria-label="${esc(label)}: one ${unit} less">`+
     `${svg(TL_ICON.minus,16)}</button><output>${value}</output><button class="tl-icon" data-step="${key}" `+
-    `data-d="1" aria-label="${esc(label)}: one frame more">${svg(TL_ICON.plus,16)}</button></div>`
+    `data-d="1" aria-label="${esc(label)}: one ${unit} more">${svg(TL_ICON.plus,16)}</button></div>`
+}
+// Whether the + sheet's trims step a beat at a time: on a reel, unless Frames is chosen, and once
+// every clip up to the cut has a known length (before that, where the beats fall is a guess).
+function tlBeatSteps(places,i) {
+  return !!tlGrid()&&!state.tl.frameSteps&&!places.slice(0,i+2).some(p=>p.guess)
 }
 function tlOpt(attrs,on,icon,title,detail,disabled) {
   return `<button class="tl-opt" ${attrs} aria-pressed="${on}"${disabled?' disabled':''}>`+
@@ -2912,6 +2968,17 @@ function tlCutSheet(i) {
   const mode=b.sound?.early?'J':a.sound?.late?'L':'none';
   const jl=mode==='J'?b.sound.early:mode==='L'?a.sound.late:0;
   const na=`${i}. ${esc(tlTitle(a))}`,nb=`${i+1}. ${esc(tlTitle(b))}`;
+  const grid=tlGrid(),beat=tlBeatSteps(places,i),unit=beat?'beat':'frame';
+  const at=tlCutAt(pb),off=grid?grid.off(at):0;
+  const plural=n=>`${Math.abs(n)} frame${Math.abs(n)===1?'':'s'}`;
+  const onBeat=!grid?'':off?`${plural(off)} ${off>0?'after':'before'} ${grid.name(at)}. Reels cut on the beat: `+
+    'put it on the beat, or ask the builder for an off-beat cut in a note.':at<grid.lo||at>grid.hi?
+    'Outside the song: no beat to cut on.':`On ${grid.name(at)}.`;
+  const where=!grid?'':`<p class="tl-sub tl-onbeat${off?' off':''}">${onBeat}</p>`+
+    `${off?'<button class="tl-btn" data-x="snap">Put it on the beat</button>':''}`+
+    `<div class="tl-dirs tl-unit" role="group" aria-label="Trim steps"><button data-x="unit" data-k="beat" `+
+    `aria-pressed="${!t.frameSteps}">Beats</button><button data-x="unit" data-k="frame" `+
+    `aria-pressed="${!!t.frameSteps}">Frames</button></div>`;
   const trans=TL_TRANSITIONS.map(([k,name,d])=>tlOpt(`data-x="t" data-k="${k}"`,kind===k,svg(TL_ICON[k],16),name,d))
     .join('')+TL_LATER.map(([k,name])=>tlOpt('',false,svg(TL_ICON[k],16),name,'Coming soon',true)).join('');
   const dirs=kind==='wipe'||kind==='whip'?`<div class="tl-dirs" role="group" aria-label="${kind==='wipe'?'Wipe':
@@ -2927,9 +2994,11 @@ function tlCutSheet(i) {
   ].join('');
   const html=`<div class="tl-cutsheet"><h3>Between ${na} and ${nb}</h3><p class="tl-sub">How clip ${i} hands over `+
     `to clip ${i+1}. Each change saves a version; no clip renders again.</p><button class="tl-insert" data-x="insert">`+
-    `${svg(TL_ICON.plus)}Insert a clip here</button><div class="tl-sec">Trim at this cut</div>`+
-    tlStepper(`End of ${na}`,'tail',trim(a.tail||0),'')+tlStepper(`Start of ${nb}`,'head',trim(b.head||0),'')+
-    `<p class="tl-sub">Tap for a frame; hold, or Shift-click, for a second.</p><div class="tl-sec">Transition</div>`+
+    `${svg(TL_ICON.plus)}Insert a clip here</button><div class="tl-sec">Trim at this cut</div>${where}`+
+    tlStepper(`End of ${na}`,'tail',trim(a.tail||0),beat?'Moves this cut a beat':'',unit)+
+    tlStepper(`Start of ${nb}`,'head',trim(b.head||0),beat?`Moves the end of ${nb} a beat`:'',unit)+
+    `<p class="tl-sub">${beat?'Tap for a beat; Alt-click, or Frames, for a frame.':
+    'Tap for a frame; hold, or Shift-click, for a second.'}</p><div class="tl-sec">Transition</div>`+
     `<div class="tl-two">${trans}</div>${kind!=='cut'?tlStepper('Length','len',tlSecs(len),`${len} frames`):''}`+
     `${dirs}<div class="tl-sec">Sound across this cut</div>${sounds}`+
     `${mode!=='none'?tlStepper(mode==='J'?'Starts early by':'Runs on for','jl',tlSecs(jl),`${jl} frames`):''}`+
@@ -2941,11 +3010,19 @@ function tlCutSheet(i) {
   if(again)sheet.querySelector(again)?.focus({preventScroll:true});
   tlWireSheet(sheet,i,fps)
 }
-function tlStep(i,key,d) {
+function tlStep(i,key,d,unit='frame') {
   const {places}=tlPlace(),pa=places[i-1],pb=places[i];
   // Frames a clip can still lose and keep at least one beyond its transitions.
   const room=p=>p.media==null&&!tlFootage(p.c)?Infinity:p.frames-1-(p.c.cut?.frames||0)-
     (places[p.i+1]?.c.cut?.frames||0);
+  if(unit==='beat'&&(key==='tail'||key==='head')) {
+    // A beat at a time: the cut the trim moves (the one into b for a's end; b's own end for its start)
+    // goes to the beat d beats away, trimming more (d>0) moving it earlier.
+    // Outside the song, where there are no beats, a beat's worth of frames.
+    const g=tlGrid(),nx=places[i+1],from=key==='tail'?tlCutAt(pb):nx?tlCutAt(nx):pb.end;
+    d=from<g.lo||from>g.hi?d*Math.round(g.fpb):from-g.step(from,-d)
+  }
+  const was=tlOnBeat(places);
   return tlChange(data=> {
     const a=data.clips[i-1],b=data.clips[i];
     if(key==='tail'||key==='head') {
@@ -2963,6 +3040,9 @@ function tlStep(i,key,d) {
       if(b.sound?.early)b.sound.early=Math.max(1,Math.min(pb.before,b.sound.early+d));
       else if(a.sound?.late)a.sound.late=Math.max(1,Math.min(pa.after,a.sound.late+d))
     }
+    if(unit==='beat')tlKeepOnBeat(data,key==='tail'?i+1:i+2,was);
+    // A transition's length moves its middle, the cut, and every cut after it.
+    if(key==='len')tlKeepOnBeat(data,i,was)
   },{tail:`trim the end of ${pa.c.id}`,head:`trim the start of ${pb.c.id}`,len:`transition into ${pb.c.id}`,
     jl:`sound across the cut into ${pb.c.id}`}[key])
 }
@@ -2983,10 +3063,12 @@ function tlWireSheet(sheet,i,fps) {
     tlHoldStop();
     tlHold.held=false;
     const key=b.dataset.step,d=+b.dataset.d;
+    const beat=(key==='tail'||key==='head')&&tlBeatSteps(tlPlace().places,i);
     tlHold.timer=setTimeout(()=> {
       tlHold.held=true;
       const go=()=> {
-        tlStep(i,key,d*fps);
+        if(beat)tlStep(i,key,d,'beat');
+        else tlStep(i,key,d*fps);
         tlCutSheet(i)
       };
       go();
@@ -2999,21 +3081,18 @@ function tlWireSheet(sheet,i,fps) {
     const t=state.tl;
     if(b.dataset.step) {
       tlHoldStop();
-      if(!tlHold.held)tlStep(i,b.dataset.step,+b.dataset.d*(e.shiftKey?fps:1));
+      const key=b.dataset.step,d=+b.dataset.d;
+      const beat=!e.altKey&&(key==='tail'||key==='head')&&tlBeatSteps(tlPlace().places,i);
+      if(!tlHold.held)tlStep(i,key,beat?d:d*(e.shiftKey?fps:1),beat?'beat':'frame');
       tlHold.held=false;
       return tlCutSheet(i)
     }
     const x=b.dataset.x,k=b.dataset.k,id=t.data.clips[i].id;
     if(x==='close')return tlCloseSheet();
     if(x==='insert')return tlInsertSheet(i);
-    if(x==='t')tlChange(data=> {
-      const c=data.clips[i];
-      if(k==='cut')delete c.cut;
-      else if(c.cut?.transition!==k) {
-        const frames=c.cut?.frames||Math.max(2,Math.round(fps*(TL_LEN[k]||.5)));
-        c.cut={transition:k,frames,...(k==='wipe'||k==='whip'?{direction:c.cut?.direction||'left'}:{})}
-      }
-    },`${k} into ${id}`);
+    if(x==='unit')t.frameSteps=k==='frame';
+    if(x==='snap')tlSnapCut(i);
+    if(x==='t')tlTransition(i,k);
     if(x==='dir')tlChange(data=> {
       data.clips[i].cut.direction=k
     },`${t.data.clips[i].cut.transition} ${k} into ${id}`);
@@ -3030,6 +3109,63 @@ function tlWireSheet(sheet,i,fps) {
     tlCutSheet(i)
   }
 }
+// The cut into clip i becomes transition k ('cut' for a hard cut). A transition starts the clip earlier
+// and puts the cut at its middle, so on a reel the cuts that were on the beat go back on it.
+function tlTransition(i,k) {
+  const fps=state.tl.fps,was=tlOnBeat(tlPlace().places);
+  tlChange(data=> {
+    const c=data.clips[i];
+    if(k==='cut')delete c.cut;
+    else if(c.cut?.transition!==k) {
+      const frames=c.cut?.frames||Math.max(2,Math.round(fps*(TL_LEN[k]||.5)));
+      c.cut={transition:k,frames,...(k==='wipe'||k==='whip'?{direction:c.cut?.direction||'left'}:{})}
+    }
+    tlKeepOnBeat(data,i,was)
+  },`${k} into ${state.tl.data.clips[i].id}`)
+}
+// Puts the cut into clip i on the beat (timeline_file.snap_cuts, for one cut): the nearest, else the one
+// on its other side, by trimming the end of the clip before it.
+// The indexes of the clips whose cut into them is on the beat.
+function tlOnBeat(places) {
+  const g=tlGrid();
+  return new Set(g?places.slice(1).filter(p=>!p.guess&&!g.off(tlCutAt(p))).map(p=>p.i):[])
+}
+// After a beat step, a transition or a new clip: the cuts from clip `from` on that were on the beat
+// (`was`) go back on it, by the trims of the clip before each. A beat isn't always a whole number of
+// frames, so moving everything after a cut by one can leave the next cut a frame off.
+function tlKeepOnBeat(data,from,was) {
+  const g=tlGrid(data);
+  for(let j=from;g&&j<data.clips.length;j++) {
+    const ps=tlPlace(data).places,p=ps[j],off=p.guess?0:g.off(tlCutAt(p)),a=data.clips[j-1];
+    if(!was.has(j)||!off)continue;
+    // Its tail first; what a tail can't give back, a footage clip's out (as far as its file goes),
+    // then its head.
+    const left=Math.max(0,-off-(a.tail||0)),out=tlFootage(a)?Math.min(left,ps[j-1].after):0;
+    const tail=Math.max(0,(a.tail||0)+off),head=(a.head||0)-(left-out);
+    if(head<0)continue;
+    if(out)a.out+=out;
+    for(const [k,v] of [['tail',tail],['head',head]]) {
+      if(v)a[k]=v;
+      else delete a[k]
+    }
+  }
+}
+function tlSnapCut(i) {
+  const {places}=tlPlace(),g=tlGrid(),pa=places[i-1],pb=places[i],at=tlCutAt(pb);
+  const room=pa.media==null&&!tlFootage(pa.c)?Infinity:pa.frames-1-(pa.c.cut?.frames||0)-(pb.c.cut?.frames||0);
+  const near=g.snap(at),other=g.step(at,near>at?-1:1);
+  // The cut moves by -delta of the trim: a longer tail moves it earlier.
+  const fits=to=>(pa.c.tail||0)-(to-at)>=0&&at-to<=room;
+  const to=fits(near)?near:fits(other)?other:null;
+  if(to==null)return toast('This cut can\u2019t reach a beat from here: trim the clips either side of it.');
+  const was=tlOnBeat(places);
+  tlChange(data=> {
+    const a=data.clips[i-1],v=(a.tail||0)-(to-at);
+    if(v)a.tail=v;
+    else delete a.tail;
+    tlKeepOnBeat(data,i+1,was)
+  },`put the cut into ${pb.c.id} on the beat`)
+}
 const tlNewId=(name,data)=> {
   const base=(name.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'')||'clip').slice(0,60);
   let id=base,n=2;
@@ -3039,8 +3175,11 @@ const tlNewId=(name,data)=> {
 function tlAddFootage(i,source) {
   const fps=state.tl.fps,out=Math.floor((source.duration||0)*fps);
   if(out<1)return toast('That source has no length yet; try again in a moment.');
+  // The cuts on the beat stay on it: the new clip's own (where the cut into clip i was) and those after.
+  const was=new Set([...tlOnBeat(tlPlace().places)].flatMap(j=>j<i?[j]:j>i?[j+1]:[j,j+1]));
   tlChange(data=> {
-    tlInsert(data,{id:tlNewId(source.name,data),footage:`sources/${source.name}.${source.ext}`,in:0,out},i)
+    tlInsert(data,{id:tlNewId(source.name,data),footage:`sources/${source.name}.${source.ext}`,in:0,out},i);
+    tlKeepOnBeat(data,Math.max(1,i),was)
   },`add footage ${source.name}`,()=>toast(`Footage “${source.name}” added as clip ${i+1}`));
   tlCloseSheet()
 }
@@ -3148,7 +3287,10 @@ async function tlLaneSheet(k) {
     if(x==='remove') {
       tlCloseSheet();
       tlChange(data=> {
-        data.lanes.splice(k,1)
+        data.lanes.splice(k,1);
+        // The beat grid names its song's lane by position: it goes with the song, and follows a later lane.
+        if(data.beats?.lane===k+1)delete data.beats;
+        else if(data.beats?.lane>k+1)data.beats.lane--
       },`remove Audio ${n}`,undo=>tlUndoToast(`Audio ${n} removed`,undo,`bring back Audio ${n}`));
       return
     }
@@ -3202,7 +3344,18 @@ function tlMove(data,id,to) {
 function tlMoveTo(id,to) {
   const from=state.tl.data.clips.findIndex(c=>c.id===id);
   if(to===from)return;
-  tlChange(data=>tlMove(data,id,to),`move ${id} to ${to+1}`)
+  // On a reel the cuts stay on the beat: one between the same two clips as before keeps its place
+  // on or off it; the three the move makes (either side of the clip, and where it left) are on it
+  // if a cut into or out of the clip was.
+  const clips=state.tl.data.clips,prev=new Map(clips.map((c,j)=>[c.id,clips[j-1]?.id]));
+  const on=new Set([...tlOnBeat(tlPlace().places)].map(j=>clips[j].id));
+  const moved=on.has(id)||on.has(clips[from+1]?.id);
+  tlChange(data=> {
+    tlMove(data,id,to);
+    const was=new Set(data.clips.flatMap((c,j)=>!j?[]:
+      (c.id!==id&&prev.get(c.id)===data.clips[j-1].id?on.has(c.id):moved)?[j]:[]));
+    tlKeepOnBeat(data,1,was)
+  },`move ${id} to ${to+1}`)
 }
 let tlDrag=null;
 function tlWire(sc) {

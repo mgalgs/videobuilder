@@ -2939,6 +2939,20 @@ button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible,
   pointer-events: none;
 }
 
+/* A reel's beats on the ruler: a short tick a beat, a taller one on each bar's first. */
+.tl-beat {
+  position: absolute;
+  bottom: 0;
+  height: 5px;
+  border-left: 1px solid #e5483b88;
+  pointer-events: none;
+}
+
+.tl-beat.bar {
+  height: 10px;
+  border-left-color: #e5483b;
+}
+
 .tl-act {
   position: absolute;
   top: 3px;
@@ -3161,6 +3175,12 @@ button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible,
   font-size: 11px;
   font-weight: 800;
   box-shadow: 0 2px 6px #000a;
+}
+
+/* A cut a reel has off its beats. */
+.tl-plus.off {
+  border-color: #f2b33d;
+  box-shadow: 0 0 0 2px #f2b33d55,0 2px 6px #000a;
 }
 
 .tl-plus:hover {
@@ -3393,6 +3413,18 @@ button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible,
 
 .tl-opt[aria-pressed=true] .tl-tick-on {
   visibility: visible;
+}
+
+.tl-onbeat {
+  margin: 8px 0 0;
+}
+
+.tl-onbeat.off {
+  color: #f2b33d;
+}
+
+.tl-unit {
+  max-width: 220px;
 }
 
 .tl-dirs {

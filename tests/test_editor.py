@@ -311,6 +311,159 @@ console.log(JSON.stringify(out));
         ])
 
     @unittest.skipUnless(shutil.which('node'), 'node is not available in this environment')
+    def test_a_reels_trims_step_a_beat_at_a_time(self):
+        # tlGrid, tlStep and tlSnapCut, run as they are in director.js on a footage reel at 128 bpm
+        # (14.0625 frames a beat): the grid is beats.BeatGrid's, a beat step puts the cut it moves on
+        # the next beat, and "Put it on the beat" moves an off-beat cut onto the nearest one; the cuts
+        # after either that were on the beat stay on it.
+        import re
+        import subprocess
+        from videobuilder import timeline_file
+        js = (PKG / 'director.js').read_text()
+        parts = [re.search(r'\nconst ' + name + r'=.*?\n', js).group(0) for name in ('tlInfo', 'tlFootage', 'tlCutAt')]
+        parts += [re.search(r'\nfunction ' + name + r'\(.*?\n\}', js, re.S).group(0)
+                  for name in ('tlPlace', 'tlGrid', 'tlStep', 'tlOnBeat', 'tlKeepOnBeat', 'tlSnapCut')]
+        data = {'version': 1, 'fps': 30, 'clips': [
+            {'id': f'c{k}', 'footage': f'sources/c{k}.mp4', 'in': 0, 'out': 100} for k in range(4)],
+            'lanes': [{'items': [{'sound': 'sources/song.wav', 'at': 0, 'offset': 4, 'frames': 400}]}],
+            'beats': {'lane': 1, 'item': 1, 'bpm': 128, 'first': 15}}
+        data['clips'][0]['out'] = 67
+        data['clips'][2]['head'] = 20
+        script = '\n'.join(parts) + """
+const state={tl:{fps:30,clips:[],data:DATA}};
+const toasts=[];
+const toast=m=>toasts.push(m);
+const tlChange=change=>{change(state.tl.data)};
+const g=tlGrid();
+const out={frames:[...Array(g.last-g.first+1)].map((_,j)=>g.frame(g.first+j)),
+  snap:[0,17,18,30,399].map(g.snap),step:[[25,1],[30,1],[30,-1],[11,-2]].map(([f,n])=>g.step(f,n))};
+const cuts=()=>tlPlace().places.slice(1).map(tlCutAt);
+out.before=cuts();
+tlStep(1,'tail',1,'beat');   // the end of c0 a beat earlier: the cut into c1 to the beat before
+out.tail=cuts();
+tlStep(2,'head',-1,'beat');  // c2 starts as it did, and ends a beat later
+out.head=[cuts(),state.tl.data.clips[2].head];
+tlSnapCut(2);
+out.snapped=cuts();
+console.log(JSON.stringify(out));
+""".replace('DATA', json.dumps(data))
+        result = subprocess.run(['node', '-'], input=script.encode(), capture_output=True)
+        self.assertEqual(result.returncode, 0, result.stderr.decode())
+        out = json.loads(result.stdout)
+        grid = timeline_file.beat_grid(timeline_file.parse(data))
+        self.assertEqual(out['frames'], grid.frames())
+        self.assertEqual(out['snap'], [grid.snap(f) for f in (0, 17, 18, 30, 399)])
+        self.assertEqual(out['step'], [grid.step(25, 1), grid.step(30, 1), grid.step(30, -1), grid.step(11, -2)])
+        self.assertEqual(out['before'], [67, 167, 247])
+        # Beats on the timeline: 11, 25, 39, 53, 67, 81, ... (the file's first beat, 15, at 15 - 4).
+        self.assertEqual(out['tail'], [53, 153, 233])
+        self.assertEqual(out['head'], [[53, 153, grid.step(233, 1)], 20 - (grid.step(233, 1) - 233)])
+        self.assertEqual(grid.snap(153), 152)
+        # The cut after it was on the beat, and stays there: c2 shows a frame more.
+        self.assertEqual(out['snapped'], [53, 152, grid.step(233, 1)])
+
+    @unittest.skipUnless(shutil.which('node'), 'node is not available in this environment')
+    def test_a_reels_cuts_stay_on_the_beat_through_transitions_and_new_clips(self):
+        # tlTransition, tlStep's length step, tlAddFootage and the lane sheet's "Remove", run as they
+        # are in director.js on a footage reel at 120 bpm (15 frames a beat) with every cut on the beat:
+        # a whip, a longer flash and a new clip leave every cut on it (the clip before each shows more,
+        # out to the end of its file), and removing the song's lane takes the beat grid with it.
+        import re
+        import subprocess
+        from videobuilder import timeline_file
+        js = (PKG / 'director.js').read_text()
+        parts = [re.search(r'\nconst ' + name + r'=.*?\n', js).group(0)
+                 for name in ('TL_LEN', 'tlInfo', 'tlFootage', 'tlCutAt')]
+        parts.append(re.search(r'\nconst tlNewId=.*?\n\};', js, re.S).group(0))
+        parts += [re.search(r'\nfunction ' + name + r'\(.*?\n\}', js, re.S).group(0)
+                  for name in ('tlPlace', 'tlGrid', 'tlStep', 'tlOnBeat', 'tlKeepOnBeat', 'tlTransition',
+                               'tlAddFootage', 'tlInsert')]
+        remove = re.search(r"\n    if\(x==='remove'\) \{.*?\n      return\n    \}", js, re.S).group(0)
+        data = {'version': 1, 'fps': 30, 'clips': [
+            {'id': f'c{k}', 'footage': f'sources/c{k}.mp4', 'in': 0, 'out': 30} for k in range(4)],
+            'lanes': [{'items': [{'sound': 'sources/song.wav', 'at': 0, 'frames': 300}]},
+                      {'items': [{'sound': 'sources/vo.wav', 'at': 0, 'frames': 60}]}],
+            'beats': {'lane': 1, 'item': 1, 'bpm': 120}}
+        script = '\n'.join(parts) + """
+const clips=['c0','c1','c2','c3','n'].map(id=>({id,frames:90}));
+const state={tl:{fps:30,clips,data:DATA}};
+const toast=()=>{},tlCloseSheet=()=>{};
+const tlChange=change=>{change(state.tl.data)};
+const cuts=()=>tlPlace().places.slice(1).map(tlCutAt);
+const out={before:cuts()};
+tlTransition(1,'whip');
+out.whip=[cuts(),state.tl.data.clips[1].cut];
+tlTransition(2,'flash');
+tlStep(2,'len',4);
+out.flash=[cuts(),state.tl.data.clips[2].cut.frames];
+tlAddFootage(2,{name:'n',ext:'mp4',duration:1.5});
+out.added=cuts();
+out.data=JSON.parse(JSON.stringify(state.tl.data));
+const removed=k=>{
+  state.tl.data=JSON.parse(JSON.stringify(out.data));
+  const t=state.tl,n=k+1;
+  (()=>{const x='remove';REMOVE})();
+  return state.tl.data;
+};
+out.removed=[removed(1),removed(0)];
+console.log(JSON.stringify(out));
+""".replace('DATA', json.dumps(data)).replace('REMOVE', remove)
+        result = subprocess.run(['node', '-'], input=script.encode(), capture_output=True)
+        self.assertEqual(result.returncode, 0, result.stderr.decode())
+        out = json.loads(result.stdout)
+        self.assertEqual(out['before'], [30, 60, 90])
+        self.assertEqual(out['whip'], [[30, 60, 90], {'transition': 'whip', 'frames': 8, 'direction': 'left'}])
+        self.assertEqual(out['flash'], [[30, 60, 90], 10])
+        self.assertEqual(out['added'], [30, 60, 105, 135])
+        reel = timeline_file.parse(out['data'])
+        placements, _ = timeline_file.place(reel, {}, known=True)
+        self.assertEqual(timeline_file.offbeat(reel, placements), [])
+        # Audio 2 goes and the grid stays on the song; Audio 1 goes and the film is no longer a reel.
+        self.assertEqual(out['removed'][0]['beats'], data['beats'])
+        self.assertEqual(len(out['removed'][0]['lanes']), 1)
+        song_gone = out['removed'][1]
+        self.assertNotIn('beats', song_gone)
+        timeline_file.parse(song_gone)
+
+    @unittest.skipUnless(shutil.which('node'), 'node is not available in this environment')
+    def test_a_reels_cuts_stay_on_the_beat_when_a_clip_moves(self):
+        # tlMoveTo, run as it is in director.js on a reel at 120 bpm whose first beat is frame 11 and
+        # whose first clip runs over the intro (films.md, "Cutting a reel"): moving the last clip to
+        # the front leaves both cuts on the beat, by the trims of the clip before each.
+        import re
+        import subprocess
+        from videobuilder import timeline_file
+        js = (PKG / 'director.js').read_text()
+        parts = [re.search(r'\nconst ' + name + r'=.*?\n', js).group(0) for name in ('tlInfo', 'tlFootage', 'tlCutAt')]
+        parts += [re.search(r'\nfunction ' + name + r'\(.*?\n\}', js, re.S).group(0)
+                  for name in ('tlPlace', 'tlGrid', 'tlOnBeat', 'tlKeepOnBeat', 'tlInsert', 'tlMove', 'tlMoveTo')]
+        data = {'version': 1, 'fps': 30, 'clips': [
+            {'id': 'a', 'footage': 'sources/a.mp4', 'in': 0, 'out': 71},
+            {'id': 'b', 'footage': 'sources/b.mp4', 'in': 0, 'out': 60},
+            {'id': 'c', 'footage': 'sources/c.mp4', 'in': 0, 'out': 60}],
+            'lanes': [{'items': [{'sound': 'sources/song.wav', 'at': 0, 'frames': 300}]}],
+            'beats': {'lane': 1, 'item': 1, 'bpm': 120, 'first': 11}}
+        script = '\n'.join(parts) + """
+const clips=['a','b','c'].map(id=>({id,frames:90}));
+const state={tl:{fps:30,clips,data:DATA}};
+const tlChange=change=>{change(state.tl.data)};
+const cuts=()=>tlPlace().places.slice(1).map(tlCutAt);
+const out={before:cuts()};
+tlMoveTo('c',0);
+out.moved=[state.tl.data.clips.map(c=>c.id),cuts()];
+out.data=state.tl.data;
+console.log(JSON.stringify(out));
+""".replace('DATA', json.dumps(data))
+        result = subprocess.run(['node', '-'], input=script.encode(), capture_output=True)
+        self.assertEqual(result.returncode, 0, result.stderr.decode())
+        out = json.loads(result.stdout)
+        self.assertEqual(out['before'], [71, 131])
+        self.assertEqual(out['moved'][0], ['c', 'a', 'b'])
+        reel = timeline_file.parse(out['data'])
+        placements, _ = timeline_file.place(reel, {}, known=True)
+        self.assertEqual(timeline_file.offbeat(reel, placements), [])
+
+    @unittest.skipUnless(shutil.which('node'), 'node is not available in this environment')
     def test_a_refused_timeline_edit_is_not_left_on_screen(self):
         # saveTimeline and loadTimeline, run as they are in director.js against a server that
         # refuses the POST (or a user who gives no name) while main stays at the same commit: the
