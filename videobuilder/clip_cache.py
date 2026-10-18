@@ -21,7 +21,7 @@ Two ways to read the inputs, giving keys from the same recipe:
 import hashlib
 import os
 import subprocess
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 
 SHARED = 'shared'
 REQUIREMENTS = 'requirements.txt'
@@ -32,20 +32,37 @@ _IGNORED_SUFFIXES = ('.pyc',)
 
 
 class GitTree:
-    """Content ids at commit `sha` of the repo at `repo`."""
+    """Content ids at commit `sha` of the repo at `repo`, for the video in its
+    directory `prefix` (paths are relative to that). The commit's listing is
+    read once, on first use: one git call per commit, however many clips."""
 
-    def __init__(self, repo, sha):
+    def __init__(self, repo, sha, prefix='.'):
         self.repo, self.sha = str(repo), sha
+        self.prefix = '' if prefix in ('', '.') else prefix.strip('/') + '/'
+        self._ids = None
+
+    def _full(self, path):
+        return self.prefix + str(PurePosixPath(path))
 
     def id(self, path):
         """The git object id of `path` at the commit, or None if it isn't there."""
-        result = subprocess.run(['git', 'rev-parse', '--verify', '--quiet', f'{self.sha}:{path}'],
-                                cwd=self.repo, capture_output=True, text=True)
-        return result.stdout.strip() if result.returncode == 0 else None
+        if self._ids is None:
+            cmd = ['git', 'ls-tree', '-r', '-t', '-z', self.sha]
+            if self.prefix:
+                cmd += ['--', self.prefix]
+            result = subprocess.run(cmd, cwd=self.repo, capture_output=True, text=True)
+            if result.returncode:
+                raise ValueError(f'cannot read commit {self.sha}: {result.stderr.strip()}')
+            self._ids = {}
+            for entry in filter(None, result.stdout.split('\0')):
+                meta, name = entry.split('\t', 1)
+                self._ids[name] = meta.split()[2]
+        return self._ids.get(self._full(path))
 
     def read(self, path):
         """The bytes of `path` at the commit, or None."""
-        result = subprocess.run(['git', 'show', f'{self.sha}:{path}'], cwd=self.repo, capture_output=True)
+        result = subprocess.run(['git', 'show', f'{self.sha}:{self._full(path)}'], cwd=self.repo,
+                                capture_output=True)
         return result.stdout if result.returncode == 0 else None
 
 

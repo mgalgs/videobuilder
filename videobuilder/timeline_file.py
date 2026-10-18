@@ -78,6 +78,16 @@ LATER_TRANSITIONS = ('whip', 'flash', 'match')
 WIPE_DIRECTIONS = ('left', 'right', 'up', 'down')
 DEFAULT_DUCK_DB = -12.0
 DEFAULT_FADE = 3
+# Keys a builder may reach for that mean something else here.
+HINTS = {
+    'trim': 'trim with "head" and "tail", frames off each end',
+    'start': 'a footage clip runs from "in" to "out"; a lane item starts at "at", "offset" frames into its file',
+    'end': 'a footage clip runs from "in" to "out"; a lane item plays for "frames"',
+    'duration': 'lengths are "frames"',
+    'transition': 'a transition goes in "cut": {"transition": ..., "frames": ...}',
+    'name': 'lanes have no names: they are Audio 1, Audio 2... by position',
+    'music': 'sound goes in "lanes"',
+}
 _ID_RE = re.compile(r'^[a-z0-9][a-z0-9-]{0,79}$')
 
 
@@ -193,7 +203,8 @@ class _Checker:
         for k in obj:
             if k not in allowed:
                 near = difflib.get_close_matches(k, allowed, n=1)
-                hint = f' (did you mean "{near[0]}"?)' if near else f'; allowed: {", ".join(allowed)}'
+                hint = (f' ({HINTS[k]})' if k in HINTS and HINTS[k] else
+                        f' (did you mean "{near[0]}"?)' if near else f'; allowed: {", ".join(allowed)}')
                 self.bad(where, f'unknown key "{k}"{hint}')
         for k in required:
             if k not in obj:
@@ -292,14 +303,17 @@ CLIP_KEYS = ('id', 'dir', 'film', 'footage', 'in', 'out', 'head', 'tail', 'cut',
 
 def _parse_clip(ck, i, raw, seen):
     where = f'clips[{i}]'
+    cid = raw.get('id') if isinstance(raw, dict) else None
+    named = isinstance(cid, str) and _ID_RE.fullmatch(cid)
+    if named:
+        where = f'{where} "{cid}"'
     if not ck.keys(where, raw, CLIP_KEYS, ('id',)):
         return None
-    cid = raw.get('id')
-    if not isinstance(cid, str) or not _ID_RE.fullmatch(cid):
-        ck.bad(where, f'id must be lowercase letters, digits and dashes, not {json.dumps(cid)}')
+    if not named:
+        if 'id' in raw:
+            ck.bad(where, f'id must be lowercase letters, digits and dashes, not {json.dumps(cid)}')
         cid = f'#{i}'
     else:
-        where = f'{where} "{cid}"'
         if cid in seen:
             ck.bad(where, 'id is used by an earlier clip too; ids must be unique')
         seen.add(cid)

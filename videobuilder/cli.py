@@ -1,6 +1,7 @@
 """Command line: render, still, sheet, preview, edit, editor.
 
     python -m videobuilder render  film.py [--format 9x16|16x9|1x1|all] [--jobs N] [--out FILE]
+    python -m videobuilder assemble DIR [--format F|all] [--out FILE] [--cache DIR] [--jobs N]
     python -m videobuilder still   film.py FRAME [FRAME ...] [--format F] [--out PATH] [--overlay]
     python -m videobuilder sheet   film.py [--format F] [--every N | --frames 0,30,60] [--out FILE] [--width W] [--cols C]
     python -m videobuilder preview film.py [--port 8000] [--host 127.0.0.1]
@@ -355,6 +356,27 @@ def cmd_say(a):
     print(f"{a.out} ({doc['seconds']:.2f}s), {vtt_path}, {json_path}")
 
 
+def cmd_assemble(a):
+    from .assembly import assemble_dir
+    from .timeline_file import TimelineError, load as load_timeline
+    try:
+        timeline = load_timeline(os.path.join(a.dir, 'timeline.json'))
+    except FileNotFoundError:
+        sys.exit(f'{a.dir}: no timeline.json; `render` a single film file instead')
+    except TimelineError as e:
+        sys.exit(str(e))
+    fmts = list(timeline.formats) if a.format == 'all' else [a.format or timeline.formats[0]]
+    for fmt in fmts:
+        out = a.out
+        if out and len(fmts) > 1:
+            root, ext = os.path.splitext(out)
+            out = f'{root}-{fmt}{ext or ".mp4"}'
+        try:
+            assemble_dir(a.dir, fmt, out, cache_dir=a.cache, jobs=a.jobs)
+        except ValueError as e:
+            sys.exit(str(e))
+
+
 def main(argv=None):
     p = argparse.ArgumentParser(prog='videobuilder', description='Make videos in code.')
     sub = p.add_subparsers(dest='cmd', required=True)
@@ -370,6 +392,14 @@ def main(argv=None):
     r.add_argument('--stall', type=float, default=600,
                    help='give up when no chunk finishes for this many seconds (default 600)')
     r.set_defaults(fn=cmd_render)
+
+    asm = sub.add_parser('assemble', help="render a film made of clips (a directory with a timeline.json) to MP4")
+    asm.add_argument('dir')
+    asm.add_argument('--format', help="a format name, or 'all' (default: the timeline's first)")
+    asm.add_argument('--out', help='output file (default: <dir>/<dir name>-<format>.mp4)')
+    asm.add_argument('--cache', help='where clip renders are kept (default: <dir>/.vb-cache/clips)')
+    asm.add_argument('--jobs', type=int, help='worker processes per clip render (default: CPU count)')
+    asm.set_defaults(fn=cmd_assemble)
 
     s = sub.add_parser('still', help='render frames to PNG')
     s.add_argument('film')

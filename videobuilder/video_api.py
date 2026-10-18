@@ -52,17 +52,28 @@ def _get_versions(self, route, q, editor, user):
         raise HTTPError(400, str(exc)) from None
 
 
+def _render_target(editor, video, sha, fmt):
+    """(sha, format) checked: the commit on main, the format one the video
+    renders in there (its timeline's, for a film of clips, else its film's)."""
+    sha = sha or git(editor.root, 'rev-parse', 'main')
+    if sha not in git(editor.root, 'rev-list', '--first-parent', 'main').splitlines():
+        raise HTTPError(400, 'commit is not on main')
+    try:
+        timeline = editor.renders.timeline(video, sha)
+    except ValueError as exc:
+        raise HTTPError(400, str(exc)) from None
+    formats = list(timeline.formats) if timeline else [f['name'] for f in editor.info(video)['formats']]
+    fmt = fmt or formats[0]
+    if fmt not in formats:
+        raise HTTPError(400, 'unknown format')
+    return sha, fmt
+
+
 def _get_video(self, route, q, editor, user):
     editor.main_moved()
     video = _need(q, 'video')
     editor.project.video(video)
-    sha = q.get('commit') or git(editor.root, 'rev-parse', 'main')
-    if sha not in git(editor.root, 'rev-list', '--first-parent', 'main').splitlines():
-        raise HTTPError(400, 'commit is not on main')
-    formats = [f['name'] for f in editor.info(video)['formats']]
-    fmt = q.get('format') or formats[0]
-    if fmt not in formats:
-        raise HTTPError(400, 'unknown format')
+    sha, fmt = _render_target(editor, video, q.get('commit'), q.get('format'))
     state = editor.renders.request(video, sha, fmt)
     if state['state'] == 'failed':
         return self._json(500, {'error': state['error'], 'log': state['log']})
@@ -71,6 +82,23 @@ def _get_video(self, route, q, editor, user):
     data = editor.renders.path(video, sha, fmt).read_bytes()
     headers = {'Accept-Ranges': 'bytes', 'ETag': f'"{sha}-{fmt}"'}
     return self._send_ranged(data, 'video/mp4', headers)
+
+
+def _get_clip(self, route, q, editor, user):
+    video, clip = _need(q, 'video'), _need(q, 'clip')
+    editor.project.video(video)
+    sha, fmt = _render_target(editor, video, q.get('commit'), q.get('format'))
+    try:
+        path = editor.renders.clip_path(video, sha, fmt, clip)
+    except KeyError:
+        raise HTTPError(404, 'no clip directory with that id in this video\'s timeline') from None
+    state = editor.renders.request(video, sha, fmt, clip)
+    if state['state'] == 'failed':
+        return self._json(500, {'error': state['error'], 'log': state['log']})
+    if state['state'] != 'ready':
+        return self._json(202, {'state': state['state'], 'position': state['position']})
+    headers = {'Accept-Ranges': 'bytes', 'ETag': f'"{path.stem}"'}
+    return self._send_ranged(path.read_bytes(), 'video/mp4', headers)
 
 
 def _get_thumbnail(self, route, q, editor, user):
@@ -335,6 +363,7 @@ GET_ROUTES = [
     (('/tuning.html', '/director.js', '/director.css'), _get_static),
     ('/api/versions', _get_versions),
     ('/api/video', _get_video),
+    ('/api/clip', _get_clip),
     ('/api/thumbnail', _get_thumbnail),
     ('/capabilities', _get_capabilities),
     (re.compile(r'/capabilities/community/([a-z][a-z0-9-]*)\.(mp4|jpg)'), _get_community_clip),
@@ -366,12 +395,17 @@ def _post_video_retry(self, route, body, identity, editor, user):
     video = _field(body, 'video', str)
     sha = _field(body, 'commit', str)
     fmt = _field(body, 'format', str)
+    clip = body.get('clip')
+    if clip is not None and not isinstance(clip, str):
+        raise HTTPError(400, 'clip must be a string')
     editor.project.video(video)
-    if sha not in git(editor.root, 'rev-list', '--first-parent', 'main').splitlines():
-        raise HTTPError(400, 'commit is not on main')
-    if fmt not in [f['name'] for f in editor.info(video)['formats']]:
-        raise HTTPError(400, 'unknown format')
-    return self._json(202, editor.renders.retry(video, sha, fmt))
+    sha, fmt = _render_target(editor, video, sha, fmt)
+    if clip is not None:
+        try:
+            editor.renders.clip_path(video, sha, fmt, clip)
+        except KeyError:
+            raise HTTPError(404, 'no clip directory with that id in this video\'s timeline') from None
+    return self._json(202, editor.renders.retry(video, sha, fmt, clip))
 
 
 def _post_versions_restore(self, route, body, identity, editor, user):

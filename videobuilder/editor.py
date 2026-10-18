@@ -156,7 +156,6 @@ GET  /api/versions?video=V[&limit=50&before=SHA]
                                      author,directed_by,note,restores,time,
                                      renders:{format:state}}]}; newest first.
                                      `before` is exclusive; 400 invalid cursor.
-POST /api/video/retry {video,commit,format}  requeue a failed render
 POST /api/versions/restore {video,commit}
                                      200 {commit,changed,n}; 400 foreign sha.
 POST /api/upgrade {video}            commit the video's own requirements.txt pin
@@ -169,6 +168,14 @@ GET  /api/video?video=V&commit=SHA&format=F
                                      ETag "<sha>-<format>", Accept-Ranges bytes;
                                      416 unsatisfiable; 202 {state,position}
                                      while queued/rendering; 500 {error,log}.
+                                     A video with a timeline.json at the commit
+                                     is a film of clips: this is its assembly.
+GET  /api/clip?video=V&clip=ID&commit=SHA&format=F
+                                     one clip directory of a film of clips,
+                                     rendered alone; answers as /api/video, ETag
+                                     "<render key>-<format>"; 404 no such clip
+                                     directory (footage clips have no render).
+POST /api/video/retry {video,commit,format[,clip]}  requeue a failed render
 GET  /api/thumbnail                   a small JPEG poster frame grabbed from
                                      the project's first video's latest
                                      finished render on main, for the library
@@ -588,7 +595,8 @@ class Editor:
 
     def render_first(self, video, commit):
         try:
-            fmt = self.session(video).request('info')['formats'][0]['name']
+            timeline = self.renders.timeline(video, commit)
+            fmt = timeline.formats[0] if timeline else self.session(video).request('info')['formats'][0]['name']
             self.renders.request(video, commit, fmt)
             self._seen_main = commit
         except (ValueError, KeyError, IndexError):
