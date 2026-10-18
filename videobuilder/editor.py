@@ -216,6 +216,32 @@ POST /v/<name>/api/videos/first-note {description?,attachments?:[id...],
                                      new_video.py) first commits a film of
                                      the uploaded footage clips (timeline.json)
                                      or a planned film's bible; 400 a bad one
+GET  /whats-new                       the What's new page: the bundled named
+                                     releases up to the running version and
+                                     this instance's own entries, newest
+                                     first (see whats_new.py); starts any
+                                     missing release-video fetches
+GET  /whats-new/<id>/<format>.mp4    an entry's video, 200/206 with
+                                     Accept-Ranges bytes as /api/video; a
+                                     release id serves only once its video
+                                     is cached in the state dir (never with
+                                     --no-whats-new-videos); 404 otherwise.
+                                     Signed out, a JSON 401, not the sign-in
+                                     page
+POST /api/whats-new {title,versions?,notes?,date?}
+                                     admin only (everyone, without
+                                     accounts; 403 otherwise); 201 a new
+                                     local entry with no videos; 400 a bad
+                                     field
+POST /api/whats-new/<id>/video?format=F
+                                     admin only, as above; the raw MP4 as
+                                     the body, same-origin only, streamed
+                                     to disk like /api/sources; 201 the
+                                     entry; 413 over the size cap; 400 no
+                                     Content-Length, a bad format or not an
+                                     MP4; 404 no such local entry
+POST /api/whats-new/<id>/remove {}   admin only, as above; 200 {removed:id};
+                                     404 no such local entry
 
 Library-only, when the library has accounts (`--admin`):
 GET  /login, /signup                 sign-in / sign-up pages
