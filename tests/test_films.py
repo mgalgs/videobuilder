@@ -397,6 +397,12 @@ def frame_count(path):
     return int(out.strip())
 
 
+def framemd5(path):
+    out = subprocess.run(['ffmpeg', '-v', 'error', '-i', str(path), '-map', '0:v', '-f', 'framemd5', '-'],
+                         capture_output=True, text=True, check=True).stdout
+    return [line.split(',')[-1].strip() for line in out.splitlines() if not line.startswith('#')]
+
+
 def audio_seconds(path):
     out = subprocess.run(['ffprobe', '-v', 'error', '-select_streams', 'a:0', '-show_entries', 'stream=duration',
                           '-of', 'csv=p=0', str(path)], capture_output=True, text=True, check=True).stdout
@@ -411,7 +417,7 @@ class Assembly(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
         self.addCleanup(self.tmp.cleanup)
-        self.root = Path(self.tmp.name) / 'film'
+        self.root = Path(self.tmp.name) / "Tom's film"  # a quote: the concat list must escape it
         write_film(self.root, three_clips())
         make_media(self.root)
         self.rendered = []
@@ -452,6 +458,23 @@ class Assembly(unittest.TestCase):
         result = self.assemble()
         self.assertTrue(result.copied)
         self.assertEqual(frame_count(result.out), 60)
+
+    def test_footage_seeked_near_its_cut_shows_the_same_frames(self):
+        t = three_clips('cut')
+        t['clips'][1].update({'in': 40, 'out': 55})
+        (self.root / 'timeline.json').write_text(json.dumps(t))
+        self.assertEqual(assembly.footage_seek(40, 30), 10)
+        seeked = self.assemble()
+        sums = framemd5(seeked.out)
+        orig = assembly.footage_seek
+        assembly.footage_seek = lambda source, fps: 0
+        self.addCleanup(setattr, assembly, 'footage_seek', orig)
+        self.assertEqual(framemd5(self.assemble().out), sums)
+
+    def test_an_ffmpeg_failure_says_why(self):
+        with self.assertRaisesRegex(ValueError, '(?s)encoding the picture failed:.*No such file'):
+            assembly._run(['ffmpeg', '-v', 'error', '-i', str(self.root / 'missing.mp4'), '-f', 'null', '-'],
+                          'encoding the picture')
 
     def test_a_clip_at_another_frame_rate_is_refused(self):
         film = self.root / 'clips' / 'a' / 'film.py'

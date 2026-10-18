@@ -6,6 +6,13 @@ lanes. A video is a film of clips when its root (beside `film.py` and
 `requirements.txt`) has a `timeline.json`; a video without one renders exactly
 as before.
 
+The editor finds a film of clips by that root `film.py`, like any video (or
+by its entry in `videobuilder.toml`), and for it serves the assembly, never
+the root film's own render. So keep a small root film: a `FILM` with a
+`Timeline` (a title card will do) at the timeline's `fps` and `formats`. The
+clip directories the timeline names are not searched for videos, so a clip's
+film is never listed as a video of its own.
+
 The timeline file holds only what a person changes directly on the film:
 clip order, trims, transitions, J/L cuts, and Audio lanes and their items.
 Anything else (what a clip shows, its motion, its type, its own music) lives
@@ -13,6 +20,7 @@ in that clip's code and is changed by a note to the builder, never by adding
 keys here. A file with an unknown key is refused, with a hint.
 
 ```
+film.py                   the video's own film file: how the editor finds it
 timeline.json
 clips/
   01-opening/film.py      one clip: its own film, rendered on its own

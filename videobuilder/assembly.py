@@ -35,6 +35,7 @@ from .film import DEFAULT_LOUDNESS, Sound, as_format
 from .timeline_file import DEFAULT_FADE, load as load_timeline, place
 
 XFADE = {'dissolve': 'fade', 'wipe': 'wipe{direction}'}
+SEEK_MARGIN = 1   # seconds a footage input is seeked short of its first frame
 CAPTION_EXTS = ('vtt', 'srt')
 
 
@@ -170,14 +171,16 @@ def mix_graph(clips, lanes, frames, fps, start_idx=0):
     return inputs, graph, label
 
 
-def picture_graph(timeline, placements, fmt, inputs):
+def picture_graph(timeline, placements, fmt, inputs, seeks=None):
     """(filter_complex graph, output label) cutting the clips together: each
     input trimmed to what it shows, footage scaled to cover the frame, then
-    hard cuts concatenated and transitions crossed with `xfade`."""
+    hard cuts concatenated and transitions crossed with `xfade`. `seeks[k]` is
+    how many frames placement k's input was seeked past (`footage_seek`)."""
     fps, w, h = timeline.fps, fmt.width, fmt.height
     chains = []
     for k, p in enumerate(placements):
-        trim = f'trim=start_frame={p.source}:end_frame={p.source + p.frames},setpts=PTS-STARTPTS'
+        start = p.source - (seeks[k] if seeks else 0)
+        trim = f'trim=start_frame={start}:end_frame={start + p.frames},setpts=PTS-STARTPTS'
         if p.clip.is_footage:
             f = (f'fps={fps},{trim},scale={w}:{h}:force_original_aspect_ratio=increase,'
                  f'crop={w}:{h}')
@@ -195,6 +198,25 @@ def picture_graph(timeline, placements, fmt, inputs):
                           f'offset={p.start / fps:.6f}[{nxt}]')
         acc = nxt
     return ';'.join(chains), acc
+
+
+def footage_seek(source, fps):
+    """Frames to seek a footage input past before decoding (`-ss`), so a cut
+    from late in a long file isn't decoded from its start: a margin short of
+    `source`, so the accurate seek's rounding never loses the first frame."""
+    return max(0, source - SEEK_MARGIN * fps)
+
+
+def _run(cmd, what):
+    """Run ffmpeg `cmd`, raising ValueError with the tail of its errors."""
+    result = subprocess.run(cmd, capture_output=True, text=True)
+    if result.returncode:
+        raise ValueError(f'{what} failed:\n{result.stderr[-3000:]}')
+
+
+def _concat_line(path):
+    """One concat demuxer list line naming `path`, quotes escaped."""
+    return "file '" + str(path).replace("'", "'\\''") + "'\n"
 
 
 def copyable(timeline, placements):
@@ -230,20 +252,23 @@ def assemble(timeline, fmt, out, root, renders, crf=18, log=sys.stderr):
         if copied:
             listing = os.path.join(tmp, 'list.txt')
             with open(listing, 'w') as fh:
-                fh.writelines(f"file '{media[p.clip.id][0]}'\n" for p in placements)
-            subprocess.run(['ffmpeg', '-v', 'error', '-y', '-f', 'concat', '-safe', '0', '-i', listing,
-                            '-map', '0:v', '-c:v', 'copy', picture], check=True)
+                fh.writelines(_concat_line(media[p.clip.id][0]) for p in placements)
+            _run(['ffmpeg', '-v', 'error', '-y', '-f', 'concat', '-safe', '0', '-i', listing,
+                  '-map', '0:v', '-c:v', 'copy', picture], 'joining the clips')
         else:
-            files = list(dict.fromkeys(media[p.clip.id][0] for p in placements))
+            # One input per clip render file; one per footage placement, seeked near its cut.
+            seeks = [footage_seek(p.source, fps) if p.clip.is_footage else 0 for p in placements]
+            files = list(dict.fromkeys((media[p.clip.id][0], seek) for p, seek in zip(placements, seeks)))
             graph, label = picture_graph(timeline, placements, fmt,
-                                         [files.index(media[p.clip.id][0]) for p in placements])
+                                         [files.index((media[p.clip.id][0], seek))
+                                          for p, seek in zip(placements, seeks)], seeks)
             cmd = ['ffmpeg', '-v', 'error', '-y']
-            for f in files:
-                cmd += ['-i', f]
+            for f, seek in files:
+                cmd += (['-ss', f'{seek / fps:.6f}'] if seek else []) + ['-i', f]
             cmd += ['-filter_complex', graph, '-map', f'[{label}]', '-frames:v', str(total), '-r', str(fps),
                     '-c:v', 'libx264', '-preset', 'medium', '-crf', str(crf), '-pix_fmt', 'yuv420p',
                     '-video_track_timescale', str(fps * 512), picture]
-            subprocess.run(cmd, check=True)
+            _run(cmd, 'encoding the picture')
         cmd = ['ffmpeg', '-v', 'error', '-y', '-i', picture]
         if clips or any(sounds for _, sounds in lanes):
             whole = mix_graph(clips, lanes, total, fps)
@@ -253,7 +278,7 @@ def assemble(timeline, fmt, out, root, renders, crf=18, log=sys.stderr):
             cmd += ['-filter_complex', f'{graph};[{label}]{_render.limiter_suffix(gain)}[a]',
                     '-map', '0:v', '-map', '[a]', '-c:a', 'aac', '-b:a', '320k', '-ar', '48000']
         cmd += ['-c:v', 'copy', '-movflags', '+faststart', str(out)]
-        subprocess.run(cmd, check=True)
+        _run(cmd, 'mixing the sound')
     return total, copied
 
 

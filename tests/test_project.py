@@ -93,6 +93,15 @@ class Discovery(unittest.TestCase):
         self.assertEqual(got[0].to_json(str(self.root)),
                          {'id': 'launch/film', 'path': 'launch/film.py', 'edits': 'launch/film.edits.toml'})
 
+    def test_a_film_of_clips_is_its_root_film_not_its_clips(self):
+        film = 'import videobuilder as vb\nT = vb.Timeline(vb.Grid(), [], end=0)\nFILM = vb.Film(draw=None, timeline=T)\n'
+        for rel in ('river/film.py', 'river/clips/01-a/film.py', 'river/scenes/b/film.py', 'river/extra/film.py'):
+            self.write(rel, film)
+        self.write('river/timeline.json', '{"clips": [{"id": "a", "dir": "clips/01-a"}, {"id": "b", "dir": "scenes/b"}]}')
+        self.assertEqual([v.id for v in discover(self.root)], ['river/extra/film', 'river/film'])
+        self.write('river/timeline.json', '{"clips": [')  # unreadable: nothing is hidden, nothing breaks
+        self.assertEqual(len(discover(self.root)), 4)
+
     def test_videobuilder_toml_lists_them(self):
         self.write('a/one.py', 'x = 1\n')  # listed films aren't read for FILM
         self.write('b/two.py', 'x = 2\n')

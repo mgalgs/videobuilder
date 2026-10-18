@@ -12,7 +12,9 @@ them, exactly those:
 Otherwise every `*.py` file under the project that assigns a module-level
 `FILM` and mentions `Timeline`, read without running it, skipping
 dot-directories and `SKIP_DIRS`. A video's id is its path from the project
-root without `.py` (`launch/film`); commit messages name it.
+root without `.py` (`launch/film`); commit messages name it. A film of clips
+is found by the film file beside its `timeline.json`; the clip directories
+that timeline names are not searched, so a clip's own film is never a video.
 
 Committing. `Project.edit` writes the edit with `edits.roll` or
 `edits.set_copy`, then commits that one path (`git commit -- <path>`) with
@@ -21,6 +23,7 @@ edits file already had uncommitted changes, the edit is still written, but
 not committed, and the result carries a warning. Nothing is ever pushed.
 """
 import ast
+import json
 import os
 import subprocess
 import threading
@@ -103,12 +106,26 @@ def discover(root, skip=()):
     skip = {os.path.abspath(s) for s in skip}
     out = []
     for d, dirs, files in os.walk(root):
+        if 'timeline.json' in files:
+            skip |= _clip_dirs(d)
         dirs[:] = sorted(x for x in dirs if not x.startswith('.') and x not in SKIP_DIRS
                          and os.path.join(d, x) not in skip)
         for f in sorted(files):
             if f.endswith('.py') and looks_like_film(os.path.join(d, f)):
                 out.append(_video(root, os.path.join(d, f)))
     return sorted(out, key=lambda v: v.id)
+
+
+def _clip_dirs(directory):
+    """The absolute clip directories `directory`'s timeline file names, read
+    leniently: a file that doesn't load still hides the dirs it names."""
+    try:
+        with open(os.path.join(directory, 'timeline.json'), encoding='utf-8') as fh:
+            clips = json.load(fh).get('clips')
+    except (OSError, ValueError, AttributeError):
+        return set()
+    return {os.path.normpath(os.path.join(directory, c['dir'])) for c in clips or ()
+            if isinstance(c, dict) and isinstance(c.get('dir'), str)} if isinstance(clips, list) else set()
 
 
 def _video(root, path):
