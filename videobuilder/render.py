@@ -157,15 +157,24 @@ def music_chain(film, a, z, idx):
     au = film.audio
     filt = audio_filters(film, a, z)
     if au.duck_db and film.sounds:
-        envelope = duck_envelope_expr(film.sounds, film.fps, a)
-        gain_expr = f'pow(10,({au.duck_db}*({envelope}))/20)'
-        filt += f",volume=eval=frame:volume='{gain_expr}'"
+        filt += duck_filter(au.duck_db, film.sounds, film.fps, a)
     return f'[{idx}:a]{filt}[music]', 'music'
 
 
-def sound_chain(sound, a, z, fps, idx):
+def duck_filter(duck_db, sounds, fps, offset):
+    """`,volume=...`: a gain that drops by `duck_db` while any of `sounds` plays,
+    from `duck_envelope_expr`. Appended to a chain whose `t` is seconds from
+    film frame `offset`."""
+    envelope = duck_envelope_expr(sounds, fps, offset)
+    gain_expr = f'pow(10,({duck_db}*({envelope}))/20)'
+    return f",volume=eval=frame:volume='{gain_expr}'"
+
+
+def sound_chain(sound, a, z, fps, idx, after=''):
     """The filter_complex statement placing `sound` at its frame in a..z, input
-    `idx`; None when its span doesn't reach into a..z at all."""
+    `idx`; None when its span doesn't reach into a..z at all. `after` is more
+    filters for the placed sound, where `t` is seconds from frame `a` (a
+    `duck_filter`, say)."""
     ds, de = max(sound.at, a), min(sound.at + sound.frames, z)
     if de <= ds:
         return None
@@ -180,9 +189,12 @@ def sound_chain(sound, a, z, fps, idx):
         fades.append(f'afade=t=out:st={st:.6f}:d={sound.fade_out_frames / fps:.6f}')
     fade = (',' + ','.join(fades)) if fades else ''
     label = f's{idx}'
+    # asetpts after adelay: given a first frame atrim cut short (any `start` off
+    # a frame boundary), adelay emits frames with no timestamps, and the apad and
+    # atrim after it then end the sound early (or amix stretches the mix).
     chain = (f'[{idx}:a]atrim=start={src_start:.6f}:end={src_start + dur:.6f},asetpts=PTS-STARTPTS'
-             f'{fade},volume={sound.gain_db}dB,adelay={delay_ms}:all=1,'
-             f'apad,atrim=end={(z - a) / fps:.6f}[{label}]')
+             f'{fade},volume={sound.gain_db}dB,adelay={delay_ms}:all=1,asetpts=N/SR/TB,'
+             f'apad,atrim=end={(z - a) / fps:.6f}{after}[{label}]')
     return chain, label
 
 
@@ -205,8 +217,17 @@ def mix_graph(film, a, z, start_idx=0):
         chain, label = branch
         inputs.append(s.path), chains.append(chain), labels.append(label)
         idx += 1
+    graph, mix_label = join_mix(chains, labels, (z - a) / film.fps)
+    return inputs, graph, mix_label
+
+
+def join_mix(chains, labels, seconds):
+    """(graph, output label): the filter_complex `chains` with their outputs
+    `labels` summed by `amix` (no normalising: each branch keeps its gain), or
+    `seconds` of silence when there are none."""
+    chains, labels = list(chains), list(labels)
     if not labels:
-        chains.append(f'anullsrc=channel_layout=stereo:sample_rate=48000,atrim=end={(z - a) / film.fps:.6f}[mix0]')
+        chains.append(f'anullsrc=channel_layout=stereo:sample_rate=48000,atrim=end={seconds:.6f}[mix0]')
         labels = ['mix0']
     if len(labels) > 1:
         joined = ''.join(f'[{l}]' for l in labels)
@@ -214,7 +235,7 @@ def mix_graph(film, a, z, start_idx=0):
         mix_label = 'mix'
     else:
         mix_label = labels[0]
-    return inputs, ';'.join(chains), mix_label
+    return ';'.join(chains), mix_label
 
 
 def check_chunk(chunk, fps):
