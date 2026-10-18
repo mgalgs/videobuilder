@@ -720,6 +720,27 @@ replace that default with your own arguments, appended after the ordinary
 and (like `--maintainer-loop`) only mean anything to the `fork-sandbox`
 agent.
 
+### What's new
+
+A library has a What's new page (`/whats-new`) for short release-notes
+videos: each entry has a title, a date, a version range, a few lines of
+notes (paragraphs, and lines starting `- ` as a list; nothing else is
+markup) and up to one MP4 per format. Viewers see the 9:16 video on a
+phone and the 16:9 one on a wide screen. The app bar links to the page once
+there is an entry, with a dot until the viewer has opened the newest one
+(kept in the browser, not on the server).
+
+Entries live in the state directory, never in git:
+`<state-dir>/whats-new/<id>/entry.json` beside `9x16.mp4`, `16x9.mp4` and
+`1x1.mp4`. The id is the entry's date (`2026-10-18`, then `2026-10-18-02`).
+An admin (anyone, without accounts) can add and remove entries on the page
+itself, with uploads capped at 300 MB per video, or on the server:
+
+    python -m videobuilder whats-new add --state DIR3 --title "Clips and a timeline" \
+        --versions "0.1.81–0.1.88" --notes notes.txt --video 9x16=v.mp4 --video 16x9=w.mp4
+    python -m videobuilder whats-new list --state DIR3
+    python -m videobuilder whats-new remove --state DIR3 2026-10-18
+
 ## The authoring loop
 
 1. **Preview.** `python -m videobuilder preview film.py` serves a page with

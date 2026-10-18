@@ -120,6 +120,8 @@ APP_HEADER_STYLE = (
     'color:#a9a9b2;font-weight:600;text-decoration:none;white-space:nowrap}'
     '.app-nav a:hover{color:#f4f4f2;background:#17171b}'
     '.app-nav a[aria-current=page]{color:#f4f4f2;background:#1c1c21}'
+    '.app-dot{width:7px;height:7px;margin:0 0 .55rem .3rem;border-radius:50%;background:#ef5b4c;flex:none}'
+    '.app-dot[hidden]{display:none}'
     '.app-actions{margin-left:auto;display:flex;align-items:center;gap:.75rem;flex:none}'
     '.app-new{display:inline-flex;align-items:center;gap:.35rem;min-height:40px;padding:0 1rem;border-radius:10px;'
     'background:#e5483b;color:#fff;font-weight:700;text-decoration:none;white-space:nowrap}'
@@ -185,18 +187,29 @@ APP_HEADER_SCRIPT = (
     'location.href="/login"};'
     'const m=document.querySelector(".app-account");'
     'if(m)document.addEventListener("click",e=>{if(m.open&&!m.contains(e.target))m.open=false});'
+    # The What's new dot: the newest entry is newer than the last one this browser
+    # opened. No storage (private mode, blocked) just means no dot.
+    'const w=document.querySelector("[data-whats-new]");'
+    'if(w)try{const s=localStorage.getItem("vb-whats-new-seen");'
+    'if(!s||s<w.dataset.whatsNew)w.querySelector(".app-dot").hidden=false}catch(e){}'
     '})()</script>')
 
 _NAV = (('library', '/', 'Library'), ('capabilities', '/capabilities', 'Capabilities'))
 
 
-def app_header(active, user=None, can_create=True):
+def app_header(active, user=None, can_create=True, whats_new=None):
     """The shared signed-in header: the brand (back to the library), Library
-    and Capabilities, + New video, and, when there are accounts (`user`
-    set), a compact account menu. `active` is the nav item to mark current
-    ('library', 'capabilities' or None)."""
+    and Capabilities, What's new (only when `whats_new`, the newest entry's
+    id, is set: an instance with no entries shows no link), + New video, and,
+    when there are accounts (`user` set), a compact account menu. `active` is
+    the nav item to mark current ('library', 'capabilities', 'whats-new' or
+    None)."""
     nav = ''.join(f'<a href="{href}"' + (' aria-current="page"' if key == active else '') + f'>{label}</a>'
                   for key, href, label in _NAV)
+    if whats_new:
+        nav += ('<a href="/whats-new" data-whats-new="' + html.escape(whats_new) + '"' +
+                (' aria-current="page"' if active == 'whats-new' else '') +
+                '>What&#8217;s new<span class="app-dot" hidden role="img" aria-label="new"></span></a>')
     new = ('<a class="app-new" href="/new"' + (' aria-current="page"' if active == 'new' else '') +
            '><span aria-hidden="true">+</span> New video</a>') if can_create else ''
     account = ''
@@ -558,7 +571,7 @@ def _ago(seconds, now=None):
     return 'just now'
 
 
-def index(entries, accounts_enabled, user, host, scheme='http', showcase=False, tour=False):
+def index(entries, accounts_enabled, user, host, scheme='http', showcase=False, tour=False, whats_new=None):
     """`entries`: [{name, has_main, updated, subject}, ...], already
     access-filtered and in order; `updated` (unix seconds) and `subject` are
     None without a main branch. `tour`: open with the first-run tour (an
@@ -636,7 +649,7 @@ def index(entries, accounts_enabled, user, host, scheme='http', showcase=False, 
         style += SHOWCASE_STYLE + TOUR_STYLE
         tour_html = _tour_html(user, showcase)
     return (_head('Your videos', style) +
-            '<body>' + app_header('library', user if accounts_enabled else None, can_create) +
+            '<body>' + app_header('library', user if accounts_enabled else None, can_create, whats_new) +
             f'<main class="app-main"><div class="page-head"><div><h1>Your videos</h1>{sub}</div>{sort}</div>' +
             content + _LIB_DETAIL_HTML + script + '</main>' + tour_html + '</body></html>').encode()
 
@@ -688,7 +701,7 @@ def new_video_projects(names):
     return sorted({n.split('/', 1)[0] for n in names if '/' in n and not is_reserved(n)})
 
 
-def new_video_page(names, user=None):
+def new_video_page(names, user=None, whats_new=None):
     """The New video page: the name (and project) up top, then the ways to
     start and the optional parts, drawn by new_video.js. `names` are the
     videos this user may see: their projects fill the dropdown, and they can
@@ -721,7 +734,7 @@ def new_video_page(names, user=None):
                 '</select><button type="button" class="btn" id="copy-go">Copy it</button></div></details>')
     style = APP_STYLE + files.joinpath('new_video.css').read_text()
     return (_head('New video', style) +
-            '<body>' + app_header('new', user) + '<main class="nv">'
+            '<body>' + app_header('new', user, whats_new=whats_new) + '<main class="nv">'
             '<div class="lead-head"><h1>New video</h1><p class="help">Drop clips and a song and say how to cut '
             'them, describe a short video in a few lines, or plan a film in acts.</p></div>'
             '<section class="required" aria-label="Required"><div class="fields">'
@@ -942,7 +955,7 @@ _LIMITS_SCRIPT = (
     '</script>')
 
 
-def account_page(username, keys, limits=None):
+def account_page(username, keys, limits=None, whats_new=None):
     keys_block = ('<ul id="keys">' + ''.join(_key_row(k) for k in keys) + '</ul>' if keys
                  else '<p id="keys" class="empty">No keys yet.</p>')
     user = html.escape(username)
@@ -950,7 +963,7 @@ def account_page(username, keys, limits=None):
                     if limits is not None else '')
     limits_script = _LIMITS_SCRIPT if limits is not None else ''
     return (_head('Account', APP_STYLE + _ACCOUNT_STYLE) +
-           '<body>' + app_header(None, username) + '<main class="app-main"><div class="account">'
+           '<body>' + app_header(None, username, whats_new=whats_new) + '<main class="app-main"><div class="account">'
            '<div class="page-head"><div><h1>Account</h1>'
            '<p>Signed in as <strong>' + user + '</strong></p></div></div>'
            '<section class="box"><h2>API keys</h2>'
@@ -977,3 +990,151 @@ def account_page(username, keys, limits=None):
            '<button class="copy" type="button" data-copy="api-header">Copy</button>'
            '</div>' +
            limits_block + '</div></main>' + _ACCOUNT_SCRIPT + limits_script + '</body></html>').encode()
+
+
+WHATS_NEW_STYLE = (
+    '.wn{max-width:860px;margin:0 auto}'
+    '.wn-list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:1.25rem}'
+    '.wn-entry{background:#141417;border:1px solid #26262c;border-radius:16px;padding:1.5rem;'
+    'display:flex;flex-direction:column;gap:1rem}'
+    '.wn-entry h2{margin:0;font-size:1.3rem;line-height:1.25;letter-spacing:-.01em;overflow-wrap:anywhere}'
+    '.wn-meta{display:flex;flex-wrap:wrap;align-items:center;gap:.4rem .6rem;margin:.3rem 0 0;color:#a9a9b2;'
+    'font-size:.9rem}'
+    '.wn-ver{padding:.05rem .55rem;border-radius:999px;background:#1f1f25;color:#c9c9cf;font-size:.82rem;'
+    'font-variant-numeric:tabular-nums}'
+    '.wn-notes{color:#d6d6da;overflow-wrap:anywhere}.wn-notes p{margin:0 0 .6rem}'
+    '.wn-notes ul{margin:0 0 .6rem;padding-left:1.25rem}.wn-notes li{margin:.15rem 0}'
+    '.wn-notes>:last-child{margin-bottom:0}'
+    '.wn-video{display:flex;justify-content:center;border-radius:12px;overflow:hidden;background:#0a0a0c}'
+    '.wn-video video{display:block;width:100%;aspect-ratio:16/9;background:#000}'
+    '.wn-video[data-fmt="9x16"] video{width:auto;max-width:100%;height:min(80vh,640px);aspect-ratio:9/16}'
+    '.wn-video[data-fmt="1x1"] video{width:auto;max-width:100%;height:min(80vh,560px);aspect-ratio:1/1}'
+    '.wn-empty{color:#a9a9b2}'
+    '.wn-remove{align-self:flex-start;min-height:40px;padding:0 .9rem;border-radius:8px;border:1px solid #4a2522;'
+    'background:transparent;color:#ff8a80;font:inherit;font-size:.9rem;cursor:pointer}'
+    '.wn-remove:hover{background:#2a1715}'
+    '.wn-admin{background:#141417;border:1px solid #26262c;border-radius:16px;margin:0 0 1.25rem}'
+    '.wn-admin summary{min-height:52px;display:flex;align-items:center;padding:0 1.5rem;cursor:pointer;'
+    'font-weight:700}'
+    '.wn-admin form{display:grid;grid-template-columns:1fr 1fr;gap:.9rem 1rem;padding:0 1.5rem 1.5rem}'
+    '.wn-admin label{display:flex;flex-direction:column;gap:.35rem;font-size:.85rem;color:#a9a9b2;min-width:0}'
+    '.wn-admin .wide{grid-column:1/-1}'
+    '.wn-admin input,.wn-admin textarea{min-height:46px;padding:.6rem .8rem;font:inherit;font-size:16px;'
+    'border-radius:10px;border:1px solid #2c2c33;background:#0d0d10;color:#f4f4f2;box-sizing:border-box;'
+    'width:100%;outline:none}'
+    '.wn-admin textarea{min-height:8rem;resize:vertical}'
+    '.wn-admin input:focus,.wn-admin textarea:focus{border-color:#55555f;box-shadow:0 0 0 3px rgba(239,91,76,.18)}'
+    '.wn-admin input[type=file]{padding:.55rem .6rem;font-size:.85rem}'
+    '.wn-admin fieldset{grid-column:1/-1;display:grid;grid-template-columns:repeat(3,1fr);gap:.75rem;margin:0;'
+    'padding:0;border:0;min-width:0}'
+    '.wn-admin legend{padding:0;margin:0 0 .5rem;font-size:.85rem;color:#a9a9b2}'
+    '.wn-hint{grid-column:1/-1;margin:-.4rem 0 0;color:#8b8b94;font-size:.8rem}'
+    '.wn-admin button{justify-self:start}'
+    '#wn-status{grid-column:1/-1;margin:0;color:#ff8a80;font-size:.9rem}#wn-status:empty{display:none}'
+    '#wn-status.busy{color:#a9a9b2}'
+    '@media (max-width:720px){.wn-entry{padding:1.1rem}.wn-admin form{grid-template-columns:1fr;padding:0 1.1rem 1.1rem}'
+    '.wn-admin summary{padding:0 1.1rem}.wn-admin fieldset{grid-template-columns:1fr}}'
+)
+
+# Picks each entry's video for the screen (9:16 when the window is taller than
+# wide, else 16:9, falling back to whatever the entry has) and swaps it if the
+# window turns while it isn't playing; marks the newest entry seen for the app
+# bar's dot; and drives the admin form and remove buttons.
+WHATS_NEW_SCRIPT = (
+    '<script>(()=>{'
+    'const tall=matchMedia("(max-aspect-ratio:1/1)");'
+    'const load=box=>{const src=JSON.parse(box.dataset.videos),v=box.querySelector("video");'
+    'const f=(tall.matches?["9x16","1x1","16x9"]:["16x9","1x1","9x16"]).find(k=>src[k]);'
+    'if(!f||box.dataset.fmt===f||(box.dataset.fmt&&!v.paused))return;box.dataset.fmt=f;v.src=src[f]};'
+    'const boxes=[...document.querySelectorAll(".wn-video")];boxes.forEach(load);'
+    'tall.addEventListener("change",()=>boxes.forEach(load));'
+    'const main=document.querySelector(".wn");'
+    'if(main.dataset.newest){try{localStorage.setItem("vb-whats-new-seen",main.dataset.newest)}catch(e){}'
+    'const d=document.querySelector("[data-whats-new] .app-dot");if(d)d.hidden=true}'
+    'const post=(url,body,type)=>fetch(url,{method:"POST",headers:{"Content-Type":type||"application/json"},'
+    'body:body===undefined?"{}":body});'
+    'document.querySelectorAll(".wn-remove").forEach(b=>b.onclick=async()=>{'
+    'if(!confirm("Remove \\u201c"+b.dataset.title+"\\u201d and its videos?"))return;b.disabled=true;'
+    'const r=await post("/api/whats-new/"+b.dataset.id+"/remove");'
+    'if(r.ok)location.reload();else{b.disabled=false;alert("Could not remove it")}});'
+    'const form=document.getElementById("wn-form");if(!form)return;'
+    'const status=document.getElementById("wn-status"),el=n=>form.elements[n];'
+    'const say=(t,busy)=>{status.textContent=t;status.className=busy?"busy":""};'
+    'const fmts=["9x16","16x9","1x1"],max=+form.dataset.max,label=f=>f.replace("x",":");'
+    'form.onsubmit=async e=>{e.preventDefault();'
+    'const files=fmts.map(f=>[f,el("video-"+f).files[0]]).filter(x=>x[1]);'
+    'const big=files.find(x=>x[1].size>max);'
+    'if(big)return say("The "+label(big[0])+" video is over the "+Math.round(max/1048576)+" MB limit.");'
+    'const button=form.querySelector("button");button.disabled=true;say("Adding\\u2026",true);'
+    'try{const r=await post("/api/whats-new",JSON.stringify({title:el("title").value,date:el("date").value,'
+    'versions:el("versions").value,notes:el("notes").value}));'
+    'const entry=await r.json();if(!r.ok)throw new Error(entry.error||"Could not add it");'
+    'for(const [f,file] of files){say("Uploading the "+label(f)+" video\\u2026",true);'
+    'const u=await post("/api/whats-new/"+entry.id+"/video?format="+f,file,"video/mp4");'
+    'if(!u.ok){const x=await u.json().catch(()=>({}));await post("/api/whats-new/"+entry.id+"/remove");'
+    'throw new Error((x.error||"The upload failed")+" (nothing was added)")}}'
+    'location.href="/whats-new"}catch(err){say(err.message);button.disabled=false}};'
+    '})()</script>')
+
+
+def _whats_new_date(iso):
+    try:
+        d = time.strptime(iso, '%Y-%m-%d')
+    except (TypeError, ValueError):
+        return html.escape(str(iso))
+    return f'{d.tm_mday} {time.strftime("%B %Y", d)}'
+
+
+def _whats_new_entry_html(e, is_admin):
+    from .whats_new import notes_html
+    eid = quote(e['id'])
+    videos = {f: f'/whats-new/{eid}/{f}.mp4' for f in e.get('videos', [])}
+    video = (f'<div class="wn-video" data-videos="{html.escape(json.dumps(videos))}">'
+             '<video controls playsinline preload="metadata"></video></div>' if videos else '')
+    versions = f'<span class="wn-ver">{html.escape(e["versions"])}</span>' if e.get('versions') else ''
+    notes = notes_html(e.get('notes') or '')
+    remove = (f'<button type="button" class="wn-remove" data-id="{html.escape(e["id"])}" '
+              f'data-title="{html.escape(e["title"])}">Remove</button>' if is_admin else '')
+    return (f'<li><article class="wn-entry" id="{html.escape(e["id"])}"><header>'
+            f'<h2>{html.escape(e["title"])}</h2><p class="wn-meta">'
+            f'<time datetime="{html.escape(e["date"])}">{_whats_new_date(e["date"])}</time>{versions}</p>'
+            '</header>' + (f'<div class="wn-notes">{notes}</div>' if notes else '') + video + remove +
+            '</article></li>')
+
+
+def _whats_new_form_html(max_bytes, today):
+    from .whats_new import NOTES_MAX, TITLE_MAX, VERSIONS_MAX
+    files = ''.join(f'<label>{f.replace("x", ":")}<input type="file" name="video-{f}" accept="video/mp4,.mp4">'
+                    '</label>' for f in ('9x16', '16x9', '1x1'))
+    return ('<details class="wn-admin"><summary>Add an entry</summary>'
+            f'<form id="wn-form" data-max="{max_bytes}">'
+            f'<label class="wide">Title<input name="title" maxlength="{TITLE_MAX}" required '
+            'placeholder="Clips, songs and a timeline"></label>'
+            f'<label>Date<input name="date" type="date" value="{today}" required></label>'
+            f'<label>Versions<input name="versions" maxlength="{VERSIONS_MAX}" placeholder="0.1.81–0.1.88">'
+            '</label>'
+            f'<label class="wide">Notes<textarea name="notes" maxlength="{NOTES_MAX}" '
+            'placeholder="A few lines. Start a line with - for a list."></textarea></label>'
+            f'<fieldset><legend>Videos (MP4, up to {max_bytes // 1048576} MB each)</legend>{files}</fieldset>'
+            '<p class="wn-hint">People on a phone see the 9:16 one, wide screens the 16:9 one.</p>'
+            '<button class="btn btn-primary" type="submit">Add it</button><p id="wn-status"></p>'
+            '</form></details>')
+
+
+def whats_new_page(entries, user=None, can_create=True, is_admin=False, max_bytes=0, today=''):
+    """What's new: the instance's entries (whats_new.WhatsNew.list(), newest
+    first), each with its notes and its video for the screen; for an admin,
+    a form to add one and a remove button on each. `user`: for the header's
+    account menu, None without accounts."""
+    newest = entries[0]['id'] if entries else ''
+    if entries:
+        body = '<ol class="wn-list">' + ''.join(_whats_new_entry_html(e, is_admin) for e in entries) + '</ol>'
+    else:
+        body = '<p class="wn-empty">Nothing here yet.</p>'
+    form = _whats_new_form_html(max_bytes, today) if is_admin else ''
+    return (_head('What&#8217;s new', APP_STYLE + WHATS_NEW_STYLE) +
+            '<body>' + app_header('whats-new', user, can_create, newest or None) +
+            f'<main class="app-main"><div class="wn" data-newest="{html.escape(newest)}">'
+            '<div class="page-head"><div><h1>What&#8217;s new</h1>'
+            '<p>What changed in videobuilder lately, newest first.</p></div></div>' +
+            form + body + '</div></main>' + WHATS_NEW_SCRIPT + '</body></html>').encode()

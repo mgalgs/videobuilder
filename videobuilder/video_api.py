@@ -121,7 +121,8 @@ def _get_capabilities(self, route, q, editor, user):
     community = None
     if self.library:
         accounts = self.library.accounts
-        header = pages.app_header('capabilities', user if accounts else None, bool(user) or not accounts)
+        header = pages.app_header('capabilities', user if accounts else None, bool(user) or not accounts,
+                                  self.library.whats_new.newest_id())
         style = pages.APP_HEADER_STYLE
         if accounts and user:
             community = self.library.community_view(user)

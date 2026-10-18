@@ -77,6 +77,8 @@ class Library:
         self.accounts = Accounts(str(self.state_dir), admins) if admins else None
         self.access = Access(str(self.state_dir))
         self.community = community.Store(str(self.state_dir))
+        from .whats_new import WhatsNew
+        self.whats_new = WhatsNew(self.state_dir)
 
     def path(self, name):
         if not valid_name(name):
@@ -654,11 +656,12 @@ class Library:
                             'subject': commit[1] if commit else None})
         tour = bool(self.accounts and user and not self.accounts.tour_seen(user))
         return pages.index(entries, self.accounts is not None, user, host, scheme,
-                           showcase=showcase_available(self.capabilities_dir), tour=tour)
+                           showcase=showcase_available(self.capabilities_dir), tour=tour,
+                           whats_new=self.whats_new.newest_id())
 
     def new_video_page(self, names=None, user=None):
         return pages.new_video_page(names if names is not None else self.names(),
-                                    user if self.accounts else None)
+                                    user if self.accounts else None, whats_new=self.whats_new.newest_id())
 
     def tick(self):
         """Advance unfinished notes in every repo, opening an editor only where one is pending."""

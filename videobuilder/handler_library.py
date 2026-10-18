@@ -1,6 +1,7 @@
 """Git dispatch, the `/v/<name>` access gate, and the top-level page/account/
 video-creation routes. See editor.py's module docstring for route shapes and
 the full check order."""
+import datetime
 import json
 import re
 import sys
@@ -12,8 +13,9 @@ from .capabilities import showcase_available
 from .editor import UPDATING, HTTPError, _field, _need
 from .handler_auth import _key_in_scope
 from .library import serve_git, valid_name
-from .pages import account_page, editor_page, signin_page, signup_page
+from .pages import account_page, editor_page, signin_page, signup_page, whats_new_page
 from .sources import CAPTION_MAX_BYTES, TooLarge as SourceTooLarge
+from .whats_new import TooLarge as WhatsNewTooLarge
 
 
 class LibraryHandler:
@@ -40,6 +42,59 @@ class LibraryHandler:
         record = library.access.get(name, library.accounts)
         return self._json(200, {'owner': record['owner'], 'collaborators': record['collaborators'],
                                 'can_share': True})
+
+    def _whats_new(self, method, route, q, user):
+        """What's new: the page and its videos for everyone who can use the
+        library (the session check above already refused anyone signed out
+        when accounts are on); adding and removing entries for admins only."""
+        from .video_api import _is_admin
+        library = self.library
+        store = library.whats_new
+        if route == '/whats-new' and method == 'GET':
+            can_create = bool(user) if library.accounts else True
+            today = datetime.datetime.now(datetime.timezone.utc).date().isoformat()
+            page = whats_new_page(store.list(), user if library.accounts else None, can_create,
+                                  _is_admin(self, user), store.max_video_bytes, today)
+            return self._send(200, page, 'text/html; charset=utf-8')
+        m = re.fullmatch(r'/whats-new/([^/]+)/([0-9x]+)\.mp4', route)
+        if m and method == 'GET':
+            try:
+                path = store.video_path(unquote(m.group(1)), m.group(2))
+            except (KeyError, ValueError):
+                raise HTTPError(404, 'no such video') from None
+            return self._send_ranged_file(path, 'video/mp4', {'Accept-Ranges': 'bytes'})
+        if method != 'POST':
+            raise HTTPError(404, 'not found')
+        if not _is_admin(self, user):
+            raise HTTPError(403, 'only an admin may change What\'s new')
+        if route == '/api/whats-new':
+            body = self._body()
+            entry = store.add(_field(body, 'title', str), body.get('versions') or '', body.get('notes') or '',
+                              body.get('date') or None)
+            return self._json(201, entry)
+        m = re.fullmatch(r'/api/whats-new/([^/]+)/video', route)
+        if m:
+            # Streamed to disk in bounded chunks, like /api/sources: a video can be
+            # hundreds of MB, so it must never sit in memory whole.
+            self._same_origin()
+            n = self.headers.get('Content-Length')
+            try:
+                entry = store.stream_video(unquote(m.group(1)), _need(q, 'format'), self.rfile,
+                                           int(n) if n is not None else -1)
+            except WhatsNewTooLarge as exc:
+                raise HTTPError(413, str(exc)) from None
+            except KeyError:
+                raise HTTPError(404, 'no such entry') from None
+            return self._json(201, entry)
+        m = re.fullmatch(r'/api/whats-new/([^/]+)/remove', route)
+        if m:
+            self._body()
+            try:
+                store.remove(unquote(m.group(1)))
+            except KeyError:
+                raise HTTPError(404, 'no such entry') from None
+            return self._json(200, {'removed': unquote(m.group(1))})
+        raise HTTPError(404, 'not found')
 
     def _handle(self, method):
         library = self.library
@@ -129,7 +184,8 @@ class LibraryHandler:
                                       {'Set-Cookie': 'vb_session=; Path=/; Max-Age=0; SameSite=Lax'})
                 if library.accounts and route == '/account' and method == 'GET':
                     limits = library.admin_limits() if library.accounts.is_admin(user) else None
-                    return self._send(200, account_page(user, library.accounts.list_keys(user), limits),
+                    return self._send(200, account_page(user, library.accounts.list_keys(user), limits,
+                                                        library.whats_new.newest_id()),
                                       'text/html; charset=utf-8')
                 if library.accounts and route == '/api/account/keys' and method == 'POST':
                     body = self._body()
@@ -278,6 +334,8 @@ class LibraryHandler:
                     except ValueError as exc:
                         raise HTTPError(400, str(exc)) from None
                     return self._json(200, {'slug': slug, 'status': record['status']})
+                if route == '/whats-new' or route.startswith(('/whats-new/', '/api/whats-new')):
+                    return self._whats_new(method, route, q, user)
                 if (route != '/healthz' and route != '/capabilities' and not route.startswith('/capabilities/')
                         and route != '/compendium' and not route.startswith('/compendium/')
                         and route != '/api/compendium' and route != '/api/compendium/vote'):

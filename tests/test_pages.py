@@ -234,6 +234,12 @@ class InlineScriptsParse(unittest.TestCase):
     def test_account_page_scripts_parse(self):
         self._check(pages.account_page('dana', []))
 
+    def test_whats_new_page_scripts_parse(self):
+        entry = {'id': '2026-10-18', 'title': 'T', 'date': '2026-10-18', 'versions': '1', 'notes': 'n',
+                 'videos': ['9x16']}
+        self._check(pages.whats_new_page([entry], 'dana', is_admin=True, max_bytes=1048576, today='2026-10-18'))
+        self._check(pages.whats_new_page([]))
+
     def test_capabilities_page_with_community_scripts_parse(self):
         with tempfile.TemporaryDirectory() as d:
             Path(d, 'showcase-16x9.mp4').write_bytes(b'mp4')

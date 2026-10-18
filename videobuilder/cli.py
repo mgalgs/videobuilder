@@ -8,6 +8,9 @@
     python -m videobuilder edit roll film.py SEGMENT UNTIL
     python -m videobuilder edit copy film.py SEGMENT KEY VALUE
     python -m videobuilder editor PROJECT-DIR [--port 8100] [--host 127.0.0.1] [--state-dir DIR]
+    python -m videobuilder whats-new add --state DIR --title T [--versions V] [--notes FILE] [--date D] [--video 9x16=MP4 ...]
+    python -m videobuilder whats-new list --state DIR
+    python -m videobuilder whats-new remove --state DIR ID
 """
 import argparse
 import os
@@ -281,6 +284,49 @@ def cmd_capabilities(a):
         largest = max(largest, r['bytes'])
         print(f"{r['id']}: {r['seconds']:.1f}s, {r['bytes'] / 1024:.0f} KiB")
     print(f"{len(results)} clip(s) built in {total:.1f}s total; largest clip {largest / 1024:.0f} KiB")
+
+
+def cmd_whats_new(a):
+    from pathlib import Path
+    from .whats_new import WhatsNew
+    store = WhatsNew(a.state)
+    if a.whats_new_cmd == 'list':
+        for e in store.list():
+            extra = ' '.join(x for x in (e['versions'], ','.join(e['videos'])) if x)
+            print(f"{e['id']}  {e['title']}" + (f'  ({extra})' if extra else ''))
+        return
+    if a.whats_new_cmd == 'remove':
+        try:
+            store.remove(a.id)
+        except KeyError:
+            raise SystemExit(f'no entry {a.id!r}') from None
+        print(f'removed {a.id}')
+        return
+    videos = []
+    for spec in a.video or []:
+        fmt, sep, path = spec.partition('=')
+        if not sep or not path:
+            raise SystemExit(f'--video wants FORMAT=FILE, e.g. 9x16=release.mp4, not {spec!r}')
+        if not Path(path).is_file():
+            raise SystemExit(f'no such file: {path}')
+        videos.append((fmt, path))
+    if len({fmt for fmt, _ in videos}) != len(videos):
+        raise SystemExit('one video per format')
+    try:
+        notes = Path(a.notes).read_text(encoding='utf-8') if a.notes else ''
+    except OSError as e:
+        raise SystemExit(str(e)) from None
+    try:
+        entry = store.add(a.title, a.versions or '', notes, a.date)
+    except ValueError as e:
+        raise SystemExit(str(e)) from None
+    try:
+        for fmt, path in videos:
+            entry = store.add_video_file(entry['id'], fmt, path)
+    except ValueError as e:
+        store.remove(entry['id'])
+        raise SystemExit(f'{path}: {e} (nothing was added)') from None
+    print(f"added {entry['id']}" + (f" with {', '.join(entry['videos'])}" if entry['videos'] else ''))
 
 
 def cmd_compendium(a):
@@ -566,6 +612,23 @@ def main(argv=None):
     compb.add_argument('--jobs', type=int, help='worker processes (default: CPU count)')
     compb.add_argument('--crf', type=int, default=30, help='x264 quality (default 30: small clips over sharpness)')
     compb.set_defaults(fn=cmd_compendium)
+
+    wn = sub.add_parser('whats-new', help="the What's new page's entries, kept in a library's state directory")
+    wnsub = wn.add_subparsers(dest='whats_new_cmd', required=True)
+    wna = wnsub.add_parser('add', help='add an entry (its id is its date)')
+    wnl = wnsub.add_parser('list', help='list the entries, newest first')
+    wnr = wnsub.add_parser('remove', help='remove an entry and its videos')
+    for x in (wna, wnl, wnr):
+        x.add_argument('--state', required=True,
+                       help="the library's state directory (editor --library's --state-dir; default <library>/state)")
+        x.set_defaults(fn=cmd_whats_new)
+    wna.add_argument('--title', required=True)
+    wna.add_argument('--versions', help='free text, e.g. 0.1.81-0.1.88')
+    wna.add_argument('--notes', help='a text file: paragraphs, and lines starting "- " as a list')
+    wna.add_argument('--date', help='YYYY-MM-DD (default: today, UTC)')
+    wna.add_argument('--video', action='append', metavar='FORMAT=MP4',
+                     help='9x16, 16x9 or 1x1 = an MP4 (repeatable, one per format)')
+    wnr.add_argument('id')
 
     sy = sub.add_parser('say', help='narration: text to speech (Kokoro) to a WAV plus phrase-timed .vtt/.json')
     sy.add_argument('script', nargs='?', help='a text file: one phrase per line (sentences split too; # lines skipped)')
