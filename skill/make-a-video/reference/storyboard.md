@@ -21,7 +21,7 @@ The grid is what cuts snap to:
 
 - **fps**: 30 unless the brief says otherwise (24 for a filmic feel, 60 for
   fast screen motion).
-- **BPM**: the music's tempo if there's a track (`scripts/tempo.py`).
+- **BPM**: the music's tempo if there's a track (`python -m videobuilder beats track.mp3`).
   Without one, 120 bpm at 30 fps (15 frames a beat, 2 beats a second) snaps
   finely enough for anything; 100 bpm = 18 frames, 90 = 20, 150 = 12.
 

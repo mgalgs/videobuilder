@@ -110,7 +110,8 @@ scripts work without the skill too:
   content, and for the renders ffprobe facts, picture cuts against the
   grid, and music onsets against the beats.
 - `scripts/tempo.py track.mp3`: a track's BPM and the `head_trim` that puts
-  its first beat on frame 0.
+  its first beat on frame 0 (a wrapper around `python -m videobuilder beats`,
+  which also prints the `beats` key for a reel's `timeline.json`).
 - `scripts/make_track.py --bpm 120 --beats 40 --out music.wav`: a
   placeholder music bed exactly on the grid.
 - `scripts/fontinfo.py`: a font file's family name, weights and licence;

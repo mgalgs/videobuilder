@@ -9,7 +9,7 @@ from the head of the track so its first beat lands on frame 0.
 1. Vendor it into `assets/` (and note its licence in `assets/README.md`).
 2. Find its tempo and first beat:
 
-       python $SKILL/scripts/tempo.py assets/track.mp3 --fps 30
+       python -m videobuilder beats assets/track.mp3 --fps 30
 
    It lists tempo candidates (half or double the best is common: pick the
    pulse you'd clap to) and prints `Grid(fps=30, bpm=..., head_trim=...)`.

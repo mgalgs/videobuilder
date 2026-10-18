@@ -200,9 +200,10 @@ beats, numbers counting up, horizontal in 9:16 and columns in 16:9.
 
 See `reference/music.md`. In short:
 
-- **A track you're given**: `python $SKILL/scripts/tempo.py track.mp3` gives
+- **A track you're given**: `python -m videobuilder beats track.mp3` gives
   the BPM and the `Grid(..., head_trim=...)` that puts its first beat on
-  frame 0. Lay the segments out on that grid.
+  frame 0 (`scripts/tempo.py` prints the same). Lay the segments out on
+  that grid.
 - **No track**: `python $SKILL/scripts/make_track.py --bpm 120 --beats 40
   --out assets/music.wav` makes a placeholder bed on the grid. Tell the user
   it's a placeholder.
@@ -258,6 +259,18 @@ Keep the clip edges consistent: a clip begins where the one before it leaves
 off and ends where the next picks up (characters, colours, light, framing),
 so the cuts read as one film. Still the last frame of one clip and the first
 of the next and look at them side by side.
+
+**A reel** is a film of clips cut to a song: footage clips (several from
+one file if it has several good moments), the song on an Audio lane, and a
+`beats` key naming it, with every cut on a beat. A video started from
+dropped clips and a song asks for one in its first note. Follow "Cutting a
+reel" in `reference/films.md`: find the song's beats (`python -m
+videobuilder beats sources/song.mp3`), look at every source (a sheet of
+frames, stills), choose each clip's moment and its length in whole beats
+or bars, set `in`/`out` so every cut lands on a beat, then check with
+`assemble . --check` (it warns of each cut off the beat; `--snap` moves
+them on) before rendering. Hard cuts carry a reel; a `whip` or a `flash`
+marks an accent.
 
 Check it: `python -m videobuilder assemble . --check` validates the timeline
 file and the clip directories it names without rendering;
