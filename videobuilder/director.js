@@ -2462,8 +2462,11 @@ const TL_ICON={
   match:'<path d="M4 12h6M14 12h6"/><circle cx="12" cy="12" r="2.5"/>'
 };
 const TL_TRANSITIONS=[['cut','Cut','Straight cut'],['dissolve','Dissolve','One clip fades into the next'],
-  ['wipe','Wipe','The next clip slides across']];
-const TL_LATER=[['whip','Whip pan'],['flash','Flash'],['match','Match cut']];
+  ['wipe','Wipe','The next clip slides across'],['whip','Whip pan','A fast slide with motion blur'],
+  ['flash','Flash','A quick cut through white']];
+const TL_LATER=[['match','Match cut']];
+// A new transition's length, as a share of a second: whips and flashes are quick.
+const TL_LEN={whip:1/4,flash:1/5};
 const TL_WORD={ready:'Ready',building:'Rendering',waiting:'Not rendered yet',failed:'Render failed',
   missing:'Missing'};
 const tlClone=o=>JSON.parse(JSON.stringify(o));
@@ -2911,7 +2914,8 @@ function tlCutSheet(i) {
   const na=`${i}. ${esc(tlTitle(a))}`,nb=`${i+1}. ${esc(tlTitle(b))}`;
   const trans=TL_TRANSITIONS.map(([k,name,d])=>tlOpt(`data-x="t" data-k="${k}"`,kind===k,svg(TL_ICON[k],16),name,d))
     .join('')+TL_LATER.map(([k,name])=>tlOpt('',false,svg(TL_ICON[k],16),name,'Coming soon',true)).join('');
-  const dirs=kind==='wipe'?`<div class="tl-dirs" role="group" aria-label="Wipe direction">${['left','right','up','down']
+  const dirs=kind==='wipe'||kind==='whip'?`<div class="tl-dirs" role="group" aria-label="${kind==='wipe'?'Wipe':
+    'Whip'} direction">${['left','right','up','down']
     .map(dd=>`<button data-x="dir" data-k="${dd}" aria-pressed="${(b.cut.direction||'left')===dd}">${dd}</button>`)
     .join('')}</div>`:'';
   const sounds=[
@@ -3005,12 +3009,14 @@ function tlWireSheet(sheet,i,fps) {
     if(x==='t')tlChange(data=> {
       const c=data.clips[i];
       if(k==='cut')delete c.cut;
-      else if(c.cut?.transition!==k)c.cut={transition:k,frames:c.cut?.frames||Math.round(fps/2),
-        ...(k==='wipe'?{direction:'left'}:{})}
+      else if(c.cut?.transition!==k) {
+        const frames=c.cut?.frames||Math.max(2,Math.round(fps*(TL_LEN[k]||.5)));
+        c.cut={transition:k,frames,...(k==='wipe'||k==='whip'?{direction:c.cut?.direction||'left'}:{})}
+      }
     },`${k} into ${id}`);
     if(x==='dir')tlChange(data=> {
       data.clips[i].cut.direction=k
-    },`wipe ${k} into ${id}`);
+    },`${t.data.clips[i].cut.transition} ${k} into ${id}`);
     if(x==='jl') {
       const {places}=tlPlace();
       tlChange(data=> {
