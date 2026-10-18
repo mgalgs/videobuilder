@@ -538,6 +538,18 @@ class EditorAssembly(TempProject):
         self.assertEqual(self.rendered, [])  # the assembly cached it
         self.assertEqual(clip, self.editor.renders.clip_path('promo/film', self.sha, '1x1', 'c').read_bytes())
 
+        # Asked for together, the clip waits behind the assembly and is not rendered twice.
+        write_clip(self.root / 'promo', 'c', mark='#0000ff')
+        git(self.root, 'commit', '-qam', 'edit c')
+        sha = git(self.root, 'rev-parse', 'main').strip()
+        self.rendered.clear()
+        self.get(f'/api/video?video=promo/film&commit={sha}')
+        self.get(f'/api/clip?video=promo/film&clip=c&commit={sha}')
+        self.wait(f'/api/video?video=promo/film&commit={sha}')
+        self.wait(f'/api/clip?video=promo/film&clip=c&commit={sha}')
+        self.assertEqual(self.rendered, ['c'])
+        self.rendered.clear()
+
         for path, code in ((f'/api/clip?video=promo/film&clip=boat&commit={self.sha}', 404),
                            (f'/api/video?video=promo/film&commit={self.sha}&format=16x9', 400)):
             with self.assertRaises(urllib.error.HTTPError) as caught:

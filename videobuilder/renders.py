@@ -156,11 +156,14 @@ class Renders:
                     with self.lock:
                         self.active = key
                         self.status[key] = {'state': 'rendering'}
-                    if len(key) == 4:
-                        self._render_one_clip(video, sha, fmt, key[3], partial)
-                    else:
-                        self.renderer(video, sha, fmt, partial)
-                    os.replace(partial, output)
+                    # A clip's render is content-keyed: an assembly or the same clip at another
+                    # commit, queued ahead of it, may have made it while it waited.
+                    if not output.is_file():
+                        if len(key) == 4:
+                            self._render_one_clip(video, sha, fmt, key[3], partial)
+                        else:
+                            self.renderer(video, sha, fmt, partial)
+                        os.replace(partial, output)
                 finally:
                     RENDER_LOCK.release()
                 with self.lock:
@@ -226,7 +229,8 @@ class Renders:
     def _render_clip(self, video, work, root, clip, fmt, output):
         """Render one clip directory in the sandbox, its video's root on the
         import path so it can import `shared`."""
-        with tempfile.TemporaryDirectory(prefix='clip-', dir=self.root) as home:
+        # render-: the startup sweep clears it if the editor dies mid-render.
+        with tempfile.TemporaryDirectory(prefix='render-clip-', dir=self.root) as home:
             name = f'{clip.id}-{fmt}.mp4'
             self._sandboxed_render(root / clip.film_path, work, Path(home), fmt, name, path=root)
             shutil.copyfile(Path(home) / name, output)
