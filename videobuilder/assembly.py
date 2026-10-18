@@ -258,12 +258,13 @@ def picture_graph(timeline, placements, fmt, inputs, seeks=None):
                  f'crop={w}:{h}')
         else:
             f = trim
-        chains.append(f'[{inputs[k]}:v]{f},setsar=1,format=yuv420p,settb=AVTB[c{k}]')
+        chains.append(f'[{inputs[k]}:v]{f},fps={fps},setsar=1,format=yuv420p,settb=AVTB[c{k}]')
     acc = 'c0'
     for k, p in enumerate(placements[1:], start=1):
         cut, nxt = p.clip.cut, f'j{k}'
         if cut.transition == 'cut':
-            chains.append(f'[{acc}][c{k}]concat=n=2:v=1:a=0[{nxt}]')
+            # ffmpeg 7's concat leaves the frame rate unset (1/0), which a later xfade refuses.
+            chains.append(f'[{acc}][c{k}]concat=n=2:v=1:a=0,fps={fps},settb=AVTB[{nxt}]')
         else:
             kind = XFADE[cut.transition].format(direction=cut.direction)
             chains.append(f'[{acc}][c{k}]xfade=transition={kind}:duration={cut.frames / fps:.6f}:'
