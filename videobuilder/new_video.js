@@ -321,6 +321,10 @@ if(prompt){ST.about=prompt;draw();const t=$('#about');t.focus();const m=/\[[^\]]
 /* suggest.js runs in its own <script>, so it can't reach ST/D/draw directly:
    it calls this to keep the Look field in step with a look picked from "In a
    few words" (suggest-notes.md q2). Only a name in D.looks (a whole-video
-   look this field can hold) is accepted. */
-window.nvSetLook=id=>{if(D.looks.some(l=>l.id===id)){ST.look=id;draw()}};
+   look this field can hold) is accepted. draw() is never called here: the
+   pick just rewrote #about and suggest.js is about to flash the change, so a
+   full redraw of #parts would tear out that textarea mid-edit (fresh node,
+   empty undo stack, focus lost) and leave suggest.js holding a reference to
+   the now-detached one. Update only the Look part and the summaries instead. */
+window.nvSetLook=id=>{if(!D.looks.some(l=>l.id===id))return;ST.look=id;const sec=$('#part-look');if(sec){const b=sec.querySelector('.body');if(b&&isOpen('look'))b.innerHTML=lookBody()}drawSummaries()};
 })();
