@@ -43,6 +43,7 @@ STREAM_CHUNK = 1 << 20
 FETCH_TIMEOUT = 30          # seconds per network read
 FETCH_BUDGET = 600          # seconds for a whole video
 RETRY_AFTER = 3600          # seconds before trying a failed fetch again
+RETRY_AFTER_404 = 300       # sooner when the release's video isn't uploaded yet
 TITLE_MAX, VERSIONS_MAX, NOTES_MAX = 120, 60, 4000
 ID = re.compile(r'\d{4}-\d{2}-\d{2}(?:-\d{2})?\Z')
 RELEASE_ID = re.compile(r'[a-z][a-z0-9-]{0,40}\Z')
@@ -243,7 +244,7 @@ class WhatsNew:
         self._releases = None
         self._lock = threading.Lock()
         self._fetching = {}    # (tag, file) -> Thread
-        self._failed = {}      # (tag, file) -> monotonic time of the last failure
+        self._failed = {}      # (tag, file) -> monotonic time to try it again
 
     # -- named releases ------------------------------------------------------
 
@@ -261,7 +262,7 @@ class WhatsNew:
     def fetch_missing(self):
         """Start fetching, in the background, each release video not cached
         yet (one try per video at a time, and not again for RETRY_AFTER after
-        a failure)."""
+        a failure, or RETRY_AFTER_404 after a 404)."""
         if not self.remote_videos:
             return
         now = time.monotonic()
@@ -270,7 +271,7 @@ class WhatsNew:
                 for fmt, name in r['videos'].items():
                     key = (r['tag'], name)
                     if (self._cached(r, fmt).is_file() or key in self._fetching or
-                            now - self._failed.get(key, -RETRY_AFTER) < RETRY_AFTER):
+                            now < self._failed.get(key, now)):
                         continue
                     thread = threading.Thread(target=self._fetch_one, args=(key,), daemon=True)
                     self._fetching[key] = thread
@@ -284,8 +285,9 @@ class WhatsNew:
             self.fetch(url, self.cache / tag / name, self.max_video_bytes)
         except Exception as exc:
             print(f"[editor] what's new: fetching {url}: {exc}", file=sys.stderr, flush=True)
+            missing = isinstance(exc, urllib.error.HTTPError) and exc.code == 404
             with self._lock:
-                self._failed[key] = time.monotonic()
+                self._failed[key] = time.monotonic() + (RETRY_AFTER_404 if missing else RETRY_AFTER)
         finally:
             with self._lock:
                 self._fetching.pop(key, None)

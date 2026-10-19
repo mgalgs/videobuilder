@@ -211,6 +211,21 @@ class Releases(unittest.TestCase):
         self.assertEqual(len(self.fetched), 2)  # one try per video, not one per page view
         self.assertEqual(store.entries()[0]['videos'], [])
 
+    def test_a_video_not_uploaded_yet_is_retried_sooner(self):
+        write_release(self.root / 'releases', 'Aperture', '0.1.87', '2026-10-17')
+
+        def fetch(url, dest, max_bytes):
+            if url.endswith('9x16.mp4'):
+                raise urllib.error.HTTPError(url, 404, 'Not Found', {}, None)
+            raise OSError('network is unreachable')
+        store = self.store(fetch=fetch)
+        with contextlib.redirect_stderr(io.StringIO()):
+            store.fetch_missing()
+            store.wait_for_fetches()
+        waits = {name: at - whats_new.time.monotonic() for (_, name), at in store._failed.items()}
+        self.assertLessEqual(waits['release-notes-9x16.mp4'], whats_new.RETRY_AFTER_404)
+        self.assertGreater(waits['release-notes-16x9.mp4'], whats_new.RETRY_AFTER_404)
+
     def test_remote_videos_off_never_fetches_and_shows_text_only(self):
         write_release(self.root / 'releases', 'Aperture', '0.1.87', '2026-10-17')
         cached = self.store()
