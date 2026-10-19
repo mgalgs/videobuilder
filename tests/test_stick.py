@@ -1,11 +1,14 @@
 """vb.Stick: a stick figure drawn in code, its rig, faces, poses, motion, talking and props."""
 import math
 import unittest
+from pathlib import Path
 
 from PIL import Image as PILImage
 
 import videobuilder as vb
-from videobuilder import stick
+from videobuilder import capabilities, load_module, stick
+
+ROOT = Path(__file__).resolve().parent.parent
 
 H = 300
 GROUND = 400
@@ -486,6 +489,29 @@ class SceneKit(unittest.TestCase):
         colours = {c for _, c in im.getcolors(1 << 20)}
         self.assertIn((255, 0, 0), colours)            # the halo, round the ink
         self.assertIn((255, 255, 255), colours)        # the head and body keep their own fill
+
+
+
+class Capability(unittest.TestCase):
+    def test_the_entry_sits_with_the_character_capabilities(self):
+        e = capabilities.get('stick-figure')
+        self.assertIn(e, capabilities.CATALOG)
+        self.assertEqual((e['category'], e['title']), ('Motion', 'Stick figure'))
+        ids = [x['id'] for x in capabilities.CATALOG]
+        self.assertEqual(ids.index('stick-figure'), ids.index('walk-in-place') + 1)
+        self.assertEqual(e['demo'], 'examples/capabilities/stick-figure.py')
+        self.assertTrue(any('vb.Stick(' in api for api in e['apis']))
+        self.assertIn('### Stick figure', capabilities.sheet_markdown())
+
+    def test_the_demo_shows_a_walk_an_expression_change_a_pose_blend_and_a_prop(self):
+        mod = load_module(str(ROOT / 'examples' / 'capabilities' / 'stick-figure.py'))
+        poses = [k[1] for k in mod.ACT]
+        self.assertEqual(poses[0], 'walk')
+        self.assertGreaterEqual(len(set(poses) - {'walk'}), 2)
+        self.assertGreaterEqual(len({k[1] for k in mod.FACES}), 2)
+        self.assertIn(mod.MUG.kind, stick.PROPS)
+        n = (mod.ACT[-1][0] + 4)                     # mid-blend: neither pose
+        self.assertNotIn(mod.FIG.act(n, mod.ACT, alive=False), (stick.POSES[poses[-2]], stick.POSES[poses[-1]]))
 
 
 if __name__ == '__main__':

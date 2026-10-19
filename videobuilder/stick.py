@@ -424,7 +424,7 @@ GAITS = {
     # duty: share of the cycle each foot is down; reach: how far it lands
     # ahead (share of the leg); clear: how high the swinging foot lifts.
     'walk': dict(period=1.0, duty=0.6, reach=0.3, clear=0.12, stand=0.985, lean=4, arms=26, elbow=16, hop=0.0),
-    'run': dict(period=0.62, duty=0.38, reach=0.36, clear=0.42, stand=0.93, lean=14, arms=52, elbow=88, hop=0.035),
+    'run': dict(period=0.62, duty=0.38, reach=0.36, clear=0.42, stand=0.93, lean=14, arms=48, elbow=74, hop=0.035),
 }
 
 
