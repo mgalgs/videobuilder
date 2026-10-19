@@ -49,13 +49,26 @@ _LOOKUP = {}
 _log = logging.getLogger(__name__)
 
 
+def _origin(style):
+    """Where a style's draw is defined: the same file and name on a re-import."""
+    code = getattr(style._draw, '__code__', None)
+    return (code.co_filename if code else None, getattr(style._draw, '__qualname__', None))
+
+
 def register(style):
     """Adds `style` to the registry (a video's own style, too). Refuses a
-    name or alias already taken."""
+    name or alias already taken by another style; the same style imported
+    afresh (the preview reloading an edited film and its style.py) replaces
+    the one registered before."""
+    old = _REGISTRY.get(style.name)
+    if old is None or _origin(old) != _origin(style):
+        old = style
     keys = {_key(k) for k in (style.name, style.title, *style.aliases)}
-    taken = sorted(k for k in keys if k in _LOOKUP and _LOOKUP[k] is not style)
+    taken = sorted(k for k in keys if k in _LOOKUP and _LOOKUP[k] not in (style, old))
     if taken:
         raise ValueError(f'type style name already taken: {", ".join(taken)}')
+    for k in [k for k, v in _LOOKUP.items() if v is old]:
+        del _LOOKUP[k]
     _REGISTRY[style.name] = style
     for k in keys:
         _LOOKUP[k] = style

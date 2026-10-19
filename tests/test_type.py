@@ -61,6 +61,22 @@ class Registry(unittest.TestCase):
         with self.assertRaises(ValueError):
             vt.Style('Not A Name', 'x', 'x', draw)
 
+    def test_register_replaces_the_same_style_imported_afresh(self):
+        def make():
+            def draw(cv, p, t, box, clock):
+                pass
+            return vt.Style('reloaded-test', 'Reloaded test', 'x', draw, aliases=('reloaded',))
+        first = vt.register(make())
+        try:
+            second = vt.register(make())         # the preview re-imports style.py on each edit
+            self.assertIs(vt.get('reloaded'), second)
+            self.assertNotIn(first, vt._LOOKUP.values())
+            self.assertEqual(vt.names().count('reloaded-test'), 1)
+        finally:
+            for k in [k for k, v in vt._LOOKUP.items() if v.name == 'reloaded-test']:
+                del vt._LOOKUP[k]
+            vt._REGISTRY.pop('reloaded-test', None)
+
     def test_vb_type_is_the_package(self):
         self.assertIs(vb.type, vt)
         self.assertNotIn('type', vb.__all__)    # `from videobuilder import *` keeps the builtin

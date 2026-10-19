@@ -134,7 +134,8 @@ the words to do:
 
 A style is `vb.type.Style(name, title, line, draw, aliases=(), events=None,
 sound=None, clock=None, family='sans-serif')`, registered with
-`vb.type.register(STYLE)`; the built-ins in `videobuilder/type/` are worked
+`vb.type.register(STYLE)` (the same style imported afresh, as the preview
+does on every edit, replaces itself; another style's name is refused); the built-ins in `videobuilder/type/` are worked
 examples. `draw(cv, p, t, box, clock)` sets `p.lines` inside `box` at `t`
 seconds, entering until `clock.hold`, holding until `clock.exit` and leaving
 by `p.length` (`vb.type.Clock(length)` splits a run about 40/45/15, or
