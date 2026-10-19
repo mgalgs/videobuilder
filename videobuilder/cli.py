@@ -234,7 +234,8 @@ def cmd_editor(a):
                           capability_agent_extra_args=a.capability_agent_extra_arg,
                           capability_fetch=not a.no_capability_fetch, artbox_url=a.artbox_url,
                           account_daily_picture_cap=a.account_daily_picture_cap,
-                          whats_new_repo=a.whats_new_repo, whats_new_videos=not a.no_whats_new_videos)
+                          whats_new_repo=a.whats_new_repo, whats_new_videos=not a.no_whats_new_videos,
+                          suggest_url=a.suggest_url, suggest_model=a.suggest_model)
         else:
             if not a.project:
                 raise ValueError('provide PROJECT or --library DIR')
@@ -260,7 +261,8 @@ def cmd_editor(a):
                   agent=agent, allowed_hosts=a.allow_host, unsandboxed_previews=a.unsandboxed_previews,
                   envs=a.envs, sync_remote=a.sync_remote, capabilities_dir=a.capabilities_dir,
                   compendium_dir=a.compendium_dir, music_sources=a.music_sources, artbox_url=a.artbox_url,
-                  account_daily_picture_cap=a.account_daily_picture_cap)
+                  account_daily_picture_cap=a.account_daily_picture_cap,
+                  suggest_url=a.suggest_url, suggest_model=a.suggest_model)
     except ValueError as e:
         raise SystemExit(f'editor: {e}') from None
 
@@ -584,6 +586,14 @@ def main(argv=None):
     d.add_argument('--account-daily-picture-cap', type=int, metavar='N',
                    help='cap on generated pictures per account per rolling 24h (default 40, with --artbox-url); '
                         'an admin account is never capped')
+    d.add_argument('--suggest-url', metavar='URL',
+                   help='base URL of an OpenAI-compatible chat endpoint (OpenRouter, Anthropic\'s compatible '
+                        'endpoint, a local vLLM or llama.cpp), for suggesting capabilities while a director '
+                        'types a note (see README); with none given, or without $VIDEOBUILDER_SUGGEST_KEY set, '
+                        'the note box shows only the static family chips')
+    d.add_argument('--suggest-model', metavar='MODEL',
+                   help='the model name to ask at --suggest-url (default anthropic/claude-haiku-5.5); the key '
+                        'is never a flag, only $VIDEOBUILDER_SUGGEST_KEY')
     d.add_argument('--compendium-for-builder', action=argparse.BooleanOptionalAction, default=None,
                    help='--library mode only: tell the builder about the compendium (default: on). A '
                         'library-hosted repo cannot set this itself, since [editor] compendium_for_builder '

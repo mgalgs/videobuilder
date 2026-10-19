@@ -34,7 +34,8 @@ class Library:
                  compendium_dir=None, music_sources=None, account_daily_note_cap=None, account_daily_cost_cap_usd=None,
                  compendium_for_builder=None, source_max_mb=None, source_max_total_mb=None,
                  capability_agent_extra_args=None, capability_fetch=True, artbox_url=None,
-                 account_daily_picture_cap=None, whats_new_repo=None, whats_new_videos=True):
+                 account_daily_picture_cap=None, whats_new_repo=None, whats_new_videos=True, suggest_url=None,
+                 suggest_model=None):
         self.capabilities_dir = capabilities_dir
         self.capability_agent_extra_args = capability_agent_extra_args
         self.capability_fetch = capability_fetch
@@ -56,8 +57,25 @@ class Library:
         # Parsed once here, not per-project, so a bad file is a startup error and every
         # project shares one cache instead of fetching and importing per project.
         music = MusicLibrary.from_file(music_sources) if music_sources else None
+        # Also a plain attribute (not just in `options`, which only Editor() below reads):
+        # New video's suggest catalog (handler_library.py) needs it with no project open yet.
+        self.music = music
         from .pictures import Artbox
         artbox = Artbox(artbox_url) if artbox_url else None
+        # Built once here, shared by every project's Editor (unlike Pictures/Artbox, the
+        # whole feature is shared -- see suggest.py) and reachable library-wide for New
+        # video's "In a few words", asked before any project exists (see handler_library.py).
+        self.suggest = None
+        if suggest_url:
+            key = os.environ.get('VIDEOBUILDER_SUGGEST_KEY')
+            if key:
+                from .suggest import Suggest
+                from .suggest_client import SuggestClient
+                client = SuggestClient(suggest_url, suggest_model, key)
+                self.suggest = Suggest(str(self.state_dir), client, music=music, has_accounts=bool(admins))
+            else:
+                print('[editor] --suggest-url is set but $VIDEOBUILDER_SUGGEST_KEY is not; '
+                     'suggestions stay off', file=sys.stderr, flush=True)
         # Also kept as plain attributes (not just in `options`, which only Editor()
         # below reads) so the admin limits API can show the library-wide defaults
         # without opening a project.
@@ -68,7 +86,7 @@ class Library:
                             music=music, account_daily_note_cap=account_daily_note_cap,
                             account_daily_cost_cap_usd=account_daily_cost_cap_usd,
                             compendium_for_builder=compendium_for_builder, source_max_mb=source_max_mb,
-                            source_max_total_mb=source_max_total_mb, artbox=artbox,
+                            source_max_total_mb=source_max_total_mb, artbox=artbox, suggest=self.suggest,
                             account_daily_picture_cap=account_daily_picture_cap)
         self.editors = {}
         self.lock = threading.RLock()

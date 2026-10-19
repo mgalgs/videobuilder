@@ -170,7 +170,9 @@ class DirectorPageRoutes(API):
             ('/', 'text/html', b'id="player"'),
             ('/tuning.html', 'text/html', b'id="tl"'),
             ('/director.js', 'text/javascript', b"json('versions'"),
-            ('/director.css', 'text/css', b'.panel')):
+            ('/director.css', 'text/css', b'.panel'),
+            ('/suggest.js', 'text/javascript', b'ensureModel'),
+            ('/suggest.css', 'text/css', b'.sg-picker')):
             with urllib.request.urlopen(self.base + path, timeout=20) as response:
                 self.assertEqual(response.headers.get_content_type(), content_type)
                 self.assertIn(marker, response.read())

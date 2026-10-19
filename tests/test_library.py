@@ -87,7 +87,8 @@ class HostedGit(LibraryFixture, unittest.TestCase):
     def test_director_assets_under_video_path(self):
         self.seed(film=True)
         for path, marker in (('', b'id="player"'), ('tuning.html', b'id="tl"'),
-                             ('director.js', b'loadVersions'), ('director.css', b'.panel')):
+                             ('director.js', b'loadVersions'), ('director.css', b'.panel'),
+                             ('suggest.js', b'ensureModel'), ('suggest.css', b'.sg-picker')):
             code, body = self.request('/v/acme/launch/' + path)
             self.assertEqual(code, 200, path)
             self.assertIn(marker, body)

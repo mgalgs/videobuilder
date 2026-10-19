@@ -507,6 +507,30 @@ file URLs are built from it, a validated job id and a validated, url-quoted
 file name, redirects are refused, and every read is capped and timed out.
 With no `--artbox-url`, there is no button and the routes answer 404.
 
+**Suggestions while typing.** Pass `--suggest-url URL` (both modes; New video's
+"In a few words" needs `--library` mode, since it has no project yet) and set
+`$VIDEOBUILDER_SUGGEST_KEY` in the environment to suggest capabilities, looks,
+type styles, fonts, sound effects and music while a director types a note:
+about 600 ms after they stop, a strong match shows as a card (a chip on a
+phone) above the composer, related ones as chips the director can open into a
+full picker; picking one rewrites the note's own words with the thing's
+unique name (`Ctrl+Z` undoes it, same as any typing). `URL` is any
+OpenAI-compatible chat endpoint -- OpenRouter, Anthropic's own compatible
+endpoint, a local vLLM or llama.cpp -- asked with `--suggest-model` (default
+`anthropic/claude-haiku-5.5`) and the key, never a flag, only the
+environment variable (never logged, never in a response). The model reads a
+static, cached catalog (the capabilities catalog, the font list, the sound
+pack and, where configured, the music list) plus the specific video's bible
+and timeline summary, and answers JSON only; every id and span it returns is
+checked against the real lists before it ever reaches a browser, capped at 5
+strong and 8 related items, and cached briefly per (video, clip, note) so
+retyping or undoing is instant. A slow or failing endpoint never shows an
+error -- it gives up silently after about 8 s, the same request a new
+keystroke would have cancelled anyway. Token usage is recorded per account
+(not limited yet). With no `--suggest-url`, or without the key set, only the
+six static family chips show once a note has words, nothing is marked
+"Suggested", and no request is ever made.
+
 When a builder turn finishes, the editor applies the same scope guard as
 manual Accept. Out-of-scope changes are refused and the draft is reset to
 `main`; the next note tells the builder what was refused. A clean turn is
@@ -800,6 +824,7 @@ python -m videobuilder editor PROJECT-DIR [--host 127.0.0.1] [--port 8100] [--st
 python -m videobuilder editor --library DIR [--checkouts DIR2] [--state-dir DIR3] [--open]
     [--account-daily-note-cap N] [--account-daily-cost-cap-usd X]
     [--artbox-url URL] [--account-daily-picture-cap N]
+    [--suggest-url URL] [--suggest-model MODEL]
 ```
 
 ## Modules
@@ -850,6 +875,10 @@ python -m videobuilder editor --library DIR [--checkouts DIR2] [--state-dir DIR3
   `~/.cache/videobuilder/vb-sfx-1`; `sfx list`, `sfx play-path`. The pack is
   built from a rendered bank by `scripts/build_sfx_pack.py`.
 - `pictures`: `--artbox-url` generated pictures for the director's Pictures sheet.
+- `fonts`: the font list (family, where it comes from, a one-line character) the
+  suggest layer's prompt and Fonts picker share.
+- `suggest_client`: a client for one OpenAI-compatible chat endpoint.
+- `suggest`: `--suggest-url` capability suggestions while a director types a note.
 
 ## Known traps
 

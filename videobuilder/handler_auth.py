@@ -84,7 +84,8 @@ class AuthHandler:
             return False
         if re.fullmatch(r'/whats-new/[^/]+/[^/]+\.mp4', route):
             return False
-        m = re.fullmatch(r'/v/(.+?)(/api(?:/.*)?|/tuning\.html|/director\.(?:js|css)|/)?', route)
+        m = re.fullmatch(r'/v/(.+?)(/api(?:/.*)?|/tuning\.html|/director\.(?:js|css)|/suggest\.(?:js|css)|/)?',
+                        route)
         if m and m.group(2) and m.group(2).startswith('/api'):
             return False
         return True

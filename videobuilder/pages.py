@@ -733,7 +733,7 @@ def new_video_page(names, user=None, whats_new=None):
                 '<div class="row"><select id="copy-from" aria-label="Video to copy">' +
                 ''.join(f'<option value="{html.escape(n)}">{html.escape(n)}</option>' for n in names) +
                 '</select><button type="button" class="btn" id="copy-go">Copy it</button></div></details>')
-    style = APP_STYLE + files.joinpath('new_video.css').read_text()
+    style = APP_STYLE + files.joinpath('new_video.css').read_text() + files.joinpath('suggest.css').read_text()
     return (_head('New video', style) +
             '<body>' + app_header('new', user, whats_new=whats_new) + '<main class="nv">'
             '<div class="lead-head"><h1>New video</h1><p class="help">Drop clips and a song and say how to cut '
@@ -754,7 +754,8 @@ def new_video_page(names, user=None, whats_new=None):
             '<button type="button" class="btn btn-primary go" id="go">Start building</button></div></div>'
             '<input type="file" id="nv-pick" multiple hidden>'
             f'<script type="application/json" id="nv-data">{data}</script>'
-            f'<script>{files.joinpath("new_video.js").read_text()}</script></body></html>').encode()
+            f'<script>{files.joinpath("new_video.js").read_text()}</script>'
+            f'<script>{files.joinpath("suggest.js").read_text()}</script></body></html>').encode()
 
 
 _ATTACH_ICON = ('<path d="M20 11.5l-8.2 8.2a5 5 0 0 1-7.1-7.1L13 4.3a3.3 3.3 0 0 1 4.7 4.7l-8.3 8.3a1.7 1.7 0 0 1'

@@ -259,6 +259,83 @@ def _get_picture_file(self, route, q, editor, user, job_id, index):
     return self._send(200, path.read_bytes(), ctype, {'Cache-Control': 'private, max-age=31536000, immutable'})
 
 
+def _suggest(editor):
+    if not editor.suggest:
+        raise HTTPError(404, 'not found')
+    return editor.suggest
+
+
+def _get_suggest_config(self, route, q, editor, user):
+    return self._json(200, editor.suggest.config() if editor.suggest else {'model': False})
+
+
+def _get_suggest_catalog(self, route, q, editor, user):
+    from . import capabilities, fonts
+    looks, type_, caps = [], [], []
+    for e in capabilities.entries():
+        family = e.get('family')
+        if family not in ('looks', 'type') and e.get('children') is not None:
+            continue
+        item = {'id': e['id'], 'title': e['title'], 'card': e['card'], 'category': e['category'],
+               'poster': f"/capabilities/{e['id']}.jpg", 'clip': f"/capabilities/{e['id']}.mp4"}
+        if family == 'looks':
+            item['kind'] = e.get('kind')
+            item['look'] = e.get('look')  # the vb.looks registry name (New video's own Look field uses this)
+            looks.append(item)
+        elif family == 'type':
+            type_.append(item)
+        elif family is None:
+            caps.append(item)
+    from . import sfx as sfx_module
+    sfx_list = []
+    try:
+        for effect in sfx_module.bank().find():
+            base = effect.take()
+            sfx_list.append({'id': effect.id, 'role': effect.role, 'family': effect.family, 'about': effect.about,
+                             'dur': base.dur_s, 'takes': len(effect.takes)})
+    except sfx_module.SfxUnavailable:
+        pass
+    music_list = []
+    if editor.music:
+        from .music import FetchError
+        for source in editor.music.list_sources():
+            try:
+                _, tracks = editor.music.list_tracks(source['id'])
+            except FetchError:
+                continue
+            for t in tracks:
+                music_list.append({'id': t['id'], 'title': t['title'], 'tags': t['tags'], 'duration': t['duration'],
+                                   'audio_url': t['audio_url'], 'source': source['name'],
+                                   'license': source['license']})
+    return self._json(200, {'looks': looks, 'type': type_, 'capabilities': caps, 'fonts': fonts.public(),
+                            'sfx': sfx_list, 'music': music_list})
+
+
+def _get_font_file(self, route, q, editor, user, font_id):
+    from . import fonts
+    try:
+        fonts.get(font_id)
+        path = fonts.path(font_id)
+    except KeyError:
+        raise HTTPError(404, 'unknown font') from None
+    if not path:
+        raise HTTPError(404, 'font file not available on this build')
+    ext = path.rsplit('.', 1)[-1].lower()
+    ctype = {'ttf': 'font/ttf', 'otf': 'font/otf'}.get(ext, 'application/octet-stream')
+    return self._send(200, open(path, 'rb').read(), ctype, {'Cache-Control': 'public, max-age=86400'})
+
+
+def _get_suggest_sfx_file(self, route, q, editor, user):
+    from . import sfx as sfx_module
+    id_ = _need(q, 'id')
+    try:
+        take = sfx_module.bank().get(id_).take()
+    except (ValueError, sfx_module.SfxUnavailable):
+        raise HTTPError(404, 'unknown sound') from None
+    return self._send(200, open(take.path, 'rb').read(), 'audio/ogg',
+                      {'Cache-Control': 'public, max-age=86400'})
+
+
 def _get_draft(self, route, q, editor, user):
     return self._json(200, editor.drafts.details(_need(q, 'video')))
 
@@ -362,7 +439,7 @@ def _get_usage(self, route, q, editor, user):
 GET_ROUTES = [
     ('/healthz', _get_healthz),
     (('/', '/index.html'), _get_index),
-    (('/tuning.html', '/director.js', '/director.css'), _get_static),
+    (('/tuning.html', '/director.js', '/director.css', '/suggest.js', '/suggest.css'), _get_static),
     ('/api/versions', _get_versions),
     ('/api/video', _get_video),
     ('/api/clip', _get_clip),
@@ -384,6 +461,10 @@ GET_ROUTES = [
     ('/api/pictures', _get_pictures),
     ('/api/pictures/gpu', _get_pictures_gpu),
     (re.compile(r'/api/pictures/([0-9a-f]{16})/([0-3])'), _get_picture_file),
+    ('/api/suggest/config', _get_suggest_config),
+    ('/api/suggest/catalog', _get_suggest_catalog),
+    ('/api/suggest/sfx-file', _get_suggest_sfx_file),
+    (re.compile(r'/api/fonts/([a-z0-9-]+)/file'), _get_font_file),
     ('/api/draft', _get_draft),
     (('/api/draft/info', '/api/draft/frame'), _get_draft_preview),
     ('/api/project', _get_project),
@@ -471,6 +552,12 @@ def _post_music_attach(self, route, body, identity, editor, user):
     except ValueError as exc:
         raise HTTPError(400, str(exc)) from None
     return self._json(201, record)
+
+
+def _post_suggest(self, route, body, identity, editor, user):
+    suggest = _suggest(editor)
+    video = _field(body, 'video', str)
+    return self._json(200, suggest.ask(editor, video, body, identity))
 
 
 def _post_pictures(self, route, body, identity, editor, user):
@@ -583,6 +670,7 @@ POST_ROUTES = [
     (('/api/draft/accept', '/api/draft/drop'), _post_draft_action),
     ('/api/compendium/vote', _post_compendium_vote),
     ('/api/music/attach', _post_music_attach),
+    ('/api/suggest', _post_suggest),
     ('/api/pictures', _post_pictures),
     (re.compile(r'/api/pictures/([0-9a-f]{16})/retry'), _post_picture_retry),
     (re.compile(r'/api/pictures/([0-9a-f]{16})/([0-3])/attach'), _post_picture_attach),

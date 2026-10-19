@@ -118,8 +118,8 @@ class LibraryHandler:
             # down (which reuses video_name/video_subroute) can never disagree about the name.
             video_name, video_subroute = None, None
             if library:
-                video_match = re.fullmatch(r'/v/(.+?)(/api(?:/.*)?|/tuning\.html|/director\.(?:js|css)|/)?',
-                                           route)
+                video_match = re.fullmatch(r'/v/(.+?)(/api(?:/.*)?|/tuning\.html|/director\.(?:js|css)|'
+                                           r'/suggest\.(?:js|css)|/)?', route)
                 if video_match and valid_name(video_match.group(1)):
                     video_name, video_subroute = video_match.group(1), video_match.group(2)
             resolved = self.resolve_identity(route, method, video_name, video_subroute, identity)
@@ -158,6 +158,26 @@ class LibraryHandler:
                     names = [n for n in library.names()
                             if not library.accounts or library.access.can_access(n, user, library.accounts)]
                     return self._send(200, library.new_video_page(names, user), 'text/html; charset=utf-8')
+                if route == '/api/suggest/config' and method == 'GET':
+                    # New video's own route: there is no project yet to scope this to (see suggest.py).
+                    return self._json(200, library.suggest.config() if library.suggest else {'model': False})
+                if route == '/api/suggest' and method == 'POST':
+                    if not library.suggest:
+                        raise HTTPError(404, 'not found')
+                    body = self._body()
+                    return self._json(200, library.suggest.ask(None, None, body, identity))
+                if route == '/api/suggest/catalog' and method == 'GET':
+                    from types import SimpleNamespace
+
+                    from .video_api import _get_suggest_catalog
+                    return _get_suggest_catalog(self, route, q, SimpleNamespace(music=library.music), user)
+                if route == '/api/suggest/sfx-file' and method == 'GET':
+                    from .video_api import _get_suggest_sfx_file
+                    return _get_suggest_sfx_file(self, route, q, None, user)
+                m = re.fullmatch(r'/api/fonts/([a-z0-9-]+)/file', route)
+                if m and method == 'GET':
+                    from .video_api import _get_font_file
+                    return _get_font_file(self, route, q, None, user, m.group(1))
                 if library.accounts and route == '/api/login' and method == 'POST':
                     body = self._body()
                     try:

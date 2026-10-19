@@ -2031,6 +2031,8 @@ async function addPending() {
     renderPending();
     $('message').value='';
     fitMessage();
+    // A suggestion layer (suggest.js) listens for 'input' to know the note was cleared.
+    $('message').dispatchEvent(new Event('input',{bubbles:true}));
     hintSendAgain();
     state.files=[];
     renderFiles();

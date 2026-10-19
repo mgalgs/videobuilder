@@ -502,7 +502,7 @@ class Editor:
                  auto_land=None, capabilities_dir=None, compendium_dir=None, music_sources=None, music=None,
                  account_daily_note_cap=None, account_daily_cost_cap_usd=None, compendium_for_builder=None,
                  source_max_mb=None, source_max_total_mb=None, trust_repo_config=True, artbox_url=None, artbox=None,
-                 account_daily_picture_cap=None):
+                 account_daily_picture_cap=None, suggest_url=None, suggest_model=None, suggest=None):
         self.capabilities_dir = capabilities_dir
         self.compendium_dir = compendium_dir
         # `music`, a pre-parsed MusicLibrary, is how library mode shares one cache and one
@@ -563,6 +563,21 @@ class Editor:
                                      else cfg.get('account_daily_picture_cap', DEFAULT_DAILY_CAP),
                                      'account_daily_picture_cap', int)
             self.pictures = Pictures(self, artbox, cap)
+        # `suggest`, a shared feature (unlike Pictures/Artbox, nothing in Suggest is
+        # project-specific -- see suggest.py -- so the whole thing is shared, not just a
+        # client), is library mode's; `suggest_url`/`suggest_model` build one here for
+        # single-project mode. The key is never a flag: only $VIDEOBUILDER_SUGGEST_KEY.
+        self.suggest = suggest
+        if self.suggest is None and suggest_url:
+            key = os.environ.get('VIDEOBUILDER_SUGGEST_KEY')
+            if key:
+                from .suggest import Suggest
+                from .suggest_client import SuggestClient
+                client = SuggestClient(suggest_url, suggest_model, key)
+                self.suggest = Suggest(self.state_dir, client, music=self.music, has_accounts=False)
+            else:
+                print('[editor] --suggest-url is set but $VIDEOBUILDER_SUGGEST_KEY is not; '
+                     'suggestions stay off', file=sys.stderr, flush=True)
         self.account_daily_note_cap = _optional_positive(
             account_daily_note_cap if account_daily_note_cap is not None else cfg.get('account_daily_note_cap'),
             'account_daily_note_cap', int)
@@ -1303,12 +1318,14 @@ def _drain(httpd, stop, loops, stop_renders, deadline):
 def serve(root, host='127.0.0.1', port=8100, state_dir=None, open_browser=False, backend=None,
           hook=request_hook, agent=None, allowed_hosts=(), unsandboxed_previews=False, envs=None, sync_remote=None,
           capabilities_dir=None, compendium_dir=None, music_sources=None, source_max_mb=None,
-          source_max_total_mb=None, artbox_url=None, account_daily_picture_cap=None):
+          source_max_total_mb=None, artbox_url=None, account_daily_picture_cap=None, suggest_url=None,
+          suggest_model=None):
     editor = Editor(root, state_dir=state_dir, backend=backend, agent=agent, allowed_hosts=allowed_hosts, host=host,
                     unsandboxed_previews=unsandboxed_previews, envs=envs, sync_remote=sync_remote,
                     capabilities_dir=capabilities_dir, compendium_dir=compendium_dir, music_sources=music_sources,
                     source_max_mb=source_max_mb, source_max_total_mb=source_max_total_mb, artbox_url=artbox_url,
-                    account_daily_picture_cap=account_daily_picture_cap)
+                    account_daily_picture_cap=account_daily_picture_cap, suggest_url=suggest_url,
+                    suggest_model=suggest_model)
     httpd = Server((host, port), make_handler(editor, hook))
     stop_sync = threading.Event()
     loops = [_ticker(editor.notes.tick, stop_sync)]
@@ -1345,7 +1362,7 @@ def serve_library(root, host='127.0.0.1', port=8100, checkouts=None, state_dir=N
                   account_daily_note_cap=None, account_daily_cost_cap_usd=None, compendium_for_builder=None,
                   source_max_mb=None, source_max_total_mb=None, capability_agent_extra_args=None,
                   capability_fetch=True, artbox_url=None, account_daily_picture_cap=None,
-                  whats_new_repo=None, whats_new_videos=True):
+                  whats_new_repo=None, whats_new_videos=True, suggest_url=None, suggest_model=None):
     from .library import Library
     library = Library(root, checkouts=checkouts, state_dir=state_dir, host=host, agent=agent,
                       allowed_hosts=allowed_hosts, unsandboxed_previews=unsandboxed_previews, envs=envs,
@@ -1357,7 +1374,8 @@ def serve_library(root, host='127.0.0.1', port=8100, checkouts=None, state_dir=N
                       capability_agent_extra_args=capability_agent_extra_args,
                       capability_fetch=capability_fetch, artbox_url=artbox_url,
                       account_daily_picture_cap=account_daily_picture_cap,
-                      whats_new_repo=whats_new_repo, whats_new_videos=whats_new_videos)
+                      whats_new_repo=whats_new_repo, whats_new_videos=whats_new_videos,
+                      suggest_url=suggest_url, suggest_model=suggest_model)
     httpd = Server((host, port), make_handler(library, hook))
     stop = threading.Event()
     loops = [_ticker(library.tick, stop)]

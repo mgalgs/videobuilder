@@ -564,6 +564,7 @@ class Auth(AccountMixin, LibraryFixture, unittest.TestCase):
         _, _, outsider = self.signup('outsider', 'longenoughpassword')
         for path in ('/v/acme/launch/', '/v/acme/launch/api/project',
                      '/v/acme/launch/director.js', '/v/acme/launch/tuning.html',
+                     '/v/acme/launch/suggest.js', '/v/acme/launch/suggest.css',
                      '/v/acme/launch/api/music/sources',
                      '/v/acme/launch/api/frame?video=promo/film&frame=0',
                      '/v/acme/launch/api/video?video=promo/film',
