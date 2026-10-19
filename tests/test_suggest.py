@@ -2,8 +2,10 @@
 validation, caps, the no-model and too-short-note no-ops, and that usage is
 recorded per account -- against a fake OpenAI-compatible endpoint, never the
 real network."""
+import http.client
 import json
 import os
+import socket
 import threading
 import time
 import unittest
@@ -16,8 +18,38 @@ import tests.fixtures as fixtures
 from tests.fake_suggest import FakeSuggest
 from tests.test_project import TempProject
 from videobuilder.editor import Editor, make_handler
+from videobuilder.handler_base import watch_disconnect
 
 VIDEO = 'promo/film'
+
+
+class WatchDisconnect(unittest.TestCase):
+    """watch_disconnect (handler_base.py) is the piece _post_suggest and the
+    library's /api/suggest route use to notice the browser's own connection
+    closing while they block on the model call -- tested here against a
+    plain socket pair, without any HTTP or model endpoint involved."""
+
+    def test_sets_the_event_when_the_peer_closes(self):
+        server_sock, client_sock = socket.socketpair()
+        self.addCleanup(server_sock.close)
+        cancel_event = threading.Event()
+        stop = watch_disconnect(server_sock, cancel_event, interval=0.05)
+        try:
+            self.assertFalse(cancel_event.wait(timeout=0.3))
+            client_sock.close()
+            self.assertTrue(cancel_event.wait(timeout=2))
+        finally:
+            stop()
+
+    def test_stop_function_ends_the_watcher_without_setting_the_event(self):
+        server_sock, client_sock = socket.socketpair()
+        self.addCleanup(server_sock.close)
+        self.addCleanup(client_sock.close)
+        cancel_event = threading.Event()
+        stop = watch_disconnect(server_sock, cancel_event, interval=0.05)
+        stop()
+        time.sleep(0.3)
+        self.assertFalse(cancel_event.is_set())
 
 
 class Server(TempProject):
@@ -188,6 +220,21 @@ class Ask(Base):
         _, data = self.ask()
         self.assertNotIn('test-key', json.dumps(data))
         self.assertNotIn('test-key', self.editor.suggest.usage_path.read_text())
+
+    def test_client_disconnect_cancels_the_upstream_call(self):
+        # The fake endpoint's stall (1.5s) is comfortably under SuggestClient's own
+        # timeout (8s default): without the server itself watching the browser's
+        # connection, nothing would cancel this call before it completes normally
+        # and records usage -- which is exactly what the assertion below would see.
+        self.fake.stall = 1.5
+        body = json.dumps({'video': VIDEO, 'text': 'Make the intro look like a comic, and add a whoosh',
+                           'surface': 'editor', 'seq': 1}).encode()
+        conn = http.client.HTTPConnection('127.0.0.1', self.httpd.server_address[1], timeout=20)
+        conn.request('POST', '/api/suggest', body=body, headers={'Content-Type': 'application/json'})
+        time.sleep(0.2)  # give the server time to dispatch and start the stalled upstream call
+        conn.close()
+        time.sleep(self.fake.stall + 1)  # past the stall: a completed call would have recorded usage by now
+        self.assertEqual(self.editor.suggest.usage_totals(), {})
 
 
 class LibraryWiring(fixtures.LibraryFixture, unittest.TestCase):

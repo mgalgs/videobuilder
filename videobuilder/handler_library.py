@@ -5,6 +5,7 @@ import datetime
 import json
 import re
 import sys
+import threading
 import traceback
 from urllib.parse import parse_qs, quote, unquote, urlparse
 
@@ -165,7 +166,13 @@ class LibraryHandler:
                     if not library.suggest:
                         raise HTTPError(404, 'not found')
                     body = self._body()
-                    return self._json(200, library.suggest.ask(None, None, body, identity))
+                    cancel_event = threading.Event()
+                    stop_watching = self._watch_disconnect(cancel_event)
+                    try:
+                        return self._json(200, library.suggest.ask(None, None, body, identity,
+                                                                    cancel_event=cancel_event))
+                    finally:
+                        stop_watching()
                 if route == '/api/suggest/catalog' and method == 'GET':
                     from types import SimpleNamespace
 

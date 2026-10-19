@@ -289,11 +289,15 @@ class Suggest:
                     t[k] += v
         return totals
 
-    def ask(self, editor, video, body, author):
+    def ask(self, editor, video, body, author, cancel_event=None):
         """`editor` and `video` are both None for New video's "In a few
         words" (asked before any video exists, so there is no bible or
         timeline to read yet); otherwise `editor` is the specific project's
-        Editor the note box belongs to."""
+        Editor the note box belongs to.
+
+        `cancel_event`, if given, is a `threading.Event` the caller may also
+        set from outside (its own request socket closing) -- same event the
+        timeout below arms, so either one stops the model call."""
         if self.client is None:
             raise HTTPError(404, 'not configured')
         text = body.get('text')
@@ -317,12 +321,18 @@ class Suggest:
         if len(text.split()) < MIN_WORDS:
             return {'seq': seq, 'items': []}
         static_block, music_ids = self._static_block()
-        cache_key = (self.client.model, len(static_block), video, clip, _normalize(text))
+        # In library mode every project's Editor shares this one Suggest, and `video` is the
+        # bare in-project name -- so without the project itself in the key, two projects with
+        # the same video name and note would share an answer (and its why-text, drawn from the
+        # first project's own bible) across accounts. `editor.state_dir` is unique per project.
+        project_key = editor.state_dir if editor is not None else None
+        cache_key = (self.client.model, len(static_block), project_key, video, clip, _normalize(text))
         cached = self._cache_get(cache_key)
         if cached is not None:
             return {'seq': seq, 'items': cached}
         video_block = _video_block(editor, video) if video is not None else NEW_VIDEO_BLOCK
-        cancel_event = threading.Event()
+        if cancel_event is None:
+            cancel_event = threading.Event()
         timer = threading.Timer(self.client.timeout, cancel_event.set)
         timer.daemon = True
         timer.start()

@@ -5,6 +5,7 @@ a tuple of literal routes, or a compiled regex matched with `.fullmatch`
 it did in the original if-chain: keep it exactly as found there."""
 import os
 import re
+import threading
 from importlib import resources
 from urllib.parse import unquote
 
@@ -557,7 +558,12 @@ def _post_music_attach(self, route, body, identity, editor, user):
 def _post_suggest(self, route, body, identity, editor, user):
     suggest = _suggest(editor)
     video = _field(body, 'video', str)
-    return self._json(200, suggest.ask(editor, video, body, identity))
+    cancel_event = threading.Event()
+    stop_watching = self._watch_disconnect(cancel_event)
+    try:
+        return self._json(200, suggest.ask(editor, video, body, identity, cancel_event=cancel_event))
+    finally:
+        stop_watching()
 
 
 def _post_pictures(self, route, body, identity, editor, user):

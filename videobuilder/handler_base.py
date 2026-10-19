@@ -3,11 +3,48 @@ allowlist, JSON/raw body handling, ranged sends and cookies. Mixed into the
 composed Handler by `editor.make_handler`."""
 import json
 import re
+import select
+import socket
+import threading
 from http.cookies import SimpleCookie
 from http.server import BaseHTTPRequestHandler
 from urllib.parse import urlparse
 
 from .editor import MAX_BODY, Forbidden, HTTPError
+
+
+def watch_disconnect(sock, cancel_event, interval=0.2):
+    """Starts a background thread that polls `sock` -- a request handler's
+    own connection -- and sets `cancel_event` the moment its peer closes it.
+    A plain `recv` can't be used to notice this while another thread is
+    blocked on a slow outbound call over a *different* socket: polling with
+    `select` plus a non-consuming `MSG_PEEK` is what lets this thread watch
+    for a close without stealing bytes the request-handling thread still
+    owns. Returns a function that stops the watcher; call it once the
+    blocking call returns, before this connection is read from again (a
+    kept-alive socket serves more requests on the same thread)."""
+    stop = threading.Event()
+
+    def watch():
+        while not stop.is_set() and not cancel_event.is_set():
+            try:
+                ready, _, _ = select.select([sock], [], [], interval)
+            except OSError:
+                cancel_event.set()
+                return
+            if stop.is_set() or cancel_event.is_set():
+                return
+            if ready:
+                try:
+                    closed = sock.recv(1, socket.MSG_PEEK) == b''
+                except OSError:
+                    closed = True
+                if closed:
+                    cancel_event.set()
+                    return
+
+    threading.Thread(target=watch, daemon=True).start()
+    return stop.set
 
 
 class BaseHandler(BaseHTTPRequestHandler):
@@ -150,3 +187,15 @@ class BaseHandler(BaseHTTPRequestHandler):
         if not isinstance(body, dict):
             raise HTTPError(400, 'the body must be a JSON object')
         return body
+
+    def _watch_disconnect(self, cancel_event, interval=0.2):
+        """Polls this request's own socket while the caller blocks on a slow
+        outbound call (suggest.py's model call is the one caller today), and
+        sets `cancel_event` the moment the browser's side of the connection
+        closes -- a `fetch` abort tears down the TCP connection, since
+        HTTP/1.1 keep-alive has no other way to cancel a request already sent.
+        Without this, an abandoned call would otherwise run (and bill) to the
+        end regardless. Returns a function that stops the watcher; the caller
+        must call it once the blocking call returns, before this thread goes
+        on to read the next request off the same (possibly reused) socket."""
+        return watch_disconnect(self.connection, cancel_event, interval)
