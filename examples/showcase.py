@@ -94,7 +94,7 @@ END_CARD = TIMELINE.find('end').until - TIMELINE.find('end').at
 # Each shot and the catalog capabilities it shows, named in its tag.
 SHOTS = {
     'hook-1': ['kinetic-typography'], 'hook-2': ['kinetic-typography'], 'hook-3': ['kinetic-typography'],
-    'title': ['pop-on-the-beat'],
+    'title': ['pop-on-the-beat', 'sound-effects'],
     'camera': ['shape-morph', 'camera-on-a-screenshot'],
     'redrawn': ['redrawn-product-ui', 'eased-entrances'],
     'lumi': ['character-motion', 'staggered-reveals', 'springs-with-character'],
@@ -456,6 +456,16 @@ OVERLAP_OK = {('chart', 'callout'), ('stamp', 'arrow'), ('stamp', 'notepad'), ('
 
 LAYOUTS = {name: {'safe': kit.SAFE[name]} for name in ('16x9', '9x16')}
 
+
+def _title_hit():
+    """The hit on the title, when the sound-effects pack is installed
+    (`python -m videobuilder sfx fetch`); without it, the film has none."""
+    try:
+        return (vb.sfx.sound('pro_impact/short', at=TIMELINE.span('title')[0], fps=GRID.fps, gain_db=-8),)
+    except vb.sfx.SfxUnavailable:
+        return ()
+
+
 FILM = vb.Film(
     draw=draw,
     timeline=TIMELINE,
@@ -463,7 +473,7 @@ FILM = vb.Film(
     background=BG,
     audio=vb.Audio(_music(), fade_out_frames=round(2 * FPB), duck_db=-12),   # the music dips under the voices
     sounds=(vb.footage(TIMELINE, 'voice', start=0.0).sound(voice.CLIP_PATH),
-            fox.VOICE.sound(at=TIMELINE.span('fox')[0], fps=GRID.fps)),
+            fox.VOICE.sound(at=TIMELINE.span('fox')[0], fps=GRID.fps)) + _title_hit(),
 )
 
 if __name__ == '__main__':
