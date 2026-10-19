@@ -815,7 +815,7 @@ function renderNotes() {
       const title = note.state === 'refused' ? 'Change not kept' :
         note.state === 'conflict' ? 'Conflict' : 'Builder error';
       const detail = note.state === 'refused'
-        ? `These paths were outside this video: ${(note.refused || []).join(', ')}`
+        ? `These files need a person, so none of the change was kept: ${(note.refused || []).join(', ')}`
         : note.message || replyText(note.reply) || 'Please try again.';
       box.append(node('span','who',title),node('span','problem',detail));
       if((note.state==='conflict'||note.state==='failed')&&!note.automatic) {
