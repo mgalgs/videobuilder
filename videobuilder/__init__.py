@@ -20,3 +20,13 @@ __all__ = ['Audio', 'Box', 'Canvas', 'Clip', 'FORMATS', 'Film', 'Font', 'Footage
            'edits', 'footage', 'fr', 'halftone_pattern', 'hidden', 'impact', 'interpolate', 'layout', 'linear', 'load',
            'load_module', 'log_lerp', 'main', 'paper_grain', 'parallax', 'paths', 'per_format', 'rgba', 'round_half_up', 'seg',
            'sequence', 'sfx', 'speech', 'spring', 'spring_at', 'still', 'text', 'touches', 'visible']
+
+
+def __getattr__(name):
+    # `vb.type` (the Type family) loads on first use, so a film that never
+    # asks for a type style doesn't pay for it. Not in __all__: `import *`
+    # must not shadow the builtin `type`.
+    if name == 'type':
+        import importlib
+        return importlib.import_module('.type', __name__)
+    raise AttributeError(f'module {__name__!r} has no attribute {name!r}')
