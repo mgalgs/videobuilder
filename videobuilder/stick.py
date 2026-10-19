@@ -208,13 +208,13 @@ def _build_poses():
                                      _arm_to((chin[0] + 0.01 - shoulder[0], chin[1] + 0.035 - shoulder[1]), lean))),
                           **dict(zip(('back_arm', 'back_elbow'), _arm_to((0.085, 0.13), lean))),
                           **_legs_to((0.04, 0.296), (-0.03, 0.296)))
-    # push: leaning into a wall, arms out level, back leg driving.
-    lean = 30
+    # push: leaning into a wall, arms out level past the head's front, back leg driving.
+    lean = 16
     sh = (math.sin(math.radians(lean)) * TORSO * SHOULDER, -math.cos(math.radians(lean)) * TORSO * SHOULDER)
-    hand = (0.2 - sh[0], -0.19 - sh[1])
+    hand = (0.345 - sh[0], -0.205 - sh[1])
     arm = dict(zip(('front_arm', 'front_elbow'), _arm_to(hand, lean)))
-    back = dict(zip(('back_arm', 'back_elbow'), _arm_to((hand[0] - 0.015, hand[1] + 0.02), lean)))
-    poses['push'] = Pose(lean=lean, nod=-14, **arm, **back, **_legs_to((0.06, 0.258), (-0.145, 0.258)))
+    back = dict(zip(('back_arm', 'back_elbow'), _arm_to((hand[0] - 0.012, hand[1] + 0.035), lean)))
+    poses['push'] = Pose(lean=lean, nod=-8, **arm, **back, **_legs_to((0.07, 0.255), (-0.15, 0.255)))
     # sit: on a seat at the height of the shins, feet on the floor, hands on the knees.
     lean = -4
     seat = SHIN + 0.012
@@ -993,3 +993,230 @@ def _draw_face(c, r, f, turn, blink, talk, ink, fill, w):
         c.set_line_width(w * 0.8)
         c.fill_preserve()
         c.stroke()
+
+
+# ---- the scene kit: backdrops in the figure's own line style ----
+# Each piece takes the figure it is for: its height is the unit, its ink, fill
+# and line weight are the piece's, so the set and the cast always match. Pass
+# fill=None to leave a piece open over whatever is behind it (a Look's scene,
+# a photo, a vb.Picture). Each returns the Box it drew.
+
+def _kit(fig, ink, fill):
+    return (fig.height, fig.weight * fig.height * 0.9, fig.ink if ink is None else ink,
+            fig.fill if fill == 'fig' else fill)
+
+
+def _paint(c, ink, fill, width):
+    if fill is not None:
+        c.set_source_rgba(*rgba(fill))
+        c.fill_preserve()
+    c.set_source_rgba(*rgba(ink))
+    c.set_line_width(width)
+    c.stroke()
+
+
+def _start(cv, width):
+    c = cv.ctx
+    c.save()
+    c.set_line_cap(1)
+    c.set_line_join(1)
+    c.set_line_width(width)
+    return c
+
+
+def ground(cv, fig, y, x0=0, x1=None, ink=None, alpha=1.0):
+    """A flat ground line at `y` from `x0` to `x1` (default: across the canvas)."""
+    H, lw, ink, _ = _kit(fig, ink, None)
+    x1 = cv.width if x1 is None else x1
+    cv.line(x0, y + lw / 2, x1, y + lw / 2, ink, width=lw, alpha=alpha)
+    return Box(x0, y, x1 - x0, lw)
+
+
+def shadow(cv, fig, x, y, k=1.0, alpha=0.16):
+    """A soft oval shadow on the ground under a figure at x; `k` shrinks it (a jump)."""
+    c = cv.ctx
+    w = 0.22 * fig.height * k
+    c.save()
+    c.translate(x, y)
+    c.scale(w, 0.03 * fig.height * k)
+    c.arc(0, 0, 1, 0, 2 * math.pi)
+    c.restore()
+    c.set_source_rgba(*rgba(fig.ink, alpha * k))
+    c.fill()
+    return Box(x - w, y - 0.03 * fig.height * k, 2 * w, 0.06 * fig.height * k)
+
+
+def wall(cv, fig, x, y, height=1.25, width=0.4, ink=None, fill='fig', facing=1):
+    """A brick wall standing on the ground at `y`, its face at `x` toward a
+    figure coming from the left (`facing` 1) or the right (-1). `height`
+    and `width` are shares of the figure's height."""
+    H, lw, ink, fill = _kit(fig, ink, fill)
+    w, h = width * H, height * H
+    x0 = x if facing > 0 else x - w
+    c = _start(cv, lw)
+    c.rectangle(x0, y - h, w, h)
+    _paint(c, ink, fill, lw)
+    rows = max(3, round(h / (0.11 * H)))
+    rh = h / rows
+    c.set_line_width(lw * 0.55)
+    c.set_source_rgba(*rgba(ink))
+    for i in range(1, rows):
+        c.move_to(x0, y - i * rh)
+        c.line_to(x0 + w, y - i * rh)
+    for i in range(rows):
+        off = 0.5 if i % 2 else 0.0
+        bw = w / 2.5
+        k = off
+        while k * bw < w - 1:
+            if k * bw > 1:
+                c.move_to(x0 + k * bw, y - i * rh)
+                c.line_to(x0 + k * bw, y - (i + 1) * rh)
+            k += 1
+    c.stroke()
+    c.restore()
+    return Box(x0, y - h, w, h)
+
+
+def door(cv, fig, x, y, open=0.0, width=0.5, height=1.15, ink=None, fill='fig'):
+    """A door in its frame, standing on the ground at `y` from `x`; `open`
+    0..1 swings it in (the panel narrows to its edge, showing the dark
+    doorway)."""
+    H, lw, ink, fill = _kit(fig, ink, fill)
+    w, h = width * H, height * H
+    c = _start(cv, lw)
+    c.rectangle(x, y - h, w, h)
+    _paint(c, ink, rgba(ink, 0.85) if open > 0 else fill, lw)
+    pw = w * (1 - 0.82 * clamp01(open))
+    c.move_to(x, y - h)
+    c.line_to(x + pw, y - h + 0.04 * h * clamp01(open))
+    c.line_to(x + pw, y - 0.04 * h * clamp01(open))
+    c.line_to(x, y)
+    c.close_path()
+    _paint(c, ink, fill, lw)
+    if pw > 0.3 * w:
+        c.new_path()
+        c.arc(x + pw - 0.12 * w, y - 0.47 * h, 0.035 * H, 0, 2 * math.pi)
+        c.set_source_rgba(*rgba(ink))
+        c.fill()
+    c.restore()
+    return Box(x, y - h, w, h)
+
+
+def desk(cv, fig, x, y, width=0.85, height=0.42, laptop=True, ink=None, fill='fig'):
+    """A desk on the ground at `y`, its left edge at `x`, with a drawer and
+    (`laptop`) an open laptop on it."""
+    H, lw, ink, fill = _kit(fig, ink, fill)
+    w, h = width * H, height * H
+    top = 0.05 * H
+    c = _start(cv, lw)
+    c.rectangle(x, y - h, w, top)
+    _paint(c, ink, fill, lw)
+    for lx in (x + 0.06 * w, x + 0.94 * w):
+        c.move_to(lx, y - h + top)
+        c.line_to(lx, y)
+    c.set_source_rgba(*rgba(ink))
+    c.stroke()
+    c.rectangle(x + 0.55 * w, y - h + top, 0.32 * w, 0.32 * h)
+    _paint(c, ink, fill, lw)
+    c.move_to(x + 0.66 * w, y - h + top + 0.16 * h)
+    c.line_to(x + 0.76 * w, y - h + top + 0.16 * h)
+    c.stroke()
+    if laptop:
+        lx, ly = x + 0.2 * w, y - h
+        c.move_to(lx, ly)
+        c.line_to(lx + 0.3 * w, ly)
+        c.stroke()
+        c.move_to(lx + 0.27 * w, ly)
+        c.line_to(lx + 0.33 * w, ly - 0.2 * H)
+        c.line_to(lx + 0.13 * w, ly - 0.2 * H)
+        c.line_to(lx + 0.07 * w, ly)
+        c.close_path()
+        _paint(c, ink, fill, lw)
+    c.restore()
+    return Box(x, y - max(h, h + 0.2 * H if laptop else h), w, h + (0.2 * H if laptop else 0))
+
+
+def hill_path(cv, fig, x0, x1, y, height=0.7, flag=True, ink=None, fill='fig'):
+    """A gentle hill on the ground at `y` from `x0` to `x1`, `height` x the
+    figure's height at its crest, with a dashed path winding up it to a
+    flag. Returns the hill's Box."""
+    H, lw, ink, fill = _kit(fig, ink, fill)
+    h = height * H
+    w = x1 - x0
+
+    def crest(t):
+        return y - h * math.sin(math.pi * t) ** 1.6
+
+    c = _start(cv, lw)
+    steps = 48
+    c.move_to(x0, y)
+    for i in range(steps + 1):
+        t = i / steps
+        c.line_to(x0 + w * t, crest(t))
+    c.line_to(x1, y)
+    c.close_path()
+    _paint(c, ink, fill, lw)
+    c.set_dash([lw * 1.6, lw * 1.8])
+    c.set_line_width(lw * 0.6)
+    c.move_to(x0 + 0.08 * w, y - 0.04 * h)
+    for i in range(1, 25):
+        t = i / 24
+        px = x0 + w * (0.08 + 0.42 * t + 0.07 * math.sin(3 * math.pi * t) * (1 - t))
+        c.line_to(px, crest((px - x0) / w) + 0.12 * h * (1 - t) + 0.02 * h)
+    c.stroke()
+    c.set_dash([])
+    if flag:
+        fx, fy = x0 + 0.5 * w, crest(0.5)
+        c.set_line_width(lw * 0.8)
+        c.move_to(fx, fy)
+        c.line_to(fx, fy - 0.28 * H)
+        c.stroke()
+        c.move_to(fx, fy - 0.28 * H)
+        c.line_to(fx + 0.14 * H, fy - 0.235 * H)
+        c.line_to(fx, fy - 0.19 * H)
+        c.close_path()
+        _paint(c, ink, ink, lw * 0.6)
+    c.restore()
+    return Box(x0, y - h - (0.28 * H if flag else 0), w, h + (0.28 * H if flag else 0))
+
+
+def cafe(cv, fig, x, y, facing=1, table=True, mug=False, ink=None, fill='fig'):
+    """A café chair for a figure sitting at `x` on the ground at `y` (its
+    seat at `fig.seat()`, the back behind the figure), and (`table`) a
+    small round table in front of it, a mug on it with `mug`. Draw it
+    before the figure."""
+    H, lw, ink, fill = _kit(fig, ink, fill)
+    seat = fig.seat()
+    c = _start(cv, lw)
+    back = x - facing * 0.13 * H
+    front = x + facing * 0.1 * H
+    c.move_to(back, y - seat - 0.38 * H)              # the chair's back, bent wire
+    c.line_to(back, y)
+    c.move_to(back, y - seat)
+    c.line_to(front, y - seat)
+    c.line_to(front, y)
+    c.set_source_rgba(*rgba(ink))
+    c.stroke()
+    out = Box(min(back, front), y - seat - 0.38 * H, abs(front - back), seat + 0.38 * H)
+    if table:
+        tx = x + facing * 0.5 * H
+        th = 0.4 * H
+        tw = 0.16 * H
+        c.move_to(tx, y - th)
+        c.line_to(tx, y)
+        c.move_to(tx - 0.08 * H, y)
+        c.line_to(tx + 0.08 * H, y)
+        c.stroke()
+        c.save()
+        c.translate(tx, y - th)
+        c.scale(tw, 0.025 * H)
+        c.arc(0, 0, 1, 0, 2 * math.pi)
+        c.restore()
+        _paint(c, ink, fill, lw)
+        if mug:
+            mw, mh = 0.075 * H, 0.08 * H
+            c.rectangle(tx - mw / 2 + 0.03 * H * facing, y - th - mh, mw, mh)
+            _paint(c, ink, fill, lw * 0.8)
+        out = Box(min(out.x, tx - tw), out.y, max(out.x + out.w, tx + tw) - min(out.x, tx - tw), out.h)
+    c.restore()
+    return out

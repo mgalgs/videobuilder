@@ -433,5 +433,60 @@ class Props(unittest.TestCase):
         self.assertNotEqual(a, b)
 
 
+
+class SceneKit(unittest.TestCase):
+    def setUp(self):
+        self.fig = vb.Stick(height=200)
+
+    def test_every_piece_draws_inside_the_box_it_returns(self):
+        f = self.fig
+        for name, call in (('ground', lambda cv: stick.ground(cv, f, 300, 20, 580)),
+                           ('wall', lambda cv: stick.wall(cv, f, 300, 300)),
+                           ('wall-left', lambda cv: stick.wall(cv, f, 300, 300, facing=-1)),
+                           ('door', lambda cv: stick.door(cv, f, 250, 300, open=0.5)),
+                           ('desk', lambda cv: stick.desk(cv, f, 200, 300)),
+                           ('hill', lambda cv: stick.hill_path(cv, f, 100, 500, 300)),
+                           ('cafe', lambda cv: stick.cafe(cv, f, 250, 300, mug=True)),
+                           ('shadow', lambda cv: stick.shadow(cv, f, 300, 300))):
+            with self.subTest(piece=name):
+                cv = vb.Canvas(600, 400)
+                box = call(cv)
+                x0, y0, x1, y1 = ink_bbox(cv, threshold=1)
+                slack = f.weight * f.height
+                self.assertGreaterEqual(x0, box.x - slack)
+                self.assertGreaterEqual(y0, box.y - slack)
+                self.assertLessEqual(x1, box.x + box.w + slack)
+                self.assertLessEqual(y1, box.y + box.h + slack)
+
+    def test_pieces_take_the_figures_ink_and_can_leave_their_fill_open(self):
+        fig = vb.Stick(height=200, ink='#0000ff', fill='#ffff00')
+        cv = vb.Canvas(600, 400)
+        box = stick.wall(cv, fig, 300, 300)
+        self.assertEqual(bytes(cv.surface.get_data()[int(box.y + 10) * cv.surface.get_stride() + 4 * int(box.x + 1):][:3]),
+                         bytes((255, 0, 0)))           # BGRA: the ink's blue on the edge
+        cv = vb.Canvas(600, 400)
+        box = stick.door(cv, fig, 250, 300, fill=None)
+        mid = cv.surface.get_data()[int(box.y + box.h / 2) * cv.surface.get_stride() + 4 * int(box.x + box.w / 3) + 3]
+        self.assertEqual(mid, 0)                       # open: whatever is behind shows through
+
+    def test_the_cafe_seat_is_where_the_sitting_figure_sits(self):
+        fig = self.fig
+        j = fig.joints('sit', 250, 300)
+        bottom = j['hip'][1] + stick.BODY_W / 2 * fig.height
+        self.assertAlmostEqual(300 - fig.seat(), bottom, places=6)
+        self.assertLess(fig.seat(), 0.4 * fig.height)
+
+    def test_the_figure_reads_over_a_picture_with_a_halo(self):
+        fig = self.fig
+        cv = vb.Canvas(300, 300, background='#000000')
+        fig.draw(cv, 'stand', 150, 280, halo='#ff0000')
+        cv.surface.flush()
+        im = PILImage.frombuffer('RGBA', (300, 300), bytes(cv.surface.get_data()), 'raw', 'BGRA',
+                                 cv.surface.get_stride(), 1).convert('RGB')
+        colours = {c for _, c in im.getcolors(1 << 20)}
+        self.assertIn((255, 0, 0), colours)            # the halo, round the ink
+        self.assertIn((255, 255, 255), colours)        # the head and body keep their own fill
+
+
 if __name__ == '__main__':
     unittest.main()
