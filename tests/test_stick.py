@@ -514,5 +514,14 @@ class Capability(unittest.TestCase):
         self.assertNotIn(mod.FIG.act(n, mod.ACT, alive=False), (stick.POSES[poses[-2]], stick.POSES[poses[-1]]))
 
 
+    def test_the_reference_covers_every_name_and_the_skill_points_to_it(self):
+        doc = (ROOT / capabilities.get('stick-figure')['doc']).read_text()
+        for name in stick.names() + stick.expressions() + stick.PROPS + tuple(stick.MOUTHS):
+            self.assertIn(f'`{name}`', doc)
+        for kit in ('ground', 'shadow', 'wall', 'door', 'desk', 'hill_path', 'cafe'):
+            self.assertIn(f'vb.stick.{kit}(', doc)
+        self.assertIn('reference/stick.md', (ROOT / 'skill' / 'make-a-video' / 'SKILL.md').read_text())
+
+
 if __name__ == '__main__':
     unittest.main()

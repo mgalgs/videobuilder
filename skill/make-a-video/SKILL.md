@@ -160,6 +160,10 @@ layout, images, views) with the traps each part hides.
   (text to speech) once, then commit the WAV, its `.vtt` and `.json`, and the
   script next to them; the film loads those, never the model. It gives
   phrase-timed captions and a mouth-open signal. Read `reference/narration.md`.
+- **Stick figure** (an explainer acted out by a simple character: "a stick
+  figure runs into a wall, then thinks"): `vb.Stick`, drawn in code with a
+  face, named poses and expressions, walks and runs, props and a matching
+  scene kit; it can talk with the narration. Read `reference/stick.md`.
 - **Sound effects** (a whoosh on a whip pan, a click on a press, a hit on
   an impact frame): `vb.sfx`, ready-made sounds put on an exact frame. See
   §6 and `reference/sfx.md`.

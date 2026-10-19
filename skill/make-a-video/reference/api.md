@@ -229,6 +229,18 @@ FOX.draw(cv, pose, x, ground_y, sx=sx, sy=sy, lean=0.03, angle=0, mark='fox')   
 - The pictures must have their backgrounds cut out; `age` is 0 on the
   frame a pose snaps in, for a 2-3 frame pop.
 
+### A stick figure drawn in code
+
+```python
+FIG = vb.Stick(height=300)                          # black ink, white head and body; no pictures
+pose = FIG.act(n, [(0, 'stand'), (30, 'point', 10)])   # named poses, blended with overlap, breathing in holds
+step = FIG.gait(n, 'walk')                          # feet planted; step.x along the ground, step.lift
+FIG.draw(cv, pose, x, ground_y, face='happy', blink=FIG.blink(n), prop='mug', facing=-1, mark='hero')
+```
+
+See `reference/stick.md` for the poses, expressions, talking, props and
+the scene kit (`vb.stick.wall`, `door`, `desk`, `hill_path`, `cafe`).
+
 ### A walk without leg drawings
 
 ```python
