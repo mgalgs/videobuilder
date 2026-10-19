@@ -2,7 +2,7 @@
 tests/test_notes.py for the whole note file, pinned verbatim)."""
 import unittest
 
-from videobuilder import prompt
+from videobuilder import __version__, prompt
 
 NOTE = {'id': 'n1', 'text': 'Make it punchier'}
 PAYLOAD = {'video': 'promo/film', 'film': 'promo/film.py', 'format': '16x9', 'frame': None, 'segment': None,
@@ -166,3 +166,17 @@ class LooksSection(unittest.TestCase):
         md = prompt.render(NOTE, PAYLOAD, None, community=[self.LOOK])
         self.assertIn('Stained glass', md)
         self.assertNotIn('## Community capabilities', md)
+
+
+class PinGuidance(unittest.TestCase):
+    def test_looks_and_type_tell_the_builder_to_raise_only_the_version(self):
+        # drafts.inspect() only keeps a pin change that raises just the version on the
+        # videobuilder line and touches nothing else -- the prompt must ask for exactly
+        # that, not the old "raise the pin" wording, which a builder could satisfy in a
+        # way the editor would then refuse and throw the whole change away for.
+        md = prompt.render(NOTE, PAYLOAD, None)
+        self.assertNotIn('raise the pin', md)
+        self.assertNotIn('version installed here', md)
+        phrase = (f'raise only the version on the videobuilder line, up to {__version__}, '
+                  'and change nothing else in that file')
+        self.assertEqual(md.count(phrase), 2)
