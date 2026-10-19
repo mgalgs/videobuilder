@@ -267,6 +267,22 @@ class Moves(unittest.TestCase):
         self.assertEqual(self.fig.act(60, keys), self.fig.gait(60, 'walk').pose)
         self.assertNotEqual(self.fig.act(60, keys), self.fig.act(65, keys))
 
+    def test_act_waves_in_a_wave_hold(self):
+        keys = [(0, 'stand'), (10, 'wave')]
+        elbows = {round(self.fig.act(n, keys, alive=False).front_elbow, 3) for n in range(40, 60)}
+        self.assertGreater(max(elbows) - min(elbows), 20)
+        self.assertEqual(self.fig.pose('wave', 0), stick.POSES['wave'])
+
+    def test_act_out_of_a_walk_starts_from_the_planted_pose(self):
+        keys = [(0, 'walk'), (60, 'stand', 10)]
+        self.assertEqual(self.fig.act(60, keys, alive=False), self.fig.gait(60, 'walk').pose)
+        # the feet only draw in toward the stance (past a wind-up's pixel): they don't keep stepping
+        tol = 0.01 * self.fig.height
+        xs = [self.fig.joints(self.fig.act(n, keys, alive=False), 300, GROUND) for n in range(60, 90)]
+        for k in ('front_ankle', 'back_ankle'):
+            d = [b[k][0] - a[k][0] for a, b in zip(xs, xs[1:])]
+            self.assertTrue(all(v <= tol for v in d) or all(v >= -tol for v in d), k)
+
     def test_act_takes_a_cycle_of_your_own(self):
         def run(n):
             return self.fig.gait(n, 'run', period=0.5, stride=1.2).pose
@@ -502,6 +518,12 @@ class SceneKit(unittest.TestCase):
         box = stick.door(cv, fig, 250, 300, fill=None)
         mid = cv.surface.get_data()[int(box.y + box.h / 2) * cv.surface.get_stride() + 4 * int(box.x + box.w / 3) + 3]
         self.assertEqual(mid, 0)                       # open: whatever is behind shows through
+        cv = vb.Canvas(600, 400)
+        box = stick.door(cv, fig, 250, 300, open=0.9, fill=None)
+        at = int(box.y + box.h / 2) * cv.surface.get_stride() + 4 * int(box.x + 0.7 * box.w)
+        b, g, r, a = cv.surface.get_data()[at:at + 4]
+        self.assertEqual((g, r), (0, 0))
+        self.assertGreater(b, 200)                     # the doorway is the ink, darkened, not black
 
     def test_the_cafe_seat_is_where_the_sitting_figure_sits(self):
         fig = self.fig

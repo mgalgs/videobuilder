@@ -246,6 +246,10 @@ POSES = _build_poses()
 CYCLES = ('walk', 'run', 'wave')
 
 
+def _cycles(target):
+    return callable(target) or (isinstance(target, str) and target in CYCLES)
+
+
 def names():
     """Every named pose: the still ones, then the cycles (walk, run, wave)."""
     return tuple(POSES) + tuple(c for c in CYCLES if c not in POSES)
@@ -465,13 +469,13 @@ class Stick:
         listing every name."""
         if isinstance(name, Pose):
             return name
+        if name == 'wave':                              # a cycle, though its still is in POSES
+            w = POSES['wave']
+            return replace(w, front_elbow=w.front_elbow + 26 * math.sin(2 * math.pi * n / (0.5 * self.fps)))
         if name in POSES:
             return POSES[name]
         if name in GAITS:
             return self.gait(n, name).pose
-        if name == 'wave':
-            w = POSES['wave']
-            return replace(w, front_elbow=w.front_elbow + 26 * math.sin(2 * math.pi * n / (0.5 * self.fps)))
         raise _unknown('pose', name, names())
 
     def alive(self, pose, n, amount=1.0):
@@ -525,13 +529,15 @@ class Stick:
             i += 1
         start, target = keys[i][0], keys[i][1]
         frames = keys[i][2] if len(keys[i]) > 2 else 10
-        cyc = callable(target) or (isinstance(target, str) and target in CYCLES)
         to = target(n) if callable(target) else self.pose(target, n)
-        if alive and not cyc:
+        if alive and not _cycles(target):
             to = self.alive(to, n)
         if i == 0:
             return to
-        return self.move(self.act(n, keys[:i], alive), to, n - start, frames)
+        # Out of a cycle, blend from where it was at the move's start, so
+        # the feet planted there don't keep stepping while the body stops.
+        before = start if _cycles(keys[i - 1][1]) else n
+        return self.move(self.act(before, keys[:i], alive), to, n - start, frames)
 
     def face_at(self, n, keys, frames=6):
         """The Face at frame `n` of (frame, expression) keys, each easing
@@ -1020,9 +1026,9 @@ def _kit(fig, ink, fill):
             fig.fill if fill == 'fig' else fill)
 
 
-def _paint(c, ink, fill, width):
+def _paint(c, ink, fill, width, fill_alpha=1.0):
     if fill is not None:
-        c.set_source_rgba(*rgba(fill))
+        c.set_source_rgba(*rgba(fill, fill_alpha))
         c.fill_preserve()
     c.set_source_rgba(*rgba(ink))
     c.set_line_width(width)
@@ -1099,7 +1105,10 @@ def door(cv, fig, x, y, open=0.0, width=0.5, height=1.15, ink=None, fill='fig'):
     w, h = width * H, height * H
     c = _start(cv, lw)
     c.rectangle(x, y - h, w, h)
-    _paint(c, ink, rgba(ink, 0.85) if open > 0 else fill, lw)
+    if open > 0:
+        _paint(c, ink, ink, lw, fill_alpha=0.85)
+    else:
+        _paint(c, ink, fill, lw)
     pw = w * (1 - 0.82 * clamp01(open))
     c.move_to(x, y - h)
     c.line_to(x + pw, y - h + 0.04 * h * clamp01(open))

@@ -93,7 +93,9 @@ walk always has a foot down; a run leaves the ground between steps
 still and move the ground and backdrop by `step.x` (`parallax.draw(cv,
 LAYERS, step.x)`): the feet still match the ground. To stop, key the stand
 on a frame where both feet are down (a walk's phase 0 or 0.5:
-`step.contact == 'both'`) so nothing slides.
+`step.contact == 'both'`) and stop `x` there: `act` blends out of a cycle
+from where it was on the key's frame, so the feet stop stepping, and over
+the move they draw in from the stride to the stand's narrower stance.
 
 ## Talking
 
