@@ -7,7 +7,8 @@ generated music bed while a made-up app, Lumen, gets launched.
 Sections: a kinetic-type hook and the title hit; the product (camera, UI,
 Lumi checking off the day, a tester on camera, a diagram), the launch
 numbers on one dashboard, then the looks, which get room to breathe (generated art, 3D, hard light,
-one scene in three named looks, comic, pixel art, a cut-out fox, the fox walking into a hit, paper collage), and the timing and formats block before
+one scene in three named looks, comic, pixel art, a cut-out fox, the fox walking into a hit, two named type
+styles, paper collage), and the timing and formats block before
 the end card. Sections meet on catalog moves (a shape morph, an overlap
 slide, the paper rip), cuts within a section land on the beat.
 
@@ -36,7 +37,7 @@ sys.path.insert(0, str(HERE))
 
 import videobuilder as vb  # noqa: E402
 from videobuilder import capabilities, paths  # noqa: E402
-from showcase_scenes import art, comic, data, fox, imagery, kit, looks, motion, paper, pixel, timing, voice, walk  # noqa: E402
+from showcase_scenes import art, comic, data, fox, imagery, kit, looks, motion, paper, pixel, timing, typeset, voice, walk  # noqa: E402
 from showcase_scenes.kit import ACCENT, BG, INK, MUTED  # noqa: E402
 
 GRID = kit.GRID
@@ -60,6 +61,7 @@ SECTIONS = [
                 ('pixel', [('pixel-run', 7), ('pixel-clear', 3)]),
                 ('fox', 5),
                 ('walk', 6),
+                ('typeset', [('type-flap', 5), ('type-rubber', 5)]),
                 ('paper', [('paper-head', 3), ('paper-pad', 4), ('paper-stamp', 4)])]),
     ('closing', [('beats', [(f'beat-{i + 1}', 1) for i in range(4)]), ('every-format', 7)], 1),
     ('end', 13),
@@ -110,6 +112,7 @@ SHOTS = {
     'fox': ['puppet-motion', 'pose-swaps', 'narration'],
     'walk': ['walk-in-place', 'parallax-scene', 'impact-frame'],
     **{n: ['paper-collage'] for n in ('paper-head', 'paper-pad', 'paper-stamp')},
+    'type-flap': ['type', 'type-split-flap'], 'type-rubber': ['type', 'type-rubber'],
     **{f'beat-{i + 1}': ['beat-lock'] for i in range(4)},
     'every-format': ['every-format'],
     'end': ['seamless-loops'],
@@ -377,7 +380,7 @@ def end(cv, s, st):
 
 SCENES = {'hook-1': hook, 'hook-2': hook, 'hook-3': hook, 'title': title, 'end': end,
           **motion.SCENES, **data.SCENES, **imagery.SCENES, **looks.SCENES, **art.SCENES, **comic.SCENES, **pixel.SCENES, **fox.SCENES, **walk.SCENES,
-          **paper.SCENES, **timing.SCENES, **voice.SCENES}
+          **paper.SCENES, **typeset.SCENES, **timing.SCENES, **voice.SCENES}
 
 
 # ---- transitions between sections: the outgoing shot keeps drawing under the incoming one's first beat ----
