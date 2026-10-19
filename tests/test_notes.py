@@ -248,7 +248,9 @@ class Notes(unittest.TestCase):
             'on a drawn part (a title card, a backdrop behind the footage). If `from videobuilder import '
             "looks` fails, or it has no `looks.filter`, this video's videobuilder is older than the looks: in "
             'its own requirements.txt, raise only the version on the videobuilder line, up to '
-            f'{videobuilder.__version__}, and change nothing else in that file.\n'
+            f'{videobuilder.__version__}, and change nothing else in that file. If it has no '
+            'requirements.txt of its own, leave the shared one alone and say in your reply that the video '
+            'needs an upgrade.\n'
             '\n'
             '## Type\n'
             '\n'
@@ -263,7 +265,9 @@ class Notes(unittest.TestCase):
             'picture, `paper=None` and a `box=`. Read skill/make-a-video/reference/type.md before using '
             "one. If `vb.type` is missing, this video's videobuilder is older than the Type family: in its "
             'own requirements.txt, raise only the version on the videobuilder line, up to '
-            f'{videobuilder.__version__}, and change nothing else in that file.'
+            f'{videobuilder.__version__}, and change nothing else in that file. If it has no '
+            'requirements.txt of its own, leave the shared one alone and say in your reply that the video '
+            'needs an upgrade.'
             '\n'
             '\n'
             '## Look at your work\n'
