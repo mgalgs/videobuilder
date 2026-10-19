@@ -267,6 +267,12 @@ class Moves(unittest.TestCase):
         self.assertEqual(self.fig.act(60, keys), self.fig.gait(60, 'walk').pose)
         self.assertNotEqual(self.fig.act(60, keys), self.fig.act(65, keys))
 
+    def test_act_takes_a_cycle_of_your_own(self):
+        def run(n):
+            return self.fig.gait(n, 'run', period=0.5, stride=1.2).pose
+        keys = [(0, 'stand'), (10, run, 4)]
+        self.assertEqual(self.fig.act(70, keys), run(70))
+
     def test_blinks_are_brief_and_seeded(self):
         b = [self.fig.blink(n) for n in range(600)]
         self.assertLessEqual(set(b), {1.0, 0.5, 0.0})
@@ -423,6 +429,17 @@ class Props(unittest.TestCase):
         self.assertEqual(drawn.prop, drawn.joints['front_hand'])
         with self.assertRaises(ValueError):
             stick.prop('mug', hand='left')
+
+    def test_a_sheet_opens_in_both_hands_only_when_both_are_out_in_front(self):
+        fig = vb.Stick(height=H)
+        j = stick._skeleton(stick.POSES['read'], fig.r)
+        self.assertTrue(stick._both_hands(stick.prop('map'), j))
+        self.assertFalse(stick._both_hands(stick.prop('map', hand='back'), j))
+        for name in ('stand', 'hold', 'cheer'):
+            self.assertFalse(stick._both_hands(stick.prop('map'), stick._skeleton(stick.POSES[name], fig.r)), name)
+        for n in range(0, 20, 2):          # running with the map: never stretched between the hands
+            j = stick._skeleton(fig.gait(n, 'run').pose, fig.r)
+            self.assertFalse(stick._both_hands(stick.prop('map'), j))
 
     def test_a_signs_words_read_the_right_way_whichever_way_it_faces(self):
         fig = vb.Stick(height=H)

@@ -396,6 +396,17 @@ PROPS = ('sheet', 'map', 'mug', 'phone', 'pencil', 'sign')
 _TWO_HANDED = ('sheet', 'map')
 
 
+def _both_hands(p, j):
+    """Is a sheet or map held open in both hands? When it is in the front
+    hand and both hands are out in front at the chest, apart but not far
+    (as in 'read')."""
+    if p is None or p.kind not in _TWO_HANDED or p.hand != 'front':
+        return False
+    a, b, (sx, sy) = j['back_hand'], j['front_hand'], j['shoulder']
+    return (a[0] > sx + 0.02 and b[0] > sx + 0.02 and 0.08 < math.dist(a, b) < 0.32
+            and all(-0.05 < h[1] - sy < 0.12 for h in (a, b)))         # both out in front, at the chest
+
+
 def prop(kind, text='', hand='front'):
     if kind not in PROPS:
         raise _unknown('prop', kind, PROPS)
@@ -506,14 +517,16 @@ class Stick:
         (`move`) from wherever the figure was into its pose over `frames`
         (default 10) and holding it, breathing (`alive`), until the next.
         A pose is a name, a Pose, or a cycle (walk, run, wave), which keeps
-        cycling on the film's frame count while it holds."""
+        cycling on the film's frame count while it holds; or a function of
+        the frame giving a Pose, for a cycle of your own (`lambda n:
+        FIG.gait(n, 'run', period=0.5).pose`), which doesn't breathe."""
         i = 0
         while i + 1 < len(keys) and keys[i + 1][0] <= n:
             i += 1
         start, target = keys[i][0], keys[i][1]
         frames = keys[i][2] if len(keys[i]) > 2 else 10
-        cyc = isinstance(target, str) and target in CYCLES
-        to = self.pose(target, n)
+        cyc = callable(target) or (isinstance(target, str) and target in CYCLES)
+        to = target(n) if callable(target) else self.pose(target, n)
         if alive and not cyc:
             to = self.alive(to, n)
         if i == 0:
@@ -720,12 +733,11 @@ class Stick:
             stroke([j[f'{side}_ankle'], j[f'{side}_toe']], 1.2 * w)
 
         held = prop.hand if prop else None
+        two = _both_hands(prop, j)
         arm('back')
-        if held == 'back' and prop.kind not in _TWO_HANDED:
-            self._prop(c, prop, j, ink, fill, fx, grow)
-            dot(j['back_hand'], 0.75 * w)
-        else:
-            dot(j['back_hand'], 0.75 * w)
+        if held == 'back':
+            self._prop(c, prop, j, ink, fill, fx, grow, two)
+        dot(j['back_hand'], 0.75 * w)
         leg('back')
         leg('front')
         # the body
@@ -762,13 +774,13 @@ class Stick:
             c.rotate(math.radians(0.5 * pose.lean + pose.nod * 0.6))
             _draw_face(c, self.r, f, turn, blink, talk, ink, fill, w)
             c.restore()
-        if prop and (prop.kind in _TWO_HANDED or held == 'front'):
-            self._prop(c, prop, j, ink, fill, fx, grow)
+        if held == 'front':
+            self._prop(c, prop, j, ink, fill, fx, grow, two)
         dot(j['front_hand'], 0.75 * w)
-        if prop and prop.kind in _TWO_HANDED:
+        if two:
             dot(j['back_hand'], 0.75 * w)
 
-    def _prop(self, c, p, j, ink, fill, fx, grow):
+    def _prop(self, c, p, j, ink, fill, fx, grow, two=False):
         w = self.weight
         hx, hy = j[f'{p.hand}_hand']
         c.save()
@@ -782,7 +794,6 @@ class Stick:
 
         if p.kind in _TWO_HANDED:
             a, b = j['back_hand'], j['front_hand']
-            two = math.dist(a, b) > 0.07
             sw, sh = (0.27, 0.2) if p.kind == 'map' else (0.2, 0.26)
             if two:
                 cx, base = (a[0] + b[0]) / 2, min(a[1], b[1]) + 0.02
