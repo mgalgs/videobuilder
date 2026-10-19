@@ -52,6 +52,13 @@ def _land(lines, hold):
     return {key: v * k for key, v in raw.items()}
 
 
+def _out_lag(i, j, lines, out_len):
+    """How long after the exit starts letter j of line i begins to squash away:
+    staggered along the lines, the last letter popped by the last frame."""
+    n = len(lines[i])
+    return out_len * 0.4 * (j / max(1, n) + 0.1 * i) / (1 + 0.1 * (len(lines) - 1))
+
+
 def _pose(t, land, drop):
     """(lift px, squash): squash > 0 is flat and wide, < 0 tall and thin."""
     fall = 0.28
@@ -104,7 +111,7 @@ def draw(cv, p, t, box, clock):
                 scale = 1.0
                 if t >= out_t:                    # the exit: squash flat, then pop away
                     # staggered along the lines, the last letter popped by the last frame
-                    lag = out_len * 0.4 * (j / max(1, n) + 0.1 * i) / (1 + 0.1 * (len(lines) - 1))
+                    lag = _out_lag(i, j, lines, out_len)
                     q = min(1.0, max(0.0, (t - out_t - lag) / (out_len * 0.5)))
                     squash += 0.5 * min(1.0, q * 2.5)
                     scale = 1.0 if q < 0.4 else max(0.0, 1 - (q - 0.4) / 0.6) * (1 + 0.25 * math.sin(math.pi * q))
@@ -135,7 +142,8 @@ def events(p, clock):
     """A soft pop as each letter first lands, and one as each pops away;
     no closer than 1/20 s apart."""
     out_len = p.length - clock.exit
-    pops = [clock.exit + (j / max(1, len(p.lines[i]))) * out_len * 0.45 + i * 0.05 + 0.2 * out_len
+    # the pop is when the squash gives way: 0.4 of the way through the letter's exit (see draw)
+    pops = [clock.exit + _out_lag(i, j, p.lines, out_len) + 0.2 * out_len
             for i, j in _land(p.lines, clock.hold)]
     lands = sorted(list(_land(p.lines, clock.hold).values()) + pops)
     out, last = [], -1.0

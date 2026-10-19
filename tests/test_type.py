@@ -280,6 +280,21 @@ class Sound(unittest.TestCase):
         self.assertEqual(sum(1 for s in keys if sfx.get(s.effect).role == 'ding'), 1)   # the bell
         self.assertEqual(len(keys), sum(len(ln) for ln in LINES) + 1)
 
+    def test_rubber_pops_away_on_the_letter_it_draws_popping(self):
+        # the exit pop sounds when the letter's squash gives way, 0.4 into its exit
+        from videobuilder.type import rubber
+        lines = LINES + ('And a fourth',)
+        for length in (6, 18):
+            with self.subTest(length=length):
+                p = vt.props(lines, length=length, sound=True)
+                clock = vt.get('rubber').clock(p)
+                out_len = length - clock.exit
+                i, j = len(lines) - 1, len(lines[-1]) - 1
+                want = clock.exit + rubber._out_lag(i, j, lines, out_len) + 0.2 * out_len
+                last = max(t for t, _ in rubber.events(p, clock))
+                self.assertLessEqual(abs(last - want), 0.05)     # pops closer than 1/20 s are merged
+                self.assertLess(last, length)
+
     def test_without_the_pack_the_style_draws_and_says_so_once(self):
         with mock.patch.dict(os.environ, {sfx.ENV: '/nonexistent/vb-sfx'}), \
                 mock.patch.object(vt, '_noted', set()):
