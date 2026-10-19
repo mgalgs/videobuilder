@@ -203,5 +203,235 @@ class Faces(unittest.TestCase):
             middles.append(sum(xs) / len(xs))
         self.assertGreater(middles[1], middles[0] + 0.25 * fig.r * 200)
 
+def flipped_pixels(cv):
+    cv.surface.flush()
+    w, h = cv.surface.get_width(), cv.surface.get_height()
+    return PILImage.frombuffer('RGBA', (w, h), bytes(cv.surface.get_data()), 'raw', 'BGRA', cv.surface.get_stride(),
+                               1).transpose(PILImage.FLIP_LEFT_RIGHT)
+
+
+class Moves(unittest.TestCase):
+    def setUp(self):
+        self.fig = vb.Stick(height=H)
+
+    def test_a_blend_ends_exactly_on_its_poses(self):
+        a, b = stick.POSES['stand'], stick.POSES['point']
+        self.assertEqual(stick.blend(a, b, 0), a)
+        self.assertEqual(stick.blend(a, b, 1), b)
+        self.assertAlmostEqual(stick.blend(a, b, 0.5).front_arm, (a.front_arm + b.front_arm) / 2)
+
+    def test_a_move_starts_and_ends_exactly_on_its_poses(self):
+        for a, b in (('stand', 'point'), ('crouch', 'cheer'), ('sit', 'stand')):
+            pa, pb = stick.POSES[a], stick.POSES[b]
+            self.assertEqual(self.fig.move(pa, pb, 0), pa)
+            self.assertEqual(self.fig.move(pa, pb, -3), pa)
+            self.assertEqual(self.fig.move(pa, pb, 12 + 6 + 36), pb)
+            self.assertNotEqual(self.fig.move(pa, pb, 6), pa)
+
+    def test_overlap_the_arms_trail_the_body_and_the_head_settles_last(self):
+        a, b = stick.POSES['stand'], stick.POSES['push']
+
+        def share(p, name):
+            return (getattr(p, name) - getattr(a, name)) / (getattr(b, name) - getattr(a, name))
+        mid = self.fig.move(a, b, 6, frames=12, anticipate=False)
+        self.assertGreater(share(mid, 'lean'), share(mid, 'front_arm') + 0.2)
+        self.assertEqual(share(mid, 'nod'), 0)
+        # the arms overshoot as they land (follow-through), the head is still settling after the body has
+        late = [self.fig.move(a, b, age, frames=12, anticipate=False) for age in range(12, 40)]
+        self.assertTrue(any(share(p, 'front_arm') > 1.0 for p in late))
+        self.assertTrue(all(share(p, 'lean') == 1 for p in late))
+        self.assertTrue(any(abs(share(p, 'nod') - 1) > 0.02 for p in late[10:]))
+
+    def test_a_big_move_winds_up_the_other_way_first(self):
+        a, b = stick.POSES['stand'], stick.POSES['push']
+        early = [self.fig.move(a, b, age, frames=12) for age in range(1, 5)]
+        self.assertTrue(any(p.lean < a.lean for p in early))       # back, before it leans in
+        early = [self.fig.move(a, b, age, frames=12, anticipate=False) for age in range(1, 5)]
+        self.assertTrue(all(p.lean >= a.lean for p in early))
+
+    def test_act_holds_breathes_and_moves(self):
+        keys = [(0, 'stand'), (30, 'point', 10), (90, 'shrug')]
+        self.assertEqual(self.fig.act(10, keys, alive=False), stick.POSES['stand'])
+        self.assertEqual(self.fig.act(30, keys, alive=False), stick.POSES['stand'])
+        self.assertEqual(self.fig.act(85, keys, alive=False), stick.POSES['point'])
+        self.assertNotEqual(self.fig.act(35, keys, alive=False), stick.POSES['point'])
+        # alive: never frozen in a hold, and the move lands on the breathing pose
+        self.assertNotEqual(self.fig.act(70, keys), self.fig.act(80, keys))
+        self.assertEqual(self.fig.act(85, keys), self.fig.alive(stick.POSES['point'], 85))
+
+    def test_act_keeps_a_cycle_going_while_it_holds(self):
+        keys = [(0, 'stand'), (10, 'walk', 8)]
+        self.assertEqual(self.fig.act(60, keys), self.fig.gait(60, 'walk').pose)
+        self.assertNotEqual(self.fig.act(60, keys), self.fig.act(65, keys))
+
+    def test_blinks_are_brief_and_seeded(self):
+        b = [self.fig.blink(n) for n in range(600)]
+        self.assertLessEqual(set(b), {1.0, 0.5, 0.0})
+        self.assertGreater(b.count(1.0), 0.9 * len(b))
+        self.assertIn(0.0, b)
+        self.assertEqual(b, [vb.Stick(height=H).blink(n) for n in range(600)])
+        self.assertNotEqual(b, [vb.Stick(height=H, seed=3).blink(n) for n in range(600)])
+
+
+class Gait(unittest.TestCase):
+    def setUp(self):
+        self.fig = vb.Stick(height=H)
+
+    def test_the_walk_moves_at_a_steady_speed(self):
+        xs = [self.fig.gait(n, 'walk').x for n in range(90)]
+        steps = {round(b - a, 9) for a, b in zip(xs, xs[1:])}
+        self.assertEqual(len(steps), 1)
+        self.assertAlmostEqual(steps.pop(), self.fig.speed('walk'))
+
+    def test_a_planted_foot_stays_put_on_the_ground_while_the_body_passes(self):
+        for kind in ('walk', 'run'):
+            planted = {'front': [], 'back': []}
+            for n in range(60):
+                st = self.fig.gait(n, kind)
+                j = self.fig.joints(st.pose, 100 + st.x, GROUND, lift=st.lift)
+                for side in ('front', 'back'):
+                    if st.contact in (side, 'both'):
+                        half = 0.6 * self.fig.weight * H
+                        self.assertAlmostEqual(j[f'{side}_ankle'][1] + half, GROUND, places=6)
+                        planted[side].append((n, j[f'{side}_ankle'][0]))
+            for side, run in planted.items():
+                # consecutive frames on one contact: the same x
+                for (n0, x0), (n1, x1) in zip(run, run[1:]):
+                    if n1 == n0 + 1:
+                        self.assertAlmostEqual(x0, x1, places=6, msg=f'{kind} {side} slid at frame {n1}')
+
+    def test_the_walk_always_has_a_foot_down_and_the_run_flies(self):
+        walk = [self.fig.gait(n, 'walk') for n in range(30)]
+        self.assertTrue(all(s.contact and s.lift == 0 for s in walk))
+        self.assertIn('both', [s.contact for s in walk])
+        run = [self.fig.gait(n, 'run') for n in range(60)]
+        flying = [s for s in run if s.contact is None]
+        self.assertTrue(flying)
+        self.assertTrue(all(s.lift > 0 for s in flying))
+
+    def test_the_cycle_repeats_every_period(self):
+        for n in (0, 4, 17):
+            a, b = self.fig.gait(n, 'walk').pose, self.fig.gait(n + 30, 'walk').pose
+            for f in stick.fields(stick.Pose):
+                self.assertAlmostEqual(getattr(a, f.name), getattr(b, f.name), places=9)
+            self.assertAlmostEqual(self.fig.gait(n, 'walk').phase, n / 30)
+
+    def test_a_cycle_in_place_is_the_same_pose_whatever_the_ground_does(self):
+        st = self.fig.gait(12, 'walk')
+        a = self.fig.joints(st.pose, 300, GROUND)
+        b = self.fig.joints(st.pose, 300 + st.x, GROUND)
+        self.assertAlmostEqual(b['hip'][0] - a['hip'][0], st.x)
+
+
+class Talking(unittest.TestCase):
+    WORDS = [('Working', 1.0, 1.5), ('harder', 1.6, 2.0), ('is', 2.5, 2.7)]
+
+    def test_shut_between_words_open_inside_them(self):
+        self.assertEqual(stick.mouth(self.WORDS, 0.5), 0)
+        self.assertEqual(stick.mouth(self.WORDS, 1.55), 0)
+        self.assertEqual(stick.mouth(self.WORDS, 3.0), 0)
+        self.assertGreater(stick.mouth(self.WORDS, 2.6), 0.9)
+
+    def test_one_flap_a_syllable(self):
+        def flaps(a, z, fps=240):
+            opened = [stick.mouth(self.WORDS, a + (z - a) * k / fps) > 0.5 for k in range(fps)]
+            return sum(1 for x, y in zip([False] + opened, opened) if y and not x)
+        self.assertEqual(stick.syllables('Working'), 2)
+        self.assertEqual(stick.syllables('harder'), 2)
+        self.assertEqual(stick.syllables('is'), 1)
+        self.assertEqual(flaps(1.0, 1.5), 2)
+        self.assertEqual(flaps(1.6, 2.0), 2)
+        self.assertEqual(flaps(2.5, 2.7), 1)
+
+    def test_a_caption_track_or_a_narration_gives_the_timings(self):
+        track = vb.captions.Track([vb.captions.Word(t, a, z) for t, a, z in self.WORDS])
+        self.assertEqual(stick.mouth(track, 2.6), stick.mouth(self.WORDS, 2.6))
+
+        class Narration:
+            pass
+        n = Narration()
+        n.track = track
+        self.assertEqual(stick.mouth(n, 1.2), stick.mouth(self.WORDS, 1.2))
+
+    def test_talking_opens_the_drawn_mouth(self):
+        fig = vb.Stick(height=200)
+        a, b = vb.Canvas(300, 300), vb.Canvas(300, 300)
+        fig.draw(a, 'stand', 150, 280, talk=0)
+        fig.draw(b, 'stand', 150, 280, talk=1)
+        self.assertNotEqual(bytes(a.surface.get_data()), bytes(b.surface.get_data()))
+
+
+class Facing(unittest.TestCase):
+    def test_facing_left_mirrors_the_joints(self):
+        fig = vb.Stick(height=H)
+        for name in ('point', 'push', 'walk'):
+            right = fig.joints(name, 200, GROUND, facing=1)
+            left = fig.joints(name, 200, GROUND, facing=-1)
+            for k in right:
+                self.assertAlmostEqual(right[k][0] - 200, 200 - left[k][0], places=6)
+                self.assertAlmostEqual(right[k][1], left[k][1], places=6)
+
+    def test_facing_left_draws_the_mirror_image(self):
+        fig = vb.Stick(height=200)
+        right, left = vb.Canvas(300, 300), vb.Canvas(300, 300)
+        fig.draw(right, 'point', 150, 280, face='happy', prop='mug')
+        fig.draw(left, 'point', 150, 280, face='happy', prop='mug', facing=-1)
+        a = flipped_pixels(right).getchannel('A')
+        b = flipped_pixels(left).transpose(PILImage.FLIP_LEFT_RIGHT).getchannel('A')
+        diff = sum(abs(x - y) for x, y in zip(a.tobytes(), b.tobytes())) / (300 * 300)
+        self.assertLess(diff, 0.5)
+
+    def test_a_turn_squashes_through_the_side_view(self):
+        fig = vb.Stick()
+        self.assertEqual(fig.turn(10, 10), 1)
+        self.assertEqual(fig.turn(16, 10), -1)
+        self.assertLess(abs(fig.turn(13, 10)), 0.05)
+        box = fig.box('stand', 0, 0, facing=fig.turn(13, 10))
+        self.assertLess(box.w, 0.5 * fig.box('stand', 0, 0).w)
+        fig.draw(vb.Canvas(300, 300), 'stand', 150, 280, facing=fig.turn(13, 10))
+
+
+class Props(unittest.TestCase):
+    def test_a_held_prop_stays_at_the_hand(self):
+        fig = vb.Stick(height=H)
+        a, b = stick.POSES['hold'], stick.POSES['cheer']
+        for kind in ('mug', 'phone', 'pencil', 'sign'):
+            for age in (0, 4, 9, 30, 80):
+                pose = fig.move(a, b, age)
+                bare, held = vb.Canvas(500, 500), vb.Canvas(500, 500)
+                fig.draw(bare, pose, 250, 450)
+                drawn = fig.draw(held, pose, 250, 450, prop=kind)
+                self.assertEqual(drawn.prop, drawn.joints['front_hand'])
+                # the prop's own pixels: ink that the bare figure doesn't have, touching the hand
+                x, y = drawn.prop
+                pa, pb = bare.surface.get_data(), held.surface.get_data()
+                stride = held.surface.get_stride()
+                near = 0.08 * H
+                touched = any(pa[yy * stride + 4 * xx + 3] != pb[yy * stride + 4 * xx + 3]
+                              for yy in range(int(y - near), int(y + near))
+                              for xx in range(int(x - near), int(x + near)))
+                self.assertTrue(touched, f'{kind} at age {age}')
+
+    def test_a_prop_in_the_back_hand_and_a_two_handed_sheet(self):
+        fig = vb.Stick(height=H)
+        drawn = fig.draw(vb.Canvas(500, 500), 'walk', 250, 450, prop=stick.prop('mug', hand='back'))
+        self.assertEqual(drawn.prop, drawn.joints['back_hand'])
+        drawn = fig.draw(vb.Canvas(500, 500), 'read', 250, 450, prop='map')
+        self.assertEqual(drawn.prop, drawn.joints['front_hand'])
+        with self.assertRaises(ValueError):
+            stick.prop('mug', hand='left')
+
+    def test_a_signs_words_read_the_right_way_whichever_way_it_faces(self):
+        fig = vb.Stick(height=H)
+        sign = stick.prop('sign', text='EXIT')
+        right, left = vb.Canvas(500, 500), vb.Canvas(500, 500)
+        fig.draw(right, 'hold', 250, 450, prop=sign)
+        fig.draw(left, 'hold', 250, 450, prop=sign, facing=-1)
+        # mirrored whole, the left one's board matches the right one's except for the words
+        a = flipped_pixels(right).getchannel('A').tobytes()
+        b = flipped_pixels(left).transpose(PILImage.FLIP_LEFT_RIGHT).getchannel('A').tobytes()
+        self.assertNotEqual(a, b)
+
+
 if __name__ == '__main__':
     unittest.main()

@@ -32,7 +32,7 @@ from collections import namedtuple
 from dataclasses import dataclass, fields, replace
 
 from .canvas import rgba
-from .ease import bezier, clamp01, damped, ease_in_out_quart, ease_out_back, spring_at
+from .ease import bezier, clamp01, damped, ease_in_out_quart, spring_at
 from .layout import Box
 
 # ---- proportions, as shares of the standing height ----
@@ -495,7 +495,8 @@ class Stick:
             anticipate = sum(abs(getattr(a, f) - getattr(b, f)) for f in _BODY + _ARMS) > 120
         body_ease = _ANTICIPATE if anticipate else ease_in_out_quart
         tb = body_ease(clamp01(age / frames))
-        ta = ease_out_back(clamp01((age - lag) / frames))
+        p = (age - lag) / frames
+        ta = ease_in_out_quart(clamp01(p)) + 0.1 * math.sin(math.pi * clamp01((p - 0.6) / 0.8))   # lands past, settles
         th = spring_at(age - 2 * lag, self.fps, **damped(0.45, hz=2.2)) if age > 2 * lag else 0.0
         return _blend_groups(a, b, tb, ta, th)
 
