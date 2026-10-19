@@ -173,6 +173,19 @@ class EveryStyleInEveryShape(unittest.TestCase):
                 self.assertEqual({_pixel(cv, x, y) for x in range(0, 200, 23) for y in range(0, 200, 23)},
                                  {(0x20, 0x30, 0x40)}, f'{name} at {t}')
 
+    def test_rubber_and_the_cloud_are_gone_by_the_last_frame(self):
+        # they leave by flying or popping away, so nothing of them is left to cut out on
+        p = vt.props(LINES + ('And a fourth',), paper='#203040')
+        for name in ('rubber', 'letter-cloud'):
+            for fmt in SHAPES:
+                with self.subTest(style=name, shape=fmt.name):
+                    cv = vb.Canvas(fmt.width, fmt.height, scale=0.25, format=fmt)
+                    vt.draw(cv, name, p, p.length - 1 / 30)
+                    w, h = cv.surface.get_width(), cv.surface.get_height()
+                    off = max(max(abs(a - b) for a, b in zip(_pixel(cv, x, y), (0x20, 0x30, 0x40)))
+                              for x in range(0, w, 3) for y in range(0, h, 3))
+                    self.assertLessEqual(off, 4)             # a level or two of the last faint letters
+
     def test_over_a_picture_and_in_a_box(self):
         """paper=None draws over what is there; a box keeps the style in it."""
         for name in STYLES:

@@ -119,7 +119,8 @@ def draw(cv, p, t, box, clock):
         zz = (z - t * m * 0.12) % (m * 3.0) - m * 0.2
         sx, sy, d, depth = cam.project(x, y, zz)
         fade = min(1.0, (zz + m * 0.2) / (m * 0.5)) * max(0.0, 1 - depth / (m * 3.0))
-        draws.append((depth, dust_font, ch, sx, sy, d, turn * 0.3, turn + t * 40, p.accent, 0.55 * fade))
+        draws.append((depth, dust_font, ch, sx, sy, d, turn * 0.3, turn + t * 40, p.accent,
+                      0.55 * fade * (1 - clock.leaving(t))))
     out_q = clock.leaving(t)
     line_boxes = {}
     settled = {i: True for i in range(len(lines))}
@@ -139,7 +140,7 @@ def draw(cv, p, t, box, clock):
         sx, sy, d, depth = cam.project(x, y, z)
         far = min(1.0, max(0.0, depth / (m * 1.6)))
         colour = kit.mix(p.ink, p.accent, min(1.0, far * 1.4))
-        alpha = max(0.0, 1 - far * 0.55) * (1 - out_q * 0.6)
+        alpha = max(0.0, 1 - far * 0.55) * (1 - out_q) ** 2     # gone by p.length, as they reach the lens
         draws.append((depth, font, ch, sx, sy, d, roll, turn, colour, alpha))
         if q > 0.5:
             gw = text.measure(ch, font) * d

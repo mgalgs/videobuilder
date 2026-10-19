@@ -103,8 +103,9 @@ def draw(cv, p, t, box, clock):
                     squash += 0.035 * math.sin(t * 5.1 + j * 0.8 + i)
                 scale = 1.0
                 if t >= out_t:                    # the exit: squash flat, then pop away
-                    q = min(1.0, max(0.0, (t - out_t - (j / max(1, n)) * out_len * 0.45 - i * 0.05) /
-                                     (out_len * 0.5)))
+                    # staggered along the lines, the last letter popped by the last frame
+                    lag = out_len * 0.4 * (j / max(1, n) + 0.1 * i) / (1 + 0.1 * (len(lines) - 1))
+                    q = min(1.0, max(0.0, (t - out_t - lag) / (out_len * 0.5)))
                     squash += 0.5 * min(1.0, q * 2.5)
                     scale = 1.0 if q < 0.4 else max(0.0, 1 - (q - 0.4) / 0.6) * (1 + 0.25 * math.sin(math.pi * q))
                     settled = False
