@@ -197,13 +197,17 @@ class Library:
 
     def usage(self):
         """Per-account and per-video totals across the whole library -- see
-        Editor.usage, which this mirrors for the library-wide `/api/usage` route."""
+        Editor.usage, which this mirrors for the library-wide `/api/usage` route,
+        including the per-account `suggest` totals when a model is configured."""
         from .editor import _account_key, _usage_totals
         has_accounts = bool(self.accounts)
         entries = ((_account_key(n.get('author'), has_accounts),
                    f'{proj}/{n["video"]}' if n.get('video') else None, n)
                   for proj, n in self.account_notes())
-        return _usage_totals(entries)
+        totals = _usage_totals(entries)
+        if self.suggest:
+            totals['suggest'] = self.suggest.usage_totals()
+        return totals
 
     def admin_limits(self):
         """The library-wide default caps and, for every account, its own cap

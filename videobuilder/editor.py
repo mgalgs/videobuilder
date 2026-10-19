@@ -51,7 +51,11 @@ GET  /api/usage                      admin-only (403 otherwise; 401 signed out)
                                      across every project in the library (an
                                      account's own notes, by username -- a
                                      key's notes count toward the account it
-                                     belongs to, same as the cap below)
+                                     belongs to, same as the cap below).
+                                     suggest, when a model is configured, is
+                                     per-account {calls,prompt_tokens,
+                                     completion_tokens,total_tokens}, all-time
+                                     (see Suggest.usage_totals)
 GET  /api/notes/<id>/log?after=N&source=S
                                      {entries:[...from N],next,done,source,reset};
                                      a feed of the builder's steps, [] with no
@@ -746,12 +750,15 @@ class Editor:
 
     def usage(self):
         """Per-account and per-video totals -- cost, note count, and how many
-        notes had no recorded cost -- over each of USAGE_WINDOWS. In a library,
-        this spans every project the account has used (Library.account_notes),
-        since an account's spending isn't scoped to one project; otherwise it's
-        just this editor's own notes. A note still in flight (or one whose
-        backend never reported a cost) counts toward `notes` but not
-        `cost_usd`, and adds to `unknown_cost` instead."""
+        notes had no recorded cost -- over each of USAGE_WINDOWS, plus (where a
+        model is configured) per-account suggest totals -- tokens and calls,
+        all-time, from the same Suggest every project's Editor shares (see
+        Suggest.usage_totals). In a library, the note totals span every
+        project the account has used (Library.account_notes), since an
+        account's spending isn't scoped to one project; otherwise it's just
+        this editor's own notes. A note still in flight (or one whose backend
+        never reported a cost) counts toward `notes` but not `cost_usd`, and
+        adds to `unknown_cost` instead."""
         has_accounts = bool(self.library and self.library.accounts)
         if self.library:
             entries = ((_account_key(n.get('author'), has_accounts),
@@ -759,7 +766,10 @@ class Editor:
                       for proj, n in self.library.account_notes())
         else:
             entries = ((n.get('author'), n.get('video'), n) for n in self.notes.list(refresh=False))
-        return _usage_totals(entries)
+        totals = _usage_totals(entries)
+        if self.suggest:
+            totals['suggest'] = self.suggest.usage_totals()
+        return totals
 
     def add_note(self, body, author, is_admin=False):
         self.check_note_cap(author, is_admin)

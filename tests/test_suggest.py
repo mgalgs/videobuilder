@@ -175,6 +175,15 @@ class Ask(Base):
         self.assertEqual(totals['anonymous']['calls'], 1)
         self.assertEqual(totals['anonymous']['total_tokens'], 120)
 
+    def test_usage_shows_up_in_the_admin_usage_endpoint(self):
+        # GET /api/usage is where an admin already looks for usage (notes' cost_usd);
+        # suggest's own totals must land there too, not just in a log nothing reads.
+        self.ask()
+        usage = self.get('/api/usage')
+        self.assertIn('anonymous', usage['suggest'])
+        self.assertEqual(usage['suggest']['anonymous']['calls'], 1)
+        self.assertEqual(usage['suggest']['anonymous']['total_tokens'], 120)
+
     def test_key_not_in_response_or_usage_log(self):
         _, data = self.ask()
         self.assertNotIn('test-key', json.dumps(data))
@@ -215,6 +224,23 @@ class LibraryWiring(fixtures.LibraryFixture, unittest.TestCase):
                                                      'text': 'a 30-second launch video, playful and upbeat'})
         totals = self.library.suggest.usage_totals()
         self.assertEqual(totals['anonymous']['calls'], 2)
+        _, usage = self.request('/api/usage')
+        self.assertEqual(usage['suggest']['anonymous']['calls'], 2)
+
+    def test_two_projects_with_the_same_video_name_do_not_share_an_answer(self):
+        # Every project's Editor shares this one Suggest (and its answer cache), and
+        # `video` in the cache key is just the bare in-project name -- so two projects
+        # with the same video name and the same note must not collide and serve one
+        # project's (bible-derived) answer to the other.
+        self.seed('acme/one', film=True)
+        self.seed('acme/two', film=True)
+        text = 'a 30-second launch video, playful and upbeat'
+        status1, _ = self.request('/v/acme/one/api/suggest', {'video': 'promo/film', 'surface': 'editor',
+                                                               'seq': 1, 'text': text})
+        status2, _ = self.request('/v/acme/two/api/suggest', {'video': 'promo/film', 'surface': 'editor',
+                                                               'seq': 1, 'text': text})
+        self.assertEqual((status1, status2), (200, 200))
+        self.assertEqual(len(self.fake.requests), 2)
 
 
 if __name__ == '__main__':
