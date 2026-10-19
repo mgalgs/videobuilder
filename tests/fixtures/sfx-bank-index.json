@@ -1,0 +1,322 @@
+{
+ "source": "earshot",
+ "commit": "925ebe56a1b755e5d354ab642bb8f344440cfa9c",
+ "files": [
+  {
+   "id": "fit/click/floss_lid",
+   "category": "fit",
+   "member": "click/floss_lid",
+   "type": "fit",
+   "kinds": [
+    "click",
+    "tick.crisp"
+   ],
+   "notes": "a small plastic click, fitted from \"Plastic Clicks.flac\" by qubodup (CC0 1.0): sines model, CLAP 0.96 to the recording, takes pass the take check at vary 0.3",
+   "source": {
+    "id": "fs-167829",
+    "title": "Plastic Clicks.flac",
+    "author": "qubodup",
+    "license": "CC0 1.0",
+    "url": "https://freesound.org/people/qubodup/sounds/167829/"
+   },
+   "centroid_hz": 4884.5,
+   "attack_ms": 0.75,
+   "file": "fit__click__floss_lid.wav",
+   "variant": null,
+   "knobs_used": {},
+   "onset_s": 0.004,
+   "peak_s": 0.0075,
+   "end_s": 0.069,
+   "dur_s": 0.132,
+   "peak_db": -1.0,
+   "lufs_m_max": -25.2,
+   "channels": 2,
+   "checks_ok": true,
+   "checks": "fit/click/floss_lid: clean",
+   "edits": {}
+  },
+  {
+   "id": "hover_tick/detent",
+   "category": "hover_tick",
+   "member": "detent",
+   "type": "forge",
+   "kinds": [
+    "tick"
+   ],
+   "notes": "hover, list rows passing, tiny ticks",
+   "source": null,
+   "centroid_hz": 7533.1,
+   "attack_ms": 0.75,
+   "file": "hover_tick__detent.wav",
+   "variant": null,
+   "knobs_used": {},
+   "onset_s": 0.0015,
+   "peak_s": 0.0045,
+   "end_s": 0.083,
+   "dur_s": 0.0835,
+   "peak_db": -1.0,
+   "lufs_m_max": -22.13,
+   "channels": 2,
+   "checks_ok": false,
+   "checks": "hover_tick/detent: 1 warning: tail cut at -39 dB re peak: fade it out or render it longer",
+   "edits": {}
+  },
+  {
+   "id": "pro_impact/short",
+   "category": "pro_impact",
+   "member": "short",
+   "type": "forge",
+   "kinds": [
+    "hit",
+    "land"
+   ],
+   "notes": "a designed gated sub impact",
+   "source": null,
+   "centroid_hz": 190.1,
+   "attack_ms": 8.25,
+   "file": "pro_impact__short.wav",
+   "variant": null,
+   "knobs_used": {},
+   "onset_s": 0.0,
+   "peak_s": 0.1815,
+   "end_s": 0.637,
+   "dur_s": 0.6668,
+   "peak_db": -1.0,
+   "lufs_m_max": -14.83,
+   "channels": 2,
+   "checks_ok": true,
+   "checks": "pro_impact/short: clean",
+   "edits": {}
+  },
+  {
+   "id": "pro_notify/ding_2045",
+   "category": "pro_notify",
+   "member": "ding_2045",
+   "type": "forge",
+   "kinds": [
+    "bell",
+    "click.confirm"
+   ],
+   "notes": "short clean dings a semitone apart",
+   "source": null,
+   "centroid_hz": 2247.8,
+   "attack_ms": 2.0,
+   "file": "pro_notify__ding_2045.wav",
+   "variant": null,
+   "knobs_used": {},
+   "onset_s": 0.0,
+   "peak_s": 0.0055,
+   "end_s": 0.34,
+   "dur_s": 0.36,
+   "peak_db": -1.0,
+   "lufs_m_max": -11.12,
+   "channels": 2,
+   "checks_ok": true,
+   "checks": "pro_notify/ding_2045: clean",
+   "edits": {}
+  },
+  {
+   "id": "pro_notify/ding_2045",
+   "category": "pro_notify",
+   "member": "ding_2045",
+   "type": "forge",
+   "kinds": [
+    "bell",
+    "click.confirm"
+   ],
+   "notes": "short clean dings a semitone apart",
+   "source": null,
+   "centroid_hz": 2247.8,
+   "attack_ms": 2.0,
+   "file": "pro_notify__ding_2045--Fs5.wav",
+   "variant": "Fs5",
+   "knobs_used": {
+    "pitch": "F#5"
+   },
+   "onset_s": 0.0,
+   "peak_s": 0.0075,
+   "end_s": 0.333,
+   "dur_s": 0.36,
+   "peak_db": -1.0,
+   "lufs_m_max": -13.91,
+   "channels": 2,
+   "checks_ok": false,
+   "checks": "pro_notify/ding_2045: 1 warning: metallic comb ring in the tail every 2.7 ms (z 22)",
+   "edits": {
+    "pitch": {
+     "target_hz": 739.989,
+     "note": "F#5",
+     "native_hz": 2045.13,
+     "semitones": -17.6,
+     "param": "f0",
+     "params": {
+      "f0": 739.989
+     },
+     "measured_hz": 740.44,
+     "cents_off": 1,
+     "ok": true
+    }
+   }
+  },
+  {
+   "id": "pro_notify/ding_2045",
+   "category": "pro_notify",
+   "member": "ding_2045",
+   "type": "forge",
+   "kinds": [
+    "bell",
+    "click.confirm"
+   ],
+   "notes": "short clean dings a semitone apart",
+   "source": null,
+   "centroid_hz": 2247.8,
+   "attack_ms": 2.0,
+   "file": "pro_notify__ding_2045--G5.wav",
+   "variant": "G5",
+   "knobs_used": {
+    "pitch": "G5"
+   },
+   "onset_s": 0.0,
+   "peak_s": 0.0065,
+   "end_s": 0.335,
+   "dur_s": 0.36,
+   "peak_db": -1.0,
+   "lufs_m_max": -13.87,
+   "channels": 2,
+   "checks_ok": true,
+   "checks": "pro_notify/ding_2045: clean",
+   "edits": {
+    "pitch": {
+     "target_hz": 783.991,
+     "note": "G5",
+     "native_hz": 2045.13,
+     "semitones": -16.6,
+     "param": "f0",
+     "params": {
+      "f0": 783.991
+     },
+     "measured_hz": 783.76,
+     "cents_off": -1,
+     "ok": true
+    }
+   }
+  },
+  {
+   "id": "pro_notify/ding_2045",
+   "category": "pro_notify",
+   "member": "ding_2045",
+   "type": "forge",
+   "kinds": [
+    "bell",
+    "click.confirm"
+   ],
+   "notes": "short clean dings a semitone apart",
+   "source": null,
+   "centroid_hz": 2247.8,
+   "attack_ms": 2.0,
+   "file": "pro_notify__ding_2045--A5.wav",
+   "variant": "A5",
+   "knobs_used": {
+    "pitch": "A5"
+   },
+   "onset_s": 0.0,
+   "peak_s": 0.0055,
+   "end_s": 0.334,
+   "dur_s": 0.36,
+   "peak_db": -1.0,
+   "lufs_m_max": -13.53,
+   "channels": 2,
+   "checks_ok": true,
+   "checks": "pro_notify/ding_2045: clean",
+   "edits": {
+    "pitch": {
+     "target_hz": 880.0,
+     "note": "A5",
+     "native_hz": 2045.13,
+     "semitones": -14.6,
+     "param": "f0",
+     "params": {
+      "f0": 880.0
+     },
+     "measured_hz": 880.18,
+     "cents_off": 0,
+     "ok": true
+    }
+   }
+  },
+  {
+   "id": "whoosh_fast/tight",
+   "category": "whoosh_fast",
+   "member": "tight",
+   "type": "forge",
+   "kinds": [
+    "whoosh.short",
+    "suck"
+   ],
+   "notes": "whip pans, fast fly-ins, element moves",
+   "source": null,
+   "centroid_hz": 749.0,
+   "attack_ms": 7.5,
+   "file": "whoosh_fast__tight--0.25s.wav",
+   "variant": "0.25s",
+   "knobs_used": {
+    "dur": 0.25
+   },
+   "onset_s": 0.0058,
+   "peak_s": 0.0245,
+   "end_s": 0.163,
+   "dur_s": 0.25,
+   "peak_db": -1.0,
+   "lufs_m_max": -23.83,
+   "channels": 2,
+   "checks_ok": true,
+   "checks": "whoosh_fast/tight: clean",
+   "edits": {
+    "dur": {
+     "target": 0.25,
+     "method": "shape",
+     "scale": 0.15,
+     "renders": 3,
+     "fit": "trim 111 ms"
+    }
+   }
+  },
+  {
+   "id": "whoosh_fast/tight",
+   "category": "whoosh_fast",
+   "member": "tight",
+   "type": "forge",
+   "kinds": [
+    "whoosh.short",
+    "suck"
+   ],
+   "notes": "whip pans, fast fly-ins, element moves",
+   "source": null,
+   "centroid_hz": 749.0,
+   "attack_ms": 7.5,
+   "file": "whoosh_fast__tight--0.5s.wav",
+   "variant": "0.5s",
+   "knobs_used": {
+    "dur": 0.5
+   },
+   "onset_s": 0.0088,
+   "peak_s": 0.1285,
+   "end_s": 0.359,
+   "dur_s": 0.5,
+   "peak_db": -1.0,
+   "lufs_m_max": -16.78,
+   "channels": 2,
+   "checks_ok": true,
+   "checks": "whoosh_fast/tight: clean",
+   "edits": {
+    "dur": {
+     "target": 0.5,
+     "method": "shape",
+     "scale": 0.9177,
+     "renders": 2,
+     "fit": "trim 1 ms"
+    }
+   }
+  }
+ ]
+}

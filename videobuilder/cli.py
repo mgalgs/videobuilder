@@ -3,6 +3,7 @@
     python -m videobuilder render  film.py [--format 9x16|16x9|1x1|all] [--jobs N] [--out FILE]
     python -m videobuilder assemble DIR [--format F|all] [--out FILE] [--cache DIR] [--jobs N] [--check] [--snap]
     python -m videobuilder beats   song.mp3 [--fps N] [--bpm N]
+    python -m videobuilder sfx     list [--role R] | play-path ID[--VARIANT] | fetch
     python -m videobuilder still   film.py FRAME [FRAME ...] [--format F] [--out PATH] [--overlay]
     python -m videobuilder sheet   film.py [--format F] [--every N | --frames 0,30,60] [--out FILE] [--width W] [--cols C]
     python -m videobuilder preview film.py [--port 8000] [--host 127.0.0.1]
@@ -691,6 +692,9 @@ def main(argv=None):
     sub.add_parser('beats', help="a song's BPM, first beat and beat grid, for a reel's timeline.json (see films.md)",
                    add_help=False)
 
+    sub.add_parser('sfx', help='sound effects: list the pack, print a take\'s path, fetch the pack (see sfx.py)',
+                   add_help=False)
+
     w = sub.add_parser('worker', help='serve the versioned film worker protocol on standard streams')
     w.set_defaults(fn=lambda a: __import__('videobuilder.worker', fromlist=['serve']).serve())
 
@@ -698,6 +702,9 @@ def main(argv=None):
     if argv[:1] == ['beats']:
         from .beats import main as beats_main
         return beats_main(argv[1:])
+    if argv[:1] == ['sfx']:
+        from .sfx import main as sfx_main
+        return sfx_main(argv[1:])
     a = p.parse_args(argv)
     a.fn(a)
 

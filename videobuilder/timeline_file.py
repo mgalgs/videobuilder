@@ -20,12 +20,14 @@ Every time in the file is a whole number of frames at the file's `fps`.
          "head": 0, "tail": 6,
          "cut": {"transition": "dissolve", "frames": 12},
          "sound": {"gain_db": -2, "early": 6, "dialogue": true}},
-        {"id": "credits", "dir": "clips/03-credits", "cut": {"transition": "wipe", "frames": 10}}
+        {"id": "credits", "dir": "clips/03-credits",
+         "cut": {"transition": "whip", "frames": 8, "sound": "auto"}}
       ],
       "acts": [{"title": "The river", "clips": ["opening", "boat"]}],
       "lanes": [
         {"duck": true, "items": [
-          {"sound": "sources/theme.mp4", "at": 0, "offset": 0, "frames": 240, "gain_db": -3}]}
+          {"sound": "sources/theme.mp4", "at": 0, "offset": 0, "frames": 240, "gain_db": -3},
+          {"sfx": "pro_impact/short", "at": 96, "gain_db": -6}]}
       ],
       "beats": {"lane": 1, "item": 1, "bpm": 120, "first": 12}
     }
@@ -41,7 +43,8 @@ Clips, in order. Each is either
 of a cut are the outgoing clip's `tail` and the incoming clip's `head`.
 `cut` is the cut *into* this clip from the one before (so it moves with the
 clip when clips are reordered): `transition` is one of `TRANSITIONS`, and
-`frames` its length (0 for `cut`). A dissolve or wipe overlaps the two clips
+`frames` its length (0 for `cut`); `sound`, optional, a sound effect on the
+cut (see Sound effects). A dissolve or wipe overlaps the two clips
 by `frames`, so the film gets that much shorter, and so do a whip (a fast
 slide with motion blur) and a flash (a short cut through white). `wipe` and
 `whip` take a `direction` (left, right, up, down; default left): the way the
@@ -62,6 +65,16 @@ while clip sound that is speech plays: a clip directory's film's `Sound`s,
 each over its own span (as one film's music ducks under them); a footage
 clip's caption cues, when its source has a caption file beside it
 (`sources/boat.vtt`); or all of a clip's sound, when marked `dialogue`.
+
+Sound effects: a lane item may be a sound from the sound-effects pack
+(`vb.sfx`) instead of a file: `sfx`, its id, with its peak (`align`:
+"peak", the default, or "onset") on timeline frame `at`, at `gain_db`; a
+take by `variant` ("0.8s", "C5") or `note`, and `frames`, optional, the
+length nearest to which it takes (cut to it with a short fade when longer;
+it plays whole without). It dips with its lane under speech unless
+`through`. A cut's `sound` puts one on the cut (a hard cut's first frame, a
+transition's middle): "auto" (a whoosh on a whip, a hit on a flash), an id,
+or an object of the lane item's keys without `at`.
 
 Paths are relative to the video's root, POSIX, inside it. Footage and big
 sounds live in the video's `sources/` (uploaded to the editor, hardlinked into
@@ -89,6 +102,10 @@ from pathlib import PurePosixPath
 NAME = 'timeline.json'
 VERSION = 1
 TRANSITIONS = ('cut', 'dissolve', 'wipe', 'whip', 'flash')
+# "sound": "auto" on a cut: (sound effect, its length in transitions, gain_db) by transition.
+AUTO_SOUNDS = {'whip': ('whoosh_fast/tight', 2, -6.0), 'flash': ('pro_impact/short', None, -6.0)}
+SFX_KEYS = ('sfx', 'variant', 'note', 'frames', 'align', 'gain_db', 'through')
+_SFX_ID = re.compile(r'^[a-z0-9_]+(/[a-z0-9_.]+)+$')
 # Reserved for later; named so a file using one gets "not available yet", not "unknown".
 LATER_TRANSITIONS = ('match',)
 WIPE_DIRECTIONS = ('left', 'right', 'up', 'down')
@@ -119,11 +136,27 @@ class TimelineError(ValueError):
 
 
 @dataclass(frozen=True)
+class SfxCue:
+    """A sound effect from the pack (`vb.sfx`): its id (or 'auto', on a
+    cut), the take (`variant`, or `note`, or the length nearest `frames`;
+    0 plays the base take whole), what of it lands on its frame (`align`)
+    and whether it dips under speech with its lane (not when `through`)."""
+    sfx: str
+    variant: str | None = None
+    note: str | None = None
+    frames: int = 0
+    align: str = 'peak'
+    gain_db: float = 0.0
+    through: bool = False
+
+
+@dataclass(frozen=True)
 class Cut:
     """The cut into a clip from the one before it."""
     transition: str = 'cut'
     frames: int = 0
     direction: str = 'left'   # wipe and whip only
+    sound: SfxCue | None = None
 
 
 @dataclass(frozen=True)
@@ -166,13 +199,14 @@ class Act:
 
 @dataclass(frozen=True)
 class LaneItem:
-    sound: str
+    sound: str | None             # a file; None for a sound effect...
     at: int
     frames: int
     offset: int = 0
     gain_db: float = 0.0
     fade_in: int = DEFAULT_FADE
     fade_out: int = DEFAULT_FADE
+    cue: SfxCue | None = None     # ...from the pack, its align point on `at`
 
 
 @dataclass(frozen=True)
@@ -285,10 +319,43 @@ def _kind(v):
             type(None): 'null'}.get(type(v), type(v).__name__)
 
 
+def _parse_cue(ck, where, raw, extra=()):
+    """An `SfxCue` from a lane item or a cut's `sound` object; None when it doesn't validate."""
+    if not ck.keys(where, raw, SFX_KEYS + tuple(extra), ('sfx',)):
+        return None
+    sfx = raw['sfx']
+    if not isinstance(sfx, str) or not (_SFX_ID.match(sfx) or sfx == 'auto'):
+        ck.bad(where, f'sfx must be a sound effect\'s id ("whoosh_fast/tight"; `python -m videobuilder sfx list`), '
+                      f'not {json.dumps(sfx)}')
+        return None
+    if sfx == 'auto' and 'at' in extra:
+        ck.bad(where, 'sfx "auto" is for a cut\'s sound; name the sound effect for a lane')
+        return None
+    variant, note = raw.get('variant'), raw.get('note')
+    if variant is not None and note is not None:
+        ck.bad(where, 'give a variant or a note, not both')
+    if variant is not None and (not isinstance(variant, str) or not re.fullmatch(r'[A-Za-z0-9.]+', variant)):
+        ck.bad(where, f'variant must be a take\'s name ("0.8s", "C5"), not {json.dumps(variant)}')
+        variant = None
+    if note is not None:
+        from .sfx import note_name
+        try:
+            note = note_name(note)
+        except ValueError as e:
+            ck.bad(where, f'note: {e}')
+            note = None
+    align = raw.get('align', 'peak')
+    if align not in ('peak', 'onset'):
+        ck.bad(where, f'align must be "peak" or "onset", not {json.dumps(align)}')
+        align = 'peak'
+    return SfxCue(sfx, variant, note, ck.int_(where, raw, 'frames'), align, ck.num(where, raw, 'gain_db'),
+                  ck.bool_(where, raw, 'through'))
+
+
 def _parse_cut(ck, where, raw, first):
     if raw is None:
         return Cut()
-    if not ck.keys(where + '.cut', raw, ('transition', 'frames', 'direction'), ('transition',)):
+    if not ck.keys(where + '.cut', raw, ('transition', 'frames', 'direction', 'sound'), ('transition',)):
         return Cut()
     w = where + '.cut'
     kind = raw.get('transition')
@@ -315,7 +382,19 @@ def _parse_cut(ck, where, raw, first):
     if first and kind != 'cut':
         ck.bad(w, 'the first clip has no clip before it to transition from')
         return Cut()
-    return Cut(kind, frames, direction)
+    sound = raw.get('sound')
+    if sound is not None:
+        if first:
+            ck.bad(w, 'the first clip has no cut into it to put a sound on')
+            sound = None
+        elif isinstance(sound, str):
+            sound = _parse_cue(ck, w + '.sound', {'sfx': sound})
+        else:
+            sound = _parse_cue(ck, w + '.sound', sound)
+    if sound is not None and sound.sfx == 'auto' and kind not in AUTO_SOUNDS:
+        ck.bad(w, f'sound "auto" knows a whip (a whoosh) and a flash (a hit); name the sound effect for a {kind}')
+        sound = None
+    return Cut(kind, frames, direction, sound)
 
 
 def _parse_sound(ck, where, raw):
@@ -399,6 +478,16 @@ def _parse_lane(ck, i, raw):
     out = []
     for j, item in enumerate(items):
         w = f'{name}, item {j + 1}'
+        if isinstance(item, dict) and 'sfx' in item:
+            if 'sound' in item:
+                ck.bad(w, 'needs one of "sound" (a file) or "sfx" (a sound effect from the pack), not both')
+                continue
+            cue = _parse_cue(ck, w, item, ('at',))
+            if 'at' not in item:
+                ck.bad(w, 'needs "at", the frame its peak (or onset) lands on')
+            if cue is not None:
+                out.append(LaneItem(None, ck.int_(w, item, 'at'), cue.frames, gain_db=cue.gain_db, cue=cue))
+            continue
         if not ck.keys(w, item, ('sound', 'at', 'offset', 'frames', 'gain_db', 'fade_in', 'fade_out'),
                        ('sound', 'at', 'frames')):
             continue
@@ -460,6 +549,8 @@ def _parse_beats(ck, raw, lanes):
     elif item > len(lanes[lane - 1].items):
         ck.bad('beats', f'item {item}: Audio {lane} has {len(lanes[lane - 1].items)} item'
                         f'{"" if len(lanes[lane - 1].items) == 1 else "s"}')
+    elif lanes[lane - 1].items[item - 1].cue is not None:
+        ck.bad('beats', f'item {item} of Audio {lane} is a sound effect; the beats are a song\'s')
     return Beats(lane, item, bpm, first, bar)
 
 

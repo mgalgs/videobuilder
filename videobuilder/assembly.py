@@ -14,7 +14,9 @@
    `render.duck_filter`, `render.join_mix`, the loudness gain and limiter):
    each clip's own sound under its picture, extended by its J/L overlap, plus
    every Audio lane item, ducked lanes dipping under clip sound that is speech
-   (see `speech_spans`).
+   (see `speech_spans`). A lane item can be a sound effect from the pack
+   (`vb.sfx`), and so can a cut's `sound` (`cut_sounds`): placed by its peak
+   or onset like a single film's, dipping under speech unless `through`.
 
 So a change to a transition, a trim, a J/L cut, clip order or a lane only
 re-assembles: no clip renders again. A change inside one clip's directory
@@ -34,7 +36,8 @@ from . import captions
 from . import render as _render
 from .clip_cache import ClipCache, FileTree, clip_key, spans_path
 from .film import DEFAULT_LOUDNESS, Sound, as_format
-from .timeline_file import DEFAULT_FADE, load as load_timeline, offbeat, place
+from .timeline_file import (AUTO_SOUNDS, DEFAULT_DUCK_DB, DEFAULT_FADE, cut_frame, load as load_timeline, offbeat,
+                            place)
 
 # The xfade transition of each of ours; every filter here is in ffmpeg 7.1 (the editor's image) and later.
 # A whip is a slide with a blur along it over the slide, stronger over its middle (`whip_blur`).
@@ -94,6 +97,8 @@ def write_spans(film, path, frames=None):
     a, z = frames or (0, film.frames)
     spans = []
     for s in film.sounds:
+        if not s.ducks:
+            continue
         lo, hi = max(s.at, a), min(s.at + s.frames, z)
         if hi > lo:
             spans.append({'at': lo - a, 'frames': hi - lo, 'fade_in': s.fade_in_frames,
@@ -217,27 +222,56 @@ def clip_sounds(timeline, placements, media):
     return out
 
 
+def cue_sound(cue, at, fps, transition=None):
+    """The `vb.sfx.Sfx` for a timeline file's `SfxCue` with its align point
+    on frame `at`; `transition`, a cut's, resolves an 'auto' cue
+    (`AUTO_SOUNDS`: its sound, its length in transitions, its gain, which
+    the cue's `gain_db` adds to). Raises ValueError, also when the pack
+    isn't installed."""
+    from . import sfx
+    id, frames, gain = cue.sfx, cue.frames, cue.gain_db
+    if id == 'auto':
+        id, per, base = AUTO_SOUNDS[transition.transition]
+        frames = frames or (per * transition.frames if per else 0)
+        gain += base
+    try:
+        return sfx.bank().get(id).sound(at, fps, cue.align, gain, cue.variant, frames / fps if frames else None,
+                                        cue.note, cue.through)
+    except sfx.SfxUnavailable as e:
+        raise ValueError(str(e)) from None
+
+
 def lane_sounds(timeline, root):
     """[(lane, [Sound])] for every Audio lane, its items as Sounds (none for a muted lane)."""
     out = []
     for lane in timeline.lanes:
         items = () if lane.mute else lane.items
-        out.append((lane, [Sound(resolve(root, it.sound), at=it.at, start=it.offset / timeline.fps,
+        out.append((lane, [cue_sound(it.cue, it.at, timeline.fps) if it.cue else
+                           Sound(resolve(root, it.sound), at=it.at, start=it.offset / timeline.fps,
                                  frames=it.frames, gain_db=it.gain_db, fade_in_frames=it.fade_in,
                                  fade_out_frames=it.fade_out) for it in items]))
     return out
 
 
-def mix_graph(clips, lanes, frames, fps, start_idx=0):
+def cut_sounds(timeline, placements):
+    """[Sfx]: every cut's `sound`, its align point on the cut (`cut_frame`)."""
+    return [cue_sound(p.clip.cut.sound, cut_frame(p), timeline.fps, p.clip.cut)
+            for p in placements[1:] if p.clip.cut.sound is not None]
+
+
+def mix_graph(clips, lanes, frames, fps, start_idx=0, cuts=()):
     """(inputs, filter_complex graph, output label) mixing `clips`
-    [(Sound, [speech Sound])] and `lanes` [(Lane, [Sound])] over `frames`,
-    before the final gain and limiter. A ducked lane dips by its `duck_db`
-    under the clips' speech (the `duck_envelope_expr` of its spans)."""
+    [(Sound, [speech Sound])], `lanes` [(Lane, [Sound])] and the sound
+    effects on `cuts` [Sfx] over `frames`, before the final gain and
+    limiter. A ducked lane dips by its `duck_db` under the clips' speech (the
+    `duck_envelope_expr` of its spans), but for its sound effects placed
+    `through`; a cut's sound effect dips by `DEFAULT_DUCK_DB` unless `through`."""
     speech = [x for _, spans in clips for x in spans]
     branches = [(s, '') for s, _ in clips]
     for lane, sounds in lanes:
         after = _render.duck_filter(lane.duck_db, speech, fps, 0) if lane.duck and speech else ''
-        branches += [(s, after) for s in sounds]
+        branches += [(s, '' if getattr(s, 'through', False) else after) for s in sounds]
+    branches += [(s, _render.dips(s, DEFAULT_DUCK_DB, speech, fps, 0)) for s in cuts]
     inputs, chains, labels = [], [], []
     idx = start_idx
     for s, after in branches:
@@ -362,6 +396,7 @@ def assemble(timeline, fmt, out, root, renders, crf=18, log=sys.stderr):
         print(f'off the beat: {warning}', file=log)
     clips = clip_sounds(timeline, placements, media)
     lanes = lane_sounds(timeline, root)
+    cuts = cut_sounds(timeline, placements)
     _render.ensure_has_audio(s.path for _, sounds in lanes for s in sounds)
     copied = copyable(timeline, placements)
     with tempfile.TemporaryDirectory() as tmp:
@@ -387,16 +422,33 @@ def assemble(timeline, fmt, out, root, renders, crf=18, log=sys.stderr):
                     '-video_track_timescale', str(fps * 512), picture]
             _run(cmd, 'encoding the picture')
         cmd = ['ffmpeg', '-v', 'error', '-y', '-i', picture]
-        if clips or any(sounds for _, sounds in lanes):
-            whole = mix_graph(clips, lanes, total, fps)
-            gain = _render.loudness_gain_graph(*whole, DEFAULT_LOUDNESS)
-            inputs, graph, label = mix_graph(clips, lanes, total, fps, start_idx=1)
+        if clips or cuts or any(sounds for _, sounds in lanes):
+            whole = mix_graph(clips, lanes, total, fps, cuts=cuts)
+            bed = None
+            if cuts or any(not s.ducks for _, sounds in lanes for s in sounds):
+                bed = mix_graph(clips, [(lane, [s for s in sounds if s.ducks]) for lane, sounds in lanes], total, fps)
+            gain = _render.loudness_gain_graph(*whole, DEFAULT_LOUDNESS, bed)
+            inputs, graph, label = mix_graph(clips, lanes, total, fps, start_idx=1, cuts=cuts)
             cmd += [f for p in inputs for f in ('-i', p)]
             cmd += ['-filter_complex', f'{graph};[{label}]{_render.limiter_suffix(gain)}[a]',
                     '-map', '0:v', '-map', '[a]', '-c:a', 'aac', '-b:a', '320k', '-ar', '48000']
         cmd += ['-c:v', 'copy', '-movflags', '+faststart', str(out)]
         _run(cmd, 'mixing the sound')
+    check_sound_effects(out, cuts + [s for _, sounds in lanes for s in sounds], fps, total, log)
     return total, copied
+
+
+def check_sound_effects(out, sounds, fps, frames, log=sys.stderr):
+    """Where the timeline's sound effects (lane `sfx` items, cuts'
+    `sound`) are in the assembled `out`, against their frames
+    (`vb.sfx.sync`), printed to `log`. Returns the `sfx.report` lines."""
+    from . import sfx
+    if not any(isinstance(s, sfx.Sfx) for s in sounds):
+        return []
+    lines = sfx.report(sfx.sync(out, sounds, fps, frames), fps)
+    for level, message in lines:
+        print(f'sound effects: {"" if level == "ok" else level.upper() + ": "}{message}', file=log)
+    return lines
 
 
 def build(timeline, fmt, out, root, tree, cache, render_clip, log=sys.stderr):
@@ -431,8 +483,31 @@ def check_dir(root):
         elif not (root / c.film_path).is_file():
             problems.append(f'clip "{c.id}": no film file {c.film_path}')
     for lane in timeline.lanes:
-        missing += [i.sound for i in lane.items if not (root / i.sound).is_file()]
+        missing += [i.sound for i in lane.items if i.cue is None and not (root / i.sound).is_file()]
+    problems += cue_problems(timeline)
     return timeline, problems, list(dict.fromkeys(missing))
+
+
+def cue_problems(timeline):
+    """What is wrong with the timeline's sound effects against the pack
+    installed here: an id it hasn't, a take a sound hasn't, or no pack."""
+    from . import sfx
+    cues = [(f'{lane.name}, item {j + 1}', it.cue) for lane in timeline.lanes
+            for j, it in enumerate(lane.items) if it.cue]
+    cues += [(f'clip "{c.id}" cut', c.cut.sound) for c in timeline.clips if c.cut.sound and c.cut.sound.sfx != 'auto']
+    if not cues:
+        return []
+    try:
+        bank = sfx.bank()
+    except sfx.SfxUnavailable as e:
+        return [str(e)]
+    problems = []
+    for where, cue in cues:
+        try:
+            bank.get(cue.sfx).take(cue.variant, cue.frames / timeline.fps if cue.frames else None, cue.note)
+        except ValueError as e:
+            problems.append(f'{where}: {e}')
+    return problems
 
 
 def known_lengths(root, timeline, fmt=None, cache_dir=None):

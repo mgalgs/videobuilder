@@ -12,11 +12,11 @@ from .cli import film_main as main
 from .text import Font
 from .timeline import Grid, Segment, Shot, Timeline, round_half_up, sequence
 from . import edits, impact, layout, parallax, paths, text
-from . import captions, speech
+from . import captions, sfx, speech
 
 __all__ = ['Audio', 'Box', 'Canvas', 'Clip', 'FORMATS', 'Film', 'Font', 'Footage', 'Format', 'Grid', 'Image', 'Puppet',
            'Segment', 'Shot', 'Sound', 'Timeline', 'View', 'apart', 'at_rest_by', 'bezier', 'clamp01', 'critical',
            'damped', 'ease_in_expo', 'ease_in_out_quart', 'ease_out_back', 'ease_out_expo', 'ease_out_quint',
            'edits', 'footage', 'fr', 'halftone_pattern', 'hidden', 'impact', 'interpolate', 'layout', 'linear', 'load',
            'load_module', 'log_lerp', 'main', 'paper_grain', 'parallax', 'paths', 'per_format', 'rgba', 'round_half_up', 'seg',
-           'sequence', 'speech', 'spring', 'spring_at', 'still', 'text', 'touches', 'visible']
+           'sequence', 'sfx', 'speech', 'spring', 'spring_at', 'still', 'text', 'touches', 'visible']

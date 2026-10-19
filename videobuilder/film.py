@@ -83,7 +83,8 @@ class Audio:
     `loudness`: when the film also has `sounds`, this is the target for the
     whole mix (music plus sounds), not just the music.
     `duck_db`: how far the music drops while any `Sound` plays (e.g. -12); 0
-    (the default) means no ducking. The drop ramps over a few frames at each
+    (the default) means no ducking. Sound effects (`vb.sfx`) don't duck it:
+    they drop with it, under the other sounds, unless placed `through`. The drop ramps over a few frames at each
     edge of a sound's span, as a gain envelope computed from the sounds'
     spans, not a sidechain compressor reacting to the actual signal.
     """
@@ -103,8 +104,13 @@ class Sound:
 
     `at`: the film frame it starts on. `start`: seconds into the source file.
     `frames`: its length in film frames; clipped to the film's own range.
+    A negative `start` starts the file that many seconds after frame `at`
+    (less than a frame: how `vb.sfx` lands a sound's peak between frames).
     `fade_in_frames`/`fade_out_frames`: a short linear ramp at each edge, so a
     cut into or out of the sound doesn't click.
+    `ducks`: the music dips under it (`Audio.duck_db`), as under speech, and
+    it counts as speech for the Audio lanes of a film made of clips. False
+    for a sound effect (`vb.sfx`), which dips with the music instead.
     """
     path: str
     at: int
@@ -113,6 +119,7 @@ class Sound:
     gain_db: float = 0.0
     fade_in_frames: int = 3
     fade_out_frames: int = 3
+    ducks: bool = True
 
 
 @dataclass
@@ -167,6 +174,8 @@ class Film:
             self.audio = replace(self.audio, trim_frames=trim)
         clipped = []
         for s in self.sounds:
+            if hasattr(s, 'at_fps'):   # a `vb.sfx` sound, placed for this film's fps
+                s = s.at_fps(self.fps)
             a, z = max(0, s.at), min(self.frames, s.at + s.frames)
             if z <= a:
                 continue

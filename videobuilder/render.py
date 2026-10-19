@@ -23,6 +23,11 @@ PEAK_CEILING_DB = -3.0
 # catching transients and compresses the mix, and its release audibly pumps;
 # a track too peaky to reach the target this way stays quieter instead.
 MAX_LIMITING_DB = 1.0
+# More the limiter may take off a sound effect's peaks (`vb.sfx`) than off the
+# music's or speech's: a click or a hit is a few ms to a few hundred, so the
+# music under it dips for that long, as under a sidechain, rather than a film
+# with sound effects coming out quieter by as much as they are peakier.
+SFX_LIMITING_DB = 4.0
 
 
 def default_jobs(cpu_max='/sys/fs/cgroup/cpu.max'):
@@ -96,13 +101,21 @@ def loudness_gain(path, filters, target):
     return min(gain, cap)
 
 
-def loudness_gain_graph(inputs, graph, label, target):
-    """Like `loudness_gain`, over a filter_complex `graph` fed by `inputs`."""
+def loudness_gain_graph(inputs, graph, label, target, bed=None):
+    """Like `loudness_gain`, over a filter_complex `graph` fed by `inputs`.
+    `bed`, (inputs, graph, label) of the same mix without its sound effects,
+    lets the limiter take up to `SFX_LIMITING_DB` more off the sound effects'
+    peaks, but no more than `MAX_LIMITING_DB` off the bed's."""
     m = measure_graph(inputs, graph, label)
     if m is None:
         return 0.0
     loud, peak = m
     cap = PEAK_CEILING_DB + MAX_LIMITING_DB - peak
+    if bed is not None:
+        b = measure_graph(*bed)
+        cap += SFX_LIMITING_DB
+        if b is not None:
+            cap = min(cap, PEAK_CEILING_DB + MAX_LIMITING_DB - b[1])
     gain = target - loud
     if gain < cap:
         g2 = f'{graph};[{label}]{limiter_suffix(gain)}[__gained]'
@@ -156,9 +169,23 @@ def music_chain(film, a, z, idx):
     `idx`, ducked under any sound when `Audio.duck_db` is set."""
     au = film.audio
     filt = audio_filters(film, a, z)
-    if au.duck_db and film.sounds:
-        filt += duck_filter(au.duck_db, film.sounds, film.fps, a)
+    speech = ducking(film.sounds)
+    if au.duck_db and speech:
+        filt += duck_filter(au.duck_db, speech, film.fps, a)
     return f'[{idx}:a]{filt}[music]', 'music'
+
+
+def ducking(sounds):
+    """The sounds the music ducks under: every one but the sound effects."""
+    return [s for s in sounds if s.ducks]
+
+
+def dips(sound, duck_db, speech, fps, offset):
+    """The `duck_filter` a sound that doesn't duck the music (a sound
+    effect) gets: it dips with the music under `speech`, unless `through`."""
+    if sound.ducks or getattr(sound, 'through', False) or not duck_db or not speech:
+        return ''
+    return duck_filter(duck_db, speech, fps, offset)
 
 
 def duck_filter(duck_db, sounds, fps, offset):
@@ -179,8 +206,13 @@ def sound_chain(sound, a, z, fps, idx, after=''):
     if de <= ds:
         return None
     src_start = sound.start + (ds - sound.at) / fps
-    dur = (de - ds) / fps
-    delay_ms = round((ds - a) * 1000 / fps)
+    # A negative start: the file begins that long after frame ds.
+    pad = max(0.0, -src_start)
+    src_start += pad
+    dur = (de - ds) / fps - pad
+    if dur <= 0:
+        return None
+    delay_ms = round(((ds - a) / fps + pad) * 1000)
     fades = []
     if ds == sound.at and sound.fade_in_frames:
         fades.append(f'afade=t=in:st=0:d={sound.fade_in_frames / fps:.6f}')
@@ -198,11 +230,13 @@ def sound_chain(sound, a, z, fps, idx, after=''):
     return chain, label
 
 
-def mix_graph(film, a, z, start_idx=0):
+def mix_graph(film, a, z, start_idx=0, effects=True):
     """(inputs, filter_complex graph, output label) mixing the film's music and
     sounds over frames a..z, before any final gain and limiting. `start_idx` is
     the ffmpeg input index of the first file this graph refers to (1 when a
-    video is `-i`'d first, as in the final render; 0 for a standalone measure)."""
+    video is `-i`'d first, as in the final render; 0 for a standalone measure).
+    `effects=False` leaves the sound effects out (`vb.sfx`: the sounds that
+    don't duck the music)."""
     au = film.audio
     inputs, chains, labels = [], [], []
     idx = start_idx
@@ -210,8 +244,9 @@ def mix_graph(film, a, z, start_idx=0):
         chain, label = music_chain(film, a, z, idx)
         inputs.append(au.path), chains.append(chain), labels.append(label)
         idx += 1
-    for s in film.sounds:
-        branch = sound_chain(s, a, z, film.fps, idx)
+    speech = ducking(film.sounds)
+    for s in (film.sounds if effects else speech):
+        branch = sound_chain(s, a, z, film.fps, idx, dips(s, au.duck_db if au else 0, speech, film.fps, a))
         if branch is None:
             continue
         chain, label = branch
@@ -324,7 +359,8 @@ def render(film, out, format=None, jobs=None, chunk=15, crf=18, frames=None, log
             if target is not None:
                 # Measured over the whole film, so a partial render gets the same gain.
                 whole_inputs, whole_graph, whole_label = mix_graph(film, 0, film.frames)
-                gain = loudness_gain_graph(whole_inputs, whole_graph, whole_label, target)
+                bed = mix_graph(film, 0, film.frames, effects=False) if any(not s.ducks for s in film.sounds) else None
+                gain = loudness_gain_graph(whole_inputs, whole_graph, whole_label, target, bed)
                 suffix = limiter_suffix(gain)
             else:
                 suffix = 'anull'

@@ -28,6 +28,12 @@ What it checks:
   beats       when the film has audio: where the music's onsets fall against
               the beat grid, and the head_trim that would line them up.
   loudness    decoded MP4 LUFS, true peak, sub-60 Hz energy and phone-band LUFS.
+  sound fx    each `vb.sfx` sound's peak (or onset), found in the decoded MP4 by
+              fitting its loudness envelope (with the film's other sound
+              effects) to the mix's, lands within one frame of the frame it
+              was put on (FAIL), with nothing at full scale in its span
+              (FAIL); WARN when the mix buries it too far to find, or the
+              film ends before its tail does.
   flashes     opposing >=10% relative-luminance changes over >=25% of decoded pixels;
               WARN if >3 in any one-second window.
   motion      opt-in --motion: marked-box constant-speed runs and abrupt starts/stops.
@@ -442,6 +448,19 @@ def beats(path, film, r, rate=8000):
                f'(now {g.head_trim}), or check the BPM')
 
 
+def sound_effects(path, film, r):
+    """Where each `vb.sfx` sound is in the MP4's sound, against its frame."""
+    from videobuilder import sfx
+    if not any(isinstance(s, sfx.Sfx) for s in film.sounds):
+        return
+    rows = sfx.sync(path, film.sounds, film.fps, film.frames)
+    for level, message in sfx.report(rows, film.fps):
+        if level == 'note':
+            print(f'  note  {path}: {message}')
+        else:
+            getattr(r, level)(f'{path}: {message}')
+
+
 def main(argv=None):
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     p.add_argument('film')
@@ -497,6 +516,7 @@ def main(argv=None):
                 beats(path, film, r)
                 if film.audio is not None or film.sounds:
                     loudness(path, film.audio if film.audio is not None else film, r)
+                sound_effects(path, film, r)
     print(f'{r.failed} failed, {r.warned} warnings')
     return 1 if r.failed else 0
 

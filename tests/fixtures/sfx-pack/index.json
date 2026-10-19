@@ -1,0 +1,215 @@
+{
+ "pack": "vb-sfx-1",
+ "schema": 1,
+ "audio": {
+  "codec": "opus",
+  "container": "ogg",
+  "bitrate": "128k",
+  "rate": 48000
+ },
+ "made_from": {
+  "bank": "earshot",
+  "url": "https://github.com/Leonxlnx/earshot",
+  "commit": "925ebe56a1b755e5d354ab642bb8f344440cfa9c",
+  "license": "MIT",
+  "author": "Leon Lin"
+ },
+ "measured": "on each file as shipped, decoded: onset_s is the start of the first 1 ms within 30 dB of its loudest 1 ms; peak_s the middle of its loudest 5 ms (1 ms steps), or, where that loudness holds (within 1 dB) over a stretch, the stretch's middle weighted by loudness, so a ding or a shimmer peaks in its swell, which can be far from earshot's own peak; where the encode moved that along a flat top, the WAV's; end_s the end of its last 5 ms within 50 dB of the loudest; peak_db its sample peak; lufs_m_max its loudest 400 ms (EBU R128 momentary)",
+ "sounds": [
+  {
+   "id": "fit/click/floss_lid",
+   "category": "fit",
+   "role": "click",
+   "family": "fitted",
+   "about": "a small plastic click",
+   "kinds": [
+    "click",
+    "tick.crisp"
+   ],
+   "centroid_hz": 4884.5,
+   "attack_ms": 0.75,
+   "credit": {
+    "title": "Plastic Clicks.flac",
+    "author": "qubodup",
+    "license": "CC0 1.0",
+    "url": "https://freesound.org/people/qubodup/sounds/167829/"
+   },
+   "variants": [
+    {
+     "variant": null,
+     "file": "audio/fit__click__floss_lid.ogg",
+     "length_s": 0.132,
+     "note": null,
+     "channels": 2,
+     "dur_s": 0.132,
+     "onset_s": 0.004,
+     "peak_s": 0.0062,
+     "end_s": 0.069,
+     "peak_db": -1.13,
+     "lufs_m_max": -25.2
+    }
+   ]
+  },
+  {
+   "id": "hover_tick/detent",
+   "category": "hover_tick",
+   "role": "tick",
+   "family": "classic",
+   "about": "a tiny tick: hover, rows going by, a counter",
+   "kinds": [
+    "tick"
+   ],
+   "centroid_hz": 7533.1,
+   "attack_ms": 0.75,
+   "credit": null,
+   "variants": [
+    {
+     "variant": null,
+     "file": "audio/hover_tick__detent.ogg",
+     "length_s": 0.0835,
+     "note": null,
+     "channels": 2,
+     "dur_s": 0.0835,
+     "onset_s": 0.002,
+     "peak_s": 0.0038,
+     "end_s": 0.083,
+     "peak_db": -0.88,
+     "lufs_m_max": -22.1
+    }
+   ]
+  },
+  {
+   "id": "pro_impact/short",
+   "category": "pro_impact",
+   "role": "hit",
+   "family": "designed",
+   "about": "a designed sub hit with a gated tail",
+   "kinds": [
+    "hit",
+    "land"
+   ],
+   "centroid_hz": 190.1,
+   "attack_ms": 8.25,
+   "credit": null,
+   "variants": [
+    {
+     "variant": null,
+     "file": "audio/pro_impact__short.ogg",
+     "length_s": 0.6668,
+     "note": null,
+     "channels": 2,
+     "dur_s": 0.6,
+     "onset_s": 0.0,
+     "peak_s": 0.1802,
+     "end_s": 0.591,
+     "peak_db": -1.02,
+     "lufs_m_max": -14.9
+    }
+   ]
+  },
+  {
+   "id": "pro_notify/ding_2045",
+   "category": "pro_notify",
+   "role": "ding",
+   "family": "designed",
+   "about": "a short clean notification ding; a run steps up a semitone a ding",
+   "kinds": [
+    "bell",
+    "click.confirm"
+   ],
+   "centroid_hz": 2247.8,
+   "attack_ms": 2.0,
+   "credit": null,
+   "variants": [
+    {
+     "variant": null,
+     "file": "audio/pro_notify__ding_2045.ogg",
+     "length_s": 0.36,
+     "note": null,
+     "channels": 2,
+     "dur_s": 0.36,
+     "onset_s": 0.0,
+     "peak_s": 0.014,
+     "end_s": 0.342,
+     "peak_db": -1.0,
+     "lufs_m_max": -11.1
+    },
+    {
+     "variant": "G5",
+     "file": "audio/pro_notify__ding_2045--G5.ogg",
+     "length_s": null,
+     "note": "G5",
+     "channels": 2,
+     "dur_s": 0.36,
+     "onset_s": 0.0,
+     "peak_s": 0.0132,
+     "end_s": 0.337,
+     "peak_db": -0.99,
+     "lufs_m_max": -13.9
+    },
+    {
+     "variant": "A5",
+     "file": "audio/pro_notify__ding_2045--A5.ogg",
+     "length_s": null,
+     "note": "A5",
+     "channels": 2,
+     "dur_s": 0.36,
+     "onset_s": 0.0,
+     "peak_s": 0.0149,
+     "end_s": 0.336,
+     "peak_db": -1.03,
+     "lufs_m_max": -13.5
+    }
+   ]
+  },
+  {
+   "id": "whoosh_fast/tight",
+   "category": "whoosh_fast",
+   "role": "whoosh",
+   "family": "classic",
+   "about": "a fast pass: a whip pan, a fly-in, an element moving",
+   "kinds": [
+    "whoosh.short",
+    "suck"
+   ],
+   "centroid_hz": 749.0,
+   "attack_ms": 7.5,
+   "credit": null,
+   "variants": [
+    {
+     "variant": "0.25s",
+     "file": "audio/whoosh_fast__tight--0.25s.ogg",
+     "length_s": 0.25,
+     "note": null,
+     "channels": 2,
+     "dur_s": 0.25,
+     "onset_s": 0.006,
+     "peak_s": 0.0239,
+     "end_s": 0.163,
+     "peak_db": -0.91,
+     "lufs_m_max": -23.8
+    },
+    {
+     "variant": "0.5s",
+     "file": "audio/whoosh_fast__tight--0.5s.ogg",
+     "length_s": 0.5,
+     "note": null,
+     "channels": 2,
+     "dur_s": 0.5,
+     "onset_s": 0.007,
+     "peak_s": 0.1287,
+     "end_s": 0.359,
+     "peak_db": -0.94,
+     "lufs_m_max": -16.8
+    }
+   ]
+  }
+ ],
+ "left_out": [
+  {
+   "id": "pro_notify/ding_2045",
+   "variant": "Fs5",
+   "why": "earshot audit: 1 warning: metallic comb ring in the tail every 2.7 ms (z 22)"
+  }
+ ]
+}

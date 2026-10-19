@@ -28,4 +28,4 @@ videobuilder = "videobuilder.cli:main"
 include = ["videobuilder*"]
 
 [tool.setuptools.package-data]
-videobuilder = ["*.html", "*.js", "*.css", "release_notes/*.md"]
+videobuilder = ["*.html", "*.js", "*.css", "release_notes/*.md", "sfx-pack.sha256"]

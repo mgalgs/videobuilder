@@ -26,6 +26,22 @@ RUN python3 -m pip install --break-system-packages --no-cache-dir kokoro-onnx==0
         | sha256sum -c - && \
     python3 -c 'import kokoro_onnx'
 ENV VIDEOBUILDER_KOKORO_DIR=/opt/kokoro
+# Sound effects for `vb.sfx`: earshot's bank (MIT), rendered once to Opus as
+# vb-sfx-1.tar. Its sha256 is pinned in videobuilder/sfx-pack.sha256, the file
+# `python -m videobuilder sfx fetch` checks against too; all zeros there means
+# the pack isn't published yet, and the build stops to say so.
+ARG SFX_URL=https://github.com/mgalgs/videobuilder/releases/download/sfx-bank-1
+COPY videobuilder/sfx-pack.sha256 /tmp/vb-sfx/
+RUN cd /tmp/vb-sfx && \
+    if grep -q '^0\{64\} ' sfx-pack.sha256; then \
+        echo 'videobuilder/sfx-pack.sha256 is a placeholder: put the published vb-sfx-1.tar sha256 in it' >&2; \
+        exit 1; \
+    fi && \
+    curl -fsSL -o vb-sfx-1.tar "$SFX_URL/vb-sfx-1.tar" && \
+    sha256sum -c sfx-pack.sha256 && \
+    mkdir -p /opt/vb-sfx && tar -xf vb-sfx-1.tar -C /opt/vb-sfx && \
+    cd / && rm -rf /tmp/vb-sfx
+ENV VIDEOBUILDER_SFX_DIR=/opt/vb-sfx
 WORKDIR /opt/videobuilder
 COPY . .
 # ssh refuses to run for a uid with no passwd entry.
