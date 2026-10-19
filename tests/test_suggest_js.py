@@ -90,11 +90,47 @@ class PageWiring(unittest.TestCase):
         self.assertIn(js, page)
         self.assertIn('<textarea id="about"', page)
 
+    @unittest.skipUnless(shutil.which('node'), 'node is not available in this environment')
     def test_a_look_pick_sets_new_videos_look_field(self):
-        js = (PKG / 'suggest.js').read_text()
-        pick = re.search(r'\nfunction pick\(i, \{user\} = \{\}\) \{.*?\n\}', js, re.S).group(0)
-        self.assertIn('ST.look = look', pick)
-        self.assertIn("D.looks.some(l => l.id === look)", pick)
+        """suggest.js runs in its own <script>, separate from new_video.js's IIFE, so it
+        can't reach ST/D/draw directly -- it must go through the window.nvSetLook hook
+        new_video.js exposes. Run both sides for real (under node) rather than grepping
+        source text, so a wiring break (like the dead `typeof ST !== 'undefined'` check
+        this once was) actually fails the test."""
+        nv_js = (PKG / 'new_video.js').read_text()
+        hook = re.search(r'\nwindow\.nvSetLook=.*?;\n', nv_js).group(0)
+        sg_js = (PKG / 'suggest.js').read_text()
+        key_of = re.search(r'\nconst keyOf = .*?;', sg_js).group(0)
+        apply_look_pick = re.search(r'\nfunction applyLookPick\(i\) \{.*?\n\}', sg_js, re.S).group(0)
+        self.assertIn('window.nvSetLook', apply_look_pick)
+
+        script = f"""
+const window = {{}};
+let ST = {{look: null}};
+const D = {{looks: [{{id: 'pop-art'}}, {{id: 'as-shot'}}]}};
+let draws = 0;
+function draw() {{ draws++ }}
+{hook}
+const NEW = true;
+const BY = {{'looks:look-pop-art': {{look: 'pop-art'}}, 'looks:look-paper': {{look: null}}}};
+{key_of}
+{apply_look_pick}
+applyLookPick({{family: 'looks', id: 'look-pop-art'}});
+const afterSceneLook = {{look: ST.look, draws}};
+applyLookPick({{family: 'looks', id: 'look-paper'}});
+const afterFilterLook = {{look: ST.look, draws}};
+applyLookPick({{family: 'fonts', id: 'cantarell'}});
+const afterOtherFamily = {{look: ST.look, draws}};
+console.log(JSON.stringify({{afterSceneLook, afterFilterLook, afterOtherFamily}}));
+"""
+        result = subprocess.run(['node', '-'], input=script.encode(), capture_output=True)
+        self.assertEqual(result.returncode, 0, result.stderr.decode())
+        out = json.loads(result.stdout)
+        self.assertEqual(out['afterSceneLook'], {'look': 'pop-art', 'draws': 1})
+        # A filter look (or any id not in D.looks) is ignored: the hook never fires -- and
+        # here there's no look id (BY's `look` is None) for the paper-collage entry at all.
+        self.assertEqual(out['afterFilterLook'], {'look': 'pop-art', 'draws': 1})
+        self.assertEqual(out['afterOtherFamily'], {'look': 'pop-art', 'draws': 1})
 
     def test_director_js_clears_suggestions_after_sending_a_note(self):
         js = (PKG / 'director.js').read_text()

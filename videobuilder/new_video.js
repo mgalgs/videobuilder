@@ -317,4 +317,10 @@ const prompt=D.starters[Q.get('starter')];
 const way=prompt?'short':Q.get('path');
 if(WAYS[way])ACT.way({dataset:{way}});else draw();
 if(prompt){ST.about=prompt;draw();const t=$('#about');t.focus();const m=/\[[^\]]*\]/.exec(prompt);if(m)t.setSelectionRange(m.index,m.index+m[0].length)}
+
+/* suggest.js runs in its own <script>, so it can't reach ST/D/draw directly:
+   it calls this to keep the Look field in step with a look picked from "In a
+   few words" (suggest-notes.md q2). Only a name in D.looks (a whole-video
+   look this field can hold) is accepted. */
+window.nvSetLook=id=>{if(D.looks.some(l=>l.id===id)){ST.look=id;draw()}};
 })();

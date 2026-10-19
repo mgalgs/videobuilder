@@ -263,6 +263,15 @@ function rewrite(text, i) {
   const m = /[.!?]*\s*$/.exec(text), end = m.index;
   return [end, end, clause];
 }
+// New video's own Look field agrees with what the note now says (see suggest-notes.md q2).
+// new_video.js runs in its own <script> and exposes this hook since suggest.js can't reach
+// its ST/D/draw directly. A scene look is a whole-video vb.looks name the field can hold;
+// a filter look or paper collage isn't, so an unmatched id is just ignored by the hook.
+function applyLookPick(i) {
+  if (i.family !== 'looks' || !NEW || typeof window.nvSetLook !== 'function') return;
+  const look = BY[keyOf(i)]?.look;
+  if (look) window.nvSetLook(look);
+}
 function pick(i, {user} = {}) {
   const old = ta.value, [a, b, txt] = rewrite(old, i);
   programmatic = true;
@@ -279,13 +288,7 @@ function pick(i, {user} = {}) {
   let p = 0; while (p < old.length && p < v.length && old[p] === v[p]) p++;
   let s = 0; while (s < old.length - p && s < v.length - p && old[old.length - 1 - s] === v[v.length - 1 - s]) s++;
   flash(p, v.length - s);
-  if (i.family === 'looks' && NEW && typeof ST !== 'undefined' && typeof draw === 'function') {
-    // New video's own Look field agrees with what the note now says (see suggest-notes.md q2).
-    // Only a scene look is one of its own vb.looks names (a filter look, or paper collage, isn't
-    // a whole-video look New video's field can hold); D.looks is its own curated subset.
-    const look = BY[keyOf(i)]?.look;
-    if (look && typeof D !== 'undefined' && D.looks.some(l => l.id === look)) { ST.look = look; draw() }
-  }
+  applyLookPick(i);
   shown = shown.filter(x => keyOf(x) !== keyOf(i) && !(x.replace && i.replace && x.replace.span === i.replace.span) &&
                        (!x.replace || v.includes(x.replace.span)));
   render();
