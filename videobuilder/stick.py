@@ -31,6 +31,9 @@ import re
 from collections import namedtuple
 from dataclasses import dataclass, fields, replace
 
+import cairo
+
+from . import text as _text
 from .canvas import rgba
 from .ease import bezier, clamp01, damped, ease_in_out_quart, spring_at
 from .layout import Box
@@ -377,7 +380,9 @@ def mouth(timings, t):
     """How open the mouth is (0..1) at `t` seconds, flapping to word
     timings: a vb.captions Track, a vb.speech Narration (its words), or
     (text, start, end) tuples. Shut between words; inside one, it opens
-    and shuts once a syllable, the syllables sharing the word's time."""
+    and shuts once a syllable, the syllables sharing the word's time. For a
+    `say` narration (no real word times) pass `talk=VOICE.mouth(...)[n]`
+    instead: it is measured from the audio."""
     for text, a, z in _words(timings):
         if a <= t < z:
             k = syllables(text)
@@ -390,10 +395,12 @@ def mouth(timings, t):
 @dataclass(frozen=True)
 class Prop:
     """Something held: `kind` (sheet, map, mug, phone, pencil, sign), `text`
-    for a sign, and `hand` ('front' or 'back')."""
+    for a sign, `hand` ('front' or 'back'), and `font` (a `vb.Font`) a
+    sign's words are set in, sized to fit the board (its size is ignored)."""
     kind: str
     text: str = ''
     hand: str = 'front'
+    font: object = None
 
 
 PROPS = ('sheet', 'map', 'mug', 'phone', 'pencil', 'sign')
@@ -411,12 +418,15 @@ def _both_hands(p, j):
             and all(-0.05 < h[1] - sy < 0.12 for h in (a, b)))         # both out in front, at the chest
 
 
-def prop(kind, text='', hand='front'):
+_SIGN_FONT = _text.Font('sans-serif', 100, weight=700)
+
+
+def prop(kind, text='', hand='front', font=None):
     if kind not in PROPS:
         raise _unknown('prop', kind, PROPS)
     if hand not in ('front', 'back'):
         raise ValueError(f"a prop's hand is 'front' or 'back', not {hand!r}")
-    return Prop(kind, text, hand)
+    return Prop(kind, text, hand, font)
 
 
 _as_prop = prop
@@ -651,8 +661,9 @@ class Stick:
         ground = max(j['front_ankle'][1], j['back_ankle'][1]) + 0.6 * self.weight
         return (ground - (BODY_W / 2 if self.body == 'round' else self.weight / 2)) * self.height
 
-    def box(self, pose, x, y, facing=1, lift=0.0, scale=1.0):
-        """The figure's Box on the canvas: its limbs at their line weight and its head."""
+    def box(self, pose, x, y, facing=1, lift=0.0, scale=1.0, prop=None):
+        """The figure's Box on the canvas: its limbs at their line weight and
+        its head, and the `prop` it holds, if any."""
         j = self.joints(pose, x, y, facing, lift, scale)
         H = self.height * scale
         pad = 0.6 * self.weight * H                  # half the widest stroke, a foot's
@@ -663,7 +674,27 @@ class Stick:
         x1 = max(max(p[0] for p in j.values()) + pad, hx + rx)
         y0 = min(min(p[1] for p in j.values()) - pad, hy - ry)
         y1 = max(max(p[1] for p in j.values()) + pad, hy + ry)
+        if isinstance(prop, str):
+            prop = _as_prop(prop)
+        if prop is not None:
+            px0, py0, px1, py1 = self._prop_extent(self.pose(pose), prop, x, y, facing, lift, scale)
+            x0, y0, x1, y1 = min(x0, px0), min(y0, py0), max(x1, px1), max(y1, py1)
         return Box(x0, y0, x1 - x0, y1 - y0)
+
+    def _prop_extent(self, pose, prop, x, y, facing, lift, scale):
+        """The canvas extent (x0, y0, x1, y1) of the ink of `prop` held in `pose`."""
+        H = self.height * scale
+        j = _skeleton(pose, self.r)
+        ground = max(j['front_ankle'][1], j['back_ankle'][1]) + 0.6 * self.weight
+        fx = facing if abs(facing) >= 0.04 else math.copysign(0.04, facing or 1)
+        rec = cairo.RecordingSurface(cairo.CONTENT_COLOR_ALPHA, None)
+        c = cairo.Context(rec)
+        c.translate(x, y - lift)
+        c.scale(fx * H, H)
+        c.translate(0, -ground)
+        self._prop(c, prop, j, self.ink, self.fill, fx, 0.0, _both_hands(prop, j))
+        ex, ey, ew, eh = rec.ink_extents()
+        return ex, ey, ex + ew, ey + eh
 
     # ---- drawing ----
     def draw(self, cv, pose, x, y, face=None, facing=1, lift=0.0, scale=1.0, turn=0.35, blink=1.0, talk=0.0,
@@ -703,7 +734,7 @@ class Stick:
             c.paint_with_alpha(alpha)
         c.restore()
         joints = {k: (x + fx * px * H, y - lift + (py - ground) * H) for k, (px, py) in j.items()}
-        box = self.box(pose, x, y, facing, lift, scale)
+        box = self.box(pose, x, y, facing, lift, scale, prop)
         if mark:
             cv.mark(mark, *box)
         anchor = joints[f'{prop.hand}_hand'] if prop else None
@@ -893,17 +924,16 @@ class Stick:
                 c.translate(hx, y0 + bh / 2)
                 if fx < 0:
                     c.scale(-1, 1)               # the words read the right way round, whichever way it faces
-                c.select_font_face('sans-serif', 0, 1)
-                size = 0.07
-                c.set_font_size(size)
-                ext = c.text_extents(p.text)
-                if ext.width > bw * 0.84:
-                    size *= bw * 0.84 / ext.width
-                    c.set_font_size(size)
-                    ext = c.text_extents(p.text)
-                c.move_to(-ext.width / 2 - ext.x_bearing, -ext.height / 2 - ext.y_bearing)
+                font = replace(p.font or _SIGN_FONT, size=100)          # set at 100, scaled to the board
+                L = _text._layout(c, p.text, font)
+                ink_r = L.get_extents()[0]
+                iw, ih = ink_r.width / _text.S, ink_r.height / _text.S
+                k = min(0.07 / 100, bw * 0.84 / max(iw, 1e-6), bh * 0.7 / max(ih, 1e-6))
+                c.scale(k, k)
+                _text.PangoCairo.update_layout(c, L)
+                c.move_to(-iw / 2 - ink_r.x / _text.S, -ih / 2 - ink_r.y / _text.S)
                 c.set_source_rgba(*rgba(ink))
-                c.show_text(p.text)
+                _text.PangoCairo.show_layout(c, L)
                 c.restore()
         c.restore()
 

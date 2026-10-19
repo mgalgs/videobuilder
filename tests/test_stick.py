@@ -482,6 +482,29 @@ class Props(unittest.TestCase):
         b = flipped_pixels(left).transpose(PILImage.FLIP_LEFT_RIGHT).getchannel('A').tobytes()
         self.assertNotEqual(a, b)
 
+    def test_the_marked_box_holds_the_prop(self):
+        fig = vb.Stick(height=H)
+        for pose, kind in (('hold', 'sign'), ('cheer', 'sign'), ('hold', 'map'), ('read', 'sheet'), ('stand', 'mug')):
+            for facing in (1, -1):
+                cv = vb.Canvas(600, 600)
+                p = stick.prop(kind, text='THIS WAY')
+                drawn = fig.draw(cv, pose, 300, 550, facing=facing, prop=p, mark='fig')
+                x0, y0, x1, y1 = ink_bbox(cv, threshold=1)
+                b = drawn.box
+                self.assertEqual(b, fig.box(pose, 300, 550, facing=facing, prop=p))
+                self.assertLessEqual(b.x, x0 + 1, (pose, kind, facing))
+                self.assertLessEqual(b.y, y0 + 1, (pose, kind, facing))
+                self.assertGreaterEqual(b.x + b.w, x1 - 1, (pose, kind, facing))
+                self.assertGreaterEqual(b.y + b.h, y1 - 1, (pose, kind, facing))
+        self.assertLess(fig.box('hold', 300, 550, prop='sign').y, fig.box('hold', 300, 550).y - 0.1 * H)
+
+    def test_a_signs_words_take_the_films_font(self):
+        fig = vb.Stick(height=H)
+        plain, mono = vb.Canvas(500, 500), vb.Canvas(500, 500)
+        fig.draw(plain, 'hold', 250, 450, prop=stick.prop('sign', text='EXIT'))
+        fig.draw(mono, 'hold', 250, 450, prop=stick.prop('sign', text='EXIT', font=vb.Font('monospace', 10, weight=400)))
+        self.assertNotEqual(bytes(plain.surface.get_data()), bytes(mono.surface.get_data()))
+
 
 
 class SceneKit(unittest.TestCase):

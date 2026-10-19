@@ -99,22 +99,36 @@ the move they draw in from the stride to the stand's narrower stance.
 
 ## Talking
 
-`vb.stick.mouth(timings, t)` is how open the mouth is at `t` seconds: shut
-between words, and one open-and-shut flap a syllable inside each word.
-`timings` is a narration (`vb.speech.load(...)`, whose words the captions
-spread over each phrase), a captions `Track`, or `(text, start, end)`
-tuples. Pass it as `talk=`, on the film's clock:
+`talk=` opens the mouth: 0 shut, 1 wide (`True` opens it to 0.55). To sync
+it to a `say` narration, use the voice's own measured mouth, as every other
+talking character does (`narration.md`): `VOICE.mouth(FPS, at=AT,
+frames=TOTAL)` is read from the audio, opens on the syllable peaks and
+shuts in the dips. Pass its frame as `talk=`:
 
 ```python
 VOICE = vb.speech.load(HERE / 'assets' / 'voice.wav')
-TRACK = VOICE.track_at(AT, FPS)                        # the words on the film's clock
-FIG.draw(cv, pose, x, y, face=face, talk=vb.stick.mouth(TRACK, n / FPS))
+AT = GRID.b(2)                                         # the film frame the voice starts on
+MOUTH = VOICE.mouth(FPS, at=AT, frames=TOTAL)          # per frame: is the mouth open?
+FIG.draw(cv, pose, x, y, face=face, talk=MOUTH[n])
 ```
+
+`vb.stick.mouth(timings, t)` is the fallback for a track with real word
+times (an aligned transcript, a captions file cut to the audio): how open
+the mouth is at `t` seconds, shut between words and one open-and-shut flap
+a syllable inside each. `timings` is a captions `Track`, a narration, or
+`(text, start, end)` tuples. Kokoro gives no word times, so a `say`
+narration's words are spread over each phrase by length: flapped to those,
+the mouth stays open through most of a phrase while the voice opens and
+shuts. Use `VOICE.mouth` there.
 
 ## Props
 
-`prop='mug'`, or `vb.stick.prop(kind, text='', hand='front')`: `sheet`,
-`map`, `mug`, `phone`, `pencil`, `sign` (with `text`). A prop is drawn at
+`prop='mug'`, or `vb.stick.prop(kind, text='', hand='front', font=None)`:
+`sheet`, `map`, `mug`, `phone`, `pencil`, `sign` (with `text`, set in
+`font`, a `vb.Font`, sized to fit the board: pass the film's so the sign
+matches its type). The box `draw` returns and `mark=` registers holds the
+prop too, so `check.py` sees a sign cut off by the frame or over a
+caption. A prop is drawn at
 its hand on every frame, in the figure's line style, so it stays attached
 through any move. A `sheet` or `map` in the `read` pose is held open
 between both hands; in one hand it is held up by its edge. A mug stays
