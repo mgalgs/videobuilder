@@ -14,6 +14,7 @@ director's typing for long.
 """
 import http.client
 import json
+import re
 import socket
 import threading
 from urllib.parse import urlsplit
@@ -116,12 +117,15 @@ class SuggestClient:
         if len(payload) > MAX_BYTES:
             raise SuggestError(f'response over {MAX_BYTES} bytes')
         if status != 200:
-            raise SuggestError(f'HTTP {status} from the suggest endpoint')
+            detail = payload[:200].decode('utf-8', 'replace')
+            raise SuggestError(f'HTTP {status} from the suggest endpoint: {detail}')
         try:
             data = json.loads(payload)
             content = data['choices'][0]['message']['content']
             if isinstance(content, list):
                 content = ''.join(p.get('text', '') for p in content if isinstance(p, dict))
+            # Some models wrap the JSON in a ```json fence despite response_format.
+            content = re.sub(r'^\s*```(?:json)?\s*|\s*```\s*$', '', content)
             answer = json.loads(content)
         except (ValueError, KeyError, IndexError, TypeError):
             raise SuggestError('the suggest endpoint answered something unusable') from None

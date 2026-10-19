@@ -1,6 +1,7 @@
 """The suggest model client (suggest_client.py), against a fake OpenAI-compatible
 endpoint on a local port: request shape, timeout, cancellation, and that the
 key never appears in an error."""
+import json
 import threading
 import time
 import unittest
@@ -60,6 +61,18 @@ class Client(unittest.TestCase):
         self.fake.status = 500
         with self.assertRaises(SuggestError):
             self.client.complete('s', 'v', 'u')
+
+    def test_http_error_carries_the_endpoint_reason(self):
+        self.fake.status = 400
+        self.fake.raw_body = b'{"error":{"message":"bad model id"}}'
+        with self.assertRaisesRegex(SuggestError, 'HTTP 400.*bad model id'):
+            self.client.complete('s', 'v', 'u')
+
+    def test_answer_in_a_code_fence(self):
+        content = '```json\n{"items": [{"id": "x"}]}\n```'
+        self.fake.raw_body = json.dumps({'choices': [{'message': {'content': content}}]}).encode()
+        answer, _ = self.client.complete('s', 'v', 'u')
+        self.assertEqual(answer, {'items': [{'id': 'x'}]})
 
     def test_unusable_answer(self):
         self.fake.raw_body = b'not json at all'

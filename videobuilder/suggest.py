@@ -24,6 +24,7 @@ request is for (None for New video's "In a few words", asked before any
 video exists)."""
 import json
 import re
+import sys
 import threading
 import time
 from pathlib import Path
@@ -339,11 +340,19 @@ class Suggest:
         try:
             answer, usage = self.client.complete(static_block, video_block, _user_text(surface, clip, at, text),
                                                  cancel_event=cancel_event)
-        except (SuggestError, SuggestCancelled):
+        except SuggestCancelled:
+            if timer.finished.is_set():  # the timer fired; a browser that went away isn't worth a line
+                print(f'[editor] suggest: no answer within {self.client.timeout:g}s', file=sys.stderr, flush=True)
+            return {'seq': seq, 'items': []}
+        except SuggestError as exc:
+            print(f'[editor] suggest: {exc}', file=sys.stderr, flush=True)
             return {'seq': seq, 'items': []}
         finally:
             timer.cancel()
         items = self._validate(answer, text, music_ids)
+        if not items:
+            print(f'[editor] suggest: the model matched nothing usable: {json.dumps(answer)[:300]}',
+                  file=sys.stderr, flush=True)
         self._cache_put(cache_key, items)
         if usage:
             self._record_usage(author, usage)
