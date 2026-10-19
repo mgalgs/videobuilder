@@ -257,6 +257,22 @@ class Sound(unittest.TestCase):
     """The fixture pack (tests/__init__.py) stands in for the real one: a
     style takes its own sound where the pack has it, else the nearest role."""
 
+    def test_split_flap_keeps_its_copy_settled_through_the_hold(self):
+        # the gaps between a line's words are copy too: they never flip in the hold
+        from videobuilder.type import splitflap as sf
+        lines = ('Seven ways', 'to say the', 'same thing')
+        p = vt.props(lines, length=6)
+        clock = vt.get('split-flap').clock(p)
+        cols = max(len(ln) for ln in lines)
+        for rows, first in ((len(lines), 0), (len(lines) + 4, 2)):
+            plan = sf._plan(lines, cols, rows, first, p.length, clock.hold, clock.exit)
+            for (r, c), want in sf._targets(lines, cols).items():
+                bursts = plan.get((first + r, c), [])
+                for i in range(1, 60):
+                    t = clock.hold + (clock.exit - clock.hold) * i / 60
+                    showing, _, flap = sf._state(bursts, t)
+                    self.assertEqual((showing, flap), (want, None), ((r, c), t))
+
     def test_off_by_default_and_none_for_a_silent_style(self):
         self.assertEqual(vt.sounds('split-flap', LINES), ())
         self.assertEqual(vt.sounds('editorial', vt.props(LINES, sound=True)), ())

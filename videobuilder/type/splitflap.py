@@ -87,11 +87,13 @@ def _plan(lines, cols, rows, first, length, hold, exit_t):
     for (r, c), (start, seq) in enter.items():
         back = [seq[-1]] + [rnd.choice(CHARS) for _ in range(2)] + [' ']
         plan[(first + r, c)] = [(start * k, FLIP, seq), (exit_t + (0.03 * c + 0.06 * r) * xk, EXIT_FLIP, back)]
-    # The hold: blank cells (never a line's lamp) flip a few characters and back.
+    # The hold: blank cells (never a line's lamp, nor a gap between its words)
+    # flip a few characters and back.
     lamps = {(first + r, 0) for r in range(len(lines))}
+    copy = {(first + r, c) for (r, c) in targets}
     for r in range(rows):
         for c in range(cols):
-            if (r, c) in plan or (r, c) in lamps:
+            if (r, c) in copy or (r, c) in lamps:
                 continue
             bursts, t = [], hold + rnd.uniform(0, 1.6)
             while t < exit_t - 0.4:
