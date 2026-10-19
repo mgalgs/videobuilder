@@ -759,6 +759,8 @@ class Stick:
         else:
             stroke([j['hip'], j['neck']])
         arm('front')             # over the body, under the head: a raised arm passes behind it, the hand on top
+        if held == 'front' and prop.kind == 'sign':
+            self._prop(c, prop, j, ink, fill, fx, grow, two)     # its pole passes behind the head
         # the head
         hx, hy = j['head']
         c.new_path()
@@ -774,7 +776,7 @@ class Stick:
             c.rotate(math.radians(0.5 * pose.lean + pose.nod * 0.6))
             _draw_face(c, self.r, f, turn, blink, talk, ink, fill, w)
             c.restore()
-        if held == 'front':
+        if held == 'front' and prop.kind != 'sign':
             self._prop(c, prop, j, ink, fill, fx, grow, two)
         dot(j['front_hand'], 0.75 * w)
         if two:
@@ -870,7 +872,8 @@ class Stick:
                 c.set_source_rgba(*rgba(fill))
                 c.stroke()
         elif p.kind == 'sign':
-            pole = 0.2
+            top = j['head'][1] - self.r - 0.03                      # the board clears the head
+            pole = max(0.2, hy - top)
             c.move_to(hx, hy + 0.03)
             c.line_to(hx, hy - pole)
             c.set_source_rgba(*rgba(ink))

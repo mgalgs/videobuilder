@@ -441,6 +441,20 @@ class Props(unittest.TestCase):
             j = stick._skeleton(fig.gait(n, 'run').pose, fig.r)
             self.assertFalse(stick._both_hands(stick.prop('map'), j))
 
+    def test_a_sign_is_held_up_clear_of_the_face(self):
+        fig = vb.Stick(height=H)
+        bare, held = vb.Canvas(500, 500), vb.Canvas(500, 500)
+        fig.draw(bare, 'hold', 250, 480)
+        drawn = fig.draw(held, 'hold', 250, 480, prop=stick.prop('sign', text='THIS WAY'))
+        hx, hy = drawn.joints['head']
+        r = 0.8 * fig.r * H
+        a, b = bare.surface.get_data(), held.surface.get_data()
+        stride = held.surface.get_stride()
+        face = [(x, y) for x in range(int(hx - r), int(hx + r)) for y in range(int(hy - r), int(hy + r))
+                if math.hypot(x - hx, y - hy) < r]
+        self.assertFalse(any(a[y * stride + 4 * x:y * stride + 4 * x + 4] != b[y * stride + 4 * x:y * stride + 4 * x + 4]
+                             for x, y in face))
+
     def test_a_signs_words_read_the_right_way_whichever_way_it_faces(self):
         fig = vb.Stick(height=H)
         sign = stick.prop('sign', text='EXIT')
