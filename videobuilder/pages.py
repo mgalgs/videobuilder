@@ -228,12 +228,13 @@ def app_header(active, user=None, can_create=True, whats_new=None):
             f'<div class="app-actions">{new}{account}</div></div></header>' + APP_HEADER_SCRIPT)
 
 
-def editor_page(user=None, can_create=True):
-    """editor.html for a library video, with the shared header on top. The
+def editor_page(user=None, can_create=True, whats_new=None):
+    """editor.html for a library video, with the shared header on top
+    (`whats_new` as for app_header). The
     `has-app-bar` body class tells director.css to drop the topbar links and
     the account bar the header now covers; phones keep the compact topbar."""
     page = resources.files(__package__).joinpath('editor.html').read_text()
-    header = '<div class="desktop-only app-bar-wrap">' + app_header(None, user, can_create) + '</div>'
+    header = '<div class="desktop-only app-bar-wrap">' + app_header(None, user, can_create, whats_new) + '</div>'
     return (page.replace('</head>', f'<style>{APP_HEADER_STYLE}</style></head>', 1)
             .replace('<body>', '<body class="has-app-bar">', 1)
             .replace('<div id="app">', '<div id="app">' + header, 1)).encode()

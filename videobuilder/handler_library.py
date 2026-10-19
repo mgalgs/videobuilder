@@ -398,7 +398,8 @@ class LibraryHandler:
                     route = video_subroute or '/'
                     if route == '/' and method == 'GET':
                         page = editor_page(user if library.accounts else None,
-                                           bool(user) if library.accounts else True)
+                                           bool(user) if library.accounts else True,
+                                           library.whats_new.newest_key())
                         return self._send(200, page, 'text/html; charset=utf-8')
                     if library.accounts and route == '/api/access':
                         return self._access(method, name, user)

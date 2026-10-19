@@ -208,6 +208,11 @@ class EditorPageHeader(unittest.TestCase):
     def test_no_new_video_button_without_create_rights(self):
         self.assertNotIn('href="/new"', pages.editor_page('dana', can_create=False).decode())
 
+    def test_whats_new_link_only_when_there_are_entries(self):
+        self.assertIn('data-whats-new="2026-10-19 sfx"',
+                      pages.editor_page('dana', whats_new='2026-10-19 sfx').decode())
+        self.assertNotIn('href="/whats-new"', pages.editor_page('dana').decode())
+
 
 @unittest.skipUnless(shutil.which('node'), 'node is not available in this environment')
 class InlineScriptsParse(unittest.TestCase):
