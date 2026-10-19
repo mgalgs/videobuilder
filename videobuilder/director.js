@@ -2637,20 +2637,25 @@ function tlTicks(total,z) {
   for(let s=0;s*fps<=total;s+=step)h+=`<span class="tl-tick" style="left:${s*fps*z}px">${tlClock(s*fps)}</span>`;
   return h
 }
+// A lane item's name: its file's, or a bank sound effect's id (`sfx`, its peak or onset on `at`, drawn
+// from there for its `frames`, else half a second: the take's own length is in the pack, not the file).
+function tlItemName(it) {
+  return it.sfx?it.sfx+(it.variant?` ${it.variant}`:it.note?` ${it.note}`:''):it.sound.split('/').pop()
+}
 function tlLaneRow(lane,k,speech,z,total) {
   const items=lane.items||[];
   if(!items.length)return `<div class="tl-r tl-r-lane${lane.mute?' muted':''}"><div class="tl-lanedrop" `+
     `style="width:${Math.max(160,Math.min(total*z,600))}px">${svg(TL_ICON.audio,15)}Empty: add a sound from its menu, `+
     `or describe one in a note</div></div>`;
   return `<div class="tl-r tl-r-lane${lane.mute?' muted':''}">${items.map(it=> {
-    const a=it.at,b=it.at+it.frames,w=Math.max(4,(b-a)*z),h=34;
+    const a=it.at,b=it.at+(it.frames||(it.sfx?Math.round(state.tl.fps/2):0)),w=Math.max(4,(b-a)*z),h=34;
     const dips=lane.duck?speech.filter(([x,y])=>y>a&&x<b).map(([x,y])=>[Math.max(x,a),Math.min(y,b)]):[];
     const r=Math.max(3,.1*state.tl.fps*z),hi=h*.3,lo=h*.72;
     const pts=[[0,hi]];
     for(const [x,y] of dips)pts.push([(x-a)*z-r,hi],[(x-a)*z,lo],[(y-a)*z,lo],[(y-a)*z+r,hi]);
     pts.push([w,hi]);
     const poly=pts.map(q=>q.map(v=>Math.round(Math.max(0,Math.min(w,v))*10)/10).join(',')).join(' ');
-    const name=it.sound.split('/').pop();
+    const name=tlItemName(it);
     return `<div class="tl-lanebar" style="left:${a*z}px;width:${w}px" title="${esc(name)}${dips.length?
       ': dips under speech':''}"><svg viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" aria-hidden="true">`+
       `<polygon points="0,${h} ${poly} ${w},${h}" fill="#ffffff1c"/><polyline points="${poly}" fill="none" `+
@@ -3110,18 +3115,23 @@ function tlWireSheet(sheet,i,fps) {
   }
 }
 // The cut into clip i becomes transition k ('cut' for a hard cut). A transition starts the clip earlier
-// and puts the cut at its middle, so on a reel the cuts that were on the beat go back on it.
+// and puts the cut at its middle, so on a reel the cuts that were on the beat go back on it. The cut's
+// sound effect stays, but "auto" knows only a whip and a flash (timeline_file.AUTO_SOUNDS).
 function tlTransition(i,k) {
-  const fps=state.tl.fps,was=tlOnBeat(tlPlace().places);
+  const fps=state.tl.fps,was=tlOnBeat(tlPlace().places),snd=state.tl.data.clips[i].cut?.sound;
+  const lost=snd!=null&&(snd.sfx??snd)==='auto'&&k!=='whip'&&k!=='flash';
   tlChange(data=> {
-    const c=data.clips[i];
-    if(k==='cut')delete c.cut;
+    const c=data.clips[i],sound=lost||snd==null?{}:{sound:c.cut.sound};
+    if(k==='cut') {
+      if(sound.sound)c.cut={transition:'cut',...sound};
+      else delete c.cut
+    }
     else if(c.cut?.transition!==k) {
       const frames=c.cut?.frames||Math.max(2,Math.round(fps*(TL_LEN[k]||.5)));
-      c.cut={transition:k,frames,...(k==='wipe'||k==='whip'?{direction:c.cut?.direction||'left'}:{})}
+      c.cut={transition:k,frames,...(k==='wipe'||k==='whip'?{direction:c.cut?.direction||'left'}:{}),...sound}
     }
     tlKeepOnBeat(data,i,was)
-  },`${k} into ${state.tl.data.clips[i].id}`)
+  },`${k} into ${state.tl.data.clips[i].id}${lost?' (its "auto" sound dropped: name one for a '+k+')':''}`)
 }
 // Puts the cut into clip i on the beat (timeline_file.snap_cuts, for one cut): the nearest, else the one
 // on its other side, by trimming the end of the clip before it.
@@ -3258,7 +3268,7 @@ async function tlInsertSheet(i) {
 }
 async function tlLaneSheet(k) {
   const t=state.tl,lane=t.data.lanes[k],n=k+1;
-  const items=(lane.items||[]).map(it=>esc(it.sound.split('/').pop())).join(', ')||'Empty';
+  const items=(lane.items||[]).map(it=>esc(tlItemName(it))).join(', ')||'Empty';
   const sheet=tlOpenSheet(`<div class="tl-cutsheet"><h3>Audio ${n}</h3><p class="tl-sub">${items}</p>`+
     tlOpt('data-x="add"',false,svg(TL_ICON.plus,16),'Add a sound','From this video’s sources, where the '+
       (tlNoteClip()?'selected clip starts':'video starts'))+'<div id="tl-lane-sources"></div>'+

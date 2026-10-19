@@ -426,6 +426,52 @@ console.log(JSON.stringify(out));
         timeline_file.parse(song_gone)
 
     @unittest.skipUnless(shutil.which('node'), 'node is not available in this environment')
+    def test_a_cuts_sound_effect_survives_a_change_of_transition(self):
+        # tlTransition as in director.js: a named sound effect stays on the cut through a whip, a hard cut
+        # and a dissolve; "auto" stays on a flash, and is dropped (saying so) where it can't go.
+        import re
+        import subprocess
+        from videobuilder import timeline_file
+        js = (PKG / 'director.js').read_text()
+        parts = [re.search(r'\nconst ' + name + r'=.*?\n', js).group(0)
+                 for name in ('TL_LEN', 'tlInfo', 'tlFootage', 'tlCutAt')]
+        parts += [re.search(r'\nfunction ' + name + r'\(.*?\n\}', js, re.S).group(0)
+                  for name in ('tlPlace', 'tlGrid', 'tlOnBeat', 'tlKeepOnBeat', 'tlTransition')]
+        data = {'version': 1, 'fps': 30, 'clips': [
+            {'id': 'a', 'footage': 'sources/a.mp4', 'in': 0, 'out': 60},
+            {'id': 'b', 'footage': 'sources/b.mp4', 'in': 0, 'out': 60,
+             'cut': {'transition': 'dissolve', 'frames': 12, 'sound': 'pro_impact/short'}},
+            {'id': 'c', 'footage': 'sources/c.mp4', 'in': 0, 'out': 60,
+             'cut': {'transition': 'whip', 'frames': 8, 'sound': {'sfx': 'auto', 'gain_db': -3}}}]}
+        script = '\n'.join(parts) + """
+const clips=['a','b','c'].map(id=>({id,frames:90}));
+const state={tl:{fps:30,clips,data:DATA}};
+const said=[],tlChange=(change,what)=>{change(state.tl.data);said.push(what)};
+const cut=i=>JSON.parse(JSON.stringify(state.tl.data.clips[i].cut??null));
+const out={};
+tlTransition(1,'whip');out.whip=cut(1);
+tlTransition(1,'cut');out.hard=cut(1);
+tlTransition(1,'dissolve');out.dissolve=cut(1);
+tlTransition(2,'flash');out.flash=cut(2);
+tlTransition(2,'wipe');out.wipe=cut(2);
+out.said=said;
+out.data=state.tl.data;
+console.log(JSON.stringify(out));
+""".replace('DATA', json.dumps(data))
+        result = subprocess.run(['node', '-'], input=script.encode(), capture_output=True)
+        self.assertEqual(result.returncode, 0, result.stderr.decode())
+        out = json.loads(result.stdout)
+        self.assertEqual(out['whip'], {'transition': 'whip', 'frames': 12, 'direction': 'left',
+                                       'sound': 'pro_impact/short'})
+        self.assertEqual(out['hard'], {'transition': 'cut', 'sound': 'pro_impact/short'})
+        self.assertEqual(out['dissolve']['sound'], 'pro_impact/short')
+        self.assertEqual(out['flash']['sound'], {'sfx': 'auto', 'gain_db': -3})
+        self.assertNotIn('sound', out['wipe'])
+        self.assertIn('"auto" sound dropped', out['said'][-1])
+        self.assertNotIn('dropped', ' '.join(out['said'][:-1]))
+        timeline_file.parse(out['data'])
+
+    @unittest.skipUnless(shutil.which('node'), 'node is not available in this environment')
     def test_a_reels_cuts_stay_on_the_beat_when_a_clip_moves(self):
         # tlMoveTo, run as it is in director.js on a reel at 120 bpm whose first beat is frame 11 and
         # whose first clip runs over the intro (films.md, "Cutting a reel"): moving the last clip to
