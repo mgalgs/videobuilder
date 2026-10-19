@@ -33,21 +33,41 @@ def _entry(id, category, title, card, description, prompts, apis, doc, demo, pos
             'family': family}
 
 
-def _family(id, category, title, card, description, prompts, apis, doc, demo, members, noun, lead, poster=None):
+def _family(id, category, title, card, description, prompts, apis, doc, demo, members, noun, lead, poster=None,
+            kinds=None, lead_line='', member=None):
     """A family: named members, each its own entry with its own demo
     (`members`, built with `family=id`), that make up a section of their own
     on the page: the family's `category` is its alone, its heading the
-    section's. The Looks family is the first: a member is one named art
-    style any video can ask for. `noun` is (singular, plural) for a member,
-    as the page and the add flow say it ("look", "looks"); `lead` is the
-    title of the family's own card, first in its section (its demo shows
-    the members together). Members are reached through the family
-    (`entries()` lists them), never as top-level CATALOG entries."""
+    section's. Looks (named art styles) and Type (named typography styles)
+    are families: a member is one named style any video can ask for. `noun`
+    is (singular, plural) for a member, as the page and the add flow say it
+    ("look", "looks"); `lead` is the title of the family's own card, first in
+    its section (its demo shows the members together), and `lead_line` its
+    line. `kinds` groups the members, ((kind, heading, who it is for), ...),
+    each member saying its `kind`; None keeps them in one group. `member`
+    (see _member) is what a community member of the family must ship, for
+    the page's add flow ("A new look"); None takes none. Members are reached
+    through the family (`entries()` lists them), never as top-level CATALOG
+    entries."""
     entry = _entry(id, category, title, card, description, prompts, apis, doc, demo, poster=poster)
-    entry.update(children=tuple(members), noun=tuple(noun), lead=lead)
-    for member in members:
-        assert member['category'] == category and member['family'] == id, member['id']
+    entry.update(children=tuple(members), noun=tuple(noun), lead=lead, lead_line=lead_line,
+                 kinds=tuple(kinds) if kinds else None, member=member)
+    for member_ in members:
+        assert member_['category'] == category and member_['family'] == id, member_['id']
+        assert not kinds or member_.get('kind') in {k for k, _, _ in kinds}, member_['id']
     return entry
+
+
+def _member(file, registry, intro, code, film, doc):
+    """What a creator's new member of a family ships, and how its builder is
+    briefed (community.brief): `file`, its own reusable code beside the demo
+    (a look's look.py); `registry`, the module whose `get(name)` finds the
+    built-in members (KeyError for none), so a new one can't take a built-in
+    name, and whose `names()` the brief lists; `intro`, `code`, `film` and
+    `doc`, the brief's opening paragraphs (`intro` its first line, then the
+    contract to read), and its lines for the member's file, its demo film.py
+    and its capability.md. `{source}` in `code` becomes "post" or "page"."""
+    return {'file': file, 'registry': registry, 'intro': tuple(intro), 'code': code, 'film': film, 'doc': doc}
 
 
 # The kinds of Looks member, in the order the page and the sheet group them: a
@@ -79,6 +99,16 @@ def _style(entry):
     """A Looks member that is a style of its own rather than a named look of
     videobuilder.looks (paper collage): grouped with the scene looks."""
     entry.update(look=None, kind='scene')
+    return entry
+
+
+def _type_style(name, title, card, description, prompts, apis=()):
+    """A member of the Type family: the `name` style of videobuilder.type
+    (`title` is its title there), the shared three lines in its demo."""
+    entry = _entry(f'type-{name}', 'Type', title, card, description, prompts,
+                   (f"vb.type.draw(cv, '{name}', props, t)",) + tuple(apis),
+                   'skill/make-a-video/reference/type.md', f'type-{name}', family='type')
+    entry.update(style=name, kind=None)
     return entry
 
 
@@ -198,6 +228,109 @@ LOOKS = (
                  ('Paint this photo in tiny dots', 'Make the whole video look like a dot painting',
                   'Give the footage a shimmering, painted-in-dots look')),
 )
+
+TYPE = (
+    _type_style('split-flap', 'Split-flap board', 'A departures board: every letter flips through the alphabet and settles.',
+                'The lines set on a split-flap board, one cell per letter: each cell\'s flap falls through a run of '
+                'characters before it lands on its own, the cells starting left to right and row by row so the lines '
+                'clatter in as a wave. Blank cells round the copy flip now and then through the hold, a lamp beside '
+                'each line pulses in the accent, and on the exit every letter flips back to blank. A tall frame gets '
+                'a whole board of blank rows round the copy. With sound on, the flaps click.',
+                ('Make the title a split-flap departures board', 'Flip the quote in letter by letter like an airport board',
+                 'Show the times on a flip board, with the clicking')),
+    _type_style('typewriter', 'Typewriter', 'Letters strike in one at a time, a little uneven, the caret riding the line.',
+                'The lines typed onto the paper one key at a time with a human, uneven cadence: each letter lands a '
+                'touch off its line and a touch light or heavy, the way a typebar strikes, beside a margin rule in '
+                'the accent, with a caret riding the end of the line. Through the hold the caret blinks and the '
+                'sheet drifts in; on the exit the sheet feeds up and away. With sound on, every letter is a key '
+                'strike and the bell rings when the last line is in.',
+                ('Type the quote out like an old typewriter', 'Have the title type itself on, letter by letter',
+                 'Make it look typed, with the key sounds')),
+    _type_style('terminal', 'Terminal', 'Typed at a prompt with a block cursor, then deleted back to the prompt.',
+                'The lines typed in at a terminal prompt (an accent `>` before each), with a block cursor riding the '
+                'end of the line, under faint scanlines and a slow rolling band. Through the hold the cursor blinks '
+                'and the screen pushes in; on the exit every line is deleted back to the prompt. Built on the '
+                'compendium\'s terminal title: the same human keystroke cadence. With sound on, every letter is a '
+                'key tick.',
+                ('Type the headline in like a terminal command', 'Make it look like code being typed at a prompt',
+                 'Put the title on a command line with a blinking cursor')),
+    _type_style('rubber', 'Rubber letters', 'Bouncy letters that squash, stretch and settle on springs.',
+                'Each letter drops onto its line and its spring carries it on: where the spring overshoots, the '
+                'letter squashes flat and wide against the line; where it swings back, it stretches up tall; then '
+                'it settles, a soft shadow in the accent spreading under it. Through the hold a hop runs along each '
+                'line now and then, every letter jumping in turn; on the exit they squash down and pop away. With '
+                'sound on, each landing is a soft pop.',
+                ('Make the slogan bounce in, letters on springs', 'Give the title a squishy, jelly bounce',
+                 'Have the letters drop in and wobble')),
+    _type_style('rack-focus', 'Rack focus', 'Lines pull out of a soft haze into focus, one after another.',
+                'The lines come out of a soft haze one after another, each pulling into sharp focus as the one '
+                'before blurs back, the way a lens racks between two depths, with soft discs of out-of-focus light '
+                'drifting behind and an accent rule gliding to whichever line is sharp. Through the hold the focus '
+                'keeps racking from line to line; on the exit everything goes back into the haze.',
+                ('Bring the lines into focus one at a time', 'Make it feel cinematic, the text racking focus',
+                 'Have the quote drift out of a blur, line by line')),
+    _type_style('letter-cloud', 'Letter cloud', 'Letters scattered in 3D fly together into the words.',
+                'The letters start scattered through 3D space -- near and far, turned every way, tinted by the '
+                'accent the deeper they sit -- and fly together on springs into the words while the camera swings '
+                'round to face them (the extruded 3D title\'s camera). Through the hold the camera keeps drifting, '
+                'with small letters drifting through the depth behind; on the exit the letters burst past the '
+                'camera.',
+                ('Have the letters fly together out of a 3D cloud', 'Scatter the title in space and assemble it',
+                 'Make the words come together from flying letters')),
+    _type_style('editorial', 'Editorial stack', 'Stacked capitals revealed by hard wipes in the accent, magazine style.',
+                'A magazine-cover headline: heavy capitals stacked tight and set as big as the frame allows, each '
+                'line revealed by a hard block of the accent that sweeps across it and peels away, staggered, under a '
+                'hairline rule, beside a halftone plate in the accent that fills the room the type leaves. Through '
+                'the hold the plate\'s dots drift and the lines slide against each other; on the exit the blocks '
+                'sweep back and carry the lines off. Built on the compendium\'s editorial wipe title.',
+                ('Make the headline a magazine cover, big stacked type', 'Wipe each line on with a block of colour',
+                 'Give the title an editorial, print look')),
+)
+
+# What a creator's new member of each family ships (_member): the add flow's brief.
+LOOK_MEMBER = _member(
+    'look.py', 'videobuilder.looks',
+    ('Add a new look to videobuilder\'s Looks family: a creator saw an art style and wants any video '
+     'to be able to ask for it by name, the way it asks for "pop art" or "woodblock" today. Make one '
+     'reusable look that paints any scene, not one picture in that style.',
+     'Read skill/make-a-video/reference/looks.md first: it gives the look contract, and the built-in '
+     'looks (the videobuilder.looks package, one module each) are worked examples of it.'),
+    'ONE look following that contract: `paint(cv, scene, t, age)` paints a whole '
+    '`videobuilder.looks.Scene` (every pixel of scene.w by scene.h) from the roles of its regions (sky, '
+    'water, land, building, figure, light), its sun, beacon and stars -- whatever scene a video gives it, '
+    'in any frame shape -- and `LOOK = looks.Look(name, title, line, paint)`, with `name` equal to '
+    'capability.toml\'s id. Give it one signature motion that moves across a good part of the frame. '
+    'Draw everything in code with videobuilder: never copy the attached {source}\'s artwork, images, '
+    'text or branding, and never name an artist in it.',
+    'a 3 to 6 second demo that imports look.py from beside itself (put the file\'s own '
+    'directory on sys.path) and paints `looks.lighthouse(w, h, t)` with it -- the scene every look\'s '
+    'demo shares, so they compare -- in one 720x720 format, with a small plaque naming the look. It must '
+    'pass the motion floor: `looks.motion_floor(FILM, start, end)` of at least `looks.FLOOR` over the '
+    'part where the look holds; check it before you finish.',
+    'a short reference doc: how the look paints each role, what moves, and its options.')
+
+TYPE_MEMBER = _member(
+    'style.py', 'videobuilder.type',
+    ('Add a new type style to videobuilder\'s Type family: a creator saw a typography effect and wants any '
+     'video to be able to ask for it by name, the way it asks for "split-flap" or "typewriter" today. Make '
+     'one reusable style that sets any few lines, not one title in that style.',
+     'Read skill/make-a-video/reference/type.md first: it gives the style contract, and the built-in '
+     'styles (the videobuilder.type package, one module each) are worked examples of it.'),
+    'ONE style following that contract: `draw(cv, p, t, box, clock)` sets `p.lines` (1 to 4 short lines, '
+    'as given) in `p.ink` with `p.accent`, on `p.paper` or over whatever is already drawn when it is None, '
+    'inside `box` in any frame shape, entering, holding (still moving) and leaving within `p.length` '
+    'seconds (`clock.hold` and `clock.exit` say when) -- and `STYLE = vb.type.Style(name, title, line, '
+    'draw)`, with `name` equal to capability.toml\'s id. Mark each line with `cv.mark(\'line-<i>\', ...)` '
+    'once it can be read, inside the box. Draw everything in code with videobuilder: never copy the '
+    'attached {source}\'s artwork, text or branding.',
+    'a 5 to 6 second demo that imports style.py from beside itself (put the file\'s own directory on '
+    'sys.path), registers it (`vb.type.register(STYLE)`) and plays it with `vb.type.film(name, props)` on '
+    'three short lines of your own, in one 720x720 format. It must pass the motion floor: '
+    '`vb.type.motion_floor(FILM, start, end)` of at least `vb.type.FLOOR` over the part where the style '
+    'holds; check it before you finish.',
+    'a short reference doc: what the style is for, how it enters, holds and leaves, and how it lays out '
+    'tall, wide and square.')
+
 
 # Ids a capability used to have, still answered for the entry that took it over
 # (published notes, the showcase and builder prompts may name the old one).
@@ -494,7 +627,29 @@ CATALOG = (
          'looks.relay(cv, scene, t, names, hold=2.0)  # try several in turn',
          'looks.motion_floor(film, start, end) >= looks.FLOOR'),
         'skill/make-a-video/reference/looks.md', 'looks', LOOKS, noun=('look', 'looks'), lead='Try a few looks',
-        poster=5 * 24 + 12),  # mid-hold on pop art, not mid-wipe
+        poster=5 * 24 + 12,  # mid-hold on pop art, not mid-wipe
+        kinds=LOOK_KINDS, lead_line='Several in turn, wiping from one to the next.', member=LOOK_MEMBER),
+    _family(
+        'type', 'Type', 'Type',
+        'Named typography styles any video can ask for by name, every one taking the same few props.',
+        'Type-only moments asked for by name ("make the title a split-flap board", "type it on like a terminal", '
+        '"make the letters bounce"): each style is a short typography film of its own -- the letters enter, hold '
+        'while still moving, and leave -- drawn from the same props every style takes: one to four short lines, '
+        'three colours (ink, paper, accent) and a length, 6 s inside a film or up to 18 s as a film of its own. '
+        'Each lays itself out for tall, wide and square frames, can run in a box or over another picture, and '
+        'the ones with an obvious sound (flap clicks, key strikes, a soft pop) bring it when asked.',
+        ('Make the title a split-flap departures board', 'Type the headline on like a terminal, with a prompt',
+         'Make the slogan bounce in, letters on springs', 'Show me the same title in a few type styles'),
+        ("TITLE = vb.type.props(lines=['Gate 14', 'Now boarding'], ink=, paper=, accent=, length=6)",
+         "vb.type.draw(cv, 'split-flap', TITLE, t)  # t: seconds since the style started",
+         "vb.type.draw(cv, 'rubber', vb.type.props(TITLE, paper=None), t, box=(x, y, w, h))  # over a picture",
+         "vb.type.film('typewriter', TITLE, length=18)  # one style as a film of its own",
+         "vb.type.sounds(name, vb.type.props(TITLE, sound=True), at=frame)  # its clicks, keys or pops",
+         'vb.type.names() / vb.type.get(name)', 'vb.type.relay(cv, names, TITLE, t, each=3.0)',
+         'vb.type.motion_floor(film, start, end) >= vb.type.FLOOR'),
+        'skill/make-a-video/reference/type.md', 'type', TYPE, noun=('type style', 'type styles'),
+        lead='A few type styles', lead_line='The same three lines, one style after another.', member=TYPE_MEMBER,
+        poster=round(0.6 * 90)),  # mid-hold on the split-flap board
     _entry(
         'beat-lock', 'Timing, sound and formats', 'Cuts locked to the music',
         'Hard cuts land exactly on the beat, with a music bed.',
@@ -593,6 +748,29 @@ def families():
     return tuple(e for e in CATALOG if e.get('children') is not None)
 
 
+def member_paths():
+    """{family id: the file a community member ships} for every family that
+    takes them (see _member): community.MEMBER_PATHS."""
+    return {f['id']: f['member']['file'] for f in families() if f.get('member')}
+
+
+def member_name(entry):
+    """The registry name a family member answers to (a look's, a type
+    style's), or None for one built by hand (paper collage)."""
+    return entry.get('look') or entry.get('style')
+
+
+def kind_groups(family, members=None):
+    """The family's members grouped as the page and the sheet show them:
+    [(kind, heading, line, members), ...], one group with no heading
+    (kind, heading and line None) for a family with no kinds."""
+    members = family['children'] if members is None else members
+    if not family.get('kinds'):
+        return [(None, None, None, list(members))]
+    return [(kind, heading, line, [c for c in members if c.get('kind') == kind])
+            for kind, heading, line in family['kinds']]
+
+
 _BY_ID = {e['id']: e for e in entries()}
 
 
@@ -677,13 +855,12 @@ def sheet_markdown():
                 singular, plural = e['noun']
                 lines.append(f'**The {plural}** ({len(e["children"])}; ask for any {singular} by name):')
                 lines.append('')
-                for kind, heading, line in LOOK_KINDS:
-                    lines.append(f'*{heading}*, {line}:')
-                    lines.append('')
-                    for child in e['children']:
-                        if child.get('kind') != kind:
-                            continue
-                        name = child['look'] or child['id']
+                for kind, heading, line, members in kind_groups(e):
+                    if heading:
+                        lines.append(f'*{heading}*, {line}:')
+                        lines.append('')
+                    for child in members:
+                        name = member_name(child) or child['id']
                         build = '; '.join(f'`{api}`' for api in child['apis'])
                         lines.append(f"- **{child['title']}** (`{name}`): {child['card']} "
                                      f"Ask: \"{child['prompts'][0]}\". Build: {build}. Example: `{child['demo']}`.")
@@ -1138,13 +1315,12 @@ _ADD_CAPABILITY_SCRIPT = """
 
 
 def _add_capability_html(fetch):
-    from .community import MEMBER_PATHS
     url_field = ('<label>Link (an X post, a blog post, a demo page)<input type="url" name="url" '
                 'placeholder="https://&hellip;"></label>' if fetch else '')
     kinds = [('', 'A new capability', 'A technique videobuilder can\'t do yet', 'Add a capability',
               'A one-line description of the effect')]
     for f in families():
-        if f['id'] in MEMBER_PATHS:
+        if f.get('member'):
             singular, plural = f['noun']
             kinds.append((f['id'], f'A new {singular}', f'Added to {f["title"]}, for any video to ask for',
                           f'Add a {singular}', f'A one-line description of the {singular}'))
@@ -1279,30 +1455,36 @@ def _thumb_html(id_, built):
 
 
 def _kind_title(entry):
-    """'Scene look', 'Filter look': what a family member is, for its modal."""
-    return next(heading for kind, heading, _ in LOOK_KINDS if kind == entry.get('kind', 'scene'))[:-1]
+    """What a family member is, for its modal: its kind's heading made
+    singular ('Scene look', 'Filter look'), or its family's noun ('Type
+    style') for a family with no kinds."""
+    family = get(entry['family'])
+    if not family.get('kinds'):
+        return family['noun'][0].capitalize()
+    return next(heading for kind, heading, _ in family['kinds'] if kind == entry.get('kind', family['kinds'][0][0]))[:-1]
 
 
 def _family_section_html(e, built, community_members, is_admin):
     """A family's section of the page, under its category's heading: one
     line on the family, its own card (`lead`, its demo showing the members
-    together), then its members grouped by kind (LOOK_KINDS), each group
-    under a heading that says who it is for. Published community members
-    (scene looks) close the scene group, with the actions their cards have
-    elsewhere. On a phone the cards drop their line and sit three across,
-    so the whole section scans in a few screens."""
+    together), then its members grouped by kind (the family's `kinds`), each
+    group under a heading that says who it is for, or in one grid for a
+    family with none. Published community members close the first group,
+    with the actions their cards have elsewhere. On a phone the cards drop
+    their line and sit three across, so the whole section scans in a few
+    screens."""
     singular, plural = e['noun']
     n = len(e['children']) + len(community_members)
     out = [f'<p class="section-lead">{_esc(e["card"])} <span class="count">{n} {plural}</span></p>',
            '<div class="grid looks-grid">',
-           _card_html(e['id'], e['lead'], 'Several in turn, wiping from one to the next.', _thumb_html(e['id'], built)),
+           _card_html(e['id'], e['lead'], e['lead_line'], _thumb_html(e['id'], built)),
            '</div>']
-    for kind, heading, line in LOOK_KINDS:
-        members = [c for c in e['children'] if c.get('kind') == kind]
+    for i, (kind, heading, line, members) in enumerate(kind_groups(e)):
         cards = [_card_html(c['id'], c['title'], c['card'], _thumb_html(c['id'], built)) for c in members]
-        if kind == 'scene':
+        if i == 0:
             cards += [_community_card_html(entry, is_admin) for entry in community_members]
-        out.append(f'<h3 class="kind" data-kind="{kind}">{_esc(heading)} <span>{_esc(line)}</span></h3>')
+        if heading:
+            out.append(f'<h3 class="kind" data-kind="{kind}">{_esc(heading)} <span>{_esc(line)}</span></h3>')
         out.append(f'<div class="grid looks-grid" data-family="{_esc(e["id"])}">{"".join(cards)}</div>')
     return ''.join(out)
 

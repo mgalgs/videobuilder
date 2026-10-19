@@ -293,6 +293,51 @@ class LookValidation(unittest.TestCase):
                 community.check_family(bad)
 
 
+def _style_fields(**overrides):
+    fields = dict(_base_fields(), id='neon-sign', title='Neon sign', family='type',
+                  category=capabilities.get('type')['category'])
+    fields.update(overrides)
+    return fields
+
+
+class TypeStyleValidation(unittest.TestCase):
+    """A new type style goes through the same family checks as a new look,
+    read off the Type family's own member spec."""
+
+    def _files(self, fields, style=b'STYLE = None\n'):
+        return _files(toml_fields=fields, **{'style.py': style})
+
+    def test_a_valid_style(self):
+        entry = community.validate(_read(self._files(_style_fields())), expected_family='type')
+        self.assertEqual((entry['id'], entry['family'], entry['category']), ('neon-sign', 'type', 'Type'))
+        self.assertEqual(community.check_family('type'), 'type')
+        self.assertEqual(community.MEMBER_PATHS['type'], 'style.py')
+
+    def test_style_cases(self):
+        cases = {
+            'style.py missing': (_files(toml_fields=_style_fields()), 'style.py is missing'),
+            'a built-in style name': (self._files(_style_fields(id='rubber')), 'built-in type style'),
+            'a built-in style alias': (self._files(_style_fields(id='magazine')), 'built-in type style'),
+            'a look, as a type style': (self._files(_style_fields(family='looks')), 'family must be "type"'),
+        }
+        for name, (files, message) in cases.items():
+            with self.subTest(name=name):
+                with self.assertRaises(community.Invalid) as cm:
+                    community.validate(_read(files), expected_family='type')
+                self.assertIn(message, str(cm.exception))
+
+    def test_a_type_style_brief_asks_for_one_reusable_style_on_the_contract(self):
+        text = community.brief(None, 'a neon sign that flickers on', False, family='type')
+        for needle in ('Type family', 'style.py', 'skill/make-a-video/reference/type.md',
+                       'draw(cv, p, t, box, clock)', 'vb.type.Style(', 'vb.type.register(STYLE)',
+                       'vb.type.motion_floor', 'vb.type.FLOOR', 'family = "type"', 'category = "Type"',
+                       'not the name of a type style that already exists: split-flap, typewriter',
+                       'capability.md', 'exactly four files', 'The submitter wants to capture: a neon sign'):
+            self.assertIn(needle, text)
+        self.assertNotIn('look.py', text)
+        self.assertNotIn('lighthouse', text)
+
+
 if __name__ == '__main__':
     unittest.main()
 

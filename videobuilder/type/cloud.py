@@ -144,8 +144,9 @@ def draw(cv, p, t, box, clock):
         if q > 0.5:
             gw = text.measure(ch, font) * d
             bx = line_boxes.setdefault(i, [math.inf, math.inf, -math.inf, -math.inf])
-            bx[0], bx[1] = min(bx[0], sx - gw / 2), min(bx[1], sy - lh * d / 2)
-            bx[2], bx[3] = max(bx[2], sx + gw / 2), max(bx[3], sy + lh * d / 2)
+            gh = font.size * 0.9 * d          # the letters' own height, not the line's: lines sit tight
+            bx[0], bx[1] = min(bx[0], sx - gw / 2), min(bx[1], sy - gh / 2)
+            bx[2], bx[3] = max(bx[2], sx + gw / 2), max(bx[3], sy + gh / 2)
     for depth, f, ch, sx, sy, d, roll, turn, colour, alpha in sorted(draws, key=lambda r: -r[0]):
         if alpha > 0.01 and d > 0:
             _letter(cv, f, ch, sx, sy, d, roll, turn, colour, alpha)

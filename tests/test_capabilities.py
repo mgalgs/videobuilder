@@ -9,7 +9,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from videobuilder import capabilities, load
+from videobuilder import capabilities, load, load_module
 
 ROOT = Path(__file__).resolve().parent.parent
 DEMOS = ROOT / 'examples' / 'capabilities'
@@ -61,7 +61,7 @@ class Catalog(unittest.TestCase):
 class Families(unittest.TestCase):
     def test_looks_is_a_family_with_a_category_of_its_own(self):
         from videobuilder import looks
-        self.assertEqual([f['id'] for f in capabilities.families()], ['looks'])
+        self.assertEqual([f['id'] for f in capabilities.families()], ['looks', 'type'])
         family = capabilities.get('looks')
         self.assertIn(family, capabilities.CATALOG)
         self.assertEqual(family['category'], 'Looks')
@@ -89,6 +89,35 @@ class Families(unittest.TestCase):
                     self.assertEqual(child['title'], looks.get_filter(child['look']).title)
                     self.assertTrue(any(f"looks.filter(cv, '{child['look']}'" in api for api in child['apis']))
 
+    def test_type_is_a_family_one_card_per_style(self):
+        from videobuilder import type as vt
+        family = capabilities.get('type')
+        self.assertIn(family, capabilities.CATALOG)
+        self.assertEqual(family['category'], 'Type')
+        self.assertEqual([e['id'] for e in capabilities.CATALOG if e['category'] == 'Type'], ['type'])
+        self.assertEqual(capabilities.categories().index('Type'), capabilities.categories().index('Looks') + 1)
+        self.assertEqual(family['noun'], ('type style', 'type styles'))
+        self.assertEqual((family['lead'], family['kinds']), ('A few type styles', None))
+        self.assertEqual(family['member']['file'], 'style.py')
+        self.assertEqual([c['id'] for c in family['children']], [f'type-{n}' for n in vt.names()])
+        for child in family['children']:
+            with self.subTest(id=child['id']):
+                self.assertNotIn(child, capabilities.CATALOG)
+                self.assertEqual((child['family'], child['category']), ('type', 'Type'))
+                self.assertEqual(child['title'], vt.get(child['style']).title)
+                self.assertEqual(child['doc'], 'skill/make-a-video/reference/type.md')
+                self.assertEqual(child['demo'], f"examples/capabilities/type-{child['style']}.py")
+                self.assertTrue(any(f"vb.type.draw(cv, '{child['style']}'" in api for api in child['apis']))
+                self.assertEqual(len(child['prompts']), 3)
+
+    def test_every_type_demo_takes_the_same_props(self):
+        props = set()
+        for child in capabilities.get('type')['children']:
+            film = load(str(ROOT / child['demo']))
+            self.assertEqual(film.formats[0].name, 'cap')
+            props.add(load_module(str(ROOT / child['demo']))._type.PROPS)
+        self.assertEqual(len(props), 1)
+
     def test_entries_lists_each_family_then_its_members(self):
         ids = [e['id'] for e in capabilities.entries()]
         at = ids.index('looks')
@@ -96,8 +125,7 @@ class Families(unittest.TestCase):
         self.assertEqual(ids[at + 1:at + 1 + len(children)], [c['id'] for c in children])
         self.assertEqual(len(ids), len(set(ids)))
         for e in capabilities.CATALOG:
-            if e['id'] != 'looks':
-                self.assertIsNone(e['family'])
+            self.assertIsNone(e['family'])
 
     def test_the_sheet_lists_every_look_by_name_in_its_kind(self):
         sheet = capabilities.sheet_markdown()
@@ -228,6 +256,59 @@ class LooksSection(unittest.TestCase):
         self.assertNotIn('id="modal-back"', page)
         self.assertIn('#modal .close{position:absolute;top:10px;right:10px;width:44px;height:44px;', page)
         self.assertRegex(page, r'\.card\{[^}]*min-height:44px')
+
+
+class TypeSection(unittest.TestCase):
+    """The Type family wired like Looks, through the same family fields:
+    its own section, a lead card, one card per style, and the add flow."""
+
+    def _page(self, built=(), community=None):
+        with tempfile.TemporaryDirectory() as d:
+            for id_ in built:
+                Path(d, f'{id_}.mp4').write_bytes(b'mp4')
+            return capabilities.page_html(d, '0', community=community).decode()
+
+    def test_type_is_a_section_with_a_lead_card_then_one_card_per_style(self):
+        section = _section(self._page(built=('type', 'type-rubber')), 'Type')
+        self.assertIn('<span class="count">7 type styles</span>', section)
+        lead = section.index('<strong>A few type styles</strong>')
+        self.assertIn('The same three lines, one style after another.', section)
+        for child in capabilities.get('type')['children']:
+            self.assertGreater(section.index(f'data-card="{child["id"]}"'), lead)
+        self.assertNotIn('data-kind=', section)                      # one group: no kind headings
+        self.assertIn('<img src="/capabilities/type-rubber.jpg"', section)
+        self.assertNotIn('data-card="type-rubber"', _section(self._page(), 'Looks'))
+
+    def test_the_page_data_says_what_a_member_is(self):
+        data = {e['id']: e for e in _data(self._page())}
+        self.assertEqual((data['type']['members'], data['type']['plural']), (7, 'type styles'))
+        self.assertEqual((data['type-split-flap']['family'], data['type-split-flap']['kindTitle']), ('type', 'Type style'))
+        self.assertEqual(data['look-melt']['kindTitle'], 'Scene look')
+
+    def test_the_add_flow_offers_a_new_type_style(self):
+        page = self._page(community={'published': [], 'drafts': [], 'can_submit': True, 'is_admin': False,
+                                     'fetch': False})
+        self.assertIn('<input type="radio" name="family" value="type"><strong>A new type style</strong>', page)
+        self.assertIn('data-heading="Add a type style"', page)
+        self.assertIn('Added to Type, for any video to ask for', page)
+        self.assertIn('A one-line description of the type style', page)
+
+    def test_a_published_community_style_sits_in_the_type_section(self):
+        style = dict(COMMUNITY_LOOK, family='type', category='Type', slug='c-20260101-fff000', id='neon-sign',
+                     title='Neon sign')
+        page = self._page(community={'published': [style], 'drafts': [], 'can_submit': False, 'is_admin': False,
+                                     'fetch': False})
+        self.assertIn('data-card="community:c-20260101-fff000"', _section(page, 'Type'))
+        self.assertIn('<span class="count">8 type styles</span>', _section(page, 'Type'))
+        self.assertNotIn('data-card="community:c-20260101-fff000"', _section(page, 'Looks'))
+
+    def test_the_sheet_lists_every_style_by_name(self):
+        sheet = capabilities.sheet_markdown()
+        part = sheet[sheet.index('## Type\n'):]
+        part = part[:part.index('\n## ', 3)]
+        self.assertIn('**The type styles** (7; ask for any type style by name)', part)
+        for child in capabilities.get('type')['children']:
+            self.assertIn(f"- **{child['title']}** (`{child['style']}`)", part)
 
 
 if __name__ == '__main__':

@@ -487,6 +487,41 @@ What videobuilder can already do, with a worked example for each. Reach for one 
 
 Old ids, now part of these: `comic-halftone` is the **Pop-art filter**; `pixel-art-layer` is the **8-bit pixel filter**.
 
+## Type
+
+### Type
+
+**What it looks like:** Named typography styles any video can ask for by name, every one taking the same few props. Type-only moments asked for by name ("make the title a split-flap board", "type it on like a terminal", "make the letters bounce"): each style is a short typography film of its own -- the letters enter, hold while still moving, and leave -- drawn from the same props every style takes: one to four short lines, three colours (ink, paper, accent) and a length, 6 s inside a film or up to 18 s as a film of its own. Each lays itself out for tall, wide and square frames, can run in a box or over another picture, and the ones with an obvious sound (flap clicks, key strikes, a soft pop) bring it when asked.
+
+**When to use it:** reach for this when a director says something like:
+- "Make the title a split-flap departures board"
+- "Type the headline on like a terminal, with a prompt"
+- "Make the slogan bounce in, letters on springs"
+- "Show me the same title in a few type styles"
+
+**How to build it:**
+- `TITLE = vb.type.props(lines=['Gate 14', 'Now boarding'], ink=, paper=, accent=, length=6)`
+- `vb.type.draw(cv, 'split-flap', TITLE, t)  # t: seconds since the style started`
+- `vb.type.draw(cv, 'rubber', vb.type.props(TITLE, paper=None), t, box=(x, y, w, h))  # over a picture`
+- `vb.type.film('typewriter', TITLE, length=18)  # one style as a film of its own`
+- `vb.type.sounds(name, vb.type.props(TITLE, sound=True), at=frame)  # its clicks, keys or pops`
+- `vb.type.names() / vb.type.get(name)`
+- `vb.type.relay(cv, names, TITLE, t, each=3.0)`
+- `vb.type.motion_floor(film, start, end) >= vb.type.FLOOR`
+- Read `skill/make-a-video/reference/type.md`.
+
+**Worked example:** `examples/capabilities/type.py` — read it before writing something similar from scratch.
+
+**The type styles** (7; ask for any type style by name):
+
+- **Split-flap board** (`split-flap`): A departures board: every letter flips through the alphabet and settles. Ask: "Make the title a split-flap departures board". Build: `vb.type.draw(cv, 'split-flap', props, t)`. Example: `examples/capabilities/type-split-flap.py`.
+- **Typewriter** (`typewriter`): Letters strike in one at a time, a little uneven, the caret riding the line. Ask: "Type the quote out like an old typewriter". Build: `vb.type.draw(cv, 'typewriter', props, t)`. Example: `examples/capabilities/type-typewriter.py`.
+- **Terminal** (`terminal`): Typed at a prompt with a block cursor, then deleted back to the prompt. Ask: "Type the headline in like a terminal command". Build: `vb.type.draw(cv, 'terminal', props, t)`. Example: `examples/capabilities/type-terminal.py`.
+- **Rubber letters** (`rubber`): Bouncy letters that squash, stretch and settle on springs. Ask: "Make the slogan bounce in, letters on springs". Build: `vb.type.draw(cv, 'rubber', props, t)`. Example: `examples/capabilities/type-rubber.py`.
+- **Rack focus** (`rack-focus`): Lines pull out of a soft haze into focus, one after another. Ask: "Bring the lines into focus one at a time". Build: `vb.type.draw(cv, 'rack-focus', props, t)`. Example: `examples/capabilities/type-rack-focus.py`.
+- **Letter cloud** (`letter-cloud`): Letters scattered in 3D fly together into the words. Ask: "Have the letters fly together out of a 3D cloud". Build: `vb.type.draw(cv, 'letter-cloud', props, t)`. Example: `examples/capabilities/type-letter-cloud.py`.
+- **Editorial stack** (`editorial`): Stacked capitals revealed by hard wipes in the accent, magazine style. Ask: "Make the headline a magazine cover, big stacked type". Build: `vb.type.draw(cv, 'editorial', props, t)`. Example: `examples/capabilities/type-editorial.py`.
+
 ## Timing, sound and formats
 
 ### Cuts locked to the music
