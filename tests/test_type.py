@@ -275,5 +275,33 @@ class Demos(unittest.TestCase):
         film.frame(film.frames // 2, scale=0.25)
 
 
+class ReferenceDoc(unittest.TestCase):
+    DOC = ROOT / 'skill' / 'make-a-video' / 'reference' / 'type.md'
+
+    def test_the_doc_covers_every_style_and_the_props(self):
+        doc = ' '.join(self.DOC.read_text().split())
+        for name in STYLES:
+            self.assertIn(f'| `{name}` |', doc)
+        for prop in ('lines=', 'ink=', 'paper=', 'accent=', 'length=', 'sound=', 'font='):
+            self.assertIn(prop, doc)
+        self.assertIn('paper=None', doc)
+        self.assertIn('make the title a split-flap board', doc)
+        self.assertIn('reference/type.md', (ROOT / 'skill' / 'make-a-video' / 'SKILL.md').read_text())
+
+    def test_the_over_a_picture_example_runs(self):
+        import re
+        import textwrap
+        block = next(b for b in re.findall(r'```python\n(.*?)```', self.DOC.read_text(), re.S) if 'box=' in b)
+        scope = {'vb': vb, 'FPS': 30, 'TITLE': vt.props(LINES),
+                 'draw_the_product_shot': lambda cv, t: cv.fill('#3a6ff0')}
+        exec(textwrap.dedent(block), scope)
+        cv = vb.Canvas(540, 960)
+        scope['draw'](150, cv)             # 5 s in: the style 3 s in, mid-hold
+        self.assertEqual(_pixel(cv, 270, 100), (0x3a, 0x6f, 0xf0))
+        self.assertTrue(cv.marks)
+        for mark, box in cv.marks:
+            self.assertGreaterEqual(box.y, 960 * 0.6 - 1, mark)
+
+
 if __name__ == '__main__':
     unittest.main()

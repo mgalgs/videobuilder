@@ -89,6 +89,18 @@ plaque is drawn after the filter, so it reads. The family's own demo
 longer than 4 s on purpose. A look's demo needs no loop: its motion is the point, and
 the motion floor test (tests/test_looks.py) fails one that barely moves.
 
+## The Type family
+
+Every type style's demo (`type-<name>.py`) sets the same three lines in the
+same three colours through `_type.py` (`_kit`'s ink and background, an amber
+accent), so the cards compare like for like. A style needs its enter, hold
+and exit, so each demo runs 5 s rather than 2-4, and the family's own demo
+(`type.py`) plays four styles at 3 s each. Like a look's demo it needs no
+loop: it starts and ends on bare paper, and tests/test_type.py fails a style
+whose hold barely moves (`vb.type.FLOOR`). Each demo lists a tall and a wide
+format after the square one, for the preview: every style lays itself out
+per shape.
+
 Four capability demos -- shape-morph, line-chart-callout, hard-light-sweep,
 drawn-on-diagram -- and two since merged into the pop-art and pixel filter
 looks (comic-halftone, pixel-art-layer; the showcase's comic and pixel

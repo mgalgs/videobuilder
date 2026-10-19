@@ -694,7 +694,16 @@ collage; every builder's prompt names them
 (`skill/make-a-video/reference/looks.md`). The old `comic-halftone` and
 `pixel-art-layer` ids now answer for the pop-art and pixel filter looks they
 were merged into (`capabilities.ALIASES`).
-The dialog's first choice is **A new capability** or **A new look**. A look
+**Type** is the second: named typography styles (`videobuilder.type`:
+split-flap, typewriter, terminal, rubber, rack focus, letter cloud,
+editorial), every one taking the same props -- a few lines, three colours, a
+length -- and running its own enter, hold and exit, as a whole film, a
+segment or a title over another picture
+(`skill/make-a-video/reference/type.md`).
+The dialog's first choice is **A new capability** or a new member of a
+family (**A new look**, **A new type style**); each family's brief and the
+file its member ships (`look.py`, `style.py`) come from its own entry
+(`capabilities._member`). A look
 submission is briefed for one reusable look (`look.py`, following the look
 contract) with a demo on the shared lighthouse scene that passes the motion
 floor, a `capability.toml` with `family = "looks"`, and a doc. Publishing

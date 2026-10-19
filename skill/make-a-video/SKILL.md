@@ -140,6 +140,12 @@ layout, images, views) with the traps each part hides.
   as a `looks.Scene` (a few shapes with roles, the sun, a beacon) and paint
   it with `looks.paint(cv, name, scene, t)`; `looks.names()` lists every look,
   and your note's prompt names them too. Don't hand-restyle what a look does.
+- **Type** (a named typography style: "make the title a split-flap board",
+  "type it on like a terminal", "make the letters bounce"): read
+  `reference/type.md`. Every style takes the same props (a few `lines`,
+  `ink`, `paper`, `accent`, a `length`) and enters, holds and exits on its
+  own: `vb.type.draw(cv, name, vb.type.props(lines=[...]), t)`, over another
+  picture with `paper=None`. Don't hand-roll what a type style does.
 - **3D shots**: build a ManimGX shot to `assets/name.mp4`, commit it, and
   draw its frames with `vb.Clip`. Match its frame count to its storyboard
   segment. See `reference/3d.md` for the build command and the GPU stop rule.
