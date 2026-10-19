@@ -5,7 +5,6 @@ import json
 import logging
 import os
 from pathlib import Path
-import re
 import select
 import shutil
 import subprocess
@@ -13,6 +12,8 @@ import sys
 import tempfile
 import threading
 import time
+
+from . import pins
 
 MINIMUM = '0.1.2'
 TIMEOUT = 60
@@ -33,15 +34,7 @@ def pin_for(film, root):
 
 
 def pinned_version(pin):
-    for line in pin.read_text().splitlines():
-        match = re.match(r'^\s*videobuilder\s*==\s*([0-9]+(?:\.[0-9]+){1,3})\s*(?:#.*)?$', line, re.I)
-        if match:
-            return match.group(1)
-        if 'videobuilder' in line.lower():
-            match = re.search(r'@v?([0-9]+(?:\.[0-9]+){1,3})(?:\b|$)', line)
-            if match:
-                return match.group(1)
-    return 'unknown'
+    return pins.version_in(pin.read_text())
 
 
 def default_builder(target, pin):

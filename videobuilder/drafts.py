@@ -16,6 +16,7 @@ import sys
 import tempfile
 
 from .gitutil import git
+from . import pins
 
 
 def branch_tip(root, branch):
@@ -30,17 +31,53 @@ PINS = ('requirements*.txt', 'requirements*.in', 'constraints*.txt', 'pyproject.
         'npm-shrinkwrap.json', 'environment*.yml', 'environment*.yaml', '.gitmodules')
 
 
+def _own_pin_path(directory):
+    """The video's own requirements.txt, relative to the repo root (POSIX) --
+    the path `workers.pin_for` resolves to for this video whenever it has a
+    pin of its own, since pin_for always checks a video's own directory before
+    walking up to a shared ancestor's. A pin only inherited from an ancestor
+    never shows up at this path in the first place (it lives, and would
+    change, somewhere outside this video's own directory instead), so this
+    needs no filesystem lookup of its own: a changed path either is this
+    video's own pin, or it isn't."""
+    return str(PurePosixPath(directory) / 'requirements.txt') if directory != '.' else 'requirements.txt'
+
+
+def _blob(root, rev, path):
+    """`path`'s exact bytes at `rev`, or None if it doesn't exist there --
+    `check=False` so gitutil.git returns the raw, unstripped subprocess result
+    instead of raising or trimming whitespace that a byte-exact pin comparison
+    can't afford to lose."""
+    result = git(root, 'show', f'{rev}:{path}', check=False, binary=True)
+    return None if result.returncode else result.stdout
+
+
+def _kept_pin_raise(root, base, tip, path, ceiling):
+    """Whether this pin's change from `base` to `tip` is exactly the edit
+    `Versions.upgrade` itself would make: only its videobuilder line raised,
+    to a version at most `ceiling`."""
+    old, new = _blob(root, base, path), _blob(root, tip, path)
+    if old is None or new is None:
+        return False
+    try:
+        return pins.raised_only(old.decode(), new.decode(), ceiling) is not None
+    except UnicodeDecodeError:
+        return False
+
+
 def inspect(root, branch, directory):
+    from . import __version__
     tip = branch_tip(root, branch)
     base = git(root, 'merge-base', 'main', tip)
     raw = git(root, 'diff', '--raw', '-z', '--no-renames', base, tip)
     entries = raw.split('\0') if raw else []
     files, refused = [], []
     scope = PurePosixPath(directory)
+    own_pin = _own_pin_path(directory)
     for i in range(0, len(entries) - 1, 2):
         meta, path = entries[i:i + 2]
         files.append(path)
-        old, new = meta.split()[:2]
+        old_mode, new_mode = meta.split()[:2]
         reasons = []
         p = PurePosixPath(path)
         if scope != PurePosixPath('.') and not p.is_relative_to(scope):
@@ -52,10 +89,18 @@ def inspect(root, branch, directory):
             # there, not whatever a builder might have put in their place.
             reasons.append('source video, never committed')
         if any(fnmatch.fnmatch(PurePosixPath(path).name.lower(), pat.lower()) for pat in PINS):
-            reasons.append('dependency pin or lockfile')
-        if new == '120000':
+            # A builder's own prompt (prompt.py) tells it to raise this exact pin when its
+            # videobuilder is too old for a capability it needs -- the same move
+            # POST /api/upgrade makes by hand. Let that specific edit through; anything
+            # else touching a pin or lockfile still needs a person.
+            kept = (path == own_pin and new_mode != '120000' and '160000' not in (old_mode.lstrip(':'), new_mode)
+                    and _kept_pin_raise(root, base, tip, path, __version__))
+            if not kept:
+                reasons.append('dependency pin or lockfile (only raising the videobuilder '
+                               f'version, up to {__version__}, is kept)')
+        if new_mode == '120000':
             reasons.append('symlink')
-        if '160000' in (old.lstrip(':'), new):
+        if '160000' in (old_mode.lstrip(':'), new_mode):
             reasons.append('submodule')
         if reasons:
             refused.append(path + ': ' + ', '.join(reasons))

@@ -560,6 +560,78 @@ class DraftLoop(TempProject):
                 self.assertTrue(any(path in x and kind in x for x in result['refused']), result)
                 git(self.root, 'checkout', 'main')
 
+    def _pin(self, text):
+        (self.root / 'promo' / 'requirements.txt').write_text(text)
+        git(self.root, 'add', '-A')
+        git(self.root, 'commit', '-qm', 'pin')
+
+    def test_pin_raise_kept_other_pin_changes_refused(self):
+        from videobuilder import __version__
+        major, minor, patch = map(int, __version__.split('.'))
+        above_ceiling = f'{major}.{minor}.{patch + 1}'
+        self._pin('videobuilder==0.1.9\nnumpy\n')
+        cases = [
+            (f'videobuilder=={__version__}\nnumpy\n', True),               # raised to the ceiling
+            (f'videobuilder=={above_ceiling}\nnumpy\n', False),            # above the editor's own version
+            ('videobuilder==0.1.2\nnumpy\n', False),                       # a downgrade
+            (f'videobuilder=={__version__}\nnumpy\nrich\n', False),        # an added package alongside the raise
+            (f'videobuilder=={__version__}\nnumpy  # pinned\n', False),    # a comment changed elsewhere
+        ]
+        for text, kept in cases:
+            with self.subTest(text=text):
+                git(self.root, 'checkout', '-B', 'bad', 'main')
+                self.root.joinpath('promo', 'requirements.txt').write_text(text)
+                git(self.root, 'add', '-A')
+                git(self.root, 'commit', '-qm', 'raise')
+                result = inspect(self.root, 'bad', 'promo')
+                if kept:
+                    self.assertEqual(result['refused'], [], (text, result))
+                else:
+                    self.assertTrue(any('promo/requirements.txt' in x and 'dependency' in x
+                                        and 'is kept' in x for x in result['refused']), (text, result))
+                git(self.root, 'checkout', 'main')
+
+    def test_shared_pin_raise_still_refused(self):
+        from videobuilder import __version__
+        (self.root / 'requirements.txt').write_text('videobuilder==0.1.9\n')
+        git(self.root, 'add', '-A')
+        git(self.root, 'commit', '-qm', 'shared pin')
+        git(self.root, 'checkout', '-B', 'bad', 'main')
+        (self.root / 'requirements.txt').write_text(f'videobuilder=={__version__}\n')
+        git(self.root, 'add', '-A')
+        git(self.root, 'commit', '-qm', 'raise shared pin')
+        result = inspect(self.root, 'bad', 'promo')
+        self.assertTrue(any(x.startswith('requirements.txt:') for x in result['refused']), result)
+        git(self.root, 'checkout', 'main')
+
+    def test_requirements_lock_change_still_refused(self):
+        self._pin('videobuilder==0.1.9\n')
+        git(self.root, 'checkout', '-B', 'bad', 'main')
+        (self.root / 'promo' / 'requirements.lock').write_text('videobuilder==0.1.9\nnumpy==1.26\n')
+        git(self.root, 'add', '-A')
+        git(self.root, 'commit', '-qm', 'lock')
+        result = inspect(self.root, 'bad', 'promo')
+        self.assertTrue(any('promo/requirements.lock' in x and 'dependency' in x for x in result['refused']), result)
+        git(self.root, 'checkout', 'main')
+
+    def test_pin_raise_is_accepted_and_lands_with_the_new_pin(self):
+        from videobuilder import __version__
+        from tests.test_workers import copy_builder
+        self.editor.envs.builder = copy_builder
+        self._pin('videobuilder==0.1.9\n')
+        note = self.draft()
+        work = Path(self.tmp.name) / 'pin-work'
+        git(self.root, 'worktree', 'add', str(work), note['branch'])
+        (work / 'promo' / 'requirements.txt').write_text(f'videobuilder=={__version__}\n')
+        git(work, 'commit', '-am', 'raise pin')
+        git(self.root, 'worktree', 'remove', '--force', str(work))
+        result = self.editor.drafts.accept('promo/film', None, note)
+        self.assertEqual(result['state'], 'landed')
+        self.assertEqual(self.editor.notes.get(note['id'])['state'], 'landed')
+        self.assertEqual((self.root / 'promo' / 'requirements.txt').read_text(), f'videobuilder=={__version__}\n')
+        self.assertEqual(git(self.root, 'show', f"{result['commit']}:promo/requirements.txt").strip(),
+                         f'videobuilder=={__version__}'.strip())
+
     def test_preview_child_scrubs_environment_and_renders(self):
         self.editor.notes.backend = FakeBackend(delay=0, change='\nimport os\nassert "VB_SECRET_SENTINEL" not in os.environ\n')
         self.draft()
