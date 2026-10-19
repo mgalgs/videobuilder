@@ -258,15 +258,20 @@ class Sound(unittest.TestCase):
     style takes its own sound where the pack has it, else the nearest role."""
 
     def test_split_flap_keeps_its_copy_settled_through_the_hold(self):
-        # the gaps between a line's words are copy too: they never flip in the hold
+        # the gaps between a line's words are copy too, and so is the cell either
+        # side of a line (a flap there reads as a letter of it): none flip in the hold
         from videobuilder.type import splitflap as sf
         lines = ('Seven ways', 'to say the', 'same thing')
         p = vt.props(lines, length=6)
         clock = vt.get('split-flap').clock(p)
-        cols = max(len(ln) for ln in lines)
+        cols = max(len(ln) for ln in lines) + 4
         for rows, first in ((len(lines), 0), (len(lines) + 4, 2)):
             plan = sf._plan(lines, cols, rows, first, p.length, clock.hold, clock.exit)
-            for (r, c), want in sf._targets(lines, cols).items():
+            targets = sf._targets(lines, cols)
+            for r, line in enumerate(lines):
+                off = (cols - len(line)) // 2
+                targets[(r, off - 1)] = targets[(r, off + len(line))] = ' '
+            for (r, c), want in targets.items():
                 bursts = plan.get((first + r, c), [])
                 for i in range(1, 60):
                     t = clock.hold + (clock.exit - clock.hold) * i / 60
