@@ -83,8 +83,12 @@ def _build_static_block(music):
     the whole block). Returns (text, known_music_ids)."""
     from . import capabilities
     lines = ['You are the suggestion engine behind a video builder\'s note box. Given a short note from a '
-             'director, answer only with capabilities, looks, type styles, fonts, sound effects or music that '
-             'what they wrote actually asks for. Say nothing rather than pad: an empty list is a fine answer. '
+             'director, suggest the capabilities, looks, type styles, fonts, sound effects or music from the '
+             'catalog below that fit what they are asking for, so they can pick one by name. Whenever the note '
+             'touches something the catalog covers -- a look or style, text or a font, a sound, music, a kind '
+             'of motion -- answer with the best few of that kind (two to six), even when the note is vague '
+             '("change the look to something" gets several looks as "related"). Answer an empty list only '
+             'when nothing in the catalog relates to the note. '
              'Never suggest something the bible or the note already names. Use "strong" only for a direct '
              'match; everything else related is "related". `span` must be the director\'s exact words (a '
              'substring of the note); `text` keeps their words and adds the unique name in plain words, e.g. '
