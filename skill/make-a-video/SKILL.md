@@ -154,6 +154,9 @@ layout, images, views) with the traps each part hides.
   (text to speech) once, then commit the WAV, its `.vtt` and `.json`, and the
   script next to them; the film loads those, never the model. It gives
   phrase-timed captions and a mouth-open signal. Read `reference/narration.md`.
+- **Sound effects** (a whoosh on a whip pan, a click on a press, a hit on
+  an impact frame): `vb.sfx`, ready-made sounds put on an exact frame. See
+  §6 and `reference/sfx.md`.
 - Write `assets/README.md`: each file, where it came from, its licence
   (generated files: the command that made them, and "generated for this film").
 
@@ -211,6 +214,26 @@ See `reference/music.md`. In short:
   defaults to the grid's `head_trim`, so set it once, on the `Grid`.
 - Cuts land on beats; a half-beat (`at=6.5`) is fine for a quick cut.
   `check.py --video` reports where the music's onsets fall against the grid.
+
+### Sound effects
+
+`vb.sfx.sound(id, at=frame)` puts a sound from the sound-effects pack on a
+frame, its peak there (`align='onset'` for where it starts), into
+`Film(sounds=...)`; `python -m videobuilder sfx fetch` gets the pack once,
+`sfx list --role whoosh` shows what's in it. Read `reference/sfx.md`
+before choosing. In short:
+
+- **Which role:** whoosh on a whip pan or fast move (peak on its fastest
+  frame), hit on an impact or a logo lock, click or tap on a UI press, riser
+  into a reveal (its end on the reveal), downlifter out of one, shimmer on a
+  sparkle, pluck or ding on a notification.
+- **Restraint:** not every cut; a few moments that matter. Keep them quiet
+  under speech (they dip with the music; `gain_db` around -6 to -12). One
+  family per film (`designed`, `classic` or `fitted`).
+- **Aim:** key `at` off the same frame the motion uses (the impact frame,
+  the press, the pan's middle), never a guess; `dur=` picks the nearest
+  length for a move, `note=` a tuned sound's note.
+- `check.py --video` fails a sound effect that lands more than a frame off.
 
 ## 7. Formats
 

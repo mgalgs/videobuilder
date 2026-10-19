@@ -834,6 +834,12 @@ python -m videobuilder editor --library DIR [--checkouts DIR2] [--state-dir DIR3
   `pip install -e '.[speech]'`, and the Kokoro model files) makes a voiceover
   WAV with phrase-timed `.vtt`/`.json` sidecars, once; `speech.load` reads them
   at render time (captions, a `Sound`, a per-frame mouth-open signal) without the model.
+- `sfx`: sound effects. `vb.sfx.sound(id, at=frame)` puts a sound from the
+  sound-effects pack (earshot's bank, MIT) on a frame by its peak or onset;
+  `python -m videobuilder sfx fetch` downloads the pack (checked against
+  `videobuilder/sfx-pack.sha256`) to `$VIDEOBUILDER_SFX_DIR` or
+  `~/.cache/videobuilder/vb-sfx-1`; `sfx list`, `sfx play-path`. The pack is
+  built from a rendered bank by `scripts/build_sfx_pack.py`.
 - `pictures`: `--artbox-url` generated pictures for the director's Pictures sheet.
 
 ## Known traps
@@ -955,4 +961,7 @@ project repo.
 
 videobuilder is released under the MIT licence; see `LICENSE`. The fonts in
 `examples/assets/` are not: each is under the SIL Open Font License 1.1, with
-its licence file beside it, as `examples/assets/README.md` lists.
+its licence file beside it, as `examples/assets/README.md` lists. The
+sound-effects pack (not in the repo; a few of its takes are in
+`tests/fixtures/sfx-pack/`) is earshot's bank, under the MIT licence, with
+its own `LICENSE-earshot` and `CREDITS.md`.

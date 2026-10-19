@@ -540,6 +540,23 @@ CATALOG = (
          "mouth = VOICE.mouth(fps, at=frame, frames=TOTAL); pose = 'talk' if mouth[n] else 'idle'"),
         'skill/make-a-video/reference/narration.md', 'narration'),
     _entry(
+        'sound-effects', 'Timing, sound and formats', 'Sound effects',
+        'A whoosh, a click, a ding and a hit, each on its frame.',
+        'Ready-made sound effects (whooshes, clicks and taps, pops, dings, risers, hits, sub drops, shimmers) put '
+        'on the exact frame of the motion they sell: a whoosh peaks as a card whips past, a click lands on the '
+        'press, a ding on the notification landing, a hit on the impact frame. They sit in the mix with the '
+        'music and dip under a voice like it does. To ask for one, say what should make a sound and when ("a '
+        'whoosh on the whip pan", "a click when the button is pressed"); a few well-placed sounds read better '
+        'than one on every cut.',
+        ('Add a whoosh when the card flies in', 'Put a click on each button press',
+         'Make the logo land with a hit', 'Add a soft ding when the notification appears'),
+        ("vb.sfx.sound('whoosh_fast/tight', at=frame, dur=0.5, gain_db=-8)  # its peak on the frame",
+         "vb.sfx.sound('fit/click/floss_lid', at=frame, align='onset')",
+         "vb.sfx.sound('pro_notify/ding_2045', at=frame, note='G5')  # a tuned sound by note",
+         "vb.sfx.find('whoosh', near_dur=0.8)  # by role", 'Film(sounds=(...))',
+         '{"sfx": "pro_impact/short", "at": 120} in a timeline.json lane; "sound": "auto" on a whip or flash'),
+        'skill/make-a-video/reference/sfx.md', 'sound-effects'),
+    _entry(
         'every-format', 'Timing, sound and formats', 'Every format, recomposed',
         'One scene, laid out separately for three shapes.',
         "The same scene laid out three separate ways — 9:16, 16:9 and 1:1 — each from its own per-format layout "

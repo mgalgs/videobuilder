@@ -306,6 +306,10 @@ if __name__ == '__main__':
   loudest peak: a peaky track comes out quieter than the target rather than
   compressed. The limiter is delay-compensated: hits stay on their frames.
   `None` keeps the fixed `gain_db` only.
+- `sounds=(...)`: `vb.Sound`s on the film's clock (footage, narration) and
+  sound effects, `vb.sfx.sound('whoosh_fast/tight', at=frame, dur=0.5,
+  gain_db=-8)`, each with its peak on its frame (`reference/sfx.md`).
+  The music ducks under the sounds, never under the sound effects.
 - `vb.load_module('film.py')` imports a film afresh for a check script; its
   `FILM`, `LAYOUTS` and other names are attributes.
 - Custom size: `vb.Format('4x5', 1080, 1350)` in `formats`.

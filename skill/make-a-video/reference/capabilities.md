@@ -545,6 +545,27 @@ Old ids, now part of these: `comic-halftone` is the **Pop-art filter**; `pixel-a
 
 **Worked example:** `examples/capabilities/narration.py` — read it before writing something similar from scratch.
 
+### Sound effects
+
+**What it looks like:** A whoosh, a click, a ding and a hit, each on its frame. Ready-made sound effects (whooshes, clicks and taps, pops, dings, risers, hits, sub drops, shimmers) put on the exact frame of the motion they sell: a whoosh peaks as a card whips past, a click lands on the press, a ding on the notification landing, a hit on the impact frame. They sit in the mix with the music and dip under a voice like it does. To ask for one, say what should make a sound and when ("a whoosh on the whip pan", "a click when the button is pressed"); a few well-placed sounds read better than one on every cut.
+
+**When to use it:** reach for this when a director says something like:
+- "Add a whoosh when the card flies in"
+- "Put a click on each button press"
+- "Make the logo land with a hit"
+- "Add a soft ding when the notification appears"
+
+**How to build it:**
+- `vb.sfx.sound('whoosh_fast/tight', at=frame, dur=0.5, gain_db=-8)  # its peak on the frame`
+- `vb.sfx.sound('fit/click/floss_lid', at=frame, align='onset')`
+- `vb.sfx.sound('pro_notify/ding_2045', at=frame, note='G5')  # a tuned sound by note`
+- `vb.sfx.find('whoosh', near_dur=0.8)  # by role`
+- `Film(sounds=(...))`
+- `{"sfx": "pro_impact/short", "at": 120} in a timeline.json lane; "sound": "auto" on a whip or flash`
+- Read `skill/make-a-video/reference/sfx.md`.
+
+**Worked example:** `examples/capabilities/sound-effects.py` — read it before writing something similar from scratch.
+
 ### Every format, recomposed
 
 **What it looks like:** One scene, laid out separately for three shapes. The same scene laid out three separate ways — 9:16, 16:9 and 1:1 — each from its own per-format layout table, not one layout cropped three ways.

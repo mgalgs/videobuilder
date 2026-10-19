@@ -51,7 +51,8 @@ sources/                  uploaded footage and sounds (never committed)
   "acts": [{"title": "The river", "clips": ["opening", "boat"]}],
   "lanes": [
     {"duck": true, "items": [
-      {"sound": "sources/theme.mp4", "at": 0, "offset": 0, "frames": 240, "gain_db": -3}]}
+      {"sound": "sources/theme.mp4", "at": 0, "offset": 0, "frames": 240, "gain_db": -3},
+      {"sfx": "pro_impact/short", "at": 96, "gain_db": -6}]}
   ],
   "beats": {"lane": 1, "item": 1, "bpm": 120, "first": 12}
 }
@@ -110,6 +111,31 @@ clip dips the lane for 2 s), the caption cues of a footage clip with a caption
 file beside its source (`sources/boat.vtt` beside `sources/boat.mp4`), or the
 whole of a clip's sound when it is marked `dialogue`. `mute: true` leaves a
 lane out of the mix, items and all, without removing it.
+
+**Sound effects** from the pack (`vb.sfx`, see `sfx.md`) go on a lane too:
+an item with `sfx`, a sound's id, in place of `sound`:
+
+```json
+{"sfx": "whoosh_fast/tight", "at": 96, "frames": 15, "gain_db": -8}
+{"sfx": "pro_notify/ding_2045", "note": "G5", "at": 130, "align": "onset"}
+```
+
+`at` is the timeline frame its peak lands on (`align: "onset"`: where it
+starts); `variant` names a take (`"0.8s"`, `"C5"`), `note` a tuned sound's
+note, and `frames`, optional, a length: the take nearest it, cut to it with
+a short fade when longer (without, the take plays whole). No `offset` or
+fades: a sound effect plays from its start. It dips under speech with its
+lane when the lane ducks, unless `"through": true`. A sound effect can't be
+the `beats` item.
+
+A cut can ask for one too, landing on the cut (a hard cut's first frame, a
+transition's middle): `"sound": "auto"` gives a whip a whoosh
+(`whoosh_fast/tight`, about two whips long) and a flash a hit
+(`pro_impact/short`), both at -6 dB (a `gain_db` adds to it); or name one,
+`"sound": "pro_impact/short"`, or give the lane item's keys without `at`,
+`"sound": {"sfx": "pro_impact/short", "gain_db": -4}`. It dips under speech
+by -12 dB unless `through`. `assemble --check` names a sound or take the
+installed pack hasn't, and says when the pack isn't installed.
 
 **Beats** make the film a *reel*, cut to a song: `lane` and `item` name the
 Audio lane item that plays the song, counted from 1 as the editor shows
