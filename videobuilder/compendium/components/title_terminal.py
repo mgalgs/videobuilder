@@ -200,19 +200,11 @@ def draw(cv, shot):
         text.draw(cv, [pos], STATUS_F, s.right - pw, sy + (STATUS_H - sl) / 2, kit.MUTED)
     cv.mark('status', s.x - 8, sy, s.w + 16, STATUS_H)
 
-    # ---- the glass: scanlines and a slow rolling band ----
+    # ---- the glass: still scanlines and a vignette ----
     ctx = cv.ctx
     ctx.set_source_rgba(0, 0, 0, 0.22)
     for y in range(0, cv.height, 4):
         ctx.rectangle(0, y, cv.width, 1.4)
-    ctx.fill()
-    band_y = (n * 3.0) % (cv.height + 160) - 80
-    bg = cairo.LinearGradient(0, band_y - 80, 0, band_y + 80)
-    bg.add_color_stop_rgba(0, 1, 1, 1, 0)
-    bg.add_color_stop_rgba(0.5, 1, 1, 1, 0.035)
-    bg.add_color_stop_rgba(1, 1, 1, 1, 0)
-    ctx.set_source(bg)
-    ctx.rectangle(0, band_y - 80, cv.width, 160)
     ctx.fill()
     vg = cairo.RadialGradient(cv.width / 2, cv.height / 2, min(cv.width, cv.height) * 0.4,
                               cv.width / 2, cv.height / 2, max(cv.width, cv.height) * 0.75)
