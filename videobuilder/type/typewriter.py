@@ -7,7 +7,7 @@ the end of the line.
   margin rule in the accent. Through the hold the caret blinks and the
   sheet drifts in; on the exit the sheet feeds up out of the frame.
 - **terminal**: a prompt in the accent before each line, a block cursor,
-  and over the paper faint scanlines with a slow rolling band. Through the
+  and over the paper faint, still scanlines. Through the
   hold the cursor blinks on the beat and the screen pushes in; on the exit
   every line is deleted back to the prompt.
 
@@ -142,7 +142,7 @@ def _draw(cv, p, t, box, clock, terminal):
                 else:
                     cv.rect(cxp + 1, cyp + lh * 0.5 + content * 0.42, cw * 0.9, max(2, font.size * 0.07), p.accent)
     if terminal and p.paper is not None:
-        _glass(cv, box, t)
+        _glass(cv, box)
     elif p.paper is not None:
         from ..canvas import paper_grain
         ctx.save()
@@ -154,8 +154,9 @@ def _draw(cv, p, t, box, clock, terminal):
         ctx.restore()
 
 
-def _glass(cv, box, t):
-    """Scanlines and a slow rolling band over the screen."""
+def _glass(cv, box):
+    """Still scanlines over the screen. Nothing on the glass moves: a rolling
+    band across a held full-screen card reads as seasick motion."""
     ctx = cv.ctx
     ctx.set_source_rgba(0, 0, 0, 0.2)
     step = max(3.0, box.h / 360)
@@ -163,15 +164,6 @@ def _glass(cv, box, t):
     while y < box.bottom:
         ctx.rectangle(box.x, y, box.w, step * 0.35)
         y += step
-    ctx.fill()
-    bh = box.h * 0.12
-    band = box.y + (t * box.h * 0.3) % (box.h + 2 * bh) - bh
-    g = cairo.LinearGradient(0, band - bh, 0, band + bh)
-    g.add_color_stop_rgba(0, 1, 1, 1, 0)
-    g.add_color_stop_rgba(0.5, 1, 1, 1, 0.09)
-    g.add_color_stop_rgba(1, 1, 1, 1, 0)
-    ctx.set_source(g)
-    ctx.rectangle(box.x, band - bh, box.w, 2 * bh)
     ctx.fill()
 
 

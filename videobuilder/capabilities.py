@@ -248,7 +248,7 @@ TYPE = (
                  'Make it look typed, with the key sounds')),
     _type_style('terminal', 'Terminal', 'Typed at a prompt with a block cursor, then deleted back to the prompt.',
                 'The lines typed in at a terminal prompt (an accent `>` before each), with a block cursor riding the '
-                'end of the line, under faint scanlines and a slow rolling band. Through the hold the cursor blinks '
+                'end of the line, under faint, still scanlines. Through the hold the cursor blinks '
                 'and the screen pushes in; on the exit every line is deleted back to the prompt. Built on the '
                 'compendium\'s terminal title: the same human keystroke cadence. With sound on, every letter is a '
                 'key tick.',
