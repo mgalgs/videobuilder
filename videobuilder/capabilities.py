@@ -665,6 +665,7 @@ CATALOG = (
          "vb.type.draw(cv, 'rubber', vb.type.props(TITLE, paper=None), t, box=(x, y, w, h))  # over a picture",
          "vb.type.film('typewriter', TITLE, length=18)  # one style as a film of its own",
          "vb.type.sounds(name, vb.type.props(TITLE, sound=True), at=frame)  # its clicks, keys or pops",
+         "vb.type.props(TITLE, texture=False)  # a plain ground: no paper grain or scanlines",
          'vb.type.names() / vb.type.get(name)', 'vb.type.relay(cv, names, TITLE, t, each=3.0)',
          'vb.type.motion_floor(film, start, end) >= vb.type.FLOOR'),
         'skill/make-a-video/reference/type.md', 'type', TYPE, noun=('type style', 'type styles'),

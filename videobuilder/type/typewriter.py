@@ -141,9 +141,11 @@ def _draw(cv, p, t, box, clock, terminal):
                     cv.rect(cxp + 2, cyp + lh * 0.14, cw * 0.62, lh * 0.72, p.accent)
                 else:
                     cv.rect(cxp + 1, cyp + lh * 0.5 + content * 0.42, cw * 0.9, max(2, font.size * 0.07), p.accent)
-    if terminal and p.paper is not None:
+    if p.paper is None or not p.texture:
+        return
+    if terminal:
         _glass(cv, box)
-    elif p.paper is not None:
+    else:
         from ..canvas import paper_grain
         ctx.save()
         ctx.rectangle(*box)

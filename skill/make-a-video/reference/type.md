@@ -45,6 +45,7 @@ TITLE = vb.type.props(
     accent='#ffb000',                      # the one strong colour (a wipe, a lamp, a cursor, a shadow)
     length=6,                              # seconds, enter to exit: about 6 inside a film, up to 18 on its own
     sound=False,                           # True: vb.type.sounds / vb.type.film place the style's sound
+    texture=True,                          # False: no paper grain or scanlines; the paper colour stays
     font=None,                             # a font family, or None for the style's own
 )
 ```

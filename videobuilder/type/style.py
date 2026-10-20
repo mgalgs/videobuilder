@@ -34,6 +34,9 @@ class Props:
     - `length`: seconds the style runs, enter to exit (6 s inside a film;
       up to 18 s and more as a film of its own).
     - `sound`: whether `type.sounds` places the style's sound (off by default).
+    - `texture`: the surface over the ground -- the typewriter's paper grain,
+      the terminal's scanlines, the editorial page's grain (on by default).
+      Off keeps the paper colour and every letter.
     - `font`: a font family for the letters, or None for the style's own
       generic family (sans-serif, monospace or serif, as fontconfig has it)."""
     lines: tuple
@@ -42,6 +45,7 @@ class Props:
     accent: object = ACCENT
     length: float = DEFAULT_LENGTH
     sound: bool = False
+    texture: bool = True
     font: str | None = None
 
     @property
@@ -49,7 +53,7 @@ class Props:
         return '\n'.join(self.lines)
 
 
-_FIELDS = ('lines', 'ink', 'paper', 'accent', 'length', 'sound', 'font')
+_FIELDS = ('lines', 'ink', 'paper', 'accent', 'length', 'sound', 'texture', 'font')
 
 
 def _colour(name, value, allow_none=False):
@@ -112,6 +116,10 @@ def props(value=None, **kw):
     if not isinstance(sound, bool):
         raise PropsError(f'type props: sound is True or False, not {sound!r}')
     out['sound'] = sound
+    texture = base.get('texture', True)
+    if not isinstance(texture, bool):
+        raise PropsError(f'type props: texture is True or False, not {texture!r}')
+    out['texture'] = texture
     font = base.get('font')
     if font is not None and (not isinstance(font, str) or not font.strip()):
         raise PropsError(f'type props: font is a font family name, or None for the style\'s own, not {font!r}')

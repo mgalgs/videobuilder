@@ -71,7 +71,7 @@ def draw(cv, p, t, box, clock):
     font, lh, x0, y0, plate, rule_y, inner = _layout(lines, box, STYLE.font_family(p))
     (cover, peel, stagger, first), (xcover, xpeel, xstagger, xfirst) = _beats(len(lines), clock.hold, clock.exit,
                                                                               p.length)
-    if p.paper is not None:
+    if p.paper is not None and p.texture:
         ctx = cv.ctx
         ctx.save()
         ctx.set_source(paper_grain(cv.width, cv.height, seed=4))

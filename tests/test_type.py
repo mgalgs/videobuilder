@@ -86,8 +86,8 @@ class Props(unittest.TestCase):
     def test_defaults_and_the_shapes_lines_come_in(self):
         p = vt.props(lines='Gate 14\nNow  boarding ')
         self.assertEqual(p.lines, ('Gate 14', 'Now boarding'))
-        self.assertEqual((p.ink, p.paper, p.accent, p.length, p.sound, p.font),
-                         (vt.INK, vt.PAPER, vt.ACCENT, 6.0, False, None))
+        self.assertEqual((p.ink, p.paper, p.accent, p.length, p.sound, p.texture, p.font),
+                         (vt.INK, vt.PAPER, vt.ACCENT, 6.0, False, True, None))
         self.assertEqual(vt.props(['a', 'b']).lines, ('a', 'b'))
         self.assertEqual(vt.props({'lines': ['a'], 'accent': '#fff'}).accent, '#fff')
         q = vt.props(p, length=18, paper=None)
@@ -107,6 +107,7 @@ class Props(unittest.TestCase):
             'too long': ({'lines': ['a'], 'length': 90}, 'length is seconds, 2 to 30'),
             'length as text': ({'lines': ['a'], 'length': '6'}, 'length is seconds'),
             'sound as text': ({'lines': ['a'], 'sound': 'yes'}, 'sound is True or False'),
+            'texture as text': ({'lines': ['a'], 'texture': 'off'}, 'texture is True or False'),
             'an unknown prop': ({'lines': ['a'], 'colour': '#fff'}, 'unknown prop colour'),
             'an empty font': ({'lines': ['a'], 'font': ' '}, 'font is a font family'),
         }
@@ -206,6 +207,27 @@ class EveryStyleInEveryShape(unittest.TestCase):
                 self.assertTrue(cv.marks)
                 for mark, b in cv.marks:
                     self.assertTrue(vb.Box(*box).contains(b, tolerance=1), (mark, b))
+
+
+    def test_texture_off_leaves_a_plain_ground(self):
+        """texture=False drops the grain and the scanlines and changes nothing
+        in the styles that have neither."""
+        grid = [(x, y) for x in range(0, 480, 6) for y in range(0, 270, 6)]
+        paper = (0x15, 0x16, 0x1b)      # vt.PAPER
+        for name in STYLES:
+            with self.subTest(style=name):
+                shots = []
+                for texture in (True, False):
+                    p = vt.props(LINES, texture=texture)
+                    cv = vb.Canvas(480, 270)
+                    vt.draw(cv, name, p, 0.05)
+                    shots.append(cv)
+                plain = [sum(_pixel(cv, x, y) == paper for x, y in grid) for cv in shots]
+                if name in ('typewriter', 'terminal', 'editorial'):
+                    self.assertGreater(plain[1], plain[0])
+                    self.assertGreater(plain[1] / len(grid), 0.5, 'the ground should show plain paper')
+                else:
+                    self.assertEqual(*(bytes(cv.surface.get_data()) for cv in shots))
 
 
 class MotionFloor(unittest.TestCase):
