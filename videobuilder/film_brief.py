@@ -30,6 +30,7 @@ from pathlib import Path
 
 from . import timeline_file
 from .clip_cache import GitTree, clip_key
+from .film_setup import PLANNED_MARK
 
 BIBLE = 'bible'
 SHARED = 'shared'
@@ -45,19 +46,22 @@ def _rel(directory, path):
 
 
 def _about(tree, clip):
-    """The first paragraph of a clip directory's film file's docstring: what
-    the clip is for. None for footage, or a film without one."""
+    """(about, planned): the first paragraph of a clip directory's film
+    file's docstring, which says what the clip is for (None for footage, or a
+    film without one), and whether the film is still the editor's placeholder
+    card for a planned clip."""
     if clip.is_footage:
-        return None
+        return None, False
     data = tree.read(clip.film_path)
     try:
         doc = ast.get_docstring(ast.parse(data or b''))
     except (SyntaxError, ValueError):
-        return None
+        return None, False
     if not doc:
-        return None
+        return None, False
     first = ' '.join(doc.strip().split('\n\n')[0].split())
-    return first if len(first) <= ABOUT_MAX else first[:ABOUT_MAX - 1].rstrip() + '…'
+    about = first if len(first) <= ABOUT_MAX else first[:ABOUT_MAX - 1].rstrip() + '…'
+    return about, PLANNED_MARK in doc
 
 
 def describe_cut(cut):
@@ -72,7 +76,8 @@ def describe_cut(cut):
 def _clip_info(timeline, clip, directory, tree):
     number = timeline.clips.index(clip) + 1
     act = next((a.title for a in timeline.acts if clip.id in a.clips), None)
-    info = {'id': clip.id, 'number': number, 'act': act, 'about': _about(tree, clip)}
+    about, planned = _about(tree, clip)
+    info = {'id': clip.id, 'number': number, 'act': act, 'about': about, 'planned': planned}
     if clip.is_footage:
         info.update(footage=_rel(directory, clip.footage), dir=None, film=None,
                     **{'in': clip.in_frame, 'out': clip.out_frame})

@@ -154,10 +154,15 @@ FILMS_DOC = 'skill/make-a-video/reference/films.md'
 
 
 def _clip_line(c):
-    """One clip of a film, for a list: number, id, where it is, its act."""
+    """One clip of a film, for a list: number, id, where it is, its act, and,
+    for a planned clip still showing its placeholder card, what to make."""
     where = (f"footage, {c['footage']} from frame {c['in']} to {c['out']}" if c['footage']
              else c['dir'])
-    return f"{c['number']}. `{c['id']}`: {where}" + (f" (act \"{c['act']}\")" if c['act'] else '')
+    line = f"{c['number']}. `{c['id']}`: {where}" + (f" (act \"{c['act']}\")" if c['act'] else '')
+    if c.get('planned'):
+        line += (f" -- planned, not made yet: make it as part of this note, replacing its placeholder card"
+                 + (f" (it is for: {c['about']})" if c['about'] else ''))
+    return line
 
 
 def _bible_lines(film, clip_note):

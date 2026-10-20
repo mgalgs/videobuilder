@@ -659,6 +659,11 @@ class FilmSetup(LibraryFixture, unittest.TestCase):
         sha = self.git('rev-parse', 'HEAD', cwd=clone).stdout.strip()
         brief, _ = film_brief.brief(str(clone), sha, '.', None, '16x9', str(clone))
         self.assertEqual([c['about'] for c in brief['clips']], ['Keeper lights the lamp.', 'The lamp goes dark.'])
+        # ...and a whole-video note asks for the planned ones to be made.
+        from videobuilder.prompt import _clip_line
+        self.assertEqual([c['planned'] for c in brief['clips']], [True, True])
+        self.assertIn('planned, not made yet: make it as part of this note', _clip_line(brief['clips'][1]))
+        self.assertIn('The lamp goes dark.', _clip_line(brief['clips'][1]))
         placeholder = film.load(clone / 'clips' / 'storm' / 'film.py')
         self.assertIsNotNone(placeholder.frame(0, '16x9', scale=0.1))
         self.assertIsNotNone(GitTree(str(clone), sha, '.').read('clips/storm/film.py'))

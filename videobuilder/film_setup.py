@@ -353,6 +353,10 @@ def plan_text(title, line):
     return title, line
 
 
+# film_brief looks for this in a clip's docstring to tell builders the clip is still to be made.
+PLANNED_MARK = 'Planned in the editor and not made yet'
+
+
 def planned_film(title, line, formats):
     """A planned clip's film file: a card with its title and line until a
     builder makes the clip. The docstring's first paragraph is what the clip
@@ -360,7 +364,7 @@ def planned_film(title, line, formats):
     about = ' '.join((line or title).split()).replace('\\', '/').replace('"""', "''")
     return (
         f'"""{about}\n\n'
-        'Planned in the editor and not made yet: a builder makes this clip from the line above (and the\n'
+        f'{PLANNED_MARK}: a builder makes this clip from the line above (and the\n'
         'bible, if the film has one), replacing this placeholder card."""\n'
         "import videobuilder as vb\n"
         "from videobuilder import text\n\n"
