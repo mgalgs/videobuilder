@@ -2,12 +2,65 @@
 the skip rules and the time cap, against a local fixture site. The fixture
 is reached only because these tests pass `allow_loopback=True`, the explicit
 test-only switch guard.py documents; production code never does."""
+import struct
 import threading
 import time
 import unittest
 from http.server import BaseHTTPRequestHandler, HTTPServer
 
-from videobuilder import gather
+from videobuilder import gather, guard
+
+
+def png(width, height):
+    """Just enough PNG for the gatherer's checks: the signature and an IHDR."""
+    return (b'\x89PNG\r\n\x1a\n' + struct.pack('>I', 13) + b'IHDR' + struct.pack('>II', width, height)
+            + b'\x08\x02\x00\x00\x00' + b'\x00' * 4)
+
+
+def jpeg(width, height):
+    return (b'\xff\xd8\xff\xe0' + struct.pack('>H', 16) + b'JFIF\x00' + b'\x00' * 9
+            + b'\xff\xc0' + struct.pack('>HBHH', 17, 8, height, width) + b'\x00' * 12)
+
+
+def webp(width, height):
+    return (b'RIFF' + struct.pack('<I', 22) + b'WEBP' + b'VP8X' + struct.pack('<I', 10) + b'\x00' * 4
+            + (width - 1).to_bytes(3, 'little') + (height - 1).to_bytes(3, 'little'))
+
+
+ART_PAGE = (
+    '<html><head><title>Art</title>'
+    '<meta name="twitter:image" content="/tw.png">'
+    '<meta property="og:image" content="/og.png">'
+    '<meta name="theme-color" content="#FFF">'
+    '<link rel="stylesheet" href="/site.css">'
+    '<link rel="stylesheet" href="https://cdn.off-site.example/x.css">'
+    '<style>:root{--brand:#FF0000;--ink: rgb(17, 34, 51)} h1{color:#f00;font-family:\'Inter\', sans-serif}</style>'
+    '</head><body><nav><img src="/nav-logo.png"></nav><h1>Art</h1>'
+    '<img src="/small.png" srcset="/small.png 400w, /large.png 1600w, /medium.png 800w">'
+    '<picture><source srcset="/pic.webp"><img src="/pic-fallback.jpg"></picture>'
+    '<img src="/icon.png"><img src="/fake.png"><img src="/wrongtype.png">'
+    '<img src="http://10.1.2.3/private.png"><img src="/og.png"><img src="/vector.svg"><img src="/bomb.svg">'
+    '<img src="data:image/gif;base64,R0lGODlhAQABAAAAACw=">'
+    '</body></html>')
+ASSETS = {
+    '/og.png': ('image/png', png(1200, 630)),
+    '/tw.png': ('image/png', png(800, 400)),
+    '/large.png': ('image/png', png(1600, 900)),
+    '/small.png': ('image/png', png(400, 225)),
+    '/medium.png': ('image/png', png(800, 450)),
+    '/pic.webp': ('image/webp', webp(640, 480)),
+    '/pic-fallback.jpg': ('image/jpeg', jpeg(640, 480)),
+    '/nav-logo.png': ('image/png', png(200, 80)),
+    '/icon.png': ('image/png', png(16, 16)),
+    '/fake.png': ('image/png', b'<html>not an image</html>'),
+    '/wrongtype.png': ('text/html', png(300, 300)),
+    '/vector.svg': ('image/svg+xml', b'<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10"/>'),
+    '/bomb.svg': ('image/svg+xml', b'<?xml version="1.0"?><!DOCTYPE svg [<!ENTITY a "aaaa">]>'
+                                    b'<svg xmlns="http://www.w3.org/2000/svg">&a;</svg>'),
+    '/site.css': ('text/css', b'body{background:#ffffff;color:#112233;font-family:"Inter",sans-serif}'
+                              b'@font-face{font-family:Brand;src:url(/font.woff2)} a{color:#F00} /* color:#abcdef */'),
+    '/font.woff2': ('font/woff2', b'wOF2'),
+}
 
 
 PAGES = {
@@ -34,7 +87,23 @@ PAGES = {
 
 
 class _Site(BaseHTTPRequestHandler):
+    requested = []
+
     def do_GET(self):
+        self.requested.append(self.path)
+        if self.path in ASSETS:
+            ctype, data = ASSETS[self.path]
+            self.send_response(200)
+            self.send_header('Content-Type', ctype)
+            self.end_headers()
+            self.wfile.write(data)
+            return
+        if self.path == '/art':
+            self.send_response(200)
+            self.send_header('Content-Type', 'text/html')
+            self.end_headers()
+            self.wfile.write(ART_PAGE.encode())
+            return
         if self.path == '/moved':
             self.send_response(301)
             self.send_header('Location', '/about')
@@ -74,6 +143,7 @@ class _Site(BaseHTTPRequestHandler):
 
 class GatherFixture(unittest.TestCase):
     def setUp(self):
+        _Site.requested = []
         self.server = HTTPServer(('127.0.0.1', 0), _Site)
         self.port = self.server.server_address[1]
         self.thread = threading.Thread(target=self.server.serve_forever, daemon=True)
@@ -157,6 +227,91 @@ class Crawl(GatherFixture):
         pages, errors = gather.crawl([self.url('/')], max_pages=1, chromium=None)  # allow_loopback defaults False
         self.assertEqual(pages, [])
         self.assertTrue(any('blocked address' in reason for _, reason in errors))
+
+
+class Artwork(GatherFixture):
+    def gather_art(self, **kw):
+        pages, errors = gather.crawl([self.url('/art')], max_pages=1, allow_loopback=True, chromium=None, **kw)
+        self.assertEqual(len(pages), 1)
+        return pages[0], errors
+
+    def test_share_image_first_then_content_images_in_page_order(self):
+        page, _ = self.gather_art()
+        self.assertEqual([i['url'] for i in page['images']],
+                         [self.url(p) for p in ('/og.png', '/tw.png', '/large.png', '/pic.webp',
+                                                '/pic-fallback.jpg')])
+        self.assertEqual(page['images'][0]['data'], ASSETS['/og.png'][1])
+        # srcset's largest candidate only; nothing in nav; og.png's second mention not fetched again
+        self.assertNotIn('/small.png', _Site.requested)
+        self.assertNotIn('/medium.png', _Site.requested)
+        self.assertNotIn('/nav-logo.png', _Site.requested)
+        self.assertEqual(_Site.requested.count('/og.png'), 1)
+
+    def test_icons_wrong_types_and_mismatched_bytes_are_refused_and_reported(self):
+        page, _ = self.gather_art()
+        reasons = dict(page['skipped'])
+        self.assertIn('too small', reasons[self.url('/icon.png')])
+        self.assertIn('not the image/png it claims', reasons[self.url('/fake.png')])
+        self.assertIn('not an image type', reasons[self.url('/wrongtype.png')])
+        # The attachment store has no SVG, so one is refused before it takes an image slot.
+        self.assertIn('not an image type it accepts (image/svg+xml)', reasons[self.url('/vector.svg')])
+        self.assertIn('not an image type it accepts (image/svg+xml)', reasons[self.url('/bomb.svg')])
+
+    def test_an_image_on_a_private_address_is_refused_not_fetched(self):
+        page, _ = self.gather_art()
+        self.assertEqual(dict(page['skipped'])['http://10.1.2.3/private.png'], 'image refused: blocked address')
+
+    def test_a_stylesheet_on_a_private_address_is_refused_not_fetched(self):
+        parser = gather._PageParser()
+        parser.feed('<link rel="stylesheet" href="/site.css">')
+        proxy = guard.GuardProxy(allow_loopback=True)
+        self.addCleanup(proxy.close)
+        skipped = []
+        gather._page_theme(guard.opener(proxy.port), parser, 'http://10.1.2.3/', True,
+                           time.monotonic() + 5, 5, skipped)
+        self.assertEqual(skipped, [('http://10.1.2.3/site.css', 'stylesheet refused: blocked address')])
+
+    def test_per_page_and_per_note_image_caps(self):
+        old = gather.IMAGES_PER_PAGE, gather.IMAGES_PER_NOTE
+        self.addCleanup(lambda: (setattr(gather, 'IMAGES_PER_PAGE', old[0]),
+                                 setattr(gather, 'IMAGES_PER_NOTE', old[1])))
+        gather.IMAGES_PER_PAGE = 2
+        page, _ = self.gather_art()
+        self.assertEqual(len(page['images']), 2)
+        self.assertTrue(any('more images not gathered' in reason for _, reason in page['skipped']))
+        gather.IMAGES_PER_PAGE, gather.IMAGES_PER_NOTE = 8, 1
+        pages, _ = gather.crawl([self.url('/art'), self.url('/about')], max_pages=2,
+                                allow_loopback=True, chromium=None)
+        self.assertEqual(sum(len(p['images']) for p in pages), 1)
+
+    def test_the_theme_lists_colours_and_fonts_most_used_first(self):
+        page, _ = self.gather_art()
+        theme = page['theme']
+        self.assertIn('Theme colour (meta theme-color): #ffffff', theme)
+        colours = theme.split('## Colours, most used first')[1].split('##')[0]
+        self.assertEqual(colours.split()[1], '#ff0000')       # --brand, h1 and a: 3 uses
+        self.assertIn('- #ff0000 (3 uses)', colours)
+        self.assertIn('- #112233 (2 uses)', colours)          # rgb(17, 34, 51) normalised to hex
+        self.assertNotIn('#abcdef', theme)                    # a comment, not a declaration
+        self.assertIn('- --brand: #ff0000', theme)
+        self.assertIn('- "Inter", sans-serif (2 uses)', theme)
+        # The same-site stylesheet was read; the off-site one and every font file never were.
+        self.assertIn('/site.css', _Site.requested)
+        self.assertNotIn('/font.woff2', _Site.requested)
+        self.assertFalse(any(p.endswith(('.woff', '.woff2', '.ttf', '.otf')) for p in _Site.requested))
+
+    def test_a_page_with_no_styles_has_no_theme(self):
+        page = gather.crawl([self.url('/about')], max_pages=1, allow_loopback=True, chromium=None)[0][0]
+        self.assertIsNone(page['theme'])
+        self.assertEqual(page['images'], [])
+
+
+class ImageTypes(unittest.TestCase):
+    def test_every_gathered_image_type_is_one_the_attachment_store_accepts(self):
+        from videobuilder.attachments import MAGIC, TYPES
+        for ctype, ext in gather.IMAGE_TYPES.items():
+            self.assertIn(ext, MAGIC)
+            self.assertEqual(TYPES[ext], ctype)
 
 
 class WriteAttachments(unittest.TestCase):
@@ -248,6 +403,43 @@ class WriteAttachments(unittest.TestCase):
         names = [u[1] for u in store.uploads]
         self.assertIn('page-1.txt', names)
         self.assertIn('gathered-pages.md', names)
+
+    def art_page(self):
+        return dict(url='http://x/1', title='One', text='hi', desktop_png=b'd' * 10, phone_png=b'p' * 10,
+                    theme='# Theme\n- #ff0000 (3 uses)',
+                    images=[dict(url='http://x/a.png', type='image/png', data=b'a' * 50),
+                            dict(url='http://x/b.gif', type='image/gif', data=b'GIF89a' + b'b' * 50)],
+                    skipped=[('http://x/icon.png', 'image refused: too small (an icon or tracking pixel)')])
+
+    def test_images_and_theme_are_uploaded_and_listed(self):
+        store = self.FakeStore()
+        gather.write_attachments(store, 'film', [self.art_page()], [])
+        names = [u[1] for u in store.uploads]
+        self.assertEqual(names[:-1], ['page-1-theme.md', 'page-1-desktop.png', 'page-1-phone.png', 'page-1.txt',
+                                      'page-1-image-1.png', 'page-1-image-2.gif'])
+        self.assertEqual(store.uploads[4][2], 'image/png')
+        index = store.uploads[-1][3].decode()
+        self.assertIn('theme: page-1-theme.md', index)
+        self.assertIn('image http://x/a.png: page-1-image-1.png', index)
+        self.assertIn('image http://x/b.gif: page-1-image-2.gif', index)
+        self.assertIn('http://x/icon.png: image refused: too small', index)
+        # listed text, screenshots, theme, images, whatever order they were uploaded in
+        self.assertLess(index.index('text: page-1.txt'), index.index('theme: page-1-theme.md'))
+
+    def test_a_tight_budget_keeps_the_theme_and_drops_images_first(self):
+        store = self.FakeStore(max_files=4)
+        gather.write_attachments(store, 'film', [self.art_page()], [])
+        names = [u[1] for u in store.uploads]
+        self.assertEqual(names, ['page-1-theme.md', 'page-1-desktop.png', 'page-1-phone.png', 'gathered-pages.md'])
+        index = store.uploads[-1][3].decode()
+        self.assertIn('image http://x/a.png: skipped (attachment limit reached)', index)
+        self.assertIn('text: skipped (attachment limit reached)', index)
+
+    def test_the_themes_of_every_page_go_before_any_pages_images(self):
+        store = self.FakeStore(max_files=3)
+        second = dict(self.art_page(), url='http://x/2', theme='# Theme 2')
+        gather.write_attachments(store, 'film', [self.art_page(), second], [])
+        self.assertEqual([u[1] for u in store.uploads], ['page-1-theme.md', 'page-2-theme.md', 'gathered-pages.md'])
 
     def test_index_itself_skipped_rather_than_exceeding_max_message(self):
         # Page attachments alone already spend the whole byte budget; the index
