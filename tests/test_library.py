@@ -387,6 +387,7 @@ els['lib-copy'].onsubmit({preventDefault(){}}).then(()=>console.log(JSON.stringi
         note = self.wait_for_note(note['id'], lambda n: n['state'] != 'gathering')
         self.assertIn('A marketing video for the launch.', note['text'])
         self.assertIn('Some pages were not gathered', note['text'])
+        self.assertEqual(note['said'], 'A marketing video for the launch.')
         names = {a['name'] for a in note['attachments']}
         self.assertIn('brief.txt', names)
         self.assertIn('gathered-pages.md', names)
@@ -412,6 +413,8 @@ els['lib-copy'].onsubmit({preventDefault(){}}).then(()=>console.log(JSON.stringi
         code, note = self.request('/v/acme/no-links/api/videos/first-note', {'description': 'Simple brief.'})
         self.assertEqual(code, 200, note)
         self.assertIn('Simple brief.', note['text'])
+        self.assertIn('Build a first version', note['text'])     # the builder gets the whole brief
+        self.assertEqual(note['said'], 'Simple brief.')          # the chat shows only the creator's words
         self.assertEqual(note['attachments'], [])
 
     def test_first_note_cap_refuses_once_reached(self):

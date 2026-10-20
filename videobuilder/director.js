@@ -762,7 +762,7 @@ function renderNotes() {
       };
       bubble.append(stamp)
     }
-    bubble.append(node('span','msg-text',note.text));
+    bubble.append(node('span','msg-text',note.said||note.text));
     for(const attachment of note.attachments||[]) {
       if(attachment.type?.startsWith('image/')) {
         const img=node('img');

@@ -876,17 +876,20 @@ class Editor:
         if 'frames' not in info:
             raise HTTPError(409, 'the video does not load; fix it before starting it')
         fmt = info['formats'][0]['name']
+        # The chat shows `said`; `text` is the whole brief the builder gets.
+        said = {'said': description.strip()} if description and description.strip() else {}
 
         if not links:
             try:
                 return self.notes.add(vid, fmt, None, None, _first_brief(description, attachments, [], [], extra),
-                                      None, author=author, attachments=attachments)
+                                      None, author=author, attachments=attachments, **said)
             except ValueError as e:
                 raise HTTPError(400, str(e)) from None
 
         # `gather` is what _resume_gathering needs to crawl again after a restart.
         note = self.notes.start_gathering(vid, fmt, text=description, author=author, attachments=attachments,
-                                          gather={'description': description, 'links': links, 'extra': extra})
+                                          gather={'description': description, 'links': links, 'extra': extra},
+                                          **said)
         self._start_gather(note)
         return note
 

@@ -167,6 +167,21 @@ class Notes(unittest.TestCase):
         self.assertIn('End your reply with Summary: <one line>.', md2)
         self.assertNotIn('unless you are asking clarifying questions', md2)
 
+    def test_an_answer_shows_the_creators_words_and_sends_the_whole_brief(self):
+        agent = FakeAgent()
+        store = NoteStore(self.dir, agent)
+        reply = '```questions\n' + json.dumps({'questions': [{'text': 'Light or dark?'}]}) + '\n```\n'
+        for build, said in ((False, 'A pier at dawn\n\nQ: Light or dark?\nA: Dark'), (True, 'A pier at dawn')):
+            with self.subTest(build=build):
+                video = f'promo/film-{int(build)}'
+                note = store.add(video, '16x9', None, None, 'A pier at dawn\n\nBuild a first version.', None,
+                                 said='A pier at dawn')
+                agent.states[note['handle']] = AgentStatus('replied', reply, None)
+                self.assertEqual(store.list(video)[0]['state'], 'questions')
+                followup = store.answer(note['id'], build, None if build else ['Dark'])
+                self.assertIn('Build a first version.', followup['text'])
+                self.assertEqual(followup['said'], said)
+
     def test_builder_prompt_golden_text(self):
         """Pins the exact note file the builder reads, byte for byte: a change here
         means the prompt itself changed, not just where it's built."""

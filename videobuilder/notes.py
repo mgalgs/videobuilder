@@ -602,20 +602,25 @@ class NoteStore:
                 raise ValueError('note is not waiting on questions')
             if note.get('answered'):
                 raise ValueError(f'note already answered as {note["answered"]}')
+            said = {}
             if build:
                 text = note['text'] + '\n\nBuild it with your best judgement; do not ask questions.'
+                if note.get('said'):
+                    said = {'said': note['said']}
             else:
                 questions = note.get('questions') or []
                 if (not isinstance(answers, list) or len(answers) != len(questions)
                         or not all(isinstance(a, str) and a.strip() for a in answers)):
                     raise ValueError('answers must be a nonempty string per question')
-                parts = [note['text']]
-                parts += [f"Q: {q['text']}\nA: {a.strip()}" for q, a in zip(questions, answers)]
-                text = '\n\n'.join(parts)
+                qa = [f"Q: {q['text']}\nA: {a.strip()}" for q, a in zip(questions, answers)]
+                text = '\n\n'.join([note['text'], *qa])
+                if note.get('said'):
+                    said = {'said': '\n\n'.join([note['said'], *qa])}
             png = self.image(nid) if note.get('frame') is not None else None
             context = {k: note[k] for k in ('time', 'beat', 'attachments', 'clip') if k in note}
             new = self.add(video, note['format'], note['frame'], note['segment'], text, png,
-                           author=author or note.get('author'), answered_from=nid, no_questions=True, **context)
+                           author=author or note.get('author'), answered_from=nid, no_questions=True, **context,
+                           **said)
             note['answered'] = new['id']
             # Recorded here, not reconstructed from the follow-up's text later: that text is free-form
             # (the original note's own words may coincidentally match) and the follow-up can be deleted.
