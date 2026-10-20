@@ -312,8 +312,10 @@ class FakeBackend(AgentBackend):
         self.shortfalls = shortfalls
         self.cost_usd = cost_usd
         self.tokens = tokens
-        self.change = change or ('\n_original_draw = FILM.draw\n'
-                                'def _draft_draw(n, cv):\n'
+        # The default argument binds the draw this change wraps, so applying it
+        # again (commits > 1) wraps the previous one instead of recursing forever.
+        self.change = change or ('\n'
+                                'def _draft_draw(n, cv, _original_draw=FILM.draw):\n'
                                 '    _original_draw(n, cv)\n'
                                 '    cv.rect(0, 0, cv.width, 18, "#ffb547")\n'
                                 'FILM.draw = _draft_draw\n')
