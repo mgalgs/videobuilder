@@ -115,9 +115,73 @@ def guarded(root, branch, directory):
     return result
 
 
+# Each step of the load check (loading the film, drawing one frame) gets this long.
+LOAD_TIMEOUT = 60
+
+
+def _tail(error, lines=20):
+    return '\n'.join(error.strip().splitlines()[-lines:])
+
+
+def _short(error):
+    """The error's last line, as a sentence."""
+    return (_tail(error, 1) or 'unknown error').rstrip('.') + '.'
+
+
 class Drafts:
     def __init__(self, editor):
         self.editor = editor
+
+    def _load_error(self, video, work, tip):
+        """Why the film in the clean checkout `work` doesn't load or draw its
+        first frame, or None when it does. A worker that can't start at all (no
+        sandbox, a pinned environment that won't build) is the editor's problem,
+        not the draft's, so that lets the draft through."""
+        e = self.editor
+        e.sources.sync(video, root=work)
+        e.pool.unsandboxed = e.unsandboxed_previews
+        try:
+            worker = e.pool.get(video, work, work / self.context(video)['film'], work, revision=tip)
+        except (ValueError, OSError) as exc:
+            logging.warning('could not check that %s loads before landing: %s', video, exc)
+            return None
+        try:
+            info = worker.request('info', timeout=LOAD_TIMEOUT)
+            if info.get('error'):
+                return info['error']
+            worker.request('frame', timeout=LOAD_TIMEOUT, frame=0, scale=0.25)
+            return None
+        except ValueError as exc:
+            return str(exc)
+        finally:
+            e.pool.release(video, work)
+
+    def _not_loading(self, video, note, error):
+        """Keep main where it is and, once per note, ask the builder to fix it."""
+        e = self.editor
+        if note.get('load_fix'):
+            message = f"The builder's change still didn't load: {_short(error)}"
+            e.notes.update(e.notes.get(note['retry_for']), state='failed', message=message)
+            e.notes.update(note, state='failed', message=message)
+            return dict(state='failed', message=message)
+        # An automatic rebase request that doesn't load gets its one fix too, for
+        # the note it was retrying, so the fix resolves that note when it lands.
+        original = e.notes.get(note['retry_for']) if note.get('retry_for') else note
+        message = "The builder's change didn't load; it's fixing it."
+        e.notes.update(original, message=message)
+        e.notes.add(video, note['format'], note['frame'], note['segment'],
+                    'Your change did not load in a clean checkout of the repo, so it was not kept. '
+                    'The error:\n\n' + _tail(error) + '\n\n'
+                    'A file film.py reads is probably missing from the commit: check '
+                    '`git status --ignored` and `.gitignore` (never ignore a whole file type such as '
+                    '*.png; ignore only render outputs by path), commit every file film.py reads, and '
+                    'confirm it loads from a fresh checkout (`git stash -u` or a `git worktree add` of '
+                    'HEAD) before replying.',
+                    e.notes.image(note['id']) if note.get('frame') is not None else None,
+                    author='editor', automatic=True, retry_for=original['id'], load_fix=True,
+                    said="Your change didn't load from a clean copy of the repo, so it wasn't kept. "
+                         'Please fix it. The error: ' + _short(error))
+        return dict(state='load_requested', message=message)
 
     def prune(self):
         if self.editor.project.git is None:
@@ -257,6 +321,11 @@ class Drafts:
                     guarded(e.root, temp_branch, self.context(video)['directory'])
                 finally:
                     git(e.root, 'branch', '-D', temp_branch)
+                error = self._load_error(video, work, tip)
+                if error:
+                    if not auto:
+                        raise ValueError("This draft doesn't load: " + _short(error))
+                    return self._not_loading(video, note, error)
                 if auto:
                     summary = next((x.split(':', 1)[1].strip() for x in reversed((note.get('reply') or '').splitlines())
                                     if x.startswith('Summary: ') and x.split(':', 1)[1].strip()), None)
@@ -281,7 +350,7 @@ class Drafts:
                     e.notes.update(note, state='landed', version={'n': e.versions.number(tip), 'commit': tip})
                     if note.get('retry_for'):
                         original = e.notes.get(note['retry_for'])
-                        e.notes.update(original, state='landed', version=note['version'])
+                        e.notes.update(original, state='landed', version=note['version'], message=None)
                 else:
                     e.notes.resolve(video, branch, 'accepted', author)
                 e.project.last.pop(video, None)

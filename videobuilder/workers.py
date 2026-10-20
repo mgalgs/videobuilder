@@ -194,16 +194,16 @@ class Worker:
         end = self.buffer.index(b'\n') + 1
         return self._read(end, deadline)
 
-    def request(self, op, **data):
+    def request(self, op, timeout=TIMEOUT, **data):
         with self.lock:
             self.used = time.monotonic()
             try:
                 self.process.stdin.write(json.dumps({'path': self.film, 'op': op, **data}).encode() + b'\n')
-                header = json.loads(self._line(time.monotonic() + TIMEOUT))
+                header = json.loads(self._line(time.monotonic() + timeout))
                 if not header['ok']:
                     raise ValueError(header['error'])
                 if 'length' in header:
-                    return self._read(header['length'], time.monotonic() + TIMEOUT)
+                    return self._read(header['length'], time.monotonic() + timeout)
                 return header['value']
             except (BrokenPipeError, OSError) as exc:
                 raise ValueError(f'film worker failed: {exc}') from None
@@ -254,6 +254,13 @@ class Pool:
                 worker = Worker(python, checkout, film, self.unsandboxed, source)
                 self.workers[identity] = (key, revision, worker)
             return self.workers[identity][-1]
+
+    def release(self, video, checkout):
+        """Close the one worker for `checkout`, a throwaway path about to be removed."""
+        with self.lock:
+            entry = self.workers.pop((str(video), str(checkout)), None)
+            if entry:
+                entry[-1].close()
 
     def close_draft(self, video):
         with self.lock:

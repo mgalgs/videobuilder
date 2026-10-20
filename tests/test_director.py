@@ -230,6 +230,123 @@ class Director(TempProject):
         self.assertEqual(self.editor.notes.get(note['id'])['state'], 'conflict')
         self.assertEqual(len([n for n in self.editor.notes.list(refresh=False) if n.get('automatic')]), 1)
 
+    # Reads a file the builder never committed, as when its .gitignore says *.png.
+    MISSING = ("\nimport pathlib\n"
+               "_CLIP = (pathlib.Path(__file__).parent / 'assets' / 'webclip.png').read_bytes()\n")
+
+    def broken_draft(self, change=MISSING):
+        self.editor.notes.backend = FakeBackend(delay=0, change=change)
+        note = self.post('/api/notes', {'video': 'promo/film', 'text': 'Use the clip'})[1]
+        self.editor.notes.backend.poll(note['handle'])
+        return note
+
+    def fix_notes(self):
+        return [n for n in self.editor.notes.list(refresh=False) if n.get('automatic')]
+
+    def test_a_draft_that_does_not_load_asks_for_one_fix_that_lands(self):
+        note = self.broken_draft()
+        main = git(self.root, 'rev-parse', 'main').strip()
+        self.editor.notes.backend = FakeBackend(delay=10)
+        self.get('/api/notes')
+        self.assertEqual(git(self.root, 'rev-parse', 'main').strip(), main)
+        original = self.editor.notes.get(note['id'])
+        self.assertEqual((original['state'], original['message']),
+                         ('replied', "The builder's change didn't load; it's fixing it."))
+        self.assertNotIn('version', original)
+        self.assertFalse([k for k in self.editor.pool.workers if k[1].endswith('accept-work')])
+        self.assertNotEqual(git(self.root, 'rev-parse', original['branch']).strip(), main)
+        [fix] = self.fix_notes()
+        self.assertEqual((fix['author'], fix['retry_for']), ('editor', note['id']))
+        self.assertIn('did not load in a clean checkout', fix['text'])
+        self.assertIn('FileNotFoundError', fix['text'])
+        self.assertIn('webclip.png', fix['text'])
+        self.assertIn('webclip.png', fix['said'])
+        markdown = (self.editor.notes.session_dir('promo/film') / (fix['id'] + '.md')).read_text()
+        self.assertIn('draft: ' + original['branch'], markdown)
+        handle = Path(fix['handle'])
+        handle.write_text(json.dumps({**json.loads(handle.read_text()), 'ready': 0}))
+        self.editor.notes.backend = FakeBackend(delay=0, change='\n', extra_path='promo/assets/webclip.png')
+        self.get('/api/notes')
+        fixed, original = self.editor.notes.get(fix['id']), self.editor.notes.get(note['id'])
+        self.assertEqual((fixed['state'], original['state']), ('landed', 'landed'))
+        self.assertEqual(original['version'], fixed['version'])
+        self.assertIsNone(original['message'])
+        self.assertEqual(git(self.root, 'rev-parse', 'main').strip(), fixed['version']['commit'])
+        self.assertIn('promo/assets/webclip.png', self.files_in('main'))
+        self.assertEqual(len(self.fix_notes()), 1)
+
+    def test_a_fix_that_still_does_not_load_fails_both_notes(self):
+        note = self.broken_draft()
+        main = git(self.root, 'rev-parse', 'main').strip()
+        for _ in range(3):
+            self.get('/api/notes')
+        [fix] = self.fix_notes()
+        for n in (self.editor.notes.get(note['id']), self.editor.notes.get(fix['id'])):
+            self.assertEqual(n['state'], 'failed')
+            self.assertTrue(n['message'].startswith("The builder's change still didn't load: FileNotFoundError"))
+        self.assertEqual(git(self.root, 'rev-parse', 'main').strip(), main)
+        self.assertEqual(len(self.fix_notes()), 1)
+        self.assertEqual(self.editor.notes.pending(), [])
+
+    def test_a_rebase_request_that_does_not_load_still_gets_its_one_fix(self):
+        note = self.broken_draft()
+        self.film.write_text(self.film.read_text() + '\n# competing main edit\n')
+        git(self.root, 'commit', '-am', 'main changed')
+        self.editor.notes.backend = FakeBackend(delay=10, change='\n')
+        self.get('/api/notes')
+        [rebase] = self.fix_notes()
+        self.assertEqual(rebase['text'], 'rebase your draft onto main')
+        # The builder rebases cleanly but still leaves the ignored file out.
+        branch = self.editor.notes.get(note['id'])['branch']
+        work = self.root.parent / 'rebased'
+        git(self.root, 'worktree', 'add', '--detach', str(work), 'main')
+        film = work / self.film.relative_to(self.root)
+        film.write_text(film.read_text() + self.MISSING)
+        git(work, 'commit', '-qam', 'agent: rebased')
+        git(self.root, 'update-ref', 'refs/heads/' + branch, git(work, 'rev-parse', 'HEAD').strip())
+        git(self.root, 'worktree', 'remove', '--force', str(work))
+        main = git(self.root, 'rev-parse', 'main').strip()
+        handle = Path(rebase['handle'])
+        handle.write_text(json.dumps({**json.loads(handle.read_text()), 'ready': 0}))
+        self.get('/api/notes')
+        self.assertEqual(git(self.root, 'rev-parse', 'main').strip(), main)
+        original = self.editor.notes.get(note['id'])
+        self.assertEqual((original['state'], original['message']),
+                         ('replied', "The builder's change didn't load; it's fixing it."))
+        self.assertNotEqual(self.editor.notes.get(rebase['id'])['state'], 'failed')
+        [fix] = [n for n in self.fix_notes() if n['id'] != rebase['id']]
+        self.assertEqual(fix['retry_for'], note['id'])
+        self.assertIn('webclip.png', fix['text'])
+
+    def test_a_film_that_loads_but_cannot_draw_is_caught(self):
+        note = self.broken_draft('\ndef _draft_draw(n, cv):\n    raise RuntimeError("no font at assets/Brand.otf")\n'
+                                 'FILM.draw = _draft_draw\n')
+        main = git(self.root, 'rev-parse', 'main').strip()
+        self.editor.notes.backend = FakeBackend(delay=10)
+        self.get('/api/notes')
+        self.assertEqual(git(self.root, 'rev-parse', 'main').strip(), main)
+        self.assertEqual(self.editor.notes.get(note['id'])['state'], 'replied')
+        [fix] = self.fix_notes()
+        self.assertIn('no font at assets/Brand.otf', fix['text'])
+
+    def test_manual_accept_refuses_a_draft_that_does_not_load(self):
+        self.editor.auto_land = False
+        self.broken_draft()
+        self.get('/api/notes')
+        main = git(self.root, 'rev-parse', 'main').strip()
+        code, body = self.post('/api/draft/accept', {'video': 'promo/film'})
+        self.assertEqual(code, 400)
+        self.assertIn("This draft doesn't load: FileNotFoundError", body['error'])
+        self.assertEqual(git(self.root, 'rev-parse', 'main').strip(), main)
+        self.assertEqual(self.fix_notes(), [])
+
+    def test_a_worker_that_cannot_start_does_not_block_landing(self):
+        self.editor.unsandboxed_previews = False
+        note = self.broken_draft()
+        with patch('videobuilder.workers.shutil.which', return_value=None):
+            self.get('/api/notes')
+        self.assertEqual(self.editor.notes.get(note['id'])['state'], 'landed')
+
     def test_retry_conflicted_note_on_main(self):
         self.editor.notes.backend = FakeBackend(delay=0)
         note = self.post('/api/notes', {'video':'promo/film','text':'Change ending','time':0.4})[1]
