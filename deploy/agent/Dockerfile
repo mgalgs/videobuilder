@@ -9,6 +9,9 @@
 ARG BASE
 FROM ${BASE}
 USER root
+# rsvg-convert renders gathered or uploaded SVGs to PNG at any size.
+RUN apt-get update && apt-get install -y --no-install-recommends librsvg2-bin \
+    && rm -rf /var/lib/apt/lists/* && rsvg-convert --version
 RUN python3 -m venv --system-site-packages /opt/manimgx \
     && /opt/manimgx/bin/pip install --no-cache-dir manimgx==0.1.1 \
     && /opt/manimgx/bin/python -c 'import manimgx'
