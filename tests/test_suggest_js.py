@@ -19,8 +19,10 @@ class Rewrite(unittest.TestCase):
         js = (PKG / 'suggest.js').read_text()
         key_of = re.search(r'\nconst keyOf = .*?;', js).group(0)
         template = re.search(r'\nconst TEMPLATE = \{.*?\n\};', js, re.S).group(0)
+        open_end = re.search(r'\nconst OPEN_END = .*?;', js).group(0)
+        name = re.search(r'\nconst NAME = \{.*?\n\};', js, re.S).group(0)
         rewrite = re.search(r'\nfunction rewrite\(text, i\) \{.*?\n\}', js, re.S).group(0)
-        script = key_of + template + rewrite + f"""
+        script = key_of + template + open_end + name + rewrite + f"""
 const BY = {json.dumps(by)};
 const out = [];
 for (const [text, item] of {json.dumps(cases)}) {{
@@ -39,6 +41,26 @@ console.log(JSON.stringify(out));
         [[a, b, t]] = self.run_rewrite({}, [[text, item]])
         self.assertEqual(text[a:b], 'look like a comic')
         self.assertEqual(t, 'look like a comic, in the Pop-art halftone look')
+
+    def test_note_ending_on_an_open_word_is_finished_by_the_name(self):
+        by = {'looks:look-melt': {'title': 'Surrealist melt'}, 'fonts:cantarell': {'family': 'Cantarell'}}
+        cases = [['change the look to', {'family': 'looks', 'id': 'look-melt', 'replace': None}],
+                 ['set the title in a font like ', {'family': 'fonts', 'id': 'cantarell', 'replace': None}]]
+        out = self.run_rewrite(by, cases)
+        self.assertEqual([text[:a] + t + text[b:] for (text, _), (a, b, t) in zip(cases, out)],
+                         ['change the look to Surrealist melt', 'set the title in a font like Cantarell'])
+
+    def test_open_ending_beats_the_models_own_replace(self):
+        text = 'change the look to'
+        item = {'family': 'looks', 'id': 'look-melt', 'replace': {'span': 'look', 'text': 'look (Surrealist melt)'}}
+        [[a, b, t]] = self.run_rewrite({'looks:look-melt': {'title': 'Surrealist melt'}}, [[text, item]])
+        self.assertEqual(text[:a] + t + text[b:], 'change the look to Surrealist melt')
+
+    def test_look_template_names_the_look_without_splitting_the_sentence(self):
+        text = 'make the look warmer'
+        item = {'family': 'looks', 'id': 'look-melt', 'replace': None}
+        [[a, b, t]] = self.run_rewrite({'looks:look-melt': {'title': 'Surrealist melt'}}, [[text, item]])
+        self.assertEqual(text[:a] + t + text[b:], 'make the look (Surrealist melt) warmer')
 
     def test_font_template_adds_parens_after_the_word_font(self):
         text = 'Use a friendlier font for the title'

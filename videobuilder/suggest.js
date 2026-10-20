@@ -238,7 +238,8 @@ function render() {
 /* ---- picking: rewrite the note's words, light up what changed ---- */
 const LIB_FALLBACK = 'the configured library';
 const TEMPLATE = {
-  looks: [/(?:look|feel|style)s?(?: like [^,.;!?]+)?/gi, x => x.kind === 'filter' ? `, with the ${x.title}` : `, in the ${x.title} look`],
+  looks: [/(?:look|feel|style)s?(?: like [^,.;!?]+)?/gi, x => ` (${x.title})`,
+          x => x.kind === 'filter' ? `, with the ${x.title}` : `, in the ${x.title} look`],
   type: [null, x => `, with ${x.title.toLowerCase()}`],
   capabilities: [null, x => `, with ${x.title.toLowerCase()}`],
   fonts: [/\b(?:an? |the )?(?:[\w-]+ )?(?:font|typeface)\b/gi, x => ` (${x.family})`, x => `, set in ${x.family}`],
@@ -247,13 +248,23 @@ const TEMPLATE = {
   music: [/\b(?:some |the )?(?:[\w-]+ )?(?:music|song|soundtrack)\b/gi, x => ` ("${x.title}", ${x.source || LIB_FALLBACK})`,
          x => `, with "${x.title}" (${x.source || LIB_FALLBACK}) as the music`],
 };
+const OPEN_END = /\b(?:to|into|like|with|as|using|use|try|add|for)\s*$/i;
+const NAME = {
+  looks: x => x.title, type: x => x.title.toLowerCase(), capabilities: x => x.title.toLowerCase(),
+  fonts: x => x.family, sfx: x => x.id, music: x => `"${x.title}" (${x.source || LIB_FALLBACK})`,
+};
 function rewrite(text, i) {
+  const entry = () => BY[keyOf(i)] || {title: nameOf(i.family, i.id), family: nameOf(i.family, i.id)};
+  // A note that stops on an open word ("change the look to") is waiting for the pick's name itself.
+  if (OPEN_END.test(text)) {
+    const name = (NAME[i.family] || NAME.looks)(entry()), end = text.length;
+    return [end, end, (/\s$/.test(text) ? '' : ' ') + name];
+  }
   if (i.replace && text.includes(i.replace.span)) {
     const a = text.lastIndexOf(i.replace.span);
     return [a, a + i.replace.span.length, i.replace.text];
   }
-  const x = BY[keyOf(i)] || {title: nameOf(i.family, i.id), family: nameOf(i.family, i.id)};
-  const [re, add, append] = TEMPLATE[i.family] || [null, () => ''];
+  const x = entry(), [re, add, append] = TEMPLATE[i.family] || [null, () => ''];
   if (re) {
     let m, last = null; re.lastIndex = 0;
     while ((m = re.exec(text))) last = m;
