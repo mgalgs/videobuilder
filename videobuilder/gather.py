@@ -437,17 +437,17 @@ def _artwork(fetcher, parser, page_url, allow_loopback, deadline, page_timeout, 
 
 
 def _page_theme(fetcher, parser, page_url, allow_loopback, deadline, page_timeout, skipped):
-    """The page's theme notes from its inline styles and at most MAX_STYLESHEETS
-    same-site stylesheets. Nothing a stylesheet points at (@import, fonts,
+    """The page's theme notes from its inline styles and its first
+    MAX_STYLESHEETS stylesheets, from any public host (sites often serve CSS
+    from a CDN). Nothing a stylesheet points at (@import, fonts,
     backgrounds) is ever fetched."""
     css = list(parser.styles)
-    host = {_registrable(urlsplit(page_url).hostname)}
     sheets = list(dict.fromkeys(urljoin(page_url, href.strip()).split('#', 1)[0] for href in parser.stylesheets))
     fetched = 0
     for url in sheets:
         if fetched >= MAX_STYLESHEETS or time.monotonic() >= deadline:
             break
-        if urlsplit(url).scheme not in ('http', 'https') or not _same_site(url, host):
+        if urlsplit(url).scheme not in ('http', 'https'):
             continue
         fetched += 1
         try:
