@@ -319,7 +319,7 @@ class NoteStore:
             note = self.get(nid)
         return note
 
-    def start_gathering(self, video, format, text=None, author=None, attachments=None, **context):
+    def start_gathering(self, video, format, text=None, author=None, attachments=None, png=None, **context):
         """A placeholder note in the `gathering` state, saved and visible to
         every viewer (reload, another device, loadNotes' poll) before the
         gatherer -- which can run for up to about two minutes -- has
@@ -327,10 +327,14 @@ class NoteStore:
         `gathering` note the same way it stops at an in-flight one, so a
         note added while the brief is gathering waits for it rather than
         being submitted first; `finish_gathering` supplies the real text
-        and moves it to `queued`, where `_advance` submits it as usual."""
+        and moves it to `queued`, where `_advance` submits it as usual.
+        `context` may set the frame, segment and so on of a later note."""
         os.makedirs(self.dir, exist_ok=True)
         now = time.time()
         nid = time.strftime('%Y%m%dT%H%M%S', time.gmtime(now)) + f'{int(now % 1 * 1e6):06d}Z-{secrets.token_hex(3)}'
+        if png is not None:
+            with open(self._path(nid, 'png'), 'wb') as fh:
+                fh.write(png)
         note = {'id': nid, 'video': video, 'format': format, 'frame': None, 'segment': None,
                 'text': (text or '').strip() or 'Starting this video…', 'author': author,
                 'created': time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime(now)), 'gather_started': now,

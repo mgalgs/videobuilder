@@ -229,6 +229,31 @@ class Crawl(GatherFixture):
         self.assertTrue(any('blocked address' in reason for _, reason in errors))
 
 
+class LinksIn(unittest.TestCase):
+    def test_trailing_punctuation_is_not_part_of_the_link(self):
+        text = 'See https://a.example/x. Or https://a.example/y, https://a.example/z! "https://a.example/q"'
+        self.assertEqual(gather.links_in(text), ['https://a.example/x', 'https://a.example/y',
+                                                 'https://a.example/z', 'https://a.example/q'])
+
+    def test_parentheses_close_a_link_only_when_unbalanced(self):
+        self.assertEqual(gather.links_in('(see https://a.example/x)'), ['https://a.example/x'])
+        self.assertEqual(gather.links_in('[docs](https://a.example/d).'), ['https://a.example/d'])
+        self.assertEqual(gather.links_in('https://en.example/wiki/Foo_(bar)'), ['https://en.example/wiki/Foo_(bar)'])
+
+    def test_angle_brackets_and_duplicates(self):
+        text = 'Use <https://a.example/x> and http://b.example/?q=1 then https://a.example/x again.'
+        self.assertEqual(gather.links_in(text), ['https://a.example/x', 'http://b.example/?q=1'])
+
+    def test_no_links(self):
+        self.assertEqual(gather.links_in('Make the title bigger. ftp://a.example is not a web link.'), [])
+        self.assertEqual(gather.links_in('https:// nothing'), [])
+        self.assertEqual(gather.links_in(''), [])
+
+    def test_an_unparseable_link_is_skipped_not_raised(self):
+        text = 'see http://[oops and http://[::1 then https://a.example/x'
+        self.assertEqual(gather.links_in(text), ['https://a.example/x'])
+
+
 class Artwork(GatherFixture):
     def gather_art(self, **kw):
         pages, errors = gather.crawl([self.url('/art')], max_pages=1, allow_loopback=True, chromium=None, **kw)
@@ -280,7 +305,7 @@ class Artwork(GatherFixture):
         self.assertEqual(len(page['images']), 2)
         self.assertTrue(any('more images not gathered' in reason for _, reason in page['skipped']))
         gather.IMAGES_PER_PAGE, gather.IMAGES_PER_NOTE = 8, 1
-        pages, _ = gather.crawl([self.url('/art'), self.url('/about')], max_pages=2,
+        pages, _ = gather.crawl([self.url('/art'), self.url('/about')], max_pages=2, follow=False,
                                 allow_loopback=True, chromium=None)
         self.assertEqual(sum(len(p['images']) for p in pages), 1)
 
@@ -304,6 +329,10 @@ class Artwork(GatherFixture):
         page = gather.crawl([self.url('/about')], max_pages=1, allow_loopback=True, chromium=None)[0][0]
         self.assertIsNone(page['theme'])
         self.assertEqual(page['images'], [])
+
+    def test_follow_false_reads_only_the_linked_pages(self):
+        pages, _ = gather.crawl([self.url('/')], max_pages=5, follow=False, allow_loopback=True, chromium=None)
+        self.assertEqual([p['url'] for p in pages], [self.url('/')])
 
 
 class ImageTypes(unittest.TestCase):

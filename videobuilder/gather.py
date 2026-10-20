@@ -1,11 +1,12 @@
-"""Gathering: visiting the links given when starting a video from scratch, so
-the builder never has to -- the builder's sandbox stays offline. The editor
-crawls same-site pages breadth-first from the given links, through
-`guard.GuardProxy`, before the first note is queued, and keeps per page: the
-final URL, the title, readable text, a desktop and a phone screenshot, the
-page's artwork (its share image and content images) and its theme (the
-colours and font stacks its CSS uses most). `write_attachments` turns that
-into ordinary note attachments plus one index attachment listing every page.
+"""Gathering: visiting the links in a chat note, so the builder never has
+to -- the builder's sandbox stays offline. The editor fetches the linked
+pages (for a video's first note, also same-site pages breadth-first from
+them) through `guard.GuardProxy` before the note is queued, and keeps per
+page: the final URL, the title, readable text, a desktop and a phone
+screenshot, the page's artwork (its share image and content images) and its
+theme (the colours and font stacks its CSS uses most). `write_attachments`
+turns that into ordinary note attachments plus one index attachment listing
+every page.
 """
 import collections
 import html.parser
@@ -31,6 +32,7 @@ PHONE = (390, 844)
 USER_AGENT = 'Mozilla/5.0 (compatible; videobuilder-gatherer/1.0)'
 _SKIP = re.compile(r'(?:^|[/._-])(log[-_]?(?:in|on|out|off)|sign[-_]?(?:in|up|out))(?:$|[/._?#-])', re.I)
 _BOILERPLATE = ('script', 'style', 'nav', 'header', 'footer')
+MAX_LINKS = 5
 IMAGES_PER_PAGE = 8
 IMAGES_PER_NOTE = 12
 # Candidates tried per page: some turn out to be icons or the wrong type.
@@ -44,6 +46,31 @@ THEME_FONTS = 5
 # Only types the attachment store accepts (attachments.TYPES): it has no SVG,
 # so an SVG is refused here rather than fetched and then turned away by upload.
 IMAGE_TYPES = {'image/png': 'png', 'image/jpeg': 'jpg', 'image/webp': 'webp', 'image/gif': 'gif'}
+_URL = re.compile(r'https?://[^\s<>"`]+', re.I)
+_TRAILING = '.,;:!?)]}\'">'
+_CLOSERS = {')': '(', ']': '[', '}': '{'}
+
+
+def links_in(text):
+    """The http(s) URLs in a note's text, in order, without the punctuation
+    that usually follows a link in prose: `(see https://a.example/x).` gives
+    https://a.example/x, while a balanced `https://a.example/x_(y)` keeps
+    its parenthesis. Duplicates are dropped."""
+    found = []
+    for match in _URL.finditer(text or ''):
+        url = match.group(0)
+        while url and url[-1] in _TRAILING:
+            opener = _CLOSERS.get(url[-1])
+            if opener and url.count(opener) >= url.count(url[-1]):
+                break
+            url = url[:-1]
+        try:
+            if urlsplit(url).hostname:
+                found.append(url)
+        except ValueError:
+            # A half-typed `http://[::1` is prose, not a link; the note still posts.
+            continue
+    return list(dict.fromkeys(found))
 
 
 def _largest(srcset):
@@ -440,8 +467,8 @@ _AUTO = object()
 
 
 def crawl(links, max_pages=MAX_PAGES, time_budget=TIME_BUDGET, page_timeout=PAGE_TIMEOUT,
-         allow_loopback=False, chromium=_AUTO):
-    """Visit `links` and, breadth-first, same-site pages
+         allow_loopback=False, chromium=_AUTO, follow=True):
+    """Visit `links` and (with `follow`), breadth-first, same-site pages
     reachable from them, up to `max_pages` pages in total within
     `time_budget` seconds. Returns (pages, errors): `pages` is a list of
     dicts (url, title, text, desktop_png, phone_png -- the last two None
@@ -510,6 +537,8 @@ def crawl(links, max_pages=MAX_PAGES, time_budget=TIME_BUDGET, page_timeout=PAGE
             pages.append(dict(url=final_url, title=parser.title, text=parser.text[:MAX_TEXT],
                               desktop_png=desktop, phone_png=phone, images=images, theme=page_theme,
                               skipped=skipped))
+            if not follow:
+                continue
             for href in parser.links:
                 absolute = urljoin(final_url, href).split('#', 1)[0]
                 scheme = urlsplit(absolute).scheme
