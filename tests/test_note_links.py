@@ -69,8 +69,8 @@ class NoteLinks(TempProject):
         names = {a['name'] for a in done['attachments']}
         self.assertTrue({'gathered-pages.md', 'page-1.txt', 'page-1-theme.md', 'page-1-image-1.png'} <= names,
                         names)
-        # The real attachment store took every gathered image: none was turned away.
-        self.assertFalse(any(n.endswith('.svg') for n in names), names)
+        # The real attachment store took every gathered image, the vector logo included.
+        self.assertIn('page-1-image-6.svg', names)
         _, index = self.editor.attachments.get(next(
             a['id'] for a in done['attachments'] if a['name'] == 'gathered-pages.md'))
         self.assertNotIn('unsupported attachment type', index.read_text())

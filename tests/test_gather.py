@@ -264,7 +264,7 @@ class Artwork(GatherFixture):
         page, _ = self.gather_art()
         self.assertEqual([i['url'] for i in page['images']],
                          [self.url(p) for p in ('/og.png', '/tw.png', '/large.png', '/pic.webp',
-                                                '/pic-fallback.jpg')])
+                                                '/pic-fallback.jpg', '/vector.svg')])
         self.assertEqual(page['images'][0]['data'], ASSETS['/og.png'][1])
         # srcset's largest candidate only; nothing in nav; og.png's second mention not fetched again
         self.assertNotIn('/small.png', _Site.requested)
@@ -278,9 +278,9 @@ class Artwork(GatherFixture):
         self.assertIn('too small', reasons[self.url('/icon.png')])
         self.assertIn('not the image/png it claims', reasons[self.url('/fake.png')])
         self.assertIn('not an image type', reasons[self.url('/wrongtype.png')])
-        # The attachment store has no SVG, so one is refused before it takes an image slot.
-        self.assertIn('not an image type it accepts (image/svg+xml)', reasons[self.url('/vector.svg')])
-        self.assertIn('not an image type it accepts (image/svg+xml)', reasons[self.url('/bomb.svg')])
+        # A vector logo is kept whatever its declared size; an entity-declaring SVG is refused.
+        self.assertNotIn(self.url('/vector.svg'), reasons)
+        self.assertIn('declares XML entities', reasons[self.url('/bomb.svg')])
 
     def test_an_image_on_a_private_address_is_refused_not_fetched(self):
         page, _ = self.gather_art()

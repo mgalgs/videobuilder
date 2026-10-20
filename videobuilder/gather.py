@@ -43,9 +43,10 @@ MAX_STYLESHEETS = 3
 MAX_STYLESHEET = 500 * 1024
 THEME_COLOURS = 10
 THEME_FONTS = 5
-# Only types the attachment store accepts (attachments.TYPES): it has no SVG,
-# so an SVG is refused here rather than fetched and then turned away by upload.
-IMAGE_TYPES = {'image/png': 'png', 'image/jpeg': 'jpg', 'image/webp': 'webp', 'image/gif': 'gif'}
+# Only types the attachment store accepts (attachments.TYPES), so nothing is
+# fetched only to be turned away by upload.
+IMAGE_TYPES = {'image/png': 'png', 'image/jpeg': 'jpg', 'image/webp': 'webp', 'image/gif': 'gif',
+               'image/svg+xml': 'svg'}
 _URL = re.compile(r'https?://[^\s<>"`]+', re.I)
 _TRAILING = '.,;:!?)]}\'">'
 _CLOSERS = {')': '(', ']': '[', '}': '{'}
@@ -290,10 +291,18 @@ def _image_size(data, ctype):
 def _fetch_image(opener, url, timeout, allow_loopback):
     """An image's (content type, bytes), refused (ValueError) unless the
     response's Content-Type and its magic bytes agree on an accepted type,
-    it is at most MAX_IMAGE bytes, and it is not icon-sized."""
+    it is at most MAX_IMAGE bytes, and it is not icon-sized. An SVG must
+    instead pass the attachment store's own SVG check."""
     _, ctype, data = _get(opener, url, timeout, allow_loopback, 'image/*', MAX_IMAGE)
     if len(data) > MAX_IMAGE:
         raise ValueError('too large')
+    if ctype == 'image/svg+xml':
+        # A vector logo has no pixel size worth judging, so no icon check.
+        from .attachments import svg_problem
+        problem = svg_problem(data)
+        if problem:
+            raise ValueError(problem)
+        return ctype, data
     sniffed = _sniff(data)
     if sniffed != ctype:
         raise ValueError(f'its content is not the {ctype} it claims to be')
