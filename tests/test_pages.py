@@ -93,33 +93,32 @@ class StarterCardsOnPages(unittest.TestCase):
 
 
 class NewVideoPage(unittest.TestCase):
-    """New video is one small form: a name, a project, an optional
-    description and Create. Everything else is set in the editor."""
+    """New video is one small form: a name, an optional project and Create.
+    The first note, and everything else, happens in the editor."""
 
     def _page(self, names=('acme/launch', 'acme/teaser', 'solo', 'zeta/one', 'capabilities/demo')):
         return pages.new_video_page(list(names)).decode()
 
-    def test_the_form_is_a_name_a_project_a_description_and_create(self):
+    def test_the_form_is_a_name_a_project_and_create(self):
         page = self._page()
         form = re.search(r'<form class="nv-form" id="nv-form" novalidate>(.*?)</form>', page, re.S).group(1)
         self.assertEqual(re.findall(r'<(input|select|textarea|button)\b[^>]*\bid="([^"]+)"', form),
-                         [('input', 'name'), ('select', 'project'), ('input', 'new-project'),
-                          ('textarea', 'about'), ('button', 'go')])
+                         [('input', 'name'), ('select', 'project'), ('input', 'new-project'), ('button', 'go')])
         self.assertIn('>Create</button>', form)
-        self.assertIn('Description <i>(optional)</i>', form)
+        self.assertIn('Project <i>(optional)</i>', form)
         main = re.search(r'<main class="nv">(.*?)</main>', page, re.S).group(1)
         for gone in ('class="ways"', 'id="parts"', 'copy-from', 'nv-pick', 'Look', 'Characters', 'Start building',
-                     'drop files'):
+                     'drop files', 'Description', 'textarea'):
             self.assertNotIn(gone, main)
+        self.assertNotIn('suggest.js', page)
+        self.assertNotIn('sg-chips', page)
 
-    def test_the_project_dropdown_lists_the_projects_first_one_chosen_then_none_and_a_new_one(self):
+    def test_the_project_dropdown_starts_on_no_project(self):
         select = re.search(r'<select id="project">(.*?)</select>', self._page()).group(1)
         options = re.findall(r'<option value="([^"]*)"( selected)?>([^<]*)</option>', select)
         self.assertEqual([(v, label) for v, _, label in options],
-                         [('acme', 'acme'), ('zeta', 'zeta'), ('', 'No project'), ('+new', '+ New project…')])
-        self.assertEqual([v for v, sel, _ in options if sel], ['acme'])
-        select = re.search(r'<select id="project">(.*?)</select>', self._page(['solo'])).group(1)
-        self.assertEqual(re.findall(r'<option value="([^"]*)" selected>', select), [''])
+                         [('', 'No project'), ('acme', 'acme'), ('zeta', 'zeta'), ('+new', '+ New project…')])
+        self.assertEqual([v for v, sel, _ in options if sel], [''])
         self.assertEqual(pages.new_video_projects([]), [])
 
 
@@ -127,62 +126,63 @@ class NewVideoPage(unittest.TestCase):
 class NewVideoCreate(unittest.TestCase):
     """new_video.js run under node against a small stand-in for the page."""
 
-    def run_page(self, name, about, project='acme', stored=None, query=''):
+    def run_page(self, name, project='', new_project='', query='', fail=False):
         script = (resources.files('videobuilder') / 'new_video.js').read_text()
         harness = """
 const els={};
 function el(id,value=''){const e={id,value,hidden:false,disabled:false,textContent:'',options:[],listeners:{},
-  addEventListener(t,f){(this.listeners[t]??=[]).push(f)},focus(){},setSelectionRange(a,b){this.sel=[a,b]},
-  insertAdjacentHTML(){}};els[id]=e;return e}
+  addEventListener(t,f){(this.listeners[t]??=[]).push(f)},focus(){}};els[id]=e;return e}
 el('nv-data').textContent=JSON.stringify({starters:{explainer:'A [topic] explainer.'}});
-el('name',NAME);el('new-project');el('about',ABOUT);el('go');el('name-error');el('nv-form');
-const project=el('project',PROJECT);project.options=[{value:'acme'},{value:'zeta'},{value:''},{value:'+new'}];
-const store=new Map(STORED==null?[]:[['vb-new-project',STORED]]);
-globalThis.localStorage={getItem:k=>store.has(k)?store.get(k):null,setItem:(k,v)=>store.set(k,v)};
+el('name',NAME);el('new-project',NEWPROJECT);el('go');el('name-error');el('nv-form');
+const project=el('project',PROJECT);
+const session=new Map();
+globalThis.sessionStorage={getItem:k=>session.get(k)??null,setItem:(k,v)=>session.set(k,v)};
 globalThis.document={getElementById:id=>els[id],querySelector:s=>els[s.slice(1)]};
 globalThis.location={search:QUERY,href:''};
 const calls=[];
 globalThis.fetch=async(url,init)=>{calls.push([url,JSON.parse(init.body)]);
-  return {ok:true,json:async()=>({name:'x',video:'film'})}};
+  return FAIL?{ok:false,json:async()=>({error:'that name is taken'})}:{ok:true,json:async()=>({video:'film'})}};
 """
-        harness = (harness.replace('NAME', json.dumps(name)).replace('ABOUT', json.dumps(about))
-                   .replace('PROJECT', json.dumps(project)).replace('STORED', json.dumps(stored))
-                   .replace('QUERY', json.dumps(query)))
+        for k, v in (('NEWPROJECT', new_project), ('NAME', name), ('PROJECT', project), ('QUERY', query),
+                     ('FAIL', fail)):
+            harness = harness.replace(k, json.dumps(v))
         run = """
 (async()=>{
-  const before=project.value;
   for(const f of els['nv-form'].listeners.submit)await f({preventDefault(){}});
   await new Promise(r=>setTimeout(r,0));
-  console.log(JSON.stringify({calls,href:location.href,stored:store.get('vb-new-project')??null,before,
-    about:els.about.value}));
+  console.log(JSON.stringify({calls,href:location.href,session:Object.fromEntries(session),
+    error:els['name-error'].textContent}));
 })();
 """
         result = subprocess.run(['node', '-'], input=(harness + script + run).encode(), capture_output=True)
         self.assertEqual(result.returncode, 0, result.stderr.decode())
         return json.loads(result.stdout)
 
-    def test_create_with_a_description_sends_it_as_the_first_note(self):
-        out = self.run_page('Snow Day', 'A reel of the snow day.')
-        self.assertEqual(out['calls'], [['/api/videos/new', {'name': 'acme/snow-day', 'start': 'blank'}],
-                                        ['/v/acme/snow-day/api/videos/first-note',
-                                         {'description': 'A reel of the snow day.'}]])
-        self.assertEqual(out['href'], '/v/acme/snow-day/')
-        self.assertEqual(out['stored'], 'acme')
+    def test_create_makes_a_blank_video_with_no_project_and_opens_the_editor(self):
+        out = self.run_page('Snow Day')
+        self.assertEqual(out['calls'], [['/api/videos/new', {'name': 'snow-day', 'start': 'blank'}]])
+        self.assertEqual(out['href'], '/v/snow-day/')
+        self.assertEqual(out['session'], {})
 
-    def test_create_without_a_description_only_makes_the_video(self):
-        out = self.run_page('quiet', '   ', project='')
-        self.assertEqual(out['calls'], [['/api/videos/new', {'name': 'quiet', 'start': 'blank'}]])
-        self.assertEqual(out['href'], '/v/quiet/')
+    def test_a_project_goes_in_front_of_the_name(self):
+        self.assertEqual(self.run_page('a', project='zeta')['calls'][0][1]['name'], 'zeta/a')
+        self.assertEqual(self.run_page('a', project='+new', new_project='My Shorts')['calls'][0][1]['name'],
+                         'my-shorts/a')
 
-    def test_the_project_used_last_is_chosen(self):
-        self.assertEqual(self.run_page('a', '', stored='zeta')['calls'][0][1]['name'], 'zeta/a')
-        # One that is gone (or no access any more) leaves the first project chosen.
-        self.assertEqual(self.run_page('a', '', stored='gone')['calls'][0][1]['name'], 'acme/a')
+    def test_a_starter_prompt_is_left_for_the_editor_note_box(self):
+        out = self.run_page('a', query='?starter=explainer')
+        self.assertEqual(len(out['calls']), 1)
+        self.assertEqual(out['session'], {'vb-draft:/v/a/': 'A [topic] explainer.'})
 
-    def test_a_starter_prompt_fills_the_description(self):
-        out = self.run_page('a', '', query='?starter=explainer')
-        self.assertEqual(out['about'], 'A [topic] explainer.')
-        self.assertEqual(out['calls'][1], ['/v/acme/a/api/videos/first-note', {'description': 'A [topic] explainer.'}])
+    def test_a_refused_name_stays_on_the_page_and_says_why(self):
+        out = self.run_page('a', fail=True)
+        self.assertEqual(out['href'], '')
+        self.assertEqual(out['error'], 'that name is taken')
+
+    def test_the_editor_reads_the_same_draft_key(self):
+        js = (resources.files('videobuilder') / 'director.js').read_text()
+        self.assertIn("const DRAFT='vb-draft:';", js)
+        self.assertIn("sessionStorage.getItem(DRAFT+location.pathname)", js)
 
 
 class LibrarySort(unittest.TestCase):

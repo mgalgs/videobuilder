@@ -89,7 +89,7 @@ console.log(JSON.stringify(out));
 
 
 class PageWiring(unittest.TestCase):
-    """The composer and New video's description both load the suggest layer."""
+    """The composer loads the suggest layer."""
 
     def test_editor_html_loads_suggest_css_and_js(self):
         html = (PKG / 'editor.html').read_text()
@@ -101,16 +101,6 @@ class PageWiring(unittest.TestCase):
         self.assertIn('id="composer"', html)
         self.assertIn('class="composer-extras"', html)
         self.assertIn('id="message"', html)
-
-    def test_new_video_page_embeds_suggest_css_and_js(self):
-        from videobuilder.pages import new_video_page
-        page = new_video_page([]).decode()
-        css = (PKG / 'suggest.css').read_text()
-        js = (PKG / 'suggest.js').read_text()
-        self.assertIn(css, page)
-        self.assertIn(js, page)
-        self.assertIn('<textarea id="about"', page)
-
 
     def test_director_js_clears_suggestions_after_sending_a_note(self):
         js = (PKG / 'director.js').read_text()

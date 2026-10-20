@@ -698,40 +698,34 @@ def new_video_projects(names):
 
 
 def new_video_page(names, user=None, whats_new=None):
-    """The New video page: a name, a project, an optional description and
-    Create (new_video.js). Everything else about a video is set in the
-    editor. `names` are the videos this user may see: their projects fill the
-    dropdown, the first one chosen until the script picks the one used last.
-    `user`: who is signed in, for the header's account menu; None without
-    accounts."""
+    """The New video page: a name, an optional project and Create
+    (new_video.js). Everything else about a video, its first note included,
+    happens in the editor. `names` are the videos this user may see: their
+    projects fill the dropdown, after "No project", which is chosen. `user`:
+    who is signed in, for the header's account menu; None without accounts."""
     projects = new_video_projects(names)
     files = resources.files(__package__)
     data = json.dumps({'starters': {s['id']: s['prompt'] for s in STARTERS}})
     data = data.replace('<', '\\u003c').replace('>', '\\u003e').replace('&', '\\u0026')
-    options = (''.join(f'<option value="{html.escape(p)}"{" selected" if i == 0 else ""}>{html.escape(p)}</option>'
-                       for i, p in enumerate(projects)) +
-               f'<option value=""{"" if projects else " selected"}>No project</option>'
+    options = ('<option value="" selected>No project</option>' +
+               ''.join(f'<option value="{html.escape(p)}">{html.escape(p)}</option>' for p in projects) +
                '<option value="+new">+ New project…</option>')
-    style = APP_STYLE + files.joinpath('new_video.css').read_text() + files.joinpath('suggest.css').read_text()
+    style = APP_STYLE + files.joinpath('new_video.css').read_text()
     return (_head('New video', style) +
             '<body>' + app_header('new', user, whats_new=whats_new) + '<main class="nv">'
             '<h1>New video</h1>'
             '<form class="nv-form" id="nv-form" novalidate>'
             '<div class="nv-row"><div class="f name"><label for="name">Name</label><input id="name" class="tx" '
             'placeholder="snow-day-reel" required autocapitalize="off" autocorrect="off" spellcheck="false"></div>'
-            '<div class="f project"><label for="project">Project</label>'
+            '<div class="f project"><label for="project">Project <i>(optional)</i></label>'
             f'<select id="project">{options}</select>'
             '<input id="new-project" class="tx" placeholder="New project name" aria-label="New project name" '
             'autocapitalize="off" autocorrect="off" spellcheck="false" hidden></div></div>'
-            '<div class="f about"><label for="about">Description <i>(optional)</i></label>'
-            '<textarea id="about" class="tx" rows="5" placeholder="What it’s about, in a few words. The builder '
-            'starts on it right away; leave it empty to start in the editor."></textarea></div>'
             '<p class="field-error" id="name-error" role="alert"></p>'
             '<button type="submit" class="btn btn-primary go" id="go">Create</button>'
             '</form></main>'
             f'<script type="application/json" id="nv-data">{data}</script>'
-            f'<script>{files.joinpath("new_video.js").read_text()}</script>'
-            f'<script>{files.joinpath("suggest.js").read_text()}</script></body></html>').encode()
+            f'<script>{files.joinpath("new_video.js").read_text()}</script></body></html>').encode()
 
 
 _ACCOUNT_STYLE = (

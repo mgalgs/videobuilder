@@ -2190,12 +2190,33 @@ async function init() {
       picker.hidden=false;
       $('video-title').hidden=true
     }
-    if(picked)await openVideo(picked);
+    if(picked) {
+      await openVideo(picked);
+      takeDraft()
+    }
     else toast('No videos found in this project.')
   }
   catch(e) {
     toast(e.message)
   }
+}
+// A starter prompt New video left for the video it just made (new_video.js writes the same key).
+const DRAFT='vb-draft:';
+function takeDraft() {
+  let text=null;
+  try {
+    text=sessionStorage.getItem(DRAFT+location.pathname);
+    sessionStorage.removeItem(DRAFT+location.pathname)
+  }
+  catch(_) {}
+  const el=$('message');
+  if(!text||el.value.trim())return;
+  el.value=text;
+  fitMessage();
+  el.focus({preventScroll: true});
+  const blank=/\[[^\]]*\]/.exec(text);
+  if(blank)el.setSelectionRange(blank.index,blank.index+blank[0].length);
+  el.dispatchEvent(new Event('input',{bubbles: true}))
 }
 // ---- Player and transport controls wiring ----
 $('upgrade').onclick=upgradeVideo;

@@ -336,8 +336,8 @@ you watch an older version or restore it as a new commit. The player follows
 new versions automatically until you choose an older one; then a toast offers
 a Watch action. The director name is shared between videos in the browser.
 
-**New video** asks only for a name, a project and an optional description;
-with a description the builder starts on it right away. Everything else is
+**New video** asks only for a name and, optionally, a project, then opens the
+editor; the first note sent in its chat starts the build. Everything else is
 set in the editor. **Film details** (a link under "Nothing built yet", at the
 foot of Sources, and in the timeline's tools) sets the look, length, world
 and characters with pictures; Save writes them to the video's bible
@@ -520,8 +520,7 @@ file URLs are built from it, a validated job id and a validated, url-quoted
 file name, redirects are refused, and every read is capped and timed out.
 With no `--artbox-url`, there is no button and the routes answer 404.
 
-**Suggestions while typing.** Pass `--suggest-url URL` (both modes; New video's
-"In a few words" needs `--library` mode, since it has no project yet) and set
+**Suggestions while typing.** Pass `--suggest-url URL` (both modes) and set
 `$VIDEOBUILDER_SUGGEST_KEY` in the environment to suggest capabilities, looks,
 type styles, fonts, sound effects and music while a director types a note:
 about 600 ms after they stop, a strong match shows as a card (a chip on a
@@ -571,7 +570,7 @@ attachment_max_message = 100 # MiB
 attachment_zip_max_bytes = 200          # MiB, a single .zip upload
 attachment_zip_max_members = 50         # members kept from a .zip
 attachment_zip_max_unpacked_bytes = 300 # MiB, total decompressed size
-start_video_attachment_max_files = 50   # replaces attachment_max_files for New video's first note
+start_video_attachment_max_files = 50   # replaces attachment_max_files for a video's first note
 start_video_attachment_max_message = 300 # MiB, replaces attachment_max_message for that note
 source_max_mb = 2048                     # MiB, a single source video upload
 source_max_total_mb = 8192               # MiB, one video's total source-video storage

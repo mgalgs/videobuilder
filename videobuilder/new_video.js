@@ -1,22 +1,20 @@
-/* The New video page (pages.new_video_page): a name, a project, an optional
-   description, and Create. Create makes a blank video (POST /api/videos/new);
-   with a description it sends it as the first note (POST
-   /v/<path>/api/videos/first-note), so the builder starts on it right away.
-   Either way it lands in the editor, where everything else is set. */
+/* The New video page (pages.new_video_page): a name, an optional project, and
+   Create. Create makes a blank video (POST /api/videos/new) and lands in the
+   editor, where the first note starts the build and everything else is set.
+   A starter prompt (?starter=<id>, from the library's starter cards) rides
+   along in sessionStorage under DRAFT + the editor's path, for director.js to
+   put in the note box. */
 (()=>{
 const D=JSON.parse(document.getElementById('nv-data').textContent);
 const $=s=>document.querySelector(s);
-const LAST='vb-new-project';
+// Must match director.js's own DRAFT key.
+const DRAFT='vb-draft:';
 const PART=/^[a-z0-9][a-z0-9._-]{0,62}$/;
 const slug=s=>s.trim().toLowerCase().replace(/\s+/g,'-').replace(/[^a-z0-9._-]/g,'').replace(/^[^a-z0-9]+/,'')
   .slice(0,63);
-const project=$('#project'),newProject=$('#new-project'),about=$('#about'),go=$('#go'),err=$('#name-error');
+const project=$('#project'),newProject=$('#new-project'),go=$('#go'),err=$('#name-error');
+const starter=D.starters[new URLSearchParams(location.search).get('starter')];
 
-// The project used last, in this browser.
-try{
-  const last=localStorage.getItem(LAST);
-  if(last!=null&&[...project.options].some(o=>o.value===last&&last!=='+new'))project.value=last;
-}catch(_){}
 project.addEventListener('change',()=>{newProject.hidden=project.value!=='+new';if(!newProject.hidden)newProject.focus()});
 
 function fullName(){
@@ -30,7 +28,7 @@ function fullName(){
     if(!p||!PART.test(p)||p.endsWith('.git')){
       err.textContent='Give the new project a name: letters, numbers and dashes.';newProject.focus();return null}
   }
-  return {name:p?p+'/'+name:name,project:p};
+  return p?p+'/'+name:name;
 }
 
 async function post(url,body){
@@ -40,39 +38,21 @@ async function post(url,body){
   return data;
 }
 
-// Once the video exists, a retry after a failed first note only sends the note again.
-let created=null;
 $('#nv-form').addEventListener('submit',async e=>{
   e.preventDefault();
-  const want=created||fullName();
-  if(!want)return;
+  const name=fullName();
+  if(!name)return;
   go.disabled=true;go.textContent='Creating…';
-  const path=want.name.split('/').map(encodeURIComponent).join('/');
+  const href='/v/'+name.split('/').map(encodeURIComponent).join('/')+'/';
   try{
-    if(!created){
-      await post('/api/videos/new',{name:want.name,start:'blank'});
-      created=want;
-      try{localStorage.setItem(LAST,want.project)}catch(_){}
-      for(const el of [$('#name'),project,newProject])el.disabled=true;
-    }
-    if(about.value.trim()){
-      go.textContent='Starting…';
-      await post(`/v/${path}/api/videos/first-note`,{description:about.value});
-    }
-    location.href='/v/'+path+'/';
+    await post('/api/videos/new',{name,start:'blank'});
+    if(starter)try{sessionStorage.setItem(DRAFT+href,starter)}catch(_){}
+    location.href=href;
   }catch(x){
     err.textContent=x.message;
-    if(created)err.insertAdjacentHTML('beforeend',` <a href="/v/${path}/">Open the video</a>`);
-    go.disabled=false;go.textContent=created?'Try again':'Create';
+    go.disabled=false;go.textContent='Create';
   }
 });
 
-// A starter prompt from the library: its words in the description, the first blank chosen.
-const prompt=D.starters[new URLSearchParams(location.search).get('starter')];
-if(prompt){
-  about.value=prompt;
-  about.focus();
-  const m=/\[[^\]]*\]/.exec(prompt);
-  if(m)about.setSelectionRange(m.index,m.index+m[0].length);
-}
+$('#name').focus();
 })();

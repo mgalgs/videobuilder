@@ -56,11 +56,6 @@
 #composer .composer-extras.sg-on{flex-wrap:nowrap}
 #composer .composer-extras.sg-on .drop-hint{display:none}
 #composer .composer-extras #timestamp{flex:none}
-/* new video placement */
-.sg-nvrow{display:flex;align-items:center;gap:8px;margin-top:10px;min-height:0}
-.sg-nvrow .sg-cards{flex:0 1 auto;min-width:0}
-.sg-nvrow.sg-empty{display:none}
-.sg-nvrow .sg-card{width:124px}.sg-nvrow .sg-card .sg-thumb{height:68px}
 
 /* the brief highlight on the words a pick wrote */
 .sg-mirror{position:absolute;pointer-events:none;overflow:hidden;white-space:pre-wrap;overflow-wrap:break-word;

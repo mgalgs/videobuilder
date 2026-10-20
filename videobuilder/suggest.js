@@ -1,16 +1,11 @@
-/* Capability suggestions while a director types a note (editor.html's #message,
-   new_video.js's #about): see suggest.py and suggest-notes.md for the design.
-   This file is loaded on both pages (a plain script, not a module, so it shares
-   director.js's/new_video.js's top-level `const`/`let` bindings -- `state`,
-   `$`, `api`, `json`, `player`, `tlNoteClip` on the editor page). It never
-   takes focus, never moves the caret, and a pick is just ordinary typing
-   (execCommand('insertText'), so Ctrl+Z undoes it). */
+/* Capability suggestions while a director types a note (editor.html's #message):
+   see suggest.py and suggest-notes.md for the design. A plain script, not a
+   module, so it shares director.js's top-level `const`/`let` bindings (`state`,
+   `player`, `tlNoteClip`). It never takes focus, never moves the caret, and a
+   pick is just ordinary typing (execCommand('insertText'), so Ctrl+Z undoes it). */
 (() => {
 'use strict';
-const ED = !!document.getElementById('message');
-// New video's description box.
-const NEW = !ED && !!document.getElementById('about');
-if (!ED && !NEW) return;
+if (!document.getElementById('message')) return;
 const $ = id => document.getElementById(id);
 const el = (t, c, h) => { const e = document.createElement(t); if (c) e.className = c; if (h != null) e.innerHTML = h; return e };
 const esc = s => String(s).replace(/[&<>"]/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;'}[c]));
@@ -61,9 +56,9 @@ const nameOf = (f, id) => { const x = BY[f + ':' + id]; if (!x) return id;
 const fmtTime = t => Math.floor(t / 60) + ':' + String(Math.round(t % 60)).padStart(2, '0');
 
 /* ---- where it lives on this page ---- */
-let ta, cards, chips, tail, think, xbtn, row;
+let ta, cards, chips, tail, think, xbtn;
 function mount() {
-  ta = ED ? $('message') : $('about');
+  ta = $('message');
   if (!ta) return false;
   cards = el('div', 'sg-cards'); cards.setAttribute('role', 'list'); cards.setAttribute('aria-label', 'Suggested for this note');
   chips = el('div', 'sg-chips'); chips.setAttribute('aria-label', 'More you can ask for');
@@ -75,15 +70,9 @@ function mount() {
   xbtn.title = 'Hide suggestions for this note (Esc)';
   xbtn.onclick = dismiss;
   tail.append(think, xbtn);
-  if (ED) {
-    const composer = $('composer'), extras = composer.querySelector('.composer-extras');
-    composer.insertBefore(cards, extras);
-    extras.append(chips, tail);
-  } else {
-    row = el('div', 'sg-nvrow sg-empty');
-    row.append(cards, chips, tail);
-    ta.after(row);
-  }
+  const composer = $('composer'), extras = composer.querySelector('.composer-extras');
+  composer.insertBefore(cards, extras);
+  extras.append(chips, tail);
   ta.addEventListener('input', onInput);
   ta.addEventListener('keydown', e => { if (e.key === 'Escape' && shown.length) { e.preventDefault(); dismiss() } });
   return true;
@@ -93,10 +82,10 @@ function mount() {
 let shown = [], dismissed = false, timer = 0, inflight = null, programmatic = false, staticChips = false;
 let hiddenNote = 0, seqCounter = 0, lastSeq = 0, modelOn = null, sentText = null;
 
-function currentVideo() { return ED ? (typeof state !== 'undefined' ? state.video : null) : null }
-function currentClip() { return ED && typeof tlNoteClip === 'function' ? tlNoteClip() : null }
+function currentVideo() { return typeof state !== 'undefined' ? state.video : null }
+function currentClip() { return typeof tlNoteClip === 'function' ? tlNoteClip() : null }
 function currentAt() {
-  if (!ED || typeof state === 'undefined' || typeof player === 'undefined') return null;
+  if (typeof state === 'undefined' || typeof player === 'undefined') return null;
   return state.stamp ? player.currentTime : null;
 }
 
@@ -136,7 +125,7 @@ async function ask() {
   inflight = controller;
   think.h1 = setTimeout(() => think.classList.add('on'), 2000);
   think.h2 = setTimeout(() => think.classList.add('slow'), 3500);
-  const body = {video: currentVideo(), text, surface: ED ? 'editor' : 'new', clip: currentClip(),
+  const body = {video: currentVideo(), text, surface: 'editor', clip: currentClip(),
                at: currentAt(), seq};
   try {
     const r = await fetch('api/suggest', {method: 'POST', headers: {'Content-Type': 'application/json'},
@@ -230,8 +219,7 @@ function render() {
   const any = strong.length || fams.length;
   xbtn.classList.toggle('sg-hidden', !any);
   tail.classList.toggle('sg-hidden', !any && !think.classList.contains('on') && !inflight);
-  if (ED) $('composer').querySelector('.composer-extras').classList.toggle('sg-on', !!(any || hiddenNote || inflight));
-  else row.classList.toggle('sg-empty', !(any || hiddenNote || inflight));
+  $('composer').querySelector('.composer-extras').classList.toggle('sg-on', !!(any || hiddenNote || inflight));
 }
 
 /* ---- picking: rewrite the note's words, light up what changed ---- */
@@ -394,18 +382,12 @@ async function openPicker(fam) {
   body.innerHTML = h;
   if (!ph) {
     const vw = innerWidth, vh = innerHeight;
-    if (ED) {
-      const panel = $('panel'), composer = $('composer');
-      if (panel && composer) {
-        const pr = panel.getBoundingClientRect(), cr = composer.getBoundingClientRect();
-        const w = Math.min(640, pr.left - 40), hh = Math.min(620, vh - 90);
-        Object.assign(box.style, {right: (vw - pr.left + 12) + 'px', width: w + 'px', height: hh + 'px',
-                                 top: Math.max(64, cr.bottom - hh) + 'px'});
-      }
-    } else {
-      const rr = row.getBoundingClientRect(), hh = Math.min(560, vh - 40);
-      Object.assign(box.style, {left: rr.left + 'px', width: rr.width + 'px', height: hh + 'px',
-                               top: Math.max(16, Math.min(rr.bottom + 8, vh - hh - 16)) + 'px'});
+    const panel = $('panel'), composer = $('composer');
+    if (panel && composer) {
+      const pr = panel.getBoundingClientRect(), cr = composer.getBoundingClientRect();
+      const w = Math.min(640, pr.left - 40), hh = Math.min(620, vh - 90);
+      Object.assign(box.style, {right: (vw - pr.left + 12) + 'px', width: w + 'px', height: hh + 'px',
+                               top: Math.max(64, cr.bottom - hh) + 'px'});
     }
   }
   document.body.append(shade, box);

@@ -19,7 +19,6 @@ main.nv{max-width:640px;margin:0 auto;padding:28px 24px 60px;font:14px/1.4 syste
 .nv #new-project{margin-top:8px}
 input.tx,textarea.tx{font-size:16px;min-height:44px;padding:.6rem .8rem;border-radius:10px;border:1px solid #2c2c33;
   background:#0d0d10;width:100%;outline:none;color:#f4f4f2}
-textarea.tx{resize:vertical;min-height:120px;line-height:1.5}
 input.tx:focus,textarea.tx:focus{border-color:#6b6b75;box-shadow:0 0 0 3px rgba(244,244,242,.08)}
 .tx::placeholder{color:#62626b}
 .field-error{color:#ff8a80;margin:0;font-size:13px}.field-error:empty{display:none}
