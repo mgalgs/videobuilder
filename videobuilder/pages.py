@@ -455,9 +455,11 @@ LIB_DETAIL_SCRIPT = (
     'for(const b of document.querySelectorAll(".lib-card"))'
     'b.onclick=()=>openDetail(Number(b.dataset.idx));'
     'document.querySelector(".lib-detail-close").onclick=()=>dialog.close();'
+    # Only a click on the backdrop closes it: a button pressed from the keyboard clicks at (0, 0).
     'dialog.addEventListener("click",e=>{'
     'const r=dialog.getBoundingClientRect();'
-    'if(e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom)dialog.close()});'
+    'if(e.target===dialog&&(e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom))'
+    'dialog.close()});'
     'document.getElementById("lib-detail-copy").onclick=async()=>{'
     'const btn=document.getElementById("lib-detail-copy");'
     'const ok=await copyText(document.getElementById("lib-detail-url"));'
