@@ -520,6 +520,15 @@ class FilmSetup(LibraryFixture, unittest.TestCase):
         _, film = self.request(f'/v/{project}/api/film?video=film')
         return self.request(f'/v/{project}/api/film', {'video': 'film', 'base': film['commit'], **fields})
 
+    def test_a_character_picture_must_be_a_raster_image(self):
+        self._start('sea/vector')
+        svg = self.media / 'keeper.svg'
+        svg.write_bytes(b'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 4 4"/>')
+        ident = self._upload('sea/vector', svg, 'image/svg+xml', url='attachments')['id']
+        code, err = self._save('sea/vector', characters=[{'name': 'Keeper', 'description': '', 'add': [ident]}])
+        self.assertEqual(code, 400, err)
+        self.assertIn(b'use a PNG, JPEG, WebP or GIF', err)
+
     def test_film_details_on_a_blank_video_write_the_bible_new_video_did(self):
         from videobuilder import looks
         self._start('sea/lighthouse')

@@ -9,22 +9,23 @@ import stat
 import time
 import zipfile
 import zlib
+from xml.etree import ElementTree
 
 MAGIC = {
     'png': (b'\x89PNG\r\n\x1a\n',), 'jpg': (b'\xff\xd8\xff',), 'jpeg': (b'\xff\xd8\xff',),
     'webp': (b'RIFF',), 'gif': (b'GIF87a', b'GIF89a'), 'mp4': (b'\x00\x00',),
     'mov': (b'\x00\x00',), 'webm': (b'\x1a\x45\xdf\xa3',), 'mp3': (b'ID3', b'\xff\xfb', b'\xff\xf3'),
     'wav': (b'RIFF',), 'm4a': (b'\x00\x00',), 'aac': (b'\xff\xf1', b'\xff\xf9'),
-    'ogg': (b'OggS',), 'pdf': (b'%PDF-',), 'txt': (), 'md': ()}
+    'ogg': (b'OggS',), 'pdf': (b'%PDF-',), 'svg': (), 'txt': (), 'md': ()}
 TYPES = {'png':'image/png','jpg':'image/jpeg','jpeg':'image/jpeg','webp':'image/webp','gif':'image/gif',
          'mp4':'video/mp4','mov':'video/quicktime','webm':'video/webm','mp3':'audio/mpeg','wav':'audio/wav',
          'm4a':'audio/mp4','aac':'audio/aac','ogg':'audio/ogg','pdf':'application/pdf',
-         'txt':'text/plain','md':'text/plain'}
+         'svg':'image/svg+xml','txt':'text/plain','md':'text/plain'}
 # Plain-language label for a creator-facing "not a valid ..." skip reason; no internal wording.
 CATEGORY = {'png':'image','jpg':'image','jpeg':'image','webp':'image','gif':'image',
             'mp4':'video','mov':'video','webm':'video','mp3':'audio file','wav':'audio file',
             'm4a':'audio file','aac':'audio file','ogg':'audio file','pdf':'PDF',
-            'txt':'text file','md':'text file'}
+            'svg':'SVG image','txt':'text file','md':'text file'}
 # Staged after the uploads, so it wins a name clash and the note file stays true.
 FRAME_NAME = 'pinned-frame.png'
 ZIP_CHUNK = 1 << 16
@@ -32,6 +33,25 @@ ZIP_CHUNK = 1 << 16
 
 def _sanitize_name(name):
     return re.sub(r'[^A-Za-z0-9._-]', '_', Path(name.replace('\\', '/')).name).lstrip('.') or 'file'
+
+
+def svg_problem(data):
+    """Why `data` is not an acceptable SVG, or None. A DOCTYPE or entity
+    declaration is refused before parsing: entities are how an XML bomb
+    expands, and real logos and icons never declare them."""
+    try:
+        text = data.decode('utf-8-sig')
+    except UnicodeError:
+        return 'an SVG must be UTF-8'
+    if re.search(r'<!\s*(?:DOCTYPE|ENTITY)', text, re.I):
+        return 'an SVG that declares XML entities is refused'
+    try:
+        root = ElementTree.fromstring(text)
+    except ElementTree.ParseError:
+        return 'not a well-formed SVG'
+    if root.tag not in ('svg', '{http://www.w3.org/2000/svg}svg'):
+        return 'not an SVG'
+    return None
 
 
 def _validate_content(ctype, data, ext):
@@ -44,6 +64,10 @@ def _validate_content(ctype, data, ext):
             data.decode('utf-8')
         except UnicodeError:
             raise ValueError('text attachment must be UTF-8') from None
+    elif ext == 'svg':
+        problem = svg_problem(data)
+        if problem:
+            raise ValueError(problem)
     elif not any(data.startswith(x) for x in MAGIC[ext]):
         raise ValueError('attachment magic bytes do not match extension')
     if ext in ('webp', 'wav') and data[8:12] != (b'WEBP' if ext == 'webp' else b'WAVE'):

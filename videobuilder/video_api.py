@@ -189,9 +189,13 @@ def _get_attachment(self, route, q, editor, user, attachment_id):
         meta, path = editor.attachments.get(attachment_id)
     except KeyError:
         raise HTTPError(404, 'attachment not found') from None
-    inline = meta['type'].startswith(('image/', 'video/', 'audio/'))
+    svg = meta['type'] == 'image/svg+xml'
+    # An SVG is a document that can carry script and outside links: opened on its
+    # own it downloads, and even shown it loads nothing beyond itself.
+    inline = meta['type'].startswith(('image/', 'video/', 'audio/')) and not svg
+    csp = "sandbox; default-src 'none'; style-src 'unsafe-inline'; img-src data:" if svg else 'sandbox'
     return self._send(200, path.read_bytes(), meta['type'],
-                      {'Content-Security-Policy': 'sandbox',
+                      {'Content-Security-Policy': csp,
                        'Content-Disposition': ('inline' if inline else 'attachment') +
                        '; filename="' + meta['name'] + '"'})
 

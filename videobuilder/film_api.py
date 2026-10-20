@@ -77,8 +77,8 @@ def save(editor, video, body, author):
                 meta, path = editor.attachments.get(ident, video)
             except (KeyError, ValueError):
                 raise HTTPError(400, f'no attachment {ident!r}; upload the picture again') from None
-            if not meta['type'].startswith('image/'):
-                raise HTTPError(400, f'{meta["name"]} is not a picture')
+            if not meta['type'].startswith('image/') or meta['type'] == 'image/svg+xml':
+                raise HTTPError(400, f'{meta["name"]} is not a picture: use a PNG, JPEG, WebP or GIF')
             pictures.setdefault(slug, []).append((meta['name'], path.read_bytes()))
         try:
             md = (directory / film_setup.BIBLE).read_text(errors='replace')

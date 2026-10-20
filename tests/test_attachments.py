@@ -200,6 +200,40 @@ class ZipUploadOverHTTP(fixtures.API):
         self.assertEqual(len(note['attachments']), 15)
 
 
+SVG = b'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10"><rect width="10" height="10"/></svg>'
+
+
+class SvgUpload(ZipUploadOverHTTP):
+    def test_an_svg_is_kept_and_served_as_a_download_that_loads_nothing(self):
+        code, record = self._upload(SVG, 'logo.svg', 'image/svg+xml')
+        self.assertEqual(code, 201, record)
+        self.assertEqual(record['type'], 'image/svg+xml')
+        with urllib.request.urlopen(self.base + '/api/attachments/' + record['id']) as response:
+            self.assertEqual(response.read(), SVG)
+            self.assertTrue(response.headers['Content-Disposition'].startswith('attachment'))
+            csp = response.headers['Content-Security-Policy']
+            self.assertIn('sandbox', csp)
+            self.assertIn("default-src 'none'", csp)
+
+    def test_a_bad_svg_is_refused(self):
+        cases = {
+            'entities': (b'<?xml version="1.0"?><!DOCTYPE svg [<!ENTITY a "aaaa">]>'
+                         b'<svg xmlns="http://www.w3.org/2000/svg">&a;</svg>', 'declares XML entities'),
+            'not svg': (b'<html><body>hi</body></html>', 'not an SVG'),
+            'broken': (b'<svg xmlns="http://www.w3.org/2000/svg"><g></svg>', 'not a well-formed SVG'),
+            'not utf-8': (b'<svg>\xff</svg>', 'must be UTF-8'),
+        }
+        for name, (data, message) in cases.items():
+            with self.subTest(name):
+                code, body = self._upload(data, f'{name.replace(" ", "-")}.svg', 'image/svg+xml')
+                self.assertEqual(code, 400, body)
+                self.assertIn(message, body['error'])
+
+    def test_a_zip_keeps_its_svgs(self):
+        result = self.editor.attachments.upload_zip('promo/film', 'logos.zip', _zip_bytes([('logo.svg', SVG)]))
+        self.assertEqual([a['name'] for a in result['attachments']], ['logo.svg'])
+
+
 class ZipConfigKeys(TempProject):
     def _editor(self, state_dir):
         editor = Editor(self.root, state_dir=state_dir, unsandboxed_previews=True, auto_land=False)
