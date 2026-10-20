@@ -29,7 +29,7 @@ from .style import Clock, Style
 PROMPT = '> '
 
 
-def _schedule(chars, seed, per_char):
+def schedule(chars, seed, per_char):
     """Seeded keystroke times from the start of a line, and its span: a
     little uneven, a longer reach after a space or a comma. The compendium's
     terminal title's cadence (title_terminal._schedule), carried over so
@@ -53,7 +53,7 @@ def _keys(lines, hold):
     each line starting after a short reach for the return."""
     times, t = [], 0.15
     for i, line in enumerate(lines):
-        ts, span = _schedule(line, f'{i}:{line}', 1.0)
+        ts, span = schedule(line, f'{i}:{line}', 1.0)
         times.append([t + x for x in ts])
         t += span + 2.2
     end = t - 2.2

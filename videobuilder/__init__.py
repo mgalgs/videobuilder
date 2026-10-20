@@ -11,16 +11,17 @@ from .expect import seg, visible, hidden, touches, apart, still, at_rest_by
 from .film import FORMATS, Audio, Film, Format, Sound, load, load_module
 from .cli import film_main as main
 from .text import Font
+from .terminal import TerminalLog
 from .timeline import Grid, Segment, Shot, Timeline, round_half_up, sequence
 from . import edits, impact, layout, parallax, paths, text
-from . import captions, sfx, speech, stick
+from . import captions, sfx, speech, stick, terminal
 
 __all__ = ['Audio', 'Box', 'Canvas', 'Clip', 'FORMATS', 'Film', 'Font', 'Footage', 'Format', 'Grid', 'Image', 'Puppet',
-           'Segment', 'Shot', 'Sound', 'Stick', 'Timeline', 'View', 'apart', 'at_rest_by', 'bezier', 'clamp01', 'critical',
+           'Segment', 'Shot', 'Sound', 'Stick', 'TerminalLog', 'Timeline', 'View', 'apart', 'at_rest_by', 'bezier', 'clamp01', 'critical',
            'damped', 'ease_in_expo', 'ease_in_out_quart', 'ease_out_back', 'ease_out_expo', 'ease_out_quint',
            'edits', 'footage', 'fr', 'halftone_pattern', 'hidden', 'impact', 'interpolate', 'layout', 'linear', 'load',
            'load_module', 'log_lerp', 'main', 'paper_grain', 'parallax', 'paths', 'per_format', 'rgba', 'round_half_up', 'seg',
-           'sequence', 'sfx', 'speech', 'spring', 'stick', 'spring_at', 'still', 'text', 'touches', 'visible']
+           'sequence', 'sfx', 'speech', 'spring', 'stick', 'spring_at', 'still', 'terminal', 'text', 'touches', 'visible']
 
 
 def __getattr__(name):
