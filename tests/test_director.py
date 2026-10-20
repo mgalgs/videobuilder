@@ -341,8 +341,9 @@ class Director(TempProject):
         self.assertEqual(self.fix_notes(), [])
 
     def test_a_worker_that_cannot_start_does_not_block_landing(self):
-        self.editor.unsandboxed_previews = False
         note = self.broken_draft()
+        # Only now: posting the note must not need a sandbox, which some test hosts can't make.
+        self.editor.unsandboxed_previews = False
         with patch('videobuilder.workers.shutil.which', return_value=None):
             self.get('/api/notes')
         self.assertEqual(self.editor.notes.get(note['id'])['state'], 'landed')
