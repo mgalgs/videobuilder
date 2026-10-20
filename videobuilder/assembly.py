@@ -272,14 +272,7 @@ def mix_graph(clips, lanes, frames, fps, start_idx=0, cuts=()):
         after = _render.duck_filter(lane.duck_db, speech, fps, 0) if lane.duck and speech else ''
         branches += [(s, '' if getattr(s, 'through', False) else after) for s in sounds]
     branches += [(s, _render.dips(s, DEFAULT_DUCK_DB, speech, fps, 0)) for s in cuts]
-    inputs, chains, labels = [], [], []
-    idx = start_idx
-    for s, after in branches:
-        branch = _render.sound_chain(s, 0, frames, fps, idx, after)
-        if branch is None:
-            continue
-        chains.append(branch[0]), labels.append(branch[1]), inputs.append(s.path)
-        idx += 1
+    inputs, chains, labels = _render.sound_branches(branches, 0, frames, fps, start_idx)
     graph, label = _render.join_mix(chains, labels, frames / fps)
     return inputs, graph, label
 

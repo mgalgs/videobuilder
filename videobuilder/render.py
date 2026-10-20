@@ -230,6 +230,50 @@ def sound_chain(sound, a, z, fps, idx, after=''):
     return chain, label
 
 
+# More non-ducking placements than this with the same `after` filters (none,
+# or one dip) are mixed in-process into one stem (`stem.stem`) instead of a
+# branch apiece.
+PREMIX_OVER = 16
+
+
+def sound_branches(branches, a, z, fps, idx):
+    """(inputs, chains, labels) placing every (sound, after) of `branches` in
+    a..z (see `sound_chain`), from ffmpeg input `idx`. More than
+    `PREMIX_OVER` sounds that don't duck and share an `after` are summed
+    in-process into one WAV (`stem`), the same samples as their branches,
+    with `after` applied once to the sum: hundreds of sound effects are one
+    input, not hundreds."""
+    from . import stem
+    # Ducking sounds (speech, footage) keep a branch: a stem decodes from the
+    # first sample, where atrim honours an mp4's audio start time, and a
+    # branch streams only the span it plays.
+    groups = {}
+    for s, after in branches:
+        if not s.ducks:
+            groups.setdefault(after, []).append(s)
+    inputs, chains, labels, mixed = [], [], [], set()
+    for s, after in branches:
+        sounds = groups.get(after, ()) if not s.ducks else ()
+        if len(sounds) > PREMIX_OVER:
+            if after in mixed:
+                continue
+            mixed.add(after)
+            label = f's{idx}'
+            inputs.append(stem.stem(sounds, a, z, fps))
+            # A WAV is read in frames of thousands of samples, and a dip's gain is
+            # evaluated once a frame: 10 ms frames ramp it about as finely as a branch.
+            chains.append(f'[{idx}:a]asetnsamples=n=480:p=0{after}[{label}]' if after else f'[{idx}:a]anull[{label}]')
+            labels.append(label)
+            idx += 1
+            continue
+        branch = sound_chain(s, a, z, fps, idx, after)
+        if branch is None:
+            continue
+        inputs.append(s.path), chains.append(branch[0]), labels.append(branch[1])
+        idx += 1
+    return inputs, chains, labels
+
+
 def mix_graph(film, a, z, start_idx=0, effects=True):
     """(inputs, filter_complex graph, output label) mixing the film's music and
     sounds over frames a..z, before any final gain and limiting. `start_idx` is
@@ -245,14 +289,10 @@ def mix_graph(film, a, z, start_idx=0, effects=True):
         inputs.append(au.path), chains.append(chain), labels.append(label)
         idx += 1
     speech = ducking(film.sounds)
-    for s in (film.sounds if effects else speech):
-        branch = sound_chain(s, a, z, film.fps, idx, dips(s, au.duck_db if au else 0, speech, film.fps, a))
-        if branch is None:
-            continue
-        chain, label = branch
-        inputs.append(s.path), chains.append(chain), labels.append(label)
-        idx += 1
-    graph, mix_label = join_mix(chains, labels, (z - a) / film.fps)
+    branches = [(s, dips(s, au.duck_db if au else 0, speech, film.fps, a)) for s in (film.sounds if effects else speech)]
+    more = sound_branches(branches, a, z, film.fps, idx)
+    inputs += more[0]
+    graph, mix_label = join_mix(chains + more[1], labels + more[2], (z - a) / film.fps)
     return inputs, graph, mix_label
 
 

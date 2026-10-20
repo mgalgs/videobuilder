@@ -319,6 +319,133 @@ class Mix(unittest.TestCase):
         self.assertTrue(sfx.sync(out, film.sounds, 30, 12)[0]['cut'])
 
 
+def graph_samples(inputs, graph, label):
+    """A mix graph's output as interleaved stereo float samples at 48 kHz."""
+    cmd = ['ffmpeg', '-v', 'error'] + [f for p in inputs for f in ('-i', p)]
+    cmd += ['-filter_complex', graph, '-map', f'[{label}]', '-ac', '2', '-ar', '48000', '-f', 'f32le', '-']
+    out = array.array('f')
+    out.frombytes(subprocess.run(cmd, capture_output=True, check=True).stdout)
+    return out
+
+
+@unittest.skipUnless(shutil.which('ffmpeg'), 'needs ffmpeg')
+class ManySounds(unittest.TestCase):
+    """Past `PREMIX_OVER` placements, sounds are mixed in-process into one
+    stem: the same samples as a branch apiece, in one ffmpeg input."""
+
+    def setUp(self):
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        self.dir = Path(tmp.name)
+
+    def tricky(self):
+        """Sounds with every part of a placement exercised: gain, a cut with a
+        fade, an onset, a negative start, fades in and out, a start part way
+        into the file, one starting before the film, one cut at its end."""
+        b = sfx.bank()
+        return (vb.sfx.sound('fit/click/floss_lid', at=3, gain_db=-4),
+                vb.sfx.sound('whoosh_fast/tight', at=20, dur=0.3),
+                vb.sfx.sound('pro_impact/short', at=40, gain_db=2.5),
+                vb.sfx.sound('pro_notify/ding_2045', at=55, note='G5', align='onset'),
+                vb.sfx.sound('pro_impact/short', at=1),
+                Sound(b.take('pro_impact/short').path, at=10, start=0.0123, frames=7, gain_db=-3,
+                      fade_in_frames=2, fade_out_frames=3, ducks=False),
+                Sound(b.take('whoosh_fast/tight').path, at=5, start=-0.011, frames=9, fade_in_frames=1,
+                      fade_out_frames=2, ducks=False),
+                vb.sfx.sound('pro_impact/short', at=58, gain_db=-6))
+
+    def both_ways(self, film, a, z):
+        from videobuilder import render as mixer
+        with patch.object(mixer, 'PREMIX_OVER', 10 ** 6):
+            branches = mixer.mix_graph(film, a, z)
+        with patch.object(mixer, 'PREMIX_OVER', 0):
+            premixed = mixer.mix_graph(film, a, z)
+        return branches, premixed
+
+    def test_a_premixed_stem_matches_a_branch_per_sound(self):
+        for fps in (30, 24, 25):
+            film = Film(draw=blank, fps=fps, frames=60, sounds=self.tricky(), loudness=None)
+            for a, z in ((0, 60), (15, 45), (30, 60)):
+                branches, premixed = self.both_ways(film, a, z)
+                self.assertEqual(len(premixed[0]), 1)
+                self.assertGreater(len(branches[0]), 1)
+                want, got = graph_samples(*branches), graph_samples(*premixed)
+                self.assertEqual(len(want), len(got))
+                self.assertEqual(len(want), round((z - a) / fps * 48000) * 2)
+                self.assertGreater(max(map(abs, want)), 0.5)
+                self.assertLess(max(abs(x - y) for x, y in zip(want, got)), 1e-6, (fps, a, z))
+
+    def test_the_rendered_film_is_the_same_either_way(self):
+        from videobuilder import render as mixer
+        music = self.dir / 'music.wav'
+        write_wav(music, [0.05 * math.sin(i * 2 * math.pi * 110 / 48000) for i in range(48000 * 2)])
+        film = Film(draw=blank, fps=30, frames=60, formats=(vb.Format('tiny', 32, 32),), sounds=self.tricky(),
+                    audio=Audio(str(music)))
+        decoded = []
+        for over in (10 ** 6, 0):
+            with patch.object(mixer, 'PREMIX_OVER', over):
+                out = self.dir / f'{over}.mp4'
+                render(film, str(out), jobs=2, log=QUIET)
+            decoded.append(sfx.decode(out))
+        self.assertEqual(len(decoded[0]), len(decoded[1]))
+        # Through the limiter and AAC, a 1-ulp difference in their input comes out some 50 dB down.
+        rms = math.sqrt(sum(x * x for x in decoded[0]) / len(decoded[0]))
+        off = math.sqrt(sum((x - y) ** 2 for x, y in zip(*decoded)) / len(decoded[0]))
+        self.assertLess(off, rms * 0.01)
+
+    def test_dipping_sounds_share_one_dip(self):
+        from videobuilder import render as mixer
+        speech = self.dir / 'speech.wav'
+        write_wav(speech, [0.003 * math.sin(i * 2 * math.pi * 300 / 48000) for i in range(48000)])
+        clicks = tuple(vb.sfx.sound('fit/click/floss_lid', at=5 + 2 * i) for i in range(20))
+        film = Film(draw=blank, fps=30, frames=60, audio=Audio(str(speech), duck_db=-12, loudness=None),
+                    sounds=(Sound(str(speech), at=15, start=0.0, frames=30), *clicks))
+        branches, premixed = self.both_ways(film, 0, 60)
+        self.assertEqual(premixed[1].count('volume=eval'), 2)   # the music's and the stem's
+        self.assertEqual(len(premixed[0]), 3)
+        want, got = graph_samples(*branches), graph_samples(*premixed)
+        # The dip's gain is evaluated per audio frame: the stem's frames fall a little apart from each branch's.
+        self.assertLess(max(abs(x - y) for x, y in zip(want, got)), 0.03)
+
+    def test_ducking_sounds_keep_a_branch_each(self):
+        speech = self.dir / 'speech.wav'
+        write_wav(speech, [0.01] * 4800)
+        talk = tuple(Sound(str(speech), at=2 * i, start=0.0, frames=3) for i in range(20))
+        film = Film(draw=blank, fps=30, frames=60, sounds=talk + self.tricky(), loudness=None)
+        _, premixed = self.both_ways(film, 0, 60)
+        self.assertEqual(premixed[0].count(str(speech)), 20)
+        self.assertEqual(sum(p.endswith('.wav') and p != str(speech) for p in premixed[0]), 1)
+
+    def test_five_hundred_sounds_render(self):
+        ids = ('fit/click/floss_lid', 'hover_tick/detent', 'pro_impact/short')
+        sounds = tuple(vb.sfx.sound(ids[i % 3], at=3 + i * 54 // 500, gain_db=-30) for i in range(500))
+        film = Film(draw=blank, fps=30, frames=60, formats=(vb.Format('tiny', 32, 32),), sounds=sounds)
+        out = self.dir / 'many.mp4'
+        render(film, str(out), jobs=2, log=QUIET)
+        mix = sfx.decode(out, channels=1)
+        self.assertAlmostEqual(len(mix) / 48000, 2.0, delta=0.05)
+        self.assertGreater(max(map(abs, mix)), 0.05)
+        self.assertEqual(len(sfx.sync(out, sounds[:3], 30, 60, mix=mix)), 3)
+
+    def test_each_of_many_sounds_is_checked_where_it_landed(self):
+        sounds = tuple(vb.sfx.sound(('fit/click/floss_lid', 'hover_tick/detent')[i % 2], at=6 + 5 * i)
+                       for i in range(24))
+        film = Film(draw=blank, fps=30, frames=130, formats=(vb.Format('tiny', 32, 32),), sounds=sounds,
+                    loudness=None)
+        out = self.dir / 'checked.mp4'
+        render(film, str(out), jobs=2, log=QUIET)
+        rows = sfx.sync(out, sounds, 30, 130)
+        self.assertEqual([r['mark'] for r in rows], [s.mark for s in sounds])
+        self.assertTrue(all(r['landed'] for r in rows), rows)
+
+    def test_a_timeline_lane_of_many_sounds_is_one_input(self):
+        clicks = [vb.sfx.sound('fit/click/floss_lid', at=5 + 2 * i) for i in range(30)]
+        lane = tf.Lane('Audio 1')
+        inputs, graph, _ = assembly.mix_graph([], [(lane, clicks)], 90, 30)
+        self.assertEqual(len(inputs), 1)
+        self.assertTrue(inputs[0].endswith('.wav'))
+
+
 class TimelineKey(unittest.TestCase):
     def doc(self, item=None, cut=None):
         d = {'version': 1, 'fps': 30, 'clips': [{'id': 'a', 'dir': 'a'}, {'id': 'b', 'dir': 'b'}],

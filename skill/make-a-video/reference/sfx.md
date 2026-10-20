@@ -59,6 +59,12 @@ FILM = vb.Film(..., audio=vb.Audio('assets/music.wav', duck_db=-10), sounds=(WHO
 
 A sound before frame 0 or past the last frame is cut there.
 
+**Hundreds are fine.** A key click per keystroke of a typed log, a tick per
+line, five hundred placements reusing a few sounds: keep each one its own
+`vb.sfx.sound(...)` in `sounds`. The render mixes them in one pass, and the
+checks still find every one on its frame. Don't mix them into one file
+yourself: a pre-mixed bed can't be checked sound by sound.
+
 ## Which sound for which moment
 
 | moment | role | try |
