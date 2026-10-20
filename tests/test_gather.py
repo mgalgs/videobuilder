@@ -320,10 +320,20 @@ class Artwork(GatherFixture):
         self.assertNotIn('#abcdef', theme)                    # a comment, not a declaration
         self.assertIn('- --brand: #ff0000', theme)
         self.assertIn('- "Inter", sans-serif (2 uses)', theme)
-        # The same-site stylesheet was read; the off-site one and every font file never were.
+        # The stylesheet was read (an off-site one is tried too); no font file ever was.
         self.assertIn('/site.css', _Site.requested)
         self.assertNotIn('/font.woff2', _Site.requested)
         self.assertFalse(any(p.endswith(('.woff', '.woff2', '.ttf', '.otf')) for p in _Site.requested))
+
+    def test_the_theme_leaves_out_tailwind_resets_and_transparent_colours(self):
+        css = ['*{--tw-ring-color:#3b82f6;--tw-shadow:#0000;color:#00000000}'
+               'body{background:#c8d5c1;color:#1a1a1a;--brand:#c8d5c1}']
+        theme = gather.theme('https://a.example/', css)
+        self.assertNotIn('--tw-', theme)
+        self.assertNotIn('#3b82f6', theme)
+        self.assertNotIn('#00000000', theme)
+        self.assertIn('- #c8d5c1 (2 uses)', theme)
+        self.assertIn('- --brand: #c8d5c1', theme)
 
     def test_a_page_with_no_styles_has_no_theme(self):
         page = gather.crawl([self.url('/about')], max_pages=1, allow_loopback=True, chromium=None)[0][0]

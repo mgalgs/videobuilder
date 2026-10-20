@@ -336,6 +336,11 @@ def _font_stack(value):
     return ', '.join(part.strip().replace("'", '"') for part in value.split(',') if part.strip())
 
 
+def _transparent(colour):
+    """Whether a normalised #rrggbbaa colour is fully transparent."""
+    return len(colour) == 9 and colour.startswith('#') and colour.endswith('00')
+
+
 def theme(url, css, theme_color=None):
     """The markdown theme notes for a page: its meta theme-color and the
     colours and font stacks its CSS (`css`, a list of style sheet texts) uses
@@ -348,6 +353,8 @@ def theme(url, css, theme_color=None):
         for match in _DECLARATION.finditer(sheet):
             prop, value = match.group(1), match.group(2)
             custom = prop.startswith('--')
+            if prop.startswith('--tw-'):
+                continue        # Tailwind's internal resets, on every Tailwind page: not the site's colours
             prop = prop if custom else prop.lower()
             if prop == 'font-family' or (custom and ('font' in prop or 'family' in prop) and not any(
                     word in prop for word in ('size', 'weight', 'height', 'spacing', 'style'))):
@@ -359,7 +366,7 @@ def theme(url, css, theme_color=None):
                 continue
             for found in _COLOUR.findall(value):
                 colour = _colour(found)
-                if colour:
+                if colour and not _transparent(colour):
                     colours[colour] += 1
                     if custom and len(named) < THEME_COLOURS:
                         named.setdefault(prop, colour)
