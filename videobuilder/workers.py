@@ -144,7 +144,11 @@ class Worker:
     def __init__(self, python, checkout, film, unsandboxed=False, source=None):
         self.film = str(film)
         self.home = tempfile.TemporaryDirectory()
-        command = sandbox_command(python, checkout, self.home.name, unsandboxed, source)
+        try:
+            command = sandbox_command(python, checkout, self.home.name, unsandboxed, source)
+        except BaseException:
+            self.home.cleanup()
+            raise
         self.log = tempfile.TemporaryFile()
         self.process = subprocess.Popen(command, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
                                         stderr=self.log, cwd=self.home.name,
