@@ -22,6 +22,18 @@ class TextBox(unittest.TestCase):
         self.assertAlmostEqual(bx.h, size * 1.08 + size * 0.32, places=9)
         self.assertEqual((bx.x, bx.y), (60, 1400))
 
+    def test_italic_is_its_own_font(self):
+        upright, italic = Font('Cantarell', 80), Font('Cantarell', 80, style='italic')
+        self.assertNotEqual(upright, italic)          # distinct cache keys, no dummy tracking needed
+        drawn = []
+        for font in (upright, italic):
+            cv = Canvas(400, 120)
+            text.draw(cv, ['Ilk'], font, 10, 10, '#ffffff')
+            drawn.append(pixels(cv))
+        self.assertNotEqual(*drawn)                  # Pango slants the letters (or picks an italic face)
+        with self.assertRaisesRegex(ValueError, 'Font style must be one of normal, italic, oblique'):
+            Font('Cantarell', 80, style='slanted')
+
     def test_button_box_model(self):
         size = 60
         font = Font('Cantarell', size, 850)  # the font's normal line height

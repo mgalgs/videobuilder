@@ -274,6 +274,8 @@ text.draw_in(cv, chip, 'New', F, colour, padding=(8, 16))
 
 - `text.draw` draws top-down from (x, y); `align` is within `width`.
 - `weight` takes any value on a variable font's axis.
+- `style='italic'` (or `'oblique'`) slants it: Pango picks the family's italic face if one is
+  registered, else slants the upright one. Italic and upright are separate fonts, so mix them freely.
 - **Trap:** CSS adds letter-spacing after the last letter too; Pango doesn't.
   To match a browser layout, `Font(..., css_tracking=True)`.
 - **Trap:** a `Font` whose family isn't registered or installed logs one warning per family per

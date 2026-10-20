@@ -65,6 +65,9 @@ os.register_at_fork(after_in_child=_fresh_font_map)
 _WEIGHTS = sorted(int(w) for w in Pango.Weight.__enum_values__.values())
 
 
+_STYLES = {'normal': Pango.Style.NORMAL, 'italic': Pango.Style.ITALIC, 'oblique': Pango.Style.OBLIQUE}
+
+
 def _nearest_weight(w):
     return Pango.Weight(min(_WEIGHTS, key=lambda k: abs(k - w)))
 
@@ -80,11 +83,17 @@ class Font:
     # counts it in a line's width, as a browser does, so aligned and centred
     # tracked text lands where a browser puts it. Glyphs don't move.
     css_tracking: bool = False
+    style: str = 'normal'  # 'normal', 'italic' or 'oblique'
+
+    def __post_init__(self):
+        if self.style not in _STYLES:
+            raise ValueError(f"Font style must be one of {', '.join(_STYLES)}, not {self.style!r}")
 
     def description(self):
         _warn_missing_family(self.family)
         d = Pango.FontDescription.from_string(f'{self.family} @wght={self.weight}')
         d.set_weight(_nearest_weight(self.weight))  # picks a static family's face; the axis drives variable ones
+        d.set_style(_STYLES[self.style])
         d.set_absolute_size(self.size * S)
         return d
 
