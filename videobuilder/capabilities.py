@@ -523,6 +523,20 @@ CATALOG = (
          'vb.captions.draw(cv, track, t, keywords={...}, font=..., safe=...)'),
         'skill/make-a-video/reference/captions.md', 'word-timed-captions'),
     _entry(
+        'terminal-log', 'Type and data', 'Terminal log',
+        'A terminal or chat log that types, prints and scrolls.',
+        'A running log in a window, like an agent at work in a terminal: its thinking in one style, its commands '
+        'typed at a prompt key by key with an uneven human rhythm, their output appearing whole in another colour. '
+        'Long lines wrap; once the window is full it eases up a line at a time and old lines leave at the top. '
+        'Every keystroke can click and every printed line tick, hundreds of sounds if the session is long.',
+        ("Show the agent's session as a terminal, typing and scrolling",
+         'Put its thinking in grey italics and the commands in white after a prompt',
+         'Let the output scroll up as new lines arrive', 'Add a key click for every letter typed'),
+        ("vb.terminal.Kind(vb.Font(mono, 28, style='italic'), colour, prefix='$ ', typed=True)",
+         'events = vb.terminal.paced([(kind, text), ...], KINDS)  # or (t, kind, text) by hand',
+         'LOG = vb.TerminalLog(events, KINDS); LOG.draw(cv, t, box)', 'Film(sounds=LOG.sounds(at=0, fps=FPS))'),
+        'skill/make-a-video/reference/terminal.md', 'terminal-log', poster=124),
+    _entry(
         'counting-numbers', 'Type and data', 'Numbers that count up',
         'A hero stat counts from zero to its final value.',
         'A big number counts up to its final value on a spring, the way a benchmark or a result should land: '

@@ -146,6 +146,9 @@ layout, images, views) with the traps each part hides.
   `ink`, `paper`, `accent`, a `length`) and enters, holds and exits on its
   own: `vb.type.draw(cv, name, vb.type.props(lines=[...]), t)`, over another
   picture with `paper=None`. Don't hand-roll what a type style does.
+- **Terminal log** (a transcript that keeps growing: an agent's thinking,
+  typed commands, output, scrolling once full): `vb.TerminalLog`, see
+  `reference/terminal.md`. Don't hand-draw one.
 - **3D shots**: build a ManimGX shot to `assets/name.mp4`, commit it, and
   draw its frames with `vb.Clip`. Match its frame count to its storyboard
   segment. See `reference/3d.md` for the build command and the GPU stop rule.
