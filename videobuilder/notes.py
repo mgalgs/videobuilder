@@ -586,7 +586,7 @@ class NoteStore:
             state.pop('rejection', None)
             self.save_session(video, state)
             png = self.image(nid) if note.get('frame') is not None else None
-            context = {k: note[k] for k in ('time', 'beat', 'attachments', 'no_questions', 'clip') if k in note}
+            context = {k: note[k] for k in ('time', 'beat', 'attachments', 'no_questions', 'clip', 'said') if k in note}
             new = self.add(video, note['format'], note['frame'], note['segment'], note['text'], png,
                            author=author or note.get('author'), retried_from=nid, **context)
             note['retried'] = new['id']

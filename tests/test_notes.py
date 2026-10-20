@@ -318,12 +318,13 @@ class Notes(unittest.TestCase):
         agent = FakeAgent()
         store = NoteStore(self.dir, agent)
         note = store.add('promo/film', '16x9', 0, None, 'Build it with your best judgement; do not ask questions.',
-                         b'', no_questions=True)
+                         b'', no_questions=True, said='Make it')
         agent.states[note['handle']] = AgentStatus('failed', 'could not apply')
         failed = store.list('promo/film')[0]
         self.assertEqual(failed['state'], 'failed')
         retried = store.retry(failed['id'])
         self.assertTrue(retried.get('no_questions'))
+        self.assertEqual(retried['said'], 'Make it')         # the chat still shows the creator's words
         md = (store.session_dir('promo/film') / (retried['id'] + '.md')).read_text()
         self.assertIn('No more questions', md)
         self.assertNotIn('Ask first if truly unclear', md)
