@@ -582,6 +582,11 @@ class FilmOfClips(TempProject):
             assembly.render_clip_local(root, clip, fmt, out, jobs=2, log=QUIET)
         self.editor.renders.clip_renderer = render_clip
 
+    def tearDown(self):
+        # A read starts clip renders that write into the project: stop them before it is removed.
+        self.editor.renders.close()
+        super().tearDown()
+
     def wait(self, path):
         deadline = time.monotonic() + 120
         while time.monotonic() < deadline:
