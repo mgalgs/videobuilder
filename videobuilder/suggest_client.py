@@ -14,7 +14,6 @@ director's typing for long.
 """
 import http.client
 import json
-import re
 import socket
 import threading
 from urllib.parse import urlsplit
@@ -79,7 +78,7 @@ class SuggestClient:
             ],
         }
 
-    def complete(self, static_block, video_block, user_text, *, max_tokens=400, cancel_event=None):
+    def complete(self, static_block, video_block, user_text, *, max_tokens=1500, cancel_event=None):
         """(answer, usage): `answer` is the assistant's reply parsed as JSON
         (whatever shape it answered; suggest.py validates it), `usage` is the
         endpoint's own `{"prompt_tokens", "completion_tokens", ...}` or None.
@@ -121,13 +120,20 @@ class SuggestClient:
             raise SuggestError(f'HTTP {status} from the suggest endpoint: {detail}')
         try:
             data = json.loads(payload)
-            content = data['choices'][0]['message']['content']
+            choice = data['choices'][0]
+            content = choice['message']['content']
             if isinstance(content, list):
                 content = ''.join(p.get('text', '') for p in content if isinstance(p, dict))
-            # Some models wrap the JSON in a ```json fence despite response_format.
-            content = re.sub(r'^\s*```(?:json)?\s*|\s*```\s*$', '', content)
-            answer = json.loads(content)
-        except (ValueError, KeyError, IndexError, TypeError):
+        except (ValueError, KeyError, IndexError, TypeError, AttributeError):
             raise SuggestError('the suggest endpoint answered something unusable') from None
+        try:
+            # Some models wrap the JSON in a ```json fence or a sentence despite response_format.
+            start, end = content.find('{'), content.rfind('}')
+            answer = json.loads(content[start:end + 1] if 0 <= start < end else content)
+        except (ValueError, TypeError, AttributeError):
+            reason = choice.get('finish_reason') if isinstance(choice, dict) else None
+            cut = f' (cut off: finish_reason {reason})' if reason == 'length' else ''
+            head = str(content)[:200].replace('\n', ' ')
+            raise SuggestError(f'the model answered something that is not JSON{cut}: {head}') from None
         usage = data.get('usage') if isinstance(data.get('usage'), dict) else None
         return answer, usage

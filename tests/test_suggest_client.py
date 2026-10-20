@@ -74,6 +74,23 @@ class Client(unittest.TestCase):
         answer, _ = self.client.complete('s', 'v', 'u')
         self.assertEqual(answer, {'items': [{'id': 'x'}]})
 
+    def test_answer_wrapped_in_a_sentence(self):
+        content = 'Here are some matches:\n{"items": [{"id": "x"}]}\nHope that helps.'
+        self.fake.raw_body = json.dumps({'choices': [{'message': {'content': content}}]}).encode()
+        answer, _ = self.client.complete('s', 'v', 'u')
+        self.assertEqual(answer, {'items': [{'id': 'x'}]})
+
+    def test_cut_off_answer_says_so(self):
+        content = '{"items": [{"id": "x", "why": "becau'
+        self.fake.raw_body = json.dumps({'choices': [{'message': {'content': content},
+                                                      'finish_reason': 'length'}]}).encode()
+        with self.assertRaisesRegex(SuggestError, 'cut off.*becau'):
+            self.client.complete('s', 'v', 'u')
+
+    def test_default_reply_room_fits_a_full_answer(self):
+        self.client.complete('s', 'v', 'u')
+        self.assertGreaterEqual(self.fake.requests[0]['body']['max_tokens'], 1200)
+
     def test_unusable_answer(self):
         self.fake.raw_body = b'not json at all'
         with self.assertRaises(SuggestError):
