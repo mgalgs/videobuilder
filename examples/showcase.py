@@ -5,8 +5,8 @@ generated music bed while a made-up app, Lumen, gets launched.
     python -m videobuilder render examples/showcase.py --format all
 
 Sections: a kinetic-type hook and the title hit; the product (camera, UI,
-Lumi checking off the day, a tester on camera, a diagram), the launch
-numbers on one dashboard, then the looks, which get room to breathe (generated art, 3D, hard light,
+Lumi checking off the day, a tester on camera, the release in a terminal,
+a diagram), the launch numbers on one dashboard, then the looks, which get room to breathe (generated art, 3D, hard light,
 one scene in three named looks, comic, pixel art, a cut-out fox, the fox walking into a hit, a stick figure
 running into a wall, two named type
 styles, paper collage), and the timing and formats block before
@@ -38,7 +38,7 @@ sys.path.insert(0, str(HERE))
 
 import videobuilder as vb  # noqa: E402
 from videobuilder import capabilities, paths  # noqa: E402
-from showcase_scenes import art, comic, data, fox, imagery, kit, looks, motion, paper, pixel, stick, timing, typeset, voice, walk  # noqa: E402
+from showcase_scenes import art, comic, data, fox, imagery, kit, looks, motion, paper, pixel, stick, terminal, timing, typeset, voice, walk  # noqa: E402
 from showcase_scenes.kit import ACCENT, BG, INK, MUTED  # noqa: E402
 
 GRID = kit.GRID
@@ -52,7 +52,7 @@ FPB = kit.FPB
 SECTIONS = [
     ('hook', [('hook-1', 2), ('hook-2', 2), ('hook-3', 2)]),
     ('title', 4),
-    ('product', [('camera', 5), ('redrawn', 4), ('lumi', 8), ('voice', 5), ('diagram', 5)], 1),
+    ('product', [('camera', 5), ('redrawn', 4), ('lumi', 8), ('voice', 5), ('terminal', 5), ('diagram', 5)], 1),
     ('dashboard', 10, 1),
     ('styles', [('generated', [('gen-arcs', 3), ('gen-flow', 3), ('gen-tiles', 3)]),
                 ('orbit', [('orbit-type', 3), ('orbit-device', 3), ('orbit-bleed', 4)]),
@@ -103,6 +103,7 @@ SHOTS = {
     'redrawn': ['redrawn-product-ui', 'eased-entrances'],
     'lumi': ['character-motion', 'staggered-reveals', 'springs-with-character'],
     'voice': ['footage-with-sound', 'word-timed-captions'],
+    'terminal': ['terminal-log'],
     'diagram': ['drawn-on-diagram'],
     'dashboard': ['overlap-transitions', 'counting-numbers', 'gauges-and-rings', 'bar-charts', 'line-chart-callout'],
     **{n: ['generated-art'] for n in ('gen-arcs', 'gen-flow', 'gen-tiles')},
@@ -383,7 +384,7 @@ def end(cv, s, st):
 
 SCENES = {'hook-1': hook, 'hook-2': hook, 'hook-3': hook, 'title': title, 'end': end,
           **motion.SCENES, **data.SCENES, **imagery.SCENES, **looks.SCENES, **art.SCENES, **comic.SCENES, **pixel.SCENES, **fox.SCENES, **walk.SCENES, **stick.SCENES,
-          **paper.SCENES, **typeset.SCENES, **timing.SCENES, **voice.SCENES}
+          **paper.SCENES, **typeset.SCENES, **timing.SCENES, **voice.SCENES, **terminal.SCENES}
 
 
 # ---- transitions between sections: the outgoing shot keeps drawing under the incoming one's first beat ----
