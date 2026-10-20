@@ -14,10 +14,10 @@ what the release is about.
 | Letter | Codename | Headline |
 |---|---|---|
 | A | Aperture | Films made of clips (v0.1.87) |
+| B | Bokeh | Sound effects, type and a stick figure (v0.1.99) |
 
 Some words for the next few letters (pick any word that fits the letter):
 
-- B: Bokeh, Boom
 - C: Cutaway, Crane
 - D: Dolly, Dissolve
 - E: Establishing, Edit
