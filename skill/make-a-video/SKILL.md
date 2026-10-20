@@ -169,6 +169,9 @@ layout, images, views) with the traps each part hides.
   §6 and `reference/sfx.md`.
 - Write `assets/README.md`: each file, where it came from, its licence
   (generated files: the command that made them, and "generated for this film").
+- Commit every file `film.py` reads. `.gitignore` only render outputs by path
+  (preview frames, `*.mp4` renders, caches), never a whole file type such as
+  `*.png`, and check the commit loads from a clean checkout before you hand it on.
 
 ## 5. The authoring loop
 

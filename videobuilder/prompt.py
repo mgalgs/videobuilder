@@ -399,6 +399,10 @@ def render(note, payload, image, compendium=False, votes=None, sources=None, com
               'Commit only changes to the video. Never commit a reply or notes file: '
               'end with a short answer for the reviewer as your final message, '
               'and it is shown to them as your reply.',
+              'Commit every file film.py reads. `.gitignore` may ignore only render outputs by '
+              'path (preview frames, `*.mp4` renders, caches), never a whole file type such as '
+              '`*.png`. Before you reply, make sure your commit loads from a clean checkout: the '
+              'editor checks, and a change that does not load is not kept.',
               'Continue the supplied draft, or start from main when draft is null.',
               'End your reply with Summary: <one line> — unless you are asking clarifying '
               'questions instead of building, in which case end with the ```questions block '
