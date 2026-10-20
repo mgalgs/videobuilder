@@ -743,6 +743,11 @@ async function sendAnswers(note, button, answers) {
     showError(e.message)
   }
 }
+// A replied note's message ("it's fixing it") only holds while its automatic fix note is on the way.
+function fixingMessage(note, notes) {
+  const fixing=notes.some(n=>n.retry_for===note.id&&['gathering','queued','working'].includes(n.state));
+  return note.state==='replied'&&note.message&&fixing ? note.message : null
+}
 function renderNotes() {
   const list=$('note-list'),atBottom=list.scrollHeight-list.scrollTop-list.clientHeight<80;
   fdShowLink();
@@ -795,6 +800,13 @@ function renderNotes() {
       list.append(reply)
     }
     if(note.questions)list.append(renderQuestionsCard(note));
+    const fixing=fixingMessage(note,state.notes);
+    if(fixing) {
+      const row=node('div','bubble-row builder'),box=node('div','bubble');
+      box.append(node('span','who','Builder'),node('span','state-message',fixing));
+      row.append(box);
+      list.append(row)
+    }
     if(['gathering','queued','working'].includes(note.state)) {
       const working=node('div','bubble-row builder'),box=node('div','bubble');
       box.append(node('span','who','Builder'));

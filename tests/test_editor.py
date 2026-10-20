@@ -284,6 +284,23 @@ console.log(JSON.stringify(out));
         self.assertEqual(out[3], [['b', 'c', 'a'], ['Two:bca']])
 
     @unittest.skipUnless(shutil.which('node'), 'node is not available in this environment')
+    def test_a_note_says_it_is_being_fixed_only_while_its_fix_is_on_the_way(self):
+        # fixingMessage, as renderNotes uses it for a draft that didn't load (drafts.Drafts._not_loading).
+        import re
+        import subprocess
+        js = (PKG / 'director.js').read_text()
+        script = re.search(r'\nfunction fixingMessage\(.*?\n\}', js, re.S).group(0) + """
+const note={id:'a',state:'replied',message:"it's fixing it"};
+console.log(JSON.stringify(['queued','working','landed','failed','refused','replied'].map(
+  s=>fixingMessage(note,[note,{id:'b',retry_for:'a',state:s}])).concat(
+  [fixingMessage(note,[note]),fixingMessage({...note,state:'landed'},[note,{id:'b',retry_for:'a',state:'working'}])])));
+"""
+        result = subprocess.run(['node', '-'], input=script.encode(), capture_output=True)
+        self.assertEqual(result.returncode, 0, result.stderr.decode())
+        self.assertEqual(json.loads(result.stdout),
+                         ["it's fixing it", "it's fixing it", None, None, None, None, None, None])
+
+    @unittest.skipUnless(shutil.which('node'), 'node is not available in this environment')
     def test_inserting_footage_inside_an_act_keeps_it_a_run_of_clips(self):
         # tlInsert, as tlAddFootage uses it: a footage clip added at a cut inside an act joins
         # that act, at an act boundary the left act, and the result passes the loader.
