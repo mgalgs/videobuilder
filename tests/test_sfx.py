@@ -524,6 +524,17 @@ class SyncCheck(unittest.TestCase):
         row = sfx.sync('unused.mp4', [hit], 30, 30, mix=mix)[0]
         self.assertEqual(row['offset_ms'], 0)
         self.assertGreater(row['clipped'], 0)
+        # A centred hit at -3 dBFS in both channels: ffmpeg's mono downmix (0.707 a side) takes
+        # it to full scale, but no channel is, so it is not called clipped.
+        quiet = [min(1.0, max(-1.0, x * 0.71 / max(map(abs, src)))) for x in src[:48000 - t0]]
+        stereo = array.array('f', [0.0] * 96000)
+        for i, x in enumerate(quiet):
+            stereo[2 * (t0 + i)] = stereo[2 * (t0 + i) + 1] = x
+        downmix = array.array('f', (min(1.0, max(-1.0, 0.7071 * (stereo[2 * k] + stereo[2 * k + 1])))
+                                    for k in range(48000)))
+        self.assertGreater(sum(1 for x in downmix if abs(x) >= 0.999), 0)
+        row = sfx.sync('unused.mp4', [hit], 30, 30, mix=downmix, stereo=stereo)[0]
+        self.assertEqual(row['clipped'], 0)
         import random
         rng = random.Random(1)
         noise = array.array('f', (rng.uniform(-0.9, 0.9) for _ in range(48000)))

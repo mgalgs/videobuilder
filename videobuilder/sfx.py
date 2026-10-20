@@ -478,7 +478,7 @@ def _fit(y, x1, x2):
     return (a * s1y + b * s2y) / syy, r2_others
 
 
-def sync(mp4, sounds, fps, frames, mix=None):
+def sync(mp4, sounds, fps, frames, mix=None, stereo=None):
     """For each `Sfx` among `sounds` (as placed in a film of `frames` frames
     at `fps`), where its sync point is in `mp4`'s sound: a dict with
     `name`, `mark` (the frame asked for), `offset_ms` (how far from it the
@@ -492,12 +492,19 @@ def sync(mp4, sounds, fps, frames, mix=None):
     fitted, by least squares, as the sound's own envelope shifted by up to
     `SEARCH_FRAMES` frames, plus the other sound effects as placed, plus a
     constant (the music, speech); the shift that fits best is where it is.
-    `mix` is the MP4's mono samples, if decoded already."""
+    `mix` is the MP4's mono samples, if decoded already, and `stereo` its
+    interleaved two-channel ones. Full scale is counted per channel: ffmpeg's
+    mono downmix adds 0.707 of each side, so a centred sound peaking at
+    -3 dBFS reaches 1.0 there without clipping in the film. A caller that
+    passes `mix` and no `stereo` has it counted on `mix`."""
     out = []
     placed = [s for s in sounds if isinstance(s, Sfx)]
     if not placed:
         return out
-    mix = mix if mix is not None else decode(mp4, channels=1)
+    if mix is None:
+        mix = decode(mp4, channels=1)
+        stereo = stereo if stereo is not None else decode(mp4, channels=2)
+    peaks, width = (stereo, 2) if stereo is not None else (mix, 1)
     envs = {id(s): _placed(s, fps) for s in placed}
     lag = round(SEARCH_FRAMES * 1000 / fps)
     for s in placed:
@@ -536,7 +543,7 @@ def sync(mp4, sounds, fps, frames, mix=None):
                 at_mark = partial
             if partial > best[1] + 1e-12 or (abs(partial - best[1]) <= 1e-12 and abs(d) < abs(best[0])):
                 best = (d, partial)
-        span = mix[max(0, round((s.at / fps) * RATE)):round(((s.at + s.frames) / fps) * RATE)]
+        span = peaks[max(0, round((s.at / fps) * RATE)) * width:round(((s.at + s.frames) / fps) * RATE) * width]
         r, r_mark = math.sqrt(max(0.0, best[1])), math.sqrt(max(0.0, at_mark))
         row.update(offset_ms=best[0], r=round(r, 3), r_at_mark=round(r_mark, 3),
                    landed=abs(best[0]) <= 1000 / fps or r_mark >= SAME_FIT * r,
