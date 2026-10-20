@@ -311,5 +311,24 @@ class TypeSection(unittest.TestCase):
             self.assertIn(f"- **{child['title']}** (`{child['style']}`)", part)
 
 
+class Search(unittest.TestCase):
+    """The search field filters the cards in the page itself; its script reads
+    the same page data the modal does, so every card's words are searchable."""
+
+    def test_the_header_has_a_search_field_and_the_page_its_script(self):
+        page = capabilities.page_html(None, '0').decode()
+        head = page[page.index('<div class="cap-head">'):page.index('</div>', page.index('<div class="cap-head">'))]
+        self.assertIn('<input type="search" id="cap-search"', head)
+        self.assertIn('aria-label="Search capabilities"', head)
+        self.assertIn('id="search-none"', page)
+        self.assertIn(capabilities._SEARCH_SCRIPT, page)
+        self.assertIn("'capabilities-data', 'community-data'", capabilities._SEARCH_SCRIPT)
+
+    def test_with_add_capability_the_search_sits_before_it(self):
+        page = capabilities.page_html(None, '0', community={'published': [], 'drafts': [], 'can_submit': True,
+                                                          'is_admin': False, 'fetch': False}).decode()
+        self.assertLess(page.index('id="cap-search"'), page.index('id="add-capability"'))
+
+
 if __name__ == '__main__':
     unittest.main()

@@ -1007,6 +1007,14 @@ a{color:#ef5b4c}
 .cap-head{display:flex;flex-wrap:wrap;align-items:baseline;gap:6px 14px;padding:28px 0 0}
 .cap-head h1{font-size:clamp(26px,3vw,34px);letter-spacing:-.02em;margin:0;font-weight:800}
 .cap-head .version{color:#a9a9b2;font-size:13px}
+.cap-search{margin-left:auto;flex:0 1 320px;min-width:0;align-self:center;box-sizing:border-box;min-height:44px;
+  padding:8px 14px;border-radius:10px;border:1px solid #2c2c33;background:#141417;color:#f4f4f2;font:inherit;
+  font-size:16px}
+.cap-search:focus{outline:none;border-color:#6b6b75;box-shadow:0 0 0 3px rgba(244,244,242,.08)}
+.cap-search + #add-capability{margin-left:0}
+@media (max-width:720px){.cap-search{order:5;flex:1 1 100%;margin:6px 0 0}}
+.search-hide{display:none!important}
+.search-none{color:#a9a9b2;margin:28px 2px}
 main{max-width:1180px;margin:0 auto;padding:8px 32px 48px;box-sizing:border-box}
 .reel{margin:24px 0 8px}
 .reel .player{position:relative;border-radius:14px;overflow:hidden;background:#000;aspect-ratio:16/9}
@@ -1249,6 +1257,63 @@ _ADD_CAPABILITY_STYLE = """
 #capability-submit:disabled{opacity:.6;cursor:default}
 #capability-error{color:#ff8a80;margin:0;font-size:.9rem}#capability-error:empty{display:none}
 """
+
+# The search field: every word typed must appear in a card's title, line, category, description or
+# example phrasings. Grids, kind headings and sections left empty hide with it, as do the reel and
+# the drafts while a search is on.
+_SEARCH_SCRIPT = """
+(function(){
+  var input = document.getElementById('cap-search');
+  if(!input) return;
+  var main = document.querySelector('main');
+  var none = document.getElementById('search-none');
+  var text = {};
+  ['capabilities-data', 'community-data'].forEach(function(id){
+    var el = document.getElementById(id);
+    if(!el) return;
+    JSON.parse(el.textContent).forEach(function(e){
+      text[e.id] = [e.title, e.category, e.description, e.kindTitle || ''].concat(e.prompts || [])
+        .join(' ').toLowerCase();
+    });
+  });
+  var cards = Array.prototype.slice.call(main.querySelectorAll('[data-card]'));
+  function hide(el, yes){ el.classList.toggle('search-hide', yes) }
+  function apply(){
+    var words = input.value.toLowerCase().split(/\\s+/).filter(Boolean);
+    var searching = words.length > 0, shown = 0;
+    cards.forEach(function(card){
+      var hay = (text[card.getAttribute('data-card')] || '') + ' ' + card.textContent.toLowerCase();
+      var match = words.every(function(w){ return hay.indexOf(w) >= 0 });
+      hide(card.closest('.community-card') || card, searching && !match);
+      if(match) shown++;
+    });
+    main.querySelectorAll('.reel, .draft-section').forEach(function(el){ hide(el, searching) });
+    main.querySelectorAll('.grid').forEach(function(grid){
+      hide(grid, !Array.prototype.some.call(grid.children, function(c){
+        return !c.classList.contains('search-hide') }));
+    });
+    main.querySelectorAll('h3.kind').forEach(function(h){
+      var next = h.nextElementSibling;
+      hide(h, !!next && next.classList.contains('grid') && next.classList.contains('search-hide'));
+    });
+    main.querySelectorAll('h2').forEach(function(h){
+      var run = [], el = h.nextElementSibling;
+      while(el && el.tagName !== 'H2' && el !== none){ run.push(el); el = el.nextElementSibling }
+      var any = run.some(function(r){ return r.classList.contains('grid') && !r.classList.contains('search-hide') });
+      hide(h, searching && !any);
+      run.forEach(function(r){ if(r.classList.contains('section-lead')) hide(r, searching && !any) });
+    });
+    none.textContent = searching && !shown ? 'No capabilities match \\u201c' + input.value.trim() + '\\u201d.' : '';
+    hide(none, !searching || shown > 0);
+  }
+  input.addEventListener('input', apply);
+  input.addEventListener('keydown', function(e){
+    if(e.key === 'Escape' && input.value){ e.preventDefault(); input.value = ''; apply() }
+  });
+  if(input.value) apply();
+})();
+"""
+
 
 _ADD_CAPABILITY_SCRIPT = """
 (function(){
@@ -1616,9 +1681,11 @@ def page_html(capabilities_dir, version, header='', header_style='', community=N
         '<meta name="viewport" content="width=device-width, initial-scale=1">'
         f'<style>{style}</style></head><body>{header}'
         f'<main><div class="cap-head"><h1>Capabilities</h1>'
-        f'<span class="version">videobuilder v{_esc(version)}</span>{add_button}</div>'
+        f'<span class="version">videobuilder v{_esc(version)}</span>'
+        '<input type="search" id="cap-search" class="cap-search" placeholder="Search capabilities…" '
+        f'aria-label="Search capabilities" autocomplete="off" spellcheck="false">{add_button}</div>'
         f'{drafts_html}'
-        f'{body}</main>'
+        f'{body}<p class="search-none search-hide" id="search-none" role="status"></p></main>'
         '<div id="modal" hidden role="dialog" aria-modal="true" aria-labelledby="modal-title">'
         '<div class="box">'
         '<button class="close" id="modal-close" aria-label="Close">&times;</button>'
@@ -1632,7 +1699,7 @@ def page_html(capabilities_dir, version, header='', header_style='', community=N
         '</div></div></div>' + dialog_html +
         f'<script id="capabilities-data" type="application/json">{json.dumps(data)}</script>' +
         community_data_script +
-        f'<script>{_PAGE_SCRIPT}</script>' + dialog_script + community_script +
+        f'<script>{_PAGE_SCRIPT}</script><script>{_SEARCH_SCRIPT}</script>' + dialog_script + community_script +
         '</body></html>'
     )
     return html.encode()
