@@ -226,6 +226,8 @@ function versionBy(commit) {
 function currentVersion() {
   return versionBy(state.commit)||state.versions[0]
 }
+// Not built yet: the blank start, and any Film details saved before the first build (versions.py).
+const notBuilt=v=>v?.kind==='blank'||!!v?.unbuilt;
 function formatInfo() {
   return state.info?.formats.find(f=>f.name===state.format)
 }
@@ -242,7 +244,7 @@ function frameUrl() {
 function updateLabels() {
   const v=currentVersion();
   if(!v)return;
-  const label=v.kind==='blank'?'Not built yet':`v${v.n} · ${relative(v.time)}`;
+  const label=notBuilt(v)?'Not built yet':`v${v.n} · ${relative(v.time)}`;
   $('version-label').textContent=label;
   $('rail-version').textContent=`v${v.n}`;
   $('caption-by').textContent=`Builder · v${v.n}`;
@@ -314,8 +316,9 @@ async function loadPlayer(retry=false) {
   $('poster').src=poster;
   const v=currentVersion();
   $('building').hidden=true;
+  $('blank-details').hidden=true;
   $('render-status').classList.remove('calm');
-  if(v?.kind==='blank') {
+  if(notBuilt(v)) {
     showBlank();
     return
   }
@@ -390,6 +393,7 @@ function showBlank() {
   $('render-text').textContent=building
     ? 'The builder is making your first version. It plays here when it\'s ready.'
     : 'Nothing built yet. Say what you want below and the builder makes the first version.';
+  $('blank-details').hidden=building
 }
 function playVersion(v,deliberate) {
   state.commit=v.commit;
@@ -590,13 +594,13 @@ function renderProgress(note,el) {
 function refreshProgress(note) {
   const data=stepsData(note);
   if(data.progressEl?.isConnected)renderProgress(note,data.progressEl);
-  if(currentVersion()?.kind==='blank'&&!$('building').hidden)renderProgress(note,$('build-steps'));
+  if(notBuilt(currentVersion())&&!$('building').hidden)renderProgress(note,$('build-steps'));
   updateBuildPill()
 }
 // While a later version builds, the player keeps playing the current one; a pill over
 // it shows the newest step. A blank video's first build has the full checklist instead.
 function updateBuildPill() {
-  const note=currentVersion()?.kind==='blank' ? null :
+  const note=notBuilt(currentVersion()) ? null :
     state.notes.find(n=>['gathering','queued','working'].includes(n.state));
   $('build-pill').hidden=!note;
   if(!note)return;
@@ -741,6 +745,7 @@ async function sendAnswers(note, button, answers) {
 }
 function renderNotes() {
   const list=$('note-list'),atBottom=list.scrollHeight-list.scrollTop-list.clientHeight<80;
+  fdShowLink();
   list.replaceChildren();
   for(const note of notesInView()) {
     const mine=note.author===state.name;
@@ -883,7 +888,7 @@ async function loadNotes() {
     const next=JSON.stringify(state.notes.map(n=>[n.id,n.state,n.version?.commit]));
     if(prev!==next) {
       renderNotes();
-      if(currentVersion()?.kind==='blank')showBlank();
+      if(notBuilt(currentVersion()))showBlank();
       if(state.notes.some(n=>n.version))loadVersions()
     }
     updateBuildPill();
@@ -914,6 +919,7 @@ function versionMeta(v) {
 }
 function renderVersions() {
   const list=$('version-list');
+  fdShowLink();
   list.replaceChildren();
   for(const v of state.versions) {
     const row=node('div','version-row'),main=node('div','version-main');
@@ -1064,6 +1070,16 @@ function renderFiles() {
     }
     chip.append(node('span','file-name',f.name));
     chip.title=f.name;
+    if(f instanceof Blob&&isFootage(f)&&canAddClip()) {
+      // Footage of the film itself, not a reference for the builder: a clip on the timeline.
+      const clip=node('button','file-clip','Add as a clip');
+      clip.onclick=()=> {
+        state.files.splice(state.files.indexOf(f),1);
+        renderFiles();
+        addAsClip(f,showError).then(()=>showError('')).catch(e=>showError(e.message))
+      };
+      chip.append(clip)
+    }
     const remove=node('button');
     remove.append(icon('close'));
     remove.setAttribute('aria-label',`Remove ${f.name}`);
@@ -2062,6 +2078,13 @@ function batchBody(items) {
   });
   return {text:lines.join('\n'),attachments:ids}
 }
+// A video's first note, while it is not built yet, starts it the way New video does
+// (videos/first-note): the builder is also told what Film details set.
+function postNote(body) {
+  if(notBuilt(currentVersion())&&!state.notes.length&&!body.clip)
+    return json('videos/first-note',null,{description:body.text,attachments:body.attachments});
+  return json('notes',null,body)
+}
 async function sendPending() {
   if(state.sending||!state.pending.length)return;
   if(!await ensureName())return;
@@ -2069,7 +2092,7 @@ async function sendPending() {
   $('send-all').disabled=true;
   showError('Sending…');
   try {
-    await json('notes',null, {
+    await postNote({
       video:state.video,format:state.format,...noteScope(),...batchBody(state.pending)
     });
     state.pending=[];
@@ -2384,7 +2407,7 @@ async function sendNow() {
   const time=state.stamp?player.currentTime||0:null;
   try {
     const attachments=await uploadFiles([...state.files]);
-    await json('notes',null, {
+    await postNote({
       video:state.video,format:state.format,...noteScope(),...batchBody([{text,time,attachments}])
     });
     $('message').value='';
@@ -2620,7 +2643,9 @@ function tlPluses(places,z) {
       ` title="${esc(what)}">${svg(TL_ICON.plus,13)}`+
       `${kind!=='cut'?`<span class="tl-pg">${svg(TL_ICON[kind],12)}</span>`:''}`+
       `${jl?`<span class="tl-pj">${jl}</span>`:''}</button>`
-  }).join('')
+  }).join('')+(places.length?`<button class="tl-plus tl-end" data-tl="append" `+
+    `style="left:${places.at(-1).end*z}px" aria-label="After the last clip: add a clip" title="Add a clip">`+
+    `${svg(TL_ICON.plus,13)}</button>`:'')
 }
 // A reel's beats on the ruler: every beat while they are 5 px apart, else every bar's first.
 function tlBeatTicks(z) {
@@ -2693,8 +2718,9 @@ function renderTimeline() {
   const byId=Object.fromEntries(places.map(p=>[p.c.id,p]));
   const actRow=acts.map((a,k)=> {
     const s=byId[a.clips[0]]?.start??0,e=byId[a.clips.at(-1)]?.end??s,w=(e-s)*z-4;
-    return `<span class="tl-act" style="left:${s*z+2}px;width:${Math.max(4,w)}px" title="Act ${k+1}: `+
-      `${esc(a.title)}">${svg(TL_ICON.flag,12)}Act ${k+1}${w>110?` <span>${esc(a.title)}</span>`:''}</span>`
+    return `<button class="tl-act" data-tl="act" data-k="${k}" style="left:${s*z+2}px;width:${Math.max(4,w)}px" `+
+      `title="Act ${k+1}: ${esc(a.title)}" aria-label="Act ${k+1}: ${esc(a.title)}. Rename or remove">`+
+      `${svg(TL_ICON.flag,12)}Act ${k+1}${w>110?` <span>${esc(a.title)}</span>`:''}</button>`
   }).join('');
   const actLines=acts.slice(1).map(a=>`<i class="tl-actline" style="left:${(byId[a.clips[0]]?.start??0)*z}px"></i>`)
     .join('');
@@ -2709,7 +2735,11 @@ function renderTimeline() {
     `${svg(TL_ICON.zin)}</button><button class="tl-icon" data-tl="fit" aria-label="Fit the whole video">`+
     `${svg(TL_ICON.fit)}</button><span class="tl-hint">${tlGrid()?`A reel at ${tlGrid().bpm} bpm: cuts go on `+
     'the beat. ':''}Drag a clip to move it; tap + between clips to cut.</span>`+
-    `<button class="tl-btn" data-tl="addlane">${svg(TL_ICON.plus,16)}Audio lane</button></div>`+
+    `<button class="tl-link" data-tl="details">Film details</button>`+
+    `<button class="tl-btn" data-tl="newact" aria-label="Start an act at ${t.sel?'the selected clip':'clip 1'}">`+
+    `${svg(TL_ICON.plus,16)}Act</button>`+
+    `<button class="tl-btn" data-tl="addlane" aria-label="Add Audio">${svg(TL_ICON.plus,16)}Audio</button>`+
+    `</div>`+
     `<div class="tl-grid"><div class="tl-labels">${labels}</div><div class="tl-scroll" id="tl-scroll">`+
     `<div class="tl-track" id="tl-track" style="width:${W}px"><div class="tl-r tl-r-ruler" data-tl="seek">`+
     `${tlTicks(total,z)}${tlBeatTicks(z)}</div>${acts.length?`<div class="tl-r tl-r-acts">${actRow}</div>`:''}`+
@@ -2775,7 +2805,7 @@ async function loadTimeline(force) {
 function tlTake(r) {
   const prev=state.tl||{open:false,z:null,sel:null,whole:true,status:''};
   state.tl={...prev,data:r.timeline,commit:r.commit,fps:r.fps,format:r.format,formats:r.formats,clips:r.clips,
-    dirty:false};
+    dirs:r.dirs,dirty:false};
   if(state.tl.sel&&!r.timeline.clips.some(c=>c.id===state.tl.sel)) {
     state.tl.sel=null;
     state.tl.whole=true
@@ -2820,12 +2850,17 @@ async function saveTimeline() {
   t.saving=true;
   t.dirty=false;
   const sent=tlClone(t.data),after=t.after,undo=t.undo;
+  // A planned clip a later edit took out again needs no directory.
+  const plans=t.plans&&Object.fromEntries(Object.entries(t.plans).filter(([id])=>sent.clips.some(c=>c.id===id)));
   t.after=null;
   t.undo=null;
+  t.plans=null;
   try {
-    const r=await json('timeline',null,{video:state.video,timeline:sent,base:t.commit,summary:t.summary});
+    const r=await json('timeline',null,{video:state.video,timeline:sent,base:t.commit,summary:t.summary,
+      ...(plans?{plans}:{})});
     t.commit=r.commit;
     t.clips=r.clips;
+    t.dirs=r.dirs;
     if(!t.dirty)t.data=r.timeline;
     tlSetStatus(r.changed?`Saved · v${r.n}`:'Saved');
     if(after)after(undo);
@@ -2905,6 +2940,7 @@ function notesInView() {
 }
 function renderScope() {
   const t=state.tl,clip=tlNoteClip(),card=$('chat-scope');
+  fdShowLink();
   $('scope-clip').setAttribute('aria-pressed',String(!!clip));
   $('scope-whole').setAttribute('aria-pressed',String(!clip));
   if(!t) {
@@ -3002,7 +3038,9 @@ function tlCutSheet(i) {
   ].join('');
   const html=`<div class="tl-cutsheet"><h3>Between ${na} and ${nb}</h3><p class="tl-sub">How clip ${i} hands over `+
     `to clip ${i+1}. Each change saves a version; no clip renders again.</p><button class="tl-insert" data-x="insert">`+
-    `${svg(TL_ICON.plus)}Insert a clip here</button><div class="tl-sec">Trim at this cut</div>${where}`+
+    `${svg(TL_ICON.plus)}Insert a clip here</button>`+tlOpt('data-x="act"',false,svg(TL_ICON.flag,16),
+      `Start an act at ${nb}`,'Acts are titles over runs of clips')+
+    `<div class="tl-sec">Trim at this cut</div>${where}`+
     tlStepper(`End of ${na}`,'tail',trim(a.tail||0),beat?'Moves this cut a beat':'',unit)+
     tlStepper(`Start of ${nb}`,'head',trim(b.head||0),beat?`Moves the end of ${nb} a beat`:'',unit)+
     `<p class="tl-sub">${beat?'Tap for a beat; Alt-click, or Frames, for a frame.':
@@ -3098,6 +3136,7 @@ function tlWireSheet(sheet,i,fps) {
     const x=b.dataset.x,k=b.dataset.k,id=t.data.clips[i].id;
     if(x==='close')return tlCloseSheet();
     if(x==='insert')return tlInsertSheet(i);
+    if(x==='act')return tlActSheet(null,i);
     if(x==='unit')t.frameSteps=k==='frame';
     if(x==='snap')tlSnapCut(i);
     if(x==='t')tlTransition(i,k);
@@ -3179,10 +3218,12 @@ function tlSnapCut(i) {
     tlKeepOnBeat(data,i+1,was)
   },`put the cut into ${pb.c.id} on the beat`)
 }
+// A new clip's id: not in the timeline, nor a clip directory on main (one a removed clip left behind).
 const tlNewId=(name,data)=> {
   const base=(name.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'')||'clip').slice(0,60);
+  const dirs=state.tl.dirs||[];
   let id=base,n=2;
-  while(data.clips.some(c=>c.id===id))id=`${base}-${n++}`;
+  while(data.clips.some(c=>c.id===id)||dirs.includes(id))id=`${base}-${n++}`;
   return id
 };
 function tlAddFootage(i,source) {
@@ -3208,18 +3249,41 @@ async function tlUploadFootage(i,file,status) {
     status.textContent=e.message
   }
 }
+// A whole-video note does not ask for planned clips: a clip note on one does.
+const planNote=(clip,title,line)=>json('notes',null,{video:state.video,format:state.format,clip,
+  text:`Make this planned clip${title?` (${title})`:''}: ${line||title}`}).then(loadNotes);
+// A planned clip: a clip directory with a placeholder card (film_setup.planned_clip), written with
+// the timeline that names it (POST api/timeline `plans`). "Make it now" also sends a note on it.
+function tlPlanClip(i,title,line,now) {
+  let id=null;
+  const was=new Set([...tlOnBeat(tlPlace().places)].flatMap(j=>j<i?[j]:j>i?[j+1]:[j,j+1]));
+  const done=()=> {
+    toast(`Clip ${i+1} planned${now?': the builder is making it':'. A note on it has the builder make it'}`);
+    if(now)planNote(id,title,line).catch(e=>toast(e.message))
+  };
+  tlChange(data=> {
+    id=tlNewId(title||line.split(/\s+/).slice(0,6).join(' '),data);
+    tlInsert(data,{id,dir:`clips/${id}`},i);
+    tlKeepOnBeat(data,Math.max(1,i),was)
+  },`plan clip ${title||'new'}`,done);
+  (state.tl.plans??={})[id]={title,line};
+  tlCloseSheet()
+}
 async function tlInsertSheet(i) {
   const t=state.tl,a=t.data.clips[i-1],b=t.data.clips[i];
-  const where=b?`between ${i}. ${tlTitle(a)} and ${i+1}. ${tlTitle(b)}`:`after ${i}. ${tlTitle(a)}`;
-  const sheet=tlOpenSheet(`<div class="tl-cutsheet"><h3>New clip ${esc(where)}</h3><p class="tl-sub">Say what `+
-    `happens in it and the builder makes it, or add footage of your own.</p><label class="sr-only" for="tl-new-text">`+
-    `What happens in the new clip</label><textarea id="tl-new-text" rows="3" placeholder="What happens in it…">`+
-    `</textarea><div class="tl-sheet-foot"><button class="tl-btn" data-x="close">Cancel</button><button `+
-    `class="tl-btn accent" data-x="send">Send to the builder</button></div><div class="tl-sec">Or add footage</div>`+
-    `<div class="tl-drop" id="tl-drop">${svg(TL_ICON.clip,18)}Drop a video file here, or <button data-x="pick">`+
-    `choose one</button></div><input id="tl-file" type="file" accept=".mp4,.mov,.webm" hidden><p class="tl-sub" `+
-    `id="tl-up"></p><div id="tl-sources"></div></div>`,'Insert a clip');
-  sheet.querySelector('textarea').focus();
+  const where=!a?'first':b?`between ${i}. ${tlTitle(a)} and ${i+1}. ${tlTitle(b)}`:`after ${i}. ${tlTitle(a)}`;
+  const sheet=tlOpenSheet(`<div class="tl-cutsheet"><h3>New clip ${esc(where)}</h3><div class="tl-sec">Plan a clip`+
+    `</div><p class="tl-sub">A title and a line. It shows as a card with them until the builder makes it.</p>`+
+    `<label class="sr-only" for="tl-plan-title">Title of the new clip</label><input id="tl-plan-title" `+
+    `class="tl-field" maxlength="200" placeholder="Title"><label class="sr-only" for="tl-new-text">What happens `+
+    `in the new clip</label><textarea id="tl-new-text" rows="3" placeholder="What happens in it…"></textarea>`+
+    `<div class="tl-sheet-foot"><button class="tl-btn" data-x="close">Cancel</button><button class="tl-btn" `+
+    `data-x="plan">Plan it</button><button class="tl-btn accent" data-x="send">Make it now</button></div>`+
+    `<div class="tl-sec">Or add footage</div><div class="tl-drop" id="tl-drop">${svg(TL_ICON.clip,18)}Drop a video `+
+    `file here, or <button data-x="pick">choose one</button></div><input id="tl-file" type="file" `+
+    `accept=".mp4,.mov,.webm" hidden><p class="tl-sub" id="tl-up"></p><div id="tl-sources"></div></div>`,
+  'Insert a clip');
+  sheet.querySelector('#tl-plan-title').focus();
   const status=sheet.querySelector('#tl-up'),drop=sheet.querySelector('#tl-drop');
   drop.ondragover=e=> {
     e.preventDefault();
@@ -3239,23 +3303,11 @@ async function tlInsertSheet(i) {
     if(x==='close')return tlCloseSheet();
     if(x==='pick')return sheet.querySelector('#tl-file').click();
     if(x==='source')return tlAddFootage(i,state.sources.find(s=>s.name===btn.dataset.k));
-    if(x==='send') {
-      const text=sheet.querySelector('textarea').value.trim();
-      if(!text)return sheet.querySelector('textarea').focus();
+    if(x==='plan'||x==='send') {
+      const title=sheet.querySelector('#tl-plan-title').value.trim(),line=sheet.querySelector('textarea').value.trim();
+      if(!title&&!line)return sheet.querySelector(title?'textarea':'#tl-plan-title').focus();
       if(!await ensureName())return;
-      btn.disabled=true;
-      try {
-        await json('notes',null,{video:state.video,format:state.format,
-          text:`Insert a new clip ${where}: ${text}`});
-        tlCloseSheet();
-        if(tlNoteClip())tlPick(state.tl.sel,true);
-        toast('Sent to the builder as a note on the whole video');
-        loadNotes()
-      }
-      catch(err) {
-        status.textContent=err.message;
-        btn.disabled=false
-      }
+      tlPlanClip(i,title,line,x==='send')
     }
   };
   try {
@@ -3263,7 +3315,7 @@ async function tlInsertSheet(i) {
   } catch (_) {
     // The list is a convenience; dropping a file still works.
   }
-  const usable=(state.sources||[]).filter(s=>s.duration);
+  const usable=(state.sources||[]).filter(s=>s.duration&&s.width);
   if(usable.length&&sheet.isConnected)sheet.querySelector('#tl-sources').innerHTML=`<p class="tl-sub">Or one `+
     `of this video’s sources:</p>`+usable.map(s=>`<button class="tl-opt" data-x="source" data-k="${esc(s.name)}">`+
     `<span class="tl-ico">${svg(TL_ICON.clip,16)}</span><span><b>${esc(s.name)}</b><small>${esc(s.ext)} · `+
@@ -3316,22 +3368,90 @@ async function tlLaneSheet(k) {
         // Shown as no sources below.
       }
       const usable=(state.sources||[]).filter(s=>s.has_audio&&s.duration);
-      box.innerHTML=usable.length?usable.map(s=>`<button class="tl-opt" data-x="sound" data-k="${esc(s.name)}">`+
+      box.innerHTML=usable.map(s=>`<button class="tl-opt" data-x="sound" data-k="${esc(s.name)}">`+
         `<span class="tl-ico">${svg(TL_ICON.music,16)}</span><span><b>${esc(s.name)}</b>`+
-        `<small>${Math.round(s.duration)} s</small></span></button>`).join(''):
-        '<p class="tl-sub">No source with sound yet. Add one under Sources (a video file with sound), '+
-        'or describe the sound in a note.</p>';
+        `<small>${Math.round(s.duration)} s</small></span></button>`).join('')+
+        tlOpt('data-x="upload"',false,svg(TL_ICON.plus,16),'Upload a song or sound','An audio file, or a video '+
+          'with sound; it joins this video’s sources')+'<input id="tl-lane-file" type="file" accept=".mp3,.m4a,'+
+        '.wav,.aac,.ogg,.mp4,.mov,.webm" hidden><p class="tl-sub" id="tl-lane-up"></p>';
+      box.querySelector('#tl-lane-file').onchange=async e=> {
+        const file=e.target.files[0],up=box.querySelector('#tl-lane-up');
+        if(!file)return;
+        try {
+          const s=await xhrUpload('sources',{video:state.video,filename:file.name},file,
+            f=>up.textContent=`Uploading ${file.name}… ${Math.round(f*100)}%`);
+          loadSources();
+          if(!s.has_audio)return up.textContent=`${file.name} has no sound to play.`;
+          tlLaneAdd(k,s)
+        }
+        catch(err) {
+          up.textContent=err.message
+        }
+      };
       return
     }
-    if(x==='sound') {
-      const s=state.sources.find(v=>v.name===b.dataset.k),{places,total}=tlPlace();
-      const at=tlNoteClip()?places.find(p=>p.c.id===t.sel).start:0;
-      const frames=Math.max(1,Math.min(Math.floor(s.duration*t.fps),total-at));
-      tlChange(data=> {
-        data.lanes[k].items=[...data.lanes[k].items||[],{sound:`sources/${s.name}.${s.ext}`,at,frames}]
-      },`add ${s.name} to Audio ${n}`);
-      tlCloseSheet()
+    if(x==='upload')return sheet.querySelector('#tl-lane-file').click();
+    if(x==='sound')tlLaneAdd(k,state.sources.find(v=>v.name===b.dataset.k))
+  }
+}
+// A sound from the video's sources onto Audio k+1: where the selected clip starts, else at the start.
+function tlLaneAdd(k,s) {
+  const t=state.tl,{places,total}=tlPlace(),n=k+1;
+  const at=tlNoteClip()?places.find(p=>p.c.id===t.sel).start:0;
+  const frames=Math.max(1,Math.min(Math.floor(s.duration*t.fps),total-at));
+  tlChange(data=> {
+    data.lanes[k].items=[...data.lanes[k].items||[],{sound:`sources/${s.name}.${s.ext}`,at,frames}]
+  },`add ${s.name} to Audio ${n}`);
+  tlCloseSheet()
+}
+// An act's sheet: rename it or take it away (its clips stay). With `from` (a clip's index) instead of
+// an act, a new act starting at that clip: it runs to the end of the act the clip was in (splitting
+// it), or, outside any act, up to the next act.
+function tlActSheet(k,from) {
+  const t=state.tl,acts=t.data.acts||[],fresh=k==null;
+  if(fresh) {
+    const id=t.data.clips[from].id,j=acts.findIndex(a=>a.clips[0]===id);
+    if(j>=0)return tlActSheet(j)
+  }
+  const a=fresh?null:acts[k],head=fresh?`New act from clip ${from+1}`:`Act ${k+1}`;
+  const sheet=tlOpenSheet(`<div class="tl-cutsheet"><h3>${esc(head)}</h3><label class="tl-sub" for="tl-act-title">`+
+    `Title</label><input id="tl-act-title" class="tl-field" maxlength="200" value="${esc(a?.title||'')}" `+
+    `placeholder="${fresh?'The river':''}">${fresh?'':tlOpt('data-x="remove"',false,svg(TL_ICON.trash,16),
+      'Remove this act','Its clips stay where they are')}<div class="tl-sheet-foot"><button class="tl-btn" `+
+    `data-x="close">Cancel</button><button class="tl-btn accent" data-x="save">${fresh?'Add the act':'Save'}`+
+    `</button></div></div>`,head);
+  const input=sheet.querySelector('input');
+  input.focus();
+  input.select();
+  input.onkeydown=e=>e.key==='Enter'&&sheet.querySelector('[data-x="save"]').click();
+  sheet.onclick=e=> {
+    const x=e.target.closest('[data-x]')?.dataset.x;
+    if(x==='close')return tlCloseSheet();
+    if(x==='remove') {
+      tlCloseSheet();
+      return tlChange(data=> {
+        data.acts.splice(k,1)
+      },`remove act ${a.title}`,undo=>tlUndoToast(`Act ${k+1} removed`,undo,`bring back act ${a.title}`))
     }
+    if(x!=='save')return;
+    const title=input.value.trim();
+    if(!title)return input.focus();
+    tlCloseSheet();
+    if(!fresh)return tlChange(data=> {
+      data.acts[k].title=title
+    },`rename act ${k+1} to ${title}`);
+    tlChange(data=> {
+      const acts=data.acts??=[],ids=data.clips.map(c=>c.id),id=ids[from];
+      const j=acts.findIndex(x=>x.clips.includes(id));
+      let run=[];
+      if(j>=0)run=acts[j].clips.splice(acts[j].clips.indexOf(id));
+      else {
+        const inAct=new Set(acts.flatMap(x=>x.clips));
+        for(let m=from;m<ids.length&&!inAct.has(ids[m]);m++)run.push(ids[m])
+      }
+      acts.push({title,clips:run});
+      acts.sort((p,q)=>ids.indexOf(p.clips[0])-ids.indexOf(q.clips[0]))
+    },`start act ${title}`)
   }
 }
 // ---- Timeline: moving clips, zoom and the strip's own events ----
@@ -3487,6 +3607,19 @@ const TL_ACT={
   lane(b) {
     tlLaneSheet(+b.dataset.k)
   },
+  append() {
+    tlInsertSheet(state.tl.data.clips.length)
+  },
+  act(b) {
+    tlActSheet(+b.dataset.k)
+  },
+  newact() {
+    const t=state.tl;
+    tlActSheet(null,Math.max(0,t.data.clips.findIndex(c=>c.id===t.sel)))
+  },
+  details() {
+    openFilmDetails()
+  },
   zoom(b) {
     state.tl.recenter=true;
     tlZoomBy(+b.dataset.d)
@@ -3541,6 +3674,251 @@ $('scope-whole').onclick=()=> {
 window.addEventListener('resize',()=> {
   if(state.tl?.open)renderTimeline()
 });
+// ---- Adding footage: a video file dropped on the timeline, or "Add as a clip" in the composer ----
+const isFootage=f=>/\.(mp4|mov|webm)$/i.test(f.name||'');
+// A source becomes a clip at the end of the film; a video not built yet becomes a film of clips with
+// it as its first clip (film_api.start).
+async function addAsClip(file,say) {
+  if(!await ensureName())return;
+  const record=await xhrUpload('sources',{video:state.video,filename:file.name},file,
+    f=>say(`Uploading ${file.name}… ${Math.round(f*100)}%`));
+  loadSources();
+  if(state.tl)return tlAddFootage(state.tl.data.clips.length,record);
+  say('');
+  await filmStart({footage:record.name})
+}
+// Whether a video file can go in as a clip rather than an attachment: on a film of clips, or a video
+// not built yet (which it makes a film of clips).
+const canAddClip=()=>!!state.tl||(notBuilt(currentVersion())&&!state.notes.length);
+async function filmStart(body) {
+  const r=await json('film/start',null,{video:state.video,...body});
+  tlCloseSheet();
+  toast(`A film of clips now: open the timeline to add more · v${r.n}`);
+  await loadVersions();
+  await loadTimeline(true);
+  if(state.tl&&!state.tl.open)TL_ACT.toggle()
+}
+$('timeline').ondragover=e=> {
+  if(state.tl&&e.dataTransfer?.types.includes('Files')) {
+    e.preventDefault();
+    e.dataTransfer.dropEffect='copy'
+  }
+};
+$('timeline').ondrop=e=> {
+  const file=[...e.dataTransfer?.files||[]].find(isFootage);
+  if(!state.tl||!file)return;
+  e.preventDefault();
+  addAsClip(file,tlSetStatus).catch(err=>toast(err.message))
+};
+// ---- Film details: the look, length, world and characters every clip follows (film_api.py) ----
+// A sheet behind quiet links (the not-built-yet message, Sources, the timeline's tools). Save writes
+// the bible as one version; nothing in it renders. A video not built yet can also start as a film of
+// clips here, with footage of its own or a planned clip for the builder to make.
+const FD_ICON={x:'<path d="M6 6l12 12M18 6L6 18"/>',person:'<circle cx="12" cy="8" r="4"/><path d="M4 21c1-4.5 '+
+  '4.5-6.5 8-6.5s7 2 8 6.5"/>',picture:'<rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" '+
+  'r="2"/><path d="M21 16l-5-5-9 9"/>',note:'<path d="M5 4h14v12l-4 4H5z"/><path d="M15 20v-4h4M8 9h8M8 13h5"/>'};
+let fdLooks=null;
+// The whole-video looks the suggestions picker shows (api/suggest/catalog), one per vb.looks name.
+async function fdLoadLooks() {
+  if(fdLooks)return fdLooks;
+  try {
+    const seen=new Set();
+    fdLooks=((await json('suggest/catalog'))?.looks||[])
+      .filter(l=>l.look&&l.kind!=='filter'&&!seen.has(l.look)&&seen.add(l.look))
+  } catch (_) {
+    fdLooks=[]
+  }
+  return fdLooks
+}
+async function openFilmDetails() {
+  const sheet=tlOpenSheet('<div class="tl-cutsheet fd"><h3>Film details</h3><p class="tl-sub">Loading…</p></div>',
+    'Film details');
+  try {
+    const [r]=await Promise.all([json('film',{video:state.video}),fdLoadLooks()]);
+    state.fd=null;
+    fdTake(r);
+    if(!sheet.isConnected)return;
+    fdRender();
+    // The look chosen, in view in its row.
+    const on=document.querySelector('.fd-look[aria-pressed=true]');
+    if(on)on.parentElement.scrollLeft=on.offsetLeft-on.parentElement.offsetLeft-8
+  } catch(e) {
+    if(sheet.isConnected)sheet.querySelector('.tl-sub').textContent=e.message
+  }
+}
+// In place: the open sheet's handlers keep their hold on it.
+function fdTake(r) {
+  const d=r.details;
+  state.fd=Object.assign(state.fd||{},{base:r.commit,unbuilt:r.unbuilt,film:r.film,look:d.look,
+    length:d.length||'',world:d.world||'',
+    chars:d.characters.map(c=>({slug:c.slug,name:c.name,description:c.description,keep:[...c.pictures],add:[]}))})
+}
+const fdUrl=file=>file.fdUrl??=URL.createObjectURL(file);
+function fdRender(focus) {
+  const f=state.fd,old=document.querySelector('.tl-sheet');
+  const top=old?.scrollTop||0;
+  const looks=[['','None','The builder picks'],['as-shot','As shot','Footage keeps its own look'],
+    ...fdLooks.map(l=>[l.look,l.title,'',l.poster])];
+  const look=looks.map(([id,title,d,poster])=>`<button type="button" class="fd-look" data-x="look" `+
+    `data-k="${esc(id)}" aria-pressed="${(f.look||'')===id}">`+
+    `${poster?`<img src="${esc(poster)}" alt="" loading="lazy">`:`<span class="fd-plain">${esc(d)}</span>`}`+
+    `<b>${esc(title)}</b></button>`).join('');
+  const pic=(src,i,kind,k)=>`<span class="fd-pic"><img src="${esc(src)}" alt=""><button type="button" `+
+    `data-x="unpic" data-i="${i}" data-kind="${kind}" data-k="${k}" aria-label="Remove this picture">`+
+    `${svg(FD_ICON.x,14)}</button></span>`;
+  const chars=f.chars.map((c,i)=>`<div class="fd-char"><div class="fd-row"><span class="fd-ava">`+
+    `${svg(FD_ICON.person,18)}</span><input class="tl-field" data-f="name" data-i="${i}" maxlength="80" `+
+    `value="${esc(c.name)}" placeholder="Name" aria-label="Character ${i+1}: name"><button type="button" `+
+    `class="tl-icon" data-x="drop" data-i="${i}" aria-label="Remove ${esc(c.name||`character ${i+1}`)}">`+
+    `${svg(TL_ICON.trash,16)}</button></div><textarea data-f="description" data-i="${i}" rows="2" `+
+    `placeholder="Who they are, how they look and sound…" aria-label="Character ${i+1}: description">`+
+    `${esc(c.description)}</textarea><div class="fd-pics">`+
+    c.keep.map(n=>pic(api('film/picture',{video:state.video,name:n}),i,'keep',n)).join('')+
+    c.add.map((file,j)=>pic(fdUrl(file),i,'add',j)).join('')+`<button type="button" class="fd-addpic" `+
+    `data-x="pic" data-i="${i}">${svg(FD_ICON.picture,16)}Picture</button></div></div>`).join('');
+  const start=f.unbuilt&&!f.film?`<div class="tl-sec">Start with clips</div><p class="tl-sub">Makes this video a `+
+    `film of clips right away, with a timeline to add more.</p>`+
+    tlOpt('data-x="footage"',false,svg(TL_ICON.clip,16),'Add footage','A video file of your own, the first clip')+
+    tlOpt('data-x="plan"',false,svg(FD_ICON.note,16),'Plan a clip','A title and a line; the builder makes it')+
+    `<div class="fd-plan" id="fd-plan" hidden><input class="tl-field" id="fd-plan-title" maxlength="200" `+
+    `placeholder="Title" aria-label="Title of the clip"><textarea id="fd-plan-line" rows="2" placeholder="What `+
+    `happens in it…" aria-label="What happens in the clip"></textarea><div class="tl-sheet-foot"><button `+
+    `class="tl-btn" data-x="planadd">Plan it</button><button class="tl-btn accent" data-x="planadd" `+
+    `data-now="1">Make it now</button></div></div><p class="tl-sub" id="fd-clip-up"></p>`:'';
+  const sheet=tlOpenSheet(`<div class="tl-cutsheet fd"><h3>Film details</h3><p class="tl-sub">What every clip `+
+    `follows. Save keeps them as one version.</p><div class="tl-sec">Look</div><div class="fd-looks" role="group" `+
+    `aria-label="Look">${look}</div><div class="tl-sec"><label for="fd-length">Length</label></div><input `+
+    `class="tl-field fd-len" id="fd-length" data-f="length" maxlength="80" value="${esc(f.length)}" `+
+    `placeholder="About how long: 0:30, 2:30…"><div class="tl-sec"><label for="fd-world">World</label></div>`+
+    `<textarea id="fd-world" data-f="world" rows="3" placeholder="Where and when it happens, and how it feels…">`+
+    `${esc(f.world)}</textarea><div class="tl-sec">Characters</div>${chars}<button type="button" `+
+    `class="tl-btn fd-add" data-x="addchar">${svg(TL_ICON.plus,16)}Add a character</button>${start}`+
+    `<input type="file" id="fd-file" accept=".png,.jpg,.jpeg,.webp,.gif" multiple hidden><input type="file" `+
+    `id="fd-footage" accept=".mp4,.mov,.webm" hidden><p class="tl-sub fd-status" id="fd-status" role="status">`+
+    `</p><div class="tl-sheet-foot fd-foot"><button class="tl-btn" data-x="close">Cancel</button><button `+
+    `class="tl-btn accent" data-x="save">Save</button></div></div>`,'Film details');
+  sheet.scrollTop=top;
+  if(focus)sheet.querySelector(focus)?.focus();
+  fdWire(sheet)
+}
+function fdWire(sheet) {
+  const f=state.fd,say=(t,id='fd-status')=>sheet.querySelector('#'+id)&&(sheet.querySelector('#'+id).textContent=t);
+  sheet.oninput=e=> {
+    const el=e.target,k=el.dataset.f;
+    if(!k)return;
+    if(el.dataset.i!=null)f.chars[+el.dataset.i][k]=el.value;
+    else f[k]=el.value
+  };
+  let picFor=0;
+  sheet.querySelector('#fd-file').onchange=e=> {
+    f.chars[picFor].add.push(...e.target.files);
+    fdRender()
+  };
+  // Starting with a clip closes the sheet: what is typed above is saved first, not lost.
+  const start=async go=> {
+    const to=t=>say(t,'fd-clip-up');
+    try {
+      if(await fdCommit(to))await go(to)
+    }
+    catch(err) {
+      to(err.message)
+    }
+  };
+  sheet.querySelector('#fd-footage').onchange=e=> {
+    const file=e.target.files[0];
+    if(file)start(to=>addAsClip(file,to))
+  };
+  sheet.onclick=async e=> {
+    const b=e.target.closest('[data-x]');
+    if(!b)return;
+    const x=b.dataset.x,i=+b.dataset.i;
+    if(x==='close')return tlCloseSheet();
+    if(x==='look') {
+      f.look=b.dataset.k||null;
+      for(const o of sheet.querySelectorAll('.fd-look'))o.setAttribute('aria-pressed',o===b)
+    }
+    if(x==='addchar') {
+      f.chars.push({slug:null,name:'',description:'',keep:[],add:[]});
+      fdRender(`[data-f="name"][data-i="${f.chars.length-1}"]`)
+    }
+    if(x==='drop') {
+      f.chars.splice(i,1);
+      fdRender()
+    }
+    if(x==='pic') {
+      picFor=i;
+      sheet.querySelector('#fd-file').click()
+    }
+    if(x==='unpic') {
+      const c=f.chars[i];
+      if(b.dataset.kind==='keep')c.keep=c.keep.filter(n=>n!==b.dataset.k);
+      else c.add.splice(+b.dataset.k,1);
+      fdRender()
+    }
+    if(x==='footage')sheet.querySelector('#fd-footage').click();
+    if(x==='plan') {
+      sheet.querySelector('#fd-plan').hidden=false;
+      sheet.querySelector('#fd-plan-title').focus()
+    }
+    if(x==='planadd') {
+      const title=sheet.querySelector('#fd-plan-title').value.trim();
+      const line=sheet.querySelector('#fd-plan-line').value.trim();
+      if(!title&&!line)return sheet.querySelector('#fd-plan-title').focus();
+      b.disabled=true;
+      // The film's one clip is the planned one; only a note on it has the builder make it.
+      await start(async()=> {
+        await filmStart({plan:{title,line}});
+        if(b.dataset.now)await planNote(state.tl.data.clips[0].id,title,line).catch(err=>toast(err.message))
+      });
+      b.disabled=false
+    }
+    if(x==='save')fdSave(b,say)
+  }
+}
+// Saves the sheet as one version (none when nothing changed): the POST api/film body, or null when the
+// video still has no name.
+async function fdCommit(say) {
+  const f=state.fd;
+  if(f.chars.some(c=>!c.name.trim()))throw new Error('Every character needs a name.');
+  if(!await ensureName())return null;
+  const characters=[];
+  for(const c of f.chars) {
+    const add=[];
+    for(const file of c.add) {
+      say(`Uploading ${file.name}…`);
+      add.push((await xhrUpload('attachments',{video:state.video,name:file.name},file,()=> {
+      })).id)
+    }
+    characters.push({...c.slug?{slug:c.slug}:{},name:c.name,description:c.description,keep:c.keep,add})
+  }
+  say('Saving…');
+  const r=await json('film',null,{video:state.video,base:f.base,look:f.look,length:f.length,world:f.world,
+    characters});
+  // As saved: a retry after a failed start sends nothing twice.
+  fdTake(r);
+  if(r.changed)loadVersions();
+  say('');
+  return r
+}
+async function fdSave(btn,say) {
+  btn.disabled=true;
+  try {
+    const r=await fdCommit(say);
+    if(!r)return btn.disabled=false;
+    tlCloseSheet();
+    toast(r.changed?`Film details saved · v${r.n}`:'Nothing changed')
+  }
+  catch(e) {
+    say(e.message);
+    btn.disabled=false
+  }
+}
+for(const id of ['blank-details','sources-details'])$(id).onclick=openFilmDetails;
+// The builder reads the details only on a film of clips (each clip's brief) or in a first note still
+// to come (film_setup.note_lines): on a video built as one film, Save would change nothing it sees.
+function fdShowLink() {
+  $('sources-details').hidden=!canAddClip()
+}
 // ---- Startup and periodic polling ----
 stampLabel();
 init();

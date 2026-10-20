@@ -210,7 +210,7 @@ class HostedGit(LibraryFixture, unittest.TestCase):
     def test_new_video_page_is_reachable_without_accounts(self):
         code, page = self.request('/new')
         self.assertEqual(code, 200)
-        self.assertIn(b'<section class="required"', page)
+        self.assertIn(b'<form class="nv-form"', page)
         self.assertIn(b'id="name"', page)
         self.assertIn(b'id="project"', page)
         self.assertIn(b'id="nv-data"', page)
@@ -228,6 +228,56 @@ class HostedGit(LibraryFixture, unittest.TestCase):
         page = self.request('/new?starter=paper-explainer')[1]
         self.assertNotIn(b'starter-card', page)
         self.assertIn(b'"paper-explainer":', page)
+
+    @unittest.skipUnless(shutil.which('node'), 'node is not available in this environment')
+    def test_make_a_copy_on_a_library_card_makes_a_copy(self):
+        """The card's detail dialog offers Make a copy, asking only for the new
+        name (same project): its script, run under node, sends the request
+        that makes the copy."""
+        self.seed('acme/launch', film=True)
+        page = self.request('/')[1].decode()
+        self.assertIn('data-copy="1"', page)
+        self.assertIn('id="lib-copy-name"', page)
+        data = re.search(r'<script type="application/json" id="lib-data">(.*?)</script>', page, re.S).group(1)
+        script = re.search(r'</script><script>(\(function\(\)\{const data=.*?)</script>', page, re.S).group(1)
+        harness = """
+const els={},made=[];
+function el(id){const e={id,value:'',hidden:false,disabled:false,textContent:'',dataset:{},children:[],
+  appendChild(c){this.children.push(c)},addEventListener(){},focus(){},select(){},showModal(){},close(){},
+  getBoundingClientRect(){return {left:0,right:0,top:0,bottom:0}}};return e}
+const ids=['lib-data','lib-detail','lib-detail-name','lib-detail-project','lib-detail-open','lib-detail-url',
+  'lib-detail-copy','lib-detail-meta','lib-detail-updated','lib-detail-subject','lib-copy','lib-copy-name',
+  'lib-copy-error','lib-copy-project','lib-copy-go'];
+for(const id of ids)els[id]=el(id);
+els['lib-data'].textContent=DATA;els['lib-detail'].dataset.copy='1';
+const card=el('card');card.dataset.idx='0';const close=el('close');
+globalThis.document={getElementById:id=>els[id],querySelectorAll:()=>[card],querySelector:()=>close,
+  createElement:t=>{const e=el(t);made.push(e);return e}};
+globalThis.location={href:''};
+let sent=null;
+globalThis.fetch=async(url,init)=>{sent=[url,JSON.parse(init.body)];return {ok:true,json:async()=>({})}};
+""".replace('DATA', json.dumps(data))
+        run = """
+card.onclick();
+const copy=els['lib-detail-open'].children.find(c=>c.textContent==='Make a copy');
+copy.onclick();
+const named=[els['lib-copy-project'].textContent,els['lib-copy-name'].value,els['lib-copy'].hidden];
+els['lib-copy-name'].value='Launch Again';
+els['lib-copy'].onsubmit({preventDefault(){}}).then(()=>console.log(JSON.stringify({named,sent,href:location.href})));
+"""
+        result = subprocess.run(['node', '-'], input=(harness + script + run).encode(), capture_output=True)
+        self.assertEqual(result.returncode, 0, result.stderr.decode())
+        out = json.loads(result.stdout)
+        self.assertEqual(out['named'], ['acme/', 'launch-copy', False])
+        url, body = out['sent']
+        self.assertEqual((url, body), ('/api/videos/new', {'name': 'acme/launch-again', 'start': 'copy',
+                                                          'from': 'acme/launch'}))
+        self.assertEqual(out['href'], '/v/acme/launch-again/')
+        code, result = self.request(url, body)
+        self.assertEqual(code, 201, result)
+        clone = self.root / 'copy-of-launch'
+        self.git('clone', self.url('acme/launch-again'), str(clone))
+        self.assertTrue((clone / 'promo' / 'film.py').is_file())
 
     def test_repos_share_one_env_cache(self):
         self.seed('acme/launch')
@@ -419,9 +469,11 @@ class HostedGit(LibraryFixture, unittest.TestCase):
 
 
 @unittest.skipUnless(shutil.which('ffmpeg') and shutil.which('ffprobe'), 'needs ffmpeg/ffprobe')
-class NewVideoStart(LibraryFixture, unittest.TestCase):
-    """What New video's Start building creates: a film of the dropped clips cut
-    to a song, a planned film's bible, or (neither) just the first note."""
+class FilmSetup(LibraryFixture, unittest.TestCase):
+    """What the editor sets on a video New video only names: Film details (the
+    look, length, world and characters, in the bible) and its first clip."""
+
+    PNG = b'\x89PNG\r\n\x1a\n' + b'0123456789'
 
     def setUp(self):
         super().setUp()
@@ -450,119 +502,207 @@ class NewVideoStart(LibraryFixture, unittest.TestCase):
         with urllib.request.urlopen(req, timeout=60) as r:
             return json.loads(r.read())
 
+    def _picture(self, project, name='keeper.png'):
+        png = self.media / name
+        png.write_bytes(self.PNG)
+        return self._upload(project, png, 'image/png', url='attachments')['id']
+
     def _clone(self, name):
         clone = self.root / ('clone-' + name.replace('/', '--'))
+        shutil.rmtree(clone, ignore_errors=True)
         self.git('clone', self.url(name), str(clone))
         return clone
 
-    def test_clips_and_a_song_make_a_film_of_clips_cut_to_the_song(self):
+    def _save(self, project, **fields):
+        _, film = self.request(f'/v/{project}/api/film?video=film')
+        return self.request(f'/v/{project}/api/film', {'video': 'film', 'base': film['commit'], **fields})
+
+    def test_film_details_on_a_blank_video_write_the_bible_new_video_did(self):
+        from videobuilder import looks
+        self._start('sea/lighthouse')
+        code, film = self.request('/v/sea/lighthouse/api/film?video=film')
+        self.assertEqual(code, 200, film)
+        self.assertEqual((film['unbuilt'], film['film']), (True, False))
+        self.assertEqual(film['details'], {'look': None, 'length': None, 'world': '', 'characters': []})
+        picture = self._picture('sea/lighthouse')
+        code, saved = self._save('sea/lighthouse', look='woodblock', length='2:30', world='A lighthouse on a rock.',
+                                 characters=[{'name': 'Keeper', 'description': 'The robot keeper.',
+                                              'add': [picture]}])
+        self.assertEqual(code, 200, saved)
+        self.assertEqual((saved['changed'], saved['n'], saved['unbuilt']), (True, 2, True))
+        clone = self._clone('sea/lighthouse')
+        # The layout and wording New video's Start building wrote (new_video.bible), plus the length,
+        # which it only ever put in the first note.
+        self.assertEqual((clone / 'bible' / 'bible.md').read_text(),
+                         '# Lighthouse\n\n## Look\n\n'
+                         f'{looks.get("woodblock").title} (`vb.looks` name `woodblock`), for every clip.\n\n'
+                         '## Length\n\nAbout 2:30.\n\n## World\n\nA lighthouse on a rock.\n\n'
+                         '## Characters\n\n- Keeper: characters/keeper.md\n')
+        self.assertEqual((clone / 'bible' / 'characters' / 'keeper.md').read_text(),
+                         '# Keeper\n\nThe robot keeper.\n\nPictures, beside this file:\n\n- keeper-1.png\n')
+        self.assertEqual((clone / 'bible' / 'characters' / 'keeper-1.png').read_bytes(), self.PNG)
+        self.assertEqual(sorted(p.name for p in clone.iterdir() if p.name != '.git'),
+                         ['bible', 'film.py', 'requirements.txt'])
+        message = self.git('log', '-1', '--format=%B', cwd=clone).stdout
+        self.assertIn('Film details: look, length, world, add Keeper', message)
+        self.assertIn('Version-kind: edit', message)
+        # It reads back as it was set, and the video is still waiting for its first note.
+        self.assertEqual(saved['details'], {'look': 'woodblock', 'length': '2:30', 'world': 'A lighthouse on a rock.',
+                                            'characters': [{'name': 'Keeper', 'slug': 'keeper',
+                                                            'description': 'The robot keeper.',
+                                                            'pictures': ['keeper-1.png']}]})
+        _, versions = self.request('/v/sea/lighthouse/api/versions?video=film')
+        self.assertEqual([(v['n'], v['unbuilt']) for v in versions['versions']], [(2, True), (1, True)])
+        code, body = self.request_full('/v/sea/lighthouse/api/film/picture?video=film&name=keeper-1.png')[:2]
+        self.assertEqual(code, 200)
+        self.assertEqual(self.request('/v/sea/lighthouse/api/film/picture?video=film&name=..%2Ffilm.py')[0], 404)
+        # Saving the same again is no new version.
+        code, again = self._save('sea/lighthouse', look='woodblock', length='2:30', world='A lighthouse on a rock.',
+                                 characters=[{'slug': 'keeper', 'name': 'Keeper', 'description': 'The robot keeper.',
+                                              'keep': ['keeper-1.png']}])
+        self.assertEqual((code, again['changed'], again['n']), (200, False, 2))
+
+    def test_a_save_rewrites_only_what_changed_and_keeps_the_rest_of_the_bible(self):
+        self._start('sea/keep')
+        picture = self._picture('sea/keep')
+        self._save('sea/keep', world='A rock.', characters=[{'name': 'Keeper', 'add': [picture]},
+                                                            {'name': 'Gull'}])
+        # A builder adds a section of its own.
+        clone = self._clone('sea/keep')
+        bible = clone / 'bible' / 'bible.md'
+        bible.write_text(bible.read_text() + '\n## Tone\n\nQuiet, then loud.\n')
+        self.git('commit', '-am', 'tone', cwd=clone)
+        self.git('push', 'origin', 'main', cwd=clone)
+        _, film = self.request('/v/sea/keep/api/film?video=film')
+        stale = film['commit']
+        code, saved = self.request('/v/sea/keep/api/film', {
+            'video': 'film', 'base': stale, 'look': 'as-shot', 'world': 'A rock.',
+            'characters': [{'slug': 'keeper', 'name': 'The Keeper', 'keep': []}]})
+        self.assertEqual(code, 200, saved)
+        clone = self._clone('sea/keep')
+        text = (clone / 'bible' / 'bible.md').read_text()
+        self.assertIn('## Look\n\nAs shot.', text)
+        self.assertIn('## Tone\n\nQuiet, then loud.', text)
+        self.assertIn('- The Keeper: characters/keeper.md', text)
+        self.assertNotIn('Gull', text)
+        self.assertEqual(sorted(p.name for p in (clone / 'bible' / 'characters').iterdir()), ['keeper.md'])
+        self.assertTrue((clone / 'bible' / 'characters' / 'keeper.md').read_text().startswith('# The Keeper\n'))
+        # A sheet opened before that save is refused rather than undoing it.
+        code, err = self.request('/v/sea/keep/api/film', {'video': 'film', 'base': stale, 'world': 'Elsewhere.'})
+        self.assertEqual(code, 409, err)
+        code, err = self._save('sea/keep', look='velvet')
+        self.assertEqual(code, 400, err)
+
+    def test_the_first_note_after_film_details_points_the_builder_at_them(self):
+        self._start('sea/brief')
+        self._save('sea/brief', look='pop-art', length='0:30', world='A pier at night.')
+        code, note = self.request('/v/sea/brief/api/videos/first-note', {'description': 'A short about a pier.'})
+        self.assertEqual(code, 200, note)
+        self.assertTrue(note['text'].startswith('A short about a pier.\n\nLength: about 0:30.\nLook: Pop-art'))
+        self.assertIn('read bible/bible.md first', note['text'])
+
+    def test_the_first_footage_clip_makes_a_blank_video_a_film_of_clips(self):
         from videobuilder import timeline_file
         self._start('snow/day-reel')
-        # Uploaded in one order, sent in another: the timeline keeps the order shown.
-        first = self._upload('snow/day-reel', self._make('chairlift.mp4', 2), 'video/mp4')
-        second = self._upload('snow/day-reel', self._make('high-five.mp4', 1), 'video/mp4')
-        song = self._upload('snow/day-reel', self._make('Avalanche.mp3', 5, audio_only=True), 'audio/mpeg')
-        self.assertEqual((song['width'], song['has_audio']), (None, True))
-        code, note = self.request('/v/snow/day-reel/api/videos/first-note', {
-            'description': 'Cut to the beat.', 'look': 'as-shot', 'length': '2:30',
-            'film': {'clips': [{'source': second['name']}, {'source': first['name']}],
-                     'lanes': [{'sound': song['name']}]}})
-        self.assertEqual(code, 200, note)
-        for line in ('Cut to the beat.', 'Length: about 2:30.', "Look: as shot. The footage keeps its own look",
-                     'Cut these clips to the song on Audio 1 (sources/avalanche.mp3): a reel, every cut on a beat '
-                     '(films.md, "Cutting a reel").'):
-            self.assertIn(line, note['text'])
-
+        clip = self._upload('snow/day-reel', self._make('chairlift.mp4', 2), 'video/mp4')
+        song = self._upload('snow/day-reel', self._make('Avalanche.mp3', 3, audio_only=True), 'audio/mpeg')
+        code, err = self.request('/v/snow/day-reel/api/film/start', {'video': 'film', 'footage': song['name']})
+        self.assertEqual(code, 400, err)  # a sound goes on an Audio lane
+        code, film = self.request('/v/snow/day-reel/api/film/start', {'video': 'film', 'footage': clip['name']})
+        self.assertEqual(code, 200, film)
+        self.assertEqual((film['film'], film['unbuilt'], film['n']), (True, False, 2))
         clone = self._clone('snow/day-reel')
         self.assertEqual((clone / '.gitignore').read_text(), '.vb-cache/\n')
         self.assertFalse((clone / 'sources').exists())  # footage is never committed
         tl = timeline_file.load(clone / 'timeline.json')
-        self.assertEqual([c.footage for c in tl.clips], ['sources/high-five.mp4', 'sources/chairlift.mp4'])
-        self.assertEqual([(c.in_frame, c.out_frame) for c in tl.clips], [(0, 30), (0, 60)])
-        (item,) = tl.lanes[0].items
-        self.assertEqual((item.sound, item.at, item.frames), ('sources/avalanche.mp3', 0, 90))
+        self.assertEqual([(c.id, c.footage, c.in_frame, c.out_frame) for c in tl.clips],
+                         [('chairlift', 'sources/chairlift.mp4', 0, 60)])
         self.assertIn('FILM = vb.Film(', (clone / 'film.py').read_text())
-        # The video is still the root film, and it loads in the editor.
         code, info = self.request('/v/snow/day-reel/api/project')
         self.assertEqual([v['id'] for v in info['videos']], ['film'])
-        self.assertEqual(self.request('/v/snow/day-reel/api/info?video=film')[0], 200)
-        sources = self.library.editor('snow/day-reel').sources.list('film')
-        self.assertEqual(sorted(m['name'] for m in sources), ['avalanche', 'chairlift', 'high-five'])
+        _, timeline = self.request('/v/snow/day-reel/api/timeline?video=film')
+        self.assertEqual([c['id'] for c in timeline['timeline']['clips']], ['chairlift'])
+        # From here the timeline adds clips and songs; a second first clip is refused.
+        code, err = self.request('/v/snow/day-reel/api/film/start', {'video': 'film', 'footage': clip['name']})
+        self.assertEqual(code, 409, err)
+        data = dict(timeline['timeline'], lanes=[{'items': [{'sound': 'sources/avalanche.mp3', 'at': 0,
+                                                             'frames': 60}]}])
+        code, saved = self.request('/v/snow/day-reel/api/timeline', {'video': 'film', 'timeline': data,
+                                                                     'base': timeline['commit']})
+        self.assertEqual(code, 200, saved)
+        self.assertEqual(timeline_file.load(self._clone('snow/day-reel') / 'timeline.json').lanes[0].items[0].sound,
+                         'sources/avalanche.mp3')
 
-    def test_a_clip_whose_audio_outlasts_its_picture_ends_with_the_picture(self):
-        from videobuilder import assembly, timeline_file
-        self._start('snow/tail')
-        path = self.media / 'tail.mp4'
-        subprocess.run(['ffmpeg', '-y', '-f', 'lavfi', '-i', 'color=c=blue:s=64x36:d=2:r=30',
-                        '-f', 'lavfi', '-i', 'sine=frequency=440:duration=2.5', '-pix_fmt', 'yuv420p',
-                        '-c:a', 'aac', str(path)], check=True, capture_output=True)
-        clip = self._upload('snow/tail', path, 'video/mp4')
-        self.assertGreater(clip['duration'], 2.3)  # the container runs on with the audio
-        code, note = self.request('/v/snow/tail/api/videos/first-note', {'film': {'clips': [{'source': clip['name']}]}})
-        self.assertEqual(code, 200, note)
-        tl = timeline_file.load(self._clone('snow/tail') / 'timeline.json')
-        (c,) = tl.clips
-        self.assertEqual((c.in_frame, c.out_frame), (0, 60))
-        # The assembly measures the same length, so the clip fits.
-        rate, duration, _ = assembly.probe(path)
-        timeline_file.place(tl, {c.id: round(duration * tl.fps)})
+    def test_a_planned_clip_lands_in_the_timeline_as_a_clip_the_builder_makes(self):
+        from videobuilder import film, film_brief, timeline_file
+        from videobuilder.clip_cache import GitTree
+        self._start('sea/planned')
+        code, state = self.request('/v/sea/planned/api/film/start', {
+            'video': 'film', 'plan': {'title': 'Lamp at dusk', 'line': 'Keeper lights the lamp.'}})
+        self.assertEqual(code, 200, state)
+        _, timeline = self.request('/v/sea/planned/api/timeline?video=film')
+        self.assertEqual(timeline['timeline']['clips'], [{'id': 'lamp-at-dusk', 'dir': 'clips/lamp-at-dusk'}])
+        # A second one, after it, from the timeline's + sheet: its directory comes with the timeline.
+        data = dict(timeline['timeline'], clips=timeline['timeline']['clips'] + [{'id': 'storm', 'dir': 'clips/storm'}],
+                    acts=[{'title': 'Alone', 'clips': ['lamp-at-dusk', 'storm']}])
+        code, saved = self.request('/v/sea/planned/api/timeline', {
+            'video': 'film', 'timeline': data, 'base': timeline['commit'], 'summary': 'plan clip Storm',
+            'plans': {'storm': {'title': 'Storm', 'line': 'The lamp goes dark.'}}})
+        self.assertEqual(code, 200, saved)
+        clone = self._clone('sea/planned')
+        self.assertEqual(self.git('show', '--stat', '--format=', 'HEAD', cwd=clone).stdout.count('|'), 2)
+        tl = timeline_file.load(clone / 'timeline.json')
+        self.assertEqual([(c.id, c.dir) for c in tl.clips], [('lamp-at-dusk', 'clips/lamp-at-dusk'),
+                                                             ('storm', 'clips/storm')])
+        self.assertEqual([a.title for a in tl.acts], ['Alone'])
+        # Every builder is shown what each clip is for, and the placeholder plays.
+        sha = self.git('rev-parse', 'HEAD', cwd=clone).stdout.strip()
+        brief, _ = film_brief.brief(str(clone), sha, '.', None, '16x9', str(clone))
+        self.assertEqual([c['about'] for c in brief['clips']], ['Keeper lights the lamp.', 'The lamp goes dark.'])
+        placeholder = film.load(clone / 'clips' / 'storm' / 'film.py')
+        self.assertIsNotNone(placeholder.frame(0, '16x9', scale=0.1))
+        self.assertIsNotNone(GitTree(str(clone), sha, '.').read('clips/storm/film.py'))
+        # A plan for a clip the timeline doesn't have is refused.
+        code, err = self.request('/v/sea/planned/api/timeline', {
+            'video': 'film', 'timeline': data, 'base': saved['commit'], 'plans': {'nope': {'title': 'x'}}})
+        self.assertEqual(code, 400, err)
+        # Taken out again (as Undo does), its directory stays on main, and the timeline names it as taken,
+        # so a new plan with the same title gets a fresh id rather than a 409.
+        code, out = self.request('/v/sea/planned/api/timeline', {
+            'video': 'film', 'timeline': timeline['timeline'], 'base': saved['commit']})
+        self.assertEqual(code, 200, out)
+        self.assertEqual(out['dirs'], ['lamp-at-dusk', 'storm'])
+        _, again = self.request('/v/sea/planned/api/timeline?video=film')
+        self.assertEqual(again['dirs'], ['lamp-at-dusk', 'storm'])
 
-    def test_an_unknown_source_is_refused_and_nothing_is_committed(self):
-        self._start('snow/missing')
-        code, err = self.request('/v/snow/missing/api/videos/first-note',
-                                 {'film': {'clips': [{'source': 'nope'}]}})
-        self.assertEqual(code, 400)
-        self.assertEqual(self.git('rev-list', '--count', 'main', cwd=self._clone('snow/missing')).stdout.strip(), '1')
+    def test_a_built_video_does_not_start_over_as_a_film_of_clips(self):
+        self.seed('acme/launch', film=True)
+        _, info = self.request('/v/acme/launch/api/project')
+        video = info['videos'][0]['id']
+        code, err = self.request('/v/acme/launch/api/film/start', {'video': video, 'plan': {'title': 'Hi'}})
+        self.assertEqual(code, 409, err)
 
-    def test_a_planned_film_writes_its_bible(self):
-        self._start('sea/lighthouse')
-        png = self.media / 'keeper.png'
-        png.write_bytes(b'\x89PNG\r\n\x1a\n' + b'0123456789')
-        picture = self._upload('sea/lighthouse', png, 'image/png', url='attachments')
-        code, note = self.request('/v/sea/lighthouse/api/videos/first-note', {
-            'description': 'A robot still lights the lamp.', 'look': 'woodblock',
-            'film': {'acts': ['Alone', 'The visitor'],
-                     'clips': [{'title': 'Lamp at dusk', 'line': 'Keeper lights the lamp.', 'act': 0},
-                               {'title': 'Storm', 'line': 'The lamp goes dark.', 'act': 1}],
-                     'world': 'A lighthouse on a rock.',
-                     'characters': [{'name': 'Keeper', 'description': 'The robot keeper.',
-                                     'pictures': [picture['id']]}]}})
-        self.assertEqual(code, 200, note)
-        self.assertIn('bible/bible.md', note['text'])
-        self.assertEqual(note['attachments'], [])  # the picture went into the bible
-        clone = self._clone('sea/lighthouse')
-        bible = (clone / 'bible' / 'bible.md').read_text()
-        for text in ('# Lighthouse', 'A robot still lights the lamp.', 'Ukiyo-e woodblock', 'A lighthouse on a rock.',
-                     '### Act 1: Alone', '1. **Lamp at dusk.** Keeper lights the lamp.', '### Act 2: The visitor',
-                     '2. **Storm.** The lamp goes dark.', 'characters/keeper.md'):
-            self.assertIn(text, bible)
-        self.assertIn('The robot keeper.', (clone / 'bible' / 'characters' / 'keeper.md').read_text())
-        self.assertEqual((clone / 'bible' / 'characters' / 'keeper-1.png').read_bytes(), png.read_bytes())
-        self.assertFalse((clone / 'timeline.json').exists())  # the builder makes the clips
-
-    def test_a_short_video_is_just_its_first_note(self):
-        self._start('acme/explainer')
-        code, note = self.request('/v/acme/explainer/api/videos/first-note',
-                                  {'description': 'A 30-second explainer.', 'look': 'pop art', 'length': '0:30'})
-        self.assertEqual(code, 200, note)
-        self.assertTrue(note['text'].startswith('A 30-second explainer.\n\nLength: about 0:30.\n'
-                                                'Look: Pop-art halftone'))
-        clone = self._clone('acme/explainer')
-        self.assertEqual(self.git('rev-list', '--count', 'main', cwd=clone).stdout.strip(), '1')
-        self.assertEqual(sorted(p.name for p in clone.iterdir() if p.name != '.git'), ['film.py', 'requirements.txt'])
-
-    def test_an_unknown_look_is_refused(self):
-        self._start('acme/odd-look')
-        code, _ = self.request('/v/acme/odd-look/api/videos/first-note', {'look': 'velvet'})
-        self.assertEqual(code, 400)
+    def test_a_world_with_a_heading_in_it_reads_back_whole(self):
+        import tempfile
+        from pathlib import Path
+        from videobuilder import film_setup
+        world = 'An island.\n## Weather\nAlways storms.'
+        new, _ = film_setup.parse_details({'world': world}, film_setup.Details())
+        files = film_setup.bible_files('Sea', '', film_setup.Details(), new, {})
+        with tempfile.TemporaryDirectory() as d:
+            (Path(d) / film_setup.BIBLE).parent.mkdir(parents=True)
+            (Path(d) / film_setup.BIBLE).write_bytes(files[film_setup.BIBLE])
+            back = film_setup.read_details(Path(d))
+        self.assertEqual(back.world, 'An island.\n### Weather\nAlways storms.')
+        self.assertEqual(back.world, new.world)
 
     def test_any_character_name_gets_a_file_of_its_own(self):
-        from videobuilder import new_video
+        from videobuilder import film_setup
         names = ['Анна', 'マラ', 'Mara', 'Mara.']
-        start = new_video.parse({'film': {'characters': [{'name': n} for n in names]}})
-        self.assertEqual([c['slug'] for c in start.characters], ['character-1', 'character-2', 'mara', 'mara-2'])
+        details, _ = film_setup.parse_details({'characters': [{'name': n} for n in names]}, film_setup.Details())
+        self.assertEqual([c['slug'] for c in details.characters], ['character-1', 'character-2', 'mara', 'mara-2'])
         with self.assertRaises(ValueError):
-            new_video.parse({'film': {'characters': [{'name': 'Mara'}, {'name': 'mara'}]}})
+            film_setup.parse_details({'characters': [{'name': 'Mara'}, {'name': 'mara'}]}, film_setup.Details())
 
 
 class Keys(AccountMixin, KeyMixin, LibraryFixture, unittest.TestCase):

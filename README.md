@@ -336,6 +336,19 @@ you watch an older version or restore it as a new commit. The player follows
 new versions automatically until you choose an older one; then a toast offers
 a Watch action. The director name is shared between videos in the browser.
 
+**New video** asks only for a name, a project and an optional description;
+with a description the builder starts on it right away. Everything else is
+set in the editor. **Film details** (a link under "Nothing built yet", at the
+foot of Sources, and in the timeline's tools) sets the look, length, world
+and characters with pictures; Save writes them to the video's bible
+(`bible/bible.md`, `bible/characters/`) as one version, and a video's first
+note tells the builder about them. A video not built yet can also start as a
+film of clips there, or with **Add as a clip** on a video file in the
+composer. A film of clips' timeline adds clips after the last one, plans a
+clip (a title and a line, shown as a card until the builder makes it),
+starts and renames acts, and takes an uploaded song from an Audio lane's
+menu. **Make a copy** is on each video's card in the library.
+
 **Fine tuning** opens the original timeline and copy editor. It starts
 collapsed. You can drag rollable cut handles, edit copy, and undo the last
 change there. Each direct edit commits a new version. If `auto_land = false`,

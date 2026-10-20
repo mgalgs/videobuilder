@@ -209,17 +209,19 @@ POST /api/videos/new {name,start:"blank"|"copy",from?}
                                      name under the reserved `capabilities/`
                                      namespace (see community.is_reserved)
 POST /v/<name>/api/videos/first-note {description?,attachments?:[id...],
-                                      links?:[url...],look?,length?,film?}
+                                      links?:[url...]}
                                      200 note: the video's first note, built
                                      from the brief, the already-uploaded
                                      attachments and any gathered pages (see
-                                     gather.py); still queues with whatever
-                                     was gathered and a line on what failed
-                                     when gathering only partly succeeds; 429
-                                     as POST /api/notes above. `film` (see
-                                     new_video.py) first commits a film of
-                                     the uploaded footage clips (timeline.json)
-                                     or a planned film's bible; 400 a bad one
+                                     gather.py), plus what Film details
+                                     already set (film_setup.note_lines);
+                                     still queues with whatever was gathered
+                                     and a line on what failed when
+                                     gathering only partly succeeds; 429 as
+                                     POST /api/notes above. New video sends
+                                     it, and so does the editor's composer
+                                     for a video's first note while it is
+                                     not built yet
 GET  /whats-new                       the What's new page: the bundled named
                                      releases up to the running version and
                                      this instance's own entries, newest
@@ -437,7 +439,7 @@ from http.server import ThreadingHTTPServer
 from importlib import resources
 from pathlib import Path, PurePosixPath
 
-from . import assembly, edits, new_video
+from . import assembly, edits, film_setup
 from .notes import NoteStore
 from .agents import backend_from_config
 from .drafts import Drafts, git
@@ -653,6 +655,8 @@ class Editor:
 
     def render_first(self, video, commit):
         try:
+            if self.versions.saved_unbuilt(video, commit):
+                return
             timeline = self.renders.timeline(video, commit)
             fmt = timeline.formats[0] if timeline else self.session(video).request('info')['formats'][0]['name']
             self.renders.request(video, commit, fmt)
@@ -856,36 +860,17 @@ class Editor:
         links = [link.strip() for link in raw_links]
         if not all(links) or len(links) > 20:
             raise HTTPError(400, 'links must be a list of up to 20 URLs')
-        try:
-            start = new_video.parse(body)
-        except ValueError as exc:
-            raise HTTPError(400, str(exc)) from None
         attachment_ids = body.get('attachments', [])
-        picture_ids = start.picture_ids()
+        if not isinstance(attachment_ids, list):
+            attachment_ids = [None]
         try:
-            # A character's pictures go into the bible, not on the note, but share its budget.
-            attachments = self.attachments.validate(vid, (attachment_ids if isinstance(attachment_ids, list)
-                                                          else [None]) + picture_ids,
+            attachments = self.attachments.validate(vid, attachment_ids,
                                                     max_files=self.attachments.start_video_max_files,
                                                     max_message=self.attachments.start_video_max_message)
         except (ValueError, KeyError, TypeError) as exc:
             raise HTTPError(400, str(exc) if not isinstance(exc, TypeError) else 'attachments must be ids') from None
-        attachments = attachments[:len(attachments) - len(picture_ids)]
-        sources = {m['name']: m for m in self.sources.list(vid)}
-        try:
-            # A footage clip's length is its picture's, as the assembly measures
-            # it: the container's can run longer with a trailing audio tail.
-            for c in start.footage:
-                if sources.get(c['source'], {}).get('width') is not None:
-                    _, path = self.sources.file_path(vid, c['source'])
-                    sources[c['source']] = dict(sources[c['source']], duration=assembly.probe(path)[1])
-            files = new_video.start_files(self._title(), (description or '').strip(), start, sources,
-                                          self._character_pictures(vid, start))
-        except ValueError as exc:
-            raise HTTPError(400, str(exc)) from None
-        if files:
-            self._commit_start(vid, files, start, author)
-        extra = new_video.note_lines(start, sources)
+        # What Film details already set, so the first build follows it (see film_setup).
+        extra = film_setup.note_lines(film_setup.read_details(Path(self.project.video(vid).path).parent))
         s = self.session(vid)
         info = s.request('info')
         if 'frames' not in info:
@@ -911,47 +896,53 @@ class Editor:
         words = leaf.replace('-', ' ').replace('_', ' ').strip()
         return (words[:1].upper() + words[1:]) or 'New video'
 
-    def _character_pictures(self, vid, start):
-        """[(character slug, file name, bytes)...] for the bible: each picture
-        the page uploaded for a character, numbered after the character."""
-        out = []
-        for c in start.characters:
-            for n, ident in enumerate(c['pictures'], 1):
-                meta, path = self.attachments.get(ident, vid)
-                if not meta['type'].startswith('image/'):
-                    raise ValueError(f'{meta["name"]} is not a picture')
-                out.append((c['slug'], new_video.picture_name(c['slug'], n, meta['name']), path.read_bytes()))
-        return out
+    def commit_files(self, vid, files, summary, author, base=None, watch=()):
+        """Commit `files` ({path relative to the video's directory: bytes, or
+        None to remove it}) on main as one `Version-kind: edit`, the way a
+        timeline edit commits, and render it unless the video is still
+        unbuilt. With `base`, refuse (409) when any path under `watch` (also
+        relative to the video's directory) changed on main since that commit.
+        Returns the new commit, or None when nothing changed."""
+        base_dir = Path(self.project.video(vid).path).parent
+        root = Path(self.root).resolve()
 
-    def _commit_start(self, vid, files, start, author):
-        """Commit what Start building wrote (see new_video.start_files) on
-        main, in the video's own directory, the way an upgrade commits."""
-        base = Path(self.project.video(vid).path).parent
-        if start.footage:
-            n = len(start.footage)
-            summary = f'Start the film: {n} clip{"" if n == 1 else "s"}' + (' and a song' if start.lanes else '')
-        else:
-            summary = 'Start the film: its bible'
-        with self.lock:
+        def rel(path):
+            return str(PurePosixPath((base_dir / path).resolve().relative_to(root)))
+        with self.lock, self.notes.video_lock(vid):
             if self.sync:
                 self.sync.before_commit()
             if git(self.root, 'status', '--porcelain'):
                 raise HTTPError(409, 'main checkout has local changes')
+            if base is not None:
+                if base not in git(self.root, 'rev-list', '--first-parent', 'main').splitlines():
+                    raise HTTPError(409, 'this is from a version that is not on main; reload it')
+                if watch and git(self.root, 'diff', '--name-only', base, 'main', '--', *map(rel, watch)):
+                    raise HTTPError(409, 'this changed since you opened it (another tab, or the builder); '
+                                         'reload to see it')
             relative = []
-            for rel, data in files.items():
-                path = base / rel
-                path.parent.mkdir(parents=True, exist_ok=True)
-                path.write_bytes(data)
-                relative.append(str(PurePosixPath(path.resolve().relative_to(Path(self.root).resolve()))))
-            git(self.root, 'add', '--', *relative)
+            for path, data in files.items():
+                full = base_dir / path
+                if data is None:
+                    if not full.exists():
+                        continue
+                    full.unlink()
+                else:
+                    full.parent.mkdir(parents=True, exist_ok=True)
+                    full.write_bytes(data)
+                relative.append(rel(path))
+            if not relative:
+                return None
+            git(self.root, 'add', '-A', '--', *relative)
             if git(self.root, 'diff', '--cached', '--quiet', check=False).returncode == 0:
-                return
+                return None
             git(self.root, 'commit', '-m', f'{summary}\n\nVersion-kind: edit\nDirected-by: {author or "anonymous"}',
                 '--', *relative)
             commit = git(self.root, 'rev-parse', 'main')
+            self.project.last.pop(vid, None)
             if self.sync:
                 self.sync.after_commit()
         self.render_first(vid, commit)
+        return commit
 
     def _start_gather(self, note):
         description, links = note['gather']['description'], note['gather']['links']
@@ -1020,8 +1011,8 @@ class Editor:
 
 def _first_brief(description, attachments, links, gather_errors, extra=()):
     """A started video's first note text: the creator's description, `extra`
-    (new_video.note_lines: the length, the look, and what Start building
-    wrote), the chosen image order, and (with links) the gathered pages'
+    (film_setup.note_lines: the length, the look, and where the world and
+    characters are), the chosen image order, and (with links) the gathered pages'
     caveat and any failures."""
     image_names = [a['name'] for a in attachments if a['type'].startswith('image/')]
     lines = []

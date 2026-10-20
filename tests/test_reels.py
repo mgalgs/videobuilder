@@ -14,7 +14,7 @@ import unittest
 import wave
 from pathlib import Path
 
-from videobuilder import assembly, beats, new_video, timeline_file as tf
+from videobuilder import assembly, beats, film_setup, timeline_file as tf
 from videobuilder.film import Format
 
 
@@ -364,7 +364,7 @@ class OneSourceManyClips(unittest.TestCase):
 
 @unittest.skipUnless(HAS_FFMPEG, 'needs ffmpeg')
 class DoneWhenReel(unittest.TestCase):
-    """Twelve clips and a song dropped on New video come back as a reel with
+    """Twelve clips and a song added in the editor come back as a reel with
     every cut on a beat: the builder's steps as films.md "Cutting a reel"
     gives them, on synthetic footage and a click track."""
 
@@ -381,12 +381,15 @@ class DoneWhenReel(unittest.TestCase):
                 sources[name] = {'name': name, 'ext': 'mp4', 'width': 96, 'duration': 4 + k % 3}
             click_track(root / 'sources' / 'song.wav', self.BPM, self.FIRST, 40)
             sources['song'] = {'name': 'song', 'ext': 'wav', 'width': None, 'duration': 40}
-            # What New video writes for twelve clips and a song.
-            start = new_video.Start(clips=[{'source': n, 'act': None} for n in sources if n != 'song'],
-                                    lanes=[{'sound': 'song', 'act': None}])
-            data = new_video.timeline(start, sources)
-            self.assertIn('Cut these clips to the song on Audio 1 (sources/song.wav): a reel, every cut on a beat',
-                          ' '.join(new_video.note_lines(start, sources)))
+            # What the editor writes for twelve clips dropped in order and a song on Audio 1: the
+            # first clip starts the film (film_setup.start_files), the timeline adds the rest.
+            clips = []
+            for n in [n for n in sources if n != 'song']:
+                clips.append(film_setup.footage_clip(sources[n], sources[n]['duration'], {c['id'] for c in clips}))
+            data = json.loads(film_setup.start_files('Reel', clips[0])['timeline.json'])
+            data['clips'] = clips
+            data['lanes'] = [{'items': [{'sound': 'sources/song.wav', 'at': 0, 'offset': 0,
+                                         'frames': sum(c['out'] for c in clips)}]}]
             self.assertEqual((len(data['clips']), 'beats' in data), (12, False))
 
             # The builder: the song's beats, into the timeline.

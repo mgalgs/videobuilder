@@ -2,10 +2,13 @@
 
     GET  /api/timeline?video=V[&format=F]   the timeline file at main, parsed,
          and each clip's render key, state, length and speech, for the strip
-    POST /api/timeline {video, timeline, base[, summary]}
+    POST /api/timeline {video, timeline, base[, summary, plans]}
          validate with the loader and commit only the timeline file to main,
          as a `Version-kind: edit`; 409 when main's timeline file changed
-         since `base`, the commit the edit was made against
+         since `base`, the commit the edit was made against. `plans`
+         ({clip id: {title, line}}) are planned clips the edit adds: each
+         one's clip directory (film_setup.planned_film) goes in the same
+         commit
     GET  /api/timeline/thumb?video=V&clip=C[&commit=S&format=F]
          a small JPEG of the clip: from its render (once there is one) or its
          footage; 404 until then
@@ -21,9 +24,9 @@ import json
 import os
 import subprocess
 import threading
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 
-from . import assembly, timeline_file as tf
+from . import assembly, film_setup, timeline_file as tf
 from .clip_cache import GitTree, clip_key
 from .editor import HTTPError, _need
 from .gitutil import git
@@ -120,7 +123,9 @@ def _clip_state(editor, video, sha, fmt, timeline, tree, clip, busy):
 def read(editor, video, fmt=None):
     """The GET body: `commit` (main), `timeline` (the file as written, or None
     when the video has none), `error` (the loader's message when it doesn't
-    load), `format`, `fps` and `clips` (see `_clip_state`)."""
+    load), `format`, `fps`, `clips` (see `_clip_state`) and `dirs`, the
+    names of the clip directories on main, in the timeline or not (a new
+    clip's id avoids them: a planned clip needs a fresh directory)."""
     sha = _main(editor)
     raw = GitTree(editor.root, sha, _directory(editor, video)).read(tf.NAME)
     if raw is None:
@@ -135,7 +140,8 @@ def read(editor, video, fmt=None):
     busy = _assembly_busy(editor, video, sha, fmt)
     clips = [_clip_state(editor, video, sha, fmt, timeline, tree, c, busy) for c in timeline.clips]
     return {'commit': sha, 'timeline': data, 'format': fmt, 'fps': timeline.fps,
-            'formats': list(timeline.formats), 'clips': clips}
+            'formats': list(timeline.formats), 'clips': clips,
+            'dirs': sorted({PurePosixPath(f).parts[1] for f in tree.files('clips')})}
 
 
 def _check_lengths(timeline, clips):
@@ -161,10 +167,34 @@ def _summary(body):
     return text or 'edit the timeline'
 
 
-def write(editor, video, data, base, author, summary='edit the timeline'):
+def _plans(plans, timeline, tree):
+    """{path: bytes}: the clip directory of each planned clip in `plans`
+    ({clip id: {title, line}}), a clip directory in `timeline` that main
+    (`tree`) doesn't have yet (see film_setup.planned_clip)."""
+    if plans is None:
+        return {}
+    if not isinstance(plans, dict) or len(plans) > 20:
+        raise HTTPError(400, 'plans must map up to 20 clip ids to {title, line}')
+    out = {}
+    for cid, plan in plans.items():
+        clip = next((c for c in timeline.clips if c.id == cid), None)
+        if clip is None or clip.is_footage or not isinstance(plan, dict):
+            raise HTTPError(400, f'plans: {cid!r} is not a clip directory in the timeline')
+        if tree.read(clip.film_path) is not None:
+            raise HTTPError(409, f'{clip.film_path} is already there; reload the timeline')
+        try:
+            title, line = film_setup.plan_text(plan.get('title'), plan.get('line'))
+        except ValueError as exc:
+            raise HTTPError(400, str(exc)) from None
+        out[clip.film_path] = film_setup.planned_film(title, line, timeline.formats).encode()
+    return out
+
+
+def write(editor, video, data, base, author, summary='edit the timeline', plans=None):
     """Commit `data` as the video's timeline file on main, if it loads and
-    main's timeline file hasn't changed since `base`. Returns the new state
-    (`read`) with `changed` and the version number `n`."""
+    main's timeline file hasn't changed since `base`, with the clip
+    directory of each planned clip in `plans` (see `_plans`). Returns the
+    new state (`read`) with `changed` and the version number `n`."""
     e = editor
     with e.lock, e.notes.video_lock(video):
         if e.sync:
@@ -183,7 +213,8 @@ def write(editor, video, data, base, author, summary='edit the timeline'):
         except tf.TimelineError as exc:
             raise HTTPError(400, str(exc)) from None
         current = read(e, video)
-        if current['timeline'] == data:
+        planned = _plans(plans, timeline, GitTree(e.root, main, _directory(e, video)))
+        if current['timeline'] == data and not planned:
             return {**current, 'changed': False, 'n': e.versions.number(main)}
         _check_lengths(timeline, current.get('clips', []))
         path = os.path.join(e.root, rel)
@@ -192,9 +223,23 @@ def write(editor, video, data, base, author, summary='edit the timeline'):
         with open(path, 'w', encoding='utf-8') as fh:
             fh.write(json.dumps(data, indent=2, ensure_ascii=False) + '\n')
         message = f'timeline({video}): {summary}\n\nVersion-kind: edit\nDirected-by: {author or "anonymous"}'
+        if planned:
+            # A planned clip's directory goes in with the timeline that names it, as one version.
+            for name, body in planned.items():
+                full = Path(e.root) / _directory(e, video) / name
+                full.parent.mkdir(parents=True, exist_ok=True)
+                full.write_bytes(body)
+                git(e.root, 'add', '--', str(full))
+            git(e.root, 'add', '--', rel)
         try:
-            commit = commit_path(e.root, path, message)
+            commit = commit_path(e.root, path, message, *(str(Path(e.root) / _directory(e, video) / name)
+                                                          for name in planned))
         except RuntimeError as exc:
+            for name in planned:
+                full = Path(e.root) / _directory(e, video) / name
+                git(e.root, 'rm', '--cached', '--quiet', '--', str(full), check=False)
+                full.unlink(missing_ok=True)
+            git(e.root, 'reset', '--quiet', '--', rel, check=False)
             git(e.root, 'checkout', '--', rel)
             raise HTTPError(500, f'git would not commit the timeline: {exc}') from None
         e.project.last.pop(video, None)
@@ -309,4 +354,4 @@ def post_timeline(self, route, body, identity, editor, user):
     data = body.get('timeline')
     if not isinstance(data, dict):
         raise HTTPError(400, 'timeline must be the timeline file, as an object')
-    return self._json(200, write(editor, video, data, base, identity, _summary(body)))
+    return self._json(200, write(editor, video, data, base, identity, _summary(body), body.get('plans')))

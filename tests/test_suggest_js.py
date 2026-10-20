@@ -89,8 +89,7 @@ console.log(JSON.stringify(out));
 
 
 class PageWiring(unittest.TestCase):
-    """The composer and New video both load the suggest layer, and a Look
-    pick sets New video's own Look field (suggest-notes.md's q2)."""
+    """The composer and New video's description both load the suggest layer."""
 
     def test_editor_html_loads_suggest_css_and_js(self):
         html = (PKG / 'editor.html').read_text()
@@ -112,67 +111,6 @@ class PageWiring(unittest.TestCase):
         self.assertIn(js, page)
         self.assertIn('<textarea id="about"', page)
 
-    @unittest.skipUnless(shutil.which('node'), 'node is not available in this environment')
-    def test_a_look_pick_sets_new_videos_look_field(self):
-        """suggest.js runs in its own <script>, separate from new_video.js's IIFE, so it
-        can't reach ST/D/draw directly -- it must go through the window.nvSetLook hook
-        new_video.js exposes. Run both sides for real (under node) rather than grepping
-        source text, so a wiring break (like the dead `typeof ST !== 'undefined'` check
-        this once was) actually fails the test.
-
-        The hook must never call the full draw(): that rebuilds #parts from scratch,
-        which would tear out the #about textarea suggest.js's pick() just rewrote (and
-        is about to flash) -- killing focus and the undo stack. It should only touch
-        the Look part's own body (when open) and the summaries."""
-        nv_js = (PKG / 'new_video.js').read_text()
-        hook = re.search(r'\nwindow\.nvSetLook=.*?;\n', nv_js).group(0)
-        sg_js = (PKG / 'suggest.js').read_text()
-        key_of = re.search(r'\nconst keyOf = .*?;', sg_js).group(0)
-        apply_look_pick = re.search(r'\nfunction applyLookPick\(i\) \{.*?\n\}', sg_js, re.S).group(0)
-        self.assertIn('window.nvSetLook', apply_look_pick)
-
-        script = f"""
-const window = {{}};
-let ST = {{look: null, open: {{}}}};
-const D = {{looks: [{{id: 'pop-art'}}, {{id: 'as-shot'}}]}};
-let draws = 0, summaryDraws = 0, lookBodyDraws = 0;
-function draw() {{ draws++ }}
-function drawSummaries() {{ summaryDraws++ }}
-function isOpen(id) {{ return !!ST.open[id] }}
-function lookBody() {{ lookBodyDraws++; return '<div>look body</div>' }}
-const lookSectionBody = {{innerHTML: ''}};
-const lookSection = {{querySelector: sel => sel === '.body' ? lookSectionBody : null}};
-function $(sel) {{ return sel === '#part-look' ? lookSection : null }}
-{hook}
-const NEW = true;
-const BY = {{'looks:look-pop-art': {{look: 'pop-art'}}, 'looks:look-paper': {{look: null}}}};
-{key_of}
-{apply_look_pick}
-applyLookPick({{family: 'looks', id: 'look-pop-art'}});
-const afterSceneLook = {{look: ST.look, draws, summaryDraws, lookBodyDraws, bodyHtml: lookSectionBody.innerHTML}};
-applyLookPick({{family: 'looks', id: 'look-paper'}});
-const afterFilterLook = {{look: ST.look, draws, summaryDraws}};
-applyLookPick({{family: 'fonts', id: 'cantarell'}});
-const afterOtherFamily = {{look: ST.look, draws, summaryDraws}};
-ST.open.look = true;
-applyLookPick({{family: 'looks', id: 'look-pop-art'}});
-const afterOpenLookPart = {{draws, summaryDraws, lookBodyDraws, bodyHtml: lookSectionBody.innerHTML}};
-console.log(JSON.stringify({{afterSceneLook, afterFilterLook, afterOtherFamily, afterOpenLookPart}}));
-"""
-        result = subprocess.run(['node', '-'], input=script.encode(), capture_output=True)
-        self.assertEqual(result.returncode, 0, result.stderr.decode())
-        out = json.loads(result.stdout)
-        # ST.look is set, the summaries are refreshed, but the Look part's own body is left
-        # alone while closed -- and critically, draw() (which would rebuild #about) never runs.
-        self.assertEqual(out['afterSceneLook'],
-                          {'look': 'pop-art', 'draws': 0, 'summaryDraws': 1, 'lookBodyDraws': 0, 'bodyHtml': ''})
-        # A filter look (or any id not in D.looks) is ignored: the hook never fires -- and
-        # here there's no look id (BY's `look` is None) for the paper-collage entry at all.
-        self.assertEqual(out['afterFilterLook'], {'look': 'pop-art', 'draws': 0, 'summaryDraws': 1})
-        self.assertEqual(out['afterOtherFamily'], {'look': 'pop-art', 'draws': 0, 'summaryDraws': 1})
-        # With the Look part open, the hook refreshes its body too -- still without draw().
-        self.assertEqual(out['afterOpenLookPart'],
-                          {'draws': 0, 'summaryDraws': 2, 'lookBodyDraws': 1, 'bodyHtml': '<div>look body</div>'})
 
     def test_director_js_clears_suggestions_after_sending_a_note(self):
         js = (PKG / 'director.js').read_text()

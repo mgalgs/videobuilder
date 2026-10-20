@@ -1,5 +1,6 @@
 """First-parent video versions and content-preserving restore commits."""
 import os
+import posixpath
 from pathlib import Path, PurePosixPath
 import subprocess
 
@@ -43,6 +44,7 @@ class Versions:
                 raise ValueError('before is not on main')
             commits = commits[:commits.index(before)]
         result = []
+        unbuilt = self.unbuilt_until(video)
         for n, sha in reversed(list(enumerate(commits, 1))):
             if directory != '.':
                 parent = git(root, 'rev-parse', sha + '^') if n > 1 else None
@@ -55,13 +57,38 @@ class Versions:
             kind = meta.get('Version-kind', 'push')
             if n == 1 and kind == 'push' and raw[0] == BLANK_SUMMARY and raw[1] == 'Video Editor':
                 kind = 'blank'
-            result.append(dict(n=n, commit=sha, summary=raw[0], kind=kind,
+            result.append(dict(n=n, commit=sha, summary=raw[0], kind=kind, unbuilt=n <= unbuilt,
                                author=raw[1], directed_by=meta.get('Directed-by'), note=meta.get('Note'),
                                restores=meta.get('Restores'), time=raw[2],
                                renders=self.editor.renders.states(video, sha)))
             if len(result) >= limit:
                 break
         return {'versions': result}
+
+    def unbuilt_until(self, video):
+        """How many of main's first commits `video` is not built at: a video
+        started blank stays unbuilt -- nothing for the player to play, only
+        a first note to send -- until a commit changes its film file or its
+        timeline file, so Film details saved before the first build are
+        versions of an unbuilt video. 0 for a video that didn't start blank."""
+        root = self.editor.root
+        commits = git(root, 'rev-list', '--first-parent', '--reverse', 'main').splitlines()
+        raw = git(root, 'show', '-s', '--format=%s%x00%an%x00%B', commits[0]).split('\0')
+        kind = trailers(raw[2]).get('Version-kind', 'push')
+        if not (kind == 'blank' or (kind == 'push' and raw[0] == BLANK_SUMMARY and raw[1] == 'Video Editor')):
+            return 0
+        context = self.editor.drafts.context(video)
+        paths = [context['film'], posixpath.normpath(posixpath.join(context['directory'], 'timeline.json'))]
+        touched = git(root, 'log', '--first-parent', '--format=%H', 'main', '--', *paths).splitlines()
+        later = [c for c in touched if c != commits[0]]
+        return commits.index(later[-1]) if later else len(commits)
+
+    def saved_unbuilt(self, video, sha):
+        """Whether commit `sha` on main is a version saved on `video` after its
+        blank start and before its first build (Film details): one with
+        nothing new to render."""
+        commits = git(self.editor.root, 'rev-list', '--first-parent', '--reverse', 'main').splitlines()
+        return sha in commits and 0 < commits.index(sha) < self.unbuilt_until(video)
 
     def number(self, sha):
         commits = git(self.editor.root, 'rev-list', '--first-parent', '--reverse', 'main').splitlines()

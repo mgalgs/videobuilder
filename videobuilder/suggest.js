@@ -8,9 +8,8 @@
 (() => {
 'use strict';
 const ED = !!document.getElementById('message');
-// New video's #about doesn't exist until a way to start is chosen (nothing is
-// open at first), so #parts (always in the static page) is what identifies it.
-const NEW = !ED && !!document.getElementById('parts');
+// New video's description box.
+const NEW = !ED && !!document.getElementById('about');
 if (!ED && !NEW) return;
 const $ = id => document.getElementById(id);
 const el = (t, c, h) => { const e = document.createElement(t); if (c) e.className = c; if (h != null) e.innerHTML = h; return e };
@@ -274,15 +273,6 @@ function rewrite(text, i) {
   const m = /[.!?]*\s*$/.exec(text), end = m.index;
   return [end, end, clause];
 }
-// New video's own Look field agrees with what the note now says (see suggest-notes.md q2).
-// new_video.js runs in its own <script> and exposes this hook since suggest.js can't reach
-// its ST/D/draw directly. A scene look is a whole-video vb.looks name the field can hold;
-// a filter look or paper collage isn't, so an unmatched id is just ignored by the hook.
-function applyLookPick(i) {
-  if (i.family !== 'looks' || !NEW || typeof window.nvSetLook !== 'function') return;
-  const look = BY[keyOf(i)]?.look;
-  if (look) window.nvSetLook(look);
-}
 function pick(i, {user} = {}) {
   const old = ta.value, [a, b, txt] = rewrite(old, i);
   programmatic = true;
@@ -299,7 +289,6 @@ function pick(i, {user} = {}) {
   let p = 0; while (p < old.length && p < v.length && old[p] === v[p]) p++;
   let s = 0; while (s < old.length - p && s < v.length - p && old[old.length - 1 - s] === v[v.length - 1 - s]) s++;
   flash(p, v.length - s);
-  applyLookPick(i);
   shown = shown.filter(x => keyOf(x) !== keyOf(i) && !(x.replace && i.replace && x.replace.span === i.replace.span) &&
                        (!x.replace || v.includes(x.replace.span)));
   render();
@@ -463,19 +452,7 @@ async function openPicker(fam) {
 
 /* ---- start ---- */
 async function start() {
-  if (NEW) {
-    // The "In a few words" part (and so #about) may not exist yet -- nothing is
-    // open until a way to start is chosen -- and new_video.js's draw() rebuilds
-    // #parts wholesale whenever anything changes (ST.about is the source of
-    // truth, so the typed text survives): (re)mount whenever #about shows up
-    // as a new node, which covers both "just appeared" and "just replaced".
-    new MutationObserver(() => {
-      if ($('about') && $('about') !== ta) { mount(); render() }
-    }).observe($('parts'), {childList: true, subtree: true});
-    mount();
-  } else if (!mount()) {
-    return;
-  }
+  if (!mount()) return;
   await ensureModel();
 }
 start();

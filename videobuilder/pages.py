@@ -303,7 +303,14 @@ LIB_DETAIL_STYLE = (
     'border-radius:8px;border:1px solid #26262c;background:#0d0d10;color:#f4f4f2;font-size:1.1rem;'
     'line-height:1;cursor:pointer}'
     '.lib-detail-project{color:#a9a9b2;margin:0 0 1rem}'
-    '#lib-detail-open{margin:0 0 1rem}'
+    '#lib-detail-open{display:flex;flex-wrap:wrap;gap:.5rem;margin:0 0 1rem}'
+    '.lib-copy-form{margin:0 0 1rem;padding:.75rem;border:1px solid #26262c;border-radius:12px;background:#0d0d10}'
+    '.lib-copy-form label{display:block;color:#a9a9b2;font-size:.8rem;font-weight:600;margin:0 0 .4rem}'
+    '.lib-copy-row{display:flex;align-items:center;gap:.4rem}#lib-copy-go{white-space:nowrap}'
+    '#lib-copy-project{color:#8b8b94;font-size:.9rem;white-space:nowrap}'
+    '#lib-copy-name{flex:1 1 auto;min-width:0;min-height:44px;padding:0 .7rem;border-radius:10px;'
+    'border:1px solid #2c2c33;background:#141417;color:#f4f4f2;font:inherit;font-size:16px}'
+    '.lib-copy-error{color:#ff8a80;font-size:.85rem;margin:.5rem 0 0}.lib-copy-error:empty{display:none}'
     '.lib-detail-git{display:flex;align-items:center;gap:.5rem;margin:0 0 .9rem;min-width:0;padding:.5rem .6rem;'
     'background:#0d0d10;border:1px solid #26262c;border-radius:10px}'
     '#lib-detail-url{flex:1 1 auto;min-width:0;overflow-wrap:anywhere;word-break:break-all;font-size:.8rem;'
@@ -399,6 +406,12 @@ _LIB_DETAIL_HTML = (
     '<h2 id="lib-detail-name"></h2>'
     '<p class="lib-detail-project" id="lib-detail-project"></p>'
     '<p id="lib-detail-open"></p>'
+    '<form id="lib-copy" class="lib-copy-form" hidden novalidate>'
+    '<label for="lib-copy-name">Name of the copy</label>'
+    '<div class="lib-copy-row"><span id="lib-copy-project"></span><input id="lib-copy-name" '
+    'autocapitalize="off" autocorrect="off" spellcheck="false">'
+    '<button type="submit" class="btn btn-primary" id="lib-copy-go">Copy it</button></div>'
+    '<p class="lib-copy-error" id="lib-copy-error" role="alert"></p></form>'
     '<div class="lib-detail-git"><code id="lib-detail-url"></code>'
     '<button class="lib-copy" type="button" id="lib-detail-copy">Copy</button></div>'
     '<div id="lib-detail-meta">'
@@ -424,8 +437,23 @@ LIB_DETAIL_SCRIPT = (
     'const r=document.createRange();r.selectNodeContents(el);const sel=getSelection();'
     'sel.removeAllRanges();sel.addRange(r);'
     'try{return document.execCommand("copy")}catch(_){return false}}'
+    'const copyForm=document.getElementById("lib-copy"),copyName=document.getElementById("lib-copy-name");'
+    'const copyErr=document.getElementById("lib-copy-error");let copyFrom=null;'
+    # Make a copy: only its new name is asked; it stays in the same project.
+    'function openCopy(d){copyFrom=d;const i=d.name.lastIndexOf("/");'
+    'document.getElementById("lib-copy-project").textContent=i<0?"":d.name.slice(0,i+1);'
+    'copyName.value=d.leaf+"-copy";copyErr.textContent="";copyForm.hidden=false;copyName.focus();copyName.select()}'
+    'copyForm.onsubmit=async e=>{e.preventDefault();const d=copyFrom,i=d.name.lastIndexOf("/");'
+    'const leaf=copyName.value.trim().toLowerCase().replace(/\\s+/g,"-");'
+    'const name=(i<0?"":d.name.slice(0,i+1))+leaf,go=document.getElementById("lib-copy-go");'
+    'go.disabled=true;copyErr.textContent="";'
+    'try{const r=await fetch("/api/videos/new",{method:"POST",headers:{"Content-Type":"application/json"},'
+    'body:JSON.stringify({name,start:"copy",from:d.name})});const j=await r.json().catch(()=>({}));'
+    'if(!r.ok)throw Error(j.error||"could not copy it");'
+    'location.href="/v/"+name.split("/").map(encodeURIComponent).join("/")+"/"}'
+    'catch(x){copyErr.textContent=x.message;go.disabled=false}};'
     'function openDetail(idx){'
-    'const d=data[idx];'
+    'const d=data[idx];copyForm.hidden=true;'
     'document.getElementById("lib-detail-name").textContent=d.leaf;'
     'document.getElementById("lib-detail-project").textContent="Project: "+d.project;'
     'const openEl=document.getElementById("lib-detail-open");'
@@ -435,7 +463,9 @@ LIB_DETAIL_SCRIPT = (
     'a.className="btn btn-primary";'
     'a.href="/v/"+d.name.split("/").map(encodeURIComponent).join("/")+"/";'
     'a.textContent="Open in editor";'
-    'openEl.appendChild(a)'
+    'openEl.appendChild(a);'
+    'if(dialog.dataset.copy){const c=document.createElement("button");c.type="button";c.className="btn";'
+    'c.id="lib-copy-open";c.textContent="Make a copy";c.onclick=()=>openCopy(d);openEl.appendChild(c)}'
     '}else{'
     'const span=document.createElement("span");'
     'span.className="lib-empty";span.textContent="Empty";'
@@ -647,6 +677,8 @@ def index(entries, accounts_enabled, user, host, scheme='http', showcase=False, 
     cards_json = (json.dumps(cards).replace('<', '\\u003c').replace('>', '\\u003e')
                  .replace('&', '\\u0026'))
     script = (f'<script type="application/json" id="lib-data">{cards_json}</script>' + LIB_DETAIL_SCRIPT)
+    detail = _LIB_DETAIL_HTML.replace('class="lib-detail">', 'class="lib-detail" data-copy="1">') if can_create \
+        else _LIB_DETAIL_HTML
     style = APP_STYLE + LIBRARY_STYLE + LIB_DETAIL_STYLE + STARTER_STYLE
     tour_html = ''
     if tour:
@@ -655,47 +687,7 @@ def index(entries, accounts_enabled, user, host, scheme='http', showcase=False, 
     return (_head('Your videos', style) +
             '<body>' + app_header('library', user if accounts_enabled else None, can_create, whats_new) +
             f'<main class="app-main"><div class="page-head"><div><h1>Your videos</h1>{sub}</div>{sort}</div>' +
-            content + _LIB_DETAIL_HTML + script + '</main>' + tour_html + '</body></html>').encode()
-
-
-# The looks New video offers, by their `vb.looks` names ("as-shot" keeps
-# footage as it is), with the mockup's swatches and copy.
-NEW_VIDEO_LOOKS = (
-    {'id': 'as-shot', 'name': 'As shot', 'd': 'Keep my footage’s own look', 'sw': ['#5aa0e6', '#e9f0f7', '#2a2f3a']},
-    {'id': 'woodblock', 'name': 'Woodblock', 'd': 'Carved flat colour, paper grain',
-     'sw': ['#1d2340', '#3f7f86', '#efe3c8', '#e0a54a', '#d64933']},
-    {'id': 'bauhaus', 'name': 'Bauhaus', 'd': 'Primary shapes, bold grid',
-     'sw': ['#d62828', '#f7c600', '#1d3fb8', '#111', '#f2efe6']},
-    {'id': 'blueprint', 'name': 'Blueprint', 'd': 'White lines on blue', 'sw': ['#0f3a78', '#1e5aa8', '#e8f0ff']},
-    {'id': 'pop-art', 'name': 'Pop art', 'd': 'Halftone dots, loud colour', 'sw': ['#ff3d7f', '#ffd400', '#00b3ff', '#111']},
-    {'id': 'pixel', 'name': 'Pixel', 'd': 'Chunky 16-bit pixels', 'sw': ['#2b2d42', '#8ac926', '#ffca3a', '#ff595e']},
-    {'id': 'pointillism', 'name': 'Pointillism', 'd': 'Painted in dots', 'sw': ['#6a994e', '#f2e8cf', '#bc4749', '#386641']},
-    {'id': 'melt', 'name': 'Melt', 'd': 'Colours that drip and run', 'sw': ['#ff7b00', '#ffb700', '#7b2cbf']},
-    {'id': 'swirl', 'name': 'Swirl', 'd': 'Brush strokes in eddies', 'sw': ['#003049', '#fcbf49', '#f77f00']},
-)
-
-_NEW_VIDEO_WAYS = (
-    ('reel', '<rect x="3" y="6" width="13" height="12" rx="2"/><path d="M16 10l5-3v10l-5-3"/>',
-     'Drop clips and music', 'Your footage and a song. Drag the clips into a rough order and say how to cut it.',
-     'A highlight reel, a trip, a wedding'),
-    ('short', '<path d="M5 4h14v12l-4 4H5z"/><path d="M15 20v-4h4M8 9h8M8 13h5"/>',
-     'Describe a short video', 'A few lines about what you want. Add a look, pictures or a logo if you have them.',
-     'A 30-second explainer, an ad, a promo'),
-    ('epic', '<path d="M5 4h11a3 3 0 0 1 3 3v13H8a3 3 0 0 1-3-3z"/><path d="M5 17a3 3 0 0 1 3-3h11"/>',
-     'Plan a film (acts and scenes)', 'Characters, a world, acts and a line for each clip. Build it clip by clip.',
-     'A short film, a story in chapters'),
-)
-_NEW_VIDEO_PARTS = (('about', 'In a few words', 'What it is, or how to cut it'),
-                    ('look', 'Look', 'One look for the whole video'),
-                    ('bible', 'Characters and world', 'Who is in it and where it happens'),
-                    ('clips', 'Clips', 'Your footage, or a line for each clip you want made'),
-                    ('audio', 'Audio', 'Songs, voice-over, sound. Each lane can hold anything'),
-                    ('files', 'Pictures and other files', 'Logos, references, screenshots, PDFs'))
-
-
-def _svg(path, size=18):
-    return (f'<svg width="{size}" height="{size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" '
-            'stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + path + '</svg>')
+            content + detail + script + '</main>' + tour_html + '</body></html>').encode()
 
 
 def new_video_projects(names):
@@ -706,63 +698,40 @@ def new_video_projects(names):
 
 
 def new_video_page(names, user=None, whats_new=None):
-    """The New video page: the name (and project) up top, then the ways to
-    start and the optional parts, drawn by new_video.js. `names` are the
-    videos this user may see: their projects fill the dropdown, and they can
-    be copied. `user`: who is signed in, for the header's account menu; None
-    without accounts."""
+    """The New video page: a name, a project, an optional description and
+    Create (new_video.js). Everything else about a video is set in the
+    editor. `names` are the videos this user may see: their projects fill the
+    dropdown, the first one chosen until the script picks the one used last.
+    `user`: who is signed in, for the header's account menu; None without
+    accounts."""
     projects = new_video_projects(names)
     files = resources.files(__package__)
-    data = json.dumps({'starters': {s['id']: s['prompt'] for s in STARTERS}, 'looks': NEW_VIDEO_LOOKS})
+    data = json.dumps({'starters': {s['id']: s['prompt'] for s in STARTERS}})
     data = data.replace('<', '\\u003c').replace('>', '\\u003e').replace('&', '\\u0026')
-    options = ('<option value="" selected>None</option>' +
-               ''.join(f'<option value="{html.escape(p)}">{html.escape(p)}</option>' for p in projects) +
-               '<option value="+new">New project…</option>')
-    tick, plus = _svg('<path d="M5 12.5l4.5 4.5L19 7.5"/>', 14), _svg('<path d="M12 5v14M5 12h14"/>')
-    ways = ''.join(
-        f'<button type="button" class="way" data-act="way" data-way="{key}" aria-pressed="false">'
-        f'<span class="wi">{_svg(icon, 22)}</span>'
-        f'<span style="display:flex;flex-direction:column;gap:4px;min-width:0"><b>{title}</b><small>{d}</small></span>'
-        f'<span class="eg">{eg}</span><span class="on">{tick}'
-        'Started here</span></button>' for key, icon, title, d, eg in _NEW_VIDEO_WAYS)
-    parts = ''.join(
-        f'<section class="part closed" id="part-{key}"><header role="button" tabindex="0" aria-expanded="false">'
-        f'<span class="pi">{plus}</span>'
-        f'<span class="pt"><b>{title}</b><small>{hint}</small></span></header></section>'
-        for key, title, hint in _NEW_VIDEO_PARTS)
-    copy = ''
-    if names:
-        copy = ('<details class="copy-from"><summary>Or start from a copy of one of your videos</summary>'
-                '<div class="row"><select id="copy-from" aria-label="Video to copy">' +
-                ''.join(f'<option value="{html.escape(n)}">{html.escape(n)}</option>' for n in names) +
-                '</select><button type="button" class="btn" id="copy-go">Copy it</button></div></details>')
+    options = (''.join(f'<option value="{html.escape(p)}"{" selected" if i == 0 else ""}>{html.escape(p)}</option>'
+                       for i, p in enumerate(projects)) +
+               f'<option value=""{"" if projects else " selected"}>No project</option>'
+               '<option value="+new">+ New project…</option>')
     style = APP_STYLE + files.joinpath('new_video.css').read_text() + files.joinpath('suggest.css').read_text()
     return (_head('New video', style) +
             '<body>' + app_header('new', user, whats_new=whats_new) + '<main class="nv">'
-            '<div class="lead-head"><h1>New video</h1><p class="help">Drop clips and a song and say how to cut '
-            'them, describe a short video in a few lines, or plan a film in acts.</p></div>'
-            '<section class="required" aria-label="Required"><div class="fields">'
-            '<div class="f name"><label for="name">Name</label><input id="name" class="tx" '
+            '<h1>New video</h1>'
+            '<form class="nv-form" id="nv-form" novalidate>'
+            '<div class="nv-row"><div class="f name"><label for="name">Name</label><input id="name" class="tx" '
             'placeholder="snow-day-reel" required autocapitalize="off" autocorrect="off" spellcheck="false"></div>'
-            '<div class="f"><label for="project">Project <i>(optional)</i></label>'
+            '<div class="f project"><label for="project">Project</label>'
             f'<select id="project">{options}</select>'
             '<input id="new-project" class="tx" placeholder="New project name" aria-label="New project name" '
             'autocapitalize="off" autocorrect="off" spellcheck="false" hidden></div></div>'
-            '<p class="field-error" id="name-error" role="alert"></p></section>'
-            '<p class="optional-note">Everything below is optional, and you can change any of it as you go.</p>'
-            f'<div class="ways" role="group" aria-label="How do you want to start?">{ways}</div>'
-            f'<p class="dropall">{_svg(_ATTACH_ICON, 16)}Or drop files anywhere on this page to start with them.</p>'
-            f'<div id="parts" style="margin-top:22px">{parts}</div>{copy}</main>'
-            '<div class="gobar"><div class="gobar-in"><div class="what" id="what" aria-live="polite"></div>'
-            '<button type="button" class="btn btn-primary go" id="go">Start building</button></div></div>'
-            '<input type="file" id="nv-pick" multiple hidden>'
+            '<div class="f about"><label for="about">Description <i>(optional)</i></label>'
+            '<textarea id="about" class="tx" rows="5" placeholder="What it’s about, in a few words. The builder '
+            'starts on it right away; leave it empty to start in the editor."></textarea></div>'
+            '<p class="field-error" id="name-error" role="alert"></p>'
+            '<button type="submit" class="btn btn-primary go" id="go">Create</button>'
+            '</form></main>'
             f'<script type="application/json" id="nv-data">{data}</script>'
             f'<script>{files.joinpath("new_video.js").read_text()}</script>'
             f'<script>{files.joinpath("suggest.js").read_text()}</script></body></html>').encode()
-
-
-_ATTACH_ICON = ('<path d="M20 11.5l-8.2 8.2a5 5 0 0 1-7.1-7.1L13 4.3a3.3 3.3 0 0 1 4.7 4.7l-8.3 8.3a1.7 1.7 0 0 1'
-                '-2.4-2.4L14.6 7.3"/>')
 
 
 _ACCOUNT_STYLE = (

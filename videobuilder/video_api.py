@@ -14,6 +14,7 @@ from .editor import HTTPError, _field, _need, _page
 from .gitutil import git
 from .music import FetchError, TooLarge, extension_for, fetch_binary
 from .notes import FINAL
+from .film_api import get_film, get_picture, post_film, post_start
 from .timeline_api import get_footage, get_thumb, get_timeline, post_timeline
 from .transcript import feed_source, read_feed
 from .versions import Refused
@@ -281,7 +282,7 @@ def _get_suggest_catalog(self, route, q, editor, user):
                'poster': f"/capabilities/{e['id']}.jpg", 'clip': f"/capabilities/{e['id']}.mp4"}
         if family == 'looks':
             item['kind'] = e.get('kind')
-            item['look'] = e.get('look')  # the vb.looks registry name (New video's own Look field uses this)
+            item['look'] = e.get('look')  # the vb.looks registry name (Film details' look picker uses this)
             looks.append(item)
         elif family == 'type':
             type_.append(item)
@@ -445,6 +446,8 @@ GET_ROUTES = [
     ('/api/video', _get_video),
     ('/api/clip', _get_clip),
     ('/api/timeline', get_timeline),
+    ('/api/film', get_film),
+    ('/api/film/picture', get_picture),
     ('/api/timeline/thumb', get_thumb),
     ('/api/timeline/footage', get_footage),
     ('/api/thumbnail', _get_thumbnail),
@@ -673,6 +676,8 @@ POST_ROUTES = [
     ('/api/versions/restore', _post_versions_restore),
     ('/api/upgrade', _post_upgrade),
     ('/api/timeline', post_timeline),
+    ('/api/film', post_film),
+    ('/api/film/start', post_start),
     (('/api/draft/accept', '/api/draft/drop'), _post_draft_action),
     ('/api/compendium/vote', _post_compendium_vote),
     ('/api/music/attach', _post_music_attach),

@@ -794,7 +794,7 @@ class Auth(AccountMixin, LibraryFixture, unittest.TestCase):
         _, _, dana = self.signup('dana', 'longenoughpassword')
         code, page = self.request('/new', headers={'Cookie': dana})
         self.assertEqual(code, 200)
-        self.assertIn(b'<section class="required"', page)
+        self.assertIn(b'<form class="nv-form"', page)
 
     def test_deleting_a_user_invalidates_their_outstanding_session(self):
         _, _, dana = self.signup('dana', 'longenoughpassword')

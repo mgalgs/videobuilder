@@ -183,7 +183,8 @@ class DirectorPageRoutes(API):
                     'attachments','video/retry','roll','copy','undo','draft','draft/info','draft/frame',
                     'draft/accept','draft/drop','upgrade','access','music/sources','music/tracks','music/attach',
                     'videos/first-note','sources','pictures','pictures/gpu',
-                    'clip','timeline','timeline/thumb','timeline/footage'}
+                    'clip','timeline','timeline/thumb','timeline/footage','film','film/picture','film/start',
+                    'suggest/catalog'}
         # Dynamic attachment, draft and source actions have their own router patterns.
         self.assertTrue(paths - {'attachments/', 'draft/', 'sources/', 'pictures/'} <= expected, paths - expected)
         # The route literals live wherever make_handler's pieces do now, not all in editor.py.
@@ -221,10 +222,10 @@ class DirectorPageRoutes(API):
                       "document.hidden||!state.project||state.signedOut"):
             self.assertIn(guard, js)
         send_pending = re.search(r'async function sendPending\(\) \{(.*?)\n\}', js, re.S).group(1)
-        self.assertLess(send_pending.index("await json('notes'"), send_pending.index('state.pending=[]'),
+        self.assertLess(send_pending.index('await postNote('), send_pending.index('state.pending=[]'),
                          'the pending draft must only be cleared after the send succeeds')
         send_now = re.search(r'async function sendNow\(\) \{(.*?)\n\}', js, re.S).group(1)
-        self.assertLess(send_now.index("await json('notes'"), send_now.index("$('message').value=''"),
+        self.assertLess(send_now.index('await postNote('), send_now.index("$('message').value=''"),
                          'the typed note must only be cleared after the send succeeds')
 
     def test_timeline_wiring(self):
@@ -510,6 +511,123 @@ console.log(JSON.stringify(out));
         reel = timeline_file.parse(out['data'])
         placements, _ = timeline_file.place(reel, {}, known=True)
         self.assertEqual(timeline_file.offbeat(reel, placements), [])
+
+    @unittest.skipUnless(shutil.which('node'), 'node is not available in this environment')
+    def test_starting_with_a_clip_in_film_details_saves_what_is_typed_first(self):
+        # fdWire, fdCommit and fdTake as they are in director.js: "Plan a clip" closes the sheet, so the
+        # look and world typed above it are saved (one POST api/film) before the film starts. "Make it
+        # now" then sends a note on the planned clip, the only kind of note that has the builder make it.
+        import re
+        import subprocess
+        js = (PKG / 'director.js').read_text()
+        parts = [re.search(r'\n(async )?function ' + name + r'\(.*?\n\}', js, re.S).group(0)
+                 for name in ('fdTake', 'fdWire', 'fdCommit')]
+        parts += [re.search(r'\nconst planNote=.*?\.then\(loadNotes\);', js, re.S).group(0)]
+        script = '\n'.join(parts) + """
+const calls=[];
+const details={look:'noir',length:'',world:'An island.',characters:[]};
+const json=async(path,params,body)=>{calls.push([path,body]);return {commit:'c2',unbuilt:true,film:false,
+  changed:true,n:2,details}};
+const state={video:'film',format:'16x9'};
+const ensureName=async()=>true,loadVersions=()=>{},xhrUpload=async()=>({id:'a'}),loadNotes=()=>{},toast=()=>{};
+const filmStart=async body=>{calls.push(['film/start',body]);state.tl={data:{clips:[{id:'storm',dir:'clips/storm'}]}}};
+const els={};
+const el=id=>els[id]??={value:'',hidden:true,textContent:'',focus(){},click(){}};
+el('#fd-plan-title').value='Storm';
+const sheet={querySelector:el};
+fdTake({commit:'c1',unbuilt:true,film:false,details:{look:null,length:'',world:'',characters:[]}});
+fdWire(sheet);
+state.fd.look='noir';
+state.fd.world='An island.';
+(async()=>{
+  const b={dataset:{x:'planadd'},disabled:false};
+  await sheet.onclick({target:{closest:()=>b}});
+  const base=state.fd.base;
+  await sheet.onclick({target:{closest:()=>({dataset:{x:'planadd',now:'1'},disabled:false})}});
+  console.log(JSON.stringify({calls,base}));
+})();
+"""
+        result = subprocess.run(['node', '-'], input=script.encode(), capture_output=True)
+        self.assertEqual(result.returncode, 0, result.stderr.decode())
+        out = json.loads(result.stdout)
+        self.assertEqual(out['calls'], [
+            ['film', {'video': 'film', 'base': 'c1', 'look': 'noir', 'length': '', 'world': 'An island.',
+                      'characters': []}],
+            ['film/start', {'plan': {'title': 'Storm', 'line': ''}}],
+            ['film', {'video': 'film', 'base': 'c2', 'look': 'noir', 'length': '', 'world': 'An island.',
+                      'characters': []}],
+            ['film/start', {'plan': {'title': 'Storm', 'line': ''}}],
+            ['notes', {'video': 'film', 'format': '16x9', 'clip': 'storm',
+                       'text': 'Make this planned clip (Storm): Storm'}]])
+        self.assertEqual(out['base'], 'c2')
+
+    @unittest.skipUnless(shutil.which('node'), 'node is not available in this environment')
+    def test_a_first_note_planned_clips_and_acts_from_the_editor(self):
+        # postNote, tlPlanClip and tlActSheet, run as they are in director.js: a video's first note
+        # while it is not built yet goes the way New video's does; a planned clip goes in as a clip
+        # directory with its plan for the save; an act starts at a clip, and is renamed.
+        import re
+        import subprocess
+        from videobuilder import timeline_file
+        js = (PKG / 'director.js').read_text()
+        parts = [re.search(r'\nconst ' + name + r'=.*?\n', js).group(0) for name in ('notBuilt', 'tlFootage')]
+        parts += [re.search(r'\nconst tlNewId=.*?\n\};', js, re.S).group(0),
+                  re.search(r'\nconst planNote=.*?\.then\(loadNotes\);', js, re.S).group(0)]
+        parts += [re.search(r'\n(async )?function ' + name + r'\(.*?\n\}', js, re.S).group(0)
+                  for name in ('postNote', 'tlPlace', 'tlGrid', 'tlOnBeat', 'tlKeepOnBeat', 'tlInsert', 'tlPlanClip',
+                               'tlActSheet')]
+        script = '\n'.join(parts) + """
+const calls=[];
+const json=async(path,params,body)=>{calls.push([path,body]);return {}};
+const state={video:'film',format:'16x9',notes:[],tl:{fps:30,clips:[],dirs:['storm'],data:{version:1,fps:30,clips:[
+  {id:'a',footage:'sources/a.mp4',in:0,out:60},{id:'b',footage:'sources/b.mp4',in:0,out:60}]}}};
+let version={kind:'edit',unbuilt:true};
+const currentVersion=()=>version;
+const tlInfo=id=>({state:'ready',frames:60,speech:[]});
+let after=[];
+const tlChange=(change,summary,then)=>{change(state.tl.data);then&&after.push(then)};
+const tlCloseSheet=()=>{},toast=()=>{},loadNotes=()=>{};
+const esc=s=>String(s),svg=()=>'',TL_ICON={},tlOpt=()=>'';
+let sheet;
+function tlOpenSheet(html){
+  const input={value:'',focus(){},select(){}};
+  sheet={html,input,querySelector:s=>s==='input'?input:{click(){sheet.onclick({target:{closest:()=>({dataset:{x:'save'}})}})}}};
+  return sheet
+}
+const click=x=>sheet.onclick({target:{closest:()=>({dataset:{x}})}});
+(async()=>{
+  const out={};
+  await postNote({video:'film',text:'Make it.',attachments:['p']});
+  state.notes=[{id:1}];
+  await postNote({video:'film',text:'Again.',attachments:[]});
+  out.calls=calls.splice(0);
+  tlPlanClip(2,'Storm','The lamp goes dark.',true);
+  for(const f of after.splice(0))f();
+  await new Promise(r=>setTimeout(r,0));
+  out.plans=state.tl.plans;
+  out.note=calls.splice(0);
+  tlActSheet(null,1);
+  sheet.input.value='The storm';
+  click('save');
+  tlActSheet(0);
+  sheet.input.value='Night';
+  click('save');
+  out.data=state.tl.data;
+  console.log(JSON.stringify(out));
+})();
+"""
+        result = subprocess.run(['node', '-'], input=script.encode(), capture_output=True)
+        self.assertEqual(result.returncode, 0, result.stderr.decode())
+        out = json.loads(result.stdout)
+        self.assertEqual(out['calls'], [['videos/first-note', {'description': 'Make it.', 'attachments': ['p']}],
+                                        ['notes', {'video': 'film', 'text': 'Again.', 'attachments': []}]])
+        # 'storm' is a directory a removed clip left on main: the new plan gets a fresh one.
+        self.assertEqual(out['plans'], {'storm-2': {'title': 'Storm', 'line': 'The lamp goes dark.'}})
+        self.assertEqual(out['note'], [['notes', {'video': 'film', 'format': '16x9', 'clip': 'storm-2',
+                                                  'text': 'Make this planned clip (Storm): The lamp goes dark.'}]])
+        self.assertEqual(out['data']['clips'][2], {'id': 'storm-2', 'dir': 'clips/storm-2'})
+        self.assertEqual(out['data']['acts'], [{'title': 'Night', 'clips': ['b', 'storm-2']}])
+        timeline_file.parse(out['data'])
 
     @unittest.skipUnless(shutil.which('node'), 'node is not available in this environment')
     def test_a_refused_timeline_edit_is_not_left_on_screen(self):

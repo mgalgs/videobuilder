@@ -93,55 +93,96 @@ class StarterCardsOnPages(unittest.TestCase):
 
 
 class NewVideoPage(unittest.TestCase):
+    """New video is one small form: a name, a project, an optional
+    description and Create. Everything else is set in the editor."""
+
     def _page(self, names=('acme/launch', 'acme/teaser', 'solo', 'zeta/one', 'capabilities/demo')):
         return pages.new_video_page(list(names)).decode()
 
-    def test_the_required_section_comes_first_with_the_optional_line_under_it(self):
+    def test_the_form_is_a_name_a_project_a_description_and_create(self):
         page = self._page()
-        required = page.index('<section class="required"')
-        self.assertLess(required, page.index('id="name"'))
-        self.assertLess(page.index('id="name"'), page.index('id="project"'))
-        self.assertLess(page.index('id="project"'), page.index('class="optional-note"'))
-        self.assertIn('<p class="optional-note">Everything below is optional, and you can change any of it as '
-                      'you go.</p>', page)
-        self.assertLess(page.index('class="optional-note"'), page.index('class="ways"'))
-        self.assertLess(page.index('class="ways"'), page.index('id="parts"'))
-        self.assertIn('Project <i>(optional)</i>', page)
-        # No per-part "Optional" tags, no callout about acts, no project/name syntax.
-        self.assertNotIn('project/name', page)
-        self.assertNotIn('Acts are optional', page)
-        self.assertNotIn('>Optional<', page)
+        form = re.search(r'<form class="nv-form" id="nv-form" novalidate>(.*?)</form>', page, re.S).group(1)
+        self.assertEqual(re.findall(r'<(input|select|textarea|button)\b[^>]*\bid="([^"]+)"', form),
+                         [('input', 'name'), ('select', 'project'), ('input', 'new-project'),
+                          ('textarea', 'about'), ('button', 'go')])
+        self.assertIn('>Create</button>', form)
+        self.assertIn('Description <i>(optional)</i>', form)
+        main = re.search(r'<main class="nv">(.*?)</main>', page, re.S).group(1)
+        for gone in ('class="ways"', 'id="parts"', 'copy-from', 'nv-pick', 'Look', 'Characters', 'Start building',
+                     'drop files'):
+            self.assertNotIn(gone, main)
 
-    def test_the_project_dropdown_lists_the_projects_then_a_new_one_and_defaults_to_none(self):
-        page = self._page()
-        select = re.search(r'<select id="project">(.*?)</select>', page).group(1)
+    def test_the_project_dropdown_lists_the_projects_first_one_chosen_then_none_and_a_new_one(self):
+        select = re.search(r'<select id="project">(.*?)</select>', self._page()).group(1)
         options = re.findall(r'<option value="([^"]*)"( selected)?>([^<]*)</option>', select)
         self.assertEqual([(v, label) for v, _, label in options],
-                         [('', 'None'), ('acme', 'acme'), ('zeta', 'zeta'), ('+new', 'New project…')])
-        self.assertEqual([v for v, sel, _ in options if sel], [''])
-        self.assertIn('id="new-project"', page)
+                         [('acme', 'acme'), ('zeta', 'zeta'), ('', 'No project'), ('+new', '+ New project…')])
+        self.assertEqual([v for v, sel, _ in options if sel], ['acme'])
+        select = re.search(r'<select id="project">(.*?)</select>', self._page(['solo'])).group(1)
+        self.assertEqual(re.findall(r'<option value="([^"]*)" selected>', select), [''])
         self.assertEqual(pages.new_video_projects([]), [])
 
-    def test_the_three_ways_and_six_parts_in_order(self):
-        page = self._page()
-        self.assertEqual(re.findall(r'data-way="(\w+)"', page), ['reel', 'short', 'epic'])
-        for title in ('Drop clips and music', 'Describe a short video', 'Plan a film (acts and scenes)'):
-            self.assertIn(f'<b>{title}</b>', page)
-        self.assertEqual(re.findall(r'id="part-(\w+)"', page), ['about', 'look', 'bible', 'clips', 'audio', 'files'])
-        self.assertIn('Start building', page)
 
-    def test_every_look_on_offer_is_a_real_look(self):
-        from videobuilder import looks
-        ids = [l['id'] for l in pages.NEW_VIDEO_LOOKS]
-        self.assertEqual(ids[0], 'as-shot')
-        for i in ids[1:]:
-            self.assertEqual(looks.get(i).name, i)
+@unittest.skipUnless(shutil.which('node'), 'node is not available in this environment')
+class NewVideoCreate(unittest.TestCase):
+    """new_video.js run under node against a small stand-in for the page."""
 
-    def test_audio_lanes_are_numbered_never_named_by_kind(self):
+    def run_page(self, name, about, project='acme', stored=None, query=''):
         script = (resources.files('videobuilder') / 'new_video.js').read_text()
-        self.assertIn('Audio ${i+1}', script)
-        for word in ('Music lane', 'Ambience', 'Dialogue lane'):
-            self.assertNotIn(word, script)
+        harness = """
+const els={};
+function el(id,value=''){const e={id,value,hidden:false,disabled:false,textContent:'',options:[],listeners:{},
+  addEventListener(t,f){(this.listeners[t]??=[]).push(f)},focus(){},setSelectionRange(a,b){this.sel=[a,b]},
+  insertAdjacentHTML(){}};els[id]=e;return e}
+el('nv-data').textContent=JSON.stringify({starters:{explainer:'A [topic] explainer.'}});
+el('name',NAME);el('new-project');el('about',ABOUT);el('go');el('name-error');el('nv-form');
+const project=el('project',PROJECT);project.options=[{value:'acme'},{value:'zeta'},{value:''},{value:'+new'}];
+const store=new Map(STORED==null?[]:[['vb-new-project',STORED]]);
+globalThis.localStorage={getItem:k=>store.has(k)?store.get(k):null,setItem:(k,v)=>store.set(k,v)};
+globalThis.document={getElementById:id=>els[id],querySelector:s=>els[s.slice(1)]};
+globalThis.location={search:QUERY,href:''};
+const calls=[];
+globalThis.fetch=async(url,init)=>{calls.push([url,JSON.parse(init.body)]);
+  return {ok:true,json:async()=>({name:'x',video:'film'})}};
+"""
+        harness = (harness.replace('NAME', json.dumps(name)).replace('ABOUT', json.dumps(about))
+                   .replace('PROJECT', json.dumps(project)).replace('STORED', json.dumps(stored))
+                   .replace('QUERY', json.dumps(query)))
+        run = """
+(async()=>{
+  const before=project.value;
+  for(const f of els['nv-form'].listeners.submit)await f({preventDefault(){}});
+  await new Promise(r=>setTimeout(r,0));
+  console.log(JSON.stringify({calls,href:location.href,stored:store.get('vb-new-project')??null,before,
+    about:els.about.value}));
+})();
+"""
+        result = subprocess.run(['node', '-'], input=(harness + script + run).encode(), capture_output=True)
+        self.assertEqual(result.returncode, 0, result.stderr.decode())
+        return json.loads(result.stdout)
+
+    def test_create_with_a_description_sends_it_as_the_first_note(self):
+        out = self.run_page('Snow Day', 'A reel of the snow day.')
+        self.assertEqual(out['calls'], [['/api/videos/new', {'name': 'acme/snow-day', 'start': 'blank'}],
+                                        ['/v/acme/snow-day/api/videos/first-note',
+                                         {'description': 'A reel of the snow day.'}]])
+        self.assertEqual(out['href'], '/v/acme/snow-day/')
+        self.assertEqual(out['stored'], 'acme')
+
+    def test_create_without_a_description_only_makes_the_video(self):
+        out = self.run_page('quiet', '   ', project='')
+        self.assertEqual(out['calls'], [['/api/videos/new', {'name': 'quiet', 'start': 'blank'}]])
+        self.assertEqual(out['href'], '/v/quiet/')
+
+    def test_the_project_used_last_is_chosen(self):
+        self.assertEqual(self.run_page('a', '', stored='zeta')['calls'][0][1]['name'], 'zeta/a')
+        # One that is gone (or no access any more) leaves the first project chosen.
+        self.assertEqual(self.run_page('a', '', stored='gone')['calls'][0][1]['name'], 'acme/a')
+
+    def test_a_starter_prompt_fills_the_description(self):
+        out = self.run_page('a', '', query='?starter=explainer')
+        self.assertEqual(out['about'], 'A [topic] explainer.')
+        self.assertEqual(out['calls'][1], ['/v/acme/a/api/videos/first-note', {'description': 'A [topic] explainer.'}])
 
 
 class LibrarySort(unittest.TestCase):

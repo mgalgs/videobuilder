@@ -155,16 +155,16 @@ def git_state(root, path):
     return 'dirty' if r.stdout.strip() else 'clean'
 
 
-def commit_path(root, path, message):
-    """Commit the one file `path` (added first when untracked) with `message`.
-    Returns the new commit's sha. Raises RuntimeError, leaving the index as
-    it was, if git refuses."""
+def commit_path(root, path, message, *more):
+    """Commit the one file `path` (added first when untracked) with `message`,
+    and any `more` files already added. Returns the new commit's sha. Raises
+    RuntimeError, leaving the index as it was, if git refuses."""
     tracked = _git(root, 'ls-files', '--error-unmatch', '--', path).returncode == 0
     if not tracked:
         r = _git(root, 'add', '--', path)
         if r.returncode:
             raise RuntimeError(r.stderr.strip() or 'git add failed')
-    r = _git(root, 'commit', '--quiet', '-m', message, '--', path)
+    r = _git(root, 'commit', '--quiet', '-m', message, '--', path, *more)
     if r.returncode:
         if not tracked:
             _git(root, 'rm', '--cached', '--quiet', '--', path)

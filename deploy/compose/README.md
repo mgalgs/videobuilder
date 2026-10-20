@@ -98,7 +98,7 @@ No domain? From your own computer, run
 1. Open `https://editor.example.com` and sign in as `VB_ADMIN` with the
    password from `admin-password`.
 2. Click **+ New video**, give it a name, describe what it's for, and click
-   **Start building**. That first note goes to the builder.
+   **Create**. That first note goes to the builder.
 3. The video page shows the builder working. A build usually takes several
    minutes. When it lands, a new version plays.
 4. Use **Chat** to send another note ("make the title bigger at 0:03"). Each
