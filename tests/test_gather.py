@@ -566,6 +566,14 @@ class _BrowserSite(BaseHTTPRequestHandler):
         self.end_headers()
         if self.path == '/settle':
             self.wfile.write(SETTLE_PAGE.encode())
+        elif self.path == '/settle-stalled-image':
+            self.wfile.write(SETTLE_PAGE.replace('</body>', '<img src="/hang"></body>').encode())
+        elif self.path == '/settle-stalled-fetch':
+            self.wfile.write(SETTLE_PAGE.replace(
+                '</body>', '<script>onload = () => fetch("/hang")</script></body>').encode())
+        elif self.path == '/hang':
+            self.wfile.flush()
+            self.release.wait(30)
         elif self.path == '/never':
             # Enough to draw, then the response never ends.
             self.wfile.write(b'<!doctype html><html><body style="margin:0;background:rgb(32,64,192)">'
@@ -621,6 +629,22 @@ class Screenshot(unittest.TestCase):
         # The revealed element is fully drawn, not part way through its fade.
         for x in (60, 400, 740):
             self.assertTrue(near(rows[140][x], REVEAL_GREEN, slack=4), (x, rows[140][x]))
+
+    def assert_settled(self, rows):
+        for y in (460, 520, 590):
+            for x in (10, 400, 790):
+                self.assertTrue(near(rows[y][x], PAGE_BLUE), (x, y, rows[y][x]))
+        for x in (60, 400, 740):
+            self.assertTrue(near(rows[140][x], REVEAL_GREEN, slack=4), (x, rows[140][x]))
+
+    def test_a_subresource_that_never_ends_still_gets_the_page_settled_in_time(self):
+        # One stalls the load event, the other the network quiet after it.
+        for path in ('/settle-stalled-image', '/settle-stalled-fetch'):
+            with self.subTest(path):
+                start = time.monotonic()
+                rows = pixels(self.shot(path, timeout=20))
+                self.assertLess(time.monotonic() - start, 16)
+                self.assert_settled(rows)
 
     def test_a_phone_sized_shot_is_phone_sized(self):
         rows = pixels(self.shot('/settle', size=gather.PHONE))

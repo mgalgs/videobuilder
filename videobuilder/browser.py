@@ -21,6 +21,11 @@ from pathlib import Path
 # Kept back from the deadline for the capture itself.
 CAPTURE_RESERVE = 2.0
 QUIET = 0.5
+# How long settling waits for the load event, then for the network to go
+# quiet: one subresource that never ends (a stalled pixel, a long-poll, an
+# event stream) must not use up the page's whole budget before the cleanup.
+LOAD_WAIT = 8.0
+QUIET_WAIT = 3.0
 SCROLL_STEPS = 40
 
 # Finishes animations instantly. 0.01ms rather than 0, so transitionend and
@@ -242,9 +247,9 @@ def _settle(pipe, session, url, deadline):
                          session, deadline=until or deadline)
 
     pipe.call('Page.navigate', {'url': url}, session, deadline=deadline)
-    if not pipe.wait_event('Page.loadEventFired', deadline):
-        raise TimeoutError('the page did not finish loading')
-    pipe.wait_quiet(deadline)
+    # No load event in time still settles the page as it stands.
+    pipe.wait_event('Page.loadEventFired', min(deadline, time.monotonic() + LOAD_WAIT))
+    pipe.wait_quiet(min(deadline, time.monotonic() + QUIET_WAIT))
     # Fonts get a bounded wait of their own: a font that never arrives must
     # not cost the rest of the settling.
     try:
@@ -254,7 +259,7 @@ def _settle(pipe, session, url, deadline):
     evaluate(_CONSENT_JS)
     evaluate(f'{_SETTLE_JS}({json.dumps(_STILL_CSS)}, {SCROLL_STEPS})')
     # Scrolling can load lazy images and start late banners or animations.
-    pipe.wait_quiet(min(deadline, time.monotonic() + 3))
+    pipe.wait_quiet(min(deadline, time.monotonic() + QUIET_WAIT))
     evaluate('document.getAnimations().forEach(a => { try { a.finish() } catch (e) {} })')
     evaluate(_CONSENT_JS)
     evaluate('new Promise(r => setTimeout(r, 300))')
