@@ -13,15 +13,13 @@ import html.parser
 import re
 import shutil
 import struct
-import subprocess
-import tempfile
 import time
 from pathlib import Path
 from urllib.parse import urljoin, urlsplit
 import urllib.error
 import urllib.request
 
-from . import guard
+from . import browser, guard
 
 MAX_PAGES = 10
 TIME_BUDGET = 120
@@ -401,20 +399,8 @@ def theme(url, css, theme_color=None):
     return '\n'.join(lines)
 
 
-def _screenshot(chromium, proxy_port, url, size, timeout):
-    # A throwaway profile per visit: no cookies or storage carry between pages or gathers.
-    with tempfile.TemporaryDirectory(prefix='vb-gather-') as profile:
-        path = Path(profile) / 'shot.png'
-        subprocess.run([chromium, '--headless=new', '--disable-gpu', '--disable-dev-shm-usage',
-                        '--hide-scrollbars', '--no-first-run', '--virtual-time-budget=8000',
-                        f'--user-data-dir={profile}/profile',
-                        *guard.chromium_proxy_args(proxy_port),
-                        f'--screenshot={path}', f'--window-size={size[0]},{size[1]}', url],
-                       capture_output=True, timeout=timeout, check=True)
-        data = path.read_bytes() if path.exists() else b''
-    if not data:
-        raise ValueError('chromium produced no screenshot')
-    return data
+def _screenshot(chromium, proxy_port, url, size, timeout, extra_args=()):
+    return browser.screenshot(chromium, url, size, timeout, guard.chromium_proxy_args(proxy_port), extra_args)
 
 
 def _artwork(fetcher, parser, page_url, allow_loopback, deadline, page_timeout, room, skipped):

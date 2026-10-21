@@ -2,13 +2,15 @@
 the skip rules and the time cap, against a local fixture site. The fixture
 is reached only because these tests pass `allow_loopback=True`, the explicit
 test-only switch guard.py documents; production code never does."""
+import os
 import struct
 import threading
 import time
 import unittest
-from http.server import BaseHTTPRequestHandler, HTTPServer
+import zlib
+from http.server import BaseHTTPRequestHandler, HTTPServer, ThreadingHTTPServer
 
-from videobuilder import gather, guard
+from videobuilder import browser, gather, guard
 
 
 def png(width, height):
@@ -489,6 +491,146 @@ class WriteAttachments(unittest.TestCase):
         names = [u[1] for u in store.uploads]
         self.assertNotIn('gathered-pages.md', names)
         self.assertEqual(len(ids), len(store.uploads))
+
+
+def pixels(data):
+    """Decode an 8-bit RGB or RGBA, non-interlaced PNG (what Chromium writes)
+    into rows of (r, g, b) tuples."""
+    assert data[:8] == b'\x89PNG\r\n\x1a\n'
+    pos, idat = 8, b''
+    while pos < len(data):
+        length, kind = struct.unpack('>I4s', data[pos:pos + 8])
+        body = data[pos + 8:pos + 8 + length]
+        if kind == b'IHDR':
+            width, height, depth, colour, _, _, interlace = struct.unpack('>IIBBBBB', body)
+            assert depth == 8 and colour in (2, 6) and not interlace
+        elif kind == b'IDAT':
+            idat += body
+        pos += 12 + length
+    channels = 3 if colour == 2 else 4
+    stride = width * channels
+    raw, rows, previous = zlib.decompress(idat), [], bytearray(stride)
+    for y in range(height):
+        kind, line = raw[y * (stride + 1)], bytearray(raw[y * (stride + 1) + 1:(y + 1) * (stride + 1)])
+        for i in range(stride):
+            left = line[i - channels] if i >= channels else 0
+            up = previous[i]
+            corner = previous[i - channels] if i >= channels else 0
+            if kind == 1:
+                line[i] = (line[i] + left) & 255
+            elif kind == 2:
+                line[i] = (line[i] + up) & 255
+            elif kind == 3:
+                line[i] = (line[i] + (left + up) // 2) & 255
+            elif kind == 4:
+                p = left + up - corner
+                pa, pb, pc = abs(p - left), abs(p - up), abs(p - corner)
+                line[i] = (line[i] + (left if pa <= pb and pa <= pc else up if pb <= pc else corner)) & 255
+        rows.append([tuple(line[x * channels:x * channels + 3]) for x in range(width)])
+        previous = line
+    return rows
+
+
+def near(colour, expected, slack=12):
+    return all(abs(a - b) <= slack for a, b in zip(colour, expected))
+
+
+PAGE_BLUE = (32, 64, 192)
+BANNER_RED = (255, 0, 0)
+REVEAL_GREEN = (0, 160, 0)
+# A cookie banner pinned to the bottom of the viewport, and an element that a
+# script reveals (opacity 0 -> 1 over a slow transition) once it is in view.
+SETTLE_PAGE = (
+    '<!doctype html><html><head><title>Settle</title><style>'
+    'html,body{margin:0;background:rgb(32,64,192)}'
+    '.reveal{height:200px;margin:40px;background:rgb(0,160,0);opacity:0;transition:opacity 4s linear 1s}'
+    '.reveal.in{opacity:1}'
+    '#notice{position:fixed;left:0;right:0;bottom:0;height:150px;background:rgb(255,0,0);color:#fff}'
+    '.tall{height:1600px}'
+    '</style></head><body>'
+    '<div class="reveal" id="top"></div><div class="tall"></div><div class="reveal" id="low"></div>'
+    '<div id="notice"><p>We use cookies to improve your experience.</p><button>Accept all</button></div>'
+    '<script>'
+    'new IntersectionObserver(es => es.forEach(e => e.isIntersecting && e.target.classList.add("in")))'
+    '.observe(document.getElementById("top"));'
+    'document.querySelector("#notice button").onclick = () => { document.title = "accepted"; };'
+    '</script></body></html>')
+
+
+class _BrowserSite(BaseHTTPRequestHandler):
+    release = threading.Event()
+
+    def do_GET(self):
+        self.send_response(200)
+        self.send_header('Content-Type', 'text/html')
+        self.end_headers()
+        if self.path == '/settle':
+            self.wfile.write(SETTLE_PAGE.encode())
+        elif self.path == '/never':
+            # Enough to draw, then the response never ends.
+            self.wfile.write(b'<!doctype html><html><body style="margin:0;background:rgb(32,64,192)">'
+                             + b' ' * 4096 + b'<p>still loading')
+            self.wfile.flush()
+            self.release.wait(30)
+
+    def log_message(self, *a):
+        pass
+
+
+CHROMIUM = gather.find_chromium()
+# Test-only: a container with no user namespaces needs Chromium's sandbox off.
+TEST_ARGS = ('--no-sandbox',) if os.environ.get('VB_TEST_CHROMIUM_NO_SANDBOX') else ()
+
+
+class Command(unittest.TestCase):
+    def test_devtools_on_a_pipe_never_a_port_and_every_request_through_the_guard(self):
+        argv = browser.command('chromium', (390, 844), '/tmp/profile', guard.chromium_proxy_args(4321))
+        self.assertIn('--remote-debugging-pipe', argv)
+        self.assertFalse([arg for arg in argv if arg.startswith('--remote-debugging-port')])
+        self.assertNotIn('--no-sandbox', argv)
+        for arg in guard.chromium_proxy_args(4321):
+            self.assertIn(arg, argv)
+
+
+@unittest.skipUnless(CHROMIUM, 'no chromium')
+class Screenshot(unittest.TestCase):
+    def setUp(self):
+        _BrowserSite.release = threading.Event()
+        self.server = ThreadingHTTPServer(('127.0.0.1', 0), _BrowserSite)
+        self.server.daemon_threads = True
+        self.server.block_on_close = False
+        thread = threading.Thread(target=self.server.serve_forever, daemon=True)
+        thread.start()
+        self.addCleanup(self.server.server_close)
+        self.addCleanup(self.server.shutdown)
+        self.addCleanup(_BrowserSite.release.set)
+        self.proxy = guard.GuardProxy(allow_loopback=True)
+        self.addCleanup(self.proxy.close)
+
+    def shot(self, path, size=(800, 600), timeout=20):
+        url = f'http://127.0.0.1:{self.server.server_address[1]}{path}'
+        return gather._screenshot(CHROMIUM, self.proxy.port, url, size, timeout, TEST_ARGS)
+
+    def test_the_cookie_banner_is_hidden_and_the_reveal_is_finished(self):
+        rows = pixels(self.shot('/settle'))
+        self.assertEqual((len(rows[0]), len(rows)), (800, 600))
+        # Where the banner was pinned, the page itself shows.
+        for y in (460, 520, 590):
+            for x in (10, 400, 790):
+                self.assertTrue(near(rows[y][x], PAGE_BLUE), (x, y, rows[y][x]))
+        # The revealed element is fully drawn, not part way through its fade.
+        for x in (60, 400, 740):
+            self.assertTrue(near(rows[140][x], REVEAL_GREEN, slack=4), (x, rows[140][x]))
+
+    def test_a_phone_sized_shot_is_phone_sized(self):
+        rows = pixels(self.shot('/settle', size=gather.PHONE))
+        self.assertEqual((len(rows[0]), len(rows)), gather.PHONE)
+
+    def test_a_page_that_never_finishes_loading_is_shot_at_the_deadline(self):
+        start = time.monotonic()
+        rows = pixels(self.shot('/never', timeout=6))
+        self.assertLess(time.monotonic() - start, 7)
+        self.assertTrue(near(rows[300][400], PAGE_BLUE), rows[300][400])
 
 
 if __name__ == '__main__':
