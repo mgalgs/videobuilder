@@ -76,10 +76,11 @@ class DeleteWithAccounts(AccountMixin, LibraryFixture, unittest.TestCase):
         self.assertEqual(self.library.editor('acme/launch').notes.list(refresh=False), [])
 
     def test_collaborator_and_stranger_are_refused(self):
-        for cookie in (self.erin, self.fred):
-            code, data = self.delete(cookie)
-            self.assertEqual(code, 403)
-            self.assertIn('Only the owner', json.loads(data)['error'])
+        code, data = self.delete(self.erin)
+        self.assertEqual(code, 403)
+        self.assertIn('Only the owner', json.loads(data)['error'])
+        # A stranger can't tell the video exists, as at /v/<name>/.
+        self.assertEqual(self.delete(self.fred)[0], 404)
         code, data = self.request('/v/acme/launch/api/access', headers={'Cookie': self.erin})
         self.assertFalse(data['can_delete'])
         self.assertIn('acme/launch', self.library.names())

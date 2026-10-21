@@ -228,7 +228,7 @@ class Library:
         and drops its access record, so the name is free at once and reads
         like one that never existed. purge_trash removes the entry for good
         after TRASH_DAYS. Shuts the video's open Editor down first. KeyError
-        for no such video; HTTPError 403 for a capability's name or a caller
+        for no such video or one the caller cannot see; HTTPError 403 for a capability's name or a caller
         who is neither the owner nor an admin, 409 while a note is still
         being built."""
         from .editor import HTTPError
@@ -236,7 +236,8 @@ class Library:
         repo = self.path(name)
         flat = name.replace('/', '--')
         with self.lock:
-            if not repo.is_dir():
+            # Someone who can't see the video gets what a missing name gets, as /v/<name>/ does.
+            if not repo.is_dir() or (self.accounts and not self.access.can_access(name, user, self.accounts)):
                 raise KeyError(name)
             if community.is_reserved(name):
                 raise HTTPError(403, 'A capability cannot be deleted here.')
