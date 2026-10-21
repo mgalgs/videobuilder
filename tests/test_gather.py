@@ -639,11 +639,12 @@ class Screenshot(unittest.TestCase):
 
     def test_a_subresource_that_never_ends_still_gets_the_page_settled_in_time(self):
         # One stalls the load event, the other the network quiet after it.
+        # Either, uncapped, would hold settling to its deadline (28s here).
         for path in ('/settle-stalled-image', '/settle-stalled-fetch'):
             with self.subTest(path):
                 start = time.monotonic()
-                rows = pixels(self.shot(path, timeout=20))
-                self.assertLess(time.monotonic() - start, 16)
+                rows = pixels(self.shot(path, timeout=30))
+                self.assertLess(time.monotonic() - start, 20)
                 self.assert_settled(rows)
 
     def test_a_phone_sized_shot_is_phone_sized(self):

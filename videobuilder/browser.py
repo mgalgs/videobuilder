@@ -24,7 +24,7 @@ QUIET = 0.5
 # How long settling waits for the load event, then for the network to go
 # quiet: one subresource that never ends (a stalled pixel, a long-poll, an
 # event stream) must not use up the page's whole budget before the cleanup.
-LOAD_WAIT = 8.0
+LOAD_WAIT = 5.0
 QUIET_WAIT = 3.0
 SCROLL_STEPS = 40
 
