@@ -1,9 +1,12 @@
 """Per-video bare repositories, managed by the `Library` class; the git smart
 HTTP bridge and the library's HTML pages live in git_bridge.py and pages.py,
 re-exported below so existing imports keep working."""
+import datetime
+import json
 import os
 from pathlib import Path
 import re
+import shutil
 import sys
 import threading
 import time
@@ -21,6 +24,11 @@ BLANK_SUMMARY = 'Start a new video'
 # A non-X capability link is read synchronously inside the request, like xpost.read_post (60s/15s).
 CAPABILITY_PAGE_BUDGET = 30
 CAPABILITY_PAGE_TIMEOUT = 15
+# A deleted video waits this long in <root>/trash before purge_trash removes it for good.
+TRASH_DAYS = 30
+TRASH_STAMP = '%Y%m%dT%H%M%SZ'
+# purge_trash runs from tick, every few seconds: it looks at the trash at most this often.
+PURGE_EVERY = 60 * 60
 
 
 def valid_name(name):
@@ -42,6 +50,9 @@ class Library:
         self.compendium_dir = compendium_dir
         self.root = Path(root).resolve()
         self.repos = self.root / 'repos'
+        # Deleted videos (see delete): beside repos/, never in it, so names() can't list one.
+        self.trash = self.root / 'trash'
+        self._purged_at = 0
         self.checkouts = Path(checkouts or self.root / 'checkouts').resolve()
         self.state_dir = Path(state_dir or self.root / 'state').resolve()
         for path in (self.repos, self.checkouts, self.state_dir):
@@ -184,6 +195,99 @@ class Library:
                 store = NoteStore(notes_dir)
             for note in store.list(refresh=False):
                 yield name, note
+        # A deleted video's notes still count against its authors' caps (see delete).
+        for entry, name in self._trashed():
+            notes_dir = entry / 'state' / 'notes'
+            if notes_dir.is_dir():
+                for note in NoteStore(notes_dir).list(refresh=False):
+                    yield name, note
+
+    def _trashed(self):
+        """(directory, video name) for every deleted video still in the trash."""
+        if not self.trash.is_dir():
+            return
+        for entry in sorted(self.trash.iterdir()):
+            try:
+                name = json.loads((entry / 'deleted.json').read_text(encoding='utf-8'))['name']
+            except (OSError, ValueError, KeyError, TypeError):
+                name = entry.name.rsplit('--', 1)[0].replace('--', '/')
+            yield entry, name
+
+    def can_delete(self, name, user):
+        """The video's owner or an admin; anyone at all with accounts off."""
+        if not self.accounts:
+            return True
+        if user is None:
+            return False
+        return self.accounts.is_admin(user) or self.access.get(name, self.accounts)['owner'] == user
+
+    def delete(self, name, user):
+        """Moves `name`'s bare repo, checkout and state dir into a new
+        <root>/trash/<flat name>--<UTC stamp>/ (as repo.git, checkout and
+        state, beside a deleted.json saying whose it was and who deleted it)
+        and drops its access record, so the name is free at once and reads
+        like one that never existed. purge_trash removes the entry for good
+        after TRASH_DAYS. Shuts the video's open Editor down first. KeyError
+        for no such video; HTTPError 403 for a capability's name or a caller
+        who is neither the owner nor an admin, 409 while a note is still
+        being built."""
+        from .editor import HTTPError
+        from .notes import NoteStore
+        repo = self.path(name)
+        flat = name.replace('/', '--')
+        with self.lock:
+            if not repo.is_dir():
+                raise KeyError(name)
+            if community.is_reserved(name):
+                raise HTTPError(403, 'A capability cannot be deleted here.')
+            if not self.can_delete(name, user):
+                raise HTTPError(403, 'Only the owner of this video can delete it.')
+            editor = self.editors.get(name)
+            notes_dir = self.state_dir / flat / 'notes'
+            store = editor.notes if editor else NoteStore(notes_dir) if notes_dir.is_dir() else None
+            if store and store.pending():
+                raise HTTPError(409, 'A note is still being built. Wait for it to finish, then delete.')
+            if editor:
+                del self.editors[name]
+                editor.renders.close()
+                editor.pool.close()
+            now = datetime.datetime.now(datetime.timezone.utc)
+            stamp = now.strftime(TRASH_STAMP)
+            entry = self.trash / f'{flat}--{stamp}'
+            n = 2
+            while entry.exists():
+                entry = self.trash / f'{flat}--{stamp}.{n}'
+                n += 1
+            entry.mkdir(parents=True)
+            record = self.access.get(name, self.accounts) if self.accounts else {'owner': None, 'collaborators': []}
+            (entry / 'deleted.json').write_text(json.dumps({
+                'name': name, 'owner': record['owner'], 'collaborators': record['collaborators'],
+                'deleted_by': user, 'deleted_at': now.isoformat(timespec='seconds'),
+                'access': self.access.drop(name)}, indent=2) + '\n', encoding='utf-8')
+            # The repo first: once it is gone, so is the name.
+            for source, target in ((repo, 'repo.git'), (self.checkouts / flat, 'checkout'),
+                                   (self.state_dir / flat, 'state')):
+                if source.exists():
+                    shutil.move(str(source), str(entry / target))
+        return {'deleted': name}
+
+    def purge_trash(self, force=False):
+        """Removes trash entries more than TRASH_DAYS old, judged by the stamp in
+        each one's name -- at most once every PURGE_EVERY unless `force`."""
+        now = time.time()
+        if not force and now - self._purged_at < PURGE_EVERY:
+            return
+        self._purged_at = now
+        if not self.trash.is_dir():
+            return
+        cutoff = datetime.datetime.fromtimestamp(now - TRASH_DAYS * 86400, datetime.timezone.utc)
+        for entry in self.trash.iterdir():
+            try:
+                stamp = datetime.datetime.strptime(entry.name.rsplit('--', 1)[1][:16], TRASH_STAMP)
+            except (IndexError, ValueError):
+                continue
+            if stamp.replace(tzinfo=datetime.timezone.utc) < cutoff:
+                shutil.rmtree(entry, ignore_errors=True)
 
     def check_note_cap(self, author, is_admin):
         """Mirrors Editor.check_note_cap, for the library-wide capability-
@@ -689,6 +793,10 @@ class Library:
     def tick(self):
         """Advance unfinished notes in every repo, opening an editor only where one is pending."""
         from .notes import NoteStore
+        try:
+            self.purge_trash()
+        except Exception as e:
+            print(f'[editor] trash purge failed: {e}', file=sys.stderr, flush=True)
         for name in self.names():
             if name not in self.editors:
                 notes = self.state_dir / name.replace('/', '--') / 'notes'
@@ -700,9 +808,11 @@ class Library:
                 print(f'[editor] {name}: note poll failed: {e}', file=sys.stderr, flush=True)
 
     def picture_dirs(self):
-        """Every project's pictures dir, open or not, for the daily picture cap
-        (see pictures.Pictures.check_daily_cap), which spans the whole library."""
-        return [self.state_dir / name.replace('/', '--') / 'pictures' for name in self.names()]
+        """Every project's pictures dir, open or not, deleted ones still in the
+        trash included, for the daily picture cap (see
+        pictures.Pictures.check_daily_cap), which spans the whole library."""
+        return ([self.state_dir / name.replace('/', '--') / 'pictures' for name in self.names()] +
+                [entry / 'state' / 'pictures' for entry, _ in self._trashed()])
 
     def tick_pictures(self):
         """Poll generated pictures in every repo, opening an editor only where a

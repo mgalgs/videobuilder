@@ -213,6 +213,12 @@ POST /api/videos/new {name,start:"blank"|"copy",from?}
                                      "copy"; 400 invalid/existing name, or a
                                      name under the reserved `capabilities/`
                                      namespace (see community.is_reserved)
+POST /api/videos/delete {name}       200 {deleted}: moves the video to the
+                                     library's trash (Library.delete); owner
+                                     or admin only with accounts (403), 403
+                                     for a capability, 409 while a note is
+                                     unfinished, 404 no such video; never
+                                     reachable with a key
 POST /v/<name>/api/videos/first-note {description?,attachments?:[id...],
                                       links?:[url...]}
                                      200 note: the video's first note, built
@@ -263,7 +269,9 @@ POST /api/signup {username,password,confirm}
                                      200 {name}, Set-Cookie vb_session;
                                      400 taken/reserved/short/throttled
 POST /api/logout {}                  200 {}; clears vb_session
-GET  /v/<name>/api/access            {owner,collaborators,can_share}
+GET  /v/<name>/api/access            {owner,collaborators,can_share,can_delete};
+                                     without accounts, no one to share with
+                                     and can_delete true
 POST /v/<name>/api/access {action:"invite"|"remove",username}
                                      owner or admin only (403 otherwise);
                                      200; 404 inviting an unknown username

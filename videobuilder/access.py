@@ -82,3 +82,13 @@ class Access:
                 if len(kept) != len(record['collaborators']):
                     record['collaborators'] = kept
                     self._save(data)
+
+    def drop(self, name):
+        """Removes `name`'s record entirely (the video was deleted) and returns
+        it as stored, uids included, or None if it had none."""
+        with self.lock:
+            data = self._load()
+            record = data.pop(name, None)
+            if record is not None:
+                self._save(data)
+            return record

@@ -23,10 +23,16 @@ class LibraryHandler:
     def _access(self, method, name, user):
         library = self.library
         if method == 'GET':
+            if not library.accounts:
+                # No sharing without accounts, but the Share tab still offers Delete.
+                return self._json(200, {'owner': None, 'collaborators': [], 'can_share': False,
+                                        'can_delete': True})
             record = library.access.get(name, library.accounts)
             can_share = library.access.can_share(name, user, library.accounts)
             return self._json(200, {'owner': record['owner'], 'collaborators': record['collaborators'],
-                                    'can_share': can_share})
+                                    'can_share': can_share, 'can_delete': library.can_delete(name, user)})
+        if not library.accounts:
+            raise HTTPError(404, 'not found')
         body = self._body()
         if not library.access.can_share(name, user, library.accounts):
             raise HTTPError(403, 'only the owner can manage access')
@@ -42,7 +48,7 @@ class LibraryHandler:
             raise HTTPError(400, 'unknown action')
         record = library.access.get(name, library.accounts)
         return self._json(200, {'owner': record['owner'], 'collaborators': record['collaborators'],
-                                'can_share': True})
+                                'can_share': True, 'can_delete': library.can_delete(name, user)})
 
     def _whats_new(self, method, route, q, user):
         """What's new: the page and its videos for everyone who can use the
@@ -283,6 +289,15 @@ class LibraryHandler:
                     if library.accounts:
                         library.access.set_owner(result['name'], user, library.accounts)
                     return self._json(201, result)
+                if route == '/api/videos/delete' and method == 'POST':
+                    # Session only (handler_auth never lets a key reach this route); the
+                    # owner, an admin, or anyone with accounts off -- see Library.delete.
+                    body = self._body()
+                    name = _field(body, 'name', str)
+                    try:
+                        return self._json(200, library.delete(name, user))
+                    except (KeyError, ValueError):
+                        raise HTTPError(404, 'no such video') from None
                 if route == '/api/usage' and method == 'GET':
                     # Shared across the library like /api/name, not per-video: an
                     # account's spending isn't scoped to one project.
@@ -401,7 +416,7 @@ class LibraryHandler:
                                            bool(user) if library.accounts else True,
                                            library.whats_new.newest_key())
                         return self._send(200, page, 'text/html; charset=utf-8')
-                    if library.accounts and route == '/api/access':
+                    if route == '/api/access':
                         return self._access(method, name, user)
             if method == 'GET':
                 self._get(route, q, active, user)
