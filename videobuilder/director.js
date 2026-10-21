@@ -2191,7 +2191,7 @@ async function init() {
     state.name=name.name;
     updateName();
     updateAccountBar();
-    if(state.user)loadAccess();
+    if(state.user||libMode)loadAccess();
     loadMusicSources();
     const videos=project.videos||[];
     const picker=$('video-picker');
@@ -2387,9 +2387,53 @@ function renderAccess() {
     li.append(remove);
     $('share-list').append(li)
   }
-  $('tab-share').hidden=$('rail-share').hidden=!a.can_share;
-  $('share-username').closest('.composer-row').hidden=!a.can_share
+  $('tab-share').hidden=$('rail-share').hidden=!(a.can_share||a.can_delete);
+  $('share-username').closest('.composer-row').hidden=!a.can_share;
+  // Without accounts there is no one to share with: the tab holds only Delete.
+  $('share-people').hidden=!a.can_share;
+  $('delete-video').hidden=!a.can_delete
 }
+// The video's library name, as /v/<name>/ shows it.
+function videoName() {
+  return decodeURIComponent(location.pathname.replace(/^\/v\//,'').replace(/\/+$/,''))
+}
+function showDeleteConfirm(open) {
+  $('delete-confirm').hidden=!open;
+  $('delete-open').hidden=open;
+  $('delete-error').hidden=true;
+  $('delete-name').value='';
+  $('delete-go').disabled=true;
+  if (open) {
+    $('delete-expected').textContent=videoName();
+    $('delete-name').focus()
+  }
+}
+$('delete-open').onclick=()=>showDeleteConfirm(true);
+$('delete-cancel').onclick=()=>showDeleteConfirm(false);
+$('delete-name').oninput=()=> {
+  $('delete-go').disabled=$('delete-name').value.trim()!==videoName()
+};
+$('delete-go').onclick=async()=> {
+  $('delete-error').hidden=true;
+  $('delete-go').disabled=true;
+  try {
+    const r=await fetch('/api/videos/delete', {
+      method:'POST',headers: {
+        'Content-Type':'application/json'
+      },body:JSON.stringify( {
+        name:videoName()
+      })
+    });
+    const data=await parseJSON(r);
+    if(!r.ok)throw httpError(r,data);
+    location.href='/'
+  }
+  catch(e) {
+    $('delete-error').textContent=e.message;
+    $('delete-error').hidden=false;
+    $('delete-go').disabled=false
+  }
+};
 async function changeAccess(action,username) {
   $('share-error').hidden=true;
   try {

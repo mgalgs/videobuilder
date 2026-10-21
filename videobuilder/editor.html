@@ -362,6 +362,7 @@
 <button id="sources-details" class="link-button" hidden>Film details: look, length, world and characters</button>
 </div>
       <div id="share-view" class="panel-view" hidden>
+<div id="share-people">
 <p class="versions-intro">Only you and anyone you invite can see this video.</p>
 <div id="share-owner" class="share-row">
 </div>
@@ -373,6 +374,21 @@
 </div>
 <p id="share-error" class="composer-error" hidden>
 </p>
+</div>
+<div id="delete-video" class="delete-video" hidden>
+<button id="delete-open" class="link-button">Delete this video</button>
+<div id="delete-confirm" class="delete-confirm" hidden>
+<p>This removes the video, its versions, notes and uploads from your library.</p>
+<label for="delete-name">Type <strong id="delete-expected"></strong> to confirm.</label>
+<input id="delete-name" autocomplete="off" spellcheck="false">
+<div class="delete-actions">
+<button id="delete-cancel">Cancel</button>
+<button id="delete-go" class="danger" disabled>Delete</button>
+</div>
+<p id="delete-error" class="composer-error" hidden>
+</p>
+</div>
+</div>
 </div>
     </aside>
   </main>
