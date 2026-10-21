@@ -652,6 +652,16 @@ those directories. Checkouts and state use flat names: `acme/launch` becomes
 `acme--launch`. Names have one or two lower-case path parts, for example
 `launch` or `acme/launch`; the first part is only a listing namespace.
 
+**Delete this video** (the video page's Share tab; its owner or an admin, or
+anyone without accounts) moves the bare repository, checkout and state dir to
+`DIR/trash/<flat name>--<UTC stamp>/` as `repo.git`, `checkout` and `state`,
+beside a `deleted.json` recording the owner, collaborators, who deleted it and
+when, and drops the name's entry from `state/access.json`. The name is free at
+once. Entries are removed for good after 30 days. There is no restore button:
+an admin restores one by moving the three directories back to their old places
+(and making sure no new video has taken the name) and, with accounts, putting
+the `access` object from `deleted.json` back under the name in `access.json`.
+
 The index at `/` lists repositories, clone URLs, and links to each video page
 at `/v/<name>/`. Its API is at `/v/<name>/api/…`. Git is served at
 `http://HOST/git/<name>.git`: use that URL with ordinary `git clone`,
