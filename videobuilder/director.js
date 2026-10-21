@@ -229,7 +229,7 @@ function currentVersion() {
 // Not built yet: the blank start, and any Film details saved before the first build (versions.py).
 const notBuilt=v=>v?.kind==='blank'||!!v?.unbuilt;
 function formatInfo() {
-  return state.info?.formats.find(f=>f.name===state.format)
+  return state.info?.formats?.find(f=>f.name===state.format)
 }
 function videoUrl(commit=state.commit) {
   const params={video: state.video, format: state.format};
@@ -266,7 +266,7 @@ function renderFormats() {
     $('player-box').style.aspectRatio=`${f.width} / ${f.height}`;
     resizePlayer();
   }
-  $('phone-format').textContent=state.format.replace('x',':');
+  $('phone-format').textContent=(state.format||'').replace('x',':');
   const wrap=$('desktop-formats');
   wrap.replaceChildren();
   for(const item of formats) {
@@ -2157,7 +2157,10 @@ async function openVideo(video) {
     state.info=await json('info', {
       video
     });
-    const formats=state.info.formats;
+    // A film that doesn't load has no formats; versions and notes still load, so it can be fixed or left.
+    const formats=state.info.formats||[];
+    if(state.info.error&&!formats.length)
+      toast(`This version doesn't load: ${state.info.error.trim().split('\n').pop()}`);
     let saved;
     try {
       saved=localStorage.getItem(`director-format:${video}`);
