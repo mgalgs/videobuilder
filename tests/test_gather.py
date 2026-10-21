@@ -4,6 +4,8 @@ is reached only because these tests pass `allow_loopback=True`, the explicit
 test-only switch guard.py documents; production code never does."""
 import os
 import struct
+import subprocess
+import sys
 import threading
 import time
 import unittest
@@ -585,9 +587,18 @@ class _BrowserSite(BaseHTTPRequestHandler):
         pass
 
 
+def _user_namespaces():
+    """Whether this machine lets an unprivileged process make a user
+    namespace, which Chromium's own sandbox needs."""
+    probe = 'import os; os.unshare(os.CLONE_NEWUSER)'
+    return subprocess.run([sys.executable, '-c', probe], capture_output=True).returncode == 0
+
+
 CHROMIUM = gather.find_chromium()
-# Test-only: a container with no user namespaces needs Chromium's sandbox off.
-TEST_ARGS = ('--no-sandbox',) if os.environ.get('VB_TEST_CHROMIUM_NO_SANDBOX') else ()
+# Test-only: a container with no user namespaces (a docker build, the gate)
+# needs Chromium's sandbox off. Production never passes it.
+NO_SANDBOX = os.environ.get('VB_TEST_CHROMIUM_NO_SANDBOX') or (CHROMIUM and not _user_namespaces())
+TEST_ARGS = ('--no-sandbox',) if NO_SANDBOX else ()
 
 
 class Command(unittest.TestCase):
