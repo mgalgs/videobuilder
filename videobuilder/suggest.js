@@ -188,7 +188,8 @@ function render() {
     const x = BY[keyOf(i)]; if (!x) continue;
     const b = el('button', 'sg-card'); b.type = 'button'; b.setAttribute('role', 'listitem'); b.dataset.key = keyOf(i);
     if (i.why) b.title = i.why;
-    b.innerHTML = `<span class="sg-thumb">${thumb(i)}</span><span class="sg-name">${esc(nameOf(i.family, i.id)).replace(/([/_])/g, '$1<wbr>')}</span>`;
+    b.innerHTML = `<span class="sg-thumb">${thumb(i)}</span><span class="sg-name">${esc(nameOf(i.family, i.id)).replace(/([/_])/g, '$1<wbr>')}</span>` +
+      (i.why ? `<span class="sg-why">${esc(i.why)}</span>` : '');
     b.onmouseenter = () => { b.classList.add('sg-looping'); b.querySelector('video')?.play().catch(() => {}) };
     b.onmouseleave = () => { b.classList.remove('sg-looping'); b.querySelector('video')?.pause() };
     b.onclick = e => { const p = e.target.closest('[data-play]'); if (p) { e.stopPropagation(); play(i); return } pick(i, {user: e.isTrusted}) };
