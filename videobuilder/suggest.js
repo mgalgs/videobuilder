@@ -161,7 +161,7 @@ function thumb(i, big) {
   if (!x) return '';
   if (f === 'looks' || f === 'type' || f === 'capabilities') {
     const k = f === 'looks' ? (x.kind === 'filter' ? 'Filter look' : 'Look') : f === 'type' ? 'Type' : (x.category || '').split(' ')[0];
-    return `<span class="sg-poster" style="background-image:url(${x.poster})"></span>` +
+    return `<img class="sg-poster" src="${x.poster}" alt="" loading="lazy" onerror="this.style.display='none'">` +
       `<video class="sg-loop" muted loop playsinline preload="none" src="${x.clip}"></video>` +
       (big ? '' : `<span class="sg-kind">${esc(k)}</span>`);
   }
@@ -338,6 +338,7 @@ async function openPicker(fam) {
   closePicker();
   const ph = phone();
   const sug = new Set(shown.map(keyOf));
+  const expandedFamilies = new Set();
   const shade = el('div', 'sg-shade' + (ph ? ' phone' : '')), box = el('div', 'sg-picker' + (ph ? ' phone' : ''));
   box.setAttribute('role', 'dialog'); box.setAttribute('aria-label', 'Add to your note'); box.tabIndex = -1;
   shade.onclick = closePicker;
@@ -375,10 +376,42 @@ async function openPicker(fam) {
     `<div class="sg-list">${ms.map(m => `<div class="sg-srow ${sug.has(m.k) ? 'sug' : ''}"><button type="button" class="p" data-play="${esc(m.k)}" aria-label="Play ${esc(m.title)}">${svg(I.play, 12)}</button>` +
       `<span class="info"><b style="font-family:inherit;font-size:13.5px">${esc(m.title)}</b><span>${(m.tags || []).map(t => `<span class="sg-tag">${esc(t)}</span>`).join('')} ${m.duration != null ? fmtTime(m.duration) : ''}</span></span>` +
       `<button type="button" class="use" data-pick="${esc(m.k)}">Use</button></div>`).join('')}</div></section>`;
-  const cats = [...new Set(CAT.capabilities.map(c => c.category))];
+  // Capabilities, curated (hand-written) and from the videobuilder.techniques registry alike (a registry
+  // entry carries `group`, which a curated one never does -- that's how the two are told apart here).
+  // With the search box empty, curated ones show flat as before; each registry family collapses into
+  // one row (title, count, a few cards) until clicked, since there can be hundreds in one family.
+  const matchWords = (c, words) => words.every(w => [c.title, ...(c.aliases || []), ...(c.phrasings || [])]
+    .join(' ').toLowerCase().includes(w));
+  function buildCapSection(query) {
+    const words = query.trim().toLowerCase().split(/\s+/).filter(Boolean);
+    if (words.length) {
+      const matches = CAT.capabilities.filter(c => matchWords(c, words));
+      if (!matches.length) return `<p class="sg-sub">No capabilities match “${esc(query.trim())}”.</p>`;
+      return `<div class="sg-grid">${first(withFam('capabilities', matches)).map(capCard).join('')}</div>`;
+    }
+    const curated = CAT.capabilities.filter(c => !c.group), fromFamilies = CAT.capabilities.filter(c => c.group);
+    const cats = [...new Set(curated.map(c => c.category))];
+    let out = cats.map(cat => `<div class="sg-sub">${esc(cat)}</div><div class="sg-grid">` +
+      `${first(withFam('capabilities', curated.filter(c => c.category === cat))).map(capCard).join('')}</div>`).join('');
+    for (const cat of [...new Set(fromFamilies.map(c => c.category))]) {
+      const items = fromFamilies.filter(c => c.category === cat), open = expandedFamilies.has(cat);
+      out += `<div class="sg-capfam${open ? ' open' : ''}"><button type="button" class="sg-capfam-head" data-togglefam="${esc(cat)}">` +
+        `<span class="sg-arrow">${open ? '▾' : '▸'}</span><b>${esc(cat)}</b><span class="n">${items.length}</span></button>`;
+      if (!open) {
+        out += `<div class="sg-grid sg-capfam-preview">${first(withFam('capabilities', items)).slice(0, 4).map(capCard).join('')}</div>`;
+      } else {
+        const groups = [], byGroup = {};
+        for (const c of items) { if (!byGroup[c.group]) { byGroup[c.group] = []; groups.push(c.group) } byGroup[c.group].push(c) }
+        out += groups.map(g => `<div class="sg-sub">${esc(g)}</div><div class="sg-grid">` +
+          `${first(withFam('capabilities', byGroup[g])).map(capCard).join('')}</div>`).join('');
+      }
+      out += '</div>';
+    }
+    return out;
+  }
   h += `<section class="sg-sec" data-sec="capabilities"><h3>Other capabilities</h3><p>Everything else the builder can do, each with its demo.</p>` +
-    cats.map(cat => `<div class="sg-sub">${esc(cat)}</div><div class="sg-grid">${first(withFam('capabilities', CAT.capabilities.filter(c => c.category === cat))).map(capCard).join('')}</div>`).join('') +
-    '</section>';
+    `<input type="search" class="sg-capsearch" placeholder="Search capabilities" aria-label="Search capabilities">` +
+    `<div class="sg-capbody">${buildCapSection('')}</div></section>`;
   body.innerHTML = h;
   if (!ph) {
     const vw = innerWidth, vh = innerHeight;
@@ -406,10 +439,21 @@ async function openPicker(fam) {
     if (body.scrollTop + body.clientHeight >= body.scrollHeight - 4) cur = secs[secs.length - 1]; setTab(cur.dataset.sec) });
   body.style.scrollBehavior = 'auto'; body.scrollTop = top(body.querySelector(`[data-sec="${fam}"]`)); body.style.scrollBehavior = '';
   setTab(fam);
-  for (const c of body.querySelectorAll('.sg-gcard')) {
+  const wireCards = root => { for (const c of root.querySelectorAll('.sg-gcard')) {
     c.onmouseenter = () => { c.classList.add('sg-looping'); c.querySelector('video')?.play().catch(() => {}) };
     c.onmouseleave = () => { c.classList.remove('sg-looping'); c.querySelector('video')?.pause() };
-  }
+  } };
+  wireCards(body);
+  const capSearch = box.querySelector('.sg-capsearch'), capBody = box.querySelector('.sg-capbody');
+  const renderCapBody = () => { capBody.innerHTML = buildCapSection(capSearch.value); wireCards(capBody) };
+  capSearch.addEventListener('input', renderCapBody);
+  capBody.addEventListener('click', e => {
+    const t = e.target.closest('[data-togglefam]');
+    if (!t) return;
+    const fam = t.dataset.togglefam;
+    if (expandedFamilies.has(fam)) expandedFamilies.delete(fam); else expandedFamilies.add(fam);
+    renderCapBody();
+  });
   body.addEventListener('click', e => {
     const p = e.target.closest('[data-play]');
     if (p) { const [f, ...id] = p.dataset.play.split(':'); play({family: f, id: id.join(':')}); return }

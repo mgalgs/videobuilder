@@ -13,7 +13,7 @@
 .sg-card .sg-name{font-size:12px;font-weight:700;line-height:1.25;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;min-height:30px}
 .sg-card .sg-kind{position:absolute;left:5px;top:5px;font-size:10px;font-weight:700;letter-spacing:.02em;
   background:#0d0d10cc;color:#c9c9d1;border-radius:5px;padding:1px 5px}
-.sg-poster{position:absolute;inset:0;background-size:cover;background-position:center}
+.sg-poster{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
 .sg-loop{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:0;pointer-events:none}
 .sg-looping .sg-loop{opacity:1}
 @keyframes sg-in{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:none}}
@@ -118,6 +118,20 @@
 .sg-tag{font-size:10.5px;background:#ffffff14;border-radius:6px;padding:1px 6px;color:#c9c9d1;margin-right:3px}
 .sg-note{font-size:11.5px;color:#8a8a93;margin:6px 0 0}
 
+/* the capabilities section's search box and collapsed capability-family rows */
+.sg-capsearch{display:block;width:100%;min-height:38px;margin:2px 0 10px;padding:0 12px;border-radius:10px;
+  border:1px solid #2c2c33;background:#1d1d22;color:#fff;font:inherit;font-size:13px;box-sizing:border-box}
+.sg-capsearch::placeholder{color:#8a8a93}
+.sg-capsearch:focus{outline:none;border-color:#5a5a63}
+.sg-capfam{margin-top:12px}
+.sg-capfam-head{display:flex;align-items:center;gap:8px;width:100%;min-height:38px;padding:4px 2px;border:0;
+  background:none;color:#fff;font:inherit;font-weight:700;font-size:12.5px;cursor:pointer;text-align:left}
+.sg-capfam-head:hover{color:#fff}
+.sg-capfam-head .sg-arrow{flex:none;opacity:.7;font-size:11px}
+.sg-capfam-head .n{font-weight:600;opacity:.6;margin-left:auto}
+.sg-capfam-preview{opacity:.85}
+
 @media (prefers-reduced-motion:reduce){.sg-card,.sg-chip,.sg-picker{animation:none}}
 .sg-picker:focus{outline:none}
-@media (max-width:700px){.sg-x{width:44px;height:44px;border-radius:22px}.sg-chip{height:36px;border-radius:18px}.sg-chip .sg-dot,.sg-chip .sg-mini{width:28px;height:28px;border-radius:14px}}
+@media (max-width:700px){.sg-x{width:44px;height:44px;border-radius:22px}.sg-chip{height:36px;border-radius:18px}.sg-chip .sg-dot,.sg-chip .sg-mini{width:28px;height:28px;border-radius:14px}
+  .sg-capsearch{min-height:44px}.sg-capfam-head{min-height:44px}}
