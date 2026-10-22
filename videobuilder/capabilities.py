@@ -1055,6 +1055,13 @@ TECHNIQUE_FAMILIES = {
 # page_html/techniques_family_page_html). Found by reading the technique modules' `api` and `name`
 # against CATALOG. May name only techniques present in this checkout -- a test checks both sides of
 # every row exist; other branches add their own rows as their techniques land.
+# The technique whose poster a family's card shows, where its first technique's middle frame
+# says little (dip-to-black's is black). A family not named here, or whose pick is absent, shows
+# its first technique.
+TECHNIQUE_FAMILY_POSTER = {
+    'transitions': 'iris-wipe',
+}
+
 TECHNIQUE_OVERLAP = {
     'ease-out-back': 'eased-entrances',   # both demo vb.ease_out_back
 }
@@ -2054,7 +2061,9 @@ def page_html(capabilities_dir, version, header='', header_style='', community=N
         title, description = TECHNIQUE_FAMILIES[fam]
         n = len(members)
         line = f"{description} ({n} technique{'s' if n != 1 else ''})"
-        thumb = _technique_thumb(capabilities_dir, members[0].id)
+        ids_ = {t.id for t in members}
+        poster = TECHNIQUE_FAMILY_POSTER.get(fam)
+        thumb = _technique_thumb(capabilities_dir, poster if poster in ids_ else members[0].id)
         technique_family_cards.append(
             f'<a class="card" href="/capabilities/techniques/{fam}">'
             f'<span class="thumb">{thumb}</span>'
