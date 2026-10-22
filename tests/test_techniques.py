@@ -164,7 +164,7 @@ class Record(unittest.TestCase):
 
 
 def cli(*args):
-    return subprocess.run([sys.executable, '-m', 'videobuilder', 'techniques', *args], cwd=ROOT,
+    return subprocess.run([sys.executable, '-m', 'videobuilder', 'capabilities', *args], cwd=ROOT,
                           capture_output=True, text=True)
 
 
@@ -179,7 +179,7 @@ class Cli(unittest.TestCase):
 
     def test_build_one_writes_clip_poster_and_gallery(self):
         with tempfile.TemporaryDirectory() as d:
-            out = cli('build', '--out', d, '--only', 'dip-to-black', '--jobs', '2')
+            out = cli('gallery', '--out', d, '--only', 'dip-to-black', '--jobs', '2')
             self.assertEqual(out.returncode, 0, out.stderr)
             self.assertEqual(sorted(os.listdir(d)), ['dip-to-black.jpg', 'dip-to-black.mp4', 'index.html'])
             page = Path(d, 'index.html').read_text()
@@ -187,10 +187,10 @@ class Cli(unittest.TestCase):
             self.assertIn('poster="dip-to-black.jpg"', page)
             self.assertIn('prefers-color-scheme: dark', page)
             self.assertNotIn('bounce-ease-out', page)
-            self.assertNotEqual(cli('build', '--out', d, '--only', 'no-such-id').returncode, 0)
+            self.assertNotEqual(cli('gallery', '--out', d, '--only', 'no-such-id').returncode, 0)
 
     def test_gallery_escapes_and_groups(self):
-        from videobuilder.techniques.gallery import gallery_html
+        from videobuilder.capabilities.gallery import gallery_html
         page = gallery_html(techniques.catalog())
         self.assertLess(page.index('id="family-principles"'), page.index('id="family-transitions"'))
         self.assertNotIn('http', page)
