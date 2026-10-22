@@ -6,7 +6,7 @@ import math
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 # The arrow pointer, tip at (0, 0), in pixels at size 1.
 ARROW = ((0, 0), (0, 27), (7, 21), (12, 32), (17.5, 29.5), (12.5, 19), (21, 19))
@@ -84,7 +84,7 @@ def draw(n, cv):
     cv.mark('cursor', *draw_cursor(cv, x, y, hover, label='OPEN'))
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='cursor-state-change',
     name='Cursor state change',
     family='ui',
@@ -97,7 +97,7 @@ TECHNIQUE = Technique(
                'a custom cursor that reacts to what it is pointing at'),
     related=('cursor-path-animation', 'magnetic-button', 'blinking-cursor', 'cursor-follow-auto-zoom',
              'dot-grid-displacement', 'proximity-stagger'),
-    api=('videobuilder.techniques.ui.cursor_state_change.draw_cursor',
-         'videobuilder.techniques.ui.cursor_state_change.hover_amount'),
+    api=('videobuilder.capabilities.ui.cursor_state_change.draw_cursor',
+         'videobuilder.capabilities.ui.cursor_state_change.hover_amount'),
     demo=lambda: demo.film(draw),
 )

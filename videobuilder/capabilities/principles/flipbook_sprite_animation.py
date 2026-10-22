@@ -6,7 +6,7 @@ import math
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def flipbook_index(t, count, fps=12, loop=True, pingpong=False):
@@ -105,7 +105,7 @@ def draw(n, cv):
               color=demo.MUTED, font=demo.mono(20, 600))
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='flipbook-sprite-animation',
     name='Flipbook Sprite Animation',
     family='principles',
@@ -118,8 +118,8 @@ TECHNIQUE = Technique(
                'loop a few hand-drawn poses so the character looks alive'),
     related=('frame-by-frame-hand-drawn-animation', 'layout-animation-flip', 'flip', 'animated-sprite-particles',
              'tile-flip', 'scroll-scrubbed-frame-sequence'),
-    api=('videobuilder.techniques.principles.flipbook_sprite_animation.draw_flipbook',
-         'videobuilder.techniques.principles.flipbook_sprite_animation.flipbook_index',
-         'videobuilder.techniques.principles.flipbook_sprite_animation.sheet_frames'),
+    api=('videobuilder.capabilities.principles.flipbook_sprite_animation.draw_flipbook',
+         'videobuilder.capabilities.principles.flipbook_sprite_animation.flipbook_index',
+         'videobuilder.capabilities.principles.flipbook_sprite_animation.sheet_frames'),
     demo=lambda: demo.film(draw),
 )

@@ -7,7 +7,7 @@ from contextlib import contextmanager
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def point_along(points, fraction, closed=False):
@@ -78,7 +78,7 @@ def draw(n, cv):
     cv.mark('item', x - 46, y - 46, 92, 92)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='path-follow-motion',
     name='Path follow motion',
     family='shapes',
@@ -91,8 +91,8 @@ TECHNIQUE = Technique(
                'animate the icon following a path instead of moving in a straight line'),
     related=('path-emitter', 'arcs', 'follow-through', 'player-movement-trail', 'text-on-a-path',
              'chain-follow-through'),
-    api=('videobuilder.techniques.shapes.path_follow_motion.follow',
-         'videobuilder.techniques.shapes.path_follow_motion.point_along',
-         'videobuilder.techniques.shapes.path_follow_motion.cubic'),
+    api=('videobuilder.capabilities.shapes.path_follow_motion.follow',
+         'videobuilder.capabilities.shapes.path_follow_motion.point_along',
+         'videobuilder.capabilities.shapes.path_follow_motion.cubic'),
     demo=lambda: demo.film(draw),
 )

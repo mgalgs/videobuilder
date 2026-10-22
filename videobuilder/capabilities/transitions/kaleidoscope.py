@@ -7,7 +7,7 @@ import cairo
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def _ramp(x):
@@ -84,7 +84,7 @@ def kaleidoscope(cv, a, b, p, segments=12, turns=0.5, zoom=0.6, fold=0.3):
         mirror_wedges(cv, b, segments, turn, z, alpha=folded * swap)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='kaleidoscope',
     name='Kaleidoscope',
     family='transitions',
@@ -97,7 +97,7 @@ TECHNIQUE = Technique(
                'mirror the shot into a spinning mandala, then land on the new one',
                'a trippy symmetrical spin between the two clips'),
     related=('spin', 'rotoscope-look', 'lens-flare', 'tessellation-triangle-flip', 'flip', 'cube-rotate'),
-    api=('videobuilder.techniques.transitions.kaleidoscope.kaleidoscope',
-         'videobuilder.techniques.transitions.kaleidoscope.mirror_wedges'),
+    api=('videobuilder.capabilities.transitions.kaleidoscope.kaleidoscope',
+         'videobuilder.capabilities.transitions.kaleidoscope.mirror_wedges'),
     demo=lambda: demo.two_scenes(kaleidoscope, start=0.6, length=1.8),
 )

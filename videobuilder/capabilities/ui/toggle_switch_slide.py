@@ -5,7 +5,7 @@ import math
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def _mix(a, b, t):
@@ -44,7 +44,7 @@ def draw(n, cv):
     demo.word(cv, 'ON', demo.W / 2, y, size=56, color=demo.TEAL, alpha=p)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='toggle-switch-slide',
     name='Toggle switch slide',
     family='ui',
@@ -57,6 +57,6 @@ TECHNIQUE = Technique(
                'show the switch being turned on'),
     related=('password-reveal-toggle', 'arrow-slide', 'hover-reveal-actions', 'carousel-slide', 'tile-flip',
              'gradient-shift-button'),
-    api=('videobuilder.techniques.ui.toggle_switch_slide.draw_toggle',),
+    api=('videobuilder.capabilities.ui.toggle_switch_slide.draw_toggle',),
     demo=lambda: demo.film(draw),
 )

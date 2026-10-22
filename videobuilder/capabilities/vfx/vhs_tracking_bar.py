@@ -8,7 +8,7 @@ import cairo
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def tracking_y(p, height, bar=120, top=None, bottom=None):
@@ -82,7 +82,7 @@ def draw(n, cv):
     cv.mark('bar', 0, y - 75, demo.W, 150)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='vhs-tracking-bar',
     name='VHS tracking bar',
     family='vfx',
@@ -95,7 +95,7 @@ TECHNIQUE = Technique(
                'a band of tape static drifting up over the footage'),
     related=('scanline-jitter', 'refresh-bar', 'striped-progress-bar', 'copper-bars', 'audio-waveform-bars',
              'glitch-transition'),
-    api=('videobuilder.techniques.vfx.vhs_tracking_bar.vhs_tracking_bar',
-         'videobuilder.techniques.vfx.vhs_tracking_bar.tracking_y'),
+    api=('videobuilder.capabilities.vfx.vhs_tracking_bar.vhs_tracking_bar',
+         'videobuilder.capabilities.vfx.vhs_tracking_bar.tracking_y'),
     demo=lambda: demo.film(draw),
 )

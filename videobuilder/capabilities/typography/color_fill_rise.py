@@ -3,7 +3,7 @@ floods up through them from the baseline until the whole word is filled."""
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def ink_span(lines, font):
@@ -50,7 +50,7 @@ def draw(n, cv):
     cv.mark('text', *box)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='color-fill-rise',
     name='Color fill rise',
     family='typography',
@@ -63,7 +63,7 @@ TECHNIQUE = Technique(
                'paint the text in from the bottom to the top'),
     related=('liquid-fill-level', 'hue-cycle-fill', 'outline-to-fill', 'liquid-melt', 'choropleth-fill',
              'beveled-3d-text'),
-    api=('videobuilder.techniques.typography.color_fill_rise.draw_fill_rise',
-         'videobuilder.techniques.typography.color_fill_rise.ink_span'),
+    api=('videobuilder.capabilities.typography.color_fill_rise.draw_fill_rise',
+         'videobuilder.capabilities.typography.color_fill_rise.ink_span'),
     demo=lambda: demo.film(draw),
 )

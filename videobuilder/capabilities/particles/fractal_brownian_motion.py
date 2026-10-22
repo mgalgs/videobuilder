@@ -11,7 +11,7 @@ from PIL import Image, ImageOps
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 @lru_cache(maxsize=64)
@@ -111,7 +111,7 @@ def draw(n, cv):
                 alpha=0.15 + 0.85 * on)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='fractal-brownian-motion',
     name='Fractal Brownian motion',
     family='particles',
@@ -124,8 +124,8 @@ TECHNIQUE = Technique(
                'give me smoky, terrain-like noise instead of plain soft blobs'),
     related=('static-noise', 'noise-vertex-wobble', 'turbulence-displacement', 'floyd-steinberg-dithering',
              'perlin-noise-drift', 'burning-ship-fractal'),
-    api=('videobuilder.techniques.particles.fractal_brownian_motion.fbm',
-         'videobuilder.techniques.particles.fractal_brownian_motion.fbm_image',
-         'videobuilder.techniques.particles.fractal_brownian_motion.octave'),
+    api=('videobuilder.capabilities.particles.fractal_brownian_motion.fbm',
+         'videobuilder.capabilities.particles.fractal_brownian_motion.fbm_image',
+         'videobuilder.capabilities.particles.fractal_brownian_motion.octave'),
     demo=lambda: demo.film(draw),
 )

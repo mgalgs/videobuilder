@@ -5,7 +5,7 @@ import math
 import random
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def galaxy_stars(count, t, arms=2, wind=3.4, spin=0.45, shear=0.7, spread=0.3, haze=0.25, seed=7):
@@ -69,7 +69,7 @@ def draw(n, cv):
     cv.mark('galaxy', cx - 250, cy - 210, 500, 420)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='spiral-galaxy',
     name='Spiral galaxy',
     family='particles',
@@ -81,7 +81,7 @@ TECHNIQUE = Technique(
                'stars swirling around a bright middle in spiral arms',
                'a slowly turning spiral of stars like the Milky Way'),
     related=('spiral-bloom', 'orbit', 'swirl', 'spiral-wipe', 'phyllotaxis', 'rotating-rings'),
-    api=('videobuilder.techniques.particles.spiral_galaxy.draw_spiral_galaxy',
-         'videobuilder.techniques.particles.spiral_galaxy.galaxy_stars'),
+    api=('videobuilder.capabilities.particles.spiral_galaxy.draw_spiral_galaxy',
+         'videobuilder.capabilities.particles.spiral_galaxy.galaxy_stars'),
     demo=lambda: demo.film(draw),
 )

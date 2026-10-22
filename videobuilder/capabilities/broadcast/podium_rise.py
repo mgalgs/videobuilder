@@ -3,7 +3,7 @@ rank first, so the winner's tallest block is the last to arrive."""
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 GOLD, SILVER, BRONZE = '#f2b632', '#8e9bff', '#5a6299'
 
@@ -66,7 +66,7 @@ def draw(n, cv):
                 (demo.W - width) / 2, demo.H - 90, width, 300, gap=20)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='podium-rise',
     name='Podium rise',
     family='broadcast',
@@ -79,7 +79,7 @@ TECHNIQUE = Technique(
                'build up a medal stand from third place to first'),
     related=('leaderboard-row-swap', 'character-rise', 'bar-chart-race', 'title-card-reveal', 'pedestal',
              'staggered-cascade-reveal'),
-    api=('videobuilder.techniques.broadcast.podium_rise.podium_rise',
-         'videobuilder.techniques.broadcast.podium_rise.podium_order'),
+    api=('videobuilder.capabilities.broadcast.podium_rise.podium_rise',
+         'videobuilder.capabilities.broadcast.podium_rise.podium_order'),
     demo=lambda: demo.film(draw),
 )

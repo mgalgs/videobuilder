@@ -10,7 +10,7 @@ import videobuilder as vb
 
 from .. import _demo as demo
 from ...compendium import kit
-from ..schema import Technique
+from ..schema import Capability
 
 
 class DroneCamera:
@@ -172,7 +172,7 @@ def draw(n, cv):
     cv.mark('landscape', 0, 0, demo.W, demo.H)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='drone-flyover',
     name='Drone flyover',
     family='camera',
@@ -185,7 +185,7 @@ TECHNIQUE = Technique(
                'swoop forward over the terrain from above'),
     related=('noise-terrain-flyover', 'zoom-to-location-map', 'scale-zoom-through', 'zoom-through',
              'multiplane-camera', 'dolly-zoom'),
-    api=('videobuilder.techniques.camera.drone_flyover.drone_flyover',
-         'videobuilder.techniques.camera.drone_flyover.DroneCamera'),
+    api=('videobuilder.capabilities.camera.drone_flyover.drone_flyover',
+         'videobuilder.capabilities.camera.drone_flyover.DroneCamera'),
     demo=lambda: demo.film(draw),
 )

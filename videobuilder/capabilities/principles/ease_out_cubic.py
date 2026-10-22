@@ -3,7 +3,7 @@ slowing steadily until it stops dead on the target, with no overshoot."""
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def ease_out_cubic(x):
@@ -30,7 +30,7 @@ def draw(n, cv):
     demo.card(cv, cx, y)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='ease-out-cubic',
     name='Ease Out Cubic',
     family='principles',
@@ -43,6 +43,6 @@ TECHNIQUE = Technique(
                'decelerates smoothly as it arrives'),
     related=('slow-in-and-slow-out', 'smooth-scroll-inertia', 'interruptible-motion', 'roll-up',
              'zoom-out-reveal', 'dolly-in-and-out'),
-    api=('videobuilder.techniques.principles.ease_out_cubic.ease_out_cubic',),
+    api=('videobuilder.capabilities.principles.ease_out_cubic.ease_out_cubic',),
     demo=lambda: demo.film(draw),
 )

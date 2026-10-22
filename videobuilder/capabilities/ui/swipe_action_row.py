@@ -3,7 +3,7 @@ buttons hidden under it are uncovered, sharing the gap it leaves."""
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 ROW = '#22242b'
 CURSOR = ((0, 0), (0, 27), (7, 21), (12, 32), (17.5, 29.5), (12.5, 19), (21, 19))
@@ -91,7 +91,7 @@ def draw(n, cv):
     _cursor(cv, cx, cy)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='swipe-action-row',
     name='Swipe action row',
     family='ui',
@@ -104,6 +104,6 @@ TECHNIQUE = Technique(
                'the row slides over and colourful action buttons peek out behind it'),
     related=('hover-reveal-actions', 'stacked-card-reveal', 'magnetic-button', 'hover-lift',
              'highlighter-swipe', 'spring-drag-letters'),
-    api=('videobuilder.techniques.ui.swipe_action_row.swipe_row', 'videobuilder.spring', 'videobuilder.damped'),
+    api=('videobuilder.capabilities.ui.swipe_action_row.swipe_row', 'videobuilder.spring', 'videobuilder.damped'),
     demo=lambda: demo.film(draw),
 )

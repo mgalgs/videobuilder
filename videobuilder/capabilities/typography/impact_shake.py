@@ -5,7 +5,7 @@ kicks on every hit, then settles."""
 from videobuilder import impact
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 HITS = (18, 40, 62)  # frames the word is struck on
 
@@ -25,7 +25,7 @@ def draw(n, cv):
     cv.mark('text', *box)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='impact-shake',
     name='Impact shake',
     family='typography',

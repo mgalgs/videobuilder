@@ -7,7 +7,7 @@ import random
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def explode(text, font, x, y, t, seed=0, speed=6, drag=1.8, gravity=4, spin=540, grow=0.6, life=1.8):
@@ -88,7 +88,7 @@ def draw(n, cv):
     cv.mark('text', *box)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='type-explosion',
     name='Type explosion',
     family='typography',
@@ -101,7 +101,7 @@ TECHNIQUE = Technique(
                'letters burst out from the middle like something went off'),
     related=('shape-burst', 'twirl-warp-text', 'outline-pulse-glow', 'typewriter-reveal', 'liquid-melt',
              'impact-shake'),
-    api=('videobuilder.techniques.typography.type_explosion.draw_type_explosion',
-         'videobuilder.techniques.typography.type_explosion.explode'),
+    api=('videobuilder.capabilities.typography.type_explosion.draw_type_explosion',
+         'videobuilder.capabilities.typography.type_explosion.explode'),
     demo=lambda: demo.film(draw),
 )

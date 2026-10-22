@@ -3,7 +3,7 @@ of headlines, the current one sliding out of the slot as the next slides in."""
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 DIRECTIONS = {'up': (0, -1), 'down': (0, 1), 'left': (-1, 0), 'right': (1, 0)}
 
@@ -62,7 +62,7 @@ def draw(n, cv):
         cv.rect(bx + 40 + i * 34, by + bh - 22, 26, 4, demo.ACCENT if i == showing else demo.LINE, radius=2)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='headline-rotator',
     name='Headline rotator',
     family='broadcast',
@@ -75,7 +75,7 @@ TECHNIQUE = Technique(
                'make the breaking news bar rotate through several headlines'),
     related=('word-carousel-rotate', 'typed-word-rotator', 'turntable-rotation', 'character-rotate-in',
              'word-flip-in', 'spin'),
-    api=('videobuilder.techniques.broadcast.headline_rotator.draw_headline_rotator',
-         'videobuilder.techniques.broadcast.headline_rotator.rotation'),
+    api=('videobuilder.capabilities.broadcast.headline_rotator.draw_headline_rotator',
+         'videobuilder.capabilities.broadcast.headline_rotator.rotation'),
     demo=lambda: demo.film(draw),
 )

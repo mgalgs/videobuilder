@@ -6,7 +6,7 @@ import videobuilder as vb
 from videobuilder import Box, paths
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def _mix(a, b, t):
@@ -93,7 +93,7 @@ def draw(n, cv):
     cv.mark('chart', box.x, box.y, box.w, box.h)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='series-isolate-highlight',
     name='Series isolate highlight',
     family='broadcast',
@@ -106,7 +106,7 @@ TECHNIQUE = Technique(
                'highlight a single line on the graph when its legend entry is picked'),
     related=('difference-highlight', 'callout-highlight', 'shine-glint-sweep', 'luma-wipe', 'spotlight-hover',
              'highlighter-swipe'),
-    api=('videobuilder.techniques.broadcast.series_isolate_highlight.series_isolate_highlight',
-         'videobuilder.techniques.broadcast.series_isolate_highlight.isolate_weights'),
+    api=('videobuilder.capabilities.broadcast.series_isolate_highlight.series_isolate_highlight',
+         'videobuilder.capabilities.broadcast.series_isolate_highlight.isolate_weights'),
     demo=lambda: demo.film(draw),
 )

@@ -3,7 +3,7 @@ a near subject to a far one, so the first goes soft as the second sharpens."""
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 from ...type.kit import blurred
 
 
@@ -40,7 +40,7 @@ def draw(n, cv):
     rack_focus(cv, [(1, _far), (0, _near)], p)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='rack-focus',
     name='Rack focus',
     family='camera',
@@ -53,6 +53,6 @@ TECHNIQUE = Technique(
                'pull focus between two objects in the shot'),
     related=('focus-blur-out', 'focus-breathing', 'character-blur-in', 'whip-pan', 'focus-ring-draw',
              'push-in'),
-    api=('videobuilder.techniques.camera.rack_focus.rack_focus', 'videobuilder.type.kit.blurred'),
+    api=('videobuilder.capabilities.camera.rack_focus.rack_focus', 'videobuilder.type.kit.blurred'),
     demo=lambda: demo.film(draw),
 )

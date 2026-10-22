@@ -5,7 +5,7 @@ import math
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def draw_underline_grow(cv, x, y, w, p, color, rest=None, width=4, rest_width=2, origin=0.5,
@@ -52,7 +52,7 @@ def draw(n, cv):
         demo.dot(cv, cx, cy, r=10, color=demo.INK, alpha=1 - k)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='input-underline-grow',
     name='Input underline grow',
     family='ui',
@@ -65,6 +65,6 @@ TECHNIQUE = Technique(
                'a focus line that grows across the input from the middle'),
     related=('underline-wipe', 'tab-underline-slide', 'character-blur-in', 'underline-swash-draw',
              'border-glow-follow', 'focus-blur-out'),
-    api=('videobuilder.techniques.ui.input_underline_grow.draw_underline_grow',),
+    api=('videobuilder.capabilities.ui.input_underline_grow.draw_underline_grow',),
     demo=lambda: demo.film(draw),
 )

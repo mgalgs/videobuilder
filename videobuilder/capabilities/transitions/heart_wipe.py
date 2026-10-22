@@ -7,7 +7,7 @@ import videobuilder as vb
 from videobuilder import paths
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 N = 160         # points on the heart outline
 MID = -2.6      # the classic heart curve's vertical middle, so it grows about its own centre
@@ -80,7 +80,7 @@ def heart_wipe(cv, a, b, p, center=None, ease=vb.ease_in_expo, rim=None, rim_wid
         paths.draw(cv, pts, rim, width=rim_width * (1 - q) + 1, closed=True, alpha=1 - q ** 3)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='heart-wipe',
     name='Heart wipe',
     family='transitions',
@@ -93,8 +93,8 @@ TECHNIQUE = Technique(
                'have a heart open up and show the new clip inside it'),
     related=('like-heart-burst', 'circular-clip-reveal', 'logo-mask-wipe-reveal', 'paint-brush-wipe',
              'text-mask-reveal', 'wipe-reveal'),
-    api=('videobuilder.techniques.transitions.heart_wipe.heart_wipe',
-         'videobuilder.techniques.transitions.heart_wipe.heart_points'),
+    api=('videobuilder.capabilities.transitions.heart_wipe.heart_wipe',
+         'videobuilder.capabilities.transitions.heart_wipe.heart_points'),
     demo=lambda: demo.two_scenes(lambda cv, a, b, p: heart_wipe(cv, a, b, p, rim=demo.ACCENT),
                                  start=0.7, length=1.6),
 )

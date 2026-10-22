@@ -6,7 +6,7 @@ import cairo
 from PIL import Image
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 from ...canvas import Canvas
 from ...looks.fx import image_surface, surface_image
 
@@ -102,7 +102,7 @@ def ripple(cv, a, b, p, center=(0.5, 0.5), wavelength=0.07, amplitude=0.022, rin
     c.restore()
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='ripple',
     name='Ripple',
     family='transitions',
@@ -115,6 +115,6 @@ TECHNIQUE = Technique(
                'a watery wave transition spreading out from the centre'),
     related=('refraction-ripple', 'ripple-displacement', 'height-field-ripples', 'ripple-rings',
              'ridgeline-ripple', 'wave-deformer'),
-    api=('videobuilder.techniques.transitions.ripple.ripple',),
+    api=('videobuilder.capabilities.transitions.ripple.ripple',),
     demo=lambda: demo.two_scenes(ripple, start=0.5, length=2.0),
 )

@@ -6,7 +6,7 @@ import math
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def koch_step(points, bump=1.0):
@@ -59,7 +59,7 @@ def draw(n, cv):
     cv.mark('snowflake', min(xs), min(ys), max(xs) - min(xs), max(ys) - min(ys))
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='koch-snowflake',
     name='Koch snowflake',
     family='particles',
@@ -72,8 +72,8 @@ TECHNIQUE = Technique(
                'a fractal outline that gets more and more jagged with each step'),
     related=('superformula-morph', 'polygon-subdivision', 'marching-squares-contour', 'bend-deformer',
              'differential-growth', 'taper-deformer'),
-    api=('videobuilder.techniques.particles.koch_snowflake.koch_snowflake',
-         'videobuilder.techniques.particles.koch_snowflake.koch_step',
+    api=('videobuilder.capabilities.particles.koch_snowflake.koch_snowflake',
+         'videobuilder.capabilities.particles.koch_snowflake.koch_step',
          'videobuilder.paths.draw'),
     demo=lambda: demo.film(draw),
 )

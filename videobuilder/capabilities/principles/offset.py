@@ -4,7 +4,7 @@ rather than one rigid block."""
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def offset(p, i, count, lag=0.15, ease=vb.ease_in_out_quart):
@@ -33,11 +33,11 @@ def draw(n, cv):
         cv.mark(f'part{i}', x - 40, y - 40, 80, 80)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='offset',
     name='Offset',
     family='principles',
-    group='Principle sub-techniques',
+    group='Principle sub-capabilities',
     aliases=('timing offset', 'staggered start'),
     definition='Connected parts make the same move but start it one after another, a beat apart, '
                'so each seems to carry its own weight and trail the one ahead.',
@@ -46,6 +46,6 @@ TECHNIQUE = Technique(
                'make the chain move with the first part leading and the rest catching up'),
     related=('overlapping-action', 'random-stagger', 'offset-path-expansion', 'timing', 'proximity-stagger',
              'linear-stagger'),
-    api=('videobuilder.techniques.principles.offset.offset',),
+    api=('videobuilder.capabilities.principles.offset.offset',),
     demo=lambda: demo.film(draw),
 )

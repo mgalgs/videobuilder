@@ -4,7 +4,7 @@ place so they pile into a neat column."""
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def toast_stack(t, arrivals, slide=0.55, push=0.4, ease=vb.ease_out_quint):
@@ -63,7 +63,7 @@ def draw(n, cv):
                      w=520, h=100)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='toast-slide-in-stack',
     name='Toast slide-in stack',
     family='ui',
@@ -76,7 +76,7 @@ TECHNIQUE = Technique(
                'show a few "saved" messages arriving one after another in the corner'),
     related=('comment-pop-up-stack', 'stacked-card-reveal', 'tab-panel-slide', 'sticky-card-stack-on-scroll',
              'chat-bubble-sequence', 'hover-reveal-actions'),
-    api=('videobuilder.techniques.ui.toast_slide_in_stack.draw_toast_stack',
-         'videobuilder.techniques.ui.toast_slide_in_stack.toast_stack'),
+    api=('videobuilder.capabilities.ui.toast_slide_in_stack.draw_toast_stack',
+         'videobuilder.capabilities.ui.toast_slide_in_stack.toast_stack'),
     demo=lambda: demo.film(draw),
 )

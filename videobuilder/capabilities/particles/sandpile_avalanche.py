@@ -5,7 +5,7 @@ most of the pile."""
 import random
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def sandpile_avalanche(cols, rows, steps, threshold=4, seed=0, fill=None, drop=None, warmup=None):
@@ -118,7 +118,7 @@ def draw(n, cv):
                 demo.ACCENT if running else SAND[3], radius=4)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='sandpile-avalanche',
     name='Sandpile avalanche',
     family='particles',
@@ -130,6 +130,6 @@ TECHNIQUE = Technique(
                'a grid that keeps piling up until it collapses in chain reactions of random size',
                'self-organized criticality animation with toppling cells'),
     related=('falling-sand', 'dust-motes', 'film-grain', 'koch-snowflake', 'rigid-body-pile', 'snowfall'),
-    api=('videobuilder.techniques.particles.sandpile_avalanche.sandpile_avalanche',),
+    api=('videobuilder.capabilities.particles.sandpile_avalanche.sandpile_avalanche',),
     demo=lambda: demo.film(draw),
 )

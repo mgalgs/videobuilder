@@ -5,7 +5,7 @@ left behind it as its tail clears."""
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 GOLD, NAVY, WHITE = '#f2b705', '#16306b', '#ffffff'
 
@@ -127,7 +127,7 @@ def player_card(cv, name='R. OKAFOR', number='23', team='WOLVES', color=GOLD, tr
     cv.rect(tx, y0 + s * 0.74, s * 0.95, H * 0.012, color, radius=H * 0.006)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='team-color-wipe',
     name='Team color wipe',
     family='broadcast',
@@ -140,7 +140,7 @@ TECHNIQUE = Technique(
                'brand the transition into the team graphic with their colours'),
     related=('fill-sweep-button', 'clock-wipe', 'paint-brush-wipe', 'shape-fill-sweep',
              'gradient-sweep-across-text', 'gradient-wipe'),
-    api=('videobuilder.techniques.broadcast.team_color_wipe.team_color_wipe',
-         'videobuilder.techniques.broadcast.team_color_wipe.player_card'),
+    api=('videobuilder.capabilities.broadcast.team_color_wipe.team_color_wipe',
+         'videobuilder.capabilities.broadcast.team_color_wipe.player_card'),
     demo=lambda: demo.two_scenes(team_color_wipe, start=0.6, length=1.8, b=player_card),
 )

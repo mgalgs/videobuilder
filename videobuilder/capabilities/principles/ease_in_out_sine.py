@@ -6,7 +6,7 @@ import math
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def ease_in_out_sine(x):
@@ -40,7 +40,7 @@ def draw(n, cv):
     cv.mark('ball', cx - 40, y - 40, 80, 80)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='ease-in-out-sine',
     name='Ease In-Out Sine',
     family='principles',
@@ -53,6 +53,6 @@ TECHNIQUE = Technique(
                'speeds up and slows down evenly, nothing abrupt'),
     related=('slow-in-and-slow-out', 'sine-wave-distortion', 'sine-wave-text', 'smooth-scroll-inertia',
              'wave-deformer', 'oscillation'),
-    api=('videobuilder.techniques.principles.ease_in_out_sine.ease_in_out_sine',),
+    api=('videobuilder.capabilities.principles.ease_in_out_sine.ease_in_out_sine',),
     demo=lambda: demo.film(draw),
 )

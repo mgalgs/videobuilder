@@ -7,7 +7,7 @@ import math
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def friction_ease(x, friction=5.0):
@@ -63,7 +63,7 @@ def draw(n, cv):
     cv.mark('ball', x - r, y - r, 2 * r, 2 * r)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='friction-deceleration',
     name='Friction Deceleration',
     family='principles',
@@ -76,7 +76,7 @@ TECHNIQUE = Technique(
                'starts quick and gradually loses steam until it rests'),
     related=('linear-easing', 'momentum-fling', 'smooth-scroll-inertia', 'slow-in-and-slow-out',
              'slow-motion', 'ease-out-expo'),
-    api=('videobuilder.techniques.principles.friction_deceleration.friction_ease',
-         'videobuilder.techniques.principles.friction_deceleration.friction_slide'),
+    api=('videobuilder.capabilities.principles.friction_deceleration.friction_ease',
+         'videobuilder.capabilities.principles.friction_deceleration.friction_slide'),
     demo=lambda: demo.film(draw),
 )

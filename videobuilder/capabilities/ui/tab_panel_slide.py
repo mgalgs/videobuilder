@@ -4,7 +4,7 @@ was chosen, all inside the panel's own bounds."""
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def ease_out_cubic(x):
@@ -99,7 +99,7 @@ def draw(n, cv):
     cv.mark('panel', *PANEL)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='tab-panel-slide',
     name='Tab panel slide',
     family='ui',
@@ -112,6 +112,6 @@ TECHNIQUE = Technique(
                'the old tab content slides away and the new one comes in'),
     related=('tab-underline-slide', 'bottom-sheet-slide-up', 'view-transition', 'split-screen-transition',
              'image-crossfade-slideshow', 'lower-third-slide-in-bar'),
-    api=('videobuilder.techniques.ui.tab_panel_slide.tab_panel_slide',),
+    api=('videobuilder.capabilities.ui.tab_panel_slide.tab_panel_slide',),
     demo=lambda: demo.film(draw),
 )

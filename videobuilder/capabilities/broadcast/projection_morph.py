@@ -7,7 +7,7 @@ import videobuilder as vb
 from videobuilder import paths
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def _bend(progress):
@@ -147,7 +147,7 @@ def draw(n, cv):
     cv.mark('world', demo.W / 2 - math.pi * 132, demo.H / 2 - radius, 2 * math.pi * 132, 2 * radius)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='projection-morph',
     name='Projection morph',
     family='broadcast',
@@ -160,8 +160,8 @@ TECHNIQUE = Technique(
                'morph between a globe and a flat map projection'),
     related=('sphere-to-grid-morph', 'shape-morph', 'particle-morph', 'superformula-morph',
              'morphing-shape-ident', 'polar-coordinate-warp'),
-    api=('videobuilder.techniques.broadcast.projection_morph.projection_morph',
-         'videobuilder.techniques.broadcast.projection_morph.draw_projection_morph',
-         'videobuilder.techniques.broadcast.projection_morph.land_cells'),
+    api=('videobuilder.capabilities.broadcast.projection_morph.projection_morph',
+         'videobuilder.capabilities.broadcast.projection_morph.draw_projection_morph',
+         'videobuilder.capabilities.broadcast.projection_morph.land_cells'),
     demo=lambda: demo.film(draw),
 )

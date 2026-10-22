@@ -7,7 +7,7 @@ import math
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 from ..typography.metaball_goo_text import goo
 
 # (orbit radius when spread, angle offset, dot radius)
@@ -36,7 +36,7 @@ def draw(n, cv):
     cv.mark('blob', cx - pad, cy - pad, 2 * pad, 2 * pad)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='gooey-filter',
     name='Gooey filter',
     family='particles',
@@ -48,6 +48,6 @@ TECHNIQUE = Technique(
                'circles that pool together into one goopy blob and pull apart again',
                'that sticky lava-lamp look where bubbles fuse as they drift past each other'),
     related=('zoom-blur', 'gaussian-blur', 'spin-blur', 'ripple', 'refraction-ripple', 'blur-dissolve'),
-    api=('videobuilder.techniques.typography.metaball_goo_text.goo',),
+    api=('videobuilder.capabilities.typography.metaball_goo_text.goo',),
     demo=lambda: demo.film(draw),
 )

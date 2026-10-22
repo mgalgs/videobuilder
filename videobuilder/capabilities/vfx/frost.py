@@ -10,7 +10,7 @@ import cairo
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 ICE = '#eef6ff'
 
@@ -135,7 +135,7 @@ def draw(n, cv):
     draw_frost(cv, demo.phase(n, 0.15, 2.85))
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='frost',
     name='Frost',
     family='vfx',
@@ -148,8 +148,8 @@ TECHNIQUE = Technique(
                'the picture frosts up as if it is getting really cold'),
     related=('snowfall', 'gooch-shading', 'fresnel-edge-glow', 'thin-film-iridescence', 'spiral-bloom',
              'rainfall'),
-    api=('videobuilder.techniques.vfx.frost.draw_frost',
-         'videobuilder.techniques.vfx.frost.frost_fronds',
-         'videobuilder.techniques.vfx.frost.frost_haze'),
+    api=('videobuilder.capabilities.vfx.frost.draw_frost',
+         'videobuilder.capabilities.vfx.frost.frost_fronds',
+         'videobuilder.capabilities.vfx.frost.frost_haze'),
     demo=lambda: demo.film(draw),
 )

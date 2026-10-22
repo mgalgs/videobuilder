@@ -4,7 +4,7 @@ of the frame, each key dipping as it is struck, then fading out."""
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def keystroke_state(t, presses, hold=0.7, enter=0.12, leave=0.25):
@@ -127,7 +127,7 @@ def draw(n, cv):
     draw_keystroke_overlay(cv, t, PRESSES, demo.W / 2, demo.H - 36, h=60)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='keystroke-overlay',
     name='Keystroke overlay',
     family='broadcast',
@@ -140,8 +140,8 @@ TECHNIQUE = Technique(
                'little key buttons at the bottom showing Ctrl+C as I hit it'),
     related=('camcorder-timecode-overlay', 'typing-sounds', 'luma-key', 'coachmark-spotlight-cutout',
              'chroma-key', 'typewriter-reveal'),
-    api=('videobuilder.techniques.broadcast.keystroke_overlay.draw_keystroke_overlay',
-         'videobuilder.techniques.broadcast.keystroke_overlay.keystroke_state',
-         'videobuilder.techniques.broadcast.keystroke_overlay.draw_keycap'),
+    api=('videobuilder.capabilities.broadcast.keystroke_overlay.draw_keystroke_overlay',
+         'videobuilder.capabilities.broadcast.keystroke_overlay.keystroke_state',
+         'videobuilder.capabilities.broadcast.keystroke_overlay.draw_keycap'),
     demo=lambda: demo.film(draw),
 )

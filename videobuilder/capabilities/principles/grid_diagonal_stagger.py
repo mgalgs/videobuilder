@@ -4,7 +4,7 @@ diagonal front from one corner to the opposite one."""
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def grid_delay(row, col, rows, cols, corner='top-left'):
@@ -51,7 +51,7 @@ def draw(n, cv):
     cv.mark('grid', x0, y0, gw, gh)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='grid-diagonal-stagger',
     name='Grid Diagonal Stagger',
     family='principles',
@@ -65,7 +65,7 @@ TECHNIQUE = Technique(
                'have the squares appear in a cascade that sweeps diagonally across'),
     related=('linear-repeater-stagger', 'scale-tile-wave', 'bento-grid-reveal', 'grid-wave-loader',
              'pattern-tiling', 'truchet-tiles'),
-    api=('videobuilder.techniques.principles.grid_diagonal_stagger.grid_stagger',
-         'videobuilder.techniques.principles.grid_diagonal_stagger.grid_delay'),
+    api=('videobuilder.capabilities.principles.grid_diagonal_stagger.grid_stagger',
+         'videobuilder.capabilities.principles.grid_diagonal_stagger.grid_delay'),
     demo=lambda: demo.film(draw),
 )

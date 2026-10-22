@@ -4,7 +4,7 @@ into its place. It plays once on entry; it is not scrubbed by the scroll."""
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def fade_up(p, rise=30):
@@ -83,7 +83,7 @@ def _block(cv, x, y, color):
     cv.rect(x + 105, y + 68, 130, 9, demo.INK, radius=4, alpha=0.45)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='fade-up-scroll-reveal',
     name='Fade-up scroll reveal',
     family='ui',
@@ -96,9 +96,9 @@ TECHNIQUE = Technique(
                'content rises and fades in as the page scrolls'),
     related=('scroll-driven-text-reveal', 'roll-up', 'uncover', 'per-line-fade-in', 'tooltip-fade-follow',
              'zoom-out-reveal'),
-    api=('videobuilder.techniques.ui.fade_up_scroll_reveal.fade_up_layer',
-         'videobuilder.techniques.ui.fade_up_scroll_reveal.reveal',
-         'videobuilder.techniques.ui.fade_up_scroll_reveal.entry_time',
-         'videobuilder.techniques.ui.fade_up_scroll_reveal.fade_up'),
+    api=('videobuilder.capabilities.ui.fade_up_scroll_reveal.fade_up_layer',
+         'videobuilder.capabilities.ui.fade_up_scroll_reveal.reveal',
+         'videobuilder.capabilities.ui.fade_up_scroll_reveal.entry_time',
+         'videobuilder.capabilities.ui.fade_up_scroll_reveal.fade_up'),
     demo=lambda: demo.film(draw),
 )

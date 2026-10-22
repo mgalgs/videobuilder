@@ -22,7 +22,7 @@ import math
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def riser(reveal, build=2.0, id='pro_riser/air_gate', hit='pro_impact/short', fps=30, gain_db=-6.0,
@@ -116,7 +116,7 @@ def film():
     return demo.film(draw, sounds=pulse_riser(REVEAL, build=build))   # a pack without risers
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='riser',
     name='Riser',
     family='sound',
@@ -129,7 +129,7 @@ TECHNIQUE = Technique(
                'make the sound swell up and hit when the title lands'),
     related=('music-swell', 'pulse-loader', 'liquid-fill-level', 'sound-bridge', 'stacked-bar-build',
              'anticipation'),
-    api=('videobuilder.techniques.sound.riser.riser', 'videobuilder.techniques.sound.riser.pulse_riser',
+    api=('videobuilder.capabilities.sound.riser.riser', 'videobuilder.capabilities.sound.riser.pulse_riser',
          'videobuilder.sfx.sound', 'videobuilder.sfx.find'),
     demo=film,
 )

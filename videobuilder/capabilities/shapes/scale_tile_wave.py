@@ -5,7 +5,7 @@ import math
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def tile_wave(t, dist, period=1.2, wavelength=4.0, lo=0.25, hi=1.0):
@@ -48,7 +48,7 @@ def draw(n, cv):
     cv.mark('grid', *grid)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='scale-tile-wave',
     name='Scale tile wave',
     family='shapes',
@@ -61,7 +61,7 @@ TECHNIQUE = Technique(
                'a wall of blocks breathing in a rolling pattern'),
     related=('grid-wave-loader', 'wave-function-collapse', 'grid-diagonal-stagger', 'mosaic-tiling',
              'scale-pulse', 'truchet-tiles'),
-    api=('videobuilder.techniques.shapes.scale_tile_wave.draw_tile_wave',
-         'videobuilder.techniques.shapes.scale_tile_wave.tile_wave'),
+    api=('videobuilder.capabilities.shapes.scale_tile_wave.draw_tile_wave',
+         'videobuilder.capabilities.shapes.scale_tile_wave.tile_wave'),
     demo=lambda: demo.film(draw),
 )

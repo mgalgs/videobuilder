@@ -1,7 +1,7 @@
 """Dip to Black: the outgoing scene fades to black, black holds a beat, then
 the incoming scene fades up from it."""
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def dip_to_black(cv, a, b, p, hold=0.2, color='#000000'):
@@ -21,7 +21,7 @@ def dip_to_black(cv, a, b, p, hold=0.2, color='#000000'):
         cv.fill(color, alpha=max(0.0, 1 - (p - fade - hold) / fade))
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='dip-to-black',
     name='Dip to Black',
     family='transitions',
@@ -33,6 +33,6 @@ TECHNIQUE = Technique(
                'go dark for a second between the two scenes',
                'a soft fade out, then a fade in'),
     related=('dip-to-white', 'cross-dissolve', 'fade-in-from-black'),
-    api=('videobuilder.techniques.transitions.dip_to_black.dip_to_black',),
+    api=('videobuilder.capabilities.transitions.dip_to_black.dip_to_black',),
     demo=lambda: demo.two_scenes(dip_to_black),
 )

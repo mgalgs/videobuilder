@@ -8,7 +8,7 @@ import cairo
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def phosphor_persistence(cv, draw_at, t, decay=0.2, span=4.0, samples=120, gain=0.09):
@@ -71,7 +71,7 @@ def draw(n, cv):
     cv.mark('beam', x - 13, y - 13, 26, 26)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='phosphor-persistence',
     name='Phosphor persistence',
     family='vfx',
@@ -84,7 +84,7 @@ TECHNIQUE = Technique(
                'a fading afterglow behind anything that moves fast'),
     related=('bloom', 'fireflies', 'light-trail-logo-reveal', 'particle-trail', 'thin-film-iridescence',
              'light-painting'),
-    api=('videobuilder.techniques.vfx.phosphor_persistence.phosphor_persistence',
-         'videobuilder.techniques.vfx.phosphor_persistence.beam'),
+    api=('videobuilder.capabilities.vfx.phosphor_persistence.phosphor_persistence',
+         'videobuilder.capabilities.vfx.phosphor_persistence.beam'),
     demo=lambda: demo.film(draw),
 )

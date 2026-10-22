@@ -7,7 +7,7 @@ import videobuilder as vb
 
 from .. import _demo as demo
 from ...compendium import kit
-from ..schema import Technique
+from ..schema import Capability
 
 
 def layer_depths(count, far=0.25):
@@ -54,7 +54,7 @@ def draw(n, cv):
     cv.mark('text', *box)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='parallax-letter-layers',
     name='Parallax letter layers',
     family='typography',
@@ -67,7 +67,7 @@ TECHNIQUE = Technique(
                'layered copies of the text that move at different speeds to show depth'),
     related=('parallax-layers', 'pointer-parallax-layers', 'parallax-slide', 'scroll-parallax-layers',
              'two-point-five-d-photo-parallax', 'layered-fog-bands'),
-    api=('videobuilder.techniques.typography.parallax_letter_layers.draw_letter_layers',
-         'videobuilder.techniques.typography.parallax_letter_layers.layer_depths'),
+    api=('videobuilder.capabilities.typography.parallax_letter_layers.draw_letter_layers',
+         'videobuilder.capabilities.typography.parallax_letter_layers.layer_depths'),
     demo=lambda: demo.film(draw),
 )

@@ -8,7 +8,7 @@ import random
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def trail_lines(cv, x, y, speed, angle=0.0, reach=420, spread=90, gap=40, count=9, seed=0,
@@ -53,7 +53,7 @@ def draw(n, cv):
     cv.mark('dot', x - 60, y - 60, 120, 120)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='speed-lines',
     name='Speed lines',
     family='shapes',
@@ -66,6 +66,6 @@ TECHNIQUE = Technique(
                'motion streaks behind the shape while it dashes across'),
     related=('streamlines', 'scanline-jitter', 'speed-ramp', 'line-weave', 'flow-map-lines',
              'parallel-coordinates-draw'),
-    api=('videobuilder.techniques.shapes.speed_lines.trail_lines', 'videobuilder.impact.speed_lines'),
+    api=('videobuilder.capabilities.shapes.speed_lines.trail_lines', 'videobuilder.impact.speed_lines'),
     demo=lambda: demo.film(draw),
 )

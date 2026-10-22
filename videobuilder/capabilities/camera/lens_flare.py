@@ -9,7 +9,7 @@ import cairo
 from videobuilder.canvas import rgba
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 # Each ghost: where it sits on the line from the light through the frame
 # centre (0 = at the light, 1 = at the centre, 2 = mirrored across it), its
@@ -92,7 +92,7 @@ def _draw(n, cv):
     lens_flare(cv, x, y, strength=strength)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='lens-flare',
     name='Lens flare',
     family='camera',
@@ -106,6 +106,6 @@ TECHNIQUE = Technique(
                'give the bright light a glare with little rings trailing off it'),
     related=('diffraction-spikes', 'lens-dirt-overlay', 'heat-haze', 'refraction-ripple', 'fireflies',
              'fresnel-edge-glow'),
-    api=('videobuilder.techniques.camera.lens_flare.lens_flare',),
+    api=('videobuilder.capabilities.camera.lens_flare.lens_flare',),
     demo=lambda: demo.film(_draw),
 )

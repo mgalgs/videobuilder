@@ -8,7 +8,7 @@ import cairo
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def refresh_bar(cv, p, box=None, band=0.3, strength=0.3, color='#ffffff', edge=0.3, up=False, steps=24):
@@ -84,7 +84,7 @@ def draw(n, cv):
     cv.mark('screen', *box)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='refresh-bar',
     name='Refresh bar',
     family='vfx',
@@ -97,6 +97,6 @@ TECHNIQUE = Technique(
                'give the footage a hum bar that rolls vertically'),
     related=('vhs-tracking-bar', 'copper-bars', 'audio-waveform-bars', 'striped-progress-bar',
              'lower-third-slide-in-bar', 'indeterminate-bar'),
-    api=('videobuilder.techniques.vfx.refresh_bar.refresh_bar',),
+    api=('videobuilder.capabilities.vfx.refresh_bar.refresh_bar',),
     demo=lambda: demo.film(draw),
 )

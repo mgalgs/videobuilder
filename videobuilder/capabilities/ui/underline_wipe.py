@@ -4,7 +4,7 @@ rather than shrinking back the way it came."""
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def underline_span(grow, shrink, side='left'):
@@ -61,7 +61,7 @@ def draw(n, cv):
              vb.interpolate(t, ts, ys, vb.ease_in_out_quart), s=1.3)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='underline-wipe',
     name='Underline wipe',
     family='ui',
@@ -74,7 +74,7 @@ TECHNIQUE = Technique(
                'animated link underline that wipes in and wipes out the other side'),
     related=('wipe-reveal', 'tab-underline-slide', 'underline-swash-draw', 'highlighter-swipe',
              'input-underline-grow', 'linear-wipe'),
-    api=('videobuilder.techniques.ui.underline_wipe.draw_underline_wipe',
-         'videobuilder.techniques.ui.underline_wipe.underline_span'),
+    api=('videobuilder.capabilities.ui.underline_wipe.draw_underline_wipe',
+         'videobuilder.capabilities.ui.underline_wipe.underline_span'),
     demo=lambda: demo.film(draw),
 )

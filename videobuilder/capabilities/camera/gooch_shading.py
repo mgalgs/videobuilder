@@ -9,7 +9,7 @@ import cairo
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 WARM = '#ffc21a'    # what a surface facing the light tends to
 COOL = '#3d4fd6'    # what a surface turned away tends to
@@ -122,7 +122,7 @@ def draw(n, cv):
                pitch=0.75 + 0.85 * math.pi * p, roll=0.5 - 0.6 * p)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='gooch-shading',
     name='Gooch shading',
     family='camera',
@@ -135,8 +135,8 @@ TECHNIQUE = Technique(
                'light the object with a yellow-to-blue gradient rather than light-to-black'),
     related=('heat-haze', 'low-poly-faceting', 'thin-film-iridescence', 'cel-shading-look',
              'chrome-specular-shimmer', 'rim-light'),
-    api=('videobuilder.techniques.camera.gooch_shading.gooch_mesh',
-         'videobuilder.techniques.camera.gooch_shading.gooch_tone',
-         'videobuilder.techniques.camera.gooch_shading.torus_mesh'),
+    api=('videobuilder.capabilities.camera.gooch_shading.gooch_mesh',
+         'videobuilder.capabilities.camera.gooch_shading.gooch_tone',
+         'videobuilder.capabilities.camera.gooch_shading.torus_mesh'),
     demo=lambda: demo.film(draw),
 )

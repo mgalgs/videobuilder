@@ -12,7 +12,7 @@ from PIL import Image as PILImage
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 try:
     import numpy as np
@@ -126,7 +126,7 @@ def draw(n, cv):
     cv.mark('fractal', 0, 0, demo.W, demo.H)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='julia-set-morph',
     name='Julia set morph',
     family='particles',
@@ -139,8 +139,8 @@ TECHNIQUE = Technique(
                'morphing fractal background with swirling spirals'),
     related=('squircle-morph', 'superformula-morph', 'shape-morph', 'letter-morph', 'shape-morph-loader',
              'particle-morph'),
-    api=('videobuilder.techniques.particles.julia_set_morph.draw_julia',
-         'videobuilder.techniques.particles.julia_set_morph.julia_constant',
-         'videobuilder.techniques.particles.julia_set_morph.julia_image'),
+    api=('videobuilder.capabilities.particles.julia_set_morph.draw_julia',
+         'videobuilder.capabilities.particles.julia_set_morph.julia_constant',
+         'videobuilder.capabilities.particles.julia_set_morph.julia_image'),
     demo=lambda: demo.film(draw),
 )

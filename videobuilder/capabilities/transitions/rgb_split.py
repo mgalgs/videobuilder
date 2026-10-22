@@ -8,7 +8,7 @@ import cairo
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 CHANNELS = ((1, 0, 0), (0, 1, 0), (0, 0, 1))
 
@@ -64,7 +64,7 @@ def rgb_split(cv, a, b, p, shift=90, swap=(0.42, 0.58)):
     channel_split(cv, scene, shift * amount, dy=shift * 0.12 * amount)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='rgb-split',
     name='RGB split',
     family='transitions',
@@ -78,7 +78,7 @@ TECHNIQUE = Technique(
                'a chromatic aberration cut between the scenes'),
     related=('rgb-channel-split', 'chromatic-dispersion', 'channel-shuffle', 'palette-shift-transition',
              'cross-processing', 'split-screen-transition'),
-    api=('videobuilder.techniques.transitions.rgb_split.rgb_split',
-         'videobuilder.techniques.transitions.rgb_split.channel_split'),
+    api=('videobuilder.capabilities.transitions.rgb_split.rgb_split',
+         'videobuilder.capabilities.transitions.rgb_split.channel_split'),
     demo=lambda: demo.two_scenes(rgb_split),
 )

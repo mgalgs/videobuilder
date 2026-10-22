@@ -6,7 +6,7 @@ import math
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def match_offset(match_a, match_b):
@@ -97,7 +97,7 @@ def draw(n, cv):
     _label(cv, *(('Scene A', demo.INK) if n / demo.FPS < CUT else ('Scene B', demo.BG)))
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='match-cut',
     name='Match cut',
     family='transitions',
@@ -109,7 +109,7 @@ TECHNIQUE = Technique(
                'line the two shots up so the circle carries across the cut',
                'jump to the next scene but keep the shape where it was'),
     related=('rack-focus', 'cross-zoom', 'zoom-blur', 'strobe-cut', 'tilt-shift-miniature', 'tracking-shot'),
-    api=('videobuilder.techniques.transitions.match_cut.match_cut',
-         'videobuilder.techniques.transitions.match_cut.match_offset'),
+    api=('videobuilder.capabilities.transitions.match_cut.match_cut',
+         'videobuilder.capabilities.transitions.match_cut.match_offset'),
     demo=lambda: demo.film(draw),
 )

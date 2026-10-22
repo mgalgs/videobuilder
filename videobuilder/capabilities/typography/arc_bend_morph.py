@@ -6,7 +6,7 @@ import math
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def arc_layout(text, font, bend):
@@ -67,7 +67,7 @@ def draw(n, cv):
     cv.mark('text', *box)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='arc-bend-morph',
     name='Arc bend morph',
     family='typography',
@@ -80,7 +80,7 @@ TECHNIQUE = Technique(
                'animate the text warping onto a curve'),
     related=('bend-deformer', 'twirl-warp-text', 'text-to-shape-morph', 'flight-arc', 'bezier-handle-bend',
              'line-to-polygon-transform'),
-    api=('videobuilder.techniques.typography.arc_bend_morph.draw_arc_text',
-         'videobuilder.techniques.typography.arc_bend_morph.arc_layout'),
+    api=('videobuilder.capabilities.typography.arc_bend_morph.draw_arc_text',
+         'videobuilder.capabilities.typography.arc_bend_morph.arc_layout'),
     demo=lambda: demo.film(draw),
 )

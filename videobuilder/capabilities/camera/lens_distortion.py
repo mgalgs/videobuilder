@@ -9,7 +9,7 @@ from PIL import Image
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 from ...canvas import Canvas
 from ...looks.fx import image_surface, surface_image
 
@@ -97,7 +97,7 @@ def draw(n, cv):
     cv.mark('frame', 0, 0, demo.W, demo.H)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='lens-distortion',
     name='Lens distortion',
     family='camera',
@@ -110,6 +110,6 @@ TECHNIQUE = Technique(
                'pinch the shot inward so the edges curve the other way'),
     related=('refraction-ripple', 'polar-coordinate-warp', 'glass-refraction', 'rolling-shutter-wobble',
              'crt-curvature', 'taper-deformer'),
-    api=('videobuilder.techniques.camera.lens_distortion.lens_distort',),
+    api=('videobuilder.capabilities.camera.lens_distortion.lens_distort',),
     demo=lambda: demo.film(draw),
 )

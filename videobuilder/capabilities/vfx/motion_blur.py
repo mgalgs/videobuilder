@@ -8,7 +8,7 @@ import cairo
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def accumulate(cv, draws):
@@ -113,7 +113,7 @@ def draw(n, cv):
         motion_blur(cv, dot_at(speed, color, y), n, shutter=1.0, samples=24)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='motion-blur',
     name='Motion blur',
     family='vfx',
@@ -125,8 +125,8 @@ TECHNIQUE = Technique(
                'make the card streak as it flies across the screen',
                'blur things in the direction they move, like a real camera would'),
     related=('zoom-blur', 'smear-frame', 'whip-pan', 'tracking-shot', 'blur-dissolve', 'blur-up-image-load'),
-    api=('videobuilder.techniques.vfx.motion_blur.motion_blur',
-         'videobuilder.techniques.vfx.motion_blur.directional_blur',
-         'videobuilder.techniques.vfx.motion_blur.accumulate'),
+    api=('videobuilder.capabilities.vfx.motion_blur.motion_blur',
+         'videobuilder.capabilities.vfx.motion_blur.directional_blur',
+         'videobuilder.capabilities.vfx.motion_blur.accumulate'),
     demo=lambda: demo.film(draw),
 )

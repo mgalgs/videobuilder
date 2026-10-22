@@ -7,7 +7,7 @@ import math
 import cairo
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 from ...canvas import Canvas, rgba
 
 
@@ -120,7 +120,7 @@ def draw(n, cv):
     god_rays(cv, x, y, _wall, glow=170, length=3.0, strength=1.6 * up, quality=0.5)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='god-rays',
     name='God rays',
     family='camera',
@@ -133,6 +133,6 @@ TECHNIQUE = Technique(
                'light bursting out around the logo in rays'),
     related=('bokeh-particles', 'heat-haze', 'diffraction-spikes', 'raymarched-sdf-shapes', 'atmospheric-fog',
              'water-caustics'),
-    api=('videobuilder.techniques.camera.god_rays.god_rays',),
+    api=('videobuilder.capabilities.camera.god_rays.god_rays',),
     demo=lambda: demo.film(draw),
 )

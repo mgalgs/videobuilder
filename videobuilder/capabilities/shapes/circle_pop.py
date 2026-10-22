@@ -5,7 +5,7 @@ import math
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def circle_pop(cv, cx, cy, r, p, color, alpha=1.0, ease=vb.ease_out_back):
@@ -29,7 +29,7 @@ def draw(n, cv):
             cv.mark(f'circle{i}', cx - radius, y - radius, 2 * radius, 2 * radius)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='circle-pop',
     name='Circle pop',
     family='shapes',
@@ -42,6 +42,6 @@ TECHNIQUE = Technique(
                'scale the circle in from nothing with some overshoot'),
     related=('radio-dot-scale', 'bubbles', 'circle-packing', 'squircle-morph', 'character-scale-in',
              'halftone-dot-scaling'),
-    api=('videobuilder.techniques.shapes.circle_pop.circle_pop', 'videobuilder.ease_out_back'),
+    api=('videobuilder.capabilities.shapes.circle_pop.circle_pop', 'videobuilder.ease_out_back'),
     demo=lambda: demo.film(draw),
 )

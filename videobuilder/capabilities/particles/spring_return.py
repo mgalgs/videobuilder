@@ -6,7 +6,7 @@ import math
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def push(home, center, strength=120.0, radius=420.0):
@@ -59,7 +59,7 @@ def draw(n, cv):
     cv.mark('field', x0, y0, (COLS - 1) * GAP, (ROWS - 1) * GAP)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='spring-return',
     name='Spring return',
     family='particles',
@@ -72,8 +72,8 @@ TECHNIQUE = Technique(
                'particles that bounce back home elastically after being pushed'),
     related=('spring-motion', 'recoil', 'overdamped-spring', 'springs-network', 'spring-drag-letters',
              'underdamped-spring'),
-    api=('videobuilder.techniques.particles.spring_return.spring_return',
-         'videobuilder.techniques.particles.spring_return.push',
+    api=('videobuilder.capabilities.particles.spring_return.spring_return',
+         'videobuilder.capabilities.particles.spring_return.push',
          'videobuilder.spring'),
     demo=lambda: demo.film(draw),
 )

@@ -3,7 +3,7 @@ square turned 45 degrees) that grows until it fills the frame."""
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def diamond_wipe(cv, a, b, p, center=None, ease=vb.ease_in_out_quart, edge=None, edge_width=6):
@@ -38,7 +38,7 @@ def diamond_wipe(cv, a, b, p, center=None, ease=vb.ease_in_out_quart, edge=None,
     c.restore()
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='diamond-wipe',
     name='Diamond wipe',
     family='transitions',
@@ -51,6 +51,6 @@ TECHNIQUE = Technique(
                'like an iris transition but diamond shaped'),
     related=('circular-clip-reveal', 'wipe-reveal', 'paint-brush-wipe', 'fill-sweep-button',
              'shape-fill-sweep', 'tessellation-triangle-flip'),
-    api=('videobuilder.techniques.transitions.diamond_wipe.diamond_wipe',),
+    api=('videobuilder.capabilities.transitions.diamond_wipe.diamond_wipe',),
     demo=lambda: demo.two_scenes(lambda cv, a, b, p: diamond_wipe(cv, a, b, p, edge=demo.ACCENT)),
 )

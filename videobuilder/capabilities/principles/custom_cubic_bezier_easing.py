@@ -4,7 +4,7 @@ it: the curve with its two handles, and a dot riding that curve."""
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 HANDLES = (0.6, -0.35, 0.25, 1.35)  # pulls back first, then overshoots: plainly not a stock curve
 ease = vb.bezier(*HANDLES)
@@ -52,7 +52,7 @@ def draw(n, cv):
               color=demo.MUTED, font=demo.mono(22))
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='custom-cubic-bezier-easing',
     name='Custom Cubic-Bezier Easing',
     family='principles',

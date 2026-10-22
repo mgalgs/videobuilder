@@ -6,7 +6,7 @@ import math
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def reach(x, y, w, h, px, py):
@@ -92,7 +92,7 @@ def draw(n, cv):
     pointer(cv, px, py, size=28)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='image-hover-mask-reveal',
     name='Image hover mask reveal',
     family='ui',
@@ -105,8 +105,8 @@ TECHNIQUE = Technique(
                'mouse over the image and the alternate version spreads out from the pointer'),
     related=('scroll-linked-clip-reveal', 'text-mask-reveal', 'logo-mask-wipe-reveal', 'hover-reveal-actions',
              'shutter-slat-reveal', 'brush-stroke-paint-reveal'),
-    api=('videobuilder.techniques.ui.image_hover_mask_reveal.hover_mask_reveal',
-         'videobuilder.techniques.ui.image_hover_mask_reveal.pointer',
-         'videobuilder.techniques.ui.image_hover_mask_reveal.reach'),
+    api=('videobuilder.capabilities.ui.image_hover_mask_reveal.hover_mask_reveal',
+         'videobuilder.capabilities.ui.image_hover_mask_reveal.pointer',
+         'videobuilder.capabilities.ui.image_hover_mask_reveal.reach'),
     demo=lambda: demo.film(draw),
 )

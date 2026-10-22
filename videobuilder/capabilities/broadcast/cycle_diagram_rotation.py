@@ -7,7 +7,7 @@ import videobuilder as vb
 from videobuilder.canvas import rgba
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def cycle_angles(count, start=-math.pi / 2):
@@ -95,7 +95,7 @@ def draw(n, cv):
     cv.mark('cycle', cx - R - 45, cy - R - 45, 2 * R + 90, 2 * R + 90)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='cycle-diagram-rotation',
     name='Cycle diagram rotation',
     family='broadcast',
@@ -108,7 +108,7 @@ TECHNIQUE = Technique(
                'animate the plan, build, test, learn cycle as a ring of steps'),
     related=('chord-diagram-draw', 'rotating-polygon-loop', 'spinner-ring', 'rotating-circular-text',
              'rotating-rings', 'progress-ring'),
-    api=('videobuilder.techniques.broadcast.cycle_diagram_rotation.draw_cycle_diagram',
-         'videobuilder.techniques.broadcast.cycle_diagram_rotation.cycle_angles'),
+    api=('videobuilder.capabilities.broadcast.cycle_diagram_rotation.draw_cycle_diagram',
+         'videobuilder.capabilities.broadcast.cycle_diagram_rotation.cycle_angles'),
     demo=lambda: demo.film(draw),
 )

@@ -5,7 +5,7 @@ import math
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 SNAP = vb.damped(0.45, hz=2.2)   # the spring home: one soft overshoot
 
@@ -87,7 +87,7 @@ def draw(n, cv):
             finger(cv, fx, CY + 40, 1.0 if 0 <= hold <= PULL else 0.0)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='swipe-to-dismiss',
     name='Swipe to dismiss',
     family='ui',
@@ -100,7 +100,7 @@ TECHNIQUE = Technique(
                'flick the card off screen like clearing an alert on a phone'),
     related=('stacked-card-reveal', 'flip', 'sticky-card-stack-on-scroll', 'uncover',
              'toast-auto-dismiss-bar', 'end-card-with-subscribe-slot'),
-    api=('videobuilder.techniques.ui.swipe_to_dismiss.swipe_offset',
-         'videobuilder.techniques.ui.swipe_to_dismiss.draw_swiped'),
+    api=('videobuilder.capabilities.ui.swipe_to_dismiss.swipe_offset',
+         'videobuilder.capabilities.ui.swipe_to_dismiss.draw_swiped'),
     demo=lambda: demo.film(draw),
 )

@@ -8,7 +8,7 @@ from PIL import Image, ImageChops, ImageFilter
 
 from ...looks.fx import image_surface, surface_image
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def halation(cv, amount=1.0, threshold=0.75, radius=28, tint=(255, 70, 24)):
@@ -77,7 +77,7 @@ def _draw(n, cv):
               font=demo.mono(24))
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='halation',
     name='Halation',
     family='vfx',
@@ -89,6 +89,6 @@ TECHNIQUE = Technique(
                'make the highlights bleed orange like an old movie',
                'add a warm red fringe around the white text so it looks shot on film'),
     related=('fresnel-edge-glow', 'solarization', 'bloom', 'thin-film-iridescence', 'film-dissolve', 'rim-light'),
-    api=('videobuilder.techniques.vfx.halation.halation',),
+    api=('videobuilder.capabilities.vfx.halation.halation',),
     demo=lambda: demo.film(_draw),
 )

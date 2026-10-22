@@ -4,7 +4,7 @@ is going, with no jump and no restart."""
 import math
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def interruptible(t, moves, start=0.0, hz=0.7):
@@ -96,7 +96,7 @@ def _cursor(cv, x, y, pressed=False):
     ctx.restore()
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='interruptible-motion',
     name='Interruptible Motion',
     family='principles',
@@ -109,6 +109,6 @@ TECHNIQUE = Technique(
                'the panel can be reversed while it is still sliding'),
     related=('reverse-playback', 'delay', 'stop-motion-animation', 'reverse-motion-cut', 'seamless-loop',
              'frame-by-frame-hand-drawn-animation'),
-    api=('videobuilder.techniques.principles.interruptible_motion.interruptible',),
+    api=('videobuilder.capabilities.principles.interruptible_motion.interruptible',),
     demo=lambda: demo.film(draw),
 )

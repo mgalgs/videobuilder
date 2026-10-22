@@ -14,7 +14,7 @@ import videobuilder as vb
 
 from ...looks.fx import Filter, apply, noise
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 START = datetime(2026, 10, 14, 2, 17, 58)
 
@@ -171,7 +171,7 @@ def draw(n, cv):
         _scene(cv, ts)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='cctv-surveillance-look',
     name='CCTV surveillance look',
     family='vfx',
@@ -184,8 +184,8 @@ TECHNIQUE = Technique(
                'turn this shot into a surveillance feed'),
     related=('follow-cam', 'vhs-tracking-bar', 'rotoscope-look', 'tracking-shot', 'pov-shot',
              'video-feedback-loop'),
-    api=('videobuilder.techniques.vfx.cctv_surveillance_look.cctv',
-         'videobuilder.techniques.vfx.cctv_surveillance_look.treat',
-         'videobuilder.techniques.vfx.cctv_surveillance_look.osd'),
+    api=('videobuilder.capabilities.vfx.cctv_surveillance_look.cctv',
+         'videobuilder.capabilities.vfx.cctv_surveillance_look.treat',
+         'videobuilder.capabilities.vfx.cctv_surveillance_look.osd'),
     demo=lambda: demo.film(draw),
 )

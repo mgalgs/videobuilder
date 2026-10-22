@@ -5,7 +5,7 @@ are lit, and the steps before it settle back to a quieter "done" look."""
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def step_reveal(t, count, start=0.3, gap=0.6, enter=0.45, settle=0.25):
@@ -91,7 +91,7 @@ def draw(n, cv):
     draw_process_steps(cv, STEPS, x, demo.H / 2 - 1.5 * 104, n / demo.FPS, start=0.25, gap=0.62)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='step-by-step-process-reveal',
     name='Step-by-step process reveal',
     family='broadcast',
@@ -104,7 +104,7 @@ TECHNIQUE = Technique(
                'show step 1, then step 2, then step 3 with a line connecting them'),
     related=('progress-steps-connector-fill', 'steps-easing', 'staged-onboarding-walkthrough',
              'infographic-icon-sequence', 'funnel-stage-reveal', 'staggered-cascade-reveal'),
-    api=('videobuilder.techniques.broadcast.step_by_step_process_reveal.draw_process_steps',
-         'videobuilder.techniques.broadcast.step_by_step_process_reveal.step_reveal'),
+    api=('videobuilder.capabilities.broadcast.step_by_step_process_reveal.draw_process_steps',
+         'videobuilder.capabilities.broadcast.step_by_step_process_reveal.step_reveal'),
     demo=lambda: demo.film(draw),
 )

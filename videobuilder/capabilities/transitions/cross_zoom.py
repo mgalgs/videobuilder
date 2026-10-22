@@ -5,7 +5,7 @@ back to its normal framing."""
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 RUSH_IN = vb.bezier(0.6, 0.0, 1.0, 0.7)    # accelerating into the outgoing scene
 RUSH_OUT = vb.bezier(0.0, 0.3, 0.4, 1.0)   # decelerating out of the incoming one
@@ -46,7 +46,7 @@ def cross_zoom(cv, a, b, p, zoom=4.0, blur=0.35, echoes=6, flash=0.7, color='#ff
         cv.fill(color, alpha=flash * intensity ** 2)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='cross-zoom',
     name='Cross zoom',
     family='transitions',
@@ -59,6 +59,6 @@ TECHNIQUE = Technique(
                'punch in on this shot and pull back out on the new one'),
     related=('cross-dissolve', 'infinite-zoom-tunnel', 'image-crossfade-slideshow', 'canvas-pan-and-zoom',
              'scale-zoom-through', 'zoom-through-shape'),
-    api=('videobuilder.techniques.transitions.cross_zoom.cross_zoom',),
+    api=('videobuilder.capabilities.transitions.cross_zoom.cross_zoom',),
     demo=lambda: demo.two_scenes(cross_zoom, start=0.9, length=1.0),
 )

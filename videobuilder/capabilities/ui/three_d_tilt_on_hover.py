@@ -8,7 +8,7 @@ import cairo
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def tilt_angles(px, py, cx, cy, w, h, max_deg=14.0, hover=1.0):
@@ -135,7 +135,7 @@ def draw(n, cv):
     pointer(cv, px, py)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='three-d-tilt-on-hover',
     name='3D tilt on hover',
     family='ui',
@@ -147,9 +147,9 @@ TECHNIQUE = Technique(
                'make the panel lean toward the cursor like it is being pressed',
                'a hover effect where the card rotates with the pointer and catches the light'),
     related=('tilt', 'character-3d-flip', 'pedestal', 'cube-rotate', 'three-d-word-cube', 'flip'),
-    api=('videobuilder.techniques.ui.three_d_tilt_on_hover.draw_tilt_card',
-         'videobuilder.techniques.ui.three_d_tilt_on_hover.tilt_angles',
-         'videobuilder.techniques.ui.three_d_tilt_on_hover.project',
-         'videobuilder.techniques.ui.three_d_tilt_on_hover.pointer'),
+    api=('videobuilder.capabilities.ui.three_d_tilt_on_hover.draw_tilt_card',
+         'videobuilder.capabilities.ui.three_d_tilt_on_hover.tilt_angles',
+         'videobuilder.capabilities.ui.three_d_tilt_on_hover.project',
+         'videobuilder.capabilities.ui.three_d_tilt_on_hover.pointer'),
     demo=lambda: demo.film(draw),
 )

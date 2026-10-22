@@ -8,7 +8,7 @@ import videobuilder as vb
 from ... import canvas
 from ...looks.fx import image_surface, surface_image
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def _curve(points):
@@ -77,7 +77,7 @@ def draw(n, cv):
         vb.text.draw(cv, [label], f, 40, 32, demo.INK)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='cross-processing',
     name='Cross-processing',
     family='vfx',
@@ -90,7 +90,7 @@ TECHNIQUE = Technique(
                'grade it with blue shadows and acid yellow highlights'),
     related=('palette-shift-transition', 'theme-swap-crossfade', 'cross-dissolve', 'color-cycling',
              'rgb-split', 'cross-zoom'),
-    api=('videobuilder.techniques.vfx.cross_processing.cross_process',
-         'videobuilder.techniques.vfx.cross_processing.cross_process_image'),
+    api=('videobuilder.capabilities.vfx.cross_processing.cross_process',
+         'videobuilder.capabilities.vfx.cross_processing.cross_process_image'),
     demo=lambda: demo.film(draw),
 )

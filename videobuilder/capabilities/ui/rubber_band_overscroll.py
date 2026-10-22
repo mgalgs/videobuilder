@@ -5,7 +5,7 @@ import math
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def rubber_band(overscroll, limit, resistance=0.55):
@@ -73,7 +73,7 @@ def draw(n, cv):
         cv.arc(fx, fy, 22, 0, 2 * math.pi, demo.INK, width=3, alpha=0.9 * (1 - lift))
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='rubber-band-overscroll',
     name='Rubber band overscroll',
     family='ui',
@@ -86,7 +86,7 @@ TECHNIQUE = Technique(
                'pull down on the feed and it rubber-bands back into place'),
     related=('elastic-stretch', 'rubber-band-snap', 'elastic-ease-out', 'squash-on-tap',
              'offset-path-expansion', 'elastic-horizontal-squash'),
-    api=('videobuilder.techniques.ui.rubber_band_overscroll.rubber_band',
-         'videobuilder.techniques.ui.rubber_band_overscroll.overscroll_release'),
+    api=('videobuilder.capabilities.ui.rubber_band_overscroll.rubber_band',
+         'videobuilder.capabilities.ui.rubber_band_overscroll.overscroll_release'),
     demo=lambda: demo.film(draw),
 )

@@ -5,7 +5,7 @@ import videobuilder as vb
 from videobuilder.type.kit import blurred
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def _mix(a, b, t):
@@ -60,7 +60,7 @@ def draw(n, cv):
     cv.mark('text', *box)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='stamp-impression',
     name='Stamp impression',
     family='typography',
@@ -73,7 +73,7 @@ TECHNIQUE = Technique(
                'make the headline look like it was pressed into the page'),
     related=('badge-stamp-impact', 'wipe-reveal', 'impact-shake', 'pixel-sort-text', 'per-character-fade-in',
              'hover-letter-displacement'),
-    api=('videobuilder.techniques.typography.stamp_impression.draw_stamp',
-         'videobuilder.techniques.typography.stamp_impression.stamp'),
+    api=('videobuilder.capabilities.typography.stamp_impression.draw_stamp',
+         'videobuilder.capabilities.typography.stamp_impression.stamp'),
     demo=lambda: demo.film(draw),
 )

@@ -8,7 +8,7 @@ import cairo
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def slant_swing(p, degrees=12.0, hold=0.3):
@@ -54,7 +54,7 @@ def draw(n, cv):
               font=demo.mono(30, 500))
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='slant-axis-swing',
     name='Slant axis swing',
     family='typography',
@@ -67,7 +67,7 @@ TECHNIQUE = Technique(
                'the letters tilt forward like italics for a moment'),
     related=('arc-bend-morph', 'character-rotate-in', 'chart-type-morph', 'angled-lower-third', 'dutch-angle',
              'text-to-shape-morph'),
-    api=('videobuilder.techniques.typography.slant_axis_swing.draw_slanted',
-         'videobuilder.techniques.typography.slant_axis_swing.slant_swing'),
+    api=('videobuilder.capabilities.typography.slant_axis_swing.draw_slanted',
+         'videobuilder.capabilities.typography.slant_axis_swing.slant_swing'),
     demo=lambda: demo.film(draw),
 )

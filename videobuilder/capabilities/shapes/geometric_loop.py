@@ -5,7 +5,7 @@ import math
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 TAU = 2 * math.pi
 LOOP_FRAMES = round(demo.SECONDS * demo.FPS)  # the demo is one full loop, so it repeats cleanly
@@ -59,7 +59,7 @@ def draw(n, cv):
     cv.mark('loop', *box)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='geometric-loop',
     name='Geometric loop',
     family='shapes',
@@ -72,7 +72,7 @@ TECHNIQUE = Technique(
                'a hypnotic geometric background that loops seamlessly'),
     related=('rotating-polygon-loop', 'seamless-loop', 'shape-assemble-from-fragments', 'walk-cycle',
              'circle-packing', 'cycle-diagram-rotation'),
-    api=('videobuilder.techniques.shapes.geometric_loop.geometric_loop',
-         'videobuilder.techniques.shapes.geometric_loop.polygon'),
+    api=('videobuilder.capabilities.shapes.geometric_loop.geometric_loop',
+         'videobuilder.capabilities.shapes.geometric_loop.polygon'),
     demo=lambda: demo.film(draw),
 )

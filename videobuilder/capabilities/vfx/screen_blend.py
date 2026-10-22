@@ -10,7 +10,7 @@ import cairo
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def screen_blend(cv, draw, amount=1.0):
@@ -85,7 +85,7 @@ def _draw(n, cv):
         vb.text.draw(cv, ['Normal'], lab, rx + 18, PANEL[1] - 58, demo.MUTED)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='screen-blend',
     name='Screen blend',
     family='vfx',
@@ -98,6 +98,6 @@ TECHNIQUE = Technique(
                'overlay the light leak without the dark parts showing'),
     related=('additive-dissolve', 'flash-cut', 'film-dissolve', 'cross-dissolve', 'theme-swap-crossfade',
              'gooch-shading'),
-    api=('videobuilder.techniques.vfx.screen_blend.screen_blend',),
+    api=('videobuilder.capabilities.vfx.screen_blend.screen_blend',),
     demo=lambda: demo.film(_draw),
 )

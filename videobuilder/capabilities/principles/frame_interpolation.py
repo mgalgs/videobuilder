@@ -6,7 +6,7 @@ import math
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def frame_interpolation(cv, draw_at, t, source_fps, mode='motion'):
@@ -69,7 +69,7 @@ def draw(n, cv):
     cv.mark('ball', _x(t) - 30, 420 - 30, 60, 60)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='frame-interpolation',
     name='Frame Interpolation',
     family='principles',
@@ -84,6 +84,6 @@ TECHNIQUE = Technique(
                'smooth out the stutter between frames'),
     related=('interlace-combing', 'on-ones-on-twos-on-threes', 'smear-frame', 'isolines-contour-animation',
              'seamless-loop', 'morph-cut'),
-    api=('videobuilder.techniques.principles.frame_interpolation.frame_interpolation',),
+    api=('videobuilder.capabilities.principles.frame_interpolation.frame_interpolation',),
     demo=lambda: demo.film(draw),
 )

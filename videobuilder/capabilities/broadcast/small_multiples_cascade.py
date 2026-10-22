@@ -5,7 +5,7 @@ viewer can compare categories at a glance once the grid is full."""
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 from ..ui.staggered_cascade_reveal import cascade, reveal
 
 
@@ -87,7 +87,7 @@ def draw(n, cv):
     cv.mark('grid', x0, y0, gw, gh)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='small-multiples-cascade',
     name='Small multiples cascade',
     family='broadcast',
@@ -100,8 +100,8 @@ TECHNIQUE = Technique(
                'a wall of tiny bar charts on a shared axis that pops in tile by tile'),
     related=('staggered-cascade-reveal', 'springs-network', 'swiss-grid-slide', 'mograph-grid-flip',
              'dropdown-stagger-reveal', 'org-chart-grow'),
-    api=('videobuilder.techniques.broadcast.small_multiples_cascade.small_multiples',
-         'videobuilder.techniques.broadcast.small_multiples_cascade.mini_bars',
-         'videobuilder.techniques.ui.staggered_cascade_reveal.cascade'),
+    api=('videobuilder.capabilities.broadcast.small_multiples_cascade.small_multiples',
+         'videobuilder.capabilities.broadcast.small_multiples_cascade.mini_bars',
+         'videobuilder.capabilities.ui.staggered_cascade_reveal.cascade'),
     demo=lambda: demo.film(draw),
 )

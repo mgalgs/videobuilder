@@ -4,7 +4,7 @@ import videobuilder as vb
 
 from .. import _demo as demo
 from ...compendium import kit
-from ..schema import Technique
+from ..schema import Capability
 
 
 def collapse_rows(heights, removed, p, gap=0, fade=0.7, ease=vb.ease_in_out_quart):
@@ -94,7 +94,7 @@ def draw(n, cv):
     cv.mark('list', *box)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='row-collapse-removal',
     name='Row collapse removal',
     family='ui',
@@ -107,7 +107,7 @@ TECHNIQUE = Technique(
                'remove a list entry without the rest of the list jumping'),
     related=('accordion-height-expand', 'bottom-sheet-slide-up', 'leaderboard-row-swap',
              'hover-reveal-actions', 'accordion-fold', 'dropdown-stagger-reveal'),
-    api=('videobuilder.techniques.ui.row_collapse_removal.draw_collapsing_list',
-         'videobuilder.techniques.ui.row_collapse_removal.collapse_rows'),
+    api=('videobuilder.capabilities.ui.row_collapse_removal.draw_collapsing_list',
+         'videobuilder.capabilities.ui.row_collapse_removal.collapse_rows'),
     demo=lambda: demo.film(draw),
 )

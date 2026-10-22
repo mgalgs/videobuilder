@@ -6,7 +6,7 @@ import math
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def _lattice(ix, iy, iz, seed):
@@ -100,7 +100,7 @@ def draw(n, cv):
     cv.mark('field', (demo.W - GRID_W) / 2, (demo.H - GRID_H) / 2, GRID_W, GRID_H)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='turbulence-displacement',
     name='Turbulence field',
     family='particles',
@@ -114,8 +114,8 @@ TECHNIQUE = Technique(
                'add organic turbulence that pushes everything around smoothly'),
     related=('curl-noise-flow', 'flow-field', 'domain-warping', 'fractal-brownian-motion', 'wiggle-path',
              'swirl'),
-    api=('videobuilder.techniques.particles.turbulence_displacement.displace',
-         'videobuilder.techniques.particles.turbulence_displacement.turbulence',
-         'videobuilder.techniques.particles.turbulence_displacement.value_noise'),
+    api=('videobuilder.capabilities.particles.turbulence_displacement.displace',
+         'videobuilder.capabilities.particles.turbulence_displacement.turbulence',
+         'videobuilder.capabilities.particles.turbulence_displacement.value_noise'),
     demo=lambda: demo.film(draw),
 )

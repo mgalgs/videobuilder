@@ -6,7 +6,7 @@ import math
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def follow(path, t, lag=0.14, step=1 / 120):
@@ -54,7 +54,7 @@ def draw(n, cv):
     cv.mark('ring', rx - 24, ry - 24, 48, 48)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='cursor-follower-dot-and-ring',
     name='Cursor follower dot and ring',
     family='ui',
@@ -67,7 +67,7 @@ TECHNIQUE = Technique(
                'custom pointer where an outer circle chases the dot'),
     related=('cursor-path-animation', 'dot-grid-displacement', 'proximity-stagger', 'blinking-cursor',
              'bouncing-dots', 'magnetic-button'),
-    api=('videobuilder.techniques.ui.cursor_follower_dot_and_ring.draw_cursor_follower',
-         'videobuilder.techniques.ui.cursor_follower_dot_and_ring.follow'),
+    api=('videobuilder.capabilities.ui.cursor_follower_dot_and_ring.draw_cursor_follower',
+         'videobuilder.capabilities.ui.cursor_follower_dot_and_ring.follow'),
     demo=lambda: demo.film(draw),
 )

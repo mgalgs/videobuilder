@@ -4,7 +4,7 @@ as heavy or calm when it is stretched across a second or more."""
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 # Named durations in seconds, from a flick to a heavy, deliberate move.
 TIMINGS = {'snap': 0.25, 'quick': 0.45, 'natural': 0.8, 'calm': 1.3, 'heavy': 1.8}
@@ -38,7 +38,7 @@ def draw(n, cv):
         cv.mark(name, x - r, y - r, 2 * r, 2 * r)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='timing',
     name='Timing',
     family='principles',
@@ -51,7 +51,7 @@ TECHNIQUE = Technique(
                'give each move a duration that matches its weight'),
     related=('delay', 'time-remapping', 'freeze-frame', 'offset', 'distance-based-duration',
              'timecode-counter'),
-    api=('videobuilder.techniques.principles.timing.timed',
-         'videobuilder.techniques.principles.timing.TIMINGS'),
+    api=('videobuilder.capabilities.principles.timing.timed',
+         'videobuilder.capabilities.principles.timing.TIMINGS'),
     demo=lambda: demo.film(draw),
 )

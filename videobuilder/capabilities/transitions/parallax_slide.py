@@ -4,7 +4,7 @@ seam, foreground pieces outrun it -- so the move reads as depth."""
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def _layers(scene, back):
@@ -79,7 +79,7 @@ def _scene_b(cv):
     _front_b(cv)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='parallax-slide',
     name='Parallax slide',
     family='transitions',
@@ -92,6 +92,6 @@ TECHNIQUE = Technique(
                'a sideways slide where the layers move at different speeds'),
     related=('scroll-parallax-layers', 'parallax-layers', 'pointer-parallax-layers', 'parallax-letter-layers',
              'two-point-five-d-photo-parallax', 'layered-fog-bands'),
-    api=('videobuilder.techniques.transitions.parallax_slide.parallax_slide',),
+    api=('videobuilder.capabilities.transitions.parallax_slide.parallax_slide',),
     demo=lambda: demo.two_scenes(_demo_slide, a=_scene_a, b=_scene_b),
 )

@@ -4,7 +4,7 @@ into place, so the image assembles out of them."""
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 from ..shapes.particle_swarm_assemble import swarm
 
 
@@ -55,7 +55,7 @@ def draw(n, cv):
     cv.mark('image', *box)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='image-to-particles',
     name='Image to particles',
     family='particles',
@@ -68,8 +68,8 @@ TECHNIQUE = Technique(
                'turn the image into specks that fly together to form it'),
     related=('pixelation', 'pixel-build', 'pixel-sorting', 'pixelate-transition', 'particle-swarm-assemble',
              'spin-blur'),
-    api=('videobuilder.techniques.particles.image_to_particles.draw_image_particles',
-         'videobuilder.techniques.particles.image_to_particles.sample_particles',
-         'videobuilder.techniques.shapes.particle_swarm_assemble.swarm'),
+    api=('videobuilder.capabilities.particles.image_to_particles.draw_image_particles',
+         'videobuilder.capabilities.particles.image_to_particles.sample_particles',
+         'videobuilder.capabilities.shapes.particle_swarm_assemble.swarm'),
     demo=lambda: demo.film(draw),
 )

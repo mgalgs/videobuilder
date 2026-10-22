@@ -5,7 +5,7 @@ import cairo
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 COLORS = ('#7c80f7', '#3b3f94', '#9c6f1f', '#5d63d8')
 CURSOR = [(0, 0), (0, 26), (6.5, 20), (11, 30), (15, 28), (10.5, 18.5), (19, 18.5)]
@@ -76,7 +76,7 @@ def draw(n, cv):
     _cursor(cv, sx + (tx - sx) * arrive, sy + (ty - sy) * arrive)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='gradient-shift-button',
     name='Gradient shift button',
     family='ui',
@@ -89,7 +89,7 @@ TECHNIQUE = Technique(
                'make the button background flow between colours, faster when hovered'),
     related=('animated-gradient-sweep', 'gradient-mesh-drift', 'palette-shift-transition',
              'gradient-sweep-across-text', 'gradient-border-spin', 'scroll-linked-background-shift'),
-    api=('videobuilder.techniques.ui.gradient_shift_button.draw_gradient_button',
-         'videobuilder.techniques.ui.gradient_shift_button.gradient_offset'),
+    api=('videobuilder.capabilities.ui.gradient_shift_button.draw_gradient_button',
+         'videobuilder.capabilities.ui.gradient_shift_button.gradient_offset'),
     demo=lambda: demo.film(draw),
 )

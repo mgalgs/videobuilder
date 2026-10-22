@@ -6,7 +6,7 @@ import math
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 # Body proportions as shares of the figure's height (feet to top of head).
 THIGH, SHIN, FOOT, HEEL = 0.245, 0.245, 0.085, 0.025
@@ -138,7 +138,7 @@ def draw(n, cv):
     draw_walker(cv, demo.W / 2, ground, HEIGHT, phase, step=STEP, mark='walker')
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='walk-cycle',
     name='Walk Cycle',
     family='principles',
@@ -151,8 +151,8 @@ TECHNIQUE = Technique(
                'loop a stride so the person keeps strolling along'),
     related=('geometric-loop', 'rotating-polygon-loop', 'steps-easing', 'cycle-diagram-rotation',
              'stop-motion-animation', 'pendulum-swing'),
-    api=('videobuilder.techniques.principles.walk_cycle.draw_walker',
-         'videobuilder.techniques.principles.walk_cycle.walk_pose',
+    api=('videobuilder.capabilities.principles.walk_cycle.draw_walker',
+         'videobuilder.capabilities.principles.walk_cycle.walk_pose',
          'videobuilder.Puppet.walk'),
     demo=lambda: demo.film(draw),
 )

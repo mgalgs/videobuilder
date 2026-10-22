@@ -18,7 +18,7 @@ from PIL import Image, ImageDraw, ImageFilter
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def _lerp(a, b, t):
@@ -155,7 +155,7 @@ def draw(n, cv):
     cv.mark('warp', *box)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='polar-coordinate-warp',
     name='Polar coordinate warp',
     family='vfx',
@@ -168,7 +168,7 @@ TECHNIQUE = Technique(
                'curl the wide shot into a ring, like a fisheye globe'),
     related=('look-around', 'lens-distortion', 'projection-morph', 'refraction-ripple', 'elastic-stretch',
              'zoom-blur'),
-    api=('videobuilder.techniques.vfx.polar_coordinate_warp.polar_warp',
-         'videobuilder.techniques.vfx.polar_coordinate_warp.polar_warp_image'),
+    api=('videobuilder.capabilities.vfx.polar_coordinate_warp.polar_warp',
+         'videobuilder.capabilities.vfx.polar_coordinate_warp.polar_warp_image'),
     demo=lambda: demo.film(draw),
 )

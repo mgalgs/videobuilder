@@ -7,7 +7,7 @@ import videobuilder as vb
 from videobuilder.canvas import rgba
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def draw_striped_bar(cv, x, y, w, h, p, t, fill=demo.ACCENT, stripe=demo.INK, track=demo.LINE,
@@ -60,7 +60,7 @@ def draw(n, cv):
     cv.mark('bar', *box)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='striped-progress-bar',
     name='Striped progress bar',
     family='ui',
@@ -73,6 +73,6 @@ TECHNIQUE = Technique(
                'make the upload bar have those animated barber-pole stripes'),
     related=('refresh-bar', 'vhs-tracking-bar', 'copper-bars', 'scanline-jitter', 'percentage-fill-bar',
              'speed-lines'),
-    api=('videobuilder.techniques.ui.striped_progress_bar.draw_striped_bar',),
+    api=('videobuilder.capabilities.ui.striped_progress_bar.draw_striped_bar',),
     demo=lambda: demo.film(draw),
 )

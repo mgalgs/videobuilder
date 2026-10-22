@@ -4,7 +4,7 @@ heaps into slopes that spill over edges onto whatever lies beneath."""
 import random
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 SAND = ('#e9b62f', '#d8a222', '#f3cb52')
 
@@ -119,7 +119,7 @@ def _demo():
     return demo.film(draw)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='falling-sand',
     name='Falling sand',
     family='particles',
@@ -132,8 +132,8 @@ TECHNIQUE = Technique(
                'grains trickle down and heap up like in a falling-sand game'),
     related=('sandpile-avalanche', 'rigid-body-pile', 'ball-bounce', 'shape-stacking-drop',
              'physics-letter-drop', 'dust-motes'),
-    api=('videobuilder.techniques.particles.falling_sand.SandGrid',
-         'videobuilder.techniques.particles.falling_sand.simulate',
-         'videobuilder.techniques.particles.falling_sand.draw_sand'),
+    api=('videobuilder.capabilities.particles.falling_sand.SandGrid',
+         'videobuilder.capabilities.particles.falling_sand.simulate',
+         'videobuilder.capabilities.particles.falling_sand.draw_sand'),
     demo=_demo,
 )

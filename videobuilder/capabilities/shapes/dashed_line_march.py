@@ -5,7 +5,7 @@ import math
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def march_offset(t, speed=60.0, dash=18.0, gap=12.0):
@@ -55,7 +55,7 @@ def draw(n, cv):
     cv.mark('marquee', cx - 170 - pad, top - 100 - pad, 340 + 2 * pad, 200 + 2 * pad)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='dashed-line-march',
     name='Marching ants',
     family='shapes',
@@ -68,8 +68,8 @@ TECHNIQUE = Technique(
                'animate the dashes so they keep moving along the border'),
     related=('ant-colony-pheromone-trails', 'particle-trail', 'stroke-draw-on', 'line-draw-logo-reveal',
              'streamlines', 'path-emitter'),
-    api=('videobuilder.techniques.shapes.dashed_line_march.draw_marching',
-         'videobuilder.techniques.shapes.dashed_line_march.marching_rect',
-         'videobuilder.techniques.shapes.dashed_line_march.march_offset'),
+    api=('videobuilder.capabilities.shapes.dashed_line_march.draw_marching',
+         'videobuilder.capabilities.shapes.dashed_line_march.marching_rect',
+         'videobuilder.capabilities.shapes.dashed_line_march.march_offset'),
     demo=lambda: demo.film(draw),
 )

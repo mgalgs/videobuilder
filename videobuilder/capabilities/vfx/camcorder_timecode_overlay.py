@@ -7,7 +7,7 @@ import math
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 MONTHS = ('JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC')
 
@@ -111,7 +111,7 @@ def draw(n, cv):
     camcorder_overlay(cv, t, start=3 * 60 + 41.5, alpha=demo.phase(n, 0.0, 0.25))
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='camcorder-timecode-overlay',
     name='Camcorder timecode overlay',
     family='vfx',
@@ -124,8 +124,8 @@ TECHNIQUE = Technique(
                'add that 90s video camera overlay with the blinking record dot and timestamp'),
     related=('timecode-counter', 'keystroke-overlay', 'fire-overlay', 'frame-delay-echo',
              'video-clipped-inside-letterforms', 'freeze-frame'),
-    api=('videobuilder.techniques.vfx.camcorder_timecode_overlay.camcorder_overlay',
-         'videobuilder.techniques.vfx.camcorder_timecode_overlay.timecode',
-         'videobuilder.techniques.vfx.camcorder_timecode_overlay.clock'),
+    api=('videobuilder.capabilities.vfx.camcorder_timecode_overlay.camcorder_overlay',
+         'videobuilder.capabilities.vfx.camcorder_timecode_overlay.timecode',
+         'videobuilder.capabilities.vfx.camcorder_timecode_overlay.clock'),
     demo=lambda: demo.film(draw),
 )

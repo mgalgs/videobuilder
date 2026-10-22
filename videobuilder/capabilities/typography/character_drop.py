@@ -3,7 +3,7 @@ each landing on the baseline with a small settle, until the word is whole."""
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def character_drop(text, p, stagger=0.6, ease=vb.ease_out_back):
@@ -47,7 +47,7 @@ def draw(n, cv):
     cv.mark('text', *box)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='character-drop',
     name='Character drop',
     family='typography',
@@ -60,7 +60,7 @@ TECHNIQUE = Technique(
                'each character drops down onto the line in sequence'),
     related=('physics-letter-drop', 'falling-letter-rain', 'gravity-drop', 'letter-roll',
              'falling-glyph-rain-reveal', 'letter-sort-animation'),
-    api=('videobuilder.techniques.typography.character_drop.draw_character_drop',
-         'videobuilder.techniques.typography.character_drop.character_drop'),
+    api=('videobuilder.capabilities.typography.character_drop.draw_character_drop',
+         'videobuilder.capabilities.typography.character_drop.character_drop'),
     demo=lambda: demo.film(draw),
 )

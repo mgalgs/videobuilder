@@ -6,7 +6,7 @@ import math
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def expand_height(p, full, ease=vb.ease_in_out_quart):
@@ -84,7 +84,7 @@ def draw(n, cv):
     _row(cv, y + ROW_H + GAP, demo.MUTED)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='accordion-height-expand',
     name='Accordion height expand',
     family='ui',
@@ -97,8 +97,8 @@ TECHNIQUE = Technique(
                'the section unfolds downward and the list makes room for it'),
     related=('accordion-fold-text', 'accordion-fold', 'container-transform', 'row-collapse-removal',
              'scroll-linked-clip-reveal', 'paper-fold-reveal'),
-    api=('videobuilder.techniques.ui.accordion_height_expand.accordion_section',
-         'videobuilder.techniques.ui.accordion_height_expand.expand_height',
-         'videobuilder.techniques.ui.accordion_height_expand.chevron'),
+    api=('videobuilder.capabilities.ui.accordion_height_expand.accordion_section',
+         'videobuilder.capabilities.ui.accordion_height_expand.expand_height',
+         'videobuilder.capabilities.ui.accordion_height_expand.chevron'),
     demo=lambda: demo.film(draw),
 )

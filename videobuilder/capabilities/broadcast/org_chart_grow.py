@@ -5,7 +5,7 @@ bottom row."""
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 PANEL = '#1d1f26'
 
@@ -141,7 +141,7 @@ def draw(n, cv):
     cv.mark('chart', *box)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='org-chart-grow',
     name='Org chart grow',
     family='broadcast',
@@ -154,9 +154,9 @@ TECHNIQUE = Technique(
                'a reporting-line diagram that grows level by level'),
     related=('bar-grow', 'treemap-re-layout', 'stacked-bar-build', 'connector-network', 'recursive-tree',
              'waterfall-build'),
-    api=('videobuilder.techniques.broadcast.org_chart_grow.draw_org_chart',
-         'videobuilder.techniques.broadcast.org_chart_grow.layout_org_chart',
-         'videobuilder.techniques.broadcast.org_chart_grow.rank_progress',
-         'videobuilder.techniques.broadcast.org_chart_grow.draw_org_box'),
+    api=('videobuilder.capabilities.broadcast.org_chart_grow.draw_org_chart',
+         'videobuilder.capabilities.broadcast.org_chart_grow.layout_org_chart',
+         'videobuilder.capabilities.broadcast.org_chart_grow.rank_progress',
+         'videobuilder.capabilities.broadcast.org_chart_grow.draw_org_box'),
     demo=lambda: demo.film(draw),
 )

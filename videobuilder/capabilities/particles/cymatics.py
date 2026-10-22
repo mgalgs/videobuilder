@@ -7,7 +7,7 @@ from functools import lru_cache
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def chladni(x, y, m=2, n=5):
@@ -97,7 +97,7 @@ def draw(n, cv):
     cv.mark('plate', x, y, size, size)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='cymatics',
     name='Cymatics',
     family='particles',
@@ -110,8 +110,8 @@ TECHNIQUE = Technique(
                'like the salt-on-a-speaker experiment where lines appear'),
     related=('caustics', 'wave-stagger', 'ripple-rings', 'hypocycloid-spirograph',
              'op-art-vibrating-pattern', 'mandelbulb-raymarch'),
-    api=('videobuilder.techniques.particles.cymatics.cymatics',
-         'videobuilder.techniques.particles.cymatics.chladni',
-         'videobuilder.techniques.particles.cymatics.chladni_paths'),
+    api=('videobuilder.capabilities.particles.cymatics.cymatics',
+         'videobuilder.capabilities.particles.cymatics.chladni',
+         'videobuilder.capabilities.particles.cymatics.chladni_paths'),
     demo=lambda: demo.film(draw),
 )

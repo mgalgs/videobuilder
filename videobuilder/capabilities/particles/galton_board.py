@@ -6,7 +6,7 @@ import random
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def galton_drops(balls, rows, seed=0):
@@ -88,7 +88,7 @@ def draw(n, cv):
     galton_board(cv, n / demo.FPS - 0.15, demo.W / 2 - 200, 24, 400, 486, seed=17)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='galton-board',
     name='Galton board',
     family='particles',
@@ -101,7 +101,7 @@ TECHNIQUE = Technique(
                'plinko-style drop where the counts pile into slots'),
     related=('split-flap-display', 'sierpinski-gasket', 'circle-packing', 'bounce-ease-in',
              'bouncing-ball-word-marker', 'ball-bounce'),
-    api=('videobuilder.techniques.particles.galton_board.galton_board',
-         'videobuilder.techniques.particles.galton_board.galton_drops'),
+    api=('videobuilder.capabilities.particles.galton_board.galton_board',
+         'videobuilder.capabilities.particles.galton_board.galton_drops'),
     demo=lambda: demo.film(draw),
 )

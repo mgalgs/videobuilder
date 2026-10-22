@@ -7,7 +7,7 @@ import math
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 RUSH = vb.bezier(0.45, 0.0, 0.9, 0.7)   # accelerating into the lens
 
@@ -51,7 +51,7 @@ def zoom_through(cv, a, b, p, zoom=9.0, out_end=0.7, in_start=0.45, start_scale=
         a(cv)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='zoom-through',
     name='Zoom through',
     family='transitions',
@@ -64,7 +64,7 @@ TECHNIQUE = Technique(
                'a fast zoom-in that carries us to the next shot'),
     related=('push-in', 'scale-zoom-through', 'ui-walkthrough-camera-zoom', 'fly-through', 'infinite-zoom-tunnel',
              'object-pass-through'),
-    api=('videobuilder.techniques.transitions.zoom_through.zoom_through',
+    api=('videobuilder.capabilities.transitions.zoom_through.zoom_through',
          'videobuilder.compendium.components.transition_zoom_through.COMPONENT'),
     demo=lambda: demo.two_scenes(zoom_through, start=0.7, length=1.6),
 )

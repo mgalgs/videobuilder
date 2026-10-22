@@ -6,7 +6,7 @@ import math
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 RAMP = ('#1f3b73', '#2f7fb8', '#4fc3b0', '#f2c14e', '#ef5b4c')  # low -> high
 
@@ -100,7 +100,7 @@ def draw(n, cv):
     _centered(cv, '100', small, lx + lw + 26, ly + 5, demo.MUTED, 1.0)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='heatmap-fill',
     name='Heatmap fill',
     family='broadcast',
@@ -113,8 +113,8 @@ TECHNIQUE = Technique(
                'reveal the matrix chart cell by cell with its colour scale'),
     related=('choropleth-fill', 'thermal-false-color', 'color-fill-rise', 'displacement-map',
              'hexagon-tile-reveal', 'shape-fill-sweep'),
-    api=('videobuilder.techniques.broadcast.heatmap_fill.heatmap_fill',
-         'videobuilder.techniques.broadcast.heatmap_fill.ramp_color',
-         'videobuilder.techniques.broadcast.heatmap_fill.cell_progress'),
+    api=('videobuilder.capabilities.broadcast.heatmap_fill.heatmap_fill',
+         'videobuilder.capabilities.broadcast.heatmap_fill.ramp_color',
+         'videobuilder.capabilities.broadcast.heatmap_fill.cell_progress'),
     demo=lambda: demo.film(draw),
 )

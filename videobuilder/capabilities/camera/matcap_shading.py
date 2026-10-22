@@ -11,7 +11,7 @@ import videobuilder as vb
 
 from .. import _demo as demo
 from ...compendium import kit
-from ..schema import Technique
+from ..schema import Capability
 
 
 def _rgb(color):
@@ -187,7 +187,7 @@ def draw(n, cv):
     _ball(cv, matcap, 96, 96, 46)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='matcap-shading',
     name='Matcap shading',
     family='camera',
@@ -201,11 +201,11 @@ TECHNIQUE = Technique(
                'spin the shape while the shine and reflections stay facing the camera'),
     related=('shine-glint-sweep', 'unsharp-mask', 'low-poly-faceting', 'luma-wipe', 'heat-haze',
              'cel-shading-look'),
-    api=('videobuilder.techniques.camera.matcap_shading.matcap_render',
-         'videobuilder.techniques.camera.matcap_shading.make_matcap',
-         'videobuilder.techniques.camera.matcap_shading.matcap_lookup',
-         'videobuilder.techniques.camera.matcap_shading.draw_matcap_knot',
-         'videobuilder.techniques.camera.matcap_shading.torus_knot',
-         'videobuilder.techniques.camera.matcap_shading.rotation'),
+    api=('videobuilder.capabilities.camera.matcap_shading.matcap_render',
+         'videobuilder.capabilities.camera.matcap_shading.make_matcap',
+         'videobuilder.capabilities.camera.matcap_shading.matcap_lookup',
+         'videobuilder.capabilities.camera.matcap_shading.draw_matcap_knot',
+         'videobuilder.capabilities.camera.matcap_shading.torus_knot',
+         'videobuilder.capabilities.camera.matcap_shading.rotation'),
     demo=lambda: demo.film(draw),
 )

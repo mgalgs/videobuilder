@@ -6,7 +6,7 @@ import math
 import random
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def life_force(d, pull, core=0.3):
@@ -117,7 +117,7 @@ def draw(n, cv):
     cv.mark('field', 0, 0, demo.W, demo.H)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='particle-life',
     name='Particle Life',
     family='particles',
@@ -131,9 +131,9 @@ TECHNIQUE = Technique(
                'random dots that self-organise into blobs that chase each other'),
     related=('animated-sprite-particles', 'gravity-well-attraction', 'conway-s-game-of-life',
              'particle-swarm-assemble', 'reaction-diffusion', 'particle-morph'),
-    api=('videobuilder.techniques.particles.particle_life.particle_life',
-         'videobuilder.techniques.particles.particle_life.draw_life',
-         'videobuilder.techniques.particles.particle_life.random_rules',
-         'videobuilder.techniques.particles.particle_life.life_force'),
+    api=('videobuilder.capabilities.particles.particle_life.particle_life',
+         'videobuilder.capabilities.particles.particle_life.draw_life',
+         'videobuilder.capabilities.particles.particle_life.random_rules',
+         'videobuilder.capabilities.particles.particle_life.life_force'),
     demo=lambda: demo.film(draw),
 )

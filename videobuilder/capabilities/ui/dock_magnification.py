@@ -6,7 +6,7 @@ import math
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 ICON_COLORS = ('#ef5b4c', '#f2a541', '#4fc3b0', '#5b8def', '#a77bea', '#e46aa8', '#7cc56b')
 
@@ -87,7 +87,7 @@ def draw(n, cv):
         cv.mark(f'icon{i}', *b)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='dock-magnification',
     name='Dock magnification',
     family='ui',
@@ -100,8 +100,8 @@ TECHNIQUE = Technique(
                'the toolbar buttons zoom in a wave following the pointer'),
     related=('zoom-to-detail-magnifier', 'cursor-follow-auto-zoom', 'ui-walkthrough-camera-zoom',
              'scale-zoom-through', 'icon-hover-bounce', 'proximity-stagger'),
-    api=('videobuilder.techniques.ui.dock_magnification.dock_layout',
-         'videobuilder.techniques.ui.dock_magnification.magnification',
-         'videobuilder.techniques.ui.dock_magnification.draw_dock'),
+    api=('videobuilder.capabilities.ui.dock_magnification.dock_layout',
+         'videobuilder.capabilities.ui.dock_magnification.magnification',
+         'videobuilder.capabilities.ui.dock_magnification.draw_dock'),
     demo=lambda: demo.film(draw),
 )

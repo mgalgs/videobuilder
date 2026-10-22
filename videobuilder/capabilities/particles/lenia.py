@@ -17,7 +17,7 @@ from PIL import Image as PILImage
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 # One glider grown from noise at radius 9, mu 0.15, sigma 0.015, dt 0.1: two
 # hex digits per cell (00 -> 0, ff -> 1). Unturned it drifts left and down,
@@ -140,7 +140,7 @@ def draw(n, cv):
                colors=(demo.BG, '#173a44', demo.TEAL, '#f2d7a0', demo.INK))
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='lenia',
     name='Lenia',
     family='particles',
@@ -153,11 +153,11 @@ TECHNIQUE = Technique(
                'organic glowing cells that move like microscopic life'),
     related=('eden-growth', 'voronoi-relaxation', 'morphing-blob', 'differential-growth',
              'diffusion-limited-aggregation', 'hopalong-attractor'),
-    api=('videobuilder.techniques.particles.lenia.lenia_step',
-         'videobuilder.techniques.particles.lenia.place',
-         'videobuilder.techniques.particles.lenia.draw_lenia',
-         'videobuilder.techniques.particles.lenia.lenia_image',
-         'videobuilder.techniques.particles.lenia.lenia_kernel',
-         'videobuilder.techniques.particles.lenia.GLIDER'),
+    api=('videobuilder.capabilities.particles.lenia.lenia_step',
+         'videobuilder.capabilities.particles.lenia.place',
+         'videobuilder.capabilities.particles.lenia.draw_lenia',
+         'videobuilder.capabilities.particles.lenia.lenia_image',
+         'videobuilder.capabilities.particles.lenia.lenia_kernel',
+         'videobuilder.capabilities.particles.lenia.GLIDER'),
     demo=lambda: demo.film(draw),
 )

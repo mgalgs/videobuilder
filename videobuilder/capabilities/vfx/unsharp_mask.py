@@ -6,7 +6,7 @@ import cairo
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 from ...canvas import Canvas
 from ...type.kit import blurred
 
@@ -77,7 +77,7 @@ def _draw(n, cv):
         vb.text.draw(cv, [label], f, x, 44, demo.INK)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='unsharp-mask',
     name='Unsharp mask',
     family='vfx',
@@ -90,6 +90,6 @@ TECHNIQUE = Technique(
                'crank the sharpening until the edges get halos'),
     related=('gaussian-blur', 'blur-dissolve', 'nearest-neighbor-upscale', 'matcap-shading',
              'blur-up-image-load', 'gradient-wipe'),
-    api=('videobuilder.techniques.vfx.unsharp_mask.unsharp_mask',),
+    api=('videobuilder.capabilities.vfx.unsharp_mask.unsharp_mask',),
     demo=lambda: demo.film(_draw),
 )

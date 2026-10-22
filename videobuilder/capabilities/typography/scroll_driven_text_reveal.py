@@ -4,7 +4,7 @@ time, drives the reveal."""
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def scroll_fill(count, scroll, soft=1.5):
@@ -67,7 +67,7 @@ def draw(n, cv):
     cv.rect(TRACK_X - 2, TRACK_TOP + (TRACK_H - THUMB_H) * s, 8, THUMB_H, demo.ACCENT, radius=4)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='scroll-driven-text-reveal',
     name='Scroll-driven text reveal',
     family='typography',
@@ -81,7 +81,7 @@ TECHNIQUE = Technique(
                'tie the text fill to the scroll position so it scrubs back and forth'),
     related=('fade-up-scroll-reveal', 'scroll-scrubbed-frame-sequence', 'typewriter-reveal',
              'scroll-linked-background-shift', 'scrollspy-nav-indicator', 'roll-up'),
-    api=('videobuilder.techniques.typography.scroll_driven_text_reveal.draw_scroll_text',
-         'videobuilder.techniques.typography.scroll_driven_text_reveal.scroll_fill'),
+    api=('videobuilder.capabilities.typography.scroll_driven_text_reveal.draw_scroll_text',
+         'videobuilder.capabilities.typography.scroll_driven_text_reveal.scroll_fill'),
     demo=lambda: demo.film(draw),
 )

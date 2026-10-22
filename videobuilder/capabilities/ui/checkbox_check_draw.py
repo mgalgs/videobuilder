@@ -4,7 +4,7 @@ the long one. Built on `vb.paths.reveal` and `vb.paths.draw`."""
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def check_points(x, y, size):
@@ -54,7 +54,7 @@ def draw(n, cv):
               color=demo.INK if p >= 1 else demo.MUTED, alpha=1.0)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='checkbox-check-draw',
     name='Checkbox check draw',
     family='ui',
@@ -67,8 +67,8 @@ TECHNIQUE = Technique(
                'a to-do item whose box fills and a tick draws on'),
     related=('circle-check-draw', 'border-draw-button', 'stroke-draw-on', 'stroke-draw-logo-loader',
              'loading-to-success-morph', 'line-draw-logo-reveal'),
-    api=('videobuilder.techniques.ui.checkbox_check_draw.draw_checkbox',
-         'videobuilder.techniques.ui.checkbox_check_draw.check_points',
+    api=('videobuilder.capabilities.ui.checkbox_check_draw.draw_checkbox',
+         'videobuilder.capabilities.ui.checkbox_check_draw.check_points',
          'videobuilder.paths.reveal'),
     demo=lambda: demo.film(draw),
 )

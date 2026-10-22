@@ -10,7 +10,7 @@ import videobuilder as vb
 from videobuilder.canvas import rgba
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def _smooth(u):
@@ -192,7 +192,7 @@ def draw(n, cv):
     cv.rect(60, demo.H - 44, 260 * speed, 8, demo.ACCENT, radius=4)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='bullet-time',
     name='Bullet Time',
     family='principles',
@@ -204,7 +204,7 @@ TECHNIQUE = Technique(
                'slow it right down mid-action and circle the camera round it',
                'hang the explosion in the air while we circle it'),
     related=('hyperlapse', 'delay', 'timing', 'scatter-time-playback', 'orbit-shot', 'orbital-pulse'),
-    api=('videobuilder.techniques.principles.bullet_time.bullet_time',
-         'videobuilder.techniques.principles.bullet_time.orbit_project'),
+    api=('videobuilder.capabilities.principles.bullet_time.bullet_time',
+         'videobuilder.capabilities.principles.bullet_time.orbit_project'),
     demo=lambda: demo.film(draw),
 )

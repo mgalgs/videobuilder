@@ -1,7 +1,7 @@
 """Cross Dissolve: the incoming scene fades up over the outgoing one, so for
 a moment both are on screen at once, half and half, with no dip in between."""
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def cross_dissolve(cv, a, b, p, ease=None):
@@ -17,7 +17,7 @@ def cross_dissolve(cv, a, b, p, ease=None):
         b(cv)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='cross-dissolve',
     name='Cross dissolve',
     family='transitions',
@@ -30,6 +30,6 @@ TECHNIQUE = Technique(
                'a soft overlap between the clips instead of a hard cut'),
     related=('cross-zoom', 'image-crossfade-slideshow', 'theme-swap-crossfade', 'lyric-line-crossfade',
              'cross-processing', 'typeface-crossfade'),
-    api=('videobuilder.techniques.transitions.cross_dissolve.cross_dissolve',),
+    api=('videobuilder.capabilities.transitions.cross_dissolve.cross_dissolve',),
     demo=lambda: demo.two_scenes(cross_dissolve),
 )

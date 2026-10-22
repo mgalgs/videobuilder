@@ -4,7 +4,7 @@ column's height climbs to the total."""
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def stacked_bar_build(cv, x, base_y, width, segments, scale, p, overlap=0.0, ease=vb.ease_out_quint,
@@ -67,7 +67,7 @@ def draw(n, cv):
         lx = box.right + 28
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='stacked-bar-build',
     name='Stacked bar build',
     family='broadcast',
@@ -80,6 +80,6 @@ TECHNIQUE = Technique(
                'animate a stacked column chart filling from the bottom'),
     related=('shape-stacking-drop', 'stacked-line-build', 'pyramid-build', 'isometric-bar-rise', 'org-chart-grow',
              'voxel-build'),
-    api=('videobuilder.techniques.broadcast.stacked_bar_build.stacked_bar_build',),
+    api=('videobuilder.capabilities.broadcast.stacked_bar_build.stacked_bar_build',),
     demo=lambda: demo.film(draw),
 )

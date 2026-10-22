@@ -8,7 +8,7 @@ import random
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def wind(direction=0.0, speed=240.0, swirl=0.5, gust=0.8, wavelength=520.0, gust_speed=420.0, seed=0):
@@ -105,7 +105,7 @@ def draw(n, cv):
     cv.mark('particles', 0, 0, demo.W, demo.H)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='wind-field',
     name='Wind field',
     family='particles',
@@ -118,8 +118,8 @@ TECHNIQUE = Technique(
                'a wind that picks up and pushes everything across the screen'),
     related=('flow-field', 'curl-noise-flow', 'air-drag', 'streamlines', 'particle-field-repel',
              'particle-morph'),
-    api=('videobuilder.techniques.particles.wind_field.wind',
-         'videobuilder.techniques.particles.wind_field.blow',
-         'videobuilder.techniques.particles.wind_field.draw_streaks'),
+    api=('videobuilder.capabilities.particles.wind_field.wind',
+         'videobuilder.capabilities.particles.wind_field.blow',
+         'videobuilder.capabilities.particles.wind_field.draw_streaks'),
     demo=lambda: demo.film(draw),
 )

@@ -8,7 +8,7 @@ import videobuilder as vb
 from videobuilder import paths
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 YELLOW = '#f7c531'
 FACE_INK = '#5a3a06'
@@ -101,7 +101,7 @@ def draw(n, cv):
     cv.mark('source', x - 26, y - 26, 52, 52)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='floating-reaction-emoji',
     name='Floating reaction emoji',
     family='broadcast',
@@ -114,10 +114,10 @@ TECHNIQUE = Technique(
                'show viewers reacting with emoji drifting up the screen'),
     related=('emoji-substitution', 'icon-hover-bounce', 'circle-pop', 'character-rise',
              'rolling-shutter-wobble', 'character-scale-in'),
-    api=('videobuilder.techniques.broadcast.floating_reaction_emoji.draw_reactions',
-         'videobuilder.techniques.broadcast.floating_reaction_emoji.reaction_stream',
-         'videobuilder.techniques.broadcast.floating_reaction_emoji.smile',
-         'videobuilder.techniques.broadcast.floating_reaction_emoji.heart',
-         'videobuilder.techniques.broadcast.floating_reaction_emoji.wow'),
+    api=('videobuilder.capabilities.broadcast.floating_reaction_emoji.draw_reactions',
+         'videobuilder.capabilities.broadcast.floating_reaction_emoji.reaction_stream',
+         'videobuilder.capabilities.broadcast.floating_reaction_emoji.smile',
+         'videobuilder.capabilities.broadcast.floating_reaction_emoji.heart',
+         'videobuilder.capabilities.broadcast.floating_reaction_emoji.wow'),
     demo=lambda: demo.film(draw),
 )

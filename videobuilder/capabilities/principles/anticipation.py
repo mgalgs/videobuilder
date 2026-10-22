@@ -5,7 +5,7 @@ import math
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def anticipate(x, pull=0.15, windup=0.35):
@@ -51,7 +51,7 @@ def draw(n, cv):
     cv.mark('ball', x - r * sx, ground - 2 * r * sy, 2 * r * sx, 2 * r * sy)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='anticipation',
     name='Anticipation',
     family='principles',
@@ -64,7 +64,7 @@ TECHNIQUE = Technique(
                'crouches backward first, then launches toward the target'),
     related=('ease-in-back', 'delay', 'reverse-playback', 'interruptible-motion', 'staggered-cascade-reveal',
              'uncover'),
-    api=('videobuilder.techniques.principles.anticipation.anticipate',
-         'videobuilder.techniques.principles.anticipation.windup_depth'),
+    api=('videobuilder.capabilities.principles.anticipation.anticipate',
+         'videobuilder.capabilities.principles.anticipation.windup_depth'),
     demo=lambda: demo.film(draw),
 )

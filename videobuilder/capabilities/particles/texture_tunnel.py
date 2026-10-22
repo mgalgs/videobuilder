@@ -17,7 +17,7 @@ from PIL import Image, ImageChops, ImageDraw, ImageFilter
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 TEX = 128          # texture side, a power of two so lookups wrap with a mask
 SHIFT = 7          # log2(TEX)
@@ -135,7 +135,7 @@ def draw(n, cv):
     cv.mark('tunnel', *box)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='texture-tunnel',
     name='Texture tunnel',
     family='particles',
@@ -148,8 +148,8 @@ TECHNIQUE = Technique(
                'zoom through a wormhole lined with plasma'),
     related=('perspective-tunnel-type', 'infinite-zoom-tunnel', 'liquify', 'zoom-through-shape',
              'elastic-stretch', 'parallax-slide'),
-    api=('videobuilder.techniques.particles.texture_tunnel.draw_tunnel',
-         'videobuilder.techniques.particles.texture_tunnel.tunnel_image',
-         'videobuilder.techniques.particles.texture_tunnel.plasma_texture'),
+    api=('videobuilder.capabilities.particles.texture_tunnel.draw_tunnel',
+         'videobuilder.capabilities.particles.texture_tunnel.tunnel_image',
+         'videobuilder.capabilities.particles.texture_tunnel.plasma_texture'),
     demo=lambda: demo.film(draw),
 )

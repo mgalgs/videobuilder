@@ -5,7 +5,7 @@ draws a world through it."""
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def _catmull(p0, p1, p2, p3, u):
@@ -86,7 +86,7 @@ def draw(n, cv):
     _hud(cv, n)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='oner',
     name='Oner',
     family='camera',
@@ -98,7 +98,7 @@ TECHNIQUE = Technique(
                'let the camera glide from thing to thing without cutting',
                'film the whole sequence as a single continuous take'),
     related=('multiples', 'match-cut', 'zoom-through', 'hard-cut', 'cut-on-action', 'jump-cut'),
-    api=('videobuilder.techniques.camera.oner.oner',
-         'videobuilder.techniques.camera.oner.oner_camera'),
+    api=('videobuilder.capabilities.camera.oner.oner',
+         'videobuilder.capabilities.camera.oner.oner_camera'),
     demo=lambda: demo.film(draw),
 )

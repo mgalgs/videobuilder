@@ -4,7 +4,7 @@ were drawing them."""
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 ROWS, COLS = 7, 5  # each glyph is 5 dots wide, 7 tall, with one dark column between glyphs
 
@@ -98,7 +98,7 @@ def draw(n, cv):
     cv.mark('text', *box)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='dot-matrix-text',
     name='Dot-matrix text',
     family='typography',
@@ -111,8 +111,8 @@ TECHNIQUE = Technique(
                'text that lights up dot by dot on a grid'),
     related=('scrolling-led-marquee-text', 'pixel-sort-text', 'dot-grid-displacement', 'ascii-art-render',
              'falling-glyph-rain-reveal', 'pixelation-reveal'),
-    api=('videobuilder.techniques.typography.dot_matrix_text.draw_dot_matrix',
-         'videobuilder.techniques.typography.dot_matrix_text.dot_matrix',
-         'videobuilder.techniques.typography.dot_matrix_text.matrix_size'),
+    api=('videobuilder.capabilities.typography.dot_matrix_text.draw_dot_matrix',
+         'videobuilder.capabilities.typography.dot_matrix_text.dot_matrix',
+         'videobuilder.capabilities.typography.dot_matrix_text.matrix_size'),
     demo=lambda: demo.film(draw),
 )

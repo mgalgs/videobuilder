@@ -7,7 +7,7 @@ import math
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def tear_seams(t, count=1, speed=0.35, top=0.0, bottom=1.0, start=0.0):
@@ -79,7 +79,7 @@ def draw(n, cv):
     screen_tear(cv, _scene, t, seams, lag=0.11, seam=demo.MUTED)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='screen-tearing',
     name='Screen tearing',
     family='vfx',
@@ -92,7 +92,7 @@ TECHNIQUE = Technique(
                'a torn-frame glitch where moving things don\'t line up across a horizontal cut'),
     related=('scanline-tear', 'glitch-transition', 'frame-stutter', 'screen-refresh-flicker',
              'dust-and-scratches', 'light-leak'),
-    api=('videobuilder.techniques.vfx.screen_tearing.screen_tear',
-         'videobuilder.techniques.vfx.screen_tearing.tear_seams'),
+    api=('videobuilder.capabilities.vfx.screen_tearing.screen_tear',
+         'videobuilder.capabilities.vfx.screen_tearing.tear_seams'),
     demo=lambda: demo.film(draw),
 )

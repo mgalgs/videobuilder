@@ -7,7 +7,7 @@ import videobuilder as vb
 from videobuilder import paths
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 # Icons as stroke lists in a unit box (-1..1 each way, y down). A stroke is an
 # open point list; `None` is a stroke the icon doesn't have, so another icon's
@@ -81,7 +81,7 @@ def draw(n, cv):
     demo.word(cv, 'CLOSE', cx, cy + r + 70, font=f, color=demo.MUTED, alpha=t)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='icon-state-morph',
     name='Icon state morph',
     family='shapes',
@@ -94,8 +94,8 @@ TECHNIQUE = Technique(
                'the three lines twist into a close cross and back'),
     related=('play-pause-morph', 'text-to-shape-morph', 'chart-type-morph', 'loading-state-morph',
              'shared-element-transition', 'symbol-to-letter-decode'),
-    api=('videobuilder.techniques.shapes.icon_state_morph.draw_icon_morph',
-         'videobuilder.techniques.shapes.icon_state_morph.icon_morph',
+    api=('videobuilder.capabilities.shapes.icon_state_morph.draw_icon_morph',
+         'videobuilder.capabilities.shapes.icon_state_morph.icon_morph',
          'videobuilder.paths.morph'),
     demo=lambda: demo.film(draw),
 )

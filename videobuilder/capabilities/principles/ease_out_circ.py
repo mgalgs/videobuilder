@@ -6,7 +6,7 @@ import math
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def ease_out_circ(x):
@@ -51,7 +51,7 @@ def draw(n, cv):
     demo.dot(cv, hx, hy, 6, color=demo.INK)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='ease-out-circ',
     name='Ease Out Circ',
     family='principles',
@@ -64,6 +64,6 @@ TECHNIQUE = Technique(
                'a very sudden start that softly settles at the end'),
     related=('slow-in-and-slow-out', 'settle', 'momentum-fling', 'dolly-in-and-out', 'follow-through',
              'smooth-scroll-inertia'),
-    api=('videobuilder.techniques.principles.ease_out_circ.ease_out_circ',),
+    api=('videobuilder.capabilities.principles.ease_out_circ.ease_out_circ',),
     demo=lambda: demo.film(draw),
 )

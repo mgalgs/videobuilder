@@ -7,7 +7,7 @@ import random
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def circle_points(box, seed=0, pad=0.22, turns=1.15, tilt=-4.0, wobble=0.05, steps=160):
@@ -65,7 +65,7 @@ def draw(n, cv):
     cv.mark('ring', *box)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='highlight-circle-draw',
     name='Highlight circle draw',
     family='broadcast',
@@ -78,7 +78,7 @@ TECHNIQUE = Technique(
                'have a hand-drawn ring loop around the thing I want people to look at'),
     related=('focus-ring-draw', 'circle-check-draw', 'progress-ring', 'callout-highlight',
              'rotating-circular-text', 'orbital-pulse'),
-    api=('videobuilder.techniques.broadcast.highlight_circle_draw.draw_highlight_circle',
-         'videobuilder.techniques.broadcast.highlight_circle_draw.circle_points'),
+    api=('videobuilder.capabilities.broadcast.highlight_circle_draw.draw_highlight_circle',
+         'videobuilder.capabilities.broadcast.highlight_circle_draw.circle_points'),
     demo=lambda: demo.film(draw),
 )

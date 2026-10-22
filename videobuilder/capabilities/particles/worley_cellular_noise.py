@@ -10,7 +10,7 @@ import cairo
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 from ...canvas import rgba
 
 
@@ -122,7 +122,7 @@ def draw(n, cv):
     cv.mark('field', x, y, w, h)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='worley-cellular-noise',
     name='Worley cellular noise',
     family='particles',
@@ -135,9 +135,9 @@ TECHNIQUE = Technique(
                'give me that bubbly, scaly Voronoi-looking noise'),
     related=('noise-vertex-wobble', 'voronoi-cells', 'voronoi-relaxation', 'noise-field-warp', 'wobble',
              'wiggle-path'),
-    api=('videobuilder.techniques.particles.worley_cellular_noise.worley_cells',
-         'videobuilder.techniques.particles.worley_cellular_noise.voronoi_polygons',
-         'videobuilder.techniques.particles.worley_cellular_noise.jittered_points',
-         'videobuilder.techniques.particles.worley_cellular_noise.worley_f1'),
+    api=('videobuilder.capabilities.particles.worley_cellular_noise.worley_cells',
+         'videobuilder.capabilities.particles.worley_cellular_noise.voronoi_polygons',
+         'videobuilder.capabilities.particles.worley_cellular_noise.jittered_points',
+         'videobuilder.capabilities.particles.worley_cellular_noise.worley_f1'),
     demo=lambda: demo.film(draw),
 )

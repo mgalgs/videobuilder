@@ -5,7 +5,7 @@ import random
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 HEART = ('..XXX...XXX..',
          '.XXOXX.XXXXX.',
@@ -60,7 +60,7 @@ def draw(n, cv):
     cv.mark('image', *box)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='pixel-build',
     name='Pixel build',
     family='shapes',
@@ -73,7 +73,7 @@ TECHNIQUE = Technique(
                'squares pop in one at a time until the picture is finished'),
     related=('pixelate-transition', 'pixelation', 'pixelation-reveal', 'pixel-sort-text', 'pixel-sorting',
              'image-to-particles'),
-    api=('videobuilder.techniques.shapes.pixel_build.pixel_build',
-         'videobuilder.techniques.shapes.pixel_build.build_order'),
+    api=('videobuilder.capabilities.shapes.pixel_build.pixel_build',
+         'videobuilder.capabilities.shapes.pixel_build.build_order'),
     demo=lambda: demo.film(draw),
 )

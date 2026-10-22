@@ -4,7 +4,7 @@ into place from behind its own baseline, until the whole lockup stands."""
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def build_on(cv, parts, p, overlap=0.35, rise=1.0, pad=16, ease=vb.ease_out_back):
@@ -69,7 +69,7 @@ def draw(n, cv):
     cv.mark('logo', x, y, lx + lw - x, h)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='logo-build-on-reveal',
     name='Logo build-on reveal',
     family='shapes',
@@ -82,7 +82,7 @@ TECHNIQUE = Technique(
                'the brand mark pops in first, then the name builds up after it'),
     related=('line-draw-logo-reveal', 'handwriting-reveal', 'light-trail-logo-reveal', 'wireframe-reveal',
              'typewriter-reveal', 'text-mask-reveal'),
-    api=('videobuilder.techniques.shapes.logo_build_on_reveal.build_on',
-         'videobuilder.techniques.shapes.logo_build_on_reveal.letters'),
+    api=('videobuilder.capabilities.shapes.logo_build_on_reveal.build_on',
+         'videobuilder.capabilities.shapes.logo_build_on_reveal.letters'),
     demo=lambda: demo.film(draw),
 )

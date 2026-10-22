@@ -4,7 +4,7 @@ line arrives, one level after another."""
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def tree_layout(tree, x, y, w, level_gap):
@@ -104,7 +104,7 @@ def _draw(n, cv):
     decision_tree_growth(cv, DEMO_TREE, demo.phase(n, 0.2, 2.6), box=(50, 95, demo.W - 100))
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='decision-tree-branch-growth',
     name='Decision tree branch growth',
     family='broadcast',
@@ -117,7 +117,7 @@ TECHNIQUE = Technique(
                'animate a branching flowchart building itself from the top'),
     related=('recursive-tree', 'chord-diagram-draw', 'treemap-re-layout', 'bar-grow',
              'differential-growth', 'sankey-flow'),
-    api=('videobuilder.techniques.broadcast.decision_tree_branch_growth.decision_tree_growth',
-         'videobuilder.techniques.broadcast.decision_tree_branch_growth.tree_layout'),
+    api=('videobuilder.capabilities.broadcast.decision_tree_branch_growth.decision_tree_growth',
+         'videobuilder.capabilities.broadcast.decision_tree_branch_growth.tree_layout'),
     demo=lambda: demo.film(_draw),
 )

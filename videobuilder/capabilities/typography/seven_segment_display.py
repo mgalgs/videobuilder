@@ -4,7 +4,7 @@ bars still faintly visible behind the lit ones."""
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 # Segments a-g: a top, b upper right, c lower right, d bottom, e lower left,
 # f upper left, g middle.
@@ -114,7 +114,7 @@ def draw(n, cv):
     cv.mark('display', *box)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='seven-segment-display',
     name='Seven-segment display',
     family='typography',
@@ -127,9 +127,9 @@ TECHNIQUE = Technique(
                'an LED readout where the segments flick on and off as it counts'),
     related=('decimal-counter-with-formatting', 'number-count-down', 'circular-clip-reveal',
              'pixelation-reveal', 'segmented-control-slide', 'funnel-stage-reveal'),
-    api=('videobuilder.techniques.typography.seven_segment_display.draw_display',
-         'videobuilder.techniques.typography.seven_segment_display.draw_digit',
-         'videobuilder.techniques.typography.seven_segment_display.display_width',
-         'videobuilder.techniques.typography.seven_segment_display.segments'),
+    api=('videobuilder.capabilities.typography.seven_segment_display.draw_display',
+         'videobuilder.capabilities.typography.seven_segment_display.draw_digit',
+         'videobuilder.capabilities.typography.seven_segment_display.display_width',
+         'videobuilder.capabilities.typography.seven_segment_display.segments'),
     demo=lambda: demo.film(draw),
 )

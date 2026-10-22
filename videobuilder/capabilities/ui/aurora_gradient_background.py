@@ -9,7 +9,7 @@ import cairo
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 COLORS = ('#6d6cf0', '#c9a227', '#4fc3b0', '#8a4fd8')
 
@@ -79,7 +79,7 @@ def draw(n, cv):
     cv.mark('card', x, y, w, h)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='aurora-gradient-background',
     name='Aurora gradient background',
     family='ui',
@@ -93,6 +93,6 @@ TECHNIQUE = Technique(
                'make the backdrop shimmer like the northern lights'),
     related=('gradient-mesh-drift', 'animated-gradient-sweep', 'gradient-sweep-across-text',
              'gradient-shift-button', 'layered-fog-bands', 'bloom'),
-    api=('videobuilder.techniques.ui.aurora_gradient_background.aurora',),
+    api=('videobuilder.capabilities.ui.aurora_gradient_background.aurora',),
     demo=lambda: demo.film(draw),
 )

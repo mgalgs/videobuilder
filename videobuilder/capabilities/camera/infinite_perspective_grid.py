@@ -13,7 +13,7 @@ import math
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def perspective_grid(cv, travel, horizon=None, near=None, cell=None, depth=4.0, cx=None, shift=0.0,
@@ -95,7 +95,7 @@ def draw(n, cv):
     cv.mark('grid', 0, horizon, demo.W, demo.H - horizon)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='infinite-perspective-grid',
     name='Infinite perspective grid',
     family='camera',
@@ -109,6 +109,6 @@ TECHNIQUE = Technique(
                'make the background a retro grid that scrolls into the screen'),
     related=('infinite-zoom-tunnel', 'perspective-tunnel-type', 'perspective-crawl', 'tile-flip',
              'swiss-grid-slide', 'bento-grid-reveal'),
-    api=('videobuilder.techniques.camera.infinite_perspective_grid.perspective_grid',),
+    api=('videobuilder.capabilities.camera.infinite_perspective_grid.perspective_grid',),
     demo=lambda: demo.film(draw),
 )

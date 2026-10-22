@@ -5,7 +5,7 @@ import math
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def ripple_reach(x, y, w, h, tx, ty):
@@ -56,7 +56,7 @@ def draw(n, cv):
         cv.arc(fx, fy, r, 0, 2 * math.pi, demo.INK, width=3, alpha=0.9 * show)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='touch-ripple',
     name='Touch ripple',
     family='ui',
@@ -69,7 +69,7 @@ TECHNIQUE = Technique(
                'tap feedback like on an Android button'),
     related=('click-ripple-indicator', 'ripple', 'ink-splash-spread', 'location-ripple-pulse',
              'highlighter-swipe', 'spotlight-hover'),
-    api=('videobuilder.techniques.ui.touch_ripple.touch_ripple',
-         'videobuilder.techniques.ui.touch_ripple.ripple_reach'),
+    api=('videobuilder.capabilities.ui.touch_ripple.touch_ripple',
+         'videobuilder.capabilities.ui.touch_ripple.ripple_reach'),
     demo=lambda: demo.film(draw),
 )

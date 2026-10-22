@@ -5,7 +5,7 @@ import math
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 SWELL = 'riser/swell'   # bright noise from near silence, growing to its peak at its very end
 CURVE = 4.5             # how sharply `swell_level` climbs (a crash's decay, run backwards)
@@ -123,7 +123,7 @@ def _film():
     return demo.film(draw, sounds=(reverse_cymbal(HIT, DUR, id=_swell_id(), fps=demo.FPS), hit))
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='reverse-cymbal',
     name='Reverse cymbal',
     family='sound',
@@ -136,8 +136,8 @@ TECHNIQUE = Technique(
                'give me a whoosh that builds and stops dead on the cut'),
     related=('reverse-playback', 'reverse-motion-cut', 'interruptible-motion', 'ease-out-back', 'flip',
              'ease-in-out-back'),
-    api=('videobuilder.techniques.sound.reverse_cymbal.reverse_cymbal',
-         'videobuilder.techniques.sound.reverse_cymbal.swell_level',
+    api=('videobuilder.capabilities.sound.reverse_cymbal.reverse_cymbal',
+         'videobuilder.capabilities.sound.reverse_cymbal.swell_level',
          'videobuilder.sfx.sound'),
     demo=_film,
 )

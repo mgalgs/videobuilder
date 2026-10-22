@@ -8,7 +8,7 @@ import random
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 @functools.lru_cache(maxsize=16)
@@ -98,7 +98,7 @@ def draw(n, cv):
     cv.mark('region', *BOX)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='circle-packing',
     name='Circle packing',
     family='particles',
@@ -111,8 +111,8 @@ TECHNIQUE = Technique(
                'fill the shape with packed dots of different sizes that grow in'),
     related=('circle-pop', 'pie-sweep', 'radial-stagger', 'shape-boolean-merge', 'radial-repeater',
              'geometric-loop'),
-    api=('videobuilder.techniques.particles.circle_packing.pack_circles',
-         'videobuilder.techniques.particles.circle_packing.draw_circle_packing',
-         'videobuilder.techniques.particles.circle_packing.circle_packing_at'),
+    api=('videobuilder.capabilities.particles.circle_packing.pack_circles',
+         'videobuilder.capabilities.particles.circle_packing.draw_circle_packing',
+         'videobuilder.capabilities.particles.circle_packing.circle_packing_at'),
     demo=lambda: demo.film(draw),
 )

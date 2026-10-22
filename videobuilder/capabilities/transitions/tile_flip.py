@@ -6,7 +6,7 @@ import math
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def tile_flip(cv, a, b, p, cols=8, rows=4, spread=0.55, axis='y', behind='#000000', shade=0.45):
@@ -50,7 +50,7 @@ def tile_flip(cv, a, b, p, cols=8, rows=4, spread=0.55, axis='y', behind='#00000
             c.restore()
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='tile-flip',
     name='Tile flip',
     family='transitions',
@@ -63,6 +63,6 @@ TECHNIQUE = Technique(
                'flip the image over block by block'),
     related=('flip', 'mograph-grid-flip', 'layout-animation-flip', 'tile-grid-title-reveal', 'word-flip-in',
              'tessellation-triangle-flip'),
-    api=('videobuilder.techniques.transitions.tile_flip.tile_flip',),
+    api=('videobuilder.capabilities.transitions.tile_flip.tile_flip',),
     demo=lambda: demo.two_scenes(tile_flip, start=0.7, length=1.6),
 )

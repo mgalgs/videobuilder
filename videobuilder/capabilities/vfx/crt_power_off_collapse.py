@@ -5,7 +5,7 @@ import videobuilder as vb
 from videobuilder.canvas import rgba
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def crt_power_off(cv, scene, p, squash=0.45, pinch=0.3, backdrop='#000000', beam='#ffffff',
@@ -80,7 +80,7 @@ def draw(n, cv):
         cv.mark('screen', 0, 0, demo.W, demo.H)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='crt-power-off-collapse',
     name='CRT power-off collapse',
     family='vfx',
@@ -93,6 +93,6 @@ TECHNIQUE = Technique(
                'end the shot with a retro television switch-off'),
     related=('crumple', 'sidebar-collapse-width', 'accordion-fold', 'interruptible-motion',
              'circular-clip-reveal', 'pulldown-judder'),
-    api=('videobuilder.techniques.vfx.crt_power_off_collapse.crt_power_off',),
+    api=('videobuilder.capabilities.vfx.crt_power_off_collapse.crt_power_off',),
     demo=lambda: demo.film(draw),
 )

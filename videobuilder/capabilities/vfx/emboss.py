@@ -10,7 +10,7 @@ from PIL import Image, ImageChops, ImageFilter
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 from ...canvas import rgba
 from ...looks import fx
 
@@ -116,7 +116,7 @@ def draw(n, cv):
     cv.mark('picture', PX, PY, PW, PH)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='emboss',
     name='Emboss',
     family='vfx',
@@ -129,7 +129,7 @@ TECHNIQUE = Technique(
                'stamp the image so its shapes stand out like an embossed card'),
     related=('fresnel-edge-glow', 'ascii-art-render', 'heat-haze', 'op-art-vibrating-pattern', 'film-edge-frame',
              'refresh-bar'),
-    api=('videobuilder.techniques.vfx.emboss.embossed',
-         'videobuilder.techniques.vfx.emboss.emboss'),
+    api=('videobuilder.capabilities.vfx.emboss.embossed',
+         'videobuilder.capabilities.vfx.emboss.emboss'),
     demo=lambda: demo.film(draw),
 )

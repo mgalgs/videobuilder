@@ -6,7 +6,7 @@ import math
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 from ...canvas import rgba
 from ...looks import kit as looks
 
@@ -98,7 +98,7 @@ def draw(n, cv):
             (COLS + ROWS) * TILE * SIN + 200)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='isometric-bar-rise',
     name='Isometric bar rise',
     family='shapes',
@@ -111,9 +111,9 @@ TECHNIQUE = Technique(
                'an isometric bar graph whose columns rise into place one by one'),
     related=('bar-grow', 'stacked-bar-build', 'isometric-view', 'isometric-assembly', 'shape-stacking-drop',
              'extrusion'),
-    api=('videobuilder.techniques.shapes.isometric_bar_rise.isometric_bar_rise',
-         'videobuilder.techniques.shapes.isometric_bar_rise.draw_iso_box',
-         'videobuilder.techniques.shapes.isometric_bar_rise.draw_iso_floor',
-         'videobuilder.techniques.shapes.isometric_bar_rise.iso'),
+    api=('videobuilder.capabilities.shapes.isometric_bar_rise.isometric_bar_rise',
+         'videobuilder.capabilities.shapes.isometric_bar_rise.draw_iso_box',
+         'videobuilder.capabilities.shapes.isometric_bar_rise.draw_iso_floor',
+         'videobuilder.capabilities.shapes.isometric_bar_rise.iso'),
     demo=lambda: demo.film(draw),
 )

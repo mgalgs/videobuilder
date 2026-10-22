@@ -9,7 +9,7 @@ import videobuilder as vb
 from videobuilder.canvas import rgba
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 FOCAL = 900.0
 W_EYE = 2.6  # distance of the 4D eye from the centre, in half-sizes: smaller makes the inner cube smaller
@@ -92,7 +92,7 @@ def draw(n, cv):
     cv.mark('tesseract', *box)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='tesseract-rotation',
     name='Tesseract rotation',
     family='camera',
@@ -105,7 +105,7 @@ TECHNIQUE = Technique(
                'rotate a tesseract so its inner and outer cubes swap'),
     related=('tessellation-triangle-flip', 'globe-spin', 'cube-rotate', 'three-d-word-cube', 'spin',
              'rotating-polygon-loop'),
-    api=('videobuilder.techniques.camera.tesseract_rotation.draw_tesseract',
-         'videobuilder.techniques.camera.tesseract_rotation.tesseract_points'),
+    api=('videobuilder.capabilities.camera.tesseract_rotation.draw_tesseract',
+         'videobuilder.capabilities.camera.tesseract_rotation.tesseract_points'),
     demo=lambda: demo.film(draw),
 )

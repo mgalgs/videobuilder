@@ -10,7 +10,7 @@ import videobuilder as vb
 from videobuilder.canvas import rgba
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def meteors(t, width, height, seed=0, rate=2.5, life=0.8, angle=32, speed=0.8, tail=0.17, start=-1.0):
@@ -113,7 +113,7 @@ def draw(n, cv):
         cv.mark('meteor', m['x'] - 4, m['y'] - 4, 8, 8)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='meteor-shower',
     name='Meteor shower',
     family='particles',
@@ -125,8 +125,8 @@ TECHNIQUE = Technique(
                'a few meteors zipping diagonally over a dark sky',
                'streaks of light falling across the screen like a meteor shower'),
     related=('confetti-burst', 'falling-letter-rain', 'lens-flare', 'diffraction-spikes', 'ripple', 'shape-burst'),
-    api=('videobuilder.techniques.particles.meteor_shower.draw_meteor_shower',
-         'videobuilder.techniques.particles.meteor_shower.meteors',
-         'videobuilder.techniques.particles.meteor_shower.draw_meteor'),
+    api=('videobuilder.capabilities.particles.meteor_shower.draw_meteor_shower',
+         'videobuilder.capabilities.particles.meteor_shower.meteors',
+         'videobuilder.capabilities.particles.meteor_shower.draw_meteor'),
     demo=lambda: demo.film(draw),
 )

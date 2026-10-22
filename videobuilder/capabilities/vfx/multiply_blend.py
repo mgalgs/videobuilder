@@ -7,7 +7,7 @@ import math
 import cairo
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 PAPER = '#efece4'
 INKS = ('#29b6e8', '#e8409a', '#f5d327')   # cyan, magenta, yellow
@@ -68,7 +68,7 @@ def _draw(n, cv):
     demo.word(cv, 'Multiply', 110, 40, size=28, color=demo.BG)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='multiply-blend',
     name='Multiply blend',
     family='vfx',
@@ -80,6 +80,6 @@ TECHNIQUE = Technique(
                'put this texture on top but make the white bits disappear',
                'overlap the colours so they get darker where they cross, like printed inks'),
     related=('additive-dissolve', 'duotone', 'cross-dissolve', 'dip-to-black', 'posterization', 'faded-print-look'),
-    api=('videobuilder.techniques.vfx.multiply_blend.multiply_blend',),
+    api=('videobuilder.capabilities.vfx.multiply_blend.multiply_blend',),
     demo=lambda: demo.film(_draw),
 )

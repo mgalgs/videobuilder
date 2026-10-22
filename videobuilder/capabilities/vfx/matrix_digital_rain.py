@@ -6,7 +6,7 @@ import random
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 GLYPHS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789<>{}[]=+*#%&/?:;$@'
 GREEN = '#3dff7a'
@@ -78,7 +78,7 @@ def draw(n, cv):
     cv.mark('rain', 0, 0, demo.W, demo.H)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='matrix-digital-rain',
     name='Matrix digital rain',
     family='vfx',
@@ -91,7 +91,7 @@ TECHNIQUE = Technique(
                'that cascading green terminal text effect behind the title'),
     related=('falling-glyph-rain-reveal', 'falling-letter-rain', 'rainfall', 'dot-matrix-text',
              'rain-on-glass', 'character-drop'),
-    api=('videobuilder.techniques.vfx.matrix_digital_rain.draw_digital_rain',
-         'videobuilder.techniques.vfx.matrix_digital_rain.digital_rain'),
+    api=('videobuilder.capabilities.vfx.matrix_digital_rain.draw_digital_rain',
+         'videobuilder.capabilities.vfx.matrix_digital_rain.digital_rain'),
     demo=lambda: demo.film(draw),
 )

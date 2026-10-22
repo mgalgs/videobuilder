@@ -6,7 +6,7 @@ import math
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 from ...canvas import rgba
 
 
@@ -72,7 +72,7 @@ def draw(n, cv):
     _composition(cv, palette_at(COOL, WARM, demo.phase(n, 0.8, 2.2)))
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='palette-shift-transition',
     name='Palette shift transition',
     family='shapes',
@@ -85,6 +85,6 @@ TECHNIQUE = Technique(
                'shift everything from the dark theme to the yellow theme in one go'),
     related=('theme-swap-crossfade', 'cross-processing', 'view-transition', 'gradient-shift-button',
              'scroll-linked-background-shift', 'shared-element-transition'),
-    api=('videobuilder.techniques.shapes.palette_shift_transition.palette_at',),
+    api=('videobuilder.capabilities.shapes.palette_shift_transition.palette_at',),
     demo=lambda: demo.film(draw),
 )

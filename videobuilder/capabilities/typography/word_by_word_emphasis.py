@@ -4,7 +4,7 @@ only names it and demos it with a hand-timed `Track`."""
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 LINE = 'every word takes its turn to shine'
 START, STEP = 0.35, 0.36  # the first word lights at START s, each next one STEP s later
@@ -21,7 +21,7 @@ def draw(n, cv):
                      color=demo.MUTED, spoken=lit, box='#000000', box_alpha=0.35, linger=STEP, mark='text')
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='word-by-word-emphasis',
     name='Word-by-word emphasis',
     family='typography',

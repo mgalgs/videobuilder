@@ -9,7 +9,7 @@ import cairo
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def _brightness(px):
@@ -106,7 +106,7 @@ def draw(n, cv):
     cv.mark('text', *box)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='pixel-sort-text',
     name='Pixel sort text',
     family='typography',
@@ -119,7 +119,7 @@ TECHNIQUE = Technique(
                'letters melt into horizontal light streaks before settling'),
     related=('pixel-sorting', 'pixelation-reveal', 'dot-matrix-text', 'letter-sort-animation',
              'ascii-art-render', 'pixel-build'),
-    api=('videobuilder.techniques.typography.pixel_sort_text.draw_pixel_sort_text',
-         'videobuilder.techniques.typography.pixel_sort_text.pixel_sorted'),
+    api=('videobuilder.capabilities.typography.pixel_sort_text.draw_pixel_sort_text',
+         'videobuilder.capabilities.typography.pixel_sort_text.pixel_sorted'),
     demo=lambda: demo.film(draw),
 )

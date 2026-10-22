@@ -4,7 +4,7 @@ grid, refining order by order -- each corner splits into four smaller turns
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def _cell(d, side):
@@ -81,7 +81,7 @@ def draw(n, cv):
     demo.word(cv, f'order {round(level)}', demo.W / 2, y - 42, size=24, color=demo.MUTED, weight=600)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='hilbert-curve',
     name='Hilbert curve',
     family='particles',
@@ -94,8 +94,8 @@ TECHNIQUE = Technique(
                'one line folding into tighter and tighter zigzags to fill a box'),
     related=('superformula-morph', 'isolines-contour-animation', 'line-to-polygon-transform',
              'marching-squares-contour', 'streamlines', 'sparkline-draw'),
-    api=('videobuilder.techniques.particles.hilbert_curve.draw_hilbert',
-         'videobuilder.techniques.particles.hilbert_curve.hilbert_at',
-         'videobuilder.techniques.particles.hilbert_curve.hilbert_points'),
+    api=('videobuilder.capabilities.particles.hilbert_curve.draw_hilbert',
+         'videobuilder.capabilities.particles.hilbert_curve.hilbert_at',
+         'videobuilder.capabilities.particles.hilbert_curve.hilbert_points'),
     demo=lambda: demo.film(draw),
 )

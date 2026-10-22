@@ -13,7 +13,7 @@ from PIL import Image as PILImage
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 # Distance primitives. `p` is a point (x, y, z) of numpy arrays; each returns
@@ -246,7 +246,7 @@ def _demo_draw(n, cv):
              color=color, floor=-0.95)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='raymarched-sdf-shapes',
     name='Raymarched SDF shapes',
     family='camera',
@@ -259,11 +259,11 @@ TECHNIQUE = Technique(
                'that raymarching demo look with smooth shaded shapes'),
     related=('mandelbulb-raymarch', 'god-rays', 'diffraction-spikes', 'marching-squares-contour',
              'graphic-match', 'depth-of-field'),
-    api=('videobuilder.techniques.camera.raymarched_sdf_shapes.draw_sdf',
-         'videobuilder.techniques.camera.raymarched_sdf_shapes.render_sdf',
-         'videobuilder.techniques.camera.raymarched_sdf_shapes.sdf_sphere',
-         'videobuilder.techniques.camera.raymarched_sdf_shapes.sdf_box',
-         'videobuilder.techniques.camera.raymarched_sdf_shapes.sdf_torus',
-         'videobuilder.techniques.camera.raymarched_sdf_shapes.smooth_union'),
+    api=('videobuilder.capabilities.camera.raymarched_sdf_shapes.draw_sdf',
+         'videobuilder.capabilities.camera.raymarched_sdf_shapes.render_sdf',
+         'videobuilder.capabilities.camera.raymarched_sdf_shapes.sdf_sphere',
+         'videobuilder.capabilities.camera.raymarched_sdf_shapes.sdf_box',
+         'videobuilder.capabilities.camera.raymarched_sdf_shapes.sdf_torus',
+         'videobuilder.capabilities.camera.raymarched_sdf_shapes.smooth_union'),
     demo=lambda: demo.film(_demo_draw),
 )

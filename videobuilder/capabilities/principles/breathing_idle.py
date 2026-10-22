@@ -3,7 +3,7 @@ rhythm, so a still screen keeps a pulse of life without asking for attention."""
 import math
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def breathing_idle(t, period=2.0, depth=0.04, start=0.0):
@@ -29,7 +29,7 @@ def draw(n, cv):
     cv.mark('button', cx - r * s, cy - r * s, 2 * r * s, 2 * r * s)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='breathing-idle',
     name='Breathing Idle',
     family='principles',
@@ -42,6 +42,6 @@ TECHNIQUE = Technique(
                'a gentle swelling loop on something that is just sitting there'),
     related=('empty-state-idle-loop', 'moving-hold', 'interruptible-motion', 'focus-breathing', 'scale-pulse',
              'delay'),
-    api=('videobuilder.techniques.principles.breathing_idle.breathing_idle', 'videobuilder.Puppet.breath'),
+    api=('videobuilder.capabilities.principles.breathing_idle.breathing_idle', 'videobuilder.Puppet.breath'),
     demo=lambda: demo.film(draw),
 )

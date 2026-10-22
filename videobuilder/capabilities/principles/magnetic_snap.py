@@ -6,7 +6,7 @@ import math
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def magnetic_snap(path, target, t, radius=140.0, lean=0.35, ratio=0.4, hz=3.0, step=1 / 240):
@@ -66,7 +66,7 @@ def draw(n, cv):
     demo.card(cv, x, y, w=CARD_W, h=CARD_H, color=demo.TEAL if caught < 0 else demo.ACCENT)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='magnetic-snap',
     name='Magnetic Snap',
     family='principles',
@@ -79,7 +79,7 @@ TECHNIQUE = Technique(
                'drift near the spot and then click onto it'),
     related=('magnetic-button', 'gravity-well-attraction', 'momentum-fling', 'punch-in',
              'spring-drag-letters', 'bounce-ease-in'),
-    api=('videobuilder.techniques.principles.magnetic_snap.magnetic_snap', 'videobuilder.spring',
+    api=('videobuilder.capabilities.principles.magnetic_snap.magnetic_snap', 'videobuilder.spring',
          'videobuilder.damped'),
     demo=lambda: demo.film(draw),
 )

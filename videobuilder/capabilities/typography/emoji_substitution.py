@@ -7,7 +7,7 @@ installed (the release image ships Noto Color Emoji)."""
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def swap_scales(p):
@@ -64,7 +64,7 @@ def draw(n, cv):
     cv.mark('text', *box)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='emoji-substitution',
     name='Emoji substitution',
     family='typography',
@@ -77,7 +77,7 @@ TECHNIQUE = Technique(
                'replace a letter with an emoji that pops in'),
     related=('word-carousel-rotate', 'text-to-shape-morph', 'floating-reaction-emoji', 'character-slide-in',
              'letter-sort-animation', 'hover-letter-displacement'),
-    api=('videobuilder.techniques.typography.emoji_substitution.draw_emoji_swap',
-         'videobuilder.techniques.typography.emoji_substitution.swap_scales'),
+    api=('videobuilder.capabilities.typography.emoji_substitution.draw_emoji_swap',
+         'videobuilder.capabilities.typography.emoji_substitution.swap_scales'),
     demo=lambda: demo.film(draw),
 )

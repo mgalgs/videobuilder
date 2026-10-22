@@ -6,7 +6,7 @@ import math
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 GROW = vb.bezier(0.4, 0.0, 0.2, 1.0)
 
@@ -107,7 +107,7 @@ def draw(n, cv):
     cv.mark('toggle', BTN[0] - BTN_R, BTN[1] - BTN_R, 2 * BTN_R, 2 * BTN_R)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='circular-clip-reveal',
     name='Circular clip reveal',
     family='ui',
@@ -121,7 +121,7 @@ TECHNIQUE = Technique(
                'a round reveal that starts at the click and fills the screen'),
     related=('iris-wipe', 'star-wipe', 'spiral-wipe', 'corner-wipe', 'scroll-linked-clip-reveal',
              'zoom-out-reveal'),
-    api=('videobuilder.techniques.ui.circular_clip_reveal.circular_reveal',
-         'videobuilder.techniques.ui.circular_clip_reveal.reach'),
+    api=('videobuilder.capabilities.ui.circular_clip_reveal.circular_reveal',
+         'videobuilder.capabilities.ui.circular_clip_reveal.reach'),
     demo=lambda: demo.film(draw),
 )

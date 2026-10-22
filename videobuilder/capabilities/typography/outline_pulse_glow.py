@@ -5,7 +5,7 @@ import math
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 from ...canvas import rgba
 from ...type import kit
 
@@ -59,7 +59,7 @@ def draw(n, cv):
     cv.mark('text', *box)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='outline-pulse-glow',
     name='Outline pulse glow',
     family='typography',
@@ -72,7 +72,7 @@ TECHNIQUE = Technique(
                'a breathing glow around the edges of the words'),
     related=('stroke-width-pulse', 'neon-flicker', 'glow-button', 'border-glow-follow',
              'per-character-fade-in', 'light-trail-logo-reveal'),
-    api=('videobuilder.techniques.typography.outline_pulse_glow.draw_outline_glow',
-         'videobuilder.techniques.typography.outline_pulse_glow.pulse'),
+    api=('videobuilder.capabilities.typography.outline_pulse_glow.draw_outline_glow',
+         'videobuilder.capabilities.typography.outline_pulse_glow.pulse'),
     demo=lambda: demo.film(draw),
 )

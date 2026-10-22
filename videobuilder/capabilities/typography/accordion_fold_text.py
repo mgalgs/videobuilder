@@ -5,7 +5,7 @@ import math
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def draw_accordion_fold(cv, draw_flat, x, y, w, h, p, pleats=8, max_angle=80, depth=0.3, slices=6,
@@ -98,7 +98,7 @@ def draw(n, cv):
     cv.mark('text', *box)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='accordion-fold-text',
     name='Accordion fold text',
     family='typography',
@@ -111,7 +111,7 @@ TECHNIQUE = Technique(
                'text that starts crumpled into vertical folds and stretches flat'),
     related=('accordion-fold', 'paper-fold-reveal', 'origami-fold', 'accordion-height-expand', 'wipe-reveal',
              'curtain-reveal'),
-    api=('videobuilder.techniques.typography.accordion_fold_text.draw_accordion_text',
-         'videobuilder.techniques.typography.accordion_fold_text.draw_accordion_fold'),
+    api=('videobuilder.capabilities.typography.accordion_fold_text.draw_accordion_text',
+         'videobuilder.capabilities.typography.accordion_fold_text.draw_accordion_fold'),
     demo=lambda: demo.film(draw),
 )

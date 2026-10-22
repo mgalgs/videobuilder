@@ -7,7 +7,7 @@ import random
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def _area(poly):
@@ -124,7 +124,7 @@ def draw(n, cv):
     cv.mark('shape', CENTER[0] - 170, CENTER[1] - 170, 340, 340)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='shape-assemble-from-fragments',
     name='Shape assemble from fragments',
     family='shapes',
@@ -137,8 +137,8 @@ TECHNIQUE = Technique(
                'scattered fragments spin in and lock into one shape'),
     related=('geometric-loop', 'particle-swarm-assemble', 'isometric-assembly', 'polygon-subdivision',
              'voxel-build', 'exploded-view'),
-    api=('videobuilder.techniques.shapes.shape_assemble_from_fragments.draw_assembly',
-         'videobuilder.techniques.shapes.shape_assemble_from_fragments.shatter',
-         'videobuilder.techniques.shapes.shape_assemble_from_fragments.scatter'),
+    api=('videobuilder.capabilities.shapes.shape_assemble_from_fragments.draw_assembly',
+         'videobuilder.capabilities.shapes.shape_assemble_from_fragments.shatter',
+         'videobuilder.capabilities.shapes.shape_assemble_from_fragments.scatter'),
     demo=lambda: demo.film(draw),
 )

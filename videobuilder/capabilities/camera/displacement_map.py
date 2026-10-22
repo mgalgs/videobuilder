@@ -8,7 +8,7 @@ from PIL import Image, ImageDraw, ImageFilter
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 from ...compendium import kit
 
 
@@ -136,7 +136,7 @@ def draw(n, cv):
     cv.mark('map', 42, 42, iw, ih)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='displacement-map',
     name='Displacement map',
     family='camera',
@@ -149,8 +149,8 @@ TECHNIQUE = Technique(
                'grow a relief out of the surface where the map is bright'),
     related=('wireframe-terrain', 'dot-grid-displacement', 'parallax-occlusion-mapping', 'ripple-displacement',
              'two-point-five-d-photo-parallax', 'solid-drawing'),
-    api=('videobuilder.techniques.camera.displacement_map.draw_displacement',
-         'videobuilder.techniques.camera.displacement_map.displacement_mesh',
-         'videobuilder.techniques.camera.displacement_map.height_sampler'),
+    api=('videobuilder.capabilities.camera.displacement_map.draw_displacement',
+         'videobuilder.capabilities.camera.displacement_map.displacement_mesh',
+         'videobuilder.capabilities.camera.displacement_map.height_sampler'),
     demo=lambda: demo.film(draw),
 )

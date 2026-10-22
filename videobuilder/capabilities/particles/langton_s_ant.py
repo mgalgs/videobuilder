@@ -5,7 +5,7 @@ straight diagonal highway out of the mess."""
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 HEADINGS = ((0, -1), (1, 0), (0, 1), (-1, 0))  # up, right, down, left: turning right is +1
 
@@ -95,7 +95,7 @@ def draw(n, cv):
     vb.text.draw(cv, [label], f, demo.W - 40 - vb.text.measure(label, f), demo.H - 52, demo.MUTED)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='langton-s-ant',
     name="Langton's ant",
     family='particles',
@@ -108,7 +108,7 @@ TECHNIQUE = Technique(
                'a pixel bug that turns and paints tiles as it wanders'),
     related=('ant-colony-pheromone-trails', 'l-system-plant', 'hopalong-attractor', 'penrose-tiling',
              'dashed-line-march', 'thomas-attractor'),
-    api=('videobuilder.techniques.particles.langton_s_ant.draw_langton_ant',
-         'videobuilder.techniques.particles.langton_s_ant.langton_ant'),
+    api=('videobuilder.capabilities.particles.langton_s_ant.draw_langton_ant',
+         'videobuilder.capabilities.particles.langton_s_ant.langton_ant'),
     demo=lambda: demo.film(draw),
 )

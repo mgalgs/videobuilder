@@ -7,7 +7,7 @@ import videobuilder as vb
 from videobuilder.canvas import rgba
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 GLITTER = ('#f6d36b', '#e8b23a', '#fff1b8', '#d9a441', '#f4f4f2')
 GRAVITY = 2600.0  # px/s^2: fast enough that the stream reads as falling, not floating
@@ -109,7 +109,7 @@ def draw(n, cv):
     cv.mark('glitter', *box)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='glitter-pour',
     name='Glitter pour',
     family='particles',
@@ -122,7 +122,7 @@ TECHNIQUE = Technique(
                'a sparkle stream that falls and heaps on the ground'),
     related=('sph-fluid', 'ink-splash-spread', 'curl-noise-flow', 'drip-wipe', 'comment-pop-up-stack',
              'sheen-sweep'),
-    api=('videobuilder.techniques.particles.glitter_pour.glitter_pour',
-         'videobuilder.techniques.particles.glitter_pour.heap_height'),
+    api=('videobuilder.capabilities.particles.glitter_pour.glitter_pour',
+         'videobuilder.capabilities.particles.glitter_pour.heap_height'),
     demo=lambda: demo.film(draw),
 )

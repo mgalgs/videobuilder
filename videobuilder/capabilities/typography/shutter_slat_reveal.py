@@ -4,7 +4,7 @@ so the words show through the widening gaps between them."""
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def slat_openings(p, slats, stagger=0.45, ease=vb.ease_in_out_quart):
@@ -50,7 +50,7 @@ def draw(n, cv):
     draw_shutter(cv, content, x, y, w, h, demo.phase(n, 0.4, 2.5), slats=7)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='shutter-slat-reveal',
     name='Shutter slat reveal',
     family='typography',
@@ -63,7 +63,7 @@ TECHNIQUE = Technique(
                'strips covering the text turn sideways one by one to show it'),
     related=('venetian-blinds-wipe', 'text-mask-reveal', 'curtain-reveal', 'shutter-wipe',
              'image-hover-mask-reveal', 'uncover'),
-    api=('videobuilder.techniques.typography.shutter_slat_reveal.draw_shutter',
-         'videobuilder.techniques.typography.shutter_slat_reveal.slat_openings'),
+    api=('videobuilder.capabilities.typography.shutter_slat_reveal.draw_shutter',
+         'videobuilder.capabilities.typography.shutter_slat_reveal.slat_openings'),
     demo=lambda: demo.film(draw),
 )

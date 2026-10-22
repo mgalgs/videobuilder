@@ -8,7 +8,7 @@ import math
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def fraction_at_y(points, y):
@@ -84,7 +84,7 @@ def draw(n, cv):
     cv.rect(demo.W - 16, 8 + (demo.H - 16 - thumb) * scroll / (PAGE - demo.H), 6, thumb, demo.MUTED, radius=3)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='scroll-drawn-svg-path',
     name='Scroll-drawn SVG path',
     family='ui',
@@ -97,8 +97,8 @@ TECHNIQUE = Technique(
                'as the page moves up, a winding stroke follows it down'),
     related=('cursor-path-animation', 'stroke-draw-on', 'stroke-draw-logo-loader', 'map-route-draw',
              'line-chart-draw-on', 'line-weave'),
-    api=('videobuilder.techniques.ui.scroll_drawn_svg_path.draw_scroll_path',
-         'videobuilder.techniques.ui.scroll_drawn_svg_path.fraction_at_y',
+    api=('videobuilder.capabilities.ui.scroll_drawn_svg_path.draw_scroll_path',
+         'videobuilder.capabilities.ui.scroll_drawn_svg_path.fraction_at_y',
          'videobuilder.paths.reveal'),
     demo=lambda: demo.film(draw),
 )

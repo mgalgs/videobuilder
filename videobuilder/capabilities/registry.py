@@ -1,13 +1,13 @@
-"""Finding techniques: walk each family's subpackage for modules, import one
+"""Finding capabilities: walk each family's subpackage for modules, import one
 on demand, and check it sits where its record says it does. There is no list
-of techniques anywhere; a new module is found by its file alone.
+of capabilities anywhere; a new module is found by its file alone.
 """
 import importlib
 import json
 import pkgutil
 from functools import lru_cache
 
-from .schema import FAMILIES, Technique, module_name
+from .schema import FAMILIES, Capability, module_name
 
 PACKAGE = __name__.rpartition('.')[0]
 
@@ -18,9 +18,9 @@ def _family_check(family):
 
 
 def modules(family=None):
-    """`(family, module name)` for every technique module, without importing
+    """`(family, module name)` for every capability module, without importing
     any of them: families in `FAMILIES` order, modules by name. A module
-    whose name starts with `_` is a helper, not a technique."""
+    whose name starts with `_` is a helper, not a capability."""
     if family is not None:
         _family_check(family)
     out = []
@@ -32,14 +32,14 @@ def modules(family=None):
 
 
 def load(family, name):
-    """The `TECHNIQUE` of `videobuilder.techniques.<family>.<name>`, checked
+    """The `CAPABILITY` of `videobuilder.capabilities.<family>.<name>`, checked
     against where it lives: its id must be the module name with `_` as `-`,
     its family the subpackage, and every `api` name must resolve."""
     where = f'{PACKAGE}.{family}.{name}'
     mod = importlib.import_module(where)
-    t = getattr(mod, 'TECHNIQUE', None)
-    if not isinstance(t, Technique):
-        raise TypeError(f'{where} must define TECHNIQUE = Technique(...)')
+    t = getattr(mod, 'CAPABILITY', None)
+    if not isinstance(t, Capability):
+        raise TypeError(f'{where} must define CAPABILITY = Capability(...)')
     if module_name(t.id) != name:
         raise ValueError(f'{where}: id {t.id!r} does not match its file; '
                          f'call it {name.replace("_", "-")!r} or rename the file to {module_name(t.id)}.py')
@@ -55,31 +55,31 @@ def _all():
 
 
 def catalog(family=None):
-    """Every technique (or one family's), loaded and checked, in `modules` order."""
+    """Every capability (or one family's), loaded and checked, in `modules` order."""
     if family is not None:
         _family_check(family)
     return tuple(t for t in _all() if family is None or t.family == family)
 
 
 def get(id):
-    """The technique called `id`, importing only its own module. Raises
+    """The capability called `id`, importing only its own module. Raises
     `KeyError` for an unknown id."""
     for fam, name in modules():
         if name == module_name(id):
             return load(fam, name)
-    raise KeyError(f'no technique {id!r}')
+    raise KeyError(f'no capability {id!r}')
 
 
 def ids(family=None):
     return tuple(t.id for t in catalog(family))
 
 
-def grouped(techniques):
-    """`[(family, [(group, [technique, ...]), ...]), ...]`: families in
-    `FAMILIES` order, groups and techniques within them by name."""
+def grouped(capabilities):
+    """`[(family, [(group, [capability, ...]), ...]), ...]`: families in
+    `FAMILIES` order, groups and capabilities within them by name."""
     out = []
     for fam in FAMILIES:
-        in_fam = [t for t in techniques if t.family == fam]
+        in_fam = [t for t in capabilities if t.family == fam]
         if not in_fam:
             continue
         groups = sorted({t.group for t in in_fam}, key=str.casefold)
@@ -98,7 +98,7 @@ def _data(t):
 
 def index_data(family=None):
     """The index as JSON-safe lists and dicts, grouped like `index_markdown`."""
-    return {'families': [{'family': fam, 'groups': [{'group': g, 'techniques': [_data(t) for t in ts]}
+    return {'families': [{'family': fam, 'groups': [{'group': g, 'capabilities': [_data(t) for t in ts]}
                                                      for g, ts in groups]}
                          for fam, groups in grouped(catalog(family))]}
 
@@ -108,11 +108,11 @@ def index_json(family=None):
 
 
 def index_markdown(family=None):
-    """The builder-facing sheet: every technique's id, name, definition,
+    """The builder-facing sheet: every capability's id, name, definition,
     phrasings and api, grouped by family, then group."""
-    lines = ['# Techniques', '',
-             'Named motion-design techniques, each with a short demo. Use one by calling what its `api` names; '
-             'its module (`videobuilder/techniques/<family>/<id with - as _>.py`) has a worked demo to copy.', '']
+    lines = ['# Capability registry', '',
+             'Named motion-design capabilities, each with a short demo. Use one by calling what its `api` names; '
+             'its module (`videobuilder/capabilities/<family>/<id with - as _>.py`) has a worked demo to copy.', '']
     for fam, groups in grouped(catalog(family)):
         lines += [f'## {fam}', '']
         for g, ts in groups:

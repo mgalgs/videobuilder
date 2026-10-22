@@ -9,7 +9,7 @@ from PIL import Image, ImageDraw
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def _pixels(cv, draw):
@@ -136,7 +136,7 @@ def draw(n, cv):
     crt_curvature(cv, _landscape, amount, SX, SY, SW, SH, vignette=0.75)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='crt-curvature',
     name='CRT curvature',
     family='vfx',
@@ -149,7 +149,7 @@ TECHNIQUE = Technique(
                'give the frame that rounded, dark-cornered old CRT look'),
     related=('glass-refraction', 'arc-bend-morph', 'refraction-ripple', 'lens-distortion', 'bend-deformer',
              'crumple'),
-    api=('videobuilder.techniques.vfx.crt_curvature.crt_curvature',
-         'videobuilder.techniques.vfx.crt_curvature.barrel'),
+    api=('videobuilder.capabilities.vfx.crt_curvature.crt_curvature',
+         'videobuilder.capabilities.vfx.crt_curvature.barrel'),
     demo=lambda: demo.film(draw),
 )

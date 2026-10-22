@@ -6,7 +6,7 @@ import random
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def follow_cam(target, t, lag=0.2, fps=30, start=0.0):
@@ -98,7 +98,7 @@ def draw(n, cv):
     _minimap(cv, cam, (sx, sy))
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='follow-cam',
     name='Follow cam',
     family='camera',
@@ -111,6 +111,6 @@ TECHNIQUE = Technique(
                'track the moving dot so it stays in the middle'),
     related=('zoom-through', 'player-movement-trail', 'video-feedback-loop', 'reverse-motion-cut',
              'follow-through', 'motion-blur'),
-    api=('videobuilder.techniques.camera.follow_cam.follow_cam',),
+    api=('videobuilder.capabilities.camera.follow_cam.follow_cam',),
     demo=lambda: demo.film(draw),
 )

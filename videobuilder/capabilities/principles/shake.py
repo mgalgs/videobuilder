@@ -4,7 +4,7 @@ and demos it: a heavy block slams onto the floor and the whole view rattles."""
 from videobuilder import impact
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 LAND = round(1.0 * demo.FPS)  # the frame the block hits the floor
 
@@ -21,7 +21,7 @@ def draw(n, cv):
         demo.card(cv, demo.W / 2, y, w=size * 1.4, h=size)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='shake',
     name='Shake',
     family='principles',

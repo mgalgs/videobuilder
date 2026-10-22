@@ -8,7 +8,7 @@ import random
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 _STEPS = ((1, 0), (-1, 0), (0, 1), (0, -1))
 _NEAR = tuple((dx, dy) for dx in (-1, 0, 1) for dy in (-1, 0, 1) if dx or dy)
@@ -102,7 +102,7 @@ def draw(n, cv):
     cv.mark('cluster', cx - reach, cy - reach, 2 * reach, 2 * reach)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='diffusion-limited-aggregation',
     name='Diffusion-limited aggregation',
     family='particles',
@@ -115,7 +115,7 @@ TECHNIQUE = Technique(
                'particles drift around and stick together into a fractal tree'),
     related=('recursive-tree', 'random-walk', 'recursive-rectangle-subdivision', 'physarum-slime-mold',
              'fractal-brownian-motion', 'circle-packing'),
-    api=('videobuilder.techniques.particles.diffusion_limited_aggregation.dla_cluster',
-         'videobuilder.techniques.particles.diffusion_limited_aggregation.draw_dla'),
+    api=('videobuilder.capabilities.particles.diffusion_limited_aggregation.dla_cluster',
+         'videobuilder.capabilities.particles.diffusion_limited_aggregation.draw_dla'),
     demo=lambda: demo.film(draw),
 )

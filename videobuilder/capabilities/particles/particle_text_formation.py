@@ -7,7 +7,7 @@ import random
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 from ..shapes.particle_swarm_assemble import swarm
 from ..typography.dissolve_to_particles import text_specks
 
@@ -48,7 +48,7 @@ def draw(n, cv):
     cv.mark('text', *box)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='particle-text-formation',
     name='Particle text formation',
     family='particles',
@@ -62,8 +62,8 @@ TECHNIQUE = Technique(
                'scattered specks come together to make the text'),
     related=('dissolve-to-particles', 'particle-swarm-assemble', 'metaball-goo-text', 'noise-dissolve',
              'text-on-a-path', 'dither-reveal'),
-    api=('videobuilder.techniques.particles.particle_text_formation.draw_formation',
-         'videobuilder.techniques.typography.dissolve_to_particles.text_specks',
-         'videobuilder.techniques.shapes.particle_swarm_assemble.swarm'),
+    api=('videobuilder.capabilities.particles.particle_text_formation.draw_formation',
+         'videobuilder.capabilities.typography.dissolve_to_particles.text_specks',
+         'videobuilder.capabilities.shapes.particle_swarm_assemble.swarm'),
     demo=lambda: demo.film(draw),
 )

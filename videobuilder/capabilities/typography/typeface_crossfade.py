@@ -3,7 +3,7 @@ face fading out over the new one fading in."""
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def draw_typeface_crossfade(cv, text, font_a, font_b, cx, cy, p, color, ease=vb.ease_in_out_quart):
@@ -38,7 +38,7 @@ def draw(n, cv):
             demo.word(cv, name.upper(), demo.W / 2, demo.H / 2 + 120, color=demo.TEAL, font=label, alpha=alpha)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='typeface-crossfade',
     name='Typeface crossfade',
     family='typography',
@@ -51,6 +51,6 @@ TECHNIQUE = Technique(
                'swap the font on the title with a soft blend'),
     related=('theme-swap-crossfade', 'lyric-line-crossfade', 'cross-dissolve', 'per-character-fade-in',
              'glyph-cycling', 'typewriter-reveal'),
-    api=('videobuilder.techniques.typography.typeface_crossfade.draw_typeface_crossfade',),
+    api=('videobuilder.capabilities.typography.typeface_crossfade.draw_typeface_crossfade',),
     demo=lambda: demo.film(draw),
 )

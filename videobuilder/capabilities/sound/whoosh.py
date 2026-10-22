@@ -7,7 +7,7 @@ import math
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 PASSES = ((0.55, 1.15, -1, 1), (1.75, 2.35, 1, -1))   # (start s, end s, from side, to side)
 REACH = 300                                           # how far either side of centre the card rests
@@ -62,7 +62,7 @@ def film():
     return demo.film(draw, sounds=sounds)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='whoosh',
     name='Whoosh',
     family='sound',

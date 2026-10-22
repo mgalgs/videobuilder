@@ -5,7 +5,7 @@ import math
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def steps(count, position='end'):
@@ -47,7 +47,7 @@ def draw(n, cv):
     cv.mark('dot', x - r, y - r, 2 * r, 2 * r)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='steps-easing',
     name='Steps Easing',
     family='principles',
@@ -60,6 +60,6 @@ TECHNIQUE = Technique(
                'make it snap from position to position, no smooth motion'),
     related=('speed-ramp', 'step-by-step-process-reveal', 'asymmetric-fast-in-slow-out', 'hop-cycle',
              'friction-deceleration', 'eased-stagger'),
-    api=('videobuilder.techniques.principles.steps_easing.steps',),
+    api=('videobuilder.capabilities.principles.steps_easing.steps',),
     demo=lambda: demo.film(draw),
 )

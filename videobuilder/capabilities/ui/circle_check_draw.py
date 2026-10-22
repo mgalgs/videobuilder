@@ -6,7 +6,7 @@ import math
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def ring_points(cx, cy, r, start=-math.pi / 2, steps=96):
@@ -56,7 +56,7 @@ def draw(n, cv):
         demo.word(cv, 'Done', cx, cy + r + 90, size=64, alpha=a)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='circle-check-draw',
     name='Circle check draw',
     family='ui',
@@ -69,7 +69,7 @@ TECHNIQUE = Technique(
                'draw a checkmark inside a circle to say done'),
     related=('checkbox-check-draw', 'highlight-circle-draw', 'circle-pop', 'bouncing-dots',
              'callout-highlight', 'border-draw-button'),
-    api=('videobuilder.techniques.ui.circle_check_draw.draw_circle_check',
+    api=('videobuilder.capabilities.ui.circle_check_draw.draw_circle_check',
          'videobuilder.paths.reveal',
          'videobuilder.paths.draw'),
     demo=lambda: demo.film(draw),

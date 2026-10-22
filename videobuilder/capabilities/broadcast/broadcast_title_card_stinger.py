@@ -4,7 +4,7 @@ title shrink together into a small tag parked in the corner over the picture."""
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def _lerp(a, b, t):
@@ -61,7 +61,7 @@ def draw(n, cv):
     cv.mark('card', *box)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='broadcast-title-card-stinger',
     name='Broadcast title card stinger',
     family='broadcast',
@@ -74,6 +74,6 @@ TECHNIQUE = Technique(
                'a colour bar wipes on the program title, then it shrinks down to a little label'),
     related=('title-card-reveal', 'end-card-with-subscribe-slot', 'quote-card-reveal',
              'stacked-card-reveal', 'logo-sting', 'cctv-surveillance-look'),
-    api=('videobuilder.techniques.broadcast.broadcast_title_card_stinger.draw_title_stinger',),
+    api=('videobuilder.capabilities.broadcast.broadcast_title_card_stinger.draw_title_stinger',),
     demo=lambda: demo.film(draw),
 )

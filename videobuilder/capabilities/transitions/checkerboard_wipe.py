@@ -4,7 +4,7 @@ half follow, until the whole board has turned over."""
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 _DIRS = {'right': (1, 0), 'left': (-1, 0), 'down': (0, 1), 'up': (0, -1)}
 
@@ -53,7 +53,7 @@ def checkerboard_wipe(cv, a, b, p, cols=8, rows=None, direction='right', overlap
         c.restore()
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='checkerboard-wipe',
     name='Checkerboard wipe',
     family='transitions',
@@ -66,6 +66,6 @@ TECHNIQUE = Technique(
                'fill in alternating squares until the new scene is all there'),
     related=('wipe-reveal', 'paint-brush-wipe', 'fill-sweep-button', 'tile-grid-title-reveal',
              'area-fill-sweep', 'tile-flip'),
-    api=('videobuilder.techniques.transitions.checkerboard_wipe.checkerboard_wipe',),
+    api=('videobuilder.capabilities.transitions.checkerboard_wipe.checkerboard_wipe',),
     demo=lambda: demo.two_scenes(checkerboard_wipe, start=0.7, length=1.6),
 )

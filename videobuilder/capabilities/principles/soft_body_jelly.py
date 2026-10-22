@@ -7,7 +7,7 @@ from functools import lru_cache
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def jelly_ring(cx, cy, r, frames, fps=30, points=24, vx=0.0, vy=0.0, gravity=1500.0, floor=None,
@@ -125,7 +125,7 @@ def draw(n, cv):
     draw_jelly(cv, outline, dots=demo.INK)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='soft-body-jelly',
     name='Soft Body Jelly',
     family='principles',
@@ -138,8 +138,8 @@ TECHNIQUE = Technique(
                'give the shape soft, gooey physics instead of a rigid bounce'),
     related=('morphing-blob', 'noise-vertex-wobble', 'elastic-collisions', 'squash-and-stretch',
              'blob-to-icon-morph', 'pucker-and-bloat'),
-    api=('videobuilder.techniques.principles.soft_body_jelly.jelly_ring',
-         'videobuilder.techniques.principles.soft_body_jelly.draw_jelly',
-         'videobuilder.techniques.principles.soft_body_jelly.jelly_path'),
+    api=('videobuilder.capabilities.principles.soft_body_jelly.jelly_ring',
+         'videobuilder.capabilities.principles.soft_body_jelly.draw_jelly',
+         'videobuilder.capabilities.principles.soft_body_jelly.jelly_path'),
     demo=lambda: demo.film(draw),
 )

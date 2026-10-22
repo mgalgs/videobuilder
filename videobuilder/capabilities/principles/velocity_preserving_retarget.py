@@ -4,7 +4,7 @@ it curves round to the new target instead of stopping dead or kinking."""
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def _hermite(s, p0, v0, p1, length):
@@ -86,7 +86,7 @@ def draw(n, cv):
     vb.text.draw(cv, ['restarts from rest'], f, 40, 58, demo.MUTED)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='velocity-preserving-retarget',
     name='Velocity-Preserving Retarget',
     family='principles',
@@ -98,6 +98,6 @@ TECHNIQUE = Technique(
                'if the target moves, let it swing over smoothly instead of snapping',
                'redirect the motion mid-flight and keep its momentum'),
     related=('retiming', 'momentum-fling', 'inertia', 'speed-ramp', 'reverse-playback', 'cut-on-action'),
-    api=('videobuilder.techniques.principles.velocity_preserving_retarget.velocity_preserving_retarget',),
+    api=('videobuilder.capabilities.principles.velocity_preserving_retarget.velocity_preserving_retarget',),
     demo=lambda: demo.film(draw),
 )

@@ -8,7 +8,7 @@ from PIL import Image as PILImage
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def upscale_nearest(cv, img, x, y, w, h, alpha=1.0):
@@ -76,7 +76,7 @@ def _draw(n, cv):
     demo.word(cv, f'{s:.0f}×', demo.W / 2, demo.H - 60, font=demo.mono(26), color=demo.MUTED)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='nearest-neighbor-upscale',
     name='Nearest-neighbor upscale',
     family='vfx',
@@ -89,6 +89,6 @@ TECHNIQUE = Technique(
                'zoom into the low-res picture so you can see every chunky pixel'),
     related=('gaussian-blur', 'blur-up-image-load', 'pixel-sorting', 'zoom-blur', 'image-hover-zoom',
              'pixelate-transition'),
-    api=('videobuilder.techniques.vfx.nearest_neighbor_upscale.upscale_nearest',),
+    api=('videobuilder.capabilities.vfx.nearest_neighbor_upscale.upscale_nearest',),
     demo=lambda: demo.film(_draw),
 )

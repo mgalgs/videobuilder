@@ -4,7 +4,7 @@ frame 0 again and the clip repeats forever with no jump."""
 import math
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def loop_phase(n, frames, cycles=1, offset=0.0):
@@ -55,7 +55,7 @@ def draw(n, cv):
     demo.word(cv, '\u21bb', x1 + 30, by, size=30, color=demo.MUTED, weight=700)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='seamless-loop',
     name='Seamless Loop',
     family='principles',
@@ -68,7 +68,7 @@ TECHNIQUE = Technique(
                'a GIF-style loop where you cannot tell where it starts'),
     related=('geometric-loop', 'interruptible-motion', 'empty-state-idle-loop', 'delay',
              'frame-by-frame-hand-drawn-animation', 'scroll-scrubbed-frame-sequence'),
-    api=('videobuilder.techniques.principles.seamless_loop.loop_phase',
-         'videobuilder.techniques.principles.seamless_loop.loop_wave'),
+    api=('videobuilder.capabilities.principles.seamless_loop.loop_phase',
+         'videobuilder.capabilities.principles.seamless_loop.loop_wave'),
     demo=lambda: demo.film(draw),
 )

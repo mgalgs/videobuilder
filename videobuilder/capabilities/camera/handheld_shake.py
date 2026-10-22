@@ -7,7 +7,7 @@ from contextlib import contextmanager
 
 from .. import _demo as demo
 from ..principles.perlin_noise_drift import noise_drift
-from ..schema import Technique
+from ..schema import Capability
 
 
 def handheld(t, seed=0, amount=10.0, roll=0.6, speed=0.9):
@@ -83,7 +83,7 @@ def draw(n, cv):
     cv.mark('scene', 0, 0, demo.W, demo.H)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='handheld-shake',
     name='Handheld shake',
     family='camera',
@@ -95,8 +95,8 @@ TECHNIQUE = Technique(
                'add a little organic camera wobble so the shot feels alive',
                'give it that documentary, held-by-hand feel'),
     related=('shake', 'tape-wobble', 'jiggle', 'rolling-shutter-wobble', 'tilt-shift-miniature', 'hold'),
-    api=('videobuilder.techniques.camera.handheld_shake.handheld_camera',
-         'videobuilder.techniques.camera.handheld_shake.handheld',
-         'videobuilder.techniques.principles.perlin_noise_drift.noise_drift'),
+    api=('videobuilder.capabilities.camera.handheld_shake.handheld_camera',
+         'videobuilder.capabilities.camera.handheld_shake.handheld',
+         'videobuilder.capabilities.principles.perlin_noise_drift.noise_drift'),
     demo=lambda: demo.film(draw),
 )

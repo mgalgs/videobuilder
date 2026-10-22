@@ -9,7 +9,7 @@ import videobuilder as vb
 from videobuilder import paths
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def chart_points(box, values, lo=None, hi=None):
@@ -112,7 +112,7 @@ def draw(n, cv):
     cv.mark('tip', tip[0] - 8, tip[1] - 8, 16, 16)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='line-chart-draw-on',
     name='Line chart draw-on',
     family='broadcast',
@@ -125,8 +125,8 @@ TECHNIQUE = Technique(
                'reveal the line chart point by point from left to right'),
     related=('stroke-draw-on', 'line-draw-logo-reveal', 'streamlines', 'map-route-draw', 'line-weave',
              'virtual-first-down-line'),
-    api=('videobuilder.techniques.broadcast.line_chart_draw_on.draw_line_chart',
-         'videobuilder.techniques.broadcast.line_chart_draw_on.reveal_x',
-         'videobuilder.techniques.broadcast.line_chart_draw_on.chart_points'),
+    api=('videobuilder.capabilities.broadcast.line_chart_draw_on.draw_line_chart',
+         'videobuilder.capabilities.broadcast.line_chart_draw_on.reveal_x',
+         'videobuilder.capabilities.broadcast.line_chart_draw_on.chart_points'),
     demo=lambda: demo.film(draw),
 )

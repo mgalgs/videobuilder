@@ -3,7 +3,7 @@ start times ripple out symmetrically so the two ends go last."""
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def center_out_delay(i, count):
@@ -35,7 +35,7 @@ def draw(n, cv):
         cv.mark(f'item{i}', x - w / 2, low + (high - low) * q - h / 2, w, h)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='center-out-stagger',
     name='Center-Out Stagger',
     family='principles',
@@ -48,7 +48,7 @@ TECHNIQUE = Technique(
                'stagger the cards starting in the middle'),
     related=('character-rotate-in', 'per-word-fade-in', 'character-scale-in', 'linear-repeater-stagger',
              'circle-packing', 'per-character-fade-in'),
-    api=('videobuilder.techniques.principles.center_out_stagger.center_out_stagger',
-         'videobuilder.techniques.principles.center_out_stagger.center_out_delay'),
+    api=('videobuilder.capabilities.principles.center_out_stagger.center_out_stagger',
+         'videobuilder.capabilities.principles.center_out_stagger.center_out_delay'),
     demo=lambda: demo.film(draw),
 )

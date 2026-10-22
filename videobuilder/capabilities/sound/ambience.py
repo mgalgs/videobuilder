@@ -8,7 +8,7 @@ import math
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 # (sound, take, from s, to s): stretches of the pack that hold a level, here steady air
 WIND = (('riser/air', '4s', 0.0, 2.0), ('riser/rush', '4s', 0.0, 1.75))
@@ -88,7 +88,7 @@ def film():
     return demo.film(draw, sounds=ambience_bed(0, frames, demo.FPS, layers=_wind()), loudness=-20.0)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='ambience',
     name='Ambience',
     family='sound',
@@ -101,6 +101,6 @@ TECHNIQUE = Technique(
                'give the scene a low bed of room noise'),
     related=('music-bed', 'atmospheric-fog', 'foley', 'aurora-gradient-background', 'fractal-brownian-motion',
              'ui-sound-effects'),
-    api=('videobuilder.techniques.sound.ambience.ambience_bed', 'videobuilder.Sound', 'videobuilder.sfx.get'),
+    api=('videobuilder.capabilities.sound.ambience.ambience_bed', 'videobuilder.Sound', 'videobuilder.sfx.get'),
     demo=film,
 )

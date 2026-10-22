@@ -6,7 +6,7 @@ import math
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 STOCK = '#0b0c0e'      # the film base around the picture
 HOLE = '#c9cbcf'       # light showing through the sprocket holes
@@ -72,7 +72,7 @@ def draw(n, cv):
         demo.word(cv, 'MOTION', demo.W / 2, demo.H / 2 + 60, size=64, alpha=t)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='film-edge-frame',
     name='Film edge frame',
     family='vfx',
@@ -85,6 +85,6 @@ TECHNIQUE = Technique(
                'add a filmstrip border with frame numbers printed on it'),
     related=('linear-wipe', 'hard-cut', 'crt-scanlines', 'diagonal-wipe', 'fresnel-edge-glow',
              'crt-curvature'),
-    api=('videobuilder.techniques.vfx.film_edge_frame.film_edge_frame',),
+    api=('videobuilder.capabilities.vfx.film_edge_frame.film_edge_frame',),
     demo=lambda: demo.film(draw),
 )

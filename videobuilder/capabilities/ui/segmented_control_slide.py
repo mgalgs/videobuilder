@@ -4,7 +4,7 @@ to fit the new label on the way."""
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def segments(labels, font, cx, cy, pad=40, height=None, inset=8):
@@ -106,7 +106,7 @@ def draw(n, cv):
     _cursor(cv, x, y, s=1.4 - 0.25 * max(0.0, press))
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='segmented-control-slide',
     name='Segmented control slide',
     family='ui',
@@ -119,8 +119,8 @@ TECHNIQUE = Technique(
                'tab switcher where the selected background glides to the new tab'),
     related=('pagination-pill-indicator', 'tooltip-fade-follow', 'arrow-slide', 'tab-panel-slide',
              'carousel-slide', 'before-after-slider'),
-    api=('videobuilder.techniques.ui.segmented_control_slide.draw_segmented_control',
-         'videobuilder.techniques.ui.segmented_control_slide.pill_box',
-         'videobuilder.techniques.ui.segmented_control_slide.segments'),
+    api=('videobuilder.capabilities.ui.segmented_control_slide.draw_segmented_control',
+         'videobuilder.capabilities.ui.segmented_control_slide.pill_box',
+         'videobuilder.capabilities.ui.segmented_control_slide.segments'),
     demo=lambda: demo.film(draw),
 )

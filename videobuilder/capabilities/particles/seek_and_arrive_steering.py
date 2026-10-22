@@ -5,7 +5,7 @@ import math
 from functools import lru_cache
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def seek_and_arrive(start, target, t, velocity=(0.0, 0.0), max_speed=900.0, max_force=2600.0,
@@ -87,7 +87,7 @@ def draw(n, cv):
         cv.mark(f'agent{i}', x - 10, y - 10, 20, 20)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='seek-and-arrive-steering',
     name='Seek and arrive steering',
     family='particles',
@@ -100,6 +100,6 @@ TECHNIQUE = Technique(
                'little agents steering toward a goal and settling onto it'),
     related=('follow-through', 'bounce-ease-in', 'settle', 'slow-in-and-slow-out', 'spotlight-follow',
              'path-follow-motion'),
-    api=('videobuilder.techniques.particles.seek_and_arrive_steering.seek_and_arrive',),
+    api=('videobuilder.capabilities.particles.seek_and_arrive_steering.seek_and_arrive',),
     demo=lambda: demo.film(draw),
 )

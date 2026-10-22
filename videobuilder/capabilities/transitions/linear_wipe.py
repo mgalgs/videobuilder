@@ -4,7 +4,7 @@ scene on the side it has yet to reach."""
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 DIRECTIONS = ('left', 'right', 'up', 'down')
 
@@ -34,7 +34,7 @@ def linear_wipe(cv, a, b, p, direction='right', ease=vb.ease_in_out_quart):
         b(cv)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='linear-wipe',
     name='Linear wipe',
     family='transitions',
@@ -47,6 +47,6 @@ TECHNIQUE = Technique(
                'push a straight line across to uncover the new picture'),
     related=('wipe-reveal', 'paint-brush-wipe', 'area-fill-sweep', 'roll-up', 'ribbon-sweep',
              'fill-sweep-button'),
-    api=('videobuilder.techniques.transitions.linear_wipe.linear_wipe',),
+    api=('videobuilder.capabilities.transitions.linear_wipe.linear_wipe',),
     demo=lambda: demo.two_scenes(linear_wipe),
 )

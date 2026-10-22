@@ -3,7 +3,7 @@ crossing it out, and the struck word dims once the line is through."""
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def strike_path(box, overshoot=0.08, height=0.52, tilt=-0.06, wobble=2.0, seed=0, step=6):
@@ -49,7 +49,7 @@ def draw(n, cv):
         demo.dot(cv, *tip, r=10, color=demo.ACCENT)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='strike-through-draw',
     name='Strike-through draw',
     family='broadcast',
@@ -62,7 +62,7 @@ TECHNIQUE = Technique(
                'cross out the old date with a hand-drawn line'),
     related=('stroke-draw-on', 'line-draw-logo-reveal', 'line-chart-draw-on', 'wipe-reveal', 'line-weave',
              'highlighter-swipe'),
-    api=('videobuilder.techniques.broadcast.strike_through_draw.strike_through',
-         'videobuilder.techniques.broadcast.strike_through_draw.strike_path'),
+    api=('videobuilder.capabilities.broadcast.strike_through_draw.strike_through',
+         'videobuilder.capabilities.broadcast.strike_through_draw.strike_path'),
     demo=lambda: demo.film(draw),
 )

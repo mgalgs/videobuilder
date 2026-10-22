@@ -6,7 +6,7 @@ import math
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def eq_levels(t, count=24, seed=0, bpm=120, energy=1.0):
@@ -92,7 +92,7 @@ def draw(n, cv):
     demo.floor(cv, y + bh + 14, demo.MUTED)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='audio-waveform-bars',
     name='Equalizer bars',
     family='ui',
@@ -105,8 +105,8 @@ TECHNIQUE = Technique(
                'show the audio levels as jumping bars'),
     related=('copper-bars', 'refresh-bar', 'sound-reactive-radial-shape', 'vhs-tracking-bar',
              'grid-wave-loader', 'bar-grow'),
-    api=('videobuilder.techniques.ui.audio_waveform_bars.draw_eq_bars',
-         'videobuilder.techniques.ui.audio_waveform_bars.eq_levels',
-         'videobuilder.techniques.ui.audio_waveform_bars.eq_peaks'),
+    api=('videobuilder.capabilities.ui.audio_waveform_bars.draw_eq_bars',
+         'videobuilder.capabilities.ui.audio_waveform_bars.eq_levels',
+         'videobuilder.capabilities.ui.audio_waveform_bars.eq_peaks'),
     demo=lambda: demo.film(draw),
 )

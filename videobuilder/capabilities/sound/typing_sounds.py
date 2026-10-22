@@ -11,7 +11,7 @@ import videobuilder as vb
 from videobuilder.type.typewriter import schedule
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 KEYS = ('fit/key/medium', 'fit/key/lubed', 'fit/key/thock')
 SPACE = 'fit/key.space/thock_space'
@@ -101,7 +101,7 @@ def draw(n, cv):
                 alpha=0.35 + 0.65 * min(1.0, level))
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='typing-sounds',
     name='Typing sounds',
     family='sound',
@@ -114,8 +114,8 @@ TECHNIQUE = Technique(
                'I want to hear typing when the words come in'),
     related=('keystroke-overlay', 'typewriter-reveal', 'blinking-cursor', 'silence-drop',
              'cursor-follow-auto-zoom', 'magnetic-button'),
-    api=('videobuilder.techniques.sound.typing_sounds.typing_sounds',
-         'videobuilder.techniques.sound.typing_sounds.keystrokes',
+    api=('videobuilder.capabilities.sound.typing_sounds.typing_sounds',
+         'videobuilder.capabilities.sound.typing_sounds.keystrokes',
          'videobuilder.type.typewriter.schedule'),
     demo=lambda: demo.film(draw, sounds=typing_sounds(TEXT, FRAMES, fps=demo.FPS, seed=3)),
 )

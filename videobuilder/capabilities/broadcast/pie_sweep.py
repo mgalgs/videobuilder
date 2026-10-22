@@ -6,7 +6,7 @@ import math
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 TOP = -math.pi / 2   # twelve o'clock; canvas angles run clockwise
 
@@ -62,7 +62,7 @@ def draw(n, cv):
     cv.mark('pie', cx - r, cy - r, 2 * r, 2 * r)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='pie-sweep',
     name='Pie sweep',
     family='broadcast',
@@ -75,6 +75,6 @@ TECHNIQUE = Technique(
                'reveal the pie segments with a circular wipe'),
     related=('circle-packing', 'circle-pop', 'cycle-diagram-rotation', 'phyllotaxis', 'highlight-circle-draw',
              'radial-repeater'),
-    api=('videobuilder.techniques.broadcast.pie_sweep.pie_sweep',),
+    api=('videobuilder.capabilities.broadcast.pie_sweep.pie_sweep',),
     demo=lambda: demo.film(draw),
 )

@@ -4,7 +4,7 @@ floor and stretching along its fall, while it travels across and comes to rest."
 import math
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def ball_bounce(t, height, gravity=3000.0, bounciness=0.62, squash=0.3, stretch=0.15, contact=0.05):
@@ -73,7 +73,7 @@ def draw(n, cv):
     cv.mark('ball', x - r * sx, ground - h - 2 * r * sy, 2 * r * sx, 2 * r * sy)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='ball-bounce',
     name='Ball Bounce',
     family='principles',
@@ -86,6 +86,6 @@ TECHNIQUE = Technique(
                'a ball that bounces along with a bit of squash when it lands'),
     related=('bounce-ease-out', 'bounce-ease-in', 'elastic-collisions', 'overshoot-bounce-in', 'spring-return',
              'newton-s-cradle'),
-    api=('videobuilder.techniques.principles.ball_bounce.ball_bounce',),
+    api=('videobuilder.capabilities.principles.ball_bounce.ball_bounce',),
     demo=lambda: demo.film(draw),
 )

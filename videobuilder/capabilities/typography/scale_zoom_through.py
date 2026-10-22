@@ -7,7 +7,7 @@ from contextlib import contextmanager
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 @contextmanager
@@ -87,7 +87,7 @@ def draw(n, cv):
         scale_zoom_through(cv, _first, _second, p, focus=_hole())
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='scale-zoom-through',
     name='Scale zoom-through',
     family='typography',
@@ -100,7 +100,7 @@ TECHNIQUE = Technique(
                'push the camera through the letters to reveal what is behind'),
     related=('zoom-through', 'zoom-through-shape', 'infinite-zoom-tunnel', 'punch-in', 'zoom-to-location-map',
              'ui-walkthrough-camera-zoom'),
-    api=('videobuilder.techniques.typography.scale_zoom_through.scale_zoom_through',
-         'videobuilder.techniques.typography.scale_zoom_through.scaled_about'),
+    api=('videobuilder.capabilities.typography.scale_zoom_through.scale_zoom_through',
+         'videobuilder.capabilities.typography.scale_zoom_through.scaled_about'),
     demo=lambda: demo.film(draw),
 )

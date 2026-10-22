@@ -2,7 +2,7 @@
 other way, so the subject holds its size and everything behind it stretches
 away or crowds in."""
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 from ...ease import ease_in_out_quart, log_lerp
 
 
@@ -72,7 +72,7 @@ def _draw(n, cv):
     demo.dot(cv, demo.W / 2, demo.H / 2 + 40, r=90)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='dolly-zoom',
     name='Dolly zoom',
     family='transitions',
@@ -85,8 +85,8 @@ TECHNIQUE = Technique(
                'push in and zoom out at the same time'),
     related=('optical-zoom', 'push-in', 'infinite-zoom-tunnel', 'zoom-to-location-map',
              'zoom-to-detail-magnifier', 'canvas-pan-and-zoom'),
-    api=('videobuilder.techniques.transitions.dolly_zoom.dolly_zoom',
-         'videobuilder.techniques.transitions.dolly_zoom.dolly_zoom_scale',
-         'videobuilder.techniques.transitions.dolly_zoom.dolly_zoom_point'),
+    api=('videobuilder.capabilities.transitions.dolly_zoom.dolly_zoom',
+         'videobuilder.capabilities.transitions.dolly_zoom.dolly_zoom_scale',
+         'videobuilder.capabilities.transitions.dolly_zoom.dolly_zoom_point'),
     demo=lambda: demo.film(_draw),
 )

@@ -8,7 +8,7 @@ import cairo
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def _lerp_box(a, b, t):
@@ -135,7 +135,7 @@ def draw(n, cv):
         cv.mark('tooltip', *box)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='coachmark-spotlight-cutout',
     name='Coachmark spotlight cutout',
     family='ui',
@@ -148,8 +148,8 @@ TECHNIQUE = Technique(
                'darken everything except the share button and add a little tooltip'),
     related=('spotlight-hover', 'spotlight-follow', 'spotlight-dim', 'highlighter-swipe',
              'drop-target-highlight', 'player-movement-trail'),
-    api=('videobuilder.techniques.ui.coachmark_spotlight_cutout.spotlight_cutout',
-         'videobuilder.techniques.ui.coachmark_spotlight_cutout.coachmark_tip',
-         'videobuilder.techniques.ui.coachmark_spotlight_cutout.tour_hole'),
+    api=('videobuilder.capabilities.ui.coachmark_spotlight_cutout.spotlight_cutout',
+         'videobuilder.capabilities.ui.coachmark_spotlight_cutout.coachmark_tip',
+         'videobuilder.capabilities.ui.coachmark_spotlight_cutout.tour_hole'),
     demo=lambda: demo.film(draw),
 )

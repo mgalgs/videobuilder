@@ -8,7 +8,7 @@ import cairo
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def block_size(p, block=64, steps=6):
@@ -87,7 +87,7 @@ def draw(n, cv):
     cv.mark('text', (demo.W - w) / 2, demo.H / 2 - 20 - h / 2, w, h)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='pixelation-reveal',
     name='Pixelation reveal',
     family='typography',
@@ -100,8 +100,8 @@ TECHNIQUE = Technique(
                'big chunky squares that resolve into the logo'),
     related=('pixelate-transition', 'pixel-sort-text', 'pixelation', 'text-mask-reveal', 'pixel-build',
              'noise-dissolve'),
-    api=('videobuilder.techniques.typography.pixelation_reveal.pixelation_reveal',
-         'videobuilder.techniques.typography.pixelation_reveal.mosaic',
-         'videobuilder.techniques.typography.pixelation_reveal.block_size'),
+    api=('videobuilder.capabilities.typography.pixelation_reveal.pixelation_reveal',
+         'videobuilder.capabilities.typography.pixelation_reveal.mosaic',
+         'videobuilder.capabilities.typography.pixelation_reveal.block_size'),
     demo=lambda: demo.film(draw),
 )

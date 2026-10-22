@@ -10,7 +10,7 @@ import cairo
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def wobble(t, hz=3.0, decay=3.0):
@@ -60,7 +60,7 @@ def draw(n, cv):
         demo.card(cv, cx, ground - h / 2, w=w, h=h)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='wobble',
     name='Wobble',
     family='principles',
@@ -73,7 +73,7 @@ TECHNIQUE = Technique(
                'have the box wobble after the bump'),
     related=('tape-wobble', 'wiggle-path', 'noise-vertex-wobble', 'wave-deformer', 'sine-wave-distortion',
              'wave-stagger'),
-    api=('videobuilder.techniques.principles.wobble.wobble',
-         'videobuilder.techniques.principles.wobble.wobbling'),
+    api=('videobuilder.capabilities.principles.wobble.wobble',
+         'videobuilder.capabilities.principles.wobble.wobbling'),
     demo=lambda: demo.film(draw),
 )

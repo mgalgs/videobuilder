@@ -6,7 +6,7 @@ import random
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def tear_bands(amount, y, h, seed=0, step=0, bands=24, shift=120, torn=0.4):
@@ -78,7 +78,7 @@ def draw(n, cv):
     cv.mark('text', tx, ty, tw, th)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='scanline-tear',
     name='Scanline tear',
     family='typography',
@@ -91,7 +91,7 @@ TECHNIQUE = Technique(
                'the logo breaks up into shifted horizontal lines and snaps back'),
     related=('scanline-jitter', 'screen-tearing', 'glitch-transition', 'crt-scanlines', 'scanline-wipe',
              'data-bending'),
-    api=('videobuilder.techniques.typography.scanline_tear.scanline_tear',
-         'videobuilder.techniques.typography.scanline_tear.tear_bands'),
+    api=('videobuilder.capabilities.typography.scanline_tear.scanline_tear',
+         'videobuilder.capabilities.typography.scanline_tear.tear_bands'),
     demo=lambda: demo.film(draw),
 )

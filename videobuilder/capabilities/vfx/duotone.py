@@ -8,7 +8,7 @@ import videobuilder as vb
 
 from ...looks.fx import Filter, apply
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def _treat(im, t, age, u, shadow='#1d1b5c', highlight='#ffb26b', amount=1.0):
@@ -66,7 +66,7 @@ def draw(n, cv):
         cv.rect(x - 3, 0, 6, demo.H, '#ffffff', alpha=0.9)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='duotone',
     name='Duotone',
     family='vfx',
@@ -79,6 +79,6 @@ TECHNIQUE = Technique(
                'give the image that bold two-colour look'),
     related=('halftone', 'multiply-blend', 'ascii-art-render', 'dither-reveal', 'halftone-dot-scaling',
              'double-exposure'),
-    api=('videobuilder.techniques.vfx.duotone.duotone',),
+    api=('videobuilder.capabilities.vfx.duotone.duotone',),
     demo=lambda: demo.film(draw),
 )

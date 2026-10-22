@@ -7,7 +7,7 @@ import videobuilder as vb
 from videobuilder import Box
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 from ...compendium.components import _images_util as u
 
 BODY = '#0e0f13'
@@ -129,7 +129,7 @@ def draw(n, cv):
                     ease=vb.ease_out_back)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='device-mockup-slide-in',
     name='Device mockup slide-in',
     family='broadcast',
@@ -142,8 +142,8 @@ TECHNIQUE = Technique(
                'show the screenshot inside a device that moves into the shot'),
     related=('uncover', 'circular-clip-reveal', 'zoom-out-reveal', 'fade-up-scroll-reveal', 'wireframe-reveal',
              'slide-over-cover'),
-    api=('videobuilder.techniques.broadcast.device_mockup_slide_in.device_slide_in',
-         'videobuilder.techniques.broadcast.device_mockup_slide_in.phone_frame',
-         'videobuilder.techniques.broadcast.device_mockup_slide_in.laptop_frame'),
+    api=('videobuilder.capabilities.broadcast.device_mockup_slide_in.device_slide_in',
+         'videobuilder.capabilities.broadcast.device_mockup_slide_in.phone_frame',
+         'videobuilder.capabilities.broadcast.device_mockup_slide_in.laptop_frame'),
     demo=lambda: demo.film(draw),
 )

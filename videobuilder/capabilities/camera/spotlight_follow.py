@@ -8,7 +8,7 @@ import cairo
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def spotlight(cv, cx, cy, radius, darkness=0.88, softness=0.35, glow=0.08, color=(0, 0, 0)):
@@ -87,7 +87,7 @@ def draw(n, cv):
     cv.mark('spotlight', cx - 150, cy - 150, 300, 300)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='spotlight-follow',
     name='Spotlight follow',
     family='camera',
@@ -100,8 +100,8 @@ TECHNIQUE = Technique(
                'let a moving pool of light chase the cursor and show what is underneath'),
     related=('spotlight-dim', 'spotlight-hover', 'coachmark-spotlight-cutout', 'tracking-shot',
              'player-movement-trail', 'path-follow-motion'),
-    api=('videobuilder.techniques.camera.spotlight_follow.spotlight_follow',
-         'videobuilder.techniques.camera.spotlight_follow.spotlight',
-         'videobuilder.techniques.camera.spotlight_follow.follow_point'),
+    api=('videobuilder.capabilities.camera.spotlight_follow.spotlight_follow',
+         'videobuilder.capabilities.camera.spotlight_follow.spotlight',
+         'videobuilder.capabilities.camera.spotlight_follow.follow_point'),
     demo=lambda: demo.film(draw),
 )

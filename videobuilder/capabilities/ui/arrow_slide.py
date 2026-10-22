@@ -4,7 +4,7 @@ import videobuilder as vb
 from videobuilder.canvas import rgba
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def draw_arrow(cv, x, y, size, color, width=None, alpha=1.0):
@@ -101,7 +101,7 @@ def draw(n, cv):
     _pointer(cv, px, py, s=1.3)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='arrow-slide',
     name='Arrow slide',
     family='ui',
@@ -114,8 +114,8 @@ TECHNIQUE = Technique(
                'a next-button arrow that shoots off and comes back from the left'),
     related=('arrow-pointer-draw', 'range-slider-value-bubble', 'tooltip-fade-follow',
              'hover-reveal-actions', 'character-slide-in', 'cursor-follower-dot-and-ring'),
-    api=('videobuilder.techniques.ui.arrow_slide.draw_arrow_slide',
-         'videobuilder.techniques.ui.arrow_slide.draw_arrow_button',
-         'videobuilder.techniques.ui.arrow_slide.draw_arrow'),
+    api=('videobuilder.capabilities.ui.arrow_slide.draw_arrow_slide',
+         'videobuilder.capabilities.ui.arrow_slide.draw_arrow_button',
+         'videobuilder.capabilities.ui.arrow_slide.draw_arrow'),
     demo=lambda: demo.film(draw),
 )

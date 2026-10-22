@@ -5,7 +5,7 @@ import math
 
 from .. import _demo as demo
 from ...ease import bezier, ease_in_out_quart, ease_out_quint, interpolate
-from ..schema import Technique
+from ..schema import Capability
 
 _SWIPE = bezier(0.55, 0, 0.35, 1)  # a slow pull, then a quick fling
 
@@ -76,7 +76,7 @@ def _demo():
     return demo.two_scenes(stacked_card_reveal, seconds=3.2, start=0.5, length=2.2)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='stacked-card-reveal',
     name='Stacked card reveal',
     family='transitions',
@@ -89,6 +89,6 @@ TECHNIQUE = Technique(
                'swipe the current slide off the deck to reveal the one below'),
     related=('sticky-card-stack-on-scroll', 'card-deck-fan', 'flip', 'swipe-to-dismiss', 'title-card-reveal',
              'staggered-cascade-reveal'),
-    api=('videobuilder.techniques.transitions.stacked_card_reveal.stacked_card_reveal',),
+    api=('videobuilder.capabilities.transitions.stacked_card_reveal.stacked_card_reveal',),
     demo=_demo,
 )

@@ -6,7 +6,7 @@ import math
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def _walker(points, closed):
@@ -85,7 +85,7 @@ def draw(n, cv):
     cv.mark('stroke', x0, y - amp, x1 - x0, 2 * amp)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='zig-zag-distortion',
     name='Zig-zag distortion',
     family='shapes',
@@ -98,6 +98,6 @@ TECHNIQUE = Technique(
                'crimp the path into sharp little peaks'),
     related=('zigzag-wipe', 'accordion-fold', 'perspective-tunnel-type', 'lens-distortion', 'dragon-curve',
              'morph-cut'),
-    api=('videobuilder.techniques.shapes.zig_zag_distortion.zigzag', 'videobuilder.paths.draw'),
+    api=('videobuilder.capabilities.shapes.zig_zag_distortion.zigzag', 'videobuilder.paths.draw'),
     demo=lambda: demo.film(draw),
 )

@@ -8,7 +8,7 @@ import random
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def _grid(points, cell):
@@ -110,7 +110,7 @@ def draw(n, cv):
     cv.mark('growth', min(xs), min(ys), max(xs) - min(xs), max(ys) - min(ys))
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='differential-growth',
     name='Differential growth',
     family='particles',
@@ -123,7 +123,7 @@ TECHNIQUE = Technique(
                'brain-like squiggles growing out from a small circle'),
     related=('koch-snowflake', 'decision-tree-branch-growth', 'bar-grow', 'stacked-bar-build',
              'offset-path-expansion', 'lenia'),
-    api=('videobuilder.techniques.particles.differential_growth.differential_growth',
-         'videobuilder.techniques.particles.differential_growth.draw_differential_growth'),
+    api=('videobuilder.capabilities.particles.differential_growth.differential_growth',
+         'videobuilder.capabilities.particles.differential_growth.draw_differential_growth'),
     demo=lambda: demo.film(draw),
 )

@@ -7,7 +7,7 @@ import random
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 SPLIT = ('#ff2d55', '#1fd8ff')
 
@@ -86,7 +86,7 @@ def draw(n, cv):
     cv.mark('text', *box)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='glitch-text',
     name='Glitch text',
     family='typography',
@@ -99,7 +99,7 @@ TECHNIQUE = Technique(
                'give the headline a digital glitch with colour split'),
     related=('glitch-transition', 'data-bending', 'glitch-sound', 'logo-glitch-reveal', 'pixelation-reveal',
              'scramble-decode'),
-    api=('videobuilder.techniques.typography.glitch_text.draw_glitch',
-         'videobuilder.techniques.typography.glitch_text.glitch_bursts'),
+    api=('videobuilder.capabilities.typography.glitch_text.draw_glitch',
+         'videobuilder.capabilities.typography.glitch_text.glitch_bursts'),
     demo=lambda: demo.film(draw),
 )

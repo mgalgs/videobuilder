@@ -5,7 +5,7 @@ import math
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def _mix(a, b, t):
@@ -43,7 +43,7 @@ def draw(n, cv):
     cv.mark('text', *box)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='long-shadow-growth',
     name='Long shadow growth',
     family='typography',
@@ -56,6 +56,6 @@ TECHNIQUE = Technique(
                'the shadow should extend out from the words at 45 degrees'),
     related=('long-shadow-extension', 'drop-shadow-breathing', 'character-rise', 'extrusion-depth-reveal',
              'shadow-play', 'outline-pulse-glow'),
-    api=('videobuilder.techniques.typography.long_shadow_growth.draw_long_shadow',),
+    api=('videobuilder.capabilities.typography.long_shadow_growth.draw_long_shadow',),
     demo=lambda: demo.film(draw),
 )

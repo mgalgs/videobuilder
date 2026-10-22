@@ -11,7 +11,7 @@ from PIL import Image
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 N_FILM = 1.33          # refractive index of soapy water
 MAX_NM = 1400.0        # thickest optical path the colour table covers
@@ -131,7 +131,7 @@ def draw(n, cv):
     draw_iridescent_bubble(cv, demo.W / 2, demo.H / 2, demo.H * 0.36, view=view, swirl=1.6 * t)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='thin-film-iridescence',
     name='Thin-film iridescence',
     family='camera',
@@ -144,8 +144,8 @@ TECHNIQUE = Technique(
                'a pearly, colour-shifting finish that moves with the light'),
     related=('fresnel-edge-glow', 'gooch-shading', 'heat-haze', 'chrome-specular-shimmer', 'film-dissolve',
              'shine-glint-sweep'),
-    api=('videobuilder.techniques.camera.thin_film_iridescence.draw_iridescent_bubble',
-         'videobuilder.techniques.camera.thin_film_iridescence.iridescent_sphere',
-         'videobuilder.techniques.camera.thin_film_iridescence.film_color'),
+    api=('videobuilder.capabilities.camera.thin_film_iridescence.draw_iridescent_bubble',
+         'videobuilder.capabilities.camera.thin_film_iridescence.iridescent_sphere',
+         'videobuilder.capabilities.camera.thin_film_iridescence.film_color'),
     demo=lambda: demo.film(draw),
 )

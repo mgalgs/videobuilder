@@ -6,7 +6,7 @@ import math
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def magnifier(cv, draw, cx, cy, r, zoom=2.5, rim='#ffffff', rim_width=4, shadow=0.5, glare=True):
@@ -85,7 +85,7 @@ def _draw(n, cv):
     magnifier(cv, _page, cx, cy, r=88 * grow, zoom=zoom)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='zoom-to-detail-magnifier',
     name='Zoom-to-detail magnifier',
     family='broadcast',
@@ -98,6 +98,6 @@ TECHNIQUE = Technique(
                'hover a loupe over that part of the picture'),
     related=('image-hover-zoom', 'zoom-blur', 'scale-zoom-through', 'optical-zoom', 'dock-magnification',
              'dolly-zoom'),
-    api=('videobuilder.techniques.broadcast.zoom_to_detail_magnifier.magnifier',),
+    api=('videobuilder.capabilities.broadcast.zoom_to_detail_magnifier.magnifier',),
     demo=lambda: demo.film(_draw),
 )

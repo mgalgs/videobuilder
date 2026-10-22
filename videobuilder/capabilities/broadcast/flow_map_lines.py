@@ -6,7 +6,7 @@ import math
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def flow_arc(origin, dest, bend=0.25, steps=48):
@@ -121,7 +121,7 @@ def draw(n, cv):
     cv.line(lx + 70, ly, lx + 130, ly, demo.TEAL, width=14)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='flow-map-lines',
     name='Flow map lines',
     family='broadcast',
@@ -134,7 +134,7 @@ TECHNIQUE = Technique(
                'a map where the routes get fatter the more traffic they carry'),
     related=('streamlines', 'map-route-draw', 'streamgraph-flow', 'line-chart-draw-on', 'sankey-flow',
              'speed-lines'),
-    api=('videobuilder.techniques.broadcast.flow_map_lines.flow_map_lines',
-         'videobuilder.techniques.broadcast.flow_map_lines.flow_arc'),
+    api=('videobuilder.capabilities.broadcast.flow_map_lines.flow_map_lines',
+         'videobuilder.capabilities.broadcast.flow_map_lines.flow_arc'),
     demo=lambda: demo.film(draw),
 )

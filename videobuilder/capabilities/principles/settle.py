@@ -3,7 +3,7 @@ from `vb.damped`), so this entry only names it and demos it."""
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 START = 0.4
 SPRING = vb.damped(0.18, hz=1.4)  # light damping: a few swings either side, each smaller than the last
@@ -20,7 +20,7 @@ def draw(n, cv):
     demo.card(cv, x0 + (x1 - x0) * p, y)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='settle',
     name='Settle',
     family='principles',

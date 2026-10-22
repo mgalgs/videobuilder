@@ -6,7 +6,7 @@ import math
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 GOLD = '#f6b93b'
 
@@ -66,7 +66,7 @@ def draw(n, cv):
     demo.word(cv, f'{shown:.1f}', demo.W / 2, y + size + 90, size=64, color=demo.INK, weight=700)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='star-rating-fill',
     name='Star rating fill',
     family='ui',
@@ -78,7 +78,7 @@ TECHNIQUE = Technique(
                'show the review score as stars lighting up one by one',
                'stars that fill with gold from left to right to the rating'),
     related=('spotlight-hover', 'star-wipe', 'starfield', 'icon-line-to-fill', 'circle-pop', 'border-glow-follow'),
-    api=('videobuilder.techniques.ui.star_rating_fill.draw_star_rating',
-         'videobuilder.techniques.ui.star_rating_fill.star_points'),
+    api=('videobuilder.capabilities.ui.star_rating_fill.draw_star_rating',
+         'videobuilder.capabilities.ui.star_rating_fill.star_points'),
     demo=lambda: demo.film(draw),
 )

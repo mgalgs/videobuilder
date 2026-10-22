@@ -5,7 +5,7 @@ import math
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 PANEL = '#1d1f26'
 
@@ -59,7 +59,7 @@ def draw(n, cv):
     cv.mark('icon', bx - br, by - br, 2 * br, 2 * br)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='plus-to-close-rotate',
     name='Plus to close rotate',
     family='ui',
@@ -72,7 +72,7 @@ TECHNIQUE = Technique(
                'an accordion toggle whose plus twists into a cross'),
     related=('word-flip-in', 'context-menu-origin-reveal', 'password-reveal-toggle', 'speed-dial-fan',
              'sidebar-collapse-width', 'hover-lift'),
-    api=('videobuilder.techniques.ui.plus_to_close_rotate.draw_plus_close',
-         'videobuilder.techniques.ui.plus_to_close_rotate.plus_angle'),
+    api=('videobuilder.capabilities.ui.plus_to_close_rotate.draw_plus_close',
+         'videobuilder.capabilities.ui.plus_to_close_rotate.plus_angle'),
     demo=lambda: demo.film(draw),
 )

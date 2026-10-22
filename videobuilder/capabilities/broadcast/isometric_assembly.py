@@ -4,7 +4,7 @@ until the finished object stands assembled and holds."""
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 from ..shapes.isometric_bar_rise import iso, shade
 from ...compendium import kit
 from ...looks import kit as looks
@@ -76,7 +76,7 @@ def draw(n, cv):
     cv.mark('house', min(xs), min(ys), max(xs) - min(xs), max(ys) - min(ys))
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='isometric-assembly',
     name='Isometric assembly',
     family='broadcast',
@@ -90,8 +90,8 @@ TECHNIQUE = Technique(
                'an isometric illustration that puts itself together, layer on layer'),
     related=('isometric-rotation', 'exploded-view', 'isometric-bar-rise', 'shape-assemble-from-fragments',
              'voxel-build', 'isometric-view'),
-    api=('videobuilder.techniques.broadcast.isometric_assembly.isometric_assembly',
-         'videobuilder.techniques.broadcast.isometric_assembly.draw_iso_block',
-         'videobuilder.techniques.shapes.isometric_bar_rise.iso'),
+    api=('videobuilder.capabilities.broadcast.isometric_assembly.isometric_assembly',
+         'videobuilder.capabilities.broadcast.isometric_assembly.draw_iso_block',
+         'videobuilder.capabilities.shapes.isometric_bar_rise.iso'),
     demo=lambda: demo.film(draw),
 )

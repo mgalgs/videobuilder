@@ -7,7 +7,7 @@ loaded with `vb.speech.load`, placed on the film with `Narration.sound(at=)`
     VOICE = vb.speech.load('assets/narration.wav')
     FILM = vb.Film(..., audio=vb.Audio('assets/music.wav', duck_db=-12), sounds=(VOICE.sound(at=15),))
 
-The demo can't ship a voice (a technique's demo takes its sound from the
+The demo can't ship a voice (a capability's demo takes its sound from the
 bundled effects pack), so its narrator is a stand-in: two lines of
 syllable blips at a speaking pace over a slow push on a photo, with the
 narrator's tag, the words lighting as they're "said", and the voice's lane.
@@ -17,7 +17,7 @@ import math
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 # the narrator's two lines: (first frame, words as syllables)
 LINES = ((10, (('Ev', 'ery'), ('place',), ('has',), ('a',), ('sto', 'ry.'))),
@@ -123,7 +123,7 @@ def film():
     return demo.film(draw, sounds=sounds)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='voiceover',
     name='Voiceover',
     family='sound',

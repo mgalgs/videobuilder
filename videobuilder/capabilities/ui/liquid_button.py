@@ -6,7 +6,7 @@ import math
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def pill_outline(cx, cy, w, h, n=96):
@@ -130,7 +130,7 @@ def draw(n, cv):
     _pointer(cv, px - 4 * press, py - 4 * press)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='liquid-button',
     name='Liquid button',
     family='ui',
@@ -142,8 +142,8 @@ TECHNIQUE = Technique(
                'a jelly-like button that bulges under the mouse and snaps back',
                'the button edge melts out toward the pointer, then wobbles back into place'),
     related=('liquid-melt', 'speed-dial-fan', 'bubbles', 'twist-deformer', 'liquid-fill-level', 'circle-pop'),
-    api=('videobuilder.techniques.ui.liquid_button.draw_liquid_button',
-         'videobuilder.techniques.ui.liquid_button.liquid_outline',
-         'videobuilder.techniques.ui.liquid_button.smooth_path'),
+    api=('videobuilder.capabilities.ui.liquid_button.draw_liquid_button',
+         'videobuilder.capabilities.ui.liquid_button.liquid_outline',
+         'videobuilder.capabilities.ui.liquid_button.smooth_path'),
     demo=lambda: demo.film(draw),
 )

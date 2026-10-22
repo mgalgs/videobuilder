@@ -6,7 +6,7 @@ import math
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 from ...type.kit import blurred
 
 
@@ -82,7 +82,7 @@ def _draw(n, cv):
     _brackets(cv)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='focus-breathing',
     name='Focus breathing',
     family='camera',
@@ -95,6 +95,6 @@ TECHNIQUE = Technique(
                'let the picture grow slightly as it pulls focus, like a cine lens'),
     related=('focus-blur-out', 'optical-zoom', 'zoom-through', 'rack-focus', 'tilt-shift-miniature',
              'dolly-zoom'),
-    api=('videobuilder.techniques.camera.focus_breathing.focus_breathing', 'videobuilder.type.kit.blurred'),
+    api=('videobuilder.capabilities.camera.focus_breathing.focus_breathing', 'videobuilder.type.kit.blurred'),
     demo=lambda: demo.film(_draw),
 )

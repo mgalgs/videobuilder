@@ -18,7 +18,7 @@ import math
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def pan_gains(position):
@@ -134,7 +134,7 @@ def film():
     return demo.film(draw, sounds=stereo_pan(whoosh, balance, demo.FPS))
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='stereo-panning',
     name='Stereo panning',
     family='sound',
@@ -146,8 +146,8 @@ TECHNIQUE = Technique(
                'have the sound follow the ball across the screen',
                'pan the audio so it comes from where the object is'),
     related=('pan', 'turntable-rotation', 'spin', 'tilt', 'reverse-playback', 'look-around'),
-    api=('videobuilder.techniques.sound.stereo_panning.stereo_pan',
-         'videobuilder.techniques.sound.stereo_panning.pan_gains',
+    api=('videobuilder.capabilities.sound.stereo_panning.stereo_pan',
+         'videobuilder.capabilities.sound.stereo_panning.pan_gains',
          'videobuilder.sfx.sound'),
     demo=film,
 )

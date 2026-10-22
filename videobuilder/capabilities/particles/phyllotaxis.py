@@ -8,7 +8,7 @@ import videobuilder as vb
 
 from .. import _demo as demo
 from ...compendium import kit
-from ..schema import Technique
+from ..schema import Capability
 
 GOLDEN_ANGLE = math.pi * (3 - math.sqrt(5))  # ~137.5 degrees: the turn between consecutive seeds
 
@@ -55,7 +55,7 @@ def draw(n, cv):
     cv.mark('head', cx - r, cy - r, 2 * r, 2 * r)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='phyllotaxis',
     name='Phyllotaxis',
     family='particles',
@@ -68,7 +68,7 @@ TECHNIQUE = Technique(
                'grow a sunflower pattern one dot at a time'),
     related=('spiral-bloom', 'pie-sweep', 'spiral-galaxy', 'spiral-expansion-draw', 'radial-stagger',
              'dragon-curve'),
-    api=('videobuilder.techniques.particles.phyllotaxis.draw_phyllotaxis',
-         'videobuilder.techniques.particles.phyllotaxis.phyllotaxis'),
+    api=('videobuilder.capabilities.particles.phyllotaxis.draw_phyllotaxis',
+         'videobuilder.capabilities.particles.phyllotaxis.phyllotaxis'),
     demo=lambda: demo.film(draw),
 )

@@ -6,7 +6,7 @@ import math
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def _span(p, a, b):
@@ -96,7 +96,7 @@ def draw(n, cv):
         demo.word(cv, label, cx, BOTTOM + 26, size=18, color=demo.MUTED, weight=700, alpha=axes)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='box-plot-draw',
     name='Box plot draw',
     family='broadcast',
@@ -109,7 +109,7 @@ TECHNIQUE = Technique(
                'build the quartile chart piece by piece, whiskers last'),
     related=('flowchart-build', 'box-wipe', 'pencil-sketch', 'letterbox', 'org-chart-grow',
              'spiral-expansion-draw'),
-    api=('videobuilder.techniques.broadcast.box_plot_draw.box_plot_draw',
-         'videobuilder.techniques.broadcast.box_plot_draw.draw_box_plot'),
+    api=('videobuilder.capabilities.broadcast.box_plot_draw.box_plot_draw',
+         'videobuilder.capabilities.broadcast.box_plot_draw.draw_box_plot'),
     demo=lambda: demo.film(draw),
 )

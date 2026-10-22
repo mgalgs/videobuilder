@@ -8,7 +8,7 @@ import cairo
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def _face(word, side, font, color, ink, k):
@@ -123,7 +123,7 @@ def draw(n, cv):
     cv.mark('cube', *box)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='three-d-word-cube',
     name='3D word cube',
     family='typography',
@@ -136,7 +136,7 @@ TECHNIQUE = Technique(
                'swap the words by turning a 3D box between them'),
     related=('word-flip-in', 'cube-rotate', 'word-carousel-rotate', 'tesseract-rotation', 'globe-spin',
              'beveled-3d-text'),
-    api=('videobuilder.techniques.typography.three_d_word_cube.draw_word_cube',
-         'videobuilder.techniques.typography.three_d_word_cube.cube_turn'),
+    api=('videobuilder.capabilities.typography.three_d_word_cube.draw_word_cube',
+         'videobuilder.capabilities.typography.three_d_word_cube.cube_turn'),
     demo=lambda: demo.film(draw),
 )

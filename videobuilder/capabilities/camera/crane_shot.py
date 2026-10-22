@@ -5,7 +5,7 @@ import math
 from dataclasses import dataclass
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 from ... import paths
 from ...ease import ease_in_out_quart
 
@@ -126,7 +126,7 @@ def _draw(n, cv):
             demo.dot(cv, it[0] - r * 0.3, it[1] - r * 0.32, r=r * 0.35, color='#ffd76a', alpha=0.8)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='crane-shot',
     name='Crane shot',
     family='camera',
@@ -138,9 +138,9 @@ TECHNIQUE = Technique(
                'boom up over the subject like the camera is on a big arm',
                'start at eye level and sweep up to a high overhead view'),
     related=('rolling-shutter-wobble', 'punch-in', 'dolly-zoom', 'tilt-shift-miniature', 'morph-cut', 'shake'),
-    api=('videobuilder.techniques.camera.crane_shot.crane_pose',
-         'videobuilder.techniques.camera.crane_shot.crane_project',
-         'videobuilder.techniques.camera.crane_shot.crane_segment',
-         'videobuilder.techniques.camera.crane_shot.CranePose'),
+    api=('videobuilder.capabilities.camera.crane_shot.crane_pose',
+         'videobuilder.capabilities.camera.crane_shot.crane_project',
+         'videobuilder.capabilities.camera.crane_shot.crane_segment',
+         'videobuilder.capabilities.camera.crane_shot.CranePose'),
     demo=lambda: demo.film(_draw),
 )

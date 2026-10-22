@@ -4,7 +4,7 @@ leading edge ragged like bristle tips."""
 import math
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def _jitter(i, seed):
@@ -85,7 +85,7 @@ def paint_brush_wipe(cv, a, b, p, rows=4, bristle=70, wobble=10, overlap=0.12, s
     ctx.restore()
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='paint-brush-wipe',
     name='Paint brush wipe',
     family='transitions',
@@ -98,6 +98,6 @@ TECHNIQUE = Technique(
                'a wipe that looks like someone painting over the screen'),
     related=('brush-stroke-paint-reveal', 'spiral-wipe', 'diagonal-wipe', 'corner-wipe', 'drip-wipe',
              'box-wipe'),
-    api=('videobuilder.techniques.transitions.paint_brush_wipe.paint_brush_wipe',),
+    api=('videobuilder.capabilities.transitions.paint_brush_wipe.paint_brush_wipe',),
     demo=lambda: demo.two_scenes(paint_brush_wipe, start=0.6, length=1.8),
 )

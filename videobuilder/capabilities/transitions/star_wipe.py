@@ -6,7 +6,7 @@ import videobuilder as vb
 
 from .. import _demo as demo
 from ...canvas import rgba
-from ..schema import Technique
+from ..schema import Capability
 
 
 def star_points(cx, cy, r, points=5, inner=0.45, turn=0.0):
@@ -60,7 +60,7 @@ def _path(c, pts):
     c.close_path()
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='star-wipe',
     name='Star wipe',
     family='transitions',
@@ -73,7 +73,7 @@ TECHNIQUE = Technique(
                'reveal the next slide inside an expanding star'),
     related=('circular-clip-reveal', 'star-rating-fill', 'zoom-out-reveal', 'tumble', 'logo-mask-wipe-reveal',
              'uncover'),
-    api=('videobuilder.techniques.transitions.star_wipe.star_wipe',
-         'videobuilder.techniques.transitions.star_wipe.star_points'),
+    api=('videobuilder.capabilities.transitions.star_wipe.star_wipe',
+         'videobuilder.capabilities.transitions.star_wipe.star_points'),
     demo=lambda: demo.two_scenes(lambda cv, a, b, p: star_wipe(cv, a, b, p, edge=demo.ACCENT)),
 )

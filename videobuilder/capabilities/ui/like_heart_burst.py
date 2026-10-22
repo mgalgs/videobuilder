@@ -7,7 +7,7 @@ import random
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 PALETTE = (demo.ACCENT, '#f2b134', demo.TEAL, '#8f7cf0', demo.INK)
 
@@ -98,7 +98,7 @@ def draw(n, cv):
     _cursor(cv, x, y, down=0.9 <= n / demo.FPS < 1.05)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='like-heart-burst',
     name='Like heart burst',
     family='ui',
@@ -110,8 +110,8 @@ TECHNIQUE = Technique(
                'a like button that explodes into little hearts',
                'when you tap the heart it turns red with a burst of confetti'),
     related=('shape-burst', 'circle-pop', 'confetti-burst', 'heart-wipe', 'pulse-loader', 'badge-count-bump'),
-    api=('videobuilder.techniques.ui.like_heart_burst.like_heart_burst',
-         'videobuilder.techniques.ui.like_heart_burst.heart',
-         'videobuilder.techniques.ui.like_heart_burst.heart_points'),
+    api=('videobuilder.capabilities.ui.like_heart_burst.like_heart_burst',
+         'videobuilder.capabilities.ui.like_heart_burst.heart',
+         'videobuilder.capabilities.ui.like_heart_burst.heart_points'),
     demo=lambda: demo.film(draw),
 )

@@ -2,7 +2,7 @@
 its last few frames a few times over, catching like a skipping record, then
 the incoming shot cuts in hard."""
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def stutter_progress(p, cut=0.8, repeats=3, span=0.1):
@@ -50,7 +50,7 @@ def draw(n, cv):
     stutter_cut(cv, scene_a, demo.scene_b, demo.phase(n, 0.2, 2.4), span=0.12)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='stutter-cut',
     name='Stutter cut',
     family='transitions',
@@ -62,7 +62,7 @@ TECHNIQUE = Technique(
                'a glitchy stutter on the last frames, then hard cut to the next scene',
                'repeat the end of the shot like a skipping record before switching'),
     related=('frame-stutter', 'zoom-blur', 'wiggle-path', 'glitch-transition', 'scanline-jitter', 'rack-focus'),
-    api=('videobuilder.techniques.transitions.stutter_cut.stutter_cut',
-         'videobuilder.techniques.transitions.stutter_cut.stutter_progress'),
+    api=('videobuilder.capabilities.transitions.stutter_cut.stutter_cut',
+         'videobuilder.capabilities.transitions.stutter_cut.stutter_progress'),
     demo=lambda: demo.film(draw),
 )

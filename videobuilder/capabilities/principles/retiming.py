@@ -6,7 +6,7 @@ import math
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def retime(t, keys):
@@ -74,7 +74,7 @@ def draw(n, cv):
         vb.text.draw(cv, [tag], f, demo.W - 80 - w, LANES[1][0] - 160, demo.ACCENT)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='retiming',
     name='Retiming',
     family='principles',
@@ -87,7 +87,7 @@ TECHNIQUE = Technique(
                'make it go into slow motion halfway and then speed back up'),
     related=('velocity-preserving-retarget', 'interruptible-motion', 'hyperlapse', 'cut-on-action',
              'distance-based-duration', 'reverse-motion-cut'),
-    api=('videobuilder.techniques.principles.retiming.retime',
-         'videobuilder.techniques.principles.retiming.speed'),
+    api=('videobuilder.capabilities.principles.retiming.retime',
+         'videobuilder.capabilities.principles.retiming.speed'),
     demo=lambda: demo.film(draw),
 )

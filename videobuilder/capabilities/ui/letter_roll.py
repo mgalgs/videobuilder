@@ -4,7 +4,7 @@ going one after another across the word."""
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def roll_progress(i, count, p, stagger=0.5):
@@ -76,7 +76,7 @@ def draw(n, cv):
     _cursor(cv, cx, cy)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='letter-roll',
     name='Letter roll',
     family='ui',
@@ -89,7 +89,7 @@ TECHNIQUE = Technique(
                'each letter slides up and a new copy slides in from below'),
     related=('letter-sort-animation', 'grid-reflow-shuffle', 'word-carousel-rotate', 'rotating-circular-text',
              'character-rotate-in', 'character-drop'),
-    api=('videobuilder.techniques.ui.letter_roll.draw_roll',
-         'videobuilder.techniques.ui.letter_roll.roll_progress'),
+    api=('videobuilder.capabilities.ui.letter_roll.draw_roll',
+         'videobuilder.capabilities.ui.letter_roll.roll_progress'),
     demo=lambda: demo.film(draw),
 )

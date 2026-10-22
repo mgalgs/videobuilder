@@ -6,7 +6,7 @@ import math
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 from ...type import kit as type_kit
 
 # An arrow pointer, tip at (0, 0), in pixels at scale 1.
@@ -78,7 +78,7 @@ def draw(n, cv):
     draw_pointer(cv, px, py, scale=1.6)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='hover-letter-displacement',
     name='Hover letter displacement',
     family='typography',
@@ -91,8 +91,8 @@ TECHNIQUE = Technique(
                'hovering over the headline makes the nearby letters jump and grow'),
     related=('spring-drag-letters', 'hover-lift', 'dot-grid-displacement', 'character-slide-in',
              'bouncing-dots', 'letter-roll'),
-    api=('videobuilder.techniques.typography.hover_letter_displacement.draw_hover_letters',
-         'videobuilder.techniques.typography.hover_letter_displacement.influence',
-         'videobuilder.techniques.typography.hover_letter_displacement.draw_pointer'),
+    api=('videobuilder.capabilities.typography.hover_letter_displacement.draw_hover_letters',
+         'videobuilder.capabilities.typography.hover_letter_displacement.influence',
+         'videobuilder.capabilities.typography.hover_letter_displacement.draw_pointer'),
     demo=lambda: demo.film(draw),
 )

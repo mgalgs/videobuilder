@@ -6,7 +6,7 @@ import math
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 TURN = vb.bezier(0.6, 0.0, 0.3, 1.0)
 
@@ -68,7 +68,7 @@ def draw(n, cv):
     cv.mark('grid', *box)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='mograph-grid-flip',
     name='Mograph grid flip',
     family='shapes',
@@ -81,6 +81,6 @@ TECHNIQUE = Technique(
                'flip the grid of cards diagonally to reveal the new image'),
     related=('tile-flip', 'flip', 'cloner-grid', 'layout-animation-flip', 'logo-3d-spin-reveal',
              'character-3d-flip'),
-    api=('videobuilder.techniques.shapes.mograph_grid_flip.grid_flip',),
+    api=('videobuilder.capabilities.shapes.mograph_grid_flip.grid_flip',),
     demo=lambda: demo.film(draw),
 )

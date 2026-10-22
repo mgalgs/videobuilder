@@ -6,7 +6,7 @@ import math
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def radial_stagger(p, x, y, cx, cy, reach, spread=0.6):
@@ -40,7 +40,7 @@ def draw(n, cv):
     cv.mark('origin', cx - 5, cy - 5, 10, 10)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='radial-stagger',
     name='Radial Stagger',
     family='principles',
@@ -53,6 +53,6 @@ TECHNIQUE = Technique(
                'the items should appear in a wave radiating from one spot'),
     related=('sound-reactive-radial-shape', 'spinner-ring', 'orbital-pulse', 'rotating-rings', 'radial-repeater',
              'circle-packing'),
-    api=('videobuilder.techniques.principles.radial_stagger.radial_stagger',),
+    api=('videobuilder.capabilities.principles.radial_stagger.radial_stagger',),
     demo=lambda: demo.film(draw),
 )

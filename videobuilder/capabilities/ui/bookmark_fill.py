@@ -6,7 +6,7 @@ import math
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def bookmark_path(ctx, cx, cy, w, h, notch=0.24, radius=0.12):
@@ -122,7 +122,7 @@ def _scene(n, cv):
     _cursor(cv, px, py, press)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='bookmark-fill',
     name='Bookmark fill',
     family='ui',
@@ -135,9 +135,9 @@ TECHNIQUE = Technique(
                'a bookmark that fills up from below when something gets saved'),
     related=('icon-line-to-fill', 'outline-to-fill', 'stroke-draw-logo-loader', 'skeleton-shimmer',
              'ink-outline', 'bullet-graph-fill'),
-    api=('videobuilder.techniques.ui.bookmark_fill.bookmark_fill',
-         'videobuilder.techniques.ui.bookmark_fill.draw_bookmark',
-         'videobuilder.techniques.ui.bookmark_fill.saved_pop',
-         'videobuilder.techniques.ui.bookmark_fill.bookmark_path'),
+    api=('videobuilder.capabilities.ui.bookmark_fill.bookmark_fill',
+         'videobuilder.capabilities.ui.bookmark_fill.draw_bookmark',
+         'videobuilder.capabilities.ui.bookmark_fill.saved_pop',
+         'videobuilder.capabilities.ui.bookmark_fill.bookmark_path'),
     demo=lambda: demo.film(draw),
 )

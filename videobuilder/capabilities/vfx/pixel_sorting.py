@@ -12,7 +12,7 @@ import videobuilder as vb
 from videobuilder.looks.fx import image_surface, surface_image
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def pixel_sort(im, threshold=0.5, vertical=False, reverse=False):
@@ -107,7 +107,7 @@ def draw(n, cv):
     cv.mark('photo', 0, 0, demo.W, demo.H)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='pixel-sorting',
     name='Pixel sorting',
     family='vfx',
@@ -120,7 +120,7 @@ TECHNIQUE = Technique(
                'smear the bright parts of the frame into long sorted lines'),
     related=('pixel-sort-text', 'pixelation', 'pixelate-transition', 'nearest-neighbor-upscale',
              'pixelation-reveal', 'pixel-build'),
-    api=('videobuilder.techniques.vfx.pixel_sorting.pixel_sorted',
-         'videobuilder.techniques.vfx.pixel_sorting.pixel_sort'),
+    api=('videobuilder.capabilities.vfx.pixel_sorting.pixel_sorted',
+         'videobuilder.capabilities.vfx.pixel_sorting.pixel_sort'),
     demo=lambda: demo.film(draw),
 )

@@ -11,7 +11,7 @@ from functools import lru_cache
 
 from ...canvas import rgba
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 _GRADS = ((1, 1, 0), (-1, 1, 0), (1, -1, 0), (-1, -1, 0), (1, 0, 1), (-1, 0, 1), (1, 0, -1), (-1, 0, -1),
@@ -168,7 +168,7 @@ def draw(n, cv):
               colors=(demo.INK, demo.INK, demo.TEAL, demo.ACCENT, demo.MUTED), width=2.0, seed=7)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='curl-noise-flow',
     name='Curl noise flow',
     family='particles',
@@ -180,9 +180,9 @@ TECHNIQUE = Technique(
                'make thousands of little streaks flow in lazy whirlpools',
                'an inky, marbled flow where specks drift in curls without clumping'),
     related=('turbulence-displacement', 'smoke-simulation', 'smoke-puffs', 'swirl', 'wind-field', 'line-boil'),
-    api=('videobuilder.techniques.particles.curl_noise_flow.curl_noise',
-         'videobuilder.techniques.particles.curl_noise_flow.flow_tracks',
-         'videobuilder.techniques.particles.curl_noise_flow.draw_flow',
-         'videobuilder.techniques.particles.curl_noise_flow.noise3'),
+    api=('videobuilder.capabilities.particles.curl_noise_flow.curl_noise',
+         'videobuilder.capabilities.particles.curl_noise_flow.flow_tracks',
+         'videobuilder.capabilities.particles.curl_noise_flow.draw_flow',
+         'videobuilder.capabilities.particles.curl_noise_flow.noise3'),
     demo=lambda: demo.film(draw),
 )

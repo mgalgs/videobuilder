@@ -6,7 +6,7 @@ import math
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def stack_centres(n, cx, r, p, overlap=0.4, gap=0.3):
@@ -71,7 +71,7 @@ def draw(n, cv):
     draw_pointer(cv, px, py)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='avatar-stack-spread',
     name='Avatar stack spread',
     family='ui',
@@ -84,9 +84,9 @@ TECHNIQUE = Technique(
                'hovering the facepile pulls the faces apart so each is visible'),
     related=('circle-packing', 'cross-dissolve', 'shape-boolean-merge', 'scroll-linked-clip-reveal',
              'comment-pop-up-stack', 'center-out-stagger'),
-    api=('videobuilder.techniques.ui.avatar_stack_spread.draw_avatar_stack',
-         'videobuilder.techniques.ui.avatar_stack_spread.stack_centres',
-         'videobuilder.techniques.ui.avatar_stack_spread.draw_avatar',
-         'videobuilder.techniques.ui.avatar_stack_spread.draw_pointer'),
+    api=('videobuilder.capabilities.ui.avatar_stack_spread.draw_avatar_stack',
+         'videobuilder.capabilities.ui.avatar_stack_spread.stack_centres',
+         'videobuilder.capabilities.ui.avatar_stack_spread.draw_avatar',
+         'videobuilder.capabilities.ui.avatar_stack_spread.draw_pointer'),
     demo=lambda: demo.film(draw),
 )

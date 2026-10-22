@@ -15,7 +15,7 @@ import videobuilder as vb
 from videobuilder import text as vbtext
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 @lru_cache(maxsize=64)
@@ -130,7 +130,7 @@ def draw(n, cv):
     cv.mark('morph', *box)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='text-to-shape-morph',
     name='Text-to-shape morph',
     family='typography',
@@ -143,8 +143,8 @@ TECHNIQUE = Technique(
                'letters morph together into an icon'),
     related=('shape-morph', 'chart-type-morph', 'symbol-to-letter-decode', 'morphing-shape-ident',
              'blob-to-icon-morph', 'icon-state-morph'),
-    api=('videobuilder.techniques.typography.text_to_shape_morph.draw_text_to_shape',
-         'videobuilder.techniques.typography.text_to_shape_morph.text_to_shape',
-         'videobuilder.techniques.typography.text_to_shape_morph.glyph_contours'),
+    api=('videobuilder.capabilities.typography.text_to_shape_morph.draw_text_to_shape',
+         'videobuilder.capabilities.typography.text_to_shape_morph.text_to_shape',
+         'videobuilder.capabilities.typography.text_to_shape_morph.glyph_contours'),
     demo=lambda: demo.film(draw),
 )

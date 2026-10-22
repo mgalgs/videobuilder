@@ -7,7 +7,7 @@ from PIL import Image as PILImage, ImageChops
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 GREEN = (0, 177, 64)
 BLUE = (0, 71, 187)
@@ -93,7 +93,7 @@ def draw(n, cv):
     cv.outline(PX + 16, PY + 16, 30, 30, demo.INK, width=2, radius=6)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='chroma-key',
     name='Chroma key',
     family='vfx',
@@ -106,6 +106,6 @@ TECHNIQUE = Technique(
                'make the green backdrop see-through and drop a new scene in behind'),
     related=('scroll-linked-background-shift', 'night-vision', 'keystroke-overlay', 'screen-blend',
              'rgb-channel-split', 'chroma-bleed'),
-    api=('videobuilder.techniques.vfx.chroma_key.chroma_key',),
+    api=('videobuilder.capabilities.vfx.chroma_key.chroma_key',),
     demo=lambda: demo.film(draw),
 )

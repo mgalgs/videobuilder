@@ -7,7 +7,7 @@ import videobuilder as vb
 from videobuilder.canvas import _rounded
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def callout_highlight(cv, box, p, label=None, color=demo.ACCENT, dim=0.62, pad=14, radius=16,
@@ -66,7 +66,7 @@ def draw(n, cv):
     callout_highlight(cv, (xs[1] - 140, cy - 90, 280, 180), demo.phase(n, 0.5, 2.1), label='New this week')
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='callout-highlight',
     name='Callout highlight',
     family='shapes',
@@ -79,6 +79,6 @@ TECHNIQUE = Technique(
                'draw attention to this section with a highlight and a note'),
     related=('callout-line-with-label', 'highlight-circle-draw', 'highlighter-swipe',
              'dimension-line-annotation', 'word-by-word-emphasis', 'focus-ring-draw'),
-    api=('videobuilder.techniques.shapes.callout_highlight.callout_highlight',),
+    api=('videobuilder.capabilities.shapes.callout_highlight.callout_highlight',),
     demo=lambda: demo.film(draw),
 )

@@ -5,7 +5,7 @@ move on its own, for any number in any layout.)"""
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def _decimals(*values):
@@ -57,7 +57,7 @@ def draw(n, cv):
     demo.word(cv, 'people signed up', demo.W / 2, y + h + 96, size=40, color=demo.MUTED, weight=600)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='number-count-up',
     name='Number count-up',
     family='typography',
@@ -70,7 +70,7 @@ TECHNIQUE = Technique(
                'animate the number rising to its final value'),
     related=('odometer-roll', 'stopwatch-count-up', 'badge-count-bump', 'timecode-counter', 'steps-easing',
              'timeline-scroll'),
-    api=('videobuilder.techniques.typography.number_count_up.count_up',
-         'videobuilder.techniques.typography.number_count_up.draw_count_up'),
+    api=('videobuilder.capabilities.typography.number_count_up.count_up',
+         'videobuilder.capabilities.typography.number_count_up.draw_count_up'),
     demo=lambda: demo.film(draw),
 )

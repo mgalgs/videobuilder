@@ -7,7 +7,7 @@ import random
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def bubbles(t, x, top, w, h, count=14, seed=0, size=(10, 46), rise=(2.2, 4.0), sway=18, pop=0.35):
@@ -83,7 +83,7 @@ def draw(n, cv):
     cv.mark('water', 0, surface, demo.W, demo.H - surface)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='bubbles',
     name='Bubbles',
     family='particles',
@@ -95,9 +95,9 @@ TECHNIQUE = Technique(
                'fill the background with rising air bubbles',
                'little fizzy bubbles drifting upward'),
     related=('circle-pop', 'ripple', 'liquid-fill-level', 'wobble', 'height-field-ripples', 'domain-warping'),
-    api=('videobuilder.techniques.particles.bubbles.draw_bubbles',
-         'videobuilder.techniques.particles.bubbles.bubbles',
-         'videobuilder.techniques.particles.bubbles.draw_bubble',
-         'videobuilder.techniques.particles.bubbles.draw_pop'),
+    api=('videobuilder.capabilities.particles.bubbles.draw_bubbles',
+         'videobuilder.capabilities.particles.bubbles.bubbles',
+         'videobuilder.capabilities.particles.bubbles.draw_bubble',
+         'videobuilder.capabilities.particles.bubbles.draw_pop'),
     demo=lambda: demo.film(draw),
 )

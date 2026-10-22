@@ -4,7 +4,7 @@ demos it."""
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 PARAMS = vb.damped(3.0, hz=1.2)  # ratio 3: heavy damping, a slow creep with no overshoot
 START, END = 0.3, demo.SECONDS
@@ -49,7 +49,7 @@ def draw(n, cv):
     demo.word(cv, 'no overshoot', gx + gw - 80, gy - 20, size=20, color=demo.MUTED, weight=600)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='overdamped-spring',
     name='Overdamped Spring',
     family='principles',

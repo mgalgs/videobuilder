@@ -16,7 +16,7 @@ from PIL import Image, ImageChops, ImageFilter
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 PLATES = 8  # distinct noise plates, cycled with random offsets so no repeat shows
 
@@ -116,7 +116,7 @@ def draw(n, cv):
         vb.text.draw(cv, ['grain'], f, demo.W - 40 - vb.text.block_size(['grain'], f)[0], 32, demo.INK)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='film-grain',
     name='Film grain',
     family='vfx',
@@ -129,6 +129,6 @@ TECHNIQUE = Technique(
                'give the footage that noisy analog film texture'),
     related=('domain-warping', 'gaussian-blur', 'lens-dirt-overlay', 'dust-motes', 'thin-film-iridescence',
              'floyd-steinberg-dithering'),
-    api=('videobuilder.techniques.vfx.film_grain.film_grain',),
+    api=('videobuilder.capabilities.vfx.film_grain.film_grain',),
     demo=lambda: demo.film(draw),
 )

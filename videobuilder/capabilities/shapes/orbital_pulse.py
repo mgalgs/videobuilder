@@ -6,7 +6,7 @@ import math
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def draw_orbital_pulse(cv, cx, cy, r, turns, color, track=None, trail=0.5, width=6, dot_r=None,
@@ -48,7 +48,7 @@ def draw(n, cv):
     cv.mark('dot', x - 10, y - 10, 20, 20)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='orbital-pulse',
     name='Orbital pulse',
     family='shapes',
@@ -61,6 +61,6 @@ TECHNIQUE = Technique(
                'a little light chasing around a circular track'),
     related=('orbit', 'orbit-loader', 'pulse-loader', 'location-ripple-pulse', 'radial-stagger',
              'highlight-circle-draw'),
-    api=('videobuilder.techniques.shapes.orbital_pulse.draw_orbital_pulse',),
+    api=('videobuilder.capabilities.shapes.orbital_pulse.draw_orbital_pulse',),
     demo=lambda: demo.film(draw),
 )

@@ -5,7 +5,7 @@ import videobuilder as vb
 from videobuilder import paths
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def pointer_shift(pointer, box, depth, reach=40):
@@ -116,7 +116,7 @@ def draw(n, cv):
     cv.mark('pointer', px, py, 18, 26)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='pointer-parallax-layers',
     name='Pointer parallax layers',
     family='ui',
@@ -129,8 +129,8 @@ TECHNIQUE = Technique(
                'a hover effect where the scene tilts in layers as you move the pointer around'),
     related=('parallax-layers', 'parallax-letter-layers', 'parallax-slide', 'scroll-parallax-layers',
              'two-point-five-d-photo-parallax', 'layered-fog-bands'),
-    api=('videobuilder.techniques.ui.pointer_parallax_layers.draw_pointer_parallax',
-         'videobuilder.techniques.ui.pointer_parallax_layers.pointer_shift',
-         'videobuilder.techniques.ui.pointer_parallax_layers.draw_cursor'),
+    api=('videobuilder.capabilities.ui.pointer_parallax_layers.draw_pointer_parallax',
+         'videobuilder.capabilities.ui.pointer_parallax_layers.pointer_shift',
+         'videobuilder.capabilities.ui.pointer_parallax_layers.draw_cursor'),
     demo=lambda: demo.film(draw),
 )

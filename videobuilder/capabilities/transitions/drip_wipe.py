@@ -7,7 +7,7 @@ import random
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def drip_edge(w, h, p, drips=11, length=0.28, seed=0, steps=160):
@@ -69,7 +69,7 @@ def _paint(cv):
     demo.word(cv, 'B', demo.W / 2, demo.H / 2, size=260, color=demo.BG)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='drip-wipe',
     name='Drip wipe',
     family='transitions',
@@ -82,7 +82,7 @@ TECHNIQUE = Technique(
                'a gooey paint-drip transition'),
     related=('paint-brush-wipe', 'smoke-dissolve', 'ink-bleed', 'fill-sweep-button', 'wipe-reveal',
              'area-fill-sweep'),
-    api=('videobuilder.techniques.transitions.drip_wipe.drip_wipe',
-         'videobuilder.techniques.transitions.drip_wipe.drip_edge'),
+    api=('videobuilder.capabilities.transitions.drip_wipe.drip_wipe',
+         'videobuilder.capabilities.transitions.drip_wipe.drip_edge'),
     demo=lambda: demo.two_scenes(drip_wipe, start=0.6, length=1.8, b=_paint),
 )

@@ -3,7 +3,7 @@ the stack growing upward into a tight block while it stays centred."""
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def stack_arrivals(count, p, overlap=1.6, ease=vb.ease_out_quint):
@@ -57,7 +57,7 @@ def draw(n, cv):
     cv.mark('text', *box)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='stacked-line-build',
     name='Stacked line build',
     family='typography',
@@ -70,7 +70,7 @@ TECHNIQUE = Technique(
                'build up a tower of repeated headlines one row at a time'),
     related=('shape-stacking-drop', 'stacked-bar-build', 'pyramid-build', 'line-weave',
              'sticky-card-stack-on-scroll', 'voxel-build'),
-    api=('videobuilder.techniques.typography.stacked_line_build.draw_stacked_lines',
-         'videobuilder.techniques.typography.stacked_line_build.stack_arrivals'),
+    api=('videobuilder.capabilities.typography.stacked_line_build.draw_stacked_lines',
+         'videobuilder.capabilities.typography.stacked_line_build.stack_arrivals'),
     demo=lambda: demo.film(draw),
 )

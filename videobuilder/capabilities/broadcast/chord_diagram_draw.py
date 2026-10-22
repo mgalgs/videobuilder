@@ -6,7 +6,7 @@ import math
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 TOP = -math.pi / 2  # canvas angles run clockwise from 3 o'clock
 
@@ -116,7 +116,7 @@ def draw(n, cv):
     cv.mark('chord', cx - r - 14, cy - r - 14, 2 * r + 28, 2 * r + 28)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='chord-diagram-draw',
     name='Chord diagram draw',
     family='broadcast',
@@ -129,8 +129,8 @@ TECHNIQUE = Technique(
                'flows between groups shown as curved bands across a circle, growing in one by one'),
     related=('cycle-diagram-rotation', 'flowchart-build', 'progress-ring', 'decision-tree-branch-growth',
              'spiral-expansion-draw', 'connector-network'),
-    api=('videobuilder.techniques.broadcast.chord_diagram_draw.draw_chord_diagram',
-         'videobuilder.techniques.broadcast.chord_diagram_draw.chord_layout',
-         'videobuilder.techniques.broadcast.chord_diagram_draw.ribbon_points'),
+    api=('videobuilder.capabilities.broadcast.chord_diagram_draw.draw_chord_diagram',
+         'videobuilder.capabilities.broadcast.chord_diagram_draw.chord_layout',
+         'videobuilder.capabilities.broadcast.chord_diagram_draw.ribbon_points'),
     demo=lambda: demo.film(draw),
 )

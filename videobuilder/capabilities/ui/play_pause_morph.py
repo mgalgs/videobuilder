@@ -6,7 +6,7 @@ import math
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def play_pause_shapes(cx, cy, size, p, gap=0.22, bar=0.3):
@@ -71,7 +71,7 @@ def draw(n, cv):
     cv.mark('icon', cx - r, cy - r, 2 * r, 2 * r)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='play-pause-morph',
     name='Play-pause morph',
     family='ui',
@@ -84,7 +84,7 @@ TECHNIQUE = Technique(
                'a play/pause icon that morphs instead of switching'),
     related=('icon-state-morph', 'chart-type-morph', 'morph-cut', 'tape-wobble', 'morphing-shape-ident',
              'text-to-shape-morph'),
-    api=('videobuilder.techniques.ui.play_pause_morph.draw_play_pause',
-         'videobuilder.techniques.ui.play_pause_morph.play_pause_shapes'),
+    api=('videobuilder.capabilities.ui.play_pause_morph.draw_play_pause',
+         'videobuilder.capabilities.ui.play_pause_morph.play_pause_shapes'),
     demo=lambda: demo.film(draw),
 )

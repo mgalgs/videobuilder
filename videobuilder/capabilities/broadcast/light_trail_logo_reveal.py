@@ -10,7 +10,7 @@ import videobuilder as vb
 from videobuilder.canvas import rgba
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 LIGHT = '#9fc4ff'
 
@@ -155,7 +155,7 @@ def draw(n, cv):
     cv.mark('logo', *box)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='light-trail-logo-reveal',
     name='Light-trail logo reveal',
     family='broadcast',
@@ -168,6 +168,6 @@ TECHNIQUE = Technique(
                'a light trail swooshes by and the brand mark appears in its wake'),
     related=('logo-glitch-reveal', 'logo-mask-wipe-reveal', 'logo-build-on-reveal', 'outline-pulse-glow',
              'luma-wipe', 'logo-3d-spin-reveal'),
-    api=('videobuilder.techniques.broadcast.light_trail_logo_reveal.light_trail_reveal',),
+    api=('videobuilder.capabilities.broadcast.light_trail_logo_reveal.light_trail_reveal',),
     demo=lambda: demo.film(draw),
 )

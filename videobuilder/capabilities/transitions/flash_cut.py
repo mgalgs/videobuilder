@@ -6,7 +6,7 @@ A timeline does the same between two clips with `"transition": "flash"`
 (see `videobuilder/assembly.py`); this is the canvas version, for a cut
 between two scenes a film draws itself."""
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def flash_cut(cv, a, b, p, rise=0.25, hold=0.1, color='#ffffff'):
@@ -29,7 +29,7 @@ def flash_cut(cv, a, b, p, rise=0.25, hold=0.1, color='#ffffff'):
         cv.fill(color, alpha=max(0.0, 1 - k) ** 2)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='flash-cut',
     name='White flash transition',
     family='transitions',
@@ -43,6 +43,6 @@ TECHNIQUE = Technique(
                'make it look like a camera flash goes off on the cut'),
     related=('glitch-transition', 'screen-blend', 'dip-to-black', 'whiteboard-marker-drawing', 'luma-wipe',
              'view-transition'),
-    api=('videobuilder.techniques.transitions.flash_cut.flash_cut',),
+    api=('videobuilder.capabilities.transitions.flash_cut.flash_cut',),
     demo=lambda: demo.two_scenes(flash_cut, start=1.1, length=0.6),
 )

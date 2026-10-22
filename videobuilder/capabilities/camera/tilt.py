@@ -5,7 +5,7 @@ import math
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 SWING = vb.bezier(0.45, 0.0, 0.4, 1.0)   # a hand on the pan bar: eases off, glides, eases to a stop
 
@@ -93,7 +93,7 @@ def _demo():
     return demo.film(draw)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='tilt',
     name='Tilt',
     family='camera',
@@ -106,6 +106,6 @@ TECHNIQUE = Technique(
                'swing the view upward without moving the camera'),
     related=('tilt-shift-miniature', 'three-d-tilt-on-hover', 'spin', 'focus-breathing',
              'canvas-pan-and-zoom', 'flip'),
-    api=('videobuilder.techniques.camera.tilt.tilt', 'videobuilder.techniques.camera.tilt.tilt_offset'),
+    api=('videobuilder.capabilities.camera.tilt.tilt', 'videobuilder.capabilities.camera.tilt.tilt_offset'),
     demo=_demo,
 )

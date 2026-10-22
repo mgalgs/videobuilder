@@ -4,7 +4,7 @@ creeps into the end."""
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def ease_in_out_quint(x):
@@ -41,7 +41,7 @@ def draw(n, cv):
     demo.dot(cv, GX + GW * t, GY - GH * p, 7, color=demo.INK)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='ease-in-out-quint',
     name='Ease In-Out Quint',
     family='principles',
@@ -54,6 +54,6 @@ TECHNIQUE = Technique(
                'a strong S-curve ease on both ends'),
     related=('slow-in-and-slow-out', 'dolly-in-and-out', 'smooth-scroll-inertia', 'pulldown-judder',
              'push-in', 'punch-in'),
-    api=('videobuilder.techniques.principles.ease_in_out_quint.ease_in_out_quint',),
+    api=('videobuilder.capabilities.principles.ease_in_out_quint.ease_in_out_quint',),
     demo=lambda: demo.film(draw),
 )

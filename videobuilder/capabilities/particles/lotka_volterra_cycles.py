@@ -7,7 +7,7 @@ import random
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def lotka_volterra(t, prey=10.0, predators=10.0, growth=1.1, predation=0.4, conversion=0.1, death=0.4,
@@ -105,7 +105,7 @@ def draw(n, cv):
     cv.mark('chart', *CHART)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='lotka-volterra-cycles',
     name='Lotka-Volterra cycles',
     family='particles',
@@ -118,9 +118,9 @@ TECHNIQUE = Technique(
                'a predator-prey simulation where the hunters lag behind the hunted'),
     related=('voronoi-cells', 'pollen-drift', 'cyclic-cellular-automaton', 'day-night-cycle', 'hop-cycle',
              'voronoi-relaxation'),
-    api=('videobuilder.techniques.particles.lotka_volterra_cycles.lotka_volterra',
-         'videobuilder.techniques.particles.lotka_volterra_cycles.lotka_volterra_series',
-         'videobuilder.techniques.particles.lotka_volterra_cycles.population_particles',
-         'videobuilder.techniques.particles.lotka_volterra_cycles.slots_for'),
+    api=('videobuilder.capabilities.particles.lotka_volterra_cycles.lotka_volterra',
+         'videobuilder.capabilities.particles.lotka_volterra_cycles.lotka_volterra_series',
+         'videobuilder.capabilities.particles.lotka_volterra_cycles.population_particles',
+         'videobuilder.capabilities.particles.lotka_volterra_cycles.slots_for'),
     demo=lambda: demo.film(draw),
 )

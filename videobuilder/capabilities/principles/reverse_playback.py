@@ -6,7 +6,7 @@ import videobuilder as vb
 from videobuilder.canvas import rgba
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 from .bounce_ease_out import bounce_ease_out
 
 
@@ -87,7 +87,7 @@ def draw(n, cv):
     _transport(cv, n, src)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='reverse-playback',
     name='Reverse Playback',
     family='principles',
@@ -100,7 +100,7 @@ TECHNIQUE = Technique(
                'make it look like the tape is being rewound'),
     related=('reverse-motion-cut', 'interruptible-motion', 'reverse-cymbal', 'flip', 'layout-animation-flip',
              'frame-by-frame-hand-drawn-animation'),
-    api=('videobuilder.techniques.principles.reverse_playback.reverse_playback',
-         'videobuilder.techniques.principles.reverse_playback.rewind_frame'),
+    api=('videobuilder.capabilities.principles.reverse_playback.reverse_playback',
+         'videobuilder.capabilities.principles.reverse_playback.rewind_frame'),
     demo=lambda: demo.film(draw),
 )

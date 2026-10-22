@@ -11,7 +11,7 @@ import cairo
 from PIL import Image as PILImage, ImageFilter
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 from ...canvas import Canvas, rgba
 
 
@@ -217,7 +217,7 @@ def draw(n, cv):
     cv.mark('pane', 0, 0, demo.W, demo.H)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='rain-on-glass',
     name='Rain on glass',
     family='vfx',
@@ -231,7 +231,7 @@ TECHNIQUE = Technique(
                'a cosy rainy-day shot with drops running down the glass in front'),
     related=('rainfall', 'falling-letter-rain', 'glass-refraction', 'shatter', 'matrix-digital-rain',
              'falling-glyph-rain-reveal'),
-    api=('videobuilder.techniques.vfx.rain_on_glass.draw_rain_on_glass',
-         'videobuilder.techniques.vfx.rain_on_glass.droplet_frames'),
+    api=('videobuilder.capabilities.vfx.rain_on_glass.draw_rain_on_glass',
+         'videobuilder.capabilities.vfx.rain_on_glass.droplet_frames'),
     demo=lambda: demo.film(draw),
 )

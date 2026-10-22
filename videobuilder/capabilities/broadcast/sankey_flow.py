@@ -6,7 +6,7 @@ import cairo
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 PALETTE = (demo.ACCENT, demo.TEAL, '#f2b84b', '#7f8cff', '#c77dff', '#5fb4ff', '#9bd36b')
 
@@ -169,7 +169,7 @@ def draw(n, cv):
     sankey_flow(cv, COLUMNS, LINKS, p, box=vb.Box(150, 56, demo.W - 300, demo.H - 112), colors=COLORS)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='sankey-flow',
     name='Sankey flow',
     family='broadcast',
@@ -182,7 +182,7 @@ TECHNIQUE = Technique(
                'animate the money pouring from sources into where it gets spent'),
     related=('streamlines', 'flowchart-build', 'flow-map-lines', 'flow-field', 'connector-network',
              'decision-tree-branch-growth'),
-    api=('videobuilder.techniques.broadcast.sankey_flow.sankey_flow',
-         'videobuilder.techniques.broadcast.sankey_flow.sankey_layout'),
+    api=('videobuilder.capabilities.broadcast.sankey_flow.sankey_flow',
+         'videobuilder.capabilities.broadcast.sankey_flow.sankey_layout'),
     demo=lambda: demo.film(draw),
 )

@@ -6,7 +6,7 @@ import random
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def keystrokes(text, typos, per_char=0.1, pause=0.45, seed=0):
@@ -83,7 +83,7 @@ def draw(n, cv):
     cv.mark('text', *box)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='typo-correction-typing',
     name='Typo-correction typing',
     family='typography',
@@ -96,8 +96,8 @@ TECHNIQUE = Technique(
                'typing animation where it gets a letter wrong and corrects it'),
     related=('glitch-text', 'error-shake', 'emoji-substitution', 'symbol-to-letter-decode', 'stutter-cut',
              'character-slide-in'),
-    api=('videobuilder.techniques.typography.typo_correction_typing.draw_typo_typing',
-         'videobuilder.techniques.typography.typo_correction_typing.keystrokes',
-         'videobuilder.techniques.typography.typo_correction_typing.typed_at'),
+    api=('videobuilder.capabilities.typography.typo_correction_typing.draw_typo_typing',
+         'videobuilder.capabilities.typography.typo_correction_typing.keystrokes',
+         'videobuilder.capabilities.typography.typo_correction_typing.typed_at'),
     demo=lambda: demo.film(draw),
 )

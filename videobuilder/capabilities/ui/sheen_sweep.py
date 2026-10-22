@@ -7,7 +7,7 @@ import cairo
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def sheen(cv, x, y, w, h, p, radius=0, width=None, angle=20, color='#ffffff', strength=0.55):
@@ -62,7 +62,7 @@ def draw(n, cv):
     cv.mark('button', x, y, w, h)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='sheen-sweep',
     name='Sheen sweep',
     family='ui',
@@ -75,6 +75,6 @@ TECHNIQUE = Technique(
                'give the call-to-action a glossy shine every few seconds'),
     related=('shine-glint-sweep', 'gradient-sweep-across-text', 'fresnel-edge-glow',
              'chrome-specular-shimmer', 'spotlight-hover', 'animated-gradient-sweep'),
-    api=('videobuilder.techniques.ui.sheen_sweep.sheen',),
+    api=('videobuilder.capabilities.ui.sheen_sweep.sheen',),
     demo=lambda: demo.film(draw),
 )

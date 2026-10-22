@@ -6,7 +6,7 @@ import random
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 RAMP = ' .:-=+*#%@'  # lightest to densest
 
@@ -87,7 +87,7 @@ def draw(n, cv):
     cv.mark('text', *box)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='ascii-glyph-density-reveal',
     name='ASCII glyph density reveal',
     family='typography',
@@ -100,8 +100,8 @@ TECHNIQUE = Technique(
                'build the headline out of dense text symbols like ASCII art'),
     related=('ascii-art-render', 'pixelation-reveal', 'random-order-character-reveal', 'typewriter-reveal',
              'ink-spread-reveal', 'pixel-sort-text'),
-    api=('videobuilder.techniques.typography.ascii_glyph_density_reveal.draw_density',
-         'videobuilder.techniques.typography.ascii_glyph_density_reveal.density_frame',
-         'videobuilder.techniques.typography.ascii_glyph_density_reveal.coverage_grid'),
+    api=('videobuilder.capabilities.typography.ascii_glyph_density_reveal.draw_density',
+         'videobuilder.capabilities.typography.ascii_glyph_density_reveal.density_frame',
+         'videobuilder.capabilities.typography.ascii_glyph_density_reveal.coverage_grid'),
     demo=lambda: demo.film(draw),
 )

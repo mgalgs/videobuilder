@@ -13,7 +13,7 @@ import videobuilder as vb
 
 from .. import _demo as demo
 from ...compendium import kit
-from ..schema import Technique
+from ..schema import Capability
 
 
 def _inside(x, y, poly):
@@ -148,7 +148,7 @@ def draw(n, cv):
     cv.mark('cloud', *box)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='particle-morph',
     name='Particle morph',
     family='particles',
@@ -161,9 +161,9 @@ TECHNIQUE = Technique(
                'a dotted logo melts and reforms as a different symbol'),
     related=('shape-morph', 'projection-morph', 'liquid-morph', 'text-to-shape-morph', 'point-cloud-reveal',
              'shape-morph-loader'),
-    api=('videobuilder.techniques.particles.particle_morph.draw_particle_morph',
-         'videobuilder.techniques.particles.particle_morph.morph_points',
-         'videobuilder.techniques.particles.particle_morph.match',
-         'videobuilder.techniques.particles.particle_morph.fill_points'),
+    api=('videobuilder.capabilities.particles.particle_morph.draw_particle_morph',
+         'videobuilder.capabilities.particles.particle_morph.morph_points',
+         'videobuilder.capabilities.particles.particle_morph.match',
+         'videobuilder.capabilities.particles.particle_morph.fill_points'),
     demo=lambda: demo.film(draw),
 )

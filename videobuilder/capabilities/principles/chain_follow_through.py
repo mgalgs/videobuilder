@@ -5,7 +5,7 @@ import math
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def chain_follow_through(anchor, t, links=8, length=40.0, gravity=2000.0, drag=2.0, tip_mass=2.0,
@@ -83,7 +83,7 @@ def draw(n, cv):
     demo.dot(cv, ax, ay, 5, demo.BG)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='chain-follow-through',
     name='Chain Follow-Through',
     family='principles',
@@ -96,6 +96,6 @@ TECHNIQUE = Technique(
                'a hanging chain that follows through with a delay down its length'),
     related=('verlet-rope', 'follow-through', 'path-follow-motion', 'player-movement-trail',
              'force-directed-network-settle', 'cycle-diagram-rotation'),
-    api=('videobuilder.techniques.principles.chain_follow_through.chain_follow_through',),
+    api=('videobuilder.capabilities.principles.chain_follow_through.chain_follow_through',),
     demo=lambda: demo.film(draw),
 )

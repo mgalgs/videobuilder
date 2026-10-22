@@ -6,7 +6,7 @@ import videobuilder as vb
 
 from ... import paths
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 BOARD = '#eef0f1'
 MARKER_INK = '#1c1d22'
@@ -122,7 +122,7 @@ def draw(n, cv):
     marker_drawing(cv, DIAGRAM, demo.phase(n, 0.15, 2.6), width=3.5, scale=1.3)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='whiteboard-marker-drawing',
     name='Whiteboard marker drawing',
     family='broadcast',
@@ -136,8 +136,8 @@ TECHNIQUE = Technique(
                'the chart draws itself as a pen moves across a white board'),
     related=('highlighter-swipe', 'pencil-sketch', 'frame-by-frame-hand-drawn-animation', 'line-draw-logo-reveal',
              'flash-cut', 'stroke-draw-on'),
-    api=('videobuilder.techniques.broadcast.whiteboard_marker_drawing.marker_drawing',
-         'videobuilder.techniques.broadcast.whiteboard_marker_drawing.draw_marker',
+    api=('videobuilder.capabilities.broadcast.whiteboard_marker_drawing.marker_drawing',
+         'videobuilder.capabilities.broadcast.whiteboard_marker_drawing.draw_marker',
          'videobuilder.paths.reveal',
          'videobuilder.paths.jitter'),
     demo=lambda: demo.film(draw),

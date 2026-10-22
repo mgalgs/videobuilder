@@ -5,7 +5,7 @@ after another, so the eye reads every rise and fall as a slope."""
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def slope_positions(rows, y0, y1, lo=None, hi=None):
@@ -81,7 +81,7 @@ def draw(n, cv):
     cv.mark('chart', *box)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='slopegraph-reveal',
     name='Slopegraph reveal',
     family='broadcast',
@@ -94,7 +94,7 @@ TECHNIQUE = Technique(
                'a two-column chart where each item gets a sloped line between then and now'),
     related=('streamlines', 'dimension-line-annotation', 'speed-lines', 'org-chart-grow', 'wireframe-terrain',
              'staggered-cascade-reveal'),
-    api=('videobuilder.techniques.broadcast.slopegraph_reveal.draw_slopegraph',
-         'videobuilder.techniques.broadcast.slopegraph_reveal.slope_positions'),
+    api=('videobuilder.capabilities.broadcast.slopegraph_reveal.draw_slopegraph',
+         'videobuilder.capabilities.broadcast.slopegraph_reveal.slope_positions'),
     demo=lambda: demo.film(draw),
 )

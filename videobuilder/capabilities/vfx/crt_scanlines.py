@@ -8,7 +8,7 @@ import cairo
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def crt_scanlines(cv, amount=1.0, x=0, y=0, w=None, h=None, pitch=6, darkness=0.5, t=0.0, roll=3.0,
@@ -81,7 +81,7 @@ def draw(n, cv):
     cv.mark('screen', x, y, SCREEN_W, SCREEN_H)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='crt-scanlines',
     name='CRT scanlines',
     family='vfx',
@@ -94,6 +94,6 @@ TECHNIQUE = Technique(
                'give the shot a vintage screen look with stripes across it'),
     related=('scanline-wipe', 'scanline-tear', 'scanline-jitter', 'crumple', 'virtual-first-down-line',
              'isolines-contour-animation'),
-    api=('videobuilder.techniques.vfx.crt_scanlines.crt_scanlines',),
+    api=('videobuilder.capabilities.vfx.crt_scanlines.crt_scanlines',),
     demo=lambda: demo.film(draw),
 )

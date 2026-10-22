@@ -11,7 +11,7 @@ from PIL import Image, ImageDraw
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 ENV_W, ENV_H = 720, 360   # the equirectangular room: 2 px a degree
 
@@ -165,7 +165,7 @@ def draw(n, cv):
     cv.mark('ball', *box)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='chrome-reflection',
     name='Chrome reflection',
     family='camera',
@@ -178,8 +178,8 @@ TECHNIQUE = Technique(
                'give the object a mirror finish so the surroundings show up in it'),
     related=('chrome-specular-shimmer', 'y2k-chrome', 'text-reflection-shimmer', 'gooch-shading',
              'fresnel-edge-glow', 'low-poly-faceting'),
-    api=('videobuilder.techniques.camera.chrome_reflection.draw_chrome_ball',
-         'videobuilder.techniques.camera.chrome_reflection.reflect_sphere',
-         'videobuilder.techniques.camera.chrome_reflection.environment'),
+    api=('videobuilder.capabilities.camera.chrome_reflection.draw_chrome_ball',
+         'videobuilder.capabilities.camera.chrome_reflection.reflect_sphere',
+         'videobuilder.capabilities.camera.chrome_reflection.environment'),
     demo=lambda: demo.film(draw),
 )

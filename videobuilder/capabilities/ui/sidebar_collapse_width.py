@@ -6,7 +6,7 @@ import math
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def sidebar_width(p, expanded=220, collapsed=64, ease=vb.ease_in_out_quart):
@@ -71,7 +71,7 @@ def draw(n, cv):
     cv.outline(x, y, w, h, demo.LINE, width=2, radius=16)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='sidebar-collapse-width',
     name='Sidebar collapse width',
     family='ui',
@@ -84,7 +84,7 @@ TECHNIQUE = Technique(
                'the sidebar folds into a thin icon strip and opens back up'),
     related=('split-screen-comparison', 'plus-to-close-rotate', 'hamburger-to-x', 'split-screen-transition',
              'toggle-switch-slide', 'crt-power-off-collapse'),
-    api=('videobuilder.techniques.ui.sidebar_collapse_width.draw_sidebar',
-         'videobuilder.techniques.ui.sidebar_collapse_width.sidebar_width'),
+    api=('videobuilder.capabilities.ui.sidebar_collapse_width.draw_sidebar',
+         'videobuilder.capabilities.ui.sidebar_collapse_width.sidebar_width'),
     demo=lambda: demo.film(draw),
 )

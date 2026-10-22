@@ -5,7 +5,7 @@ import math
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def elastic_ease_out(x, period=0.3):
@@ -30,7 +30,7 @@ def draw(n, cv):
     cv.mark('ball', x - r, y - r, 2 * r, 2 * r)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='elastic-ease-out',
     name='Elastic Ease Out',
     family='principles',
@@ -43,6 +43,6 @@ TECHNIQUE = Technique(
                'settles with a rubbery wobble at the end'),
     related=('rubber-band-overscroll', 'elastic-stretch', 'rubber-band-snap', 'slow-in-and-slow-out',
              'squash-and-stretch', 'overshoot-bounce-in'),
-    api=('videobuilder.techniques.principles.elastic_ease_out.elastic_ease_out',),
+    api=('videobuilder.capabilities.principles.elastic_ease_out.elastic_ease_out',),
     demo=lambda: demo.film(draw),
 )

@@ -9,7 +9,7 @@ import videobuilder as vb
 from videobuilder.canvas import rgba
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 from ..typography.noise_field_warp import Noise
 
 _noises = {}
@@ -98,7 +98,7 @@ def draw(n, cv):
     cv.mark('terrain', 0, hy, demo.W, demo.H - hy)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='noise-terrain-flyover',
     name='Noise terrain flyover',
     family='particles',
@@ -112,7 +112,7 @@ TECHNIQUE = Technique(
                'endless procedural hills passing underneath as we fly forward'),
     related=('drone-flyover', 'fly-through', 'zoom-to-location-map', 'scale-zoom-through', 'static-noise',
              'fractal-brownian-motion'),
-    api=('videobuilder.techniques.particles.noise_terrain_flyover.draw_terrain',
-         'videobuilder.techniques.particles.noise_terrain_flyover.terrain_height'),
+    api=('videobuilder.capabilities.particles.noise_terrain_flyover.draw_terrain',
+         'videobuilder.capabilities.particles.noise_terrain_flyover.terrain_height'),
     demo=lambda: demo.film(draw),
 )

@@ -5,7 +5,7 @@ import math
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def ping_pong(t, period, ease=vb.linear, offset=0.0):
@@ -56,7 +56,7 @@ def draw(n, cv):
     _chevron(cv, demo.W / 2 + d * 100, ty + 55, d, demo.TEAL, alpha=0.5 + 0.5 * pulse)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='ping-pong-loop',
     name='Ping-Pong Loop',
     family='principles',
@@ -69,7 +69,7 @@ TECHNIQUE = Technique(
                'loop it so it rewinds instead of snapping back to the start'),
     related=('interruptible-motion', 'reverse-playback', 'delay', 'frame-by-frame-hand-drawn-animation',
              'empty-state-idle-loop', 'wiggle-path'),
-    api=('videobuilder.techniques.principles.ping_pong_loop.ping_pong',
-         'videobuilder.techniques.principles.ping_pong_loop.direction'),
+    api=('videobuilder.capabilities.principles.ping_pong_loop.ping_pong',
+         'videobuilder.capabilities.principles.ping_pong_loop.direction'),
     demo=lambda: demo.film(draw),
 )

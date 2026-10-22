@@ -4,7 +4,7 @@ does the ring move on to the next part, so the tour plays one step at a time."""
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def tour_step(t, start, step, count):
@@ -100,7 +100,7 @@ def draw(n, cv):
                      n / demo.FPS, start=0.2, step=0.9, caption_at=(demo.W / 2, 400))
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='staged-onboarding-walkthrough',
     name='Staged onboarding walkthrough',
     family='ui',
@@ -113,7 +113,7 @@ TECHNIQUE = Technique(
                'show the setup steps in order, pointing at each part of the screen'),
     related=('step-by-step-process-reveal', 'staging', 'page-load-sequence', 'scrollytelling-step-sequence',
              'walk-cycle', 'run-cycle'),
-    api=('videobuilder.techniques.ui.staged_onboarding_walkthrough.draw_walkthrough',
-         'videobuilder.techniques.ui.staged_onboarding_walkthrough.tour_step'),
+    api=('videobuilder.capabilities.ui.staged_onboarding_walkthrough.draw_walkthrough',
+         'videobuilder.capabilities.ui.staged_onboarding_walkthrough.tour_step'),
     demo=lambda: demo.film(draw),
 )

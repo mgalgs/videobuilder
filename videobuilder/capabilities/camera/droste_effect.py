@@ -6,7 +6,7 @@ import cairo
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def droste(cv, draw, p=0.0, ratio=0.42, cx=None, cy=None, border=8, border_color='#f4f1ea', min_px=3):
@@ -69,7 +69,7 @@ def _draw(n, cv):
     droste(cv, _scene, p=1.5 * n / (demo.FPS * demo.SECONDS), cx=FOCUS[0], cy=FOCUS[1])
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='droste-effect',
     name='Droste effect',
     family='camera',
@@ -83,6 +83,6 @@ TECHNIQUE = Technique(
                'make the shot recursive, like a frame holding a copy of the whole frame'),
     related=('multiples', 'pixelate-transition', 'blur-up-image-load', 'image-crossfade-slideshow',
              'ascii-art-render', 'pixelation'),
-    api=('videobuilder.techniques.camera.droste_effect.droste',),
+    api=('videobuilder.capabilities.camera.droste_effect.droste',),
     demo=lambda: demo.film(_draw),
 )

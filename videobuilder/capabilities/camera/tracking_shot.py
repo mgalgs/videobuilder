@@ -8,7 +8,7 @@ import math
 from videobuilder import parallax, paths
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def tracking_camera(subject_x, screen_x, start=None):
@@ -83,7 +83,7 @@ def draw(n, cv):
     tracking_shot(cv, BACK, sx, demo.W / 2, _ball(sx / BALL_R), front=FRONT, start=0)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='tracking-shot',
     name='Tracking shot',
     family='camera',
@@ -96,8 +96,8 @@ TECHNIQUE = Technique(
                'move with the subject so only the world behind it moves'),
     related=('zoom-through', 'accumulation-motion-blur', 'motion-blur', 'follow-through',
              'reverse-motion-cut', 'player-movement-trail'),
-    api=('videobuilder.techniques.camera.tracking_shot.tracking_shot',
-         'videobuilder.techniques.camera.tracking_shot.tracking_camera',
+    api=('videobuilder.capabilities.camera.tracking_shot.tracking_shot',
+         'videobuilder.capabilities.camera.tracking_shot.tracking_camera',
          'videobuilder.parallax.draw'),
     demo=lambda: demo.film(draw),
 )

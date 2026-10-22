@@ -4,7 +4,7 @@ is off the ground, so this entry only names it and demos it."""
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 FIG = vb.Stick(height=250, ink=demo.INK, fill=demo.BG, fps=demo.FPS)
 GROUND = demo.H - 120
@@ -24,7 +24,7 @@ def draw(n, cv):
     FIG.draw(cv, step.pose, demo.W / 2, GROUND, face='happy', lift=step.lift, mark='runner')
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='run-cycle',
     name='Run Cycle',
     family='principles',

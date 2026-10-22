@@ -6,7 +6,7 @@ import math
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def arc_point(x0, y0, x1, y1, p, bend=0.3):
@@ -69,7 +69,7 @@ def draw(n, cv):
     cv.mark('dot', x - 34, y - 34, 68, 68)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='arcs',
     name='Arcs',
     family='principles',
@@ -82,7 +82,7 @@ TECHNIQUE = Technique(
                'the motion feels too robotic, give it some arc'),
     related=('bend-deformer', 'flight-arc', 'projectile-arc', 'path-follow-motion', 'arc-bend-morph',
              'wander-steering'),
-    api=('videobuilder.techniques.principles.arcs.arc_point',
-         'videobuilder.techniques.principles.arcs.arc_path'),
+    api=('videobuilder.capabilities.principles.arcs.arc_point',
+         'videobuilder.capabilities.principles.arcs.arc_path'),
     demo=lambda: demo.film(draw),
 )

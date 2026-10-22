@@ -8,7 +8,7 @@ import videobuilder as vb
 from videobuilder import paths
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 from ..shapes.ripple_rings import ripple_rings
 
 
@@ -67,7 +67,7 @@ def draw(n, cv):
     vb.text.draw(cv, ['LIVE  ·  5TH & MAIN'], f, x + 30, y - 52, demo.INK, alpha=shown)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='location-ripple-pulse',
     name='Location ripple pulse',
     family='broadcast',
@@ -80,7 +80,7 @@ TECHNIQUE = Technique(
                'a live location dot with rings rippling out'),
     related=('ripple-rings', 'ripple', 'orbital-pulse', 'refraction-ripple', 'touch-ripple',
              'ridgeline-ripple'),
-    api=('videobuilder.techniques.broadcast.location_ripple_pulse.location_pulse',
-         'videobuilder.techniques.shapes.ripple_rings.ripple_rings'),
+    api=('videobuilder.capabilities.broadcast.location_ripple_pulse.location_pulse',
+         'videobuilder.capabilities.shapes.ripple_rings.ripple_rings'),
     demo=lambda: demo.film(draw),
 )

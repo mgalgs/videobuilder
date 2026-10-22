@@ -6,7 +6,7 @@ import math
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 from ..typography.echo_trail_type import echo_trail
 
 
@@ -60,7 +60,7 @@ def draw(n, cv):
     cv.mark('photo', cx - PW / 2, cy - PH / 2, PW, PH)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='frame-delay-echo',
     name='Frame delay echo',
     family='vfx',
@@ -74,7 +74,7 @@ TECHNIQUE = Technique(
                'stack delayed see-through copies of the shot for a trailing echo'),
     related=('echo-trail-type', 'delay', 'scatter-time-playback', 'linear-repeater-stagger', 'multiples',
              'smear-frame'),
-    api=('videobuilder.techniques.vfx.frame_delay_echo.frame_delay_echo',
-         'videobuilder.techniques.typography.echo_trail_type.echo_trail'),
+    api=('videobuilder.capabilities.vfx.frame_delay_echo.frame_delay_echo',
+         'videobuilder.capabilities.typography.echo_trail_type.echo_trail'),
     demo=lambda: demo.film(draw),
 )

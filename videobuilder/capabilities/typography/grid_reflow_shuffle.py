@@ -4,7 +4,7 @@ while every word stays upright and readable."""
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def reflow(cells, orders, p, stagger=0.35, bow=0.18, ease=vb.ease_in_out_quart):
@@ -65,7 +65,7 @@ def draw(n, cv):
         cv.mark('word', x - 80, y - 30, 160, 60)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='grid-reflow-shuffle',
     name='Grid reflow shuffle',
     family='typography',
@@ -78,7 +78,7 @@ TECHNIQUE = Technique(
                'swap the words between the cells of the poster grid'),
     related=('letter-sort-animation', 'reorder-list-shuffle', 'letter-roll', 'masonry-reflow',
              'word-carousel-rotate', 'layout-animation-flip'),
-    api=('videobuilder.techniques.typography.grid_reflow_shuffle.reflow',
-         'videobuilder.techniques.typography.grid_reflow_shuffle.draw_grid_shuffle'),
+    api=('videobuilder.capabilities.typography.grid_reflow_shuffle.reflow',
+         'videobuilder.capabilities.typography.grid_reflow_shuffle.draw_grid_shuffle'),
     demo=lambda: demo.film(draw),
 )

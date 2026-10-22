@@ -6,7 +6,7 @@ import cairo
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def difference_blend(cv, base, top, amount=1.0, dx=0.0, dy=0.0):
@@ -57,7 +57,7 @@ def _draw(n, cv):
     demo.word(cv, 'difference', demo.W / 2, demo.H - 30, size=22, color=demo.MUTED, weight=600)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='difference-blend',
     name='Difference blend',
     family='vfx',
@@ -70,6 +70,6 @@ TECHNIQUE = Technique(
                'overlap two images so the matching parts cancel out and the edges glow'),
     related=('difference-highlight', 'additive-dissolve', 'cross-dissolve', 'theme-swap-crossfade',
              'pixelate-transition', 'palette-shift-transition'),
-    api=('videobuilder.techniques.vfx.difference_blend.difference_blend',),
+    api=('videobuilder.capabilities.vfx.difference_blend.difference_blend',),
     demo=lambda: demo.film(_draw),
 )

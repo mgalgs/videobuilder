@@ -4,7 +4,7 @@ percentage counts up beside it, then the winning option lights up."""
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def poll_shares(votes):
@@ -81,7 +81,7 @@ def draw(n, cv):
             cv.mark(f'bar{i}', *b)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='poll-result-bar-fill',
     name='Poll result bar fill',
     family='broadcast',
@@ -94,7 +94,7 @@ TECHNIQUE = Technique(
                'reveal which answer won the poll with bars filling up'),
     related=('percentage-fill-bar', 'bar-chart-race', 'bar-grow', 'star-rating-fill', 'scroll-progress-bar',
              'area-fill-sweep'),
-    api=('videobuilder.techniques.broadcast.poll_result_bar_fill.draw_poll_results',
-         'videobuilder.techniques.broadcast.poll_result_bar_fill.poll_shares'),
+    api=('videobuilder.capabilities.broadcast.poll_result_bar_fill.draw_poll_results',
+         'videobuilder.capabilities.broadcast.poll_result_bar_fill.poll_shares'),
     demo=lambda: demo.film(draw),
 )

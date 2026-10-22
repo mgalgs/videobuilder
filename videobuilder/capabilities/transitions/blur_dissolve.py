@@ -5,7 +5,7 @@ import math
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 from ...type.kit import blurred
 
 
@@ -41,7 +41,7 @@ def blur_dissolve(cv, a, b, p, radius=48):
         _soft(cv, b, r, mix)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='blur-dissolve',
     name='Blur dissolve',
     family='transitions',
@@ -54,6 +54,6 @@ TECHNIQUE = Technique(
                'defocus into the next shot'),
     related=('gaussian-blur', 'noise-dissolve', 'zoom-blur', 'blur-up-image-load', 'spin-blur',
              'character-blur-in'),
-    api=('videobuilder.techniques.transitions.blur_dissolve.blur_dissolve', 'videobuilder.type.kit.blurred'),
+    api=('videobuilder.capabilities.transitions.blur_dissolve.blur_dissolve', 'videobuilder.type.kit.blurred'),
     demo=lambda: demo.two_scenes(blur_dissolve, start=0.7, length=1.6),
 )

@@ -6,7 +6,7 @@ import math
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 # Marching-squares edges per corner case. Corners: 0 top-left, 1 top-right,
 # 2 bottom-right, 3 bottom-left; edges: 0 top, 1 right, 2 bottom, 3 left.
@@ -108,7 +108,7 @@ def draw(n, cv):
     cv.mark('contours', *box)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='isolines-contour-animation',
     name='Isolines contour animation',
     family='particles',
@@ -121,9 +121,9 @@ TECHNIQUE = Technique(
                'rings of elevation lines flowing around as the hills underneath change'),
     related=('marching-squares-contour', 'animated-gradient-sweep', 'morph-cut', 'pixelate-transition',
              'interlace-combing', 'sparkline-draw'),
-    api=('videobuilder.techniques.particles.isolines_contour_animation.draw_isolines',
-         'videobuilder.techniques.particles.isolines_contour_animation.isolines',
-         'videobuilder.techniques.particles.isolines_contour_animation.sample_field',
-         'videobuilder.techniques.particles.isolines_contour_animation.blob_field'),
+    api=('videobuilder.capabilities.particles.isolines_contour_animation.draw_isolines',
+         'videobuilder.capabilities.particles.isolines_contour_animation.isolines',
+         'videobuilder.capabilities.particles.isolines_contour_animation.sample_field',
+         'videobuilder.capabilities.particles.isolines_contour_animation.blob_field'),
     demo=lambda: demo.film(draw),
 )

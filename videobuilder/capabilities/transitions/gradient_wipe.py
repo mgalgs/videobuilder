@@ -11,7 +11,7 @@ import videobuilder as vb
 
 from ...canvas import _a8
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 _MAP = (192, 108)  # maps are built small and smooth, then stretched to the frame
 
@@ -83,7 +83,7 @@ def _demo_wipe(cv, a, b, p):
     gradient_wipe(cv, a, b, vb.ease_in_out_quart(p))
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='gradient-wipe',
     name='Gradient wipe',
     family='transitions',
@@ -96,9 +96,9 @@ TECHNIQUE = Technique(
                'a wavy, blurry-edged wipe between the two scenes'),
     related=('gradient-sweep-across-text', 'gaussian-blur', 'pixelate-transition', 'pixel-sorting', 'liquify',
              'gooch-shading'),
-    api=('videobuilder.techniques.transitions.gradient_wipe.gradient_wipe',
-         'videobuilder.techniques.transitions.gradient_wipe.wave_map',
-         'videobuilder.techniques.transitions.gradient_wipe.linear_map',
-         'videobuilder.techniques.transitions.gradient_wipe.radial_map'),
+    api=('videobuilder.capabilities.transitions.gradient_wipe.gradient_wipe',
+         'videobuilder.capabilities.transitions.gradient_wipe.wave_map',
+         'videobuilder.capabilities.transitions.gradient_wipe.linear_map',
+         'videobuilder.capabilities.transitions.gradient_wipe.radial_map'),
     demo=lambda: demo.two_scenes(_demo_wipe, start=0.6, length=1.8),
 )

@@ -6,7 +6,7 @@ import math
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def comment_stack(t, arrivals, pop=0.45, keep=None, ease=vb.ease_out_quint):
@@ -79,7 +79,7 @@ def draw(n, cv):
     draw_comment_stack(cv, n / demo.FPS, COMMENTS, ARRIVALS, (demo.W - w) / 2, top, w, h, gap=gap)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='comment-pop-up-stack',
     name='Comment pop-up stack',
     family='broadcast',
@@ -92,8 +92,8 @@ TECHNIQUE = Technique(
                'social media comments appearing in a list, each sliding up into place'),
     related=('bouncing-dots', 'circle-pop', 'toast-slide-in-stack', 'stacked-line-build', 'avatar-stack-spread',
              'shape-stacking-drop'),
-    api=('videobuilder.techniques.broadcast.comment_pop_up_stack.draw_comment_stack',
-         'videobuilder.techniques.broadcast.comment_pop_up_stack.comment_stack',
-         'videobuilder.techniques.broadcast.comment_pop_up_stack.draw_comment'),
+    api=('videobuilder.capabilities.broadcast.comment_pop_up_stack.draw_comment_stack',
+         'videobuilder.capabilities.broadcast.comment_pop_up_stack.comment_stack',
+         'videobuilder.capabilities.broadcast.comment_pop_up_stack.draw_comment'),
     demo=lambda: demo.film(draw),
 )

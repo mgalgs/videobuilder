@@ -6,7 +6,7 @@ from contextlib import contextmanager
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def text_outline(cv, line, font, x, y):
@@ -85,7 +85,7 @@ def draw(n, cv):
     cv.mark('text', *ink)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='video-clipped-inside-letterforms',
     name='Video clipped inside letterforms',
     family='typography',
@@ -98,8 +98,8 @@ TECHNIQUE = Technique(
                'make the word a window you can see the clip through'),
     related=('text-mask-reveal', 'pixel-sort-text', 'character-blur-in', 'wipe-reveal',
              'character-rise', 'letterbox'),
-    api=('videobuilder.techniques.typography.video_clipped_inside_letterforms.video_in_text',
-         'videobuilder.techniques.typography.video_clipped_inside_letterforms.inside_letters',
-         'videobuilder.techniques.typography.video_clipped_inside_letterforms.text_outline'),
+    api=('videobuilder.capabilities.typography.video_clipped_inside_letterforms.video_in_text',
+         'videobuilder.capabilities.typography.video_clipped_inside_letterforms.inside_letters',
+         'videobuilder.capabilities.typography.video_clipped_inside_letterforms.text_outline'),
     demo=lambda: demo.film(draw),
 )

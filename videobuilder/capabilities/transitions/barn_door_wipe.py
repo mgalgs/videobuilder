@@ -3,7 +3,7 @@ outward to the frame's sides, uncovering the incoming scene between them."""
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def barn_door_wipe(cv, a, b, p, vertical=True, ease=vb.ease_in_out_quart, edge=demo.ACCENT, edge_width=6):
@@ -39,7 +39,7 @@ def barn_door_wipe(cv, a, b, p, vertical=True, ease=vb.ease_in_out_quart, edge=d
             cv.rect(0, y + h - edge_width / 2, W, edge_width, edge)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='barn-door-wipe',
     name='Barn door wipe',
     family='transitions',
@@ -52,6 +52,6 @@ TECHNIQUE = Technique(
                'a wipe that starts in the middle and spreads out to both sides'),
     related=('split-screen-transition', 'curtain-reveal', 'split-screen-comparison', 'paint-brush-wipe',
              'cut-out-paper-animation', 'wipe-reveal'),
-    api=('videobuilder.techniques.transitions.barn_door_wipe.barn_door_wipe',),
+    api=('videobuilder.capabilities.transitions.barn_door_wipe.barn_door_wipe',),
     demo=lambda: demo.two_scenes(barn_door_wipe),
 )

@@ -6,7 +6,7 @@ import math
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def ring_points(x, y, w, h, radius, start=0.0, per_corner=12):
@@ -90,7 +90,7 @@ def draw(n, cv):
         cv.mark('ring', *box)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='focus-ring-draw',
     name='Focus ring draw',
     family='ui',
@@ -103,7 +103,7 @@ TECHNIQUE = Technique(
                'a glowing border that traces round the selected input and pops out slightly'),
     related=('highlight-circle-draw', 'character-blur-in', 'focus-blur-out', 'callout-highlight',
              'cursor-follower-dot-and-ring', 'rack-focus'),
-    api=('videobuilder.techniques.ui.focus_ring_draw.draw_focus_ring',
-         'videobuilder.techniques.ui.focus_ring_draw.ring_points'),
+    api=('videobuilder.capabilities.ui.focus_ring_draw.draw_focus_ring',
+         'videobuilder.capabilities.ui.focus_ring_draw.ring_points'),
     demo=lambda: demo.film(draw),
 )

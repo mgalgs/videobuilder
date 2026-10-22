@@ -3,7 +3,7 @@ slides in from one edge on top of it, until the new scene covers the frame."""
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 _DIRECTIONS = {'left': (1, 0), 'right': (-1, 0), 'up': (0, 1), 'down': (0, -1)}
 
@@ -29,7 +29,7 @@ def slide_over_cover(cv, a, b, p, direction='left', ease=vb.ease_in_out_quart, s
             b(cv)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='slide-over-cover',
     name='Slide-over cover',
     family='transitions',
@@ -41,6 +41,6 @@ TECHNIQUE = Technique(
                'have the new scene come in from the side and cover the old one',
                'like dealing a card on top of the last one, keep the first scene still'),
     related=('roll-up', 'corner-wipe', 'coverflow-carousel', 'zoom-out-reveal', 'zoom-through', 'tumble'),
-    api=('videobuilder.techniques.transitions.slide_over_cover.slide_over_cover',),
+    api=('videobuilder.capabilities.transitions.slide_over_cover.slide_over_cover',),
     demo=lambda: demo.two_scenes(slide_over_cover),
 )

@@ -9,7 +9,7 @@ import random
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 # A tile is its four edge sockets (north, east, south, west); two tiles may sit
 # side by side when the sockets on their shared edge are equal.
@@ -142,7 +142,7 @@ def draw(n, cv):
     cv.mark('grid', x0, y0, COLS * SIZE, ROWS * SIZE)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='wave-function-collapse',
     name='Wave function collapse',
     family='particles',
@@ -155,8 +155,8 @@ TECHNIQUE = Technique(
                'show a maze of pipes solving itself tile by tile'),
     related=('scale-tile-wave', 'pattern-tiling', 'grid-wave-loader', 'bento-grid-reveal',
              'grid-diagonal-stagger', 'tile-flip'),
-    api=('videobuilder.techniques.particles.wave_function_collapse.wave_function_collapse',
-         'videobuilder.techniques.particles.wave_function_collapse.draw_pipe',
-         'videobuilder.techniques.particles.wave_function_collapse.PIPE_TILES'),
+    api=('videobuilder.capabilities.particles.wave_function_collapse.wave_function_collapse',
+         'videobuilder.capabilities.particles.wave_function_collapse.draw_pipe',
+         'videobuilder.capabilities.particles.wave_function_collapse.PIPE_TILES'),
     demo=lambda: demo.film(draw),
 )

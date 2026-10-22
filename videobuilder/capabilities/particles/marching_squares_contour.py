@@ -8,7 +8,7 @@ import math
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 # Each corner of a cell (tl, tr, br, bl) and the two edges that meet at it,
 # as indices into the crossings (top, right, bottom, left).
@@ -135,7 +135,7 @@ def draw(n, cv):
     cv.mark('field', x, y, w, h)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='marching-squares-contour',
     name='Marching squares contour',
     family='particles',
@@ -148,8 +148,8 @@ TECHNIQUE = Technique(
                'contour a field so the shapes fuse and pull apart with one outline'),
     related=('isolines-contour-animation', 'koch-snowflake', 'truchet-tiles', 'ink-outline',
              'dot-grid-displacement', 'stroke-draw-on'),
-    api=('videobuilder.techniques.particles.marching_squares_contour.contour',
-         'videobuilder.techniques.particles.marching_squares_contour.marching_squares',
-         'videobuilder.techniques.particles.marching_squares_contour.metaballs'),
+    api=('videobuilder.capabilities.particles.marching_squares_contour.contour',
+         'videobuilder.capabilities.particles.marching_squares_contour.marching_squares',
+         'videobuilder.capabilities.particles.marching_squares_contour.metaballs'),
     demo=lambda: demo.film(draw),
 )

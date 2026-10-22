@@ -7,7 +7,7 @@ import videobuilder as vb
 from videobuilder import paths
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 CX, CY, R = demo.W / 2, demo.H / 2, 150
 
@@ -49,7 +49,7 @@ def draw(n, cv):
     cv.mark('shape', min(xs), min(ys), max(xs) - min(xs), max(ys) - min(ys))
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='shape-morph',
     name='Shape morph',
     family='transitions',

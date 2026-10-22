@@ -7,7 +7,7 @@ import random
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 COLORS = (demo.ACCENT, demo.TEAL, demo.INK, '#f2c14e', '#8c7ae6')
 
@@ -75,7 +75,7 @@ def draw(n, cv):
     cv.mark('confetti', 0, 0, demo.W, demo.H)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='confetti',
     name='Confetti',
     family='particles',
@@ -87,8 +87,8 @@ TECHNIQUE = Technique(
                'a shower of colourful paper bits tumbling down',
                'rain some celebration confetti from the top'),
     related=('confetti-burst', 'circle-pop', 'crumple', 'twist-deformer', 'character-3d-flip', 'tile-flip'),
-    api=('videobuilder.techniques.particles.confetti.draw_confetti',
-         'videobuilder.techniques.particles.confetti.confetti',
-         'videobuilder.techniques.particles.confetti.draw_piece'),
+    api=('videobuilder.capabilities.particles.confetti.draw_confetti',
+         'videobuilder.capabilities.particles.confetti.confetti',
+         'videobuilder.capabilities.particles.confetti.draw_piece'),
     demo=lambda: demo.film(draw),
 )

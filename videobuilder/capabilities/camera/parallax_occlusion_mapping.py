@@ -17,7 +17,7 @@ from PIL import Image as PILImage
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 PLANE = 10.0  # side of the square, world units, centred on the origin
 
@@ -148,7 +148,7 @@ def draw(n, cv):
                  depth=0.9 * grow, distance=12 - 2.5 * p, aim=1.5 * p)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='parallax-occlusion-mapping',
     name='Parallax occlusion mapping',
     family='camera',
@@ -161,9 +161,9 @@ TECHNIQUE = Technique(
                'studs that pop out of the texture and block each other at low angles'),
     related=('two-point-five-d-photo-parallax', 'displacement-map', 'pointer-parallax-layers',
              'polar-coordinate-warp', 'parallax-slide', 'parallax-letter-layers'),
-    api=('videobuilder.techniques.camera.parallax_occlusion_mapping.relief_plane',
-         'videobuilder.techniques.camera.parallax_occlusion_mapping.relief_texture',
-         'videobuilder.techniques.camera.parallax_occlusion_mapping.march',
-         'videobuilder.techniques.camera.parallax_occlusion_mapping.stud_height'),
+    api=('videobuilder.capabilities.camera.parallax_occlusion_mapping.relief_plane',
+         'videobuilder.capabilities.camera.parallax_occlusion_mapping.relief_texture',
+         'videobuilder.capabilities.camera.parallax_occlusion_mapping.march',
+         'videobuilder.capabilities.camera.parallax_occlusion_mapping.stud_height'),
     demo=lambda: demo.film(draw),
 )

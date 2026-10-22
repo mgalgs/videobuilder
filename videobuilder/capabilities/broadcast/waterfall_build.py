@@ -6,7 +6,7 @@ last."""
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def waterfall_levels(steps):
@@ -84,7 +84,7 @@ def draw(n, cv):
     waterfall_build(cv, box, STEPS, demo.phase(n, 0.25, 2.6))
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='waterfall-build',
     name='Waterfall build',
     family='broadcast',
@@ -97,7 +97,7 @@ TECHNIQUE = Technique(
                'show each change floating off the last one until we reach the end total'),
     related=('flowchart-build', 'org-chart-grow', 'shape-stacking-drop', 'isometric-bar-rise',
              'audio-waveform-bars', 'dam-break'),
-    api=('videobuilder.techniques.broadcast.waterfall_build.waterfall_build',
-         'videobuilder.techniques.broadcast.waterfall_build.waterfall_levels'),
+    api=('videobuilder.capabilities.broadcast.waterfall_build.waterfall_build',
+         'videobuilder.capabilities.broadcast.waterfall_build.waterfall_levels'),
     demo=lambda: demo.film(draw),
 )

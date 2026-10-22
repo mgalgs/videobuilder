@@ -7,7 +7,7 @@ import cairo
 from PIL import Image, ImageFilter, ImageOps
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 _CLOUDS = {}  # (w, h, seed) -> 'L' image
 
@@ -69,7 +69,7 @@ def luma_wipe(cv, a, b, p, matte=None, softness=0.2, invert=False):
     c.restore()
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='luma-wipe',
     name='Luma wipe',
     family='transitions',
@@ -82,7 +82,7 @@ TECHNIQUE = Technique(
                'an organic, blotchy wipe between the two clips'),
     related=('logo-mask-wipe-reveal', 'difference-highlight', 'luma-key', 'paint-brush-wipe', 'area-fill-sweep',
              'flash-cut'),
-    api=('videobuilder.techniques.transitions.luma_wipe.luma_wipe',
-         'videobuilder.techniques.transitions.luma_wipe.clouds_matte'),
+    api=('videobuilder.capabilities.transitions.luma_wipe.luma_wipe',
+         'videobuilder.capabilities.transitions.luma_wipe.clouds_matte'),
     demo=lambda: demo.two_scenes(luma_wipe, start=0.6, length=1.8),
 )

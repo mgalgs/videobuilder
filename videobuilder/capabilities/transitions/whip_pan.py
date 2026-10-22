@@ -3,7 +3,7 @@ blur, and the next scene comes out of the streak from the other side."""
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 WHIP = vb.bezier(0.7, 0.0, 0.3, 1.0)   # slow off the mark, a violent middle, a quick settle
 DIRECTIONS = {'left': (-1, 0), 'right': (1, 0), 'up': (0, -1), 'down': (0, 1)}
@@ -46,7 +46,7 @@ def whip_pan(cv, a, b, p, direction='left', smear=0.35, samples=24, ease=WHIP):
                 strip(-blur / 2 + blur * i / (n - 1))
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='whip-pan',
     name='Whip pan',
     family='transitions',
@@ -58,6 +58,6 @@ TECHNIQUE = Technique(
                'a fast blurry swish from one scene to the other',
                'flick sideways with motion blur into the next part'),
     related=('pan', 'ken-burns-effect', 'motion-blur', 'smear-frame', 'zoom-blur', 'morph-cut'),
-    api=('videobuilder.techniques.transitions.whip_pan.whip_pan', 'videobuilder.bezier'),
+    api=('videobuilder.capabilities.transitions.whip_pan.whip_pan', 'videobuilder.bezier'),
     demo=lambda: demo.two_scenes(whip_pan, start=1.0, length=0.6),
 )

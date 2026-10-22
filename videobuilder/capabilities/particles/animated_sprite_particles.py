@@ -5,7 +5,7 @@ import math
 import random
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def particles(t, rate=12.0, life=1.6, seed=0, box=(0, 0, 1920, 1080), speed=(40, 120), angle=-math.pi / 2,
@@ -100,7 +100,7 @@ def draw(n, cv):
                           speed=(15, 45), spread=math.pi * 0.8)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='animated-sprite-particles',
     name='Animated sprite particles',
     family='particles',
@@ -113,9 +113,9 @@ TECHNIQUE = Technique(
                'a swarm of little twinkling stars, each one cycling through its frames'),
     related=('flipbook-sprite-animation', 'particle-morph', 'sph-fluid', 'image-to-particles',
              'particle-swarm-assemble', 'audio-reactive-particles'),
-    api=('videobuilder.techniques.particles.animated_sprite_particles.draw_sprite_particles',
-         'videobuilder.techniques.particles.animated_sprite_particles.particles',
-         'videobuilder.techniques.particles.animated_sprite_particles.sprite_frame',
-         'videobuilder.techniques.particles.animated_sprite_particles.sparkle'),
+    api=('videobuilder.capabilities.particles.animated_sprite_particles.draw_sprite_particles',
+         'videobuilder.capabilities.particles.animated_sprite_particles.particles',
+         'videobuilder.capabilities.particles.animated_sprite_particles.sprite_frame',
+         'videobuilder.capabilities.particles.animated_sprite_particles.sparkle'),
     demo=lambda: demo.film(draw),
 )

@@ -10,7 +10,7 @@ import cairo
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def spike_count(blades):
@@ -102,7 +102,7 @@ def draw(n, cv):
     cv.mark('star', cx - 420, cy - 420, 840, 840)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='diffraction-spikes',
     name='Diffraction spikes',
     family='vfx',
@@ -115,7 +115,7 @@ TECHNIQUE = Technique(
                'the star should flare out with long thin points'),
     related=('lens-flare', 'starfield', 'shape-burst', 'scatter-plot-point-appear', 'meteor-shower',
              'electric-arc'),
-    api=('videobuilder.techniques.vfx.diffraction_spikes.diffraction_spikes',
-         'videobuilder.techniques.vfx.diffraction_spikes.spike_count'),
+    api=('videobuilder.capabilities.vfx.diffraction_spikes.diffraction_spikes',
+         'videobuilder.capabilities.vfx.diffraction_spikes.spike_count'),
     demo=lambda: demo.film(draw),
 )

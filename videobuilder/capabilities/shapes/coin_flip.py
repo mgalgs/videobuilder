@@ -4,7 +4,7 @@ back taking turns, until it slows and settles on its front."""
 import math
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def coin_flip(cv, cx, cy, r, angle, front, back, rim='#8a3a31', thickness=0.12, shade=0.45):
@@ -67,7 +67,7 @@ def draw(n, cv):
     coin_flip(cv, demo.W / 2, cy, r, angle, FRONT, BACK)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='coin-flip',
     name='Coin flip',
     family='shapes',
@@ -80,6 +80,6 @@ TECHNIQUE = Technique(
                'make the round icon flip over and over like a coin'),
     related=('flip', 'character-3d-flip', 'turntable-rotation', 'tile-flip', 'word-flip-in',
              'rotating-polygon-loop'),
-    api=('videobuilder.techniques.shapes.coin_flip.coin_flip',),
+    api=('videobuilder.capabilities.shapes.coin_flip.coin_flip',),
     demo=lambda: demo.film(draw),
 )

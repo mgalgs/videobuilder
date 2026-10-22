@@ -8,7 +8,7 @@ import cairo
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 STANDARD = vb.ease.bezier(0.4, 0.0, 0.2, 1.0)  # quick to start, settling as it leaves the top
@@ -88,7 +88,7 @@ def roll_up(cv, a, b, p, radius=0.07, grow=0.05, strips=48, shadow=0.55, ease=ST
     c.restore()
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='roll-up',
     name='Roll-up',
     family='transitions',
@@ -100,6 +100,6 @@ TECHNIQUE = Technique(
                'make the scene curl up from the bottom like a rolled poster',
                'wind the picture away upward and reveal what is underneath'),
     related=('uncover', 'corner-wipe', 'push', 'zoom-out-reveal', 'tumble', 'slide-over-cover'),
-    api=('videobuilder.techniques.transitions.roll_up.roll_up',),
+    api=('videobuilder.capabilities.transitions.roll_up.roll_up',),
     demo=lambda: demo.two_scenes(roll_up, start=0.7, length=1.6),
 )

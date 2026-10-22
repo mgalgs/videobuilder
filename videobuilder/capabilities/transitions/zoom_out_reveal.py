@@ -3,7 +3,7 @@ picture, and the incoming scene turns out to be the backdrop it sat on."""
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def zoom_out_reveal(cv, a, b, p, size=0.3, anchor=(0.5, 0.5), shrink=0.75, radius=24, border='#ffffff'):
@@ -34,7 +34,7 @@ def zoom_out_reveal(cv, a, b, p, size=0.3, anchor=(0.5, 0.5), shrink=0.75, radiu
             cv.outline(x, y, w * s, h * s, border, width=6 * t, radius=r, alpha=t)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='zoom-out-reveal',
     name='Zoom out reveal',
     family='transitions',
@@ -46,7 +46,7 @@ TECHNIQUE = Technique(
                'zoom the video out into a small box to show the new background behind it',
                'make the clip shrink away and reveal what it was sitting on'),
     related=('uncover', 'roll-up', 'corner-wipe', 'scroll-linked-clip-reveal', 'fade-up-scroll-reveal', 'push'),
-    api=('videobuilder.techniques.transitions.zoom_out_reveal.zoom_out_reveal',),
+    api=('videobuilder.capabilities.transitions.zoom_out_reveal.zoom_out_reveal',),
     demo=lambda: demo.two_scenes(lambda cv, a, b, p: zoom_out_reveal(cv, a, b, p, size=0.25, anchor=(0.96, 0.94)),
                                  start=0.5, length=2.0),
 )

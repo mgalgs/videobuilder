@@ -4,7 +4,7 @@ scroll once the box is full, so this entry only names it and demos it."""
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 KINDS = {'cmd': vb.terminal.Kind(demo.mono(22, 700), demo.INK, prefix='$ ', prefix_color=demo.ACCENT),
          'out': vb.terminal.Kind(demo.mono(22, 500), demo.MUTED),
@@ -26,7 +26,7 @@ def draw(n, cv):
     cv.mark('log', *box)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='terminal-line-print',
     name='Terminal line print',
     family='typography',

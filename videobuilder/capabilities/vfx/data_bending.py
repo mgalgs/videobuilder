@@ -10,7 +10,7 @@ from PIL import Image as PILImage
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def _edits(seed, w, h, count):
@@ -95,7 +95,7 @@ def draw(n, cv):
     cv.image(bent, *vb.Box.of(cv).cover(bent.w, bent.h))
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='data-bending',
     name='Data bending',
     family='vfx',
@@ -108,7 +108,7 @@ TECHNIQUE = Technique(
                'glitch the picture as if its bytes got scrambled'),
     related=('glitch-text', 'glitch-transition', 'glitch-sound', 'scanline-tear', 'pixel-sort-text',
              'blur-up-image-load'),
-    api=('videobuilder.techniques.vfx.data_bending.data_bend',
-         'videobuilder.techniques.vfx.data_bending.bend_bytes'),
+    api=('videobuilder.capabilities.vfx.data_bending.data_bend',
+         'videobuilder.capabilities.vfx.data_bending.bend_bytes'),
     demo=lambda: demo.film(draw),
 )

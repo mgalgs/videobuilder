@@ -9,7 +9,7 @@ import videobuilder as vb
 from videobuilder import paths
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 from ..typography.stroke_draw_on import draw_stroke_on
 
 
@@ -82,7 +82,7 @@ def draw(n, cv):
     cv.mark('wordmark', *box)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='line-draw-logo-reveal',
     name='Line-draw logo reveal',
     family='broadcast',
@@ -96,8 +96,8 @@ TECHNIQUE = Technique(
                'open the video with the logo being traced like a pen drawing it'),
     related=('stroke-draw-on', 'stroke-draw-logo-loader', 'icon-line-to-fill', 'logo-build-on-reveal',
              'line-chart-draw-on', 'ink-outline'),
-    api=('videobuilder.techniques.broadcast.line_draw_logo_reveal.draw_line_logo',
-         'videobuilder.techniques.typography.stroke_draw_on.draw_stroke_on',
+    api=('videobuilder.capabilities.broadcast.line_draw_logo_reveal.draw_line_logo',
+         'videobuilder.capabilities.typography.stroke_draw_on.draw_stroke_on',
          'videobuilder.paths.reveal'),
     demo=lambda: demo.film(draw),
 )

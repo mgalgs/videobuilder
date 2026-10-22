@@ -8,7 +8,7 @@ import cairo
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 COLORS = ('#ff5e7e', '#ffb347', '#5b8cff', '#2ec4b6', '#a86bff')
 
@@ -58,7 +58,7 @@ def draw(n, cv):
     cv.mark('mesh', *box)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='gradient-mesh-drift',
     name='Gradient mesh drift',
     family='shapes',
@@ -71,7 +71,7 @@ TECHNIQUE = Technique(
                'a liquid, shifting gradient like a modern app wallpaper'),
     related=('aurora-gradient-background', 'gradient-shift-button', 'gradient-sweep-across-text',
              'perlin-noise-field', 'turbulence-displacement', 'gradient-border-spin'),
-    api=('videobuilder.techniques.shapes.gradient_mesh_drift.draw_mesh_drift',
-         'videobuilder.techniques.shapes.gradient_mesh_drift.mesh_points'),
+    api=('videobuilder.capabilities.shapes.gradient_mesh_drift.draw_mesh_drift',
+         'videobuilder.capabilities.shapes.gradient_mesh_drift.mesh_points'),
     demo=lambda: demo.film(draw),
 )

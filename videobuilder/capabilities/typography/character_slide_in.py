@@ -3,7 +3,7 @@ another, each coming to rest in its own place on the line."""
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def slide_offsets(text, p, distance, side='right', stagger=0.6, ease=vb.ease_out_quint):
@@ -50,7 +50,7 @@ def draw(n, cv):
     cv.mark('text', *box)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='character-slide-in',
     name='Character slide-in',
     family='typography',
@@ -63,7 +63,7 @@ TECHNIQUE = Technique(
                'each character slides in horizontally, staggered'),
     related=('letter-sort-animation', 'word-carousel-rotate', 'letter-roll', 'hover-letter-displacement',
              'letter-morph', 'character-3d-flip'),
-    api=('videobuilder.techniques.typography.character_slide_in.draw_slide_in',
-         'videobuilder.techniques.typography.character_slide_in.slide_offsets'),
+    api=('videobuilder.capabilities.typography.character_slide_in.draw_slide_in',
+         'videobuilder.capabilities.typography.character_slide_in.slide_offsets'),
     demo=lambda: demo.film(draw),
 )

@@ -8,7 +8,7 @@ import cairo
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 from ...canvas import Canvas
 
 
@@ -83,7 +83,7 @@ def draw(n, cv):
     cv.mark('ring', cx - 177, cy - 177, 354, 354)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='bloom',
     name='Bloom',
     family='camera',
@@ -96,6 +96,6 @@ TECHNIQUE = Technique(
                'turn up the brightness until the lights start to bloom'),
     related=('glow-button', 'phosphor-persistence', 'fireflies', 'spiral-bloom', 'fresnel-edge-glow',
              'outline-pulse-glow'),
-    api=('videobuilder.techniques.camera.bloom.bloom',),
+    api=('videobuilder.capabilities.camera.bloom.bloom',),
     demo=lambda: demo.film(draw),
 )

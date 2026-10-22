@@ -3,7 +3,7 @@ screen, and is pulled back down by its handle to dismiss it."""
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 SHEET = '#24262e'
 ROW = '#2e3039'
@@ -83,7 +83,7 @@ def draw(n, cv):
         cv.mark('sheet', box.x, box.y, box.w, min(box.h, demo.H - box.y))
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='bottom-sheet-slide-up',
     name='Bottom sheet slide-up',
     family='ui',
@@ -96,6 +96,6 @@ TECHNIQUE = Technique(
                'show the options in a sheet coming up from below'),
     related=('tab-panel-slide', 'tab-underline-slide', 'uncover', 'shutter-wipe', 'slide-over-cover',
              'paper-fold-reveal'),
-    api=('videobuilder.techniques.ui.bottom_sheet_slide_up.bottom_sheet',),
+    api=('videobuilder.capabilities.ui.bottom_sheet_slide_up.bottom_sheet',),
     demo=lambda: demo.film(draw),
 )

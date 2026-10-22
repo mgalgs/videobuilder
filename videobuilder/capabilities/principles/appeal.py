@@ -9,7 +9,7 @@ from collections import namedtuple
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 Hop = namedtuple('Hop', 'travel lift sx sy tilt glee')
 Hop.__doc__ = """One frame of `appealing_hop`: `travel` 0..1 along the ground,
@@ -91,7 +91,7 @@ def draw(n, cv):
     cv.mark('character', x - r * h.sx, base - 2 * r * h.sy, 2 * r * h.sx, 2 * r * h.sy)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='appeal',
     name='Appeal',
     family='principles',
@@ -104,6 +104,6 @@ TECHNIQUE = Technique(
                'make this move cute and likeable instead of mechanical'),
     related=('op-art-vibrating-pattern', 'stop-motion-animation', 'interruptible-motion', 'smooth-scroll-inertia',
              'ease-in-sine', 'motion-blur'),
-    api=('videobuilder.techniques.principles.appeal.appealing_hop',),
+    api=('videobuilder.capabilities.principles.appeal.appealing_hop',),
     demo=lambda: demo.film(draw),
 )

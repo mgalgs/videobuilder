@@ -6,7 +6,7 @@ import math
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 from ...canvas import rgba
 from ...looks import kit as looks
 
@@ -99,7 +99,7 @@ def draw(n, cv):
     cv.mark('extrusion', *box)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='extrusion',
     name='Extrusion',
     family='camera',
@@ -112,8 +112,8 @@ TECHNIQUE = Technique(
                'give the 2D shape an extruded side that gets deeper over time'),
     related=('extrusion-depth-reveal', 'solid-drawing', 'volume-preservation', 'shape-morph',
              'isometric-bar-rise', 'polygon-subdivision'),
-    api=('videobuilder.techniques.camera.extrusion.draw_extrusion',
-         'videobuilder.techniques.camera.extrusion.project',
-         'videobuilder.techniques.camera.extrusion.polygon'),
+    api=('videobuilder.capabilities.camera.extrusion.draw_extrusion',
+         'videobuilder.capabilities.camera.extrusion.project',
+         'videobuilder.capabilities.camera.extrusion.polygon'),
     demo=lambda: demo.film(draw),
 )

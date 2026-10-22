@@ -7,7 +7,7 @@ from contextlib import contextmanager
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def kick(t, hz=2.6, ratio=0.28):
@@ -109,7 +109,7 @@ def draw(n, cv):
     _pointer(cv, x0 + (x1 - x0) * p, y0 + (y1 - y0) * p)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='icon-hover-bounce',
     name='Icon hover bounce',
     family='shapes',
@@ -122,7 +122,7 @@ TECHNIQUE = Technique(
                'the bell should wiggle when you hover it'),
     related=('hover-reveal-actions', 'circle-pop', 'hover-lift', 'bounce-ease-in', 'bouncing-dots',
              'image-hover-zoom'),
-    api=('videobuilder.techniques.shapes.icon_hover_bounce.icon_hover_bounce',
-         'videobuilder.techniques.shapes.icon_hover_bounce.bounced'),
+    api=('videobuilder.capabilities.shapes.icon_hover_bounce.icon_hover_bounce',
+         'videobuilder.capabilities.shapes.icon_hover_bounce.bounced'),
     demo=lambda: demo.film(draw),
 )

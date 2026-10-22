@@ -8,7 +8,7 @@ from PIL import Image
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 # The demo's ramp: dark navy, a periwinkle glow, white hot, then gold and back.
 PALETTE = ('#121633', '#6f7fe8', '#f4f4ff', '#f2b51c', '#3a2a08', '#121633')
@@ -83,7 +83,7 @@ def draw(n, cv):
     cv.mark('plasma', *box)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='sine-plasma',
     name='Sine plasma',
     family='particles',
@@ -96,8 +96,8 @@ TECHNIQUE = Technique(
                'a lava-lamp style swirling colour field behind the title'),
     related=('sine-wave-distortion', 'sine-wave-text', 'wave-deformer', 'electric-arc', 'ripple',
              'thin-film-iridescence'),
-    api=('videobuilder.techniques.particles.sine_plasma.draw_plasma',
-         'videobuilder.techniques.particles.sine_plasma.plasma_image',
-         'videobuilder.techniques.particles.sine_plasma.plasma_field'),
+    api=('videobuilder.capabilities.particles.sine_plasma.draw_plasma',
+         'videobuilder.capabilities.particles.sine_plasma.plasma_image',
+         'videobuilder.capabilities.particles.sine_plasma.plasma_field'),
     demo=lambda: demo.film(draw),
 )

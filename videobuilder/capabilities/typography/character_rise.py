@@ -4,7 +4,7 @@ through a slot."""
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def rise_offsets(text, p, stagger=0.6, ease=vb.ease_out_expo):
@@ -53,7 +53,7 @@ def draw(n, cv):
         cv.mark('text', *box)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='character-rise',
     name='Character rise',
     family='typography',
@@ -66,7 +66,7 @@ TECHNIQUE = Technique(
                'make the title rise in character by character from under a line'),
     related=('text-mask-reveal', 'text-reveal-through-shape-mask', 'falling-glyph-rain-reveal',
              'long-shadow-growth', 'typewriter-reveal', 'drop-shadow-lift'),
-    api=('videobuilder.techniques.typography.character_rise.draw_character_rise',
-         'videobuilder.techniques.typography.character_rise.rise_offsets'),
+    api=('videobuilder.capabilities.typography.character_rise.draw_character_rise',
+         'videobuilder.capabilities.typography.character_rise.rise_offsets'),
     demo=lambda: demo.film(draw),
 )

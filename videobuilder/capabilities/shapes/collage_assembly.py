@@ -10,7 +10,7 @@ import cairo
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 @dataclass(frozen=True)
@@ -157,7 +157,7 @@ def draw(n, cv):
     cv.mark('collage', CX - 260, CY - 230, 520, 460)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='collage-assembly',
     name='Collage assembly',
     family='shapes',
@@ -170,10 +170,10 @@ TECHNIQUE = Technique(
                'make it look like a cut-and-paste collage putting itself together'),
     related=('shape-assemble-from-fragments', 'shape-stacking-drop', 'crumple', 'particle-text-formation',
              'voxel-build', 'isometric-assembly'),
-    api=('videobuilder.techniques.shapes.collage_assembly.draw_collage',
-         'videobuilder.techniques.shapes.collage_assembly.Piece',
-         'videobuilder.techniques.shapes.collage_assembly.draw_piece',
-         'videobuilder.techniques.shapes.collage_assembly.arrival',
-         'videobuilder.techniques.shapes.collage_assembly.cut'),
+    api=('videobuilder.capabilities.shapes.collage_assembly.draw_collage',
+         'videobuilder.capabilities.shapes.collage_assembly.Piece',
+         'videobuilder.capabilities.shapes.collage_assembly.draw_piece',
+         'videobuilder.capabilities.shapes.collage_assembly.arrival',
+         'videobuilder.capabilities.shapes.collage_assembly.cut'),
     demo=lambda: demo.film(draw),
 )

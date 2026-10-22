@@ -4,7 +4,7 @@ options, products or states can be read against each other."""
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def split_screen_comparison(cv, left, right, p, split=0.5, lag=0.15, gap=8, color='#000000',
@@ -55,7 +55,7 @@ def _draw(n, cv):
     split_screen_comparison(cv, _A, _B, p, gap=14, color=demo.BG)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='split-screen-comparison',
     name='Split-screen comparison',
     family='broadcast',
@@ -68,6 +68,6 @@ TECHNIQUE = Technique(
                'put the old one and the new one side by side'),
     related=('split-screen-transition', 'curtain-reveal', 'shutter-wipe', 'split-flap-display',
              'barn-door-wipe', 'sidebar-collapse-width'),
-    api=('videobuilder.techniques.broadcast.split_screen_comparison.split_screen_comparison',),
+    api=('videobuilder.capabilities.broadcast.split_screen_comparison.split_screen_comparison',),
     demo=lambda: demo.film(_draw),
 )

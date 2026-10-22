@@ -8,7 +8,7 @@ import videobuilder as vb
 from videobuilder.canvas import rgba
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 FOCAL = 900.0
 FACES = (  # corner indices, wound so the normal points out of the box
@@ -109,7 +109,7 @@ def draw(n, cv):
         cv.mark('solid' if solid else 'loose', *box)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='solid-drawing',
     name='Solid Drawing',
     family='principles',
@@ -122,7 +122,7 @@ TECHNIQUE = Technique(
                'it should feel solid, not like a flat cut-out warping around'),
     related=('beveled-3d-text', 'extrusion', 'outline-to-fill', 'shape-morph', 'extrusion-depth-reveal',
              'volume-preservation'),
-    api=('videobuilder.techniques.principles.solid_drawing.draw_solid',
-         'videobuilder.techniques.principles.solid_drawing.box_corners'),
+    api=('videobuilder.capabilities.principles.solid_drawing.draw_solid',
+         'videobuilder.capabilities.principles.solid_drawing.box_corners'),
     demo=lambda: demo.film(draw),
 )

@@ -5,7 +5,7 @@ import math
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def delayed(t, delay, duration, ease=vb.ease_in_out_quart):
@@ -38,11 +38,11 @@ def draw(n, cv):
          wait if 0 < wait < 1 else None, demo.ACCENT)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='delay',
     name='Delay',
     family='principles',
-    group='Principle sub-techniques',
+    group='Principle sub-capabilities',
     aliases=('start delay', 'animation-delay', 'pre-roll'),
     definition='An element holds still for a set moment and only then begins its move, '
                'so the action starts later than its cue.',
@@ -51,6 +51,6 @@ TECHNIQUE = Technique(
                'start the animation a little later than the others'),
     related=('interruptible-motion', 'frame-delay-echo', 'linear-stagger', 'timing', 'overlapping-action',
              'seamless-loop'),
-    api=('videobuilder.techniques.principles.delay.delayed',),
+    api=('videobuilder.capabilities.principles.delay.delayed',),
     demo=lambda: demo.film(draw),
 )

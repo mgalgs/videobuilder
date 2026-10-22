@@ -11,7 +11,7 @@ import videobuilder as vb
 
 from ... import text
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 gi.require_version('PangoCairo', '1.0')
 from gi.repository import PangoCairo  # noqa: E402
@@ -130,7 +130,7 @@ def draw(n, cv):
     cv.mark('letter', *box)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='letter-morph',
     name='Letter morph',
     family='typography',
@@ -143,8 +143,8 @@ TECHNIQUE = Technique(
                'morph one character into another instead of cutting'),
     related=('shape-morph', 'outline-to-fill', 'glyph-cycling', 'morphing-shape-ident',
              'per-character-fade-in', 'particle-morph'),
-    api=('videobuilder.techniques.typography.letter_morph.draw_letter_morph',
-         'videobuilder.techniques.typography.letter_morph.letter_morph',
-         'videobuilder.techniques.typography.letter_morph.glyph_contours'),
+    api=('videobuilder.capabilities.typography.letter_morph.draw_letter_morph',
+         'videobuilder.capabilities.typography.letter_morph.letter_morph',
+         'videobuilder.capabilities.typography.letter_morph.glyph_contours'),
     demo=lambda: demo.film(draw),
 )

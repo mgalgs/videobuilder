@@ -9,7 +9,7 @@ uneven human cadence (`type.typewriter.schedule`) instead of a steady one.
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 from ...type.typewriter import schedule
 
 
@@ -56,7 +56,7 @@ def draw(n, cv):
     cv.mark('text', *box)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='typewriter-reveal',
     name='Typewriter reveal',
     family='typography',
@@ -69,8 +69,8 @@ TECHNIQUE = Technique(
                'a typing animation with a blinking cursor'),
     related=('scroll-driven-text-reveal', 'handwriting-reveal', 'text-mask-reveal', 'wipe-reveal',
              'random-order-character-reveal', 'character-blur-in'),
-    api=('videobuilder.techniques.typography.typewriter_reveal.draw_typed',
-         'videobuilder.techniques.typography.typewriter_reveal.typed',
+    api=('videobuilder.capabilities.typography.typewriter_reveal.draw_typed',
+         'videobuilder.capabilities.typography.typewriter_reveal.typed',
          'videobuilder.type.draw'),
     demo=lambda: demo.film(draw),
 )

@@ -13,7 +13,7 @@ from PIL import Image, ImageChops, ImageDraw, ImageFilter
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 from ... import parallax
 
 
@@ -154,7 +154,7 @@ def draw(n, cv):
     demo.dot(cv, dot, ky - 18, r=5, color=demo.ACCENT)  # where the camera is
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='two-point-five-d-photo-parallax',
     name='2.5D photo parallax',
     family='camera',
@@ -167,7 +167,7 @@ TECHNIQUE = Technique(
                'animate a flat image like the camera is moving through it'),
     related=('parallax-occlusion-mapping', 'parallax-slide', 'parallax-letter-layers',
              'pointer-parallax-layers', 'displacement-map', 'scroll-parallax-layers'),
-    api=('videobuilder.techniques.camera.two_point_five_d_photo_parallax.draw_depth_parallax',
-         'videobuilder.techniques.camera.two_point_five_d_photo_parallax.depth_slices'),
+    api=('videobuilder.capabilities.camera.two_point_five_d_photo_parallax.draw_depth_parallax',
+         'videobuilder.capabilities.camera.two_point_five_d_photo_parallax.depth_slices'),
     demo=lambda: demo.film(draw),
 )

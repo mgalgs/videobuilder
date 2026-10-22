@@ -7,7 +7,7 @@ import random
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 KINDS = ('dot', 'ring', 'triangle', 'square', 'dash')
 
@@ -98,7 +98,7 @@ def draw(n, cv):
     cv.mark('burst', cx - 420, cy - 420, 840, 840)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='shape-burst',
     name='Shape burst',
     family='shapes',
@@ -111,7 +111,7 @@ TECHNIQUE = Technique(
                'make it explode into confetti-like shapes when it lands'),
     related=('fireworks', 'type-explosion', 'like-heart-burst', 'circle-pop', 'diffraction-spikes',
              'spiral-bloom'),
-    api=('videobuilder.techniques.shapes.shape_burst.shape_burst',
-         'videobuilder.techniques.shapes.shape_burst.burst_pieces'),
+    api=('videobuilder.capabilities.shapes.shape_burst.shape_burst',
+         'videobuilder.capabilities.shapes.shape_burst.burst_pieces'),
     demo=lambda: demo.film(draw),
 )

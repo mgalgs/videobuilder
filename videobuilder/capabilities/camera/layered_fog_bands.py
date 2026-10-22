@@ -10,7 +10,7 @@ import cairo
 from videobuilder import parallax, paths
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 @dataclass(frozen=True)
@@ -126,7 +126,7 @@ def draw(n, cv):
     layered_fog(cv, SCENE, t, camera_x=90 * t)  # a slow, steady pan
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='layered-fog-bands',
     name='Layered fog bands',
     family='camera',
@@ -139,9 +139,9 @@ TECHNIQUE = Technique(
                'add some low fog rolling between the background layers'),
     related=('parallax-slide', 'parallax-letter-layers', 'scroll-parallax-layers', 'smoke-dissolve',
              'heat-haze', 'pointer-parallax-layers'),
-    api=('videobuilder.techniques.camera.layered_fog_bands.layered_fog',
-         'videobuilder.techniques.camera.layered_fog_bands.fog_band',
-         'videobuilder.techniques.camera.layered_fog_bands.FogBand',
+    api=('videobuilder.capabilities.camera.layered_fog_bands.layered_fog',
+         'videobuilder.capabilities.camera.layered_fog_bands.fog_band',
+         'videobuilder.capabilities.camera.layered_fog_bands.FogBand',
          'videobuilder.parallax.draw'),
     demo=lambda: demo.film(draw),
 )

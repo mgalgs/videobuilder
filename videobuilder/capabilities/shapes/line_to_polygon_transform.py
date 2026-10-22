@@ -9,7 +9,7 @@ import math
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def line_to_polygon(cx, cy, side, sides, p, stagger=0.0, rotation=0.0):
@@ -68,7 +68,7 @@ def draw(n, cv):
     cv.mark('shape', min(xs), min(ys), max(xs) - min(xs), max(ys) - min(ys))
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='line-to-polygon-transform',
     name='Line-to-polygon transform',
     family='shapes',
@@ -81,8 +81,8 @@ TECHNIQUE = Technique(
                'turn a flat line into a polygon by bending it at the points'),
     related=('bend-deformer', 'arc-bend-morph', 'text-to-shape-morph', 'line-weave', 'rotating-polygon-loop',
              'shape-morph'),
-    api=('videobuilder.techniques.shapes.line_to_polygon_transform.line_to_polygon',
-         'videobuilder.techniques.shapes.line_to_polygon_transform.draw_line_to_polygon',
+    api=('videobuilder.capabilities.shapes.line_to_polygon_transform.line_to_polygon',
+         'videobuilder.capabilities.shapes.line_to_polygon_transform.draw_line_to_polygon',
          'videobuilder.paths.draw'),
     demo=lambda: demo.film(draw),
 )

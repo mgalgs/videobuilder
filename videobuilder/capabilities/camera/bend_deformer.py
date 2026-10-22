@@ -7,7 +7,7 @@ import videobuilder as vb
 from videobuilder.canvas import rgba
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def bend(points, angle, length):
@@ -131,7 +131,7 @@ def draw(n, cv):
               weight=600, font=demo.mono(34, 600))
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='bend-deformer',
     name='Bend deformer',
     family='camera',
@@ -144,7 +144,7 @@ TECHNIQUE = Technique(
                'wrap the plane around into a cylinder'),
     related=('arc-bend-morph', 'arcs', 'line-to-polygon-transform', 'flight-arc', 'bezier-handle-bend',
              'refraction-ripple'),
-    api=('videobuilder.techniques.camera.bend_deformer.draw_bent_sheet',
-         'videobuilder.techniques.camera.bend_deformer.bend'),
+    api=('videobuilder.capabilities.camera.bend_deformer.draw_bent_sheet',
+         'videobuilder.capabilities.camera.bend_deformer.bend'),
     demo=lambda: demo.film(draw),
 )

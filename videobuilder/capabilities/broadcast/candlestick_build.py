@@ -5,7 +5,7 @@ rose or fell."""
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 UP, DOWN = demo.TEAL, demo.ACCENT
 
@@ -76,7 +76,7 @@ def draw(n, cv):
         vb.text.draw(cv, [txt], demo.mono(20, 700), left, 34, UP if c >= o else DOWN)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='candlestick-build',
     name='Candlestick build',
     family='broadcast',
@@ -89,7 +89,7 @@ TECHNIQUE = Technique(
                'show the price bars appearing day by day with their wicks'),
     related=('embers', 'light-trail-logo-reveal', 'milestone-marker-pop', 'refresh-bar',
              'audio-waveform-bars', 'kuramoto-synchronization'),
-    api=('videobuilder.techniques.broadcast.candlestick_build.candlestick_build',
-         'videobuilder.techniques.broadcast.candlestick_build.candlestick'),
+    api=('videobuilder.capabilities.broadcast.candlestick_build.candlestick_build',
+         'videobuilder.capabilities.broadcast.candlestick_build.candlestick'),
     demo=lambda: demo.film(draw),
 )

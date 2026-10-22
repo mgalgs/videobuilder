@@ -6,7 +6,7 @@ import math
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def projectile_arc(x0, y0, x1, y1, peak, t):
@@ -50,7 +50,7 @@ def draw(n, cv):
     cv.mark('ball', x - r, y - r, 2 * r, 2 * r)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='projectile-arc',
     name='Projectile Arc',
     family='principles',
@@ -62,7 +62,7 @@ TECHNIQUE = Technique(
                'lob it over like it is being tossed',
                'make it fly up and come down with real gravity'),
     related=('flight-arc', 'arcs', 'arc-bend-morph', 'electric-arc', 'bend-deformer', 'fountain'),
-    api=('videobuilder.techniques.principles.projectile_arc.projectile_arc',
-         'videobuilder.techniques.principles.projectile_arc.projectile_path'),
+    api=('videobuilder.capabilities.principles.projectile_arc.projectile_arc',
+         'videobuilder.capabilities.principles.projectile_arc.projectile_path'),
     demo=lambda: demo.film(draw),
 )

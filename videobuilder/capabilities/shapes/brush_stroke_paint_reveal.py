@@ -6,7 +6,7 @@ import random
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 _STROKE = vb.bezier(0.4, 0.0, 0.6, 1.0)  # each pass starts and ends a little slower, like a hand
 
@@ -84,7 +84,7 @@ def draw(n, cv):
     cv.mark('painted', x, y, w, h)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='brush-stroke-paint-reveal',
     name='Brush stroke paint reveal',
     family='shapes',
@@ -97,6 +97,6 @@ TECHNIQUE = Technique(
                'the content shows up underneath a sweeping paint stroke'),
     related=('paint-brush-wipe', 'handwriting-reveal', 'text-mask-reveal', 'logo-mask-wipe-reveal',
              'image-hover-mask-reveal', 'uncover'),
-    api=('videobuilder.techniques.shapes.brush_stroke_paint_reveal.brush_reveal',),
+    api=('videobuilder.capabilities.shapes.brush_stroke_paint_reveal.brush_reveal',),
     demo=lambda: demo.film(draw),
 )

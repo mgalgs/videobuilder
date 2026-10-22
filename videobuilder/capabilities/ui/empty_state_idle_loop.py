@@ -7,7 +7,7 @@ from collections import namedtuple
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 Idle = namedtuple('Idle', 'dy angle scale glow')
 
@@ -76,7 +76,7 @@ def draw(n, cv):
     cv.mark('illustration', *box)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='empty-state-idle-loop',
     name='Empty state idle loop',
     family='ui',
@@ -89,7 +89,7 @@ TECHNIQUE = Technique(
                'the placeholder graphic should breathe a little instead of sitting dead still'),
     related=('breathing-idle', 'seamless-loop', 'interruptible-motion', 'ping-pong-loop',
              'frame-by-frame-hand-drawn-animation', 'idle-float-bob'),
-    api=('videobuilder.techniques.ui.empty_state_idle_loop.idle_loop',
-         'videobuilder.techniques.ui.empty_state_idle_loop.draw_empty_state'),
+    api=('videobuilder.capabilities.ui.empty_state_idle_loop.idle_loop',
+         'videobuilder.capabilities.ui.empty_state_idle_loop.draw_empty_state'),
     demo=lambda: demo.film(draw),
 )

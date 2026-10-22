@@ -1,7 +1,7 @@
-"""The `Technique` record every technique module defines as `TECHNIQUE`, and
-the families a technique belongs to (one subpackage each).
+"""The `Capability` record every registry module defines as `CAPABILITY`, and
+the families a capability belongs to (one subpackage each).
 
-The record is checked when it is built, so a malformed technique fails at
+The record is checked when it is built, so a malformed capability fails at
 import with a message naming it. `api` is only format-checked here; whether
 each name resolves to a real object is checked by `registry.load`, after the
 module defining it has finished importing.
@@ -19,7 +19,7 @@ MAX_DEFINITION = 240
 
 
 def module_name(id):
-    """A technique's module name: its id with `-` as `_`."""
+    """A capability's module name: its id with `-` as `_`."""
     return id.replace('-', '_')
 
 
@@ -58,17 +58,17 @@ def _strings(owner, field, value, at_least=0):
 
 
 @dataclass(frozen=True)
-class Technique:
-    """One named motion-design technique.
+class Capability:
+    """One named motion-design capability.
 
     `id`: kebab-case starting with a letter, the module's filename with `_` as `-`. `family`: the
     subpackage it lives in (one of `FAMILIES`); `group`: a free-text
     sub-heading within the family ("Easing", "Wipes"). `definition`: one
     plain sentence saying what it looks like. `phrasings`: at least two
     everyday ways someone might ask for it. `related`: ids of related
-    techniques, which need not exist yet. `api`: dotted names of what a film
+    capabilities, which need not exist yet. `api`: dotted names of what a film
     calls to use it. `demo`: a no-argument callable returning a short 16:9
-    `videobuilder.Film` showing the technique alone (see `_demo.py`).
+    `videobuilder.Film` showing the capability alone (see `_demo.py`).
     """
     id: str
     name: str
@@ -83,7 +83,7 @@ class Technique:
 
     def __post_init__(self):
         if not isinstance(self.id, str) or not ID_RE.match(self.id):
-            raise ValueError(f'technique id {self.id!r} must be kebab-case starting with a letter: lowercase '
+            raise ValueError(f'capability id {self.id!r} must be kebab-case starting with a letter: lowercase '
                              'letters and digits, joined by - (spell a leading number out: three-d-flip)')
         who = self.id
         for field in ('name', 'group', 'definition'):

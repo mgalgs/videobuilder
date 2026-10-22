@@ -9,7 +9,7 @@ import videobuilder as vb
 
 from .. import _demo as demo
 from ...compendium import kit
-from ..schema import Technique
+from ..schema import Capability
 
 CUTS = (0.0, 0.4, 0.93)   # light levels (N.L) where the tone steps up: core shadow, half-tone, base, highlight
 STEPS = 96                # points along each band's edge
@@ -128,7 +128,7 @@ def draw(n, cv):
     cel_sphere(cv, cx, cy, r, light, cel_tones(demo.ACCENT, shadow=demo.BG), outline=demo.INK, width=3)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='cel-shading-look',
     name='Cel shading look',
     family='shapes',
@@ -142,7 +142,7 @@ TECHNIQUE = Technique(
                'shade the ball in solid bands of colour instead of a smooth gradient'),
     related=('gooch-shading', 'low-poly-faceting', 'cross-hatch-shading', 'fresnel-edge-glow',
              'matcap-shading', 'heat-haze'),
-    api=('videobuilder.techniques.shapes.cel_shading_look.cel_sphere',
-         'videobuilder.techniques.shapes.cel_shading_look.cel_tones'),
+    api=('videobuilder.capabilities.shapes.cel_shading_look.cel_sphere',
+         'videobuilder.capabilities.shapes.cel_shading_look.cel_tones'),
     demo=lambda: demo.film(draw),
 )

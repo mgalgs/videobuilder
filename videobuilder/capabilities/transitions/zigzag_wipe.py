@@ -3,7 +3,7 @@ travels across the frame, its teeth pointing the way it moves."""
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def _teeth(x, height, teeth, depth):
@@ -59,7 +59,7 @@ def zigzag_wipe(cv, a, b, p, teeth=9, depth=None, ease=vb.ease_in_out_quart, edg
         c.restore()
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='zigzag-wipe',
     name='Zigzag wipe',
     family='transitions',
@@ -72,6 +72,6 @@ TECHNIQUE = Technique(
                'transition with a spiky edge moving left to right'),
     related=('zig-zag-distortion', 'paint-brush-wipe', 'wipe-reveal', 'ribbon-sweep', 'accordion-fold',
              'smoke-dissolve'),
-    api=('videobuilder.techniques.transitions.zigzag_wipe.zigzag_wipe',),
+    api=('videobuilder.capabilities.transitions.zigzag_wipe.zigzag_wipe',),
     demo=lambda: demo.two_scenes(lambda cv, a, b, p: zigzag_wipe(cv, a, b, p, edge_color=demo.ACCENT)),
 )

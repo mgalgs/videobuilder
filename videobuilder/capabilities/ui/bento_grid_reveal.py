@@ -7,7 +7,7 @@ import videobuilder as vb
 from videobuilder import Box, fr
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def bento_cells(box, gap=20):
@@ -101,7 +101,7 @@ def draw(n, cv):
     bento_reveal(cv, bento_cells(grid, gap=12), demo.phase(n, 0.3, 2.5), _tile)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='bento-grid-reveal',
     name='Bento grid reveal',
     family='ui',
@@ -114,7 +114,7 @@ TECHNIQUE = Technique(
                'animate the mixed-size boxes appearing one by one'),
     related=('swiss-grid-slide', 'tile-grid-title-reveal', 'tile-flip', 'grid-diagonal-stagger',
              'hexagon-tile-reveal', 'truchet-tiles'),
-    api=('videobuilder.techniques.ui.bento_grid_reveal.bento_reveal',
-         'videobuilder.techniques.ui.bento_grid_reveal.bento_cells'),
+    api=('videobuilder.capabilities.ui.bento_grid_reveal.bento_reveal',
+         'videobuilder.capabilities.ui.bento_grid_reveal.bento_cells'),
     demo=lambda: demo.film(draw),
 )

@@ -3,7 +3,7 @@ letter fading up from nothing a moment after the one before it."""
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def char_alphas(text, p, overlap=0.85, ease=vb.linear):
@@ -41,7 +41,7 @@ def draw(n, cv):
     cv.mark('text', *box)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='per-character-fade-in',
     name='Per-character fade-in',
     family='typography',
@@ -54,7 +54,7 @@ TECHNIQUE = Technique(
                'the words gently fade on a letter at a time'),
     related=('outline-pulse-glow', 'ascii-art-render', 'text-mask-reveal', 'letter-morph', 'pixel-sort-text',
              'text-on-a-path'),
-    api=('videobuilder.techniques.typography.per_character_fade_in.draw_fade_in',
-         'videobuilder.techniques.typography.per_character_fade_in.char_alphas'),
+    api=('videobuilder.capabilities.typography.per_character_fade_in.draw_fade_in',
+         'videobuilder.capabilities.typography.per_character_fade_in.char_alphas'),
     demo=lambda: demo.film(draw),
 )

@@ -7,7 +7,7 @@ import random
 import cairo
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 # Burn colours from the core outwards: near-white, yellow, orange, deep red.
 BURN = ((1.0, 0.97, 0.86), (1.0, 0.80, 0.30), (1.0, 0.45, 0.08), (0.75, 0.10, 0.02))
@@ -67,7 +67,7 @@ def film_burn(cv, a, b, p, seed=7, blobs=6, colors=BURN):
     c.restore()
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='film-burn',
     name='Film burn',
     family='transitions',
@@ -80,6 +80,6 @@ TECHNIQUE = Technique(
                'that vintage reel-burning light effect as a transition'),
     related=('pixelate-transition', 'fire-overlay', 'smoke-dissolve', 'ken-burns-effect', 'screen-blend',
              'glitch-transition'),
-    api=('videobuilder.techniques.transitions.film_burn.film_burn',),
+    api=('videobuilder.capabilities.transitions.film_burn.film_burn',),
     demo=lambda: demo.two_scenes(film_burn),
 )

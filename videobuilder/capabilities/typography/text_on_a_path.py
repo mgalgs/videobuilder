@@ -6,7 +6,7 @@ import math
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def walker(points, closed=False):
@@ -100,7 +100,7 @@ def draw(n, cv):
     cv.mark('text', *box)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='text-on-a-path',
     name='Text on a path',
     family='typography',
@@ -113,7 +113,7 @@ TECHNIQUE = Technique(
                'curved text that slides along a path'),
     related=('twirl-warp-text', 'echo-trail-type', 'stroke-draw-on', 'sine-wave-text', 'text-to-shape-morph',
              'per-character-fade-in'),
-    api=('videobuilder.techniques.typography.text_on_a_path.draw_on_path',
-         'videobuilder.techniques.typography.text_on_a_path.walker'),
+    api=('videobuilder.capabilities.typography.text_on_a_path.draw_on_path',
+         'videobuilder.capabilities.typography.text_on_a_path.walker'),
     demo=lambda: demo.film(draw),
 )

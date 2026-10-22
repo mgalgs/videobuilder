@@ -12,7 +12,7 @@ import cairo
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 # heat 1 -> 0: white-hot, yellow, orange, deep red
 RAMP = ((1.0, (1.0, 0.97, 0.85)), (0.75, (1.0, 0.82, 0.35)), (0.45, (1.0, 0.45, 0.08)),
@@ -106,7 +106,7 @@ def draw(n, cv):
     draw_embers(cv, sparks)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='embers',
     name='Embers',
     family='particles',
@@ -119,8 +119,8 @@ TECHNIQUE = Technique(
                'add some drifting fire embers for a warm, smouldering mood'),
     related=('heat-haze', 'lightning-bolt', 'electric-arc', 'gooch-shading', 'diffraction-spikes',
              'line-boil'),
-    api=('videobuilder.techniques.particles.embers.draw_embers',
-         'videobuilder.techniques.particles.embers.embers',
-         'videobuilder.techniques.particles.embers.ember_color'),
+    api=('videobuilder.capabilities.particles.embers.draw_embers',
+         'videobuilder.capabilities.particles.embers.embers',
+         'videobuilder.capabilities.particles.embers.ember_color'),
     demo=lambda: demo.film(draw),
 )

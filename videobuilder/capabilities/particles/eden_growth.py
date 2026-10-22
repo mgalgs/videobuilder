@@ -5,7 +5,7 @@ import functools
 import random
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 @functools.lru_cache(maxsize=16)
@@ -75,7 +75,7 @@ def draw(n, cv):
     cv.mark('cluster', x, y, COLS * SIZE, ROWS * SIZE)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='eden-growth',
     name='Eden growth',
     family='particles',
@@ -88,7 +88,7 @@ TECHNIQUE = Technique(
                'show something growing organically outward on a grid'),
     related=('lenia', 'voronoi-relaxation', 'conway-s-game-of-life', 'circle-packing', 'voronoi-cells',
              'morphing-blob'),
-    api=('videobuilder.techniques.particles.eden_growth.eden_growth',
-         'videobuilder.techniques.particles.eden_growth.eden_order'),
+    api=('videobuilder.capabilities.particles.eden_growth.eden_growth',
+         'videobuilder.capabilities.particles.eden_growth.eden_order'),
     demo=lambda: demo.film(draw),
 )

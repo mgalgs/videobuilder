@@ -9,7 +9,7 @@ from PIL import Image, ImageFilter
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 class ValueNoise:
@@ -126,7 +126,7 @@ def draw(n, cv):
     draw_domain_warp(cv, 0, 0, demo.W, demo.H, t=1.5 + 1.2 * t, amount=amount, seed=3)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='domain-warping',
     name='Domain warping',
     family='particles',
@@ -139,8 +139,8 @@ TECHNIQUE = Technique(
                'an organic, liquid-looking abstract pattern that keeps moving'),
     related=('noise-field-warp', 'noise-vertex-wobble', 'swirl', 'turbulence-displacement',
              'refraction-ripple', 'film-grain'),
-    api=('videobuilder.techniques.particles.domain_warping.draw_domain_warp',
-         'videobuilder.techniques.particles.domain_warping.domain_warp_image',
-         'videobuilder.techniques.particles.domain_warping.domain_warp'),
+    api=('videobuilder.capabilities.particles.domain_warping.draw_domain_warp',
+         'videobuilder.capabilities.particles.domain_warping.domain_warp_image',
+         'videobuilder.capabilities.particles.domain_warping.domain_warp'),
     demo=lambda: demo.film(draw),
 )

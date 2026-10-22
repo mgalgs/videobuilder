@@ -5,7 +5,7 @@ import math
 import random
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def _wall_push(x, y, wall):
@@ -133,7 +133,7 @@ def draw(n, cv):
         demo.dot(cv, x, y, 7, color=color)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='social-force-crowd',
     name='Social force crowd',
     family='particles',
@@ -146,6 +146,6 @@ TECHNIQUE = Technique(
                'a swarm of dots that push away from each other on their way somewhere'),
     related=('force-directed-network-settle', 'overlapping-action', 'dashed-line-march', 'n-body-gravity',
              'reaction-diffusion', 'random-walk'),
-    api=('videobuilder.techniques.particles.social_force_crowd.simulate_crowd',),
+    api=('videobuilder.capabilities.particles.social_force_crowd.simulate_crowd',),
     demo=lambda: demo.film(draw),
 )

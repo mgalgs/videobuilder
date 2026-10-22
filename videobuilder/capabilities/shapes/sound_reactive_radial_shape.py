@@ -8,7 +8,7 @@ import videobuilder as vb
 from videobuilder.canvas import rgba
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def band_levels(samples, rate, t, bands=32, window=1024, lo=50.0, hi=8000.0):
@@ -150,7 +150,7 @@ def draw(n, cv):
     demo.dot(cv, cx, cy, r=(20 + 5 * kick) * grow, color=demo.BG)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='sound-reactive-radial-shape',
     name='Radial audio visualizer',
     family='shapes',
@@ -164,10 +164,10 @@ TECHNIQUE = Technique(
                'the circle grows spikes when the bass hits'),
     related=('audio-reactive-particles', 'radial-stagger', 'radial-repeater', 'ripple-rings',
              'audio-waveform-bars', 'circle-pop'),
-    api=('videobuilder.techniques.shapes.sound_reactive_radial_shape.radial_bars',
-         'videobuilder.techniques.shapes.sound_reactive_radial_shape.radial_shape',
-         'videobuilder.techniques.shapes.sound_reactive_radial_shape.band_levels',
-         'videobuilder.techniques.shapes.sound_reactive_radial_shape.smooth',
-         'videobuilder.techniques.shapes.sound_reactive_radial_shape.mirrored'),
+    api=('videobuilder.capabilities.shapes.sound_reactive_radial_shape.radial_bars',
+         'videobuilder.capabilities.shapes.sound_reactive_radial_shape.radial_shape',
+         'videobuilder.capabilities.shapes.sound_reactive_radial_shape.band_levels',
+         'videobuilder.capabilities.shapes.sound_reactive_radial_shape.smooth',
+         'videobuilder.capabilities.shapes.sound_reactive_radial_shape.mirrored'),
     demo=lambda: demo.film(draw),
 )

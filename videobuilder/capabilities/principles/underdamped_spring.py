@@ -7,7 +7,7 @@ import math
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 PARAMS = vb.damped(0.14, hz=1.5)  # well under 1: several visible swings before it settles
 RELEASE = 0.35  # seconds
@@ -55,7 +55,7 @@ def draw(n, cv):
     cv.line(x + r + 8, y, prev[0] - 10, prev[1], demo.MUTED, width=1, alpha=0.35)  # ties weight to trace
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='underdamped-spring',
     name='Underdamped Spring',
     family='principles',

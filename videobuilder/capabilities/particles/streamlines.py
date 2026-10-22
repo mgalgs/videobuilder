@@ -7,7 +7,7 @@ import math
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def trace(field, x, y, step=6.0, steps=400, bounds=None):
@@ -128,7 +128,7 @@ def draw(n, cv):
     cv.mark('field', MARGIN, MARGIN, demo.W - 2 * MARGIN, demo.H - 2 * MARGIN)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='streamlines',
     name='Streamlines',
     family='particles',
@@ -141,8 +141,8 @@ TECHNIQUE = Technique(
                'trace the current with lines and little arrows showing direction'),
     related=('flow-map-lines', 'streamgraph-flow', 'speed-lines', 'sparkline-draw', 'line-chart-draw-on',
              'line-weave'),
-    api=('videobuilder.techniques.particles.streamlines.draw_streamlines',
-         'videobuilder.techniques.particles.streamlines.streamlines',
-         'videobuilder.techniques.particles.streamlines.trace'),
+    api=('videobuilder.capabilities.particles.streamlines.draw_streamlines',
+         'videobuilder.capabilities.particles.streamlines.streamlines',
+         'videobuilder.capabilities.particles.streamlines.trace'),
     demo=lambda: demo.film(draw),
 )

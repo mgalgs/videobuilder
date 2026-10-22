@@ -10,7 +10,7 @@ import videobuilder as vb
 
 from .. import _demo as demo
 from ...looks import fx
-from ..schema import Technique
+from ..schema import Capability
 from ..typography.dither_reveal import bayer
 
 
@@ -85,7 +85,7 @@ def demo_dither(cv, box):
     return bayer_dither(cv, box=box, cell=3, ink=demo.INK, paper=demo.BG, gain=1.25)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='bayer-ordered-dithering',
     name='Bayer ordered dithering',
     family='vfx',
@@ -98,8 +98,8 @@ TECHNIQUE = Technique(
                'a retro Game Boy style crosshatch shading over the footage'),
     related=('pixel-sorting', 'dither-reveal', 'gradient-wipe', 'pixel-sort-text', 'pixelate-transition',
              'nearest-neighbor-upscale'),
-    api=('videobuilder.techniques.vfx.bayer_ordered_dithering.bayer_dither',
-         'videobuilder.techniques.vfx.bayer_ordered_dithering.bayer_dither_image',
-         'videobuilder.techniques.typography.dither_reveal.bayer'),
+    api=('videobuilder.capabilities.vfx.bayer_ordered_dithering.bayer_dither',
+         'videobuilder.capabilities.vfx.bayer_ordered_dithering.bayer_dither_image',
+         'videobuilder.capabilities.typography.dither_reveal.bayer'),
     demo=lambda: demo.film(draw),
 )

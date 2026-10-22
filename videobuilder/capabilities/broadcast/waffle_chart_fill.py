@@ -4,7 +4,7 @@ squares count out the value."""
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def waffle_order(cols, rows, start='bottom'):
@@ -57,7 +57,7 @@ def draw(n, cv):
         demo.word(cv, f'{round(filled)}%', x + size - 40, top - 34, size=32, color=color, weight=800)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='waffle-chart-fill',
     name='Waffle chart fill',
     family='broadcast',
@@ -70,7 +70,7 @@ TECHNIQUE = Technique(
                'a block grid that lights up to 72 out of 100'),
     related=('choropleth-fill', 'shape-fill-sweep', 'percentage-fill-bar', 'marching-squares-contour',
              'liquid-fill-level', 'scale-tile-wave'),
-    api=('videobuilder.techniques.broadcast.waffle_chart_fill.waffle_chart',
-         'videobuilder.techniques.broadcast.waffle_chart_fill.waffle_order'),
+    api=('videobuilder.capabilities.broadcast.waffle_chart_fill.waffle_chart',
+         'videobuilder.capabilities.broadcast.waffle_chart_fill.waffle_order'),
     demo=lambda: demo.film(draw),
 )

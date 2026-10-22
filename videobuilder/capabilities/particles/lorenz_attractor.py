@@ -6,7 +6,7 @@ import math
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def lorenz_trajectory(steps, dt=0.01, start=(0.1, 0.0, 0.0), sigma=10.0, rho=28.0, beta=8 / 3, settle=0):
@@ -77,7 +77,7 @@ def draw(n, cv):
     draw_trace(cv, pts, '#7f8cff', head_color='#f2c84b', width=2.0)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='lorenz-attractor',
     name='Lorenz attractor',
     family='particles',
@@ -90,8 +90,8 @@ TECHNIQUE = Technique(
                'a glowing trail orbiting two lobes and never quite repeating'),
     related=('gravity-well-attraction', 'swirl', 'fireflies', 'kuramoto-synchronization',
              'turbulence-displacement', 'spiral-galaxy'),
-    api=('videobuilder.techniques.particles.lorenz_attractor.lorenz_trajectory',
-         'videobuilder.techniques.particles.lorenz_attractor.project_attractor',
-         'videobuilder.techniques.particles.lorenz_attractor.draw_trace'),
+    api=('videobuilder.capabilities.particles.lorenz_attractor.lorenz_trajectory',
+         'videobuilder.capabilities.particles.lorenz_attractor.project_attractor',
+         'videobuilder.capabilities.particles.lorenz_attractor.draw_trace'),
     demo=lambda: demo.film(draw),
 )

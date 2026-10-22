@@ -7,7 +7,7 @@ import math
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def _arrowhead(cv, x, y, ux, uy, color, size, alpha):
@@ -96,7 +96,7 @@ def draw(n, cv):
     dimension_line(cv, (x, y + h), (x, y), ph, label=f'{round(1080 * count)}', offset=70, color=demo.INK)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='dimension-line-annotation',
     name='Dimension line annotation',
     family='broadcast',
@@ -109,6 +109,6 @@ TECHNIQUE = Technique(
                'draw size arrows along the edges and label them with the measurements'),
     related=('callout-highlight', 'line-chart-draw-on', 'sparkline-draw', 'slopegraph-reveal',
              'parallel-coordinates-draw', 'streamlines'),
-    api=('videobuilder.techniques.broadcast.dimension_line_annotation.dimension_line',),
+    api=('videobuilder.capabilities.broadcast.dimension_line_annotation.dimension_line',),
     demo=lambda: demo.film(draw),
 )

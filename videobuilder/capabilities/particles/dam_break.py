@@ -11,7 +11,7 @@ import random
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 WATER = '#4fa3e0'
 
@@ -146,7 +146,7 @@ def draw(n, cv):
     cv.mark('tank', x0, floor_y - tall, TANK_W, tall)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='dam-break',
     name='Dam break',
     family='particles',
@@ -159,7 +159,7 @@ TECHNIQUE = Technique(
                'lift the gate and let the water rush out'),
     related=('fracture-shatter', 'shatter', 'confetti-burst', 'waterfall-build', 'breaking-news-banner-slam',
              'falling-letter-rain'),
-    api=('videobuilder.techniques.particles.dam_break.draw_dam_break',
-         'videobuilder.techniques.particles.dam_break.simulate'),
+    api=('videobuilder.capabilities.particles.dam_break.draw_dam_break',
+         'videobuilder.capabilities.particles.dam_break.simulate'),
     demo=lambda: demo.film(draw),
 )

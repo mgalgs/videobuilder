@@ -8,7 +8,7 @@ import cairo
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def spin_blur(cv, draw, angle=0.0, amount=0.5, samples=None, cx=None, cy=None):
@@ -91,7 +91,7 @@ def _draw(n, cv):
     spin_blur(cv, _wheel, _turned(n), _speed(n / demo.FPS) / demo.FPS)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='spin-blur',
     name='Spin blur',
     family='vfx',
@@ -103,6 +103,6 @@ TECHNIQUE = Technique(
                'blur it round in a circle like it is turning',
                'add a rotating motion blur around the middle'),
     related=('zoom-blur', 'spin', 'blur-dissolve', 'blur-up-image-load', 'refraction-ripple', 'smear-frame'),
-    api=('videobuilder.techniques.vfx.spin_blur.spin_blur',),
+    api=('videobuilder.capabilities.vfx.spin_blur.spin_blur',),
     demo=lambda: demo.film(_draw),
 )

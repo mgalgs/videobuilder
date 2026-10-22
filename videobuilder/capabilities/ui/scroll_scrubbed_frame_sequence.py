@@ -6,7 +6,7 @@ import math
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def frame_index(scroll, count):
@@ -104,7 +104,7 @@ def draw(n, cv):
         vb.text.draw(cv, [arrow], demo.font(22, 700), px + pw + 20, by + s * (bh - 70) + 20, demo.TEAL)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='scroll-scrubbed-frame-sequence',
     name='Scroll-scrubbed frame sequence',
     family='ui',
@@ -117,7 +117,7 @@ TECHNIQUE = Technique(
                'a product shot that turns frame by frame while the page scrolls'),
     related=('scroll-driven-text-reveal', 'roll-up', 'timeline-scroll', 'frame-by-frame-hand-drawn-animation',
              'seamless-loop', 'interruptible-motion'),
-    api=('videobuilder.techniques.ui.scroll_scrubbed_frame_sequence.draw_scrubbed',
-         'videobuilder.techniques.ui.scroll_scrubbed_frame_sequence.frame_index'),
+    api=('videobuilder.capabilities.ui.scroll_scrubbed_frame_sequence.draw_scrubbed',
+         'videobuilder.capabilities.ui.scroll_scrubbed_frame_sequence.frame_index'),
     demo=lambda: demo.film(draw),
 )

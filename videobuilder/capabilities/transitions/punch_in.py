@@ -4,7 +4,7 @@ from a little too close."""
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def zoomed(cv, draw, scale, cx=None, cy=None, blur_from=None, steps=6):
@@ -55,7 +55,7 @@ def _close(cv):
     demo.word(cv, 'CLOSE', demo.W / 2, demo.H / 2, size=120, color=demo.BG)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='punch-in',
     name='Punch-in',
     family='transitions',
@@ -68,7 +68,7 @@ TECHNIQUE = Technique(
                'jump from the wide shot straight into a close-up with a quick zoom'),
     related=('scale-zoom-through', 'smash-cut', 'ui-walkthrough-camera-zoom', 'image-hover-zoom',
              'impact-shake', 'impact-hit'),
-    api=('videobuilder.techniques.transitions.punch_in.punch_in',
-         'videobuilder.techniques.transitions.punch_in.zoomed'),
+    api=('videobuilder.capabilities.transitions.punch_in.punch_in',
+         'videobuilder.capabilities.transitions.punch_in.zoomed'),
     demo=lambda: demo.two_scenes(punch_in, start=1.0, length=0.8, a=_wide, b=_close),
 )

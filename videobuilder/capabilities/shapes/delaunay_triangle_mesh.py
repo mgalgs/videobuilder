@@ -7,7 +7,7 @@ import random
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def delaunay(points):
@@ -137,7 +137,7 @@ def draw(n, cv):
     cv.mark('mesh', x, y, w, h)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='delaunay-triangle-mesh',
     name='Delaunay triangle mesh',
     family='shapes',
@@ -150,8 +150,8 @@ TECHNIQUE = Technique(
                'a faceted geometric mesh that slowly shifts and catches the light'),
     related=('gradient-mesh-drift', 'noise-vertex-wobble', 'sierpinski-gasket', 'low-poly-faceting',
              'tessellation-triangle-flip', 'geometric-loop'),
-    api=('videobuilder.techniques.shapes.delaunay_triangle_mesh.draw_mesh',
-         'videobuilder.techniques.shapes.delaunay_triangle_mesh.delaunay',
-         'videobuilder.techniques.shapes.delaunay_triangle_mesh.drifting_points'),
+    api=('videobuilder.capabilities.shapes.delaunay_triangle_mesh.draw_mesh',
+         'videobuilder.capabilities.shapes.delaunay_triangle_mesh.delaunay',
+         'videobuilder.capabilities.shapes.delaunay_triangle_mesh.drifting_points'),
     demo=lambda: demo.film(draw),
 )

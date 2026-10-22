@@ -7,7 +7,7 @@ import math
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 MAJOR = (0, 2, 4, 5, 7, 9, 11)
 _NAMES = ('C', 'Cs', 'D', 'Ds', 'E', 'F', 'Fs', 'G', 'Gs', 'A', 'As', 'B')
@@ -174,7 +174,7 @@ def _film():
     return demo.film(draw, sounds=sounds)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='mickey-mousing',
     name='Mickey-mousing',
     family='sound',
@@ -187,7 +187,7 @@ TECHNIQUE = Technique(
                'a plink for each step as it walks down, going lower each time'),
     related=('ducking', 'slow-motion', 'icon-hover-bounce', 'like-heart-burst', 'bounce-ease-in',
              'ping-pong-loop'),
-    api=('videobuilder.techniques.sound.mickey_mousing.mickey_mouse',
-         'videobuilder.techniques.sound.mickey_mousing.scale_run'),
+    api=('videobuilder.capabilities.sound.mickey_mousing.mickey_mouse',
+         'videobuilder.capabilities.sound.mickey_mousing.scale_run'),
     demo=_film,
 )

@@ -6,7 +6,7 @@ import math
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 from ..ui.circle_check_draw import draw_circle_check
 
 DING = 'pro_notify/ding_2045'
@@ -65,7 +65,7 @@ def draw(n, cv):
         demo.word(cv, 'Payment sent', cx, cy + r + 90, size=56, alpha=a)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='success-chime',
     name='Success chime',
     family='sound',
@@ -78,7 +78,7 @@ TECHNIQUE = Technique(
                'a rising chime on the success moment'),
     related=('circle-check-draw', 'button-ending', 'bouncing-ball-word-marker', 'karaoke-highlight-sweep',
              'like-heart-burst', 'sine-wave-text'),
-    api=('videobuilder.techniques.sound.success_chime.success_chime',
+    api=('videobuilder.capabilities.sound.success_chime.success_chime',
          'videobuilder.sfx.sound'),
     demo=lambda: demo.film(draw, sounds=success_chime(LANDS, notes=demo_notes())),
 )

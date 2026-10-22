@@ -10,7 +10,7 @@ from PIL import Image as PILImage, ImageFilter
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def _a8(m):
@@ -103,7 +103,7 @@ def draw(n, cv):
     cv.mark('text', demo.W / 2 - total * spread / 2, demo.H / 2 - 70, total * spread, 140)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='metaball-goo-text',
     name='Metaball goo text',
     family='typography',
@@ -116,7 +116,7 @@ TECHNIQUE = Technique(
                'the word flows together like goo and the letters stick to each other'),
     related=('liquid-morph', 'particle-text-formation', 'dissolve-to-particles', 'gooey-filter',
              'type-explosion', 'noise-dissolve'),
-    api=('videobuilder.techniques.typography.metaball_goo_text.goo_text',
-         'videobuilder.techniques.typography.metaball_goo_text.goo'),
+    api=('videobuilder.capabilities.typography.metaball_goo_text.goo_text',
+         'videobuilder.capabilities.typography.metaball_goo_text.goo'),
     demo=lambda: demo.film(draw),
 )

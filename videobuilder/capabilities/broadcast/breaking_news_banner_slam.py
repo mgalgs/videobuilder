@@ -6,7 +6,7 @@ from videobuilder.ease import ease_out_back
 from videobuilder.impact import shake
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def slam_x(p, rest, start, overshoot=ease_out_back):
@@ -66,7 +66,7 @@ def draw(n, cv):
     draw_banner_slam(cv, demo.phase(n, 0.6, 1.2), headline='MARKETS PLUNGE AT THE OPENING BELL', seed=3)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='breaking-news-banner-slam',
     name='Breaking news banner slam',
     family='broadcast',
@@ -79,8 +79,8 @@ TECHNIQUE = Technique(
                'make an alert strip punch in from the side and stay there'),
     related=('shatter', 'coachmark-spotlight-cutout', 'scanline-tear', 'smash-cut', 'fracture-shatter',
              'refresh-bar'),
-    api=('videobuilder.techniques.broadcast.breaking_news_banner_slam.draw_banner_slam',
-         'videobuilder.techniques.broadcast.breaking_news_banner_slam.slam_x',
+    api=('videobuilder.capabilities.broadcast.breaking_news_banner_slam.draw_banner_slam',
+         'videobuilder.capabilities.broadcast.breaking_news_banner_slam.slam_x',
          'videobuilder.ease.ease_out_back',
          'videobuilder.impact.shake'),
     demo=lambda: demo.film(draw),

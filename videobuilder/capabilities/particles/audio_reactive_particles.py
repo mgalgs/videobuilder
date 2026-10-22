@@ -19,7 +19,7 @@ import random
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def drive(db, floor_db=-40.0, attack=0.7, release=0.2):
@@ -118,7 +118,7 @@ def draw(n, cv):
     _meter(cv, n)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='audio-reactive-particles',
     name='Audio-reactive particles',
     family='particles',
@@ -132,9 +132,9 @@ TECHNIQUE = Technique(
                'a glowing particle cloud that dances to the audio'),
     related=('sound-reactive-radial-shape', 'sound-bridge', 'turbulence-displacement', 'audio-waveform-bars',
              'image-to-particles', 'curl-noise-flow'),
-    api=('videobuilder.techniques.particles.audio_reactive_particles.draw_reactive_particles',
-         'videobuilder.techniques.particles.audio_reactive_particles.drive',
-         'videobuilder.techniques.particles.audio_reactive_particles.accumulate',
+    api=('videobuilder.capabilities.particles.audio_reactive_particles.draw_reactive_particles',
+         'videobuilder.capabilities.particles.audio_reactive_particles.drive',
+         'videobuilder.capabilities.particles.audio_reactive_particles.accumulate',
          'videobuilder.speech.levels'),
     demo=lambda: demo.film(draw),
 )

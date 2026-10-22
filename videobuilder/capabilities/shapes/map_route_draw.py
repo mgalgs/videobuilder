@@ -4,7 +4,7 @@ import videobuilder as vb
 from videobuilder import paths
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def route_legs(stops, bow=0.18, steps=32):
@@ -107,7 +107,7 @@ def draw(n, cv):
     cv.mark('tip', tip[0] - 9, tip[1] - 9, 18, 18)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='map-route-draw',
     name='Map route draw',
     family='shapes',
@@ -120,9 +120,9 @@ TECHNIQUE = Technique(
                'a path that draws itself across the map with pins at each stop'),
     related=('flow-map-lines', 'stroke-draw-on', 'line-chart-draw-on', 'player-movement-trail',
              'text-on-a-path', 'path-emitter'),
-    api=('videobuilder.techniques.shapes.map_route_draw.draw_route',
-         'videobuilder.techniques.shapes.map_route_draw.route_legs',
-         'videobuilder.techniques.shapes.map_route_draw.stop_fractions',
+    api=('videobuilder.capabilities.shapes.map_route_draw.draw_route',
+         'videobuilder.capabilities.shapes.map_route_draw.route_legs',
+         'videobuilder.capabilities.shapes.map_route_draw.stop_fractions',
          'videobuilder.paths.reveal'),
     demo=lambda: demo.film(draw),
 )

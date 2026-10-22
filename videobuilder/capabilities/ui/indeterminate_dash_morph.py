@@ -7,7 +7,7 @@ import math
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 from ... import paths
 
 # The two marks in unit-box coordinates (0..1 across the checkbox), left tip, middle, right tip.
@@ -46,7 +46,7 @@ def draw(n, cv):
     cv.mark('checkbox', x, y, s, s)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='indeterminate-dash-morph',
     name='Indeterminate dash morph',
     family='ui',
@@ -59,7 +59,7 @@ TECHNIQUE = Technique(
                'morph the indeterminate dash into a check'),
     related=('loading-to-success-morph', 'circle-check-draw', 'icon-state-morph', 'text-to-shape-morph',
              'bouncing-dots', 'letter-morph'),
-    api=('videobuilder.techniques.ui.indeterminate_dash_morph.draw_dash_check',
-         'videobuilder.techniques.ui.indeterminate_dash_morph.dash_to_check'),
+    api=('videobuilder.capabilities.ui.indeterminate_dash_morph.draw_dash_check',
+         'videobuilder.capabilities.ui.indeterminate_dash_morph.dash_to_check'),
     demo=lambda: demo.film(draw),
 )

@@ -4,7 +4,7 @@ and the pinned cards pile into a stack."""
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def sticky_stack_layout(scroll, count, pitch, start=0.0, top=0.0, peek=0.0):
@@ -76,7 +76,7 @@ def draw(n, cv):
     cv.rect(VIEW_X + VIEW_W + 14, VIEW_Y + 20 + (track - thumb) * p, 5, thumb, demo.MUTED, radius=3)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='sticky-card-stack-on-scroll',
     name='Sticky card stack on scroll',
     family='ui',
@@ -89,7 +89,7 @@ TECHNIQUE = Technique(
                'the stacking-cards scroll effect for a feature list'),
     related=('stacked-card-reveal', 'card-deck-fan', 'roll-up', 'infinite-scroll-append',
              'stacked-line-build', 'end-card-with-subscribe-slot'),
-    api=('videobuilder.techniques.ui.sticky_card_stack_on_scroll.sticky_card_stack',
-         'videobuilder.techniques.ui.sticky_card_stack_on_scroll.sticky_stack_layout'),
+    api=('videobuilder.capabilities.ui.sticky_card_stack_on_scroll.sticky_card_stack',
+         'videobuilder.capabilities.ui.sticky_card_stack_on_scroll.sticky_stack_layout'),
     demo=lambda: demo.film(draw),
 )

@@ -6,7 +6,7 @@ import random
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def hex_grid(x, y, w, h, size, origin=None):
@@ -66,7 +66,7 @@ def draw(n, cv):
     cv.mark('honeycomb', 0, 0, demo.W, demo.H)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='hexagon-tile-reveal',
     name='Hexagon tile reveal',
     family='shapes',
@@ -79,8 +79,8 @@ TECHNIQUE = Technique(
                'build the background out of hex cells one by one'),
     related=('hexbin-density-build', 'tile-grid-title-reveal', 'tile-flip', 'bento-grid-reveal',
              'mosaic-tiling', 'pattern-tiling'),
-    api=('videobuilder.techniques.shapes.hexagon_tile_reveal.hex_reveal',
-         'videobuilder.techniques.shapes.hexagon_tile_reveal.hex_grid',
-         'videobuilder.techniques.shapes.hexagon_tile_reveal.hexagon'),
+    api=('videobuilder.capabilities.shapes.hexagon_tile_reveal.hex_reveal',
+         'videobuilder.capabilities.shapes.hexagon_tile_reveal.hex_grid',
+         'videobuilder.capabilities.shapes.hexagon_tile_reveal.hexagon'),
     demo=lambda: demo.film(draw),
 )

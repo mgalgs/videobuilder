@@ -3,7 +3,7 @@ right, the edge of the colour moving through each word as it is sung."""
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def sweep_width(text, font, p, spans=None):
@@ -59,7 +59,7 @@ def draw(n, cv):
     cv.mark('text', *box)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='karaoke-highlight-sweep',
     name='Karaoke highlight sweep',
     family='typography',
@@ -72,7 +72,7 @@ TECHNIQUE = Technique(
                'a karaoke-style bar of colour moving through the caption'),
     related=('shape-fill-sweep', 'hue-cycle-fill', 'gradient-sweep-across-text', 'area-fill-sweep',
              'choropleth-fill', 'sheen-sweep'),
-    api=('videobuilder.techniques.typography.karaoke_highlight_sweep.draw_karaoke',
-         'videobuilder.techniques.typography.karaoke_highlight_sweep.sweep_width'),
+    api=('videobuilder.capabilities.typography.karaoke_highlight_sweep.draw_karaoke',
+         'videobuilder.capabilities.typography.karaoke_highlight_sweep.sweep_width'),
     demo=lambda: demo.film(draw),
 )

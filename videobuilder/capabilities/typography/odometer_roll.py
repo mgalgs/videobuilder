@@ -8,7 +8,7 @@ import cairo
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def odometer_wheels(value, places):
@@ -67,7 +67,7 @@ def draw(n, cv):
     cv.mark('odometer', *box)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='odometer-roll',
     name='Odometer roll',
     family='typography',
@@ -80,7 +80,7 @@ TECHNIQUE = Technique(
                'make the count tick over like an old mechanical meter'),
     related=('number-count-up', 'decimal-counter-with-formatting', 'number-count-down', 'turntable-rotation',
              'letter-roll', 'player-stat-card'),
-    api=('videobuilder.techniques.typography.odometer_roll.draw_odometer',
-         'videobuilder.techniques.typography.odometer_roll.odometer_wheels'),
+    api=('videobuilder.capabilities.typography.odometer_roll.draw_odometer',
+         'videobuilder.capabilities.typography.odometer_roll.odometer_wheels'),
     demo=lambda: demo.film(draw),
 )

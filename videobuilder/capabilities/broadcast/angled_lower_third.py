@@ -7,7 +7,7 @@ import math
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 from ...looks.kit import clip_to, fill
 
 
@@ -87,7 +87,7 @@ def draw(n, cv):
     cv.mark('lower-third', *box)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='angled-lower-third',
     name='Angled lower third',
     family='broadcast',
@@ -100,7 +100,7 @@ TECHNIQUE = Technique(
                'a sporty lower third where the bars are cut on a diagonal'),
     related=('slant-axis-swing', 'low-poly-faceting', 'isometric-view', 'bend-deformer', 'dutch-angle',
              'taper-deformer'),
-    api=('videobuilder.techniques.broadcast.angled_lower_third.draw_angled_lower_third',
-         'videobuilder.techniques.broadcast.angled_lower_third.slanted_bar'),
+    api=('videobuilder.capabilities.broadcast.angled_lower_third.draw_angled_lower_third',
+         'videobuilder.capabilities.broadcast.angled_lower_third.slanted_bar'),
     demo=lambda: demo.film(draw),
 )

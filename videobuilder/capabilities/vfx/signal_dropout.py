@@ -6,7 +6,7 @@ import random
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def dropout_streaks(amount, w, h, seed=0, step=0, count=14, length=(0.06, 0.45), thickness=(2, 9),
@@ -67,7 +67,7 @@ def draw(n, cv):
     signal_dropout(cv, picture, _envelope(n / demo.FPS), seed=7, step=n)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='signal-dropout',
     name='Signal dropout',
     family='vfx',
@@ -79,7 +79,7 @@ TECHNIQUE = Technique(
                'make the footage look like it is losing signal for a split second',
                'sprinkle a few VHS dropout lines over the shot'),
     related=('scanline-tear', 'desaturation', 'dip-to-black', 'sub-drop', 'analog-ghosting', 'glitch-transition'),
-    api=('videobuilder.techniques.vfx.signal_dropout.signal_dropout',
-         'videobuilder.techniques.vfx.signal_dropout.dropout_streaks'),
+    api=('videobuilder.capabilities.vfx.signal_dropout.signal_dropout',
+         'videobuilder.capabilities.vfx.signal_dropout.dropout_streaks'),
     demo=lambda: demo.film(draw),
 )

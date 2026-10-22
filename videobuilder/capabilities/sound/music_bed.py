@@ -9,7 +9,7 @@ import math
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 NAMES = ('C', 'Cs', 'D', 'Ds', 'E', 'F', 'Fs', 'G', 'Gs', 'A', 'As', 'B')
 # One chord per beat, low to high: C, A minor, F, G.
@@ -111,7 +111,7 @@ def film():
     return demo.film(draw, sounds=music_bed(0, FRAMES, voice=_bed_voice()) + hits)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='music-bed',
     name='Music bed',
     family='sound',
@@ -124,8 +124,8 @@ TECHNIQUE = Technique(
                'I want gentle music running under the sound effects'),
     related=('ambience', 'ducking', 'sound-bridge', 'audio-waveform-bars', 'stereo-panning',
              'aurora-gradient-background'),
-    api=('videobuilder.techniques.sound.music_bed.music_bed',
-         'videobuilder.techniques.sound.music_bed.bed_notes',
+    api=('videobuilder.capabilities.sound.music_bed.music_bed',
+         'videobuilder.capabilities.sound.music_bed.bed_notes',
          'videobuilder.Audio'),
     demo=film,
 )

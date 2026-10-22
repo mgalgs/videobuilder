@@ -8,7 +8,7 @@ import cairo
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def branches(x, y, length, depth, heading=-math.pi / 2, spread=math.radians(32), ratio=0.7, bend=0.0):
@@ -65,7 +65,7 @@ def draw(n, cv):
     cv.mark('tree', demo.W / 2 - 270, 40, 540, demo.H - 80)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='recursive-tree',
     name='Recursive tree',
     family='particles',
@@ -78,7 +78,7 @@ TECHNIQUE = Technique(
                'lines that fork in two over and over like a tree'),
     related=('polygon-subdivision', 'decision-tree-branch-growth', 'recursive-rectangle-subdivision',
              'treemap-re-layout', 'diffusion-limited-aggregation', 'org-chart-grow'),
-    api=('videobuilder.techniques.particles.recursive_tree.draw_tree',
-         'videobuilder.techniques.particles.recursive_tree.branches'),
+    api=('videobuilder.capabilities.particles.recursive_tree.draw_tree',
+         'videobuilder.capabilities.particles.recursive_tree.branches'),
     demo=lambda: demo.film(draw),
 )

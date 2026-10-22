@@ -10,7 +10,7 @@ import videobuilder as vb
 from videobuilder.canvas import rgba
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def truchet_layout(cols, rows, seed=0):
@@ -97,7 +97,7 @@ def draw(n, cv):
     cv.mark('tiles', 0, 0, demo.W, demo.H)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='truchet-tiles',
     name='Truchet tiles',
     family='particles',
@@ -110,8 +110,8 @@ TECHNIQUE = Technique(
                'random quarter-circle tile pattern that shifts over time'),
     related=('mosaic-tiling', 'pattern-tiling', 'tessellation-triangle-flip', 'tile-flip', 'domino-toppling',
              'scale-tile-wave'),
-    api=('videobuilder.techniques.particles.truchet_tiles.truchet_tiles',
-         'videobuilder.techniques.particles.truchet_tiles.draw_truchet_tile',
-         'videobuilder.techniques.particles.truchet_tiles.truchet_layout'),
+    api=('videobuilder.capabilities.particles.truchet_tiles.truchet_tiles',
+         'videobuilder.capabilities.particles.truchet_tiles.draw_truchet_tile',
+         'videobuilder.capabilities.particles.truchet_tiles.truchet_layout'),
     demo=lambda: demo.film(draw),
 )

@@ -7,7 +7,7 @@ from functools import lru_cache
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 GLIDER = ((1, 0), (2, 1), (0, 2), (1, 2), (2, 2))
 
@@ -87,7 +87,7 @@ def draw(n, cv):
     cv.mark('grid', 0, 0, COLS * CELL, ROWS * CELL)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='conway-s-game-of-life',
     name="Conway's Game of Life",
     family='particles',
@@ -100,9 +100,9 @@ TECHNIQUE = Technique(
                'a cellular automaton background with little gliders moving across'),
     related=('eden-growth', 'particle-life', 'voronoi-cells', 'infinite-perspective-grid',
              'voronoi-relaxation', 'smoke-simulation'),
-    api=('videobuilder.techniques.particles.conway_s_game_of_life.draw_life',
-         'videobuilder.techniques.particles.conway_s_game_of_life.life_generations',
-         'videobuilder.techniques.particles.conway_s_game_of_life.life_step',
-         'videobuilder.techniques.particles.conway_s_game_of_life.random_soup'),
+    api=('videobuilder.capabilities.particles.conway_s_game_of_life.draw_life',
+         'videobuilder.capabilities.particles.conway_s_game_of_life.life_generations',
+         'videobuilder.capabilities.particles.conway_s_game_of_life.life_step',
+         'videobuilder.capabilities.particles.conway_s_game_of_life.random_soup'),
     demo=lambda: demo.film(draw),
 )

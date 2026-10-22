@@ -7,7 +7,7 @@ from dataclasses import dataclass
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 ENTRANCES = ('left', 'right', 'up', 'down', 'scale', 'rotate')
 
@@ -100,7 +100,7 @@ def draw(n, cv):
         cv.mark('poster', 100, 40, demo.W - 200, demo.H - 80)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='kinetic-poster-layout',
     name='Kinetic poster layout',
     family='typography',
@@ -113,8 +113,8 @@ TECHNIQUE = Technique(
                'words slide and rotate in until they form a graphic layout'),
     related=('kinetic-lyric-typography', 'layout-animation-flip', 'posterization', 'rolling-shutter-wobble',
              'headline-rotator', 'staging'),
-    api=('videobuilder.techniques.typography.kinetic_poster_layout.draw_poster',
-         'videobuilder.techniques.typography.kinetic_poster_layout.draw_block',
-         'videobuilder.techniques.typography.kinetic_poster_layout.PosterBlock'),
+    api=('videobuilder.capabilities.typography.kinetic_poster_layout.draw_poster',
+         'videobuilder.capabilities.typography.kinetic_poster_layout.draw_block',
+         'videobuilder.capabilities.typography.kinetic_poster_layout.PosterBlock'),
     demo=lambda: demo.film(draw),
 )

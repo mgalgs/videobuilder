@@ -7,7 +7,7 @@ import videobuilder as vb
 from videobuilder import paths
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 COLORS = (demo.ACCENT, demo.TEAL, '#f2b84b', demo.INK, '#6c7bd9')
 
@@ -68,7 +68,7 @@ def ribbon_sweep(cv, a, b, p, count=5, angle=-0.3, wave=24, stagger=0.12, colors
         paths.draw(cv, seg, colors[i % len(colors)], width=width)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='ribbon-sweep',
     name='Ribbon sweep',
     family='shapes',
@@ -80,6 +80,6 @@ TECHNIQUE = Technique(
                'a swoosh of stripes wipes the shot away',
                'ribbons fly across the screen and reveal the next shot'),
     related=('diagonal-wipe', 'spiral-wipe', 'linear-wipe', 'paint-brush-wipe', 'zigzag-wipe', 'pinwheel-wipe'),
-    api=('videobuilder.techniques.shapes.ribbon_sweep.ribbon_sweep',),
+    api=('videobuilder.capabilities.shapes.ribbon_sweep.ribbon_sweep',),
     demo=lambda: demo.two_scenes(ribbon_sweep),
 )

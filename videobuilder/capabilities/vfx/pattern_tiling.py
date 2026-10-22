@@ -8,7 +8,7 @@ import videobuilder as vb
 from videobuilder.canvas import rgba
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 SYMMETRIES = ('translate', 'mirror', 'rotate', 'brick')
 _QUARTERS = ((0, 1), (3, 2))  # quarter turns per cell of a 2x2 block, going round it
@@ -111,7 +111,7 @@ def draw(n, cv):
         cv.outline(ox, oy, SIZE, SIZE, demo.INK, width=5, alpha=edge)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='pattern-tiling',
     name='Pattern tiling',
     family='vfx',
@@ -125,7 +125,7 @@ TECHNIQUE = Technique(
                'mirror one tile in every direction so it builds a kaleidoscope-like print'),
     related=('mosaic-tiling', 'penrose-tiling', 'truchet-tiles', 'wave-function-collapse', 'pixelation',
              'seamless-loop'),
-    api=('videobuilder.techniques.vfx.pattern_tiling.pattern_tile',
-         'videobuilder.techniques.vfx.pattern_tiling.leaf_motif'),
+    api=('videobuilder.capabilities.vfx.pattern_tiling.pattern_tile',
+         'videobuilder.capabilities.vfx.pattern_tiling.leaf_motif'),
     demo=lambda: demo.film(draw),
 )

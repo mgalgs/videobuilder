@@ -6,7 +6,7 @@ import math
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def dragon_unfold(progress, folds=10, ease=vb.ease_in_out_quart):
@@ -98,7 +98,7 @@ def draw(n, cv):
     cv.mark('curve', min(xs), min(ys), max(xs) - min(xs), max(ys) - min(ys))
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='dragon-curve',
     name='Dragon curve',
     family='particles',
@@ -111,10 +111,10 @@ TECHNIQUE = Technique(
                'a zigzag path that doubles each time and grows into a dragon shape'),
     related=('arc-bend-morph', 'spiral-expansion-draw', 'bezier-handle-bend', 'line-to-polygon-transform',
              'superformula-morph', 'bend-deformer'),
-    api=('videobuilder.techniques.particles.dragon_curve.dragon_unfold',
-         'videobuilder.techniques.particles.dragon_curve.dragon_steady',
-         'videobuilder.techniques.particles.dragon_curve.dragon_points',
-         'videobuilder.techniques.particles.dragon_curve.fit',
-         'videobuilder.techniques.particles.dragon_curve.draw_dragon'),
+    api=('videobuilder.capabilities.particles.dragon_curve.dragon_unfold',
+         'videobuilder.capabilities.particles.dragon_curve.dragon_steady',
+         'videobuilder.capabilities.particles.dragon_curve.dragon_points',
+         'videobuilder.capabilities.particles.dragon_curve.fit',
+         'videobuilder.capabilities.particles.dragon_curve.draw_dragon'),
     demo=lambda: demo.film(draw),
 )

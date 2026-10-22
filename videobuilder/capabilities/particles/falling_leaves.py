@@ -5,7 +5,7 @@ import random
 
 from ...canvas import rgba
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 AUTUMN = ('#e8a33d', '#d9622b', '#f2c14e', '#b8452a', '#c98a2e')
 
@@ -73,7 +73,7 @@ def draw(n, cv):
     falling_leaves(cv, n / demo.FPS, count=30, seed=3, size=(34, 72))
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='falling-leaves',
     name='Falling leaves',
     family='particles',
@@ -86,8 +86,8 @@ TECHNIQUE = Technique(
                'make it rain leaves that sway and spin as they fall'),
     related=('gravity-drop', 'momentum-fling', 'ball-bounce', 'falling-letter-rain', 'air-drag',
              'spiral-bloom'),
-    api=('videobuilder.techniques.particles.falling_leaves.falling_leaves',
-         'videobuilder.techniques.particles.falling_leaves.leaf',
-         'videobuilder.techniques.particles.falling_leaves.draw_leaf'),
+    api=('videobuilder.capabilities.particles.falling_leaves.falling_leaves',
+         'videobuilder.capabilities.particles.falling_leaves.leaf',
+         'videobuilder.capabilities.particles.falling_leaves.draw_leaf'),
     demo=lambda: demo.film(draw),
 )

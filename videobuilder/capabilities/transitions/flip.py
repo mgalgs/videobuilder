@@ -7,7 +7,7 @@ import cairo
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 _turn = vb.bezier(0.6, 0, 0.35, 1)
 
@@ -104,7 +104,7 @@ def flip(cv, a, b, p, axis='y', direction=1, depth=0.16, focal=None, strips=96, 
     _turned(cv, face, direction * angle, shrink, axis, focal, strips, shade)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='flip',
     name='Flip',
     family='transitions',
@@ -117,6 +117,6 @@ TECHNIQUE = Technique(
                'a 3D flip from this slide to the next'),
     related=('character-3d-flip', 'tile-flip', 'word-flip-in', 'logo-3d-spin-reveal',
              'layout-animation-flip', 'coin-flip'),
-    api=('videobuilder.techniques.transitions.flip.flip',),
+    api=('videobuilder.capabilities.transitions.flip.flip',),
     demo=lambda: demo.two_scenes(flip, start=0.7, length=1.6),
 )

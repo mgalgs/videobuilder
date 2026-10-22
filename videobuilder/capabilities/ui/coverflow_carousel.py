@@ -10,7 +10,7 @@ from PIL import Image as PILImage
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def coverflow_layout(d, gap=0.78, spacing=0.3, depth=0.8, angle=65):
@@ -123,7 +123,7 @@ def draw(n, cv):
     cv.mark('cover', *box)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='coverflow-carousel',
     name='Coverflow carousel',
     family='ui',
@@ -135,8 +135,8 @@ TECHNIQUE = Technique(
                'a 3D carousel where the side cards angle away and the centre one is flat',
                'swipe across a row of tilted thumbnails that turn to face you in the middle'),
     related=('slide-over-cover', 'swirl', 'roll-up', 'image-crossfade-slideshow', 'pan', 'word-carousel-rotate'),
-    api=('videobuilder.techniques.ui.coverflow_carousel.draw_coverflow',
-         'videobuilder.techniques.ui.coverflow_carousel.coverflow_layout',
-         'videobuilder.techniques.ui.coverflow_carousel.draw_cover'),
+    api=('videobuilder.capabilities.ui.coverflow_carousel.draw_coverflow',
+         'videobuilder.capabilities.ui.coverflow_carousel.coverflow_layout',
+         'videobuilder.capabilities.ui.coverflow_carousel.draw_cover'),
     demo=lambda: demo.film(draw),
 )

@@ -4,7 +4,7 @@ nearest section boundary, onward or back."""
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def snap_scroll(t, gestures, count, drag_time=0.3, settle_time=0.55, ease=vb.ease_out_quint):
@@ -82,7 +82,7 @@ def draw(n, cv):
             demo.dot(cv, VX + VW * 0.78, fy, 12, color=demo.INK, alpha=0.8 * held)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='scroll-snap-sections',
     name='Scroll snap sections',
     family='ui',
@@ -95,6 +95,6 @@ TECHNIQUE = Technique(
                'a swipe that locks onto the next screen instead of stopping halfway'),
     related=('roll-up', 'timeline-scroll', 'scroll-driven-text-reveal', 'momentum-fling', 'news-ticker-crawl',
              'parallax-marquee-rows'),
-    api=('videobuilder.techniques.ui.scroll_snap_sections.snap_scroll',),
+    api=('videobuilder.capabilities.ui.scroll_snap_sections.snap_scroll',),
     demo=lambda: demo.film(draw),
 )

@@ -6,7 +6,7 @@ import random
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 GLYPHS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789<>{}[]=+*#%&/?'
 
@@ -78,7 +78,7 @@ def draw(n, cv):
     cv.mark('text', *box)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='falling-glyph-rain-reveal',
     name='Falling glyph rain reveal',
     family='typography',
@@ -91,7 +91,7 @@ TECHNIQUE = Technique(
                'each letter drops in at the bottom of a column of flickering characters'),
     related=('matrix-digital-rain', 'falling-letter-rain', 'character-rise', 'dot-matrix-text', 'rainfall',
              'text-mask-reveal'),
-    api=('videobuilder.techniques.typography.falling_glyph_rain_reveal.draw_glyph_rain',
-         'videobuilder.techniques.typography.falling_glyph_rain_reveal.glyph_rain'),
+    api=('videobuilder.capabilities.typography.falling_glyph_rain_reveal.draw_glyph_rain',
+         'videobuilder.capabilities.typography.falling_glyph_rain_reveal.glyph_rain'),
     demo=lambda: demo.film(draw),
 )

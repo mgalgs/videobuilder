@@ -157,7 +157,7 @@ def _toml(fields):
 
 def _base_fields():
     return {'id': 'zoom-logo-reveal', 'category': capabilities.categories()[0], 'title': 'Zoom logo reveal',
-           'card': 'a card line', 'description': 'a longer description of the technique.',
+           'card': 'a card line', 'description': 'a longer description of the capability.',
            'prompts': ['p1', 'p2', 'p3'], 'apis': ['api1'], 'doc': 'capability.md'}
 
 

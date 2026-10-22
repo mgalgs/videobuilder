@@ -6,7 +6,7 @@ import math
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def preserve_volume(stretch, dims=2):
@@ -44,11 +44,11 @@ def draw(n, cv):
               color=demo.INK, font=demo.mono(28))
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='volume-preservation',
     name='Volume Preservation',
     family='principles',
-    group='Principle sub-techniques',
+    group='Principle sub-capabilities',
     aliases=('constant volume', 'area preservation', 'mass conservation'),
     definition='A shape that gets thinner as it stretches and wider as it squashes, so its overall size '
                'stays the same while its proportions change.',
@@ -56,6 +56,6 @@ TECHNIQUE = Technique(
                'when it stretches tall it should get skinnier',
                'keep the ball the same amount of stuff as it deforms'),
     related=('squash-and-stretch', 'circle-packing', 'extrusion', 'solid-drawing', 'wobble', 'morphing-blob'),
-    api=('videobuilder.techniques.principles.volume_preservation.preserve_volume',),
+    api=('videobuilder.capabilities.principles.volume_preservation.preserve_volume',),
     demo=lambda: demo.film(draw),
 )

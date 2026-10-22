@@ -6,7 +6,7 @@ import math
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 PERIOD_COLORS = (demo.ACCENT, demo.TEAL, '#e8b931', '#8f8cf2')
 
@@ -113,7 +113,7 @@ def draw(n, cv):
     cv.mark('clock', *box)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='game-clock-countdown',
     name='Game clock countdown',
     family='broadcast',
@@ -126,8 +126,8 @@ TECHNIQUE = Technique(
                'a basketball-style clock counting down with the period number'),
     related=('number-count-down', 'stopwatch-count-up', 'timecode-counter', 'timing', 'number-count-up',
              'decimal-counter-with-formatting'),
-    api=('videobuilder.techniques.broadcast.game_clock_countdown.draw_game_clock',
-         'videobuilder.techniques.broadcast.game_clock_countdown.game_clock',
-         'videobuilder.techniques.broadcast.game_clock_countdown.format_clock'),
+    api=('videobuilder.capabilities.broadcast.game_clock_countdown.draw_game_clock',
+         'videobuilder.capabilities.broadcast.game_clock_countdown.game_clock',
+         'videobuilder.capabilities.broadcast.game_clock_countdown.format_clock'),
     demo=lambda: demo.film(draw),
 )

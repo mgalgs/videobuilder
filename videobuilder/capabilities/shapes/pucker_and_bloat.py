@@ -7,7 +7,7 @@ import math
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 GAIN = 2.0  # how much further the sides travel than the corners
 
@@ -89,7 +89,7 @@ def draw(n, cv):
         demo.word(cv, label, cx, demo.H - 34, size=26, color=demo.MUTED, font=demo.mono(26, 700))
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='pucker-and-bloat',
     name='Pucker and bloat',
     family='shapes',
@@ -102,8 +102,8 @@ TECHNIQUE = Technique(
                'make the polygon go starry and then blobby'),
     related=('twist-deformer', 'shape-morph-loader', 'taper-deformer', 'rubber-band-overscroll',
              'squash-on-tap', 'squash-and-stretch'),
-    api=('videobuilder.techniques.shapes.pucker_and_bloat.pucker_bloat',
-         'videobuilder.techniques.shapes.pucker_and_bloat.pucker_bloat_segments',
-         'videobuilder.techniques.shapes.pucker_and_bloat.regular_polygon'),
+    api=('videobuilder.capabilities.shapes.pucker_and_bloat.pucker_bloat',
+         'videobuilder.capabilities.shapes.pucker_and_bloat.pucker_bloat_segments',
+         'videobuilder.capabilities.shapes.pucker_and_bloat.regular_polygon'),
     demo=lambda: demo.film(draw),
 )

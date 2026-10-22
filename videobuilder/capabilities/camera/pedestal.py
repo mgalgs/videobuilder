@@ -3,7 +3,7 @@ looking level, so the horizon stays put in the frame and everything in front
 slides down past it -- the nearest things most -- and the tops of things come
 into view."""
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 from ... import paths
 from ...ease import ease_in_out_quart
 
@@ -91,7 +91,7 @@ def _draw(n, cv):
     cv.line(x + 22, y, x + 60, y, demo.TEAL, width=4)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='pedestal',
     name='Pedestal',
     family='camera',
@@ -104,8 +104,8 @@ TECHNIQUE = Technique(
                'move the camera down to ground level but keep it facing forward'),
     related=('three-d-tilt-on-hover', 'isometric-view', 'perspective-crawl', 'flip',
              'tilt-shift-miniature', 'carousel-slide'),
-    api=('videobuilder.techniques.camera.pedestal.pedestal_project',
-         'videobuilder.techniques.camera.pedestal.pedestal_height',
-         'videobuilder.techniques.camera.pedestal.pedestal_shift'),
+    api=('videobuilder.capabilities.camera.pedestal.pedestal_project',
+         'videobuilder.capabilities.camera.pedestal.pedestal_height',
+         'videobuilder.capabilities.camera.pedestal.pedestal_shift'),
     demo=lambda: demo.film(_draw),
 )

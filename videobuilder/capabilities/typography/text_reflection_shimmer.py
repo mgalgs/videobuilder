@@ -8,7 +8,7 @@ import cairo
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def baseline(font, y):
@@ -98,7 +98,7 @@ def draw(n, cv):
     cv.mark('text', *box)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='text-reflection-shimmer',
     name='Text reflection shimmer',
     family='typography',
@@ -111,7 +111,7 @@ TECHNIQUE = Technique(
                'a glossy reflection under the headline that wobbles and catches the light'),
     related=('chrome-specular-shimmer', 'chrome-reflection', 'ripple-displacement', 'shine-glint-sweep',
              'skeleton-shimmer', 'gooch-shading'),
-    api=('videobuilder.techniques.typography.text_reflection_shimmer.draw_reflection',
-         'videobuilder.techniques.typography.text_reflection_shimmer.baseline'),
+    api=('videobuilder.capabilities.typography.text_reflection_shimmer.draw_reflection',
+         'videobuilder.capabilities.typography.text_reflection_shimmer.baseline'),
     demo=lambda: demo.film(draw),
 )

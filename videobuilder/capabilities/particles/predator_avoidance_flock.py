@@ -7,7 +7,7 @@ import random
 from videobuilder.canvas import rgba
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def simulate(predator, frames, home, count=90, fps=30, seed=0, spawn=140, speed=200, max_speed=600,
@@ -129,7 +129,7 @@ def draw(n, cv):
         cv.mark('predator', pred[0] - PREDATOR_R, pred[1] - PREDATOR_R, 2 * PREDATOR_R, 2 * PREDATOR_R)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='predator-avoidance-flock',
     name='Predator avoidance flock',
     family='particles',
@@ -142,7 +142,7 @@ TECHNIQUE = Technique(
                'birds flocking that dodge a hawk flying past'),
     related=('fireflies', 'random-stagger', 'dashed-line-march', 'doom-style-fire', 'spotlight-follow',
              'force-directed-network-settle'),
-    api=('videobuilder.techniques.particles.predator_avoidance_flock.simulate',
-         'videobuilder.techniques.particles.predator_avoidance_flock.draw_flock'),
+    api=('videobuilder.capabilities.particles.predator_avoidance_flock.simulate',
+         'videobuilder.capabilities.particles.predator_avoidance_flock.draw_flock'),
     demo=lambda: demo.film(draw),
 )

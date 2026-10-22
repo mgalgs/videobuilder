@@ -8,7 +8,7 @@ import cairo
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 _EASE = vb.bezier(0.65, 0, 0.35, 1)
 
@@ -185,7 +185,7 @@ def origami_fold(cv, a, b, p, back=demo.ACCENT):
     c.restore()
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='origami-fold',
     name='Origami fold',
     family='transitions',
@@ -198,6 +198,6 @@ TECHNIQUE = Technique(
                'crease the picture into triangles and fold it off screen'),
     related=('paper-fold-reveal', 'accordion-fold-text', 'twist-deformer', 'corner-wipe',
              'cut-out-paper-animation', 'tessellation-triangle-flip'),
-    api=('videobuilder.techniques.transitions.origami_fold.origami_fold',),
+    api=('videobuilder.capabilities.transitions.origami_fold.origami_fold',),
     demo=lambda: demo.two_scenes(origami_fold, start=0.5, length=2.0),
 )

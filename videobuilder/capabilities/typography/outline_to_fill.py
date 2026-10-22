@@ -3,7 +3,7 @@ up inside the letters from the baseline while the stroke fades away."""
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 from ...canvas import rgba
 from ...type import kit as type_kit
 
@@ -52,7 +52,7 @@ def draw(n, cv):
     cv.mark('text', *box)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='outline-to-fill',
     name='Outline-to-fill',
     family='typography',
@@ -65,6 +65,6 @@ TECHNIQUE = Technique(
                'stroke-only text that turns into solid text'),
     related=('icon-line-to-fill', 'letter-morph', 'ink-outline', 'color-fill-rise', 'shape-fill-sweep',
              'line-draw-logo-reveal'),
-    api=('videobuilder.techniques.typography.outline_to_fill.draw_outline_to_fill',),
+    api=('videobuilder.capabilities.typography.outline_to_fill.draw_outline_to_fill',),
     demo=lambda: demo.film(draw),
 )

@@ -4,7 +4,7 @@ fill, counting up to the final value as it goes."""
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def draw_percentage_bar(cv, x, y, w, h, value, p, font, fill=demo.ACCENT, track=demo.LINE, ink=demo.INK,
@@ -57,7 +57,7 @@ def draw(n, cv):
             cv.mark('bar', *box)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='percentage-fill-bar',
     name='Percentage fill bar',
     family='broadcast',
@@ -70,6 +70,6 @@ TECHNIQUE = Technique(
                'animate the poll shares as bars growing with their percentages'),
     related=('scroll-progress-bar', 'poll-result-bar-fill', 'progress-ring', 'striped-progress-bar',
              'bar-chart-race', 'indeterminate-bar'),
-    api=('videobuilder.techniques.broadcast.percentage_fill_bar.draw_percentage_bar',),
+    api=('videobuilder.capabilities.broadcast.percentage_fill_bar.draw_percentage_bar',),
     demo=lambda: demo.film(draw),
 )

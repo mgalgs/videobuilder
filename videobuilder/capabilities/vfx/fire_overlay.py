@@ -13,7 +13,7 @@ import videobuilder as vb
 
 from .. import _demo as demo
 from ..particles.embers import draw_embers, embers
-from ..schema import Technique
+from ..schema import Capability
 
 # back to front: deep red-orange, orange, yellow, pale core -- (rgb top, rgb base, height share, alpha)
 LAYERS = (((0.75, 0.12, 0.02), (0.95, 0.30, 0.04), 1.00, 0.85),
@@ -137,7 +137,7 @@ def draw(n, cv):
     cv.mark('fire', *box)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='fire-overlay',
     name='Fire overlay',
     family='vfx',
@@ -150,7 +150,7 @@ TECHNIQUE = Technique(
                'add a fire layer over the footage with a warm glow'),
     related=('doom-style-fire', 'camcorder-timecode-overlay', 'film-burn', 'heat-haze', 'lens-dirt-overlay',
              'fireflies'),
-    api=('videobuilder.techniques.vfx.fire_overlay.draw_fire_overlay',
-         'videobuilder.techniques.vfx.fire_overlay.flame_profile'),
+    api=('videobuilder.capabilities.vfx.fire_overlay.draw_fire_overlay',
+         'videobuilder.capabilities.vfx.fire_overlay.flame_profile'),
     demo=lambda: demo.film(draw),
 )

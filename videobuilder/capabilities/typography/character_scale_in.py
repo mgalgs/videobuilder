@@ -5,7 +5,7 @@ import videobuilder as vb
 from videobuilder.type import kit as type_kit
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def char_scales(text, p, overlap=4.0, ease=vb.ease_out_back):
@@ -51,7 +51,7 @@ def draw(n, cv):
     cv.mark('text', *box)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='character-scale-in',
     name='Character scale-in',
     family='typography',
@@ -64,7 +64,7 @@ TECHNIQUE = Technique(
                'the word scales up character by character, left to right'),
     related=('circle-pop', 'scale-zoom-through', 'center-out-stagger', 'text-to-shape-morph',
              'edge-in-stagger', 'letter-morph'),
-    api=('videobuilder.techniques.typography.character_scale_in.draw_scale_in',
-         'videobuilder.techniques.typography.character_scale_in.char_scales'),
+    api=('videobuilder.capabilities.typography.character_scale_in.draw_scale_in',
+         'videobuilder.capabilities.typography.character_scale_in.char_scales'),
     demo=lambda: demo.film(draw),
 )

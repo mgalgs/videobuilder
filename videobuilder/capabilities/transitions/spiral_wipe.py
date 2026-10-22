@@ -6,7 +6,7 @@ import math
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def _arm(cv, turns, cx, cy):
@@ -79,7 +79,7 @@ def spiral_wipe(cv, a, b, p, turns=4, cx=None, cy=None, edge=demo.ACCENT, edge_w
     c.restore()
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='spiral-wipe',
     name='Spiral wipe',
     family='transitions',
@@ -91,7 +91,7 @@ TECHNIQUE = Technique(
                'wipe to the new scene with a curling, snail-shell shape',
                'spin the second scene in from the centre like a coil'),
     related=('paint-brush-wipe', 'roll-up', 'swirl', 'wipe-reveal', 'uncover', 'circular-clip-reveal'),
-    api=('videobuilder.techniques.transitions.spiral_wipe.spiral_wipe',
-         'videobuilder.techniques.transitions.spiral_wipe.spiral_region'),
+    api=('videobuilder.capabilities.transitions.spiral_wipe.spiral_wipe',
+         'videobuilder.capabilities.transitions.spiral_wipe.spiral_region'),
     demo=lambda: demo.two_scenes(spiral_wipe, start=0.6, length=1.8),
 )

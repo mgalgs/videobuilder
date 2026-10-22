@@ -8,7 +8,7 @@ import random
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 from ..transitions.liquid_morph import metaballs
 
 
@@ -103,7 +103,7 @@ def draw(n, cv):
                    period=4.0, seed=3)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='lava-lamp',
     name='Lava lamp',
     family='particles',
@@ -115,9 +115,9 @@ TECHNIQUE = Technique(
                'slow wax blobs drifting up and down and melting into each other',
                'a groovy retro lamp with goo rising and falling'),
     related=('morphing-blob', 'blob-to-icon-morph', 'liquid-morph', 'bloom', 'heat-haze', 'shape-morph-loader'),
-    api=('videobuilder.techniques.particles.lava_lamp.draw_lava_lamp',
-         'videobuilder.techniques.particles.lava_lamp.lava_blobs',
-         'videobuilder.techniques.particles.lava_lamp.lamp_glass',
-         'videobuilder.techniques.transitions.liquid_morph.metaballs'),
+    api=('videobuilder.capabilities.particles.lava_lamp.draw_lava_lamp',
+         'videobuilder.capabilities.particles.lava_lamp.lava_blobs',
+         'videobuilder.capabilities.particles.lava_lamp.lamp_glass',
+         'videobuilder.capabilities.transitions.liquid_morph.metaballs'),
     demo=lambda: demo.film(draw),
 )

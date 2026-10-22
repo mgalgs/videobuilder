@@ -8,7 +8,7 @@ from PIL import Image, ImageOps
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def de_jong(a, b, c, d, x=0.1, y=0.1):
@@ -78,7 +78,7 @@ def draw(n, cv):
     cv.mark('attractor', x0, y0, SIZE, SIZE)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='de-jong-attractor',
     name='De Jong attractor',
     family='particles',
@@ -91,7 +91,7 @@ TECHNIQUE = Technique(
                'chaotic math art that slowly paints a lacy pattern'),
     related=('sierpinski-gasket', 'swirl', 'globe-spin', 'gravity-well-attraction', 'particle-morph',
              'circle-pop'),
-    api=('videobuilder.techniques.particles.de_jong_attractor.DeJongField',
-         'videobuilder.techniques.particles.de_jong_attractor.de_jong'),
+    api=('videobuilder.capabilities.particles.de_jong_attractor.DeJongField',
+         'videobuilder.capabilities.particles.de_jong_attractor.de_jong'),
     demo=lambda: demo.film(draw),
 )

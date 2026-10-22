@@ -13,7 +13,7 @@ _SUBMODULES = ('_demo', 'gallery', 'registry', 'schema',
 for _name in _SUBMODULES:
     sys.modules[f'{__name__}.{_name}'] = importlib.import_module(f'videobuilder.capabilities.{_name}')
 
-from .schema import FAMILIES, Technique
+from .schema import FAMILIES, Capability as Technique
 from .registry import catalog, get, grouped, ids, index_data, index_json, index_markdown, load, modules
 
 __all__ = ['FAMILIES', 'Technique', 'catalog', 'get', 'grouped', 'ids', 'index_data', 'index_json',

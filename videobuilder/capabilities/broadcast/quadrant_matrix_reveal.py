@@ -3,7 +3,7 @@ into a 2x2 grid, then one card pops into each quadrant in turn."""
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 QUADRANTS = ('top-left', 'top-right', 'bottom-left', 'bottom-right')
 
@@ -119,7 +119,7 @@ def draw(n, cv):
                          x_label='EFFORT', y_label='IMPACT', ends=(('Low', 'High'), ('Low', 'High')))
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='quadrant-matrix-reveal',
     name='Quadrant matrix reveal',
     family='broadcast',
@@ -132,7 +132,7 @@ TECHNIQUE = Technique(
                'draw the axes, then reveal what goes in each of the four corners'),
     related=('hexagon-tile-reveal', 'tile-flip', 'swiss-grid-slide', 'dot-matrix-text', 'heatmap-fill',
              'falling-glyph-rain-reveal'),
-    api=('videobuilder.techniques.broadcast.quadrant_matrix_reveal.draw_quadrant_matrix',
-         'videobuilder.techniques.broadcast.quadrant_matrix_reveal.quadrant_card'),
+    api=('videobuilder.capabilities.broadcast.quadrant_matrix_reveal.draw_quadrant_matrix',
+         'videobuilder.capabilities.broadcast.quadrant_matrix_reveal.quadrant_card'),
     demo=lambda: demo.film(draw),
 )

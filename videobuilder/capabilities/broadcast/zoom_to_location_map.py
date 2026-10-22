@@ -8,7 +8,7 @@ import math
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def fly_to(p, start, end, rho=1.42):
@@ -163,7 +163,7 @@ def _draw(n, cv):
         demo.word(cv, 'Port Aster', x, y + 52 - 10 * (1 - title), size=30, alpha=title)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='zoom-to-location-map',
     name='Zoom-to-location map',
     family='broadcast',
@@ -176,7 +176,7 @@ TECHNIQUE = Technique(
                'start wide on the country, then dive into the spot where it happened'),
     related=('scale-zoom-through', 'canvas-pan-and-zoom', 'ui-walkthrough-camera-zoom', 'fly-through',
              'zoom-through', 'drone-flyover'),
-    api=('videobuilder.techniques.broadcast.zoom_to_location_map.zoom_to_location',
-         'videobuilder.techniques.broadcast.zoom_to_location_map.fly_to'),
+    api=('videobuilder.capabilities.broadcast.zoom_to_location_map.zoom_to_location',
+         'videobuilder.capabilities.broadcast.zoom_to_location_map.fly_to'),
     demo=lambda: demo.film(_draw),
 )

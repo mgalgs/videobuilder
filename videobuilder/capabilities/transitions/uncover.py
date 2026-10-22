@@ -4,7 +4,7 @@ reverse of a cover, where the new scene slides in over the old one."""
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 _DIRECTIONS = {'left': (-1, 0), 'right': (1, 0), 'up': (0, -1), 'down': (0, 1)}
 
@@ -28,7 +28,7 @@ def uncover(cv, a, b, p, direction='left', ease=vb.ease_in_out_quart, shadow=0.5
         a(cv)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='uncover',
     name='Uncover',
     family='transitions',
@@ -41,6 +41,6 @@ TECHNIQUE = Technique(
                'the opposite of a cover: the top slide moves out of the way'),
     related=('roll-up', 'corner-wipe', 'zoom-out-reveal', 'fade-up-scroll-reveal', 'zoom-through',
              'device-mockup-slide-in'),
-    api=('videobuilder.techniques.transitions.uncover.uncover',),
+    api=('videobuilder.capabilities.transitions.uncover.uncover',),
     demo=lambda: demo.two_scenes(uncover),
 )

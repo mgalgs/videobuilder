@@ -5,7 +5,7 @@ here are placed once, so a shot can move past a few set pieces."""
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def truck(cv, planes, camera_x, origin=0.0):
@@ -60,7 +60,7 @@ def draw(n, cv):
     truck(cv, PLANES, 150 - 300 * p)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='truck',
     name='Truck',
     family='camera',
@@ -73,6 +73,6 @@ TECHNIQUE = Technique(
                'a sideways tracking shot with some depth'),
     related=('dolly-zoom', 'zoom-through', 'multiplane-camera', 'vhs-tracking-bar', 'zoom-to-location-map',
              'offset'),
-    api=('videobuilder.techniques.camera.truck.truck', 'videobuilder.parallax.draw'),
+    api=('videobuilder.capabilities.camera.truck.truck', 'videobuilder.parallax.draw'),
     demo=lambda: demo.film(draw),
 )

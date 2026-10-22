@@ -15,7 +15,7 @@ import videobuilder as vb
 from videobuilder.canvas import rgba
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def shed_vortices(t, radius=1.0, speed=1.0, period=2.0, drift=0.85, strength=3.0, spread=(0.3, 1.1),
@@ -163,7 +163,7 @@ def draw(n, cv):
     cv.mark('obstacle', CX - UNIT, CY - UNIT, 2 * UNIT, 2 * UNIT)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='k-rm-n-vortex-street',
     name='Kármán vortex street',
     family='particles',
@@ -176,8 +176,8 @@ TECHNIQUE = Technique(
                'a wind-tunnel wake where vortices peel off one side then the other'),
     related=('swirl', 'curl-noise-flow', 'lightning-bolt', 'fountain', 'meteor-shower',
              'turbulence-displacement'),
-    api=('videobuilder.techniques.particles.k_rm_n_vortex_street.draw_vortex_street',
-         'videobuilder.techniques.particles.k_rm_n_vortex_street.vortex_street',
-         'videobuilder.techniques.particles.k_rm_n_vortex_street.wake_velocity'),
+    api=('videobuilder.capabilities.particles.k_rm_n_vortex_street.draw_vortex_street',
+         'videobuilder.capabilities.particles.k_rm_n_vortex_street.vortex_street',
+         'videobuilder.capabilities.particles.k_rm_n_vortex_street.wake_velocity'),
     demo=lambda: demo.film(draw),
 )

@@ -8,7 +8,7 @@ from PIL import Image as PILImage
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def caustic_field(w, h, t, cell=320.0, speed=1.0, sharpness=8.0, octaves=5, seed=0.0):
@@ -81,7 +81,7 @@ def draw(n, cv):
     cv.mark('caustics', 0, 0, demo.W, demo.H)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='water-caustics',
     name='Water caustics',
     family='particles',
@@ -94,8 +94,8 @@ TECHNIQUE = Technique(
                'add those wobbly underwater light patterns over the background',
                'shimmering sunlight through water dancing across the scene'),
     related=('caustics', 'ripple', 'ripple-rings', 'lens-flare', 'spotlight-follow', 'text-reflection-shimmer'),
-    api=('videobuilder.techniques.particles.water_caustics.draw_caustics',
-         'videobuilder.techniques.particles.water_caustics.caustic_image',
-         'videobuilder.techniques.particles.water_caustics.caustic_field'),
+    api=('videobuilder.capabilities.particles.water_caustics.draw_caustics',
+         'videobuilder.capabilities.particles.water_caustics.caustic_image',
+         'videobuilder.capabilities.particles.water_caustics.caustic_field'),
     demo=lambda: demo.film(draw),
 )

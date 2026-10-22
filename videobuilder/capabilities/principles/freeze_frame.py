@@ -1,7 +1,7 @@
 """Freeze Frame: the scene's clock stops on one moment, the picture holds
 there for a beat, then the action picks up again from where it stopped."""
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def freeze_frame(t, at, hold):
@@ -59,7 +59,7 @@ def draw(n, cv):
     cv.rect(x, y, span * min(freeze_frame(t, AT, HOLD) / FLIGHT, 1.0), h, demo.MUTED, radius=h / 2)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='freeze-frame',
     name='Freeze Frame',
     family='principles',
@@ -71,6 +71,6 @@ TECHNIQUE = Technique(
                'stop time right at the peak, then let it play on',
                'hold on that frame for a second before it continues'),
     related=('hold', 'moving-hold', 'timing', 'delay', 'scatter-time-playback', 'timecode-counter'),
-    api=('videobuilder.techniques.principles.freeze_frame.freeze_frame',),
+    api=('videobuilder.capabilities.principles.freeze_frame.freeze_frame',),
     demo=lambda: demo.film(draw),
 )

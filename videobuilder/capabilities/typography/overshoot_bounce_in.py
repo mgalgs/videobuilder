@@ -4,7 +4,7 @@ back, and to rest."""
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 SPRING = vb.damped(0.3, hz=2.0)   # about a third past the line on the first swing, settled in about a second
 
@@ -44,7 +44,7 @@ def draw(n, cv):
     cv.mark('text', *box)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='overshoot-bounce-in',
     name='Overshoot bounce-in',
     family='typography',
@@ -57,8 +57,8 @@ TECHNIQUE = Technique(
                'letters jump up, overshoot and settle like they are on springs'),
     related=('underdamped-spring', 'bounce-ease-in', 'bounce-ease-out', 'ease-out-back', 'overdamped-spring',
              'ball-bounce'),
-    api=('videobuilder.techniques.typography.overshoot_bounce_in.draw_bounce_in',
-         'videobuilder.techniques.typography.overshoot_bounce_in.bounce_in',
+    api=('videobuilder.capabilities.typography.overshoot_bounce_in.draw_bounce_in',
+         'videobuilder.capabilities.typography.overshoot_bounce_in.bounce_in',
          'videobuilder.spring', 'videobuilder.damped'),
     demo=lambda: demo.film(draw),
 )

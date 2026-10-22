@@ -9,7 +9,7 @@ import videobuilder as vb
 
 from ...looks import fx
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def posterize_levels(im, levels):
@@ -76,7 +76,7 @@ def draw(n, cv):
     demo.word(cv, label, demo.W - 210, demo.H - 90, size=44, weight=700)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='posterization',
     name='Posterization',
     family='vfx',
@@ -89,7 +89,7 @@ TECHNIQUE = Technique(
                'cut the photo down to a few tones, poster style'),
     related=('pixelation', 'solarization', 'desaturation', 'blur-up-image-load', 'pixelate-transition',
              'kinetic-poster-layout'),
-    api=('videobuilder.techniques.vfx.posterization.posterized',
-         'videobuilder.techniques.vfx.posterization.posterize_levels'),
+    api=('videobuilder.capabilities.vfx.posterization.posterized',
+         'videobuilder.capabilities.vfx.posterization.posterize_levels'),
     demo=lambda: demo.film(draw),
 )

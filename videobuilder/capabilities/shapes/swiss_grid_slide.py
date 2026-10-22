@@ -4,7 +4,7 @@ a letter drops onto the rule above each, everything snapping to the grid."""
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def column_progress(p, i, n, start=0.3, stagger=0.45):
@@ -74,7 +74,7 @@ def draw(n, cv):
     cv.mark('first column', *cols[0])
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='swiss-grid-slide',
     name='Swiss grid slide',
     family='shapes',
@@ -87,7 +87,7 @@ TECHNIQUE = Technique(
                'a modernist layout where the columns snap into a ruled grid one after another'),
     related=('tile-grid-title-reveal', 'bento-grid-reveal', 'tile-flip', 'staggered-cascade-reveal',
              'small-multiples-cascade', 'uncover'),
-    api=('videobuilder.techniques.shapes.swiss_grid_slide.swiss_grid_slide',
-         'videobuilder.techniques.shapes.swiss_grid_slide.column_progress'),
+    api=('videobuilder.capabilities.shapes.swiss_grid_slide.swiss_grid_slide',
+         'videobuilder.capabilities.shapes.swiss_grid_slide.column_progress'),
     demo=lambda: demo.film(draw),
 )

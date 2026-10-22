@@ -7,7 +7,7 @@ import math
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 MOTIF = ('G5', 'C6', 'E6', 'G6')    # a rising arpeggio that lands on the octave: easy to hum back
 RHYTHM = (1, 1, 2)                  # gaps between the notes, in steps: two quick, then a breath before the last
@@ -94,7 +94,7 @@ def build():
     return demo.film(draw, sounds=sonic_logo(AT, step=STEP))
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='sonic-logo',
     name='Sonic logo',
     family='sound',
@@ -107,8 +107,8 @@ TECHNIQUE = Technique(
                'make the logo end card sound like us, like a musical tag'),
     related=('logo-sting', 'sound-reactive-radial-shape', 'whoosh', 'logo-build-on-reveal',
              'logo-mask-wipe-reveal', 'sound-bridge'),
-    api=('videobuilder.techniques.sound.sonic_logo.sonic_logo',
-         'videobuilder.techniques.sound.sonic_logo.note_frames',
+    api=('videobuilder.capabilities.sound.sonic_logo.sonic_logo',
+         'videobuilder.capabilities.sound.sonic_logo.note_frames',
          'videobuilder.sfx.sound'),
     demo=build,
 )

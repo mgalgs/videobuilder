@@ -11,7 +11,7 @@ from PIL import Image
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 class Noise:
@@ -130,7 +130,7 @@ def draw(n, cv):
     cv.mark('text', x, y, w, h)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='noise-field-warp',
     name='Noise field warp',
     family='typography',
@@ -143,8 +143,8 @@ TECHNIQUE = Technique(
                'the word melts and ripples, then snaps back to normal'),
     related=('domain-warping', 'noise-vertex-wobble', 'noise-dissolve', 'dot-grid-displacement',
              'turbulence-displacement', 'arc-bend-morph'),
-    api=('videobuilder.techniques.typography.noise_field_warp.noise_warp',
-         'videobuilder.techniques.typography.noise_field_warp.field',
-         'videobuilder.techniques.typography.noise_field_warp.Noise'),
+    api=('videobuilder.capabilities.typography.noise_field_warp.noise_warp',
+         'videobuilder.capabilities.typography.noise_field_warp.field',
+         'videobuilder.capabilities.typography.noise_field_warp.Noise'),
     demo=lambda: demo.film(draw),
 )

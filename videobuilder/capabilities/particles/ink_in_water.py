@@ -8,7 +8,7 @@ import cairo
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def ink_plume(t, seed=0, count=900, depth=300, spread=1.0):
@@ -103,7 +103,7 @@ def draw(n, cv):
         cv.mark('ink', *box)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='ink-in-water',
     name='Ink in water',
     family='particles',
@@ -116,7 +116,7 @@ TECHNIQUE = Technique(
                'that slow-motion ink cloud blooming underwater'),
     related=('ink-bleed', 'ink-splash-spread', 'watercolor-bleed', 'ink-spread-reveal', 'touch-ripple',
              'ink-outline'),
-    api=('videobuilder.techniques.particles.ink_in_water.draw_ink_in_water',
-         'videobuilder.techniques.particles.ink_in_water.ink_plume'),
+    api=('videobuilder.capabilities.particles.ink_in_water.draw_ink_in_water',
+         'videobuilder.capabilities.particles.ink_in_water.ink_plume'),
     demo=lambda: demo.film(draw),
 )

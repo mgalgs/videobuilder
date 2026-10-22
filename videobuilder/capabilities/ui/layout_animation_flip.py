@@ -5,7 +5,7 @@ the item Plays back to its new place."""
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def flip(first, last, p, ease=vb.ease_out_expo, stagger=0.0):
@@ -64,12 +64,12 @@ def draw(n, cv):
         tile(cv, box, i, alpha)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='layout-animation-flip',
     name='Layout animation (FLIP)',
     family='ui',
     group='Layout & lists',
-    aliases=('FLIP animation', 'FLIP technique', 'shared layout animation', 'auto-animate layout',
+    aliases=('FLIP animation', 'FLIP', 'shared layout animation', 'auto-animate layout',
              'magic move'),
     definition='When a layout changes, every element slides and resizes smoothly from its old spot to its '
                'new one instead of snapping there.',
@@ -78,6 +78,6 @@ TECHNIQUE = Technique(
                'items glide to their new positions when the list reorders'),
     related=('frame-by-frame-hand-drawn-animation', 'flipbook-sprite-animation', 'flip', 'tile-flip',
              'word-flip-in', 'reverse-playback'),
-    api=('videobuilder.techniques.ui.layout_animation_flip.flip',),
+    api=('videobuilder.capabilities.ui.layout_animation_flip.flip',),
     demo=lambda: demo.film(draw),
 )

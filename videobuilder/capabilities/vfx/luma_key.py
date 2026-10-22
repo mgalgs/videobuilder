@@ -7,7 +7,7 @@ from PIL import Image
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def _a8(m):
@@ -109,7 +109,7 @@ def _shot(cv, img):
         cv.image(img, *BOX.cover(img.w, img.h))
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='luma-key',
     name='Luma key',
     family='vfx',
@@ -121,7 +121,7 @@ TECHNIQUE = Technique(
                'make the black background of this clip transparent',
                'cut the layer out by brightness instead of by colour'),
     related=('luma-wipe', 'keystroke-overlay', 'glow-button', 'rim-light', 'spotlight-dim', 'dot-matrix-text'),
-    api=('videobuilder.techniques.vfx.luma_key.luma_key',
-         'videobuilder.techniques.vfx.luma_key.key_matte'),
+    api=('videobuilder.capabilities.vfx.luma_key.luma_key',
+         'videobuilder.capabilities.vfx.luma_key.key_matte'),
     demo=lambda: demo.film(draw),
 )

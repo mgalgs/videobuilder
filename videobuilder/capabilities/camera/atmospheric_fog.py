@@ -9,7 +9,7 @@ import videobuilder as vb
 from videobuilder.canvas import rgba
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def fog_amount(depth, density, start=0.0):
@@ -100,7 +100,7 @@ def draw(n, cv):
             _pillar(cv, x, z, density)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='atmospheric-fog',
     name='Atmospheric fog',
     family='camera',
@@ -113,8 +113,8 @@ TECHNIQUE = Technique(
                'roll in fog so the end of the corridor disappears'),
     related=('heat-haze', 'smoke-dissolve', 'rain-on-glass', 'god-rays', 'aurora-gradient-background',
              'drop-shadow-breathing'),
-    api=('videobuilder.techniques.camera.atmospheric_fog.fog_amount',
-         'videobuilder.techniques.camera.atmospheric_fog.fogged',
-         'videobuilder.techniques.camera.atmospheric_fog.fog_gradient'),
+    api=('videobuilder.capabilities.camera.atmospheric_fog.fog_amount',
+         'videobuilder.capabilities.camera.atmospheric_fog.fogged',
+         'videobuilder.capabilities.camera.atmospheric_fog.fog_gradient'),
     demo=lambda: demo.film(draw),
 )

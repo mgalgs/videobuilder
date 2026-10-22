@@ -6,7 +6,7 @@ import math
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def elastic_ease_in(x, period=0.3):
@@ -30,7 +30,7 @@ def draw(n, cv):
     demo.card(cv, x0 + (x1 - x0) * p, y, w=w, h=h)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='elastic-ease-in',
     name='Elastic Ease In',
     family='principles',
@@ -43,6 +43,6 @@ TECHNIQUE = Technique(
                'a springy wind-up before the move'),
     related=('elastic-stretch', 'rubber-band-snap', 'rubber-band-overscroll', 'slow-in-and-slow-out',
              'asymmetric-fast-in-slow-out', 'wobble'),
-    api=('videobuilder.techniques.principles.elastic_ease_in.elastic_ease_in',),
+    api=('videobuilder.capabilities.principles.elastic_ease_in.elastic_ease_in',),
     demo=lambda: demo.film(draw),
 )

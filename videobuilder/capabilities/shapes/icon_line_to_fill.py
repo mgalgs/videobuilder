@@ -7,7 +7,7 @@ import videobuilder as vb
 from videobuilder import paths
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def _centroid(points):
@@ -86,7 +86,7 @@ def draw(n, cv):
         cv.mark(f'icon{i}', min(xs), min(ys), max(xs) - min(xs), max(ys) - min(ys))
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='icon-line-to-fill',
     name='Icon line-to-fill',
     family='shapes',
@@ -99,7 +99,7 @@ TECHNIQUE = Technique(
                'trace the heart and then fill it with colour'),
     related=('outline-to-fill', 'line-draw-logo-reveal', 'stroke-draw-logo-loader', 'bookmark-fill',
              'stroke-draw-on', 'shape-fill-sweep'),
-    api=('videobuilder.techniques.shapes.icon_line_to_fill.draw_line_to_fill',
+    api=('videobuilder.capabilities.shapes.icon_line_to_fill.draw_line_to_fill',
          'videobuilder.paths.reveal'),
     demo=lambda: demo.film(draw),
 )

@@ -4,7 +4,7 @@ less and drift outward -- a move through depth, not a flat scale."""
 import math
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def push_in_scale(z, p, travel=0.4):
@@ -93,7 +93,7 @@ def _draw(n, cv):
     push_in(cv, planes, p, _TRAVEL)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='push-in',
     name='Push-in',
     family='camera',
@@ -105,8 +105,8 @@ TECHNIQUE = Technique(
                'creep closer to it over the shot so it gets bigger',
                'a gentle dolly forward that tightens the framing'),
     related=('zoom-through', 'push', 'roll-up', 'dolly-zoom', 'ui-walkthrough-camera-zoom', 'zoom-out-reveal'),
-    api=('videobuilder.techniques.camera.push_in.push_in',
-         'videobuilder.techniques.camera.push_in.push_in_scale',
-         'videobuilder.techniques.camera.push_in.push_in_point'),
+    api=('videobuilder.capabilities.camera.push_in.push_in',
+         'videobuilder.capabilities.camera.push_in.push_in_scale',
+         'videobuilder.capabilities.camera.push_in.push_in_point'),
     demo=lambda: demo.film(_draw),
 )

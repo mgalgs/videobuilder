@@ -7,7 +7,7 @@ import videobuilder as vb
 from PIL import Image, ImageChops, ImageEnhance
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 from ...looks import fx
 
 
@@ -59,7 +59,7 @@ def _draw(n, cv):
         cv.line(edge, 0, edge, demo.H, demo.INK, width=4, alpha=0.9)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='bleach-bypass',
     name='Bleach bypass',
     family='vfx',
@@ -72,7 +72,7 @@ TECHNIQUE = Technique(
                'give the footage that harsh, silvery desaturated grade'),
     related=('theme-swap-crossfade', 'difference-blend', 'gradient-sweep-across-text', 'chroma-bleed',
              'oil-paint-filter', 'unsharp-mask'),
-    api=('videobuilder.techniques.vfx.bleach_bypass.bleach_bypassed',
-         'videobuilder.techniques.vfx.bleach_bypass.bleach_bypass_image'),
+    api=('videobuilder.capabilities.vfx.bleach_bypass.bleach_bypassed',
+         'videobuilder.capabilities.vfx.bleach_bypass.bleach_bypass_image'),
     demo=lambda: demo.film(_draw),
 )

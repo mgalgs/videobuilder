@@ -8,7 +8,7 @@ import videobuilder as vb
 
 from .. import _demo as demo
 from ...compendium import kit
-from ..schema import Technique
+from ..schema import Capability
 from ..shapes.hexagon_tile_reveal import hexagon
 
 
@@ -107,7 +107,7 @@ def draw(n, cv):
     cv.mark('hexbin', X0, Y0, X1 - X0, Y1 - Y0)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='hexbin-density-build',
     name='Hexbin density build',
     family='broadcast',
@@ -120,9 +120,9 @@ TECHNIQUE = Technique(
                'points dropping in and the hex cells getting brighter where they cluster'),
     related=('hexagon-tile-reveal', 'dot-density-map', 'data-bending', 'mandelbulb-raymarch',
              'choropleth-fill', 'circle-packing'),
-    api=('videobuilder.techniques.broadcast.hexbin_density_build.hexbin_build',
-         'videobuilder.techniques.broadcast.hexbin_density_build.hex_bin',
-         'videobuilder.techniques.broadcast.hexbin_density_build.sample_points',
-         'videobuilder.techniques.shapes.hexagon_tile_reveal.hexagon'),
+    api=('videobuilder.capabilities.broadcast.hexbin_density_build.hexbin_build',
+         'videobuilder.capabilities.broadcast.hexbin_density_build.hex_bin',
+         'videobuilder.capabilities.broadcast.hexbin_density_build.sample_points',
+         'videobuilder.capabilities.shapes.hexagon_tile_reveal.hexagon'),
     demo=lambda: demo.film(draw),
 )

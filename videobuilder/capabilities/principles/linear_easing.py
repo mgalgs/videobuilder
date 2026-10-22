@@ -4,7 +4,7 @@ mark every equal slice of time, so the marks come out evenly spaced."""
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 STEPS = 12  # equal slices of time; with no easing they make equal slices of distance
 
@@ -34,7 +34,7 @@ def draw(n, cv):
     demo.word(cv, 'time', gx + gw / 2, gy + gh + 22, size=18, color=demo.MUTED, weight=600)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='linear-easing',
     name='Linear Easing',
     family='principles',

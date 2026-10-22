@@ -12,7 +12,7 @@ import videobuilder as vb
 
 from .. import _demo as demo
 from ...looks.fx import image_surface, surface_image
-from ..schema import Technique
+from ..schema import Capability
 
 
 @lru_cache(maxsize=8)
@@ -170,7 +170,7 @@ def draw(n, cv):
     cv.mark('painting', *SHEET)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='watercolor-bleed',
     name='Watercolor bleed',
     family='vfx',
@@ -182,7 +182,7 @@ TECHNIQUE = Technique(
                'let the colours bleed into each other like watercolour on damp paper',
                'soften the shapes into a runny watercolour wash'),
     related=('ink-bleed', 'chroma-bleed', 'ink-in-water', 'ink-spread-reveal', 'drip-wipe', 'ink-splash-spread'),
-    api=('videobuilder.techniques.vfx.watercolor_bleed.watercolor_bleed',
-         'videobuilder.techniques.vfx.watercolor_bleed.bleed_image'),
+    api=('videobuilder.capabilities.vfx.watercolor_bleed.watercolor_bleed',
+         'videobuilder.capabilities.vfx.watercolor_bleed.bleed_image'),
     demo=lambda: demo.film(draw),
 )

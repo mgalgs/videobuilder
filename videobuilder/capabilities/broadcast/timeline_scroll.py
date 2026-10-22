@@ -6,7 +6,7 @@ import math
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def timeline_stops(p, count, dwell=0.35, ease=vb.ease_in_out_quart):
@@ -100,7 +100,7 @@ def draw(n, cv):
     cv.mark('marker', MARKER_X - 6, top - 6, 12, bottom - top + 12)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='timeline-scroll',
     name='Timeline scroll',
     family='broadcast',
@@ -113,8 +113,8 @@ TECHNIQUE = Technique(
                'pan along a timeline from the first event to the latest'),
     related=('horizontal-scroll-section', 'scroll-scrubbed-frame-sequence', 'scrollytelling-step-sequence',
              'scroll-snap-sections', 'roll-up', 'hyperlapse'),
-    api=('videobuilder.techniques.broadcast.timeline_scroll.draw_timeline',
-         'videobuilder.techniques.broadcast.timeline_scroll.timeline_stops',
-         'videobuilder.techniques.broadcast.timeline_scroll.focus'),
+    api=('videobuilder.capabilities.broadcast.timeline_scroll.draw_timeline',
+         'videobuilder.capabilities.broadcast.timeline_scroll.timeline_stops',
+         'videobuilder.capabilities.broadcast.timeline_scroll.focus'),
     demo=lambda: demo.film(draw),
 )

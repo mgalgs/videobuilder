@@ -6,7 +6,7 @@ import math
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def track_travel(count, panel_w, gap, view_w, pad=0):
@@ -121,7 +121,7 @@ def draw(n, cv):
     cv.mark('page', VX, VY, VW, VH)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='horizontal-scroll-section',
     name='Horizontal scroll section',
     family='ui',
@@ -133,8 +133,8 @@ TECHNIQUE = Technique(
                'the page sticks on a row of panels and slides through them sideways as you scroll',
                'a sideways gallery driven by the normal vertical scroll'),
     related=('timeline-scroll', 'roll-up', 'rolling-end-credits', 'pan', 'scroll-driven-text-reveal', 'tilt'),
-    api=('videobuilder.techniques.ui.horizontal_scroll_section.horizontal_scroll',
-         'videobuilder.techniques.ui.horizontal_scroll_section.track_travel',
-         'videobuilder.techniques.ui.horizontal_scroll_section.draw_track'),
+    api=('videobuilder.capabilities.ui.horizontal_scroll_section.horizontal_scroll',
+         'videobuilder.capabilities.ui.horizontal_scroll_section.track_travel',
+         'videobuilder.capabilities.ui.horizontal_scroll_section.draw_track'),
     demo=lambda: demo.film(draw),
 )

@@ -5,7 +5,7 @@ import videobuilder as vb
 
 from .. import _demo as demo
 from ...compendium import kit
-from ..schema import Technique
+from ..schema import Capability
 
 
 def pill_widths(count, page, dot=16, pill=56):
@@ -54,7 +54,7 @@ def draw(n, cv):
     draw_pagination(cv, demo.W / 2, demo.H - 110, PAGES, page, dot=18, pill=66, gap=16)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='pagination-pill-indicator',
     name='Pagination pill indicator',
     family='ui',
@@ -67,7 +67,7 @@ TECHNIQUE = Technique(
                'an onboarding swiper indicator where the highlight slides to the next dot'),
     related=('segmented-control-slide', 'cursor-follower-dot-and-ring', 'scrollspy-nav-indicator',
              'cursor-state-change', 'dot-density-map', 'bouncing-dots'),
-    api=('videobuilder.techniques.ui.pagination_pill_indicator.draw_pagination',
-         'videobuilder.techniques.ui.pagination_pill_indicator.pill_widths'),
+    api=('videobuilder.capabilities.ui.pagination_pill_indicator.draw_pagination',
+         'videobuilder.capabilities.ui.pagination_pill_indicator.pill_widths'),
     demo=lambda: demo.film(draw),
 )

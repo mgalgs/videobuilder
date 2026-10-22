@@ -23,7 +23,7 @@ import random
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def impact_hit(at, id='pro_impact/short', sub=None, fps=30, gain_db=-8.0, sub_gain_db=-12.0,
@@ -149,7 +149,7 @@ def film():
     return demo.film(draw, sounds=impact_hit(HIT, fps=demo.FPS))
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='impact-hit',
     name='Impact hit',
     family='sound',
@@ -161,8 +161,8 @@ TECHNIQUE = Technique(
                'make the logo slam in with a punchy hit sound',
                'put a thud right on the frame where it lands'),
     related=('impact', 'hitstop', 'impact-shake', 'punch-in', 'smash-cut', 'fracture-shatter'),
-    api=('videobuilder.techniques.sound.impact_hit.impact_hit',
-         'videobuilder.techniques.sound.impact_hit.waveform',
+    api=('videobuilder.capabilities.sound.impact_hit.impact_hit',
+         'videobuilder.capabilities.sound.impact_hit.waveform',
          'videobuilder.impact.shake'),
     demo=film,
 )

@@ -7,7 +7,7 @@ import videobuilder as vb
 from videobuilder import paths
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def _mix(a, b, t):
@@ -69,7 +69,7 @@ def draw(n, cv):
     cv.mark('loader', *box)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='loading-to-success-morph',
     name='Loading to success morph',
     family='ui',
@@ -82,6 +82,6 @@ TECHNIQUE = Technique(
                'a loading circle that completes and becomes a done checkmark'),
     related=('loading-state-morph', 'shape-morph-loader', 'spinner-ring', 'progress-ring',
              'indeterminate-dash-morph', 'bouncing-dots'),
-    api=('videobuilder.techniques.ui.loading_to_success_morph.loading_to_success',),
+    api=('videobuilder.capabilities.ui.loading_to_success_morph.loading_to_success',),
     demo=lambda: demo.film(draw),
 )

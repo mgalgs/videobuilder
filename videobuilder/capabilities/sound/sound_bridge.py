@@ -18,7 +18,7 @@ import math
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def bridge_frames(cut, count, step, before):
@@ -98,7 +98,7 @@ def film():
                                                 gain_db=-10))
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='sound-bridge',
     name='Sound bridge',
     family='sound',
@@ -110,7 +110,7 @@ TECHNIQUE = Technique(
                'let the sound from the first shot carry over into the second',
                'tie the two scenes together with audio that runs through the edit'),
     related=('silence-drop', 'whoosh', 'foley', 'audio-reactive-particles', 'music-bed', 'reverse-playback'),
-    api=('videobuilder.techniques.sound.sound_bridge.sound_bridge',
-         'videobuilder.techniques.sound.sound_bridge.bridge_frames'),
+    api=('videobuilder.capabilities.sound.sound_bridge.sound_bridge',
+         'videobuilder.capabilities.sound.sound_bridge.bridge_frames'),
     demo=film,
 )

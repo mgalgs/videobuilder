@@ -9,7 +9,7 @@ from PIL import Image
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 from ...looks.fx import image_surface, surface_image
 
 
@@ -126,7 +126,7 @@ def draw(n, cv):
     refraction_ripple(cv, _scene, p, center=(demo.W * 0.5, demo.H * 0.5))
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='refraction-ripple',
     name='Refraction ripple',
     family='vfx',
@@ -139,6 +139,6 @@ TECHNIQUE = Technique(
                'a glassy distortion ring expanding across the frame'),
     related=('ripple-rings', 'ripple', 'ripple-displacement', 'height-field-ripples', 'wave-deformer',
              'glass-refraction'),
-    api=('videobuilder.techniques.vfx.refraction_ripple.refraction_ripple',),
+    api=('videobuilder.capabilities.vfx.refraction_ripple.refraction_ripple',),
     demo=lambda: demo.film(draw),
 )

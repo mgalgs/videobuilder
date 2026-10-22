@@ -9,7 +9,7 @@ import videobuilder as vb
 
 from .. import _demo as demo
 from ...compendium import kit
-from ..schema import Technique
+from ..schema import Capability
 
 
 def staging(cv, props, hero, p, cx, cy, radius=320, recede=0.6, darken=0.55):
@@ -71,7 +71,7 @@ def draw(n, cv):
     staging(cv, props, hero, s, HX, HY, radius=300)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='staging',
     name='Staging',
     family='principles',
@@ -84,6 +84,6 @@ TECHNIQUE = Technique(
                'put a spotlight on the one element doing the action'),
     related=('staged-onboarding-walkthrough', 'page-load-sequence', 'kinetic-poster-layout',
              'slide-over-cover', 'shadow-play', 'cut-on-action'),
-    api=('videobuilder.techniques.principles.staging.staging',),
+    api=('videobuilder.capabilities.principles.staging.staging',),
     demo=lambda: demo.film(draw),
 )

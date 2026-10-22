@@ -8,7 +8,7 @@ import videobuilder as vb
 
 from .. import _demo as demo
 from ...compendium import kit
-from ..schema import Technique
+from ..schema import Capability
 
 
 def travel_speed(base, ripples=((2, 0.22, 0.6), (3, 0.14, -1.1), (5, 0.07, 2.0))):
@@ -120,7 +120,7 @@ def draw(n, cv):
     cv.mark('map', M, M, demo.W - 2 * M, demo.H - 2 * M)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='isochrone-expansion',
     name='Isochrone expansion',
     family='broadcast',
@@ -133,9 +133,9 @@ TECHNIQUE = Technique(
                'a commute-time zone spreading from a location and lighting up places it reaches'),
     related=('offset-path-expansion', 'orbital-pulse', 'radial-stagger', 'circle-packing', 'edge-in-stagger',
              'ripple-rings'),
-    api=('videobuilder.techniques.broadcast.isochrone_expansion.draw_isochrones',
-         'videobuilder.techniques.broadcast.isochrone_expansion.isochrone',
-         'videobuilder.techniques.broadcast.isochrone_expansion.reach_time',
-         'videobuilder.techniques.broadcast.isochrone_expansion.travel_speed'),
+    api=('videobuilder.capabilities.broadcast.isochrone_expansion.draw_isochrones',
+         'videobuilder.capabilities.broadcast.isochrone_expansion.isochrone',
+         'videobuilder.capabilities.broadcast.isochrone_expansion.reach_time',
+         'videobuilder.capabilities.broadcast.isochrone_expansion.travel_speed'),
     demo=lambda: demo.film(draw),
 )

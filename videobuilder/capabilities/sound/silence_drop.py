@@ -5,7 +5,7 @@ import math
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def _piece(s, at, start, frames, fade_in, fade_out):
@@ -112,7 +112,7 @@ def _draw(n, cv):
         cv.fill('#ffffff', alpha=0.55 * math.exp(-(n - HIT) / 2.5))
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='silence-drop',
     name='Silence drop',
     family='sound',
@@ -124,6 +124,6 @@ TECHNIQUE = Technique(
                'go dead quiet for a beat, then slam back in',
                'pull all the audio out just before the big moment'),
     related=('sub-drop', 'smash-cut', 'glitch-sound', 'impact-hit', 'ducking', 'sound-bridge'),
-    api=('videobuilder.techniques.sound.silence_drop.silence_drop', 'videobuilder.sfx.sound'),
+    api=('videobuilder.capabilities.sound.silence_drop.silence_drop', 'videobuilder.sfx.sound'),
     demo=lambda: demo.film(_draw, sounds=_sounds()),
 )

@@ -5,7 +5,7 @@ import random
 
 from ... import paths
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def boil(points, n, amount=3.0, every=2, seed=0, closed=True, step=6.0, waves=(5, 9, 14, 21, 29)):
@@ -67,7 +67,7 @@ def draw(n, cv):
     cv.mark('outline', min(xs), min(ys), max(xs) - min(xs), max(ys) - min(ys))
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='line-boil',
     name='Line boil',
     family='shapes',
@@ -80,7 +80,7 @@ TECHNIQUE = Technique(
                'the edges should quiver like a hand-animated sketch'),
     related=('jitter-and-boil-text', 'streamlines', 'stroke-draw-on', 'curl-noise-flow', 'line-weave',
              'ink-bleed'),
-    api=('videobuilder.techniques.shapes.line_boil.boil',
-         'videobuilder.techniques.shapes.line_boil.draw_boil'),
+    api=('videobuilder.capabilities.shapes.line_boil.boil',
+         'videobuilder.capabilities.shapes.line_boil.draw_boil'),
     demo=lambda: demo.film(draw),
 )

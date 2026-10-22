@@ -8,7 +8,7 @@ import cairo
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def door_swing(cv, a, b, p, hinge='left', angle=90.0, focal=1.5, strips=64, shade=0.55,
@@ -83,7 +83,7 @@ def door_swing(cv, a, b, p, hinge='left', angle=90.0, focal=1.5, strips=64, shad
         c.restore()
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='door-swing',
     name='Door swing',
     family='transitions',
@@ -95,6 +95,6 @@ TECHNIQUE = Technique(
                'swing the old shot away on a hinge at the left edge',
                'make the slide turn on its side like a door opening'),
     related=('pendulum-swing', 'uncover', 'push', 'roll-up', 'zoom-out-reveal', 'curtain-reveal'),
-    api=('videobuilder.techniques.transitions.door_swing.door_swing',),
+    api=('videobuilder.capabilities.transitions.door_swing.door_swing',),
     demo=lambda: demo.two_scenes(door_swing, start=0.7, length=1.6),
 )

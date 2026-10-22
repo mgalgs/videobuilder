@@ -10,7 +10,7 @@ import videobuilder as vb
 from videobuilder import text
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 @lru_cache(maxsize=64)
@@ -88,7 +88,7 @@ def scene_a(cv):
     cv.fill(demo.BG, alpha=0.35)   # dim the photo a touch so the bright cut-out letters read
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='text-mask-reveal',
     name='Text mask reveal',
     family='transitions',
@@ -101,6 +101,6 @@ TECHNIQUE = Technique(
                'zoom into the text and come out the other side in the new scene'),
     related=('text-reveal-through-shape-mask', 'character-rise', 'wipe-reveal', 'pixelation-reveal',
              'video-clipped-inside-letterforms', 'handwriting-reveal'),
-    api=('videobuilder.techniques.transitions.text_mask_reveal.text_mask_reveal',),
+    api=('videobuilder.capabilities.transitions.text_mask_reveal.text_mask_reveal',),
     demo=lambda: demo.two_scenes(text_mask_reveal, seconds=3.2, start=0.4, length=2.2, a=scene_a),
 )

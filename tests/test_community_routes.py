@@ -62,7 +62,7 @@ def publishable(case, slug, title='Zoom logo reveal', category=None, id=None, fi
     is a LibraryFixture/AccountMixin test case (its .git/.url/.root)."""
     category = category or capabilities.categories()[0]
     fields = {'id': id or slug, 'category': category, 'title': title, 'card': 'a card line',
-             'description': 'a longer description of the technique, worth capturing.',
+             'description': 'a longer description of the capability, worth capturing.',
              'prompts': ['Do the thing', 'Do it faster', 'Do it on the beat'], 'apis': ['vb.spring_at'],
              'doc': 'capability.md'}
     fields.update(field_overrides)

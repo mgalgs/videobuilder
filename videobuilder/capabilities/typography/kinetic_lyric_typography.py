@@ -7,7 +7,7 @@ import videobuilder as vb
 from videobuilder import impact
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 ENTER = 0.28   # seconds an entrance takes
 EXIT = 0.22    # seconds an exit takes
@@ -116,7 +116,7 @@ def draw(n, cv):
     draw_lyrics(cv, CUES, n / demo.FPS, demo.FPS)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='kinetic-lyric-typography',
     name='Kinetic lyric typography',
     family='typography',
@@ -129,9 +129,9 @@ TECHNIQUE = Technique(
                'bouncy kinetic text for the chorus, words slamming in time'),
     related=('kinetic-poster-layout', 'impact-shake', 'speed-ramp', 'speed-lines', 'twirl-warp-text',
              'echo-trail-type'),
-    api=('videobuilder.techniques.typography.kinetic_lyric_typography.draw_lyrics',
-         'videobuilder.techniques.typography.kinetic_lyric_typography.Cue',
-         'videobuilder.techniques.typography.kinetic_lyric_typography.draw_lyric',
-         'videobuilder.techniques.typography.kinetic_lyric_typography.cue_state'),
+    api=('videobuilder.capabilities.typography.kinetic_lyric_typography.draw_lyrics',
+         'videobuilder.capabilities.typography.kinetic_lyric_typography.Cue',
+         'videobuilder.capabilities.typography.kinetic_lyric_typography.draw_lyric',
+         'videobuilder.capabilities.typography.kinetic_lyric_typography.cue_state'),
     demo=lambda: demo.film(draw),
 )

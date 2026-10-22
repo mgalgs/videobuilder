@@ -3,7 +3,7 @@ highlight slides to whichever section is in view as the page scrolls."""
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def scrollspy(scroll, tops, line=0.0, travel=0.0, ease=vb.ease_in_out_quart):
@@ -82,7 +82,7 @@ def draw(n, cv):
     cv.rect(PANEL.x + PANEL.w - 23, ty, 6, thumb, demo.MUTED, radius=3)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='scrollspy-nav-indicator',
     name='Scrollspy nav indicator',
     family='ui',
@@ -95,7 +95,7 @@ TECHNIQUE = Technique(
                'scroll the article and the nav pill jumps to the current heading'),
     related=('scroll-driven-text-reveal', 'scrolling-led-marquee-text', 'infinite-scroll-append',
              'border-glow-follow', 'timeline-scroll', 'roll-up'),
-    api=('videobuilder.techniques.ui.scrollspy_nav_indicator.scrollspy',
-         'videobuilder.techniques.ui.scrollspy_nav_indicator.draw_scrollspy_nav'),
+    api=('videobuilder.capabilities.ui.scrollspy_nav_indicator.scrollspy',
+         'videobuilder.capabilities.ui.scrollspy_nav_indicator.draw_scrollspy_nav'),
     demo=lambda: demo.film(draw),
 )

@@ -3,7 +3,7 @@ slide apart to the sides, uncovering the words from the centre outward."""
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def draw_curtain(cv, x, y, w, h, p, color, edge=None, edge_width=4, ease=vb.ease_in_out_quart):
@@ -40,7 +40,7 @@ def draw(n, cv):
                  edge=(demo.ACCENT, demo.TEAL), edge_width=5)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='curtain-reveal',
     name='Curtain reveal',
     family='typography',
@@ -53,6 +53,6 @@ TECHNIQUE = Technique(
                'open the headline like a pair of sliding doors'),
     related=('split-screen-comparison', 'shutter-slat-reveal', 'text-mask-reveal', 'split-screen-transition',
              'zoom-out-reveal', 'accordion-fold-text'),
-    api=('videobuilder.techniques.typography.curtain_reveal.draw_curtain',),
+    api=('videobuilder.capabilities.typography.curtain_reveal.draw_curtain',),
     demo=lambda: demo.film(draw),
 )

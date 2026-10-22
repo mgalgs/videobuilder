@@ -6,7 +6,7 @@ import math
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def radio_dot_scale(p, ease=vb.ease_out_back):
@@ -55,7 +55,7 @@ def draw(n, cv):
         vb.text.draw(cv, [label], f, x + r + 40, y - h / 2, demo.INK if p > 0 else demo.MUTED)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='radio-dot-scale',
     name='Radio dot scale',
     family='ui',
@@ -68,8 +68,8 @@ TECHNIQUE = Technique(
                'a springy fill dot when choosing one of the options'),
     related=('circle-pop', 'halftone-dot-scaling', 'dot-density-map', 'character-scale-in', 'bouncing-dots',
              'dot-grid-displacement'),
-    api=('videobuilder.techniques.ui.radio_dot_scale.draw_radio',
-         'videobuilder.techniques.ui.radio_dot_scale.radio_dot_scale',
+    api=('videobuilder.capabilities.ui.radio_dot_scale.draw_radio',
+         'videobuilder.capabilities.ui.radio_dot_scale.radio_dot_scale',
          'videobuilder.ease_out_back'),
     demo=lambda: demo.film(draw),
 )

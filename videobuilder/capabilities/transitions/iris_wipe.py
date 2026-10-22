@@ -6,7 +6,7 @@ import math
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def iris_wipe(cv, a, b, p, cx=None, cy=None, close=False, rim=None, rim_width=6, ease=vb.ease_in_out_quart):
@@ -45,7 +45,7 @@ def _demo():
     return demo.two_scenes(opening, start=0.7, length=1.5)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='iris-wipe',
     name='Iris wipe',
     family='transitions',
@@ -58,6 +58,6 @@ TECHNIQUE = Technique(
                'close the scene down to a circle like an old cartoon ending'),
     related=('circular-clip-reveal', 'paint-brush-wipe', 'wipe-reveal', 'logo-mask-wipe-reveal',
              'area-fill-sweep', 'circle-pop'),
-    api=('videobuilder.techniques.transitions.iris_wipe.iris_wipe',),
+    api=('videobuilder.capabilities.transitions.iris_wipe.iris_wipe',),
     demo=_demo,
 )

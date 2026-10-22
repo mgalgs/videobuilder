@@ -6,7 +6,7 @@ import math
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def ball_position(xs, times, t, hop=0.9, lift=120):
@@ -71,7 +71,7 @@ def draw(n, cv):
     cv.mark('text', *box)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='bouncing-ball-word-marker',
     name='Bouncing ball word marker',
     family='typography',
@@ -84,7 +84,7 @@ TECHNIQUE = Technique(
                'show which word is being sung with a bouncing ball'),
     related=('map-pin-drop', 'ball-bounce', 'highlighter-swipe', 'bouncing-dots', 'icon-hover-bounce',
              'impact-shake'),
-    api=('videobuilder.techniques.typography.bouncing_ball_word_marker.draw_bouncing_ball_line',
-         'videobuilder.techniques.typography.bouncing_ball_word_marker.ball_position'),
+    api=('videobuilder.capabilities.typography.bouncing_ball_word_marker.draw_bouncing_ball_line',
+         'videobuilder.capabilities.typography.bouncing_ball_word_marker.ball_position'),
     demo=lambda: demo.film(draw),
 )

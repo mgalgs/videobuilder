@@ -6,7 +6,7 @@ import math
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def _centroid(pts):
@@ -120,7 +120,7 @@ def draw(n, cv):
     cv.mark('pieces', min(xs), min(ys), max(xs) - min(xs), max(ys) - min(ys))
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='tangram-rearrangement',
     name='Tangram rearrangement',
     family='shapes',
@@ -133,10 +133,10 @@ TECHNIQUE = Technique(
                'like a tangram puzzle solving itself on screen'),
     related=('twist-deformer', 'tessellation-triangle-flip', 'polygon-subdivision', 'bauhaus-geometric-shuffle',
              'recursive-rectangle-subdivision', 'grid-reflow-shuffle'),
-    api=('videobuilder.techniques.shapes.tangram_rearrangement.draw_rearrange',
-         'videobuilder.techniques.shapes.tangram_rearrangement.rearrange',
-         'videobuilder.techniques.shapes.tangram_rearrangement.fit',
-         'videobuilder.techniques.shapes.tangram_rearrangement.SQUARE',
-         'videobuilder.techniques.shapes.tangram_rearrangement.HOUSE'),
+    api=('videobuilder.capabilities.shapes.tangram_rearrangement.draw_rearrange',
+         'videobuilder.capabilities.shapes.tangram_rearrangement.rearrange',
+         'videobuilder.capabilities.shapes.tangram_rearrangement.fit',
+         'videobuilder.capabilities.shapes.tangram_rearrangement.SQUARE',
+         'videobuilder.capabilities.shapes.tangram_rearrangement.HOUSE'),
     demo=lambda: demo.film(draw),
 )

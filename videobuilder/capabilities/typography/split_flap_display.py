@@ -4,7 +4,7 @@ it and demos it."""
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 # Longer than the demo, so the board clatters in and holds without reaching its exit.
 BOARD = vb.type.props(lines=['FLIGHT 207', 'NOW BOARDING'], ink=demo.INK, paper=demo.BG, accent=demo.ACCENT,
@@ -15,7 +15,7 @@ def draw(n, cv):
     vb.type.draw(cv, 'split-flap', BOARD, n / demo.FPS - 0.2)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='split-flap-display',
     name='Split-flap display',
     family='typography',

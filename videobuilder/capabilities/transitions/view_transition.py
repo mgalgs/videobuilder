@@ -5,7 +5,7 @@ new one."""
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 # The curve an interface uses for this by default: a quick start, a long soft settle.
 EASE = vb.bezier(0.25, 0.1, 0.25, 1)
@@ -75,7 +75,7 @@ def _draw(n, cv):
                         shared=[(THUMB, HERO, _photo)])
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='view-transition',
     name='View transition',
     family='transitions',
@@ -89,6 +89,6 @@ TECHNIQUE = Technique(
                'move between two screens with a soft blend, keeping the shared picture in view'),
     related=('split-screen-transition', 'palette-shift-transition', 'zoom-through',
              'image-crossfade-slideshow', 'tab-panel-slide', 'theme-swap-crossfade'),
-    api=('videobuilder.techniques.transitions.view_transition.view_transition',),
+    api=('videobuilder.capabilities.transitions.view_transition.view_transition',),
     demo=lambda: demo.film(_draw),
 )

@@ -4,7 +4,7 @@ clear it, and settle into place."""
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def draw_title_card(cv, text, font, cx, rule_y, p, color, rule_color, rule_split=0.35, stagger=0.5,
@@ -41,7 +41,7 @@ def draw(n, cv):
     cv.mark('text', *box)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='title-card-reveal',
     name='Title card reveal',
     family='typography',
@@ -54,6 +54,6 @@ TECHNIQUE = Technique(
                'letters pop up from behind an underline to introduce the film'),
     related=('tile-grid-title-reveal', 'broadcast-title-card-stinger', 'stacked-card-reveal',
              'text-mask-reveal', 'quote-card-reveal', 'curtain-reveal'),
-    api=('videobuilder.techniques.typography.title_card_reveal.draw_title_card',),
+    api=('videobuilder.capabilities.typography.title_card_reveal.draw_title_card',),
     demo=lambda: demo.film(draw),
 )

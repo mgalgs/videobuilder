@@ -4,7 +4,7 @@ import math
 
 from .. import _demo as demo
 from ...compendium.components._transition_util import outline_text, text_path
-from ..schema import Technique
+from ..schema import Capability
 
 
 def stroke_pulse(t, thin=2.0, thick=12.0, period=1.5, phase=0.0):
@@ -31,7 +31,7 @@ def draw(n, cv):
     cv.mark('text', *box)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='stroke-width-pulse',
     name='Stroke width pulse',
     family='typography',
@@ -45,8 +45,8 @@ TECHNIQUE = Technique(
                'pulse the line weight on the hollow letters'),
     related=('outline-pulse-glow', 'scale-pulse', 'pulse-loader', 'line-draw-logo-reveal',
              'offset-path-expansion', 'icon-line-to-fill'),
-    api=('videobuilder.techniques.typography.stroke_width_pulse.draw_stroke_pulse',
-         'videobuilder.techniques.typography.stroke_width_pulse.stroke_pulse',
+    api=('videobuilder.capabilities.typography.stroke_width_pulse.draw_stroke_pulse',
+         'videobuilder.capabilities.typography.stroke_width_pulse.stroke_pulse',
          'videobuilder.compendium.components._transition_util.outline_text'),
     demo=lambda: demo.film(draw),
 )

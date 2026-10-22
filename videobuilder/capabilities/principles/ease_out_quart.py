@@ -3,7 +3,7 @@ speed and spends most of its time gently closing the last bit of distance."""
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 START, END = 0.5, 1.9
 TICKS = 12  # evenly spaced moments of the move, left behind as ghosts
@@ -30,7 +30,7 @@ def draw(n, cv):
     demo.card(cv, at(p), y)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='ease-out-quart',
     name='Ease Out Quart',
     family='principles',
@@ -43,6 +43,6 @@ TECHNIQUE = Technique(
                'a strong deceleration into the final position'),
     related=('slow-in-and-slow-out', 'asymmetric-fast-in-slow-out', 'settle', 'liquify',
              'smooth-scroll-inertia', 'dolly-in-and-out'),
-    api=('videobuilder.techniques.principles.ease_out_quart.ease_out_quart',),
+    api=('videobuilder.capabilities.principles.ease_out_quart.ease_out_quart',),
     demo=lambda: demo.film(draw),
 )

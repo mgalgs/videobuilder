@@ -6,7 +6,7 @@ import math
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def slice_scale(z, camera_z, focal=1.0, near=0.05):
@@ -106,7 +106,7 @@ def draw(n, cv):
     cv.mark('stack', demo.W / 2 - 200, demo.H / 2 - 160, 400, 320)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='depth-slicing',
     name='Depth slicing',
     family='camera',
@@ -119,8 +119,8 @@ TECHNIQUE = Technique(
                'like an MRI scan, reveal each cross-section in turn going deeper'),
     related=('x-ray-view', 'pointer-parallax-layers', 'corner-wipe', 'zoom-out-reveal', 'exploded-view',
              'extrusion-depth-reveal'),
-    api=('videobuilder.techniques.camera.depth_slicing.draw_slices',
-         'videobuilder.techniques.camera.depth_slicing.slice_scale',
-         'videobuilder.techniques.camera.depth_slicing.slice_shown'),
+    api=('videobuilder.capabilities.camera.depth_slicing.draw_slices',
+         'videobuilder.capabilities.camera.depth_slicing.slice_scale',
+         'videobuilder.capabilities.camera.depth_slicing.slice_shown'),
     demo=lambda: demo.film(draw),
 )

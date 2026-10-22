@@ -5,7 +5,7 @@ import math
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def recoil(t, kick=0.08, ratio=0.55, hz=2.2):
@@ -58,7 +58,7 @@ def draw(n, cv):
     gun(cv, x)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='recoil',
     name='Recoil',
     family='principles',
@@ -71,6 +71,6 @@ TECHNIQUE = Technique(
                'give the cannon some kick when it fires'),
     related=('impact-shake', 'momentum-fling', 'spring-return', 'bounce-ease-out', 'bounce-ease-in',
              'impact-hit'),
-    api=('videobuilder.techniques.principles.recoil.recoil',),
+    api=('videobuilder.capabilities.principles.recoil.recoil',),
     demo=lambda: demo.film(draw),
 )

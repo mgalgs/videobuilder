@@ -17,7 +17,7 @@ from dataclasses import dataclass
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 @dataclass(frozen=True)
@@ -169,7 +169,7 @@ def draw(n, cv):
     draw_rig(cv, FIGURE, pose, demo.W / 2, ground - (LEGS + 6) * SCALE, scale=SCALE, joints=True, mark='character')
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='flat-character-rig',
     name='2D character rig',
     family='shapes',
@@ -182,10 +182,10 @@ TECHNIQUE = Technique(
                'a jointed paper-doll figure that moves like a puppet'),
     related=('character-rotate-in', 'character-3d-flip', 'variable-font-weight-animation', 'slant-axis-swing',
              'shape-morph-loader', 'text-to-shape-morph'),
-    api=('videobuilder.techniques.shapes.flat_character_rig.draw_rig',
-         'videobuilder.techniques.shapes.flat_character_rig.solve',
-         'videobuilder.techniques.shapes.flat_character_rig.limb',
-         'videobuilder.techniques.shapes.flat_character_rig.part',
+    api=('videobuilder.capabilities.shapes.flat_character_rig.draw_rig',
+         'videobuilder.capabilities.shapes.flat_character_rig.solve',
+         'videobuilder.capabilities.shapes.flat_character_rig.limb',
+         'videobuilder.capabilities.shapes.flat_character_rig.part',
          'videobuilder.Stick'),
     demo=lambda: demo.film(draw),
 )

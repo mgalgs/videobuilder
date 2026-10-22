@@ -5,7 +5,7 @@ import math
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def flip_word(cv, text, font, cx, cy, angle, color, pivot=0.5, focal=None, alpha=1.0, strips=None):
@@ -94,7 +94,7 @@ def draw(n, cv):
     cv.mark('text', *box)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='word-flip-in',
     name='Word flip-in',
     family='typography',
@@ -106,7 +106,7 @@ TECHNIQUE = Technique(
                'the words tip forward into place in 3D, one by one',
                'flip the title in a word at a time'),
     related=('three-d-word-cube', 'flip', 'word-carousel-rotate', 'tile-flip', 'character-3d-flip', 'page-turn'),
-    api=('videobuilder.techniques.typography.word_flip_in.draw_word_flip_in',
-         'videobuilder.techniques.typography.word_flip_in.flip_word'),
+    api=('videobuilder.capabilities.typography.word_flip_in.draw_word_flip_in',
+         'videobuilder.capabilities.typography.word_flip_in.flip_word'),
     demo=lambda: demo.film(draw),
 )

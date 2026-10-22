@@ -5,7 +5,7 @@ import math
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 CORNERS = ('top-left', 'top-right', 'bottom-left', 'bottom-right')
 
@@ -45,7 +45,7 @@ def corner_wipe(cv, a, b, p, corner='top-left', ease=vb.ease_in_out_quart, edge=
         c.restore()
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='corner-wipe',
     name='Corner wipe',
     family='transitions',
@@ -57,6 +57,6 @@ TECHNIQUE = Technique(
                'have the new scene grow out of a corner and take over the screen',
                'a round wipe that starts in the corner'),
     related=('uncover', 'roll-up', 'zoom-out-reveal', 'slide-over-cover', 'paint-brush-wipe', 'tumble'),
-    api=('videobuilder.techniques.transitions.corner_wipe.corner_wipe',),
+    api=('videobuilder.capabilities.transitions.corner_wipe.corner_wipe',),
     demo=lambda: demo.two_scenes(lambda cv, a, b, p: corner_wipe(cv, a, b, p, edge=demo.ACCENT)),
 )

@@ -7,7 +7,7 @@ import math
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 MOUTHS = ('rest', 'smile', 'o', 'open', 'wide')
 
@@ -80,7 +80,7 @@ def draw(n, cv):
               size=22, color=demo.MUTED, font=demo.mono(22, 500))
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='blink-and-mouth-shape-swap',
     name='Blink and mouth shape swap',
     family='shapes',
@@ -93,8 +93,8 @@ TECHNIQUE = Technique(
                'a simple face whose eyes close now and then while its mouth flaps'),
     related=('icon-state-morph', 'glyph-cycling', 'letter-morph', 'julia-set-morph', 'emoji-substitution',
              'text-to-shape-morph'),
-    api=('videobuilder.techniques.shapes.blink_and_mouth_shape_swap.draw_face',
-         'videobuilder.techniques.shapes.blink_and_mouth_shape_swap.blinking',
-         'videobuilder.techniques.shapes.blink_and_mouth_shape_swap.mouth_at'),
+    api=('videobuilder.capabilities.shapes.blink_and_mouth_shape_swap.draw_face',
+         'videobuilder.capabilities.shapes.blink_and_mouth_shape_swap.blinking',
+         'videobuilder.capabilities.shapes.blink_and_mouth_shape_swap.mouth_at'),
     demo=lambda: demo.film(draw),
 )

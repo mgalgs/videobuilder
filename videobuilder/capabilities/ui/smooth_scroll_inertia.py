@@ -6,7 +6,7 @@ import math
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def scroll_target(t, notches):
@@ -71,7 +71,7 @@ def draw(n, cv):
     _mouse(cv, vx - 130, demo.H / 2 - 30, vb.clamp01(flash))
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='smooth-scroll-inertia',
     name='Smooth scroll inertia',
     family='ui',
@@ -84,7 +84,7 @@ TECHNIQUE = Technique(
                'buttery scrolling that eases to a stop'),
     related=('momentum-fling', 'bounce-ease-in', 'friction-deceleration', 'scroll-driven-text-reveal',
              'frame-stutter', 'rolling-shutter-wobble'),
-    api=('videobuilder.techniques.ui.smooth_scroll_inertia.smooth_scroll',
-         'videobuilder.techniques.ui.smooth_scroll_inertia.scroll_target'),
+    api=('videobuilder.capabilities.ui.smooth_scroll_inertia.smooth_scroll',
+         'videobuilder.capabilities.ui.smooth_scroll_inertia.scroll_target'),
     demo=lambda: demo.film(draw),
 )

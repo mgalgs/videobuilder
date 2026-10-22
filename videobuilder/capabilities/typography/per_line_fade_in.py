@@ -3,7 +3,7 @@ up in place once the line above it is fully there."""
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def _smooth(x):
@@ -47,7 +47,7 @@ def draw(n, cv):
     cv.mark('text', *box)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='per-line-fade-in',
     name='Per-line fade-in',
     family='typography',
@@ -60,7 +60,7 @@ TECHNIQUE = Technique(
                'bring the lines of the quote up in sequence instead of all at once'),
     related=('fade-up-scroll-reveal', 'lyric-line-crossfade', 'player-movement-trail',
              'scroll-driven-text-reveal', 'tooltip-fade-follow', 'terminal-line-print'),
-    api=('videobuilder.techniques.typography.per_line_fade_in.draw_line_fade',
-         'videobuilder.techniques.typography.per_line_fade_in.line_alphas'),
+    api=('videobuilder.capabilities.typography.per_line_fade_in.draw_line_fade',
+         'videobuilder.capabilities.typography.per_line_fade_in.line_alphas'),
     demo=lambda: demo.film(draw),
 )

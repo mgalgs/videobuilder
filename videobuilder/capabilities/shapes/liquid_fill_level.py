@@ -6,7 +6,7 @@ import cairo
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def liquid_surface(u, t, amplitude, waves=1.6, speed=1.0):
@@ -92,7 +92,7 @@ def draw(n, cv):
     cv.mark('glass', x, y, gw, gh)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='liquid-fill-level',
     name='Liquid fill level',
     family='shapes',
@@ -104,8 +104,8 @@ TECHNIQUE = Technique(
                'show the tank filling up with a wavy liquid surface',
                'a progress meter that fills like liquid sloshing in a jar'),
     related=('color-fill-rise', 'liquid-morph', 'bubbles', 'sph-fluid', 'height-field-ripples', 'liquid-melt'),
-    api=('videobuilder.techniques.shapes.liquid_fill_level.liquid_fill',
-         'videobuilder.techniques.shapes.liquid_fill_level.fill_wobble',
-         'videobuilder.techniques.shapes.liquid_fill_level.liquid_surface'),
+    api=('videobuilder.capabilities.shapes.liquid_fill_level.liquid_fill',
+         'videobuilder.capabilities.shapes.liquid_fill_level.fill_wobble',
+         'videobuilder.capabilities.shapes.liquid_fill_level.liquid_surface'),
     demo=lambda: demo.film(draw),
 )

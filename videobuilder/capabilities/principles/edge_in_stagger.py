@@ -3,7 +3,7 @@ pair, so the arrivals close in on the middle and the centre item lands last."""
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def edge_in_rank(i, count):
@@ -39,7 +39,7 @@ def draw(n, cv):
         cv.mark(f'item{i}', x, y + 90 * rise, w, h)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='edge-in-stagger',
     name='Edge-In Stagger',
     family='principles',
@@ -52,7 +52,7 @@ TECHNIQUE = Technique(
                'have the row fill in from the edges inward'),
     related=('staggered-cascade-reveal', 'character-scale-in', 'linear-repeater-stagger', 'seamless-loop',
              'per-word-fade-in', 'offset'),
-    api=('videobuilder.techniques.principles.edge_in_stagger.edge_in_stagger',
-         'videobuilder.techniques.principles.edge_in_stagger.edge_in_rank'),
+    api=('videobuilder.capabilities.principles.edge_in_stagger.edge_in_stagger',
+         'videobuilder.capabilities.principles.edge_in_stagger.edge_in_rank'),
     demo=lambda: demo.film(draw),
 )

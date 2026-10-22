@@ -12,7 +12,7 @@ from PIL import ImageFilter
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def physarum(width, height, steps, agents=6000, seed=0, spawn=None, food=(), sensor=(6.0, 6.0),
@@ -122,7 +122,7 @@ def draw(n, cv):
     cv.image(_frame(min(n, demo.FPS * 3 - 1)), 0, 0, demo.W, demo.H)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='physarum-slime-mold',
     name='Physarum slime mold',
     family='particles',
@@ -135,7 +135,7 @@ TECHNIQUE = Technique(
                'a living web of glowing tendrils that links up some dots'),
     related=('diffusion-limited-aggregation', 'space-colonization', 'morphing-blob', 'noise-vertex-wobble',
              'springs-network', 'connector-network'),
-    api=('videobuilder.techniques.particles.physarum_slime_mold.physarum',
-         'videobuilder.techniques.particles.physarum_slime_mold.trail_image'),
+    api=('videobuilder.capabilities.particles.physarum_slime_mold.physarum',
+         'videobuilder.capabilities.particles.physarum_slime_mold.trail_image'),
     demo=lambda: demo.film(draw),
 )

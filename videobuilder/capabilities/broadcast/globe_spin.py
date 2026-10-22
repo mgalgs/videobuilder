@@ -13,7 +13,7 @@ import videobuilder as vb
 
 from .. import _demo as demo
 from ...compendium import kit
-from ..schema import Technique
+from ..schema import Capability
 
 # Coarse land outlines as (longitude, latitude) rings in degrees: enough to
 # read as the familiar world at a glance, not a real coastline.
@@ -213,7 +213,7 @@ def draw(n, cv):
     cv.mark('globe', *box)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='globe-spin',
     name='Globe spin',
     family='broadcast',
@@ -225,8 +225,8 @@ TECHNIQUE = Technique(
                'put a rotating globe behind the world news title',
                'make a 3D world map turn round and round'),
     related=('turntable-rotation', 'spin', 'tesseract-rotation', 'isometric-rotation', 'cube-rotate', 'swirl'),
-    api=('videobuilder.techniques.broadcast.globe_spin.globe',
-         'videobuilder.techniques.broadcast.globe_spin.globe_point',
-         'videobuilder.techniques.broadcast.globe_spin.LAND'),
+    api=('videobuilder.capabilities.broadcast.globe_spin.globe',
+         'videobuilder.capabilities.broadcast.globe_spin.globe_point',
+         'videobuilder.capabilities.broadcast.globe_spin.LAND'),
     demo=lambda: demo.film(draw),
 )

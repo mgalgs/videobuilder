@@ -17,7 +17,7 @@ import math
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 SOUND = 'pro_sub_drop/low'
 FALLBACK = 'pro_impact/short'
@@ -79,7 +79,7 @@ def film():
     return demo.film(draw, sounds=(_sound(),))
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='sub-drop',
     name='Sub drop',
     family='sound',

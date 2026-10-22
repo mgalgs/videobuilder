@@ -3,7 +3,7 @@ centre of the frame and grows until it fills it, covering the outgoing scene."""
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def box_wipe(cv, a, b, p, cx=0.5, cy=0.5, ease=vb.ease_in_out_quart, edge=None, edge_width=6, reverse=False):
@@ -32,7 +32,7 @@ def box_wipe(cv, a, b, p, cx=0.5, cy=0.5, ease=vb.ease_in_out_quart, edge=None, 
         cv.outline(x0, y0, x1 - x0, y1 - y0, edge, width=edge_width)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='box-wipe',
     name='Box wipe',
     family='transitions',
@@ -44,6 +44,6 @@ TECHNIQUE = Technique(
                'a rectangle expands out of the middle to bring in the new scene',
                'box out from the centre into the next clip'),
     related=('paint-brush-wipe', 'wipe-reveal', 'letterbox', 'uncover', 'scroll-linked-clip-reveal', 'roll-up'),
-    api=('videobuilder.techniques.transitions.box_wipe.box_wipe',),
+    api=('videobuilder.capabilities.transitions.box_wipe.box_wipe',),
     demo=lambda: demo.two_scenes(lambda cv, a, b, p: box_wipe(cv, a, b, p, edge=demo.INK)),
 )

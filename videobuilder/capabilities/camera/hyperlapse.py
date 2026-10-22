@@ -9,7 +9,7 @@ import random
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 from ... import paths
 
 
@@ -189,7 +189,7 @@ def draw(n, cv):
     hyperlapse(cv, _street, n / demo.FPS, SPEED, PACE, start=START, fps=demo.FPS)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='hyperlapse',
     name='Hyperlapse',
     family='camera',
@@ -202,6 +202,6 @@ TECHNIQUE = Technique(
                'sped-up footage with a smooth travelling shot, clouds and cars blurring past'),
     related=('time-remapping', 'timeline-scroll', 'accumulation-motion-blur', 'scatter-time-playback',
              'multiples', 'seamless-loop'),
-    api=('videobuilder.techniques.camera.hyperlapse.hyperlapse',),
+    api=('videobuilder.capabilities.camera.hyperlapse.hyperlapse',),
     demo=lambda: demo.film(draw),
 )

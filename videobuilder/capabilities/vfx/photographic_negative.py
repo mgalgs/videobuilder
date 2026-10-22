@@ -6,7 +6,7 @@ import cairo
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 FILM_BASE = '#e8a46a'  # the orange mask of colour negative film
 
@@ -52,7 +52,7 @@ def draw(n, cv):
         demo.word(cv, 'POSITIVE', demo.W - 120, 50, size=28, color='#ffffff', font=f)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='photographic-negative',
     name='Photographic negative',
     family='vfx',
@@ -64,6 +64,6 @@ TECHNIQUE = Technique(
                'invert all the colours in the picture',
                'flip it to a negative for a moment'),
     related=('dip-to-black', 'vignette', 'night-vision', 'thermal-false-color', 'infrared-false-color', 'x-ray'),
-    api=('videobuilder.techniques.vfx.photographic_negative.photographic_negative',),
+    api=('videobuilder.capabilities.vfx.photographic_negative.photographic_negative',),
     demo=lambda: demo.film(draw),
 )

@@ -7,7 +7,7 @@ import random
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 GROUT = '#1b1a1f'
 _GRIDS = {}  # (image id, cols, rows) -> rows of (r, g, b): one downsample per image and size
@@ -76,7 +76,7 @@ def _draw(n, cv):
     mosaic(cv, img, x, y, bw, bh, tile=bw / 40, reveal=mosaic_sweep(p))
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='mosaic-tiling',
     name='Mosaic tiling',
     family='vfx',
@@ -89,7 +89,7 @@ TECHNIQUE = Technique(
                'a Roman-floor mosaic version of the shot'),
     related=('pattern-tiling', 'tessellation-triangle-flip', 'truchet-tiles', 'penrose-tiling',
              'pixelate-transition', 'scale-tile-wave'),
-    api=('videobuilder.techniques.vfx.mosaic_tiling.mosaic',
-         'videobuilder.techniques.vfx.mosaic_tiling.mosaic_sweep'),
+    api=('videobuilder.capabilities.vfx.mosaic_tiling.mosaic',
+         'videobuilder.capabilities.vfx.mosaic_tiling.mosaic_sweep'),
     demo=lambda: demo.film(_draw),
 )

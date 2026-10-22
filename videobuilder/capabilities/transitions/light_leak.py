@@ -8,7 +8,7 @@ import cairo
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 # Each bloom: colour, vertical centre (fraction of height), radius (fraction
 # of width), how far it lags behind the sweep, and how fast it drifts.
@@ -69,7 +69,7 @@ def light_leak(cv, a, b, p, strength=1.0, from_left=True):
     light_leak_overlay(cv, p, strength=strength, from_left=from_left)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='light-leak',
     name='Light leak',
     family='transitions',
@@ -82,7 +82,7 @@ TECHNIQUE = Technique(
                'a vintage camera flare between the two clips'),
     related=('lens-dirt-overlay', 'screen-tearing', 'dust-and-scratches', 'thin-film-iridescence',
              'heat-haze', 'luma-wipe'),
-    api=('videobuilder.techniques.transitions.light_leak.light_leak',
-         'videobuilder.techniques.transitions.light_leak.light_leak_overlay'),
+    api=('videobuilder.capabilities.transitions.light_leak.light_leak',
+         'videobuilder.capabilities.transitions.light_leak.light_leak_overlay'),
     demo=lambda: demo.two_scenes(light_leak, start=0.6, length=1.8),
 )

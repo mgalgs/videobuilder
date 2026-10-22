@@ -8,7 +8,7 @@ import cairo
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 SKY = ('#ffffff', '#c4d2e4', '#6f819c')       # top of the letter down to the horizon
 GROUND = ('#15171d', '#4a423b', '#e2dcd2')    # just under the horizon down to the foot
@@ -85,7 +85,7 @@ def draw(n, cv):
     cv.mark('text', *box)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='chrome-specular-shimmer',
     name='Chrome specular shimmer',
     family='typography',
@@ -98,8 +98,8 @@ TECHNIQUE = Technique(
                'give the logo text a glossy silver reflection that shifts'),
     related=('chrome-reflection', 'text-reflection-shimmer', 'y2k-chrome', 'gooch-shading', 'sheen-sweep',
              'thin-film-iridescence'),
-    api=('videobuilder.techniques.typography.chrome_specular_shimmer.draw_chrome_text',
-         'videobuilder.techniques.typography.chrome_specular_shimmer.chrome_pattern',
-         'videobuilder.techniques.typography.chrome_specular_shimmer.glint_pattern'),
+    api=('videobuilder.capabilities.typography.chrome_specular_shimmer.draw_chrome_text',
+         'videobuilder.capabilities.typography.chrome_specular_shimmer.chrome_pattern',
+         'videobuilder.capabilities.typography.chrome_specular_shimmer.glint_pattern'),
     demo=lambda: demo.film(draw),
 )

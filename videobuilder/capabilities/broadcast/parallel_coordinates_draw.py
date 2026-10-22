@@ -4,7 +4,7 @@ each other in a staggered sequence."""
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def record_points(values, box, lo=0.0, hi=100.0):
@@ -82,7 +82,7 @@ def draw(n, cv):
     cv.mark('chart', *box)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='parallel-coordinates-draw',
     name='Parallel coordinates draw',
     family='broadcast',
@@ -95,9 +95,9 @@ TECHNIQUE = Technique(
                'animate a parallel plot building up record by record'),
     related=('speed-lines', 'isometric-view', 'dimension-line-annotation', 'streamlines', 'pencil-sketch',
              'line-weave'),
-    api=('videobuilder.techniques.broadcast.parallel_coordinates_draw.draw_parallel_coordinates',
-         'videobuilder.techniques.broadcast.parallel_coordinates_draw.draw_axes',
-         'videobuilder.techniques.broadcast.parallel_coordinates_draw.record_points',
+    api=('videobuilder.capabilities.broadcast.parallel_coordinates_draw.draw_parallel_coordinates',
+         'videobuilder.capabilities.broadcast.parallel_coordinates_draw.draw_axes',
+         'videobuilder.capabilities.broadcast.parallel_coordinates_draw.record_points',
          'videobuilder.paths.reveal'),
     demo=lambda: demo.film(draw),
 )

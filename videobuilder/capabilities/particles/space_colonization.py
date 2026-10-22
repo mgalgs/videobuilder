@@ -10,7 +10,7 @@ import cairo
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def colonize(attractors, roots, influence=50.0, kill=8.0, step=5.0, max_steps=400):
@@ -160,7 +160,7 @@ def draw(n, cv):
     cv.mark('network', cx - rx, cy - ry, 2 * rx, ROOT[1] - (cy - ry))
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='space-colonization',
     name='Space colonization',
     family='particles',
@@ -173,7 +173,7 @@ TECHNIQUE = Technique(
                'organic branching that reaches toward scattered dots and eats them'),
     related=('hopalong-attractor', 'recursive-tree', 'decision-tree-branch-growth', 'circle-packing',
              'physarum-slime-mold', 'n-body-gravity'),
-    api=('videobuilder.techniques.particles.space_colonization.colonize',
-         'videobuilder.techniques.particles.space_colonization.draw_network'),
+    api=('videobuilder.capabilities.particles.space_colonization.colonize',
+         'videobuilder.capabilities.particles.space_colonization.draw_network'),
     demo=lambda: demo.film(draw),
 )

@@ -7,7 +7,7 @@ import cairo
 
 from .. import _demo as demo
 from ...ease import bezier
-from ..schema import Technique
+from ..schema import Capability
 
 _turn = bezier(0.5, 0, 0.3, 1)
 
@@ -105,7 +105,7 @@ def page_turn(cv, a, b, p, corner='bottom-right', tilt=0.18, paper='#fdfcf8', sh
         ctx.stroke()
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='page-turn',
     name='Page turn',
     family='transitions',
@@ -118,6 +118,6 @@ TECHNIQUE = Technique(
                'make it look like flipping to the next page of a book'),
     related=('word-flip-in', 'flip', 'layout-animation-flip', 'tile-flip', 'character-3d-flip',
              'logo-3d-spin-reveal'),
-    api=('videobuilder.techniques.transitions.page_turn.page_turn',),
+    api=('videobuilder.capabilities.transitions.page_turn.page_turn',),
     demo=lambda: demo.two_scenes(page_turn, start=0.6, length=1.8),
 )

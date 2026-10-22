@@ -5,7 +5,7 @@ import math
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 ARROW = ((0, 0), (0, 27), (7, 21), (12, 32), (17.5, 29.5), (12.5, 19), (21, 19))
 
@@ -73,7 +73,7 @@ def draw(n, cv):
     _pointer(cv, px, py)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='magnetic-button',
     name='Magnetic button',
     family='ui',
@@ -86,7 +86,7 @@ TECHNIQUE = Technique(
                'the call-to-action is drawn to the pointer like a magnet and snaps back after'),
     related=('spring-drag-letters', 'magnetic-snap', 'cursor-path-animation', 'cursor-state-change',
              'cursor-particle-trail', 'cursor-follower-dot-and-ring'),
-    api=('videobuilder.techniques.ui.magnetic_button.draw_magnetic_button',
-         'videobuilder.techniques.ui.magnetic_button.magnetic_pull'),
+    api=('videobuilder.capabilities.ui.magnetic_button.draw_magnetic_button',
+         'videobuilder.capabilities.ui.magnetic_button.magnetic_pull'),
     demo=lambda: demo.film(draw),
 )

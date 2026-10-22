@@ -4,7 +4,7 @@ a move reads as a snap from one state to the next."""
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def ease_in_out_expo(x):
@@ -53,7 +53,7 @@ def draw(n, cv):
     cv.mark('dot', x0 + (x1 - x0) * p - 36, ty - 96, 72, 72)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='ease-in-out-expo',
     name='Ease In-Out Expo',
     family='principles',
@@ -66,6 +66,6 @@ TECHNIQUE = Technique(
                'make it whoosh across the middle but linger at the start and end'),
     related=('slow-in-and-slow-out', 'smooth-scroll-inertia', 'asymmetric-fast-in-slow-out',
              'dolly-in-and-out', 'push-in', 'empty-state-idle-loop'),
-    api=('videobuilder.techniques.principles.ease_in_out_expo.ease_in_out_expo',),
+    api=('videobuilder.capabilities.principles.ease_in_out_expo.ease_in_out_expo',),
     demo=lambda: demo.film(draw),
 )

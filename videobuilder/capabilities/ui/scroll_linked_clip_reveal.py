@@ -4,7 +4,7 @@ so how much shows is tied to how far the section has come into view."""
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def scroll_progress(top, height, viewport, start=0.75, end=0.4):
@@ -67,7 +67,7 @@ def draw(n, cv):
     cv.rect(demo.W - 18 * U, track_y + (track_h - thumb) * s / SCROLL, 4 * U, thumb, demo.INK, radius=2 * U)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='scroll-linked-clip-reveal',
     name='Scroll-linked clip reveal',
     family='ui',
@@ -80,8 +80,8 @@ TECHNIQUE = Technique(
                'reveal the photo through a window that expands with the scroll'),
     related=('image-hover-mask-reveal', 'zoom-out-reveal', 'corner-wipe', 'scroll-driven-text-reveal',
              'circular-clip-reveal', 'text-mask-reveal'),
-    api=('videobuilder.techniques.ui.scroll_linked_clip_reveal.draw_clip_reveal',
-         'videobuilder.techniques.ui.scroll_linked_clip_reveal.clip_window',
-         'videobuilder.techniques.ui.scroll_linked_clip_reveal.scroll_progress'),
+    api=('videobuilder.capabilities.ui.scroll_linked_clip_reveal.draw_clip_reveal',
+         'videobuilder.capabilities.ui.scroll_linked_clip_reveal.clip_window',
+         'videobuilder.capabilities.ui.scroll_linked_clip_reveal.scroll_progress'),
     demo=lambda: demo.film(draw),
 )

@@ -8,7 +8,7 @@ import cairo
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 VIOLET = '#8b7cf6'
 GOLD = '#f2c46d'
@@ -93,7 +93,7 @@ def draw(n, cv):
     cv.mark('card', x, y, w, h)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='gradient-border-spin',
     name='Gradient border spin',
     family='ui',
@@ -106,7 +106,7 @@ TECHNIQUE = Technique(
                'give the panel an animated rainbow outline that spins'),
     related=('animated-gradient-sweep', 'spin', 'border-glow-follow', 'rim-light',
              'gradient-sweep-across-text', 'gradient-shift-button'),
-    api=('videobuilder.techniques.ui.gradient_border_spin.gradient_border',
-         'videobuilder.techniques.ui.gradient_border_spin.conic'),
+    api=('videobuilder.capabilities.ui.gradient_border_spin.gradient_border',
+         'videobuilder.capabilities.ui.gradient_border_spin.conic'),
     demo=lambda: demo.film(draw),
 )

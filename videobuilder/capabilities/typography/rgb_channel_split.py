@@ -8,7 +8,7 @@ import cairo
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 CHANNELS = ((1, 0, 0), (0, 1, 0), (0, 0, 1))
 
@@ -61,7 +61,7 @@ def draw(n, cv):
     cv.mark('text', *box)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='rgb-channel-split',
     name='RGB channel split',
     family='typography',
@@ -74,8 +74,8 @@ TECHNIQUE = Technique(
                'give the letters a chromatic aberration wobble'),
     related=('rgb-split', 'chromatic-dispersion', 'channel-shuffle', 'hue-cycle-fill',
              'infrared-false-color', 'sepia-tone'),
-    api=('videobuilder.techniques.typography.rgb_channel_split.channel_split',
-         'videobuilder.techniques.typography.rgb_channel_split.draw_split_text',
-         'videobuilder.techniques.typography.rgb_channel_split.glitch_offset'),
+    api=('videobuilder.capabilities.typography.rgb_channel_split.channel_split',
+         'videobuilder.capabilities.typography.rgb_channel_split.draw_split_text',
+         'videobuilder.capabilities.typography.rgb_channel_split.glitch_offset'),
     demo=lambda: demo.film(draw),
 )

@@ -4,7 +4,7 @@ row of copies instead of one blurred shape."""
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def multiples(cv, draw, at, t, span, count=4, fade=0.0):
@@ -45,11 +45,11 @@ def draw(n, cv):
     cv.mark('ball', x - R, Y - R, 2 * R, 2 * R)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='multiples',
     name='Multiples',
     family='principles',
-    group='Principle sub-techniques',
+    group='Principle sub-capabilities',
     aliases=('multiple images', 'multi-image smear', 'drybrush multiples'),
     definition='During a very fast move, several copies of the subject appear in one frame, '
                'strung out along its path, so the eye reads speed instead of a jump.',
@@ -58,6 +58,6 @@ TECHNIQUE = Technique(
                'leave a row of duplicates behind it when it moves fast'),
     related=('double-exposure', 'accumulation-motion-blur', 'multiplane-camera', 'hyperlapse', 'oner',
              'frame-delay-echo'),
-    api=('videobuilder.techniques.principles.multiples.multiples',),
+    api=('videobuilder.capabilities.principles.multiples.multiples',),
     demo=lambda: demo.film(draw),
 )

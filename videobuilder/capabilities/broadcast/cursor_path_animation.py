@@ -7,7 +7,7 @@ from collections import namedtuple
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 # A pointer arrow, tip at (0, 0), in pixels at scale 1.
 ARROW = ((0, 0), (0, 27), (7, 21), (12, 32), (17.5, 29.5), (12.5, 19), (21, 19))
@@ -144,7 +144,7 @@ def draw(n, cv):
     cv.mark('cursor', pose.x, pose.y, 30, 45)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='cursor-path-animation',
     name='Cursor path animation',
     family='broadcast',
@@ -157,8 +157,8 @@ TECHNIQUE = Technique(
                'a fake cursor that walks the viewer through the interface'),
     related=('cursor-particle-trail', 'cursor-state-change', 'cursor-follower-dot-and-ring',
              'magnetic-button', 'arrow-pointer-draw', 'proximity-stagger'),
-    api=('videobuilder.techniques.broadcast.cursor_path_animation.cursor_path',
-         'videobuilder.techniques.broadcast.cursor_path_animation.draw_cursor',
-         'videobuilder.techniques.broadcast.cursor_path_animation.cursor_trail'),
+    api=('videobuilder.capabilities.broadcast.cursor_path_animation.cursor_path',
+         'videobuilder.capabilities.broadcast.cursor_path_animation.draw_cursor',
+         'videobuilder.capabilities.broadcast.cursor_path_animation.cursor_trail'),
     demo=lambda: demo.film(draw),
 )

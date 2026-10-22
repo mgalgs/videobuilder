@@ -4,7 +4,7 @@ pointer leaves."""
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 ARROW = ((0, 0), (0, 27), (7, 21), (12, 32), (17.5, 29.5), (12.5, 19), (21, 19))
 
@@ -70,7 +70,7 @@ def draw(n, cv):
     pointer(cv, px, py)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='hover-lift',
     name='Hover lift',
     family='ui',
@@ -83,8 +83,8 @@ TECHNIQUE = Technique(
                'mouse over the button and it lifts with a deeper shadow'),
     related=('drag-lift-with-shadow', 'drop-shadow-lift', 'spotlight-hover', 'hover-letter-displacement',
              'hover-reveal-actions', 'icon-hover-bounce'),
-    api=('videobuilder.techniques.ui.hover_lift.draw_lift',
-         'videobuilder.techniques.ui.hover_lift.hover',
-         'videobuilder.techniques.ui.hover_lift.pointer'),
+    api=('videobuilder.capabilities.ui.hover_lift.draw_lift',
+         'videobuilder.capabilities.ui.hover_lift.hover',
+         'videobuilder.capabilities.ui.hover_lift.pointer'),
     demo=lambda: demo.film(draw),
 )

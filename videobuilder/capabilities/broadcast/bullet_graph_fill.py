@@ -6,7 +6,7 @@ import videobuilder as vb
 
 from .. import _demo as demo
 from ...compendium import kit
-from ..schema import Technique
+from ..schema import Capability
 
 BANDS = ((0.5, '#24262e'), (0.75, '#30333d'), (1.0, '#3d4150'))
 
@@ -57,7 +57,7 @@ def draw(n, cv):
                              kit.mix(demo.MUTED, demo.TEAL if hit else demo.ACCENT, p))
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='bullet-graph-fill',
     name='Bullet graph fill',
     family='broadcast',
@@ -70,6 +70,6 @@ TECHNIQUE = Technique(
                'bars that grow and either reach the target mark or fall short'),
     related=('percentage-fill-bar', 'icon-line-to-fill', 'bookmark-fill', 'dot-density-map',
              'pencil-sketch', 'milestone-marker-pop'),
-    api=('videobuilder.techniques.broadcast.bullet_graph_fill.bullet_graph',),
+    api=('videobuilder.capabilities.broadcast.bullet_graph_fill.bullet_graph',),
     demo=lambda: demo.film(draw),
 )

@@ -8,7 +8,7 @@ import videobuilder as vb
 from videobuilder.canvas import _rounded, rgba
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def skeleton_shimmer(cv, blocks, p, base='#2a2c33', highlight='#3d4049', band=0.35, tilt=20):
@@ -62,7 +62,7 @@ def draw(n, cv):
     cv.mark('skeleton', *box)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='skeleton-shimmer',
     name='Skeleton shimmer',
     family='ui',
@@ -75,6 +75,6 @@ TECHNIQUE = Technique(
                'like the empty shimmering cards an app shows before the feed arrives'),
     related=('text-reflection-shimmer', 'chrome-specular-shimmer', 'gooch-shading', 'scroll-pin-section',
              'scroll-linked-background-shift', 'bookmark-fill'),
-    api=('videobuilder.techniques.ui.skeleton_shimmer.skeleton_shimmer',),
+    api=('videobuilder.capabilities.ui.skeleton_shimmer.skeleton_shimmer',),
     demo=lambda: demo.film(draw),
 )

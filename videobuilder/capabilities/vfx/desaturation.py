@@ -5,7 +5,7 @@ import cairo
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def desaturate(cv, amount):
@@ -51,7 +51,7 @@ def _draw(n, cv):
     vb.text.draw(cv, [label], f, x, y, demo.INK)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='desaturation',
     name='Desaturation',
     family='vfx',
@@ -64,7 +64,7 @@ TECHNIQUE = Technique(
                'mute the colours down to almost monochrome'),
     related=('dip-to-black', 'blur-up-image-load', 'pixelate-transition', 'gradient-wipe', 'gaussian-blur',
              'pixelation'),
-    api=('videobuilder.techniques.vfx.desaturation.desaturate',
-         'videobuilder.techniques.vfx.desaturation.desaturated'),
+    api=('videobuilder.capabilities.vfx.desaturation.desaturate',
+         'videobuilder.capabilities.vfx.desaturation.desaturated'),
     demo=lambda: demo.film(_draw),
 )

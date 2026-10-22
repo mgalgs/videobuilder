@@ -6,7 +6,7 @@ import random
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def _smooth(x):
@@ -85,7 +85,7 @@ def draw(n, cv):
     draw_ink_splash(cv, demo.W / 2, demo.H / 2, 165, demo.phase(n, 0.4, 2.0), demo.ACCENT, seed=3)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='ink-splash-spread',
     name='Ink splash spread',
     family='shapes',
@@ -97,7 +97,7 @@ TECHNIQUE = Technique(
                'make it splash out like spilled ink',
                'a blob of ink that splatters open from the middle'),
     related=('ink-spread-reveal', 'ink-bleed', 'ink-in-water', 'ink-outline', 'touch-ripple', 'line-boil'),
-    api=('videobuilder.techniques.shapes.ink_splash_spread.draw_ink_splash',
-         'videobuilder.techniques.shapes.ink_splash_spread.splat_points'),
+    api=('videobuilder.capabilities.shapes.ink_splash_spread.draw_ink_splash',
+         'videobuilder.capabilities.shapes.ink_splash_spread.splat_points'),
     demo=lambda: demo.film(draw),
 )

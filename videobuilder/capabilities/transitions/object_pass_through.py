@@ -5,7 +5,7 @@ hidden behind it."""
 import math
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def pillar(cv, x, w, color='#15171c', light='#4a4f5a'):
@@ -45,7 +45,7 @@ def object_pass_through(cv, a, b, p, draw_object=pillar, width=1.2, drift=0.12, 
     draw_object(cv, left, ow)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='object-pass-through',
     name='Object pass-through',
     family='transitions',
@@ -58,7 +58,7 @@ TECHNIQUE = Technique(
                'use a foreground object to wipe from one shot to the next'),
     related=('zoom-through', 'fly-through', 'tracking-shot', 'follow-through', 'image-hover-mask-reveal',
              'uncover'),
-    api=('videobuilder.techniques.transitions.object_pass_through.object_pass_through',
-         'videobuilder.techniques.transitions.object_pass_through.pillar'),
+    api=('videobuilder.capabilities.transitions.object_pass_through.object_pass_through',
+         'videobuilder.capabilities.transitions.object_pass_through.pillar'),
     demo=lambda: demo.two_scenes(object_pass_through, start=0.7, length=1.6),
 )

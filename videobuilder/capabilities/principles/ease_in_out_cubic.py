@@ -3,7 +3,7 @@ rest, is quickest halfway, and comes to rest just as gently as it began."""
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def ease_in_out_cubic(x):
@@ -53,7 +53,7 @@ def draw(n, cv):
     demo.dot(cv, px, py, 6, color=demo.INK)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='ease-in-out-cubic',
     name='Ease In-Out Cubic',
     family='principles',
@@ -66,6 +66,6 @@ TECHNIQUE = Technique(
                'eases in and eases out, with nothing abrupt'),
     related=('slow-in-and-slow-out', 'asymmetric-fast-in-slow-out', 'inertia', 'dolly-in-and-out', 'push-in',
              'smooth-scroll-inertia'),
-    api=('videobuilder.techniques.principles.ease_in_out_cubic.ease_in_out_cubic',),
+    api=('videobuilder.capabilities.principles.ease_in_out_cubic.ease_in_out_cubic',),
     demo=lambda: demo.film(draw),
 )

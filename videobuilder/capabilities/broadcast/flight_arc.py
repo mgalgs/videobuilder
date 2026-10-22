@@ -6,7 +6,7 @@ import math
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def flight_arc(a, b, lift=0.3, n=64):
@@ -100,7 +100,7 @@ def draw(n, cv):
     demo.dot(cv, *b, r=7, color=demo.ACCENT if land > 0 else demo.INK)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='flight-arc',
     name='Flight arc',
     family='broadcast',
@@ -112,7 +112,7 @@ TECHNIQUE = Technique(
                'show a plane route arcing from New York to Tokyo',
                'animate a connection line that arches across the world map'),
     related=('projectile-arc', 'arcs', 'arc-bend-morph', 'bend-deformer', 'electric-arc', 'chord-diagram-draw'),
-    api=('videobuilder.techniques.broadcast.flight_arc.flight_arc',
-         'videobuilder.techniques.broadcast.flight_arc.draw_flight_arc'),
+    api=('videobuilder.capabilities.broadcast.flight_arc.flight_arc',
+         'videobuilder.capabilities.broadcast.flight_arc.draw_flight_arc'),
     demo=lambda: demo.film(draw),
 )

@@ -10,7 +10,7 @@ import videobuilder as vb
 from .. import _demo as demo
 from ...compendium import kit
 from ...looks import kit as looks
-from ..schema import Technique
+from ..schema import Capability
 
 ISO_YAW = math.pi / 4                         # 45 degrees about the vertical
 ISO_ELEVATION = math.asin(math.tan(math.pi / 6))  # about 35.26 degrees down: the true isometric angle
@@ -102,7 +102,7 @@ def draw(n, cv):
     cv.mark('scene', cx - 200, cy - 190, 400, 330)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='isometric-view',
     name='Isometric view',
     family='camera',
@@ -115,9 +115,9 @@ TECHNIQUE = Technique(
                'draw the scene like an isometric illustration, corner-on from above'),
     related=('isometric-rotation', 'isometric-bar-rise', 'parallel-coordinates-draw', 'tilt',
              'perspective-crawl', 'pedestal'),
-    api=('videobuilder.techniques.camera.isometric_view.ortho_point',
-         'videobuilder.techniques.camera.isometric_view.to_isometric',
-         'videobuilder.techniques.camera.isometric_view.ortho_box',
-         'videobuilder.techniques.camera.isometric_view.ISO_ELEVATION'),
+    api=('videobuilder.capabilities.camera.isometric_view.ortho_point',
+         'videobuilder.capabilities.camera.isometric_view.to_isometric',
+         'videobuilder.capabilities.camera.isometric_view.ortho_box',
+         'videobuilder.capabilities.camera.isometric_view.ISO_ELEVATION'),
     demo=lambda: demo.film(draw),
 )

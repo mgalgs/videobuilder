@@ -6,7 +6,7 @@ import math
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 from ..shapes.isometric_bar_rise import COS, SIN, draw_iso_floor, iso, shade
 from ...looks import kit as looks
 
@@ -92,7 +92,7 @@ def draw(n, cv):
     cv.mark('grid', x0, oy - 120, x1 - x0, (COLS + ROWS) * TILE * SIN + 120)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='effector-driven-instances',
     name='Effector-driven instances',
     family='camera',
@@ -104,8 +104,8 @@ TECHNIQUE = Technique(
                'make the clones react to a moving falloff so a wave of bigger blocks passes over the grid',
                'blocks rise and twist only near a spot that slides across the field'),
     related=('droste-effect', 'mograph-grid-flip', 'spin', 'multiples', 'isolines-contour-animation', 'offset'),
-    api=('videobuilder.techniques.camera.effector_driven_instances.effector_instances',
-         'videobuilder.techniques.camera.effector_driven_instances.effector_weights',
-         'videobuilder.techniques.camera.effector_driven_instances.falloff'),
+    api=('videobuilder.capabilities.camera.effector_driven_instances.effector_instances',
+         'videobuilder.capabilities.camera.effector_driven_instances.effector_weights',
+         'videobuilder.capabilities.camera.effector_driven_instances.falloff'),
     demo=lambda: demo.film(draw),
 )

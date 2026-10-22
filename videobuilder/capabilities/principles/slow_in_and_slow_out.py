@@ -5,7 +5,7 @@ ball was every few frames, crowded at both ends and spread in the middle."""
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 START, END, EVERY = 0.4, 2.4, 3  # the move, in seconds; one spacing mark per EVERY frames
 
@@ -25,7 +25,7 @@ def draw(n, cv):
     cv.mark('ball', x - r, y - r, 2 * r, 2 * r)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='slow-in-and-slow-out',
     name='Slow In and Slow Out',
     family='principles',

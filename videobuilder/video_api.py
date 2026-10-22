@@ -165,7 +165,7 @@ def _get_family_page(self, route, q, editor, user, family):
                                   self.library.whats_new.newest_key())
         style = pages.APP_HEADER_STYLE
     try:
-        page = capabilities.techniques_family_page_html(family, editor.capabilities_dir, __version__, header, style)
+        page = capabilities.family_page_html(family, editor.capabilities_dir, __version__, header, style)
     except KeyError:
         raise HTTPError(404, 'unknown capability family') from None
     return self._send(200, page, 'text/html; charset=utf-8')
@@ -173,19 +173,19 @@ def _get_family_page(self, route, q, editor, user, family):
 
 def _get_family_page_redirect(self, route, q, editor, user, family):
     """The old /capabilities/techniques/<family> family page, permanently moved to
-    /capabilities/<family> now that techniques are capabilities too; the clips at
-    /capabilities/techniques/<id>.mp4|jpg are unaffected (see _get_technique_clip)."""
+    /capabilities/<family> now that the registry's ids are capabilities too; the clips at
+    /capabilities/techniques/<id>.mp4|jpg are unaffected (see _get_registry_clip)."""
     self.send_response(301)
     self.send_header('Location', '/capabilities/' + family)
     self.send_header('Content-Length', '0')
     self.end_headers()
 
 
-def _get_technique_clip(self, route, q, editor, user, tech_id, kind):
+def _get_registry_clip(self, route, q, editor, user, tech_id, kind):
     from . import capabilities
-    path = capabilities.technique_clip_file(editor.capabilities_dir, tech_id, kind)
+    path = capabilities.registry_clip_file(editor.capabilities_dir, tech_id, kind)
     if path is None or not os.path.isfile(path):
-        raise HTTPError(404, 'technique clip not built')
+        raise HTTPError(404, 'capability clip not built')
     data = open(path, 'rb').read()
     if kind == 'mp4':
         return self._send_ranged(data, 'video/mp4', {'Accept-Ranges': 'bytes'})
@@ -311,15 +311,9 @@ def _get_suggest_config(self, route, q, editor, user):
     return self._json(200, editor.suggest.config() if editor.suggest else {'model': False})
 
 
-# A director never sees the word "capabilities" come from "techniques" -- it's an implementation
-# detail of this registry, not a word a director's own UI ever shows. Every group name in the
-# registry is clean of it except this one; relabelled here, at the boundary where the data crosses
-# into the director's own picker, rather than touching the registry file that sets it.
-_GROUP_RELABEL = {'Principle sub-techniques': 'Principle details'}
-
-
 def _get_suggest_catalog(self, route, q, editor, user):
-    from . import capabilities, fonts, techniques
+    from . import capabilities, fonts
+    from .capabilities import registry
     looks, type_, caps = [], [], []
     for e in capabilities.entries():
         family = e.get('family')
@@ -336,12 +330,13 @@ def _get_suggest_catalog(self, route, q, editor, user):
         elif family is None:
             item['phrasings'] = list(e.get('prompts', ()))
             caps.append(item)
-    # videobuilder.techniques entries are capabilities too (just too many to hand-write): merged into the
-    # same list, same shape plus group/aliases/phrasings, so the picker can group and search them alike.
-    for t in techniques.catalog():
-        title, _ = capabilities.TECHNIQUE_FAMILIES[t.family]
+    # The registry's capabilities (videobuilder.capabilities.registry) are capabilities too (just too
+    # many to hand-write): merged into the same list, same shape plus group/aliases/phrasings, so the
+    # picker can group and search them alike.
+    for t in registry.catalog():
+        title, _ = capabilities.REGISTRY_FAMILIES[t.family]
         caps.append({'id': t.id, 'title': t.name, 'card': t.definition, 'category': title,
-                     'group': _GROUP_RELABEL.get(t.group, t.group),
+                     'group': t.group,
                      'aliases': list(t.aliases), 'phrasings': list(t.phrasings),
                      'poster': f'/capabilities/techniques/{t.id}.jpg', 'clip': f'/capabilities/techniques/{t.id}.mp4'})
     from . import sfx as sfx_module
@@ -509,7 +504,7 @@ GET_ROUTES = [
     ('/api/thumbnail', _get_thumbnail),
     ('/capabilities', _get_capabilities),
     (re.compile(r'/capabilities/community/([a-z][a-z0-9-]*)\.(mp4|jpg)'), _get_community_clip),
-    (re.compile(r'/capabilities/techniques/([a-z][a-z0-9-]*)\.(mp4|jpg)'), _get_technique_clip),
+    (re.compile(r'/capabilities/techniques/([a-z][a-z0-9-]*)\.(mp4|jpg)'), _get_registry_clip),
     (re.compile(r'/capabilities/techniques/([a-z][a-z0-9-]*)'), _get_family_page_redirect),
     (re.compile(r'/capabilities/([a-z][a-z0-9-]*)\.(mp4|jpg)'), _get_capability_clip),
     (re.compile(r'/capabilities/([a-z][a-z0-9-]*)'), _get_family_page),

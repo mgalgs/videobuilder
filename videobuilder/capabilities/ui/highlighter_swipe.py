@@ -8,7 +8,7 @@ import cairo
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 YELLOW = '#ffe14d'
 
@@ -73,7 +73,7 @@ def draw(n, cv):
     cv.mark('highlight', *box)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='highlighter-swipe',
     name='Highlighter swipe',
     family='ui',
@@ -86,6 +86,6 @@ TECHNIQUE = Technique(
                'have a highlight colour sweep in behind that line of text'),
     related=('underline-swash-draw', 'spotlight-hover', 'callout-highlight', 'whiteboard-marker-drawing',
              'stroke-draw-on', 'underline-wipe'),
-    api=('videobuilder.techniques.ui.highlighter_swipe.highlighter_swipe',),
+    api=('videobuilder.capabilities.ui.highlighter_swipe.highlighter_swipe',),
     demo=lambda: demo.film(draw),
 )

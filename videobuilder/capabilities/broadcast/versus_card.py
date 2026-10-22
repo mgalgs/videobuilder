@@ -4,7 +4,7 @@ their numbers count up, row by row."""
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def _ramp(p, a, b):
@@ -84,7 +84,7 @@ def draw(n, cv):
     draw_versus_card(cv, demo.W / 2, demo.H / 2, 'ALPHA', 'BETA', STATS, demo.phase(n, 0.15, 2.7))
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='versus-card',
     name='Versus card',
     family='broadcast',
@@ -97,6 +97,6 @@ TECHNIQUE = Technique(
                'show both options side by side with a versus in the middle'),
     related=('card-deck-fan', 'stacked-card-reveal', 'graphic-match', 'sticky-card-stack-on-scroll', 'flip',
              'player-stat-card'),
-    api=('videobuilder.techniques.broadcast.versus_card.draw_versus_card',),
+    api=('videobuilder.capabilities.broadcast.versus_card.draw_versus_card',),
     demo=lambda: demo.film(draw),
 )

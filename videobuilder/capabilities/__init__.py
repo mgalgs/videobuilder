@@ -913,7 +913,7 @@ def sheet_markdown():
                  'family\'s with `python -m videobuilder techniques index --family <family>` (drop `--family` '
                  'for every one; add `--json` for machine-readable output). The families:')
     lines.append('')
-    for fam, (title, description) in TECHNIQUE_FAMILIES.items():
+    for fam, (title, description) in REGISTRY_FAMILIES.items():
         lines.append(f'- **{title}** (`{fam}`): {description}')
     lines.append('')
     return '\n'.join(lines) + '\n'
@@ -968,19 +968,20 @@ def build(out_dir, only=None, jobs=None, crf=30, log=None):
     built to be mid-clip-settled by its own enter/hold/exit or periodic-phase
     convention, see examples/capabilities/STYLE.md). With no `only`, or with
     'showcase' in it, the showcase reel is built too (`build_showcase`).
-    Every technique (videobuilder.techniques) is also built, to
-    `<out_dir>/techniques/<id>.mp4`/`.jpg` (`build_techniques`); `only` may
-    name technique ids too. Returns a list of {id, seconds, bytes} for the
-    ones built, in catalog order, the showcase then the techniques last."""
+    Every registry capability (`videobuilder.capabilities.registry`) is also
+    built, to `<out_dir>/techniques/<id>.mp4`/`.jpg` (`build_registry`); `only`
+    may name registry ids too. Returns a list of {id, seconds, bytes} for the
+    ones built, in catalog order, the showcase then the registry capabilities
+    last."""
     import sys as _sys
     import time as _time
     from .. import film as _film
-    from .. import techniques as _techniques
+    from . import registry
     from ..render import render as _render
     log = log or _sys.stderr
-    technique_ids = set(_techniques.ids())
+    registry_ids = set(registry.ids())
     if only is not None:
-        unknown = set(only) - set(ids()) - {SHOWCASE_ID} - technique_ids
+        unknown = set(only) - set(ids()) - {SHOWCASE_ID} - registry_ids
         if unknown:
             raise ValueError(f'unknown capability id(s): {", ".join(sorted(unknown))}')
     todo = [e for e in entries() if only is None or e['id'] in only]
@@ -999,8 +1000,8 @@ def build(out_dir, only=None, jobs=None, crf=30, log=None):
         results.append({'id': entry['id'], 'seconds': _time.time() - t0, 'bytes': os.path.getsize(out_mp4)})
     if only is None or SHOWCASE_ID in only:
         results += build_showcase(out_dir, jobs=jobs, crf=crf, log=log)
-    results += build_techniques(out_dir, only=(only & technique_ids) if only is not None else None,
-                                jobs=jobs, crf=crf, log=log)
+    results += build_registry(out_dir, only=(only & registry_ids) if only is not None else None,
+                              jobs=jobs, crf=crf, log=log)
     return results
 
 
@@ -1028,16 +1029,16 @@ def showcase_available(capabilities_dir):
     return capabilities_dir is not None and os.path.exists(clip_file(capabilities_dir, SHOWCASE_FILES[0], 'mp4'))
 
 
-# ---- techniques: videobuilder/techniques/<family>/<id>.py, shown here grouped by family ----
+# ---- the registry: videobuilder/capabilities/<family>/<id>.py, shown here grouped by family ----
 #
-# Techniques are capabilities too, just too many (hundreds) to list one by one on this page: each
-# family with at least one technique gets one card, filed into the category section it belongs to
+# Registry capabilities are capabilities too, just too many (hundreds) to list one by one on this
+# page: each family with at least one gets one card, filed into the category section it belongs to
 # (FAMILY_CATEGORY below), linking to its own page (/capabilities/<family>). The registry
-# (videobuilder.techniques) is read at render and build time, never duplicated into this module --
-# a technique file landing or changing can never make anything here drift. Family titles and
-# descriptions, though, are ours to write: one row per videobuilder.techniques.FAMILIES slug
-# (tests/test_capabilities_techniques.py checks every slug has one).
-TECHNIQUE_FAMILIES = {
+# (videobuilder.capabilities.registry) is read at render and build time, never duplicated into this
+# module -- a capability file landing or changing can never make anything here drift. Family titles
+# and descriptions, though, are ours to write: one row per videobuilder.capabilities.schema.FAMILIES
+# slug (tests/test_capabilities_registry.py checks every slug has one).
+REGISTRY_FAMILIES = {
     'principles': ('Animation principles', "The animator's classic toolkit: easing, timing and weight."),
     'typography': ('Typography', 'Type-only moves: reveals, effects and kinetic lettering.'),
     'transitions': ('Transitions', 'Ways from one shot to the next.'),
@@ -1050,9 +1051,9 @@ TECHNIQUE_FAMILIES = {
     'sound': ('Sound', 'Sound-only capabilities: foley, stingers and audio cues.'),
 }
 
-# The existing capability-page category each technique family's card files into, after that
-# category's own cards (techniques ARE capabilities to a director; there is no "Techniques" section
-# of their own). One row per videobuilder.techniques.FAMILIES slug (tests/test_capabilities_techniques.py
+# The existing capability-page category each registry family's card files into, after that
+# category's own cards (a registry capability IS a capability to a director; there is no section of
+# their own). One row per videobuilder.capabilities.schema.FAMILIES slug (tests/test_capabilities_registry.py
 # checks every slug maps to a category capabilities.categories() actually has).
 FAMILY_CATEGORY = {
     'principles': 'Motion',
@@ -1067,52 +1068,36 @@ FAMILY_CATEGORY = {
     'sound': 'Timing, sound and formats',
 }
 
-# Techniques that are the same move as an existing capability or a family member: both keep their
-# own card, but each links to the other (see _capability_overlap_technique and the modals in
-# page_html/techniques_family_page_html). Found by reading the technique modules' `api` and `name`
-# against CATALOG. May name only techniques present in this checkout -- a test checks both sides of
-# every row exist; other branches add their own rows as their techniques land.
-# The technique whose poster a family's card shows, where its first technique's middle frame
-# says little (dip-to-black's is black). A family not named here, or whose pick is absent, shows
-# its first technique.
-TECHNIQUE_FAMILY_POSTER = {
+# Registry capabilities that are the same move as an existing (hand-written) capability or a family
+# member: both keep their own card, but each links to the other (see _registry_overlap and the
+# modals in page_html/family_page_html). Found by reading the registry modules' `api` and `name`
+# against CATALOG. May name only ids present in this checkout -- a test checks both sides of every
+# row exist; other branches add their own rows as their capabilities land.
+# The registry capability whose poster a family's card shows, where its first capability's middle
+# frame says little (dip-to-black's is black). A family not named here, or whose pick is absent,
+# shows its first capability.
+REGISTRY_FAMILY_POSTER = {
     'transitions': 'iris-wipe',
 }
 
-TECHNIQUE_OVERLAP = {
+REGISTRY_OVERLAP = {
     'ease-out-back': 'eased-entrances',   # both demo vb.ease_out_back
-    'shape-morph': 'outline-morph',       # both demo vb.paths.morph; the technique kept the old capability id
+    'shape-morph': 'outline-morph',       # both demo vb.paths.morph; the registry kept the old capability id
 }
 
 
-def _capability_overlap_technique(capability_id):
-    """The technique id TECHNIQUE_OVERLAP maps to `capability_id`, or None."""
-    for technique_id, mapped in TECHNIQUE_OVERLAP.items():
+def _registry_overlap(capability_id):
+    """The registry id REGISTRY_OVERLAP maps to `capability_id`, or None."""
+    for registry_id, mapped in REGISTRY_OVERLAP.items():
         if mapped == capability_id:
-            return technique_id
+            return registry_id
     return None
 
 
-_GROUP_DISPLAY_NAMES = {
-    # The registry field itself is out of scope (any file under
-    # videobuilder/techniques/), but a director still must never read
-    # "technique" anywhere on the page, so the one group label that says it
-    # gets rewritten here, display-only.
-    'Principle sub-techniques': 'Principle sub-capabilities',
-}
-
-
-def _display_group(group):
-    """`group` as a director reads it on the page or in the modal: capability
-    wording, never "technique", even where the registry's own field still
-    says it."""
-    return _GROUP_DISPLAY_NAMES.get(group, group)
-
-
-def _technique_groups(members):
-    """`members` (one family's techniques, registry/catalog order) grouped by
+def _registry_groups(members):
+    """`members` (one family's registry capabilities, registry/catalog order) grouped by
     their `group` field, each group's first-seen order kept: [(group,
-    [technique, ...]), ...]. Unlike techniques.grouped(), never re-sorts."""
+    [capability, ...]), ...]. Unlike registry.grouped(), never re-sorts."""
     order, by_group = [], {}
     for t in members:
         if t.group not in by_group:
@@ -1122,91 +1107,91 @@ def _technique_groups(members):
     return [(g, by_group[g]) for g in order]
 
 
-def build_techniques(out_dir, only=None, jobs=None, crf=30, log=None):
-    """Render every technique's demo (or just `only`'s ids) to
+def build_registry(out_dir, only=None, jobs=None, crf=30, log=None):
+    """Render every registry capability's demo (or just `only`'s ids) to
     `<out_dir>/techniques/<id>.mp4` and `<out_dir>/techniques/<id>.jpg` (a
     poster from the demo's middle frame, built the same way as every other
     clip here: `_render`, `_save_poster`). Returns [{id, seconds, bytes},
     ...], registry order."""
     import sys as _sys
     import time as _time
-    from .. import techniques as _techniques
+    from . import registry
     from ..render import render as _render
     log = log or _sys.stderr
-    chosen = _techniques.catalog()
+    chosen = registry.catalog()
     if only is not None:
         chosen = tuple(t for t in chosen if t.id in only)
-    technique_dir = os.path.join(out_dir, 'techniques')
-    os.makedirs(technique_dir, exist_ok=True)
+    registry_dir = os.path.join(out_dir, 'techniques')
+    os.makedirs(registry_dir, exist_ok=True)
     results = []
     for t in chosen:
         film = t.demo()
         fmt = film.formats[0]
-        out_mp4 = os.path.join(technique_dir, t.id + '.mp4')
+        out_mp4 = os.path.join(registry_dir, t.id + '.mp4')
         t0 = _time.time()
         _render(film, out_mp4, fmt, jobs=jobs, crf=crf, log=log)
-        _save_poster(film.frame(film.frames // 2, fmt), os.path.join(technique_dir, t.id + '.jpg'))
+        _save_poster(film.frame(film.frames // 2, fmt), os.path.join(registry_dir, t.id + '.jpg'))
         results.append({'id': t.id, 'seconds': _time.time() - t0, 'bytes': os.path.getsize(out_mp4)})
     return results
 
 
-def technique_clip_file(capabilities_dir, id, kind):
-    """The clip ('mp4') or poster ('jpg') path for a technique id, or None
-    for an unknown id (checked by looking it up in the technique registry
-    itself, never built from the request string directly) or a dir that
-    isn't configured."""
-    from .. import techniques as _techniques
+def registry_clip_file(capabilities_dir, id, kind):
+    """The clip ('mp4') or poster ('jpg') path for a registry capability id, or
+    None for an unknown id (checked by looking it up in the registry itself,
+    never built from the request string directly) or a dir that isn't
+    configured."""
+    from . import registry
     if capabilities_dir is None:
         return None
     try:
-        _techniques.get(id)
+        registry.get(id)
     except KeyError:
         return None
     return os.path.join(capabilities_dir, 'techniques', f'{id}.{kind}')
 
 
-def technique_available(capabilities_dir, id):
-    path = technique_clip_file(capabilities_dir, id, 'mp4')
+def registry_available(capabilities_dir, id):
+    path = registry_clip_file(capabilities_dir, id, 'mp4')
     return bool(path and os.path.exists(path))
 
 
-def _technique_thumb(capabilities_dir, id):
+def _registry_thumb(capabilities_dir, id):
     return (f'<img src="/capabilities/techniques/{id}.jpg" alt="" loading="lazy">'
-            if technique_available(capabilities_dir, id) else '<span>clip not built</span>')
+            if registry_available(capabilities_dir, id) else '<span>clip not built</span>')
 
 
-def techniques_family_page_html(family, capabilities_dir, version, header='', header_style=''):
+def family_page_html(family, capabilities_dir, version, header='', header_style=''):
     """The /capabilities/<family> page: that family's capabilities, grouped
     under their own `group` heading, in registry order. Clicking a card opens
     the same kind of modal /capabilities uses, with the clip, the definition,
     the phrasings as example prompts, the aliases and the api names, plus a
-    link back to the overlapping capability (TECHNIQUE_OVERLAP), if there is
-    one. Raises KeyError for a family that isn't one of techniques.FAMILIES
+    link back to the overlapping capability (REGISTRY_OVERLAP), if there is
+    one. Raises KeyError for a family that isn't one of registry.FAMILIES
     (the route checks this, never builds a path from the request string)."""
-    from .. import techniques as _techniques
-    if family not in _techniques.FAMILIES:
+    from . import registry
+    if family not in registry.FAMILIES:
         raise KeyError(family)
-    members = tuple(t for t in _techniques.catalog() if t.family == family)
-    title, description = TECHNIQUE_FAMILIES[family]
+    members = tuple(t for t in registry.catalog() if t.family == family)
+    title, description = REGISTRY_FAMILIES[family]
     search_label = title[0].lower() + title[1:]
     body = []
-    for group, group_members in _technique_groups(members):
-        body.append(f'<h3 class="kind">{_esc(_display_group(group))}</h3><div class="grid">')
+    for group, group_members in _registry_groups(members):
+        body.append(f'<h3 class="kind">{_esc(group)}</h3><div class="grid">')
         for t in group_members:
-            body.append(_card_html(t.id, t.name, t.definition, _technique_thumb(capabilities_dir, t.id)))
+            body.append(_card_html(t.id, t.name, t.definition, _registry_thumb(capabilities_dir, t.id)))
         body.append('</div>')
     data = []
     for t in members:
         item = {'id': t.id, 'title': t.name, 'family': t.family, 'familyTitle': title,
-                'group': _display_group(t.group),
+                'group': t.group,
                 'description': t.definition, 'prompts': list(t.phrasings), 'aliases': list(t.aliases),
-                'api': list(t.api), 'available': technique_available(capabilities_dir, t.id)}
-        overlap = TECHNIQUE_OVERLAP.get(t.id)
+                'api': list(t.api), 'available': registry_available(capabilities_dir, t.id)}
+        overlap = REGISTRY_OVERLAP.get(t.id)
         if overlap:
             cap = get(overlap)
             item['overlap'] = {'id': cap['id'], 'title': cap['title']}
         data.append(item)
-    style = _PAGE_STYLE + header_style + _TECHNIQUES_STYLE
+    style = _PAGE_STYLE + header_style + _REGISTRY_MODAL_STYLE
     html = (
         '<!doctype html><html lang="en"><head><meta charset="utf-8">'
         f'<title>{_esc(title)} · videobuilder</title>'
@@ -1218,9 +1203,9 @@ def techniques_family_page_html(family, capabilities_dir, version, header='', he
         f'aria-label="Search {_esc(search_label)}" autocomplete="off" spellcheck="false"></div>'
         f'<p class="section-lead">{_esc(description)} <a href="/capabilities">Back to Capabilities</a></p>'
         f'{"".join(body)}<p class="search-none search-hide" id="search-none" role="status"></p></main>' +
-        _TECHNIQUE_MODAL_HTML +
-        f'<script id="techniques-data" type="application/json">{json.dumps(data).replace("<", "\\u003c")}</script>'
-        f'<script>{_TECHNIQUES_PAGE_SCRIPT}</script><script>{_TECHNIQUES_SEARCH_SCRIPT}</script>'
+        _REGISTRY_MODAL_HTML +
+        f'<script id="registry-data" type="application/json">{json.dumps(data).replace("<", "\\u003c")}</script>'
+        f'<script>{_REGISTRY_PAGE_SCRIPT}</script><script>{_REGISTRY_SEARCH_SCRIPT}</script>'
         '</body></html>'
     )
     return html.encode()
@@ -1467,9 +1452,9 @@ _PAGE_SCRIPT = """
 """
 
 
-# Extra modal fields only a technique has (aliases, api names): layered on top of _PAGE_STYLE on
-# the family page, which otherwise matches /capabilities exactly.
-_TECHNIQUES_STYLE = """
+# Extra modal fields only a registry capability has (aliases, api names): layered on top of
+# _PAGE_STYLE on the family page, which otherwise matches /capabilities exactly.
+_REGISTRY_MODAL_STYLE = """
 #modal .tech-aliases{margin:0 0 14px;color:#a9a9b2;font-size:13px}
 #modal .tech-api{background:#1b1e24;border-radius:10px;padding:14px 16px;margin:0 0 14px}
 #modal .tech-api p{margin:0 0 8px;font-weight:600;font-size:13px;color:#a9a9b2;text-transform:uppercase;
@@ -1478,10 +1463,10 @@ _TECHNIQUES_STYLE = """
 #modal .tech-api li{margin:4px 0;color:#eee;font-family:monospace;font-size:13px}
 """
 
-# The technique family page's modal: like /capabilities' own (clip, title, category line,
+# The registry family page's modal: like /capabilities' own (clip, title, category line,
 # description, phrasings as "What to tell the builder"), plus aliases, api names and -- only when
-# TECHNIQUE_OVERLAP names this technique -- a link back to the capability it overlaps.
-_TECHNIQUE_MODAL_HTML = (
+# REGISTRY_OVERLAP names this id -- a link back to the capability it overlaps.
+_REGISTRY_MODAL_HTML = (
     '<div id="modal" hidden role="dialog" aria-modal="true" aria-labelledby="modal-title">'
     '<div class="box">'
     '<button class="close" id="modal-close" aria-label="Close">&times;</button>'
@@ -1498,9 +1483,9 @@ _TECHNIQUE_MODAL_HTML = (
     '</div></div></div>'
 )
 
-_TECHNIQUES_PAGE_SCRIPT = """
+_REGISTRY_PAGE_SCRIPT = """
 (function(){
-  var data = JSON.parse(document.getElementById('techniques-data').textContent);
+  var data = JSON.parse(document.getElementById('registry-data').textContent);
   var byId = {};
   data.forEach(function(t){byId[t.id] = t});
   var modal = document.getElementById('modal');
@@ -1594,14 +1579,14 @@ _TECHNIQUES_PAGE_SCRIPT = """
 """
 
 # The family page's search box: filters its own cards by name, alias and phrasing (no hit list --
-# every technique in the family already has a card right there).
-_TECHNIQUES_SEARCH_SCRIPT = """
+# every capability in the family already has a card right there).
+_REGISTRY_SEARCH_SCRIPT = """
 (function(){
   var input = document.getElementById('tech-search');
   if(!input) return;
   var main = document.querySelector('main');
   var none = document.getElementById('search-none');
-  var data = JSON.parse(document.getElementById('techniques-data').textContent);
+  var data = JSON.parse(document.getElementById('registry-data').textContent);
   var text = {};
   data.forEach(function(t){
     text[t.id] = [t.title, t.group].concat(t.aliases || [], t.prompts || []).join(' ').toLowerCase();
@@ -1697,8 +1682,8 @@ _SEARCH_SCRIPT = """
     });
   });
   var cards = Array.prototype.slice.call(main.querySelectorAll('[data-card]'));
-  var techEl = document.getElementById('techniques-search-data');
-  var techniques = techEl ? JSON.parse(techEl.textContent) : [];
+  var registryEl = document.getElementById('registry-search-data');
+  var registryCapabilities = registryEl ? JSON.parse(registryEl.textContent) : [];
   var hits = document.getElementById('tech-hits');
   function hide(el, yes){ el.classList.toggle('search-hide', yes) }
   function apply(){
@@ -1726,13 +1711,13 @@ _SEARCH_SCRIPT = """
       hide(h, searching && !any);
       run.forEach(function(r){ if(r.classList.contains('section-lead')) hide(r, searching && !any) });
     });
-    // Techniques don't have their own cards here (hundreds of them): a match links
+    // Registry capabilities don't have their own cards here (hundreds of them): a match links
     // straight to its family page instead of filtering a card in place.
     var techHits = 0;
     if(hits){
       hits.innerHTML = '';
       if(searching){
-        techniques.forEach(function(t){
+        registryCapabilities.forEach(function(t){
           var hay = [t.id, t.title, t.family].concat(t.aliases || []).join(' ').toLowerCase();
           if(!words.every(function(w){ return hay.indexOf(w) >= 0 })) return;
           techHits++;
@@ -1849,7 +1834,7 @@ _ADD_CAPABILITY_SCRIPT = """
 def _add_capability_html(fetch):
     url_field = ('<label>Link (an X post, a blog post, a demo page)<input type="url" name="url" '
                 'placeholder="https://&hellip;"></label>' if fetch else '')
-    kinds = [('', 'A new capability', 'A technique videobuilder can\'t do yet', 'Add a capability',
+    kinds = [('', 'A new capability', 'Something videobuilder can\'t do yet', 'Add a capability',
               'A one-line description of the effect')]
     for f in families():
         if f.get('member'):
@@ -2056,19 +2041,19 @@ def page_html(capabilities_dir, version, header='', header_style='', community=N
         else:
             published_by_category.setdefault(entry['category'], []).append(entry)
     built = available_ids(capabilities_dir)
-    from .. import techniques as _techniques
-    all_techniques = _techniques.catalog()
+    from . import registry
+    all_registry_capabilities = registry.catalog()
     family_cards_by_category = {}
-    for fam in _techniques.FAMILIES:
-        members = [t for t in all_techniques if t.family == fam]
+    for fam in registry.FAMILIES:
+        members = [t for t in all_registry_capabilities if t.family == fam]
         if not members:
             continue
-        title, description = TECHNIQUE_FAMILIES[fam]
+        title, description = REGISTRY_FAMILIES[fam]
         n = len(members)
         line = f"{description} ({n} capabilit{'ies' if n != 1 else 'y'})"
         ids_ = {t.id for t in members}
-        poster = TECHNIQUE_FAMILY_POSTER.get(fam)
-        thumb = _technique_thumb(capabilities_dir, poster if poster in ids_ else members[0].id)
+        poster = REGISTRY_FAMILY_POSTER.get(fam)
+        thumb = _registry_thumb(capabilities_dir, poster if poster in ids_ else members[0].id)
         card = (f'<a class="card" href="/capabilities/{fam}">'
                 f'<span class="thumb">{thumb}</span>'
                 f'<span class="meta"><strong>{_esc(title)}</strong><span>{_esc(line)}</span></span></a>')
@@ -2112,16 +2097,16 @@ def page_html(capabilities_dir, version, header='', header_style='', community=N
             item.update(members=len(e['children']) + len(published_by_family.get(e['id'], [])), plural=e['noun'][1])
         if e['family']:
             item.update(family=e['family'], kindTitle=_kind_title(e))
-        technique_id = _capability_overlap_technique(e['id'])
-        if technique_id:
-            t = _techniques.get(technique_id)
+        registry_id = _registry_overlap(e['id'])
+        if registry_id:
+            t = registry.get(registry_id)
             item['techOverlap'] = {'id': t.id, 'family': t.family, 'title': t.name}
         data.append(item)
-    technique_search_data = [{'id': t.id, 'title': t.name, 'family': t.family, 'aliases': list(t.aliases)}
-                             for t in all_techniques]
-    technique_search_json = json.dumps(technique_search_data).replace('<', '\\u003c')
-    technique_search_script = (f'<script id="techniques-search-data" type="application/json">'
-                               f'{technique_search_json}</script>')
+    registry_search_data = [{'id': t.id, 'title': t.name, 'family': t.family, 'aliases': list(t.aliases)}
+                           for t in all_registry_capabilities]
+    registry_search_json = json.dumps(registry_search_data).replace('<', '\\u003c')
+    registry_search_script = (f'<script id="registry-search-data" type="application/json">'
+                             f'{registry_search_json}</script>')
     body = ''.join(cards)
     can_submit = bool(community and community.get('can_submit'))
     add_button = ('<button type="button" id="add-capability" class="btn btn-primary">Add capability</button>'
@@ -2174,7 +2159,7 @@ def page_html(capabilities_dir, version, header='', header_style='', community=N
         '<p class="tech-overlap" id="modal-tech-overlap" hidden></p>'
         '</div></div></div>' + dialog_html +
         f'<script id="capabilities-data" type="application/json">{json.dumps(data)}</script>' +
-        community_data_script + technique_search_script +
+        community_data_script + registry_search_script +
         f'<script>{_PAGE_SCRIPT}</script><script>{_SEARCH_SCRIPT}</script>' + dialog_script + community_script +
         '</body></html>'
     )

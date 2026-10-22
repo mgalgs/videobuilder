@@ -6,7 +6,7 @@ import random
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def blob_outline(cx, cy, r, t, seed=0, wobble=0.16, lobes=(2, 3, 4), period=3.0, points=120):
@@ -48,7 +48,7 @@ def draw(n, cv):
     cv.mark('blob', min(xs), min(ys), max(xs) - min(xs), max(ys) - min(ys))
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='morphing-blob',
     name='Morphing blob',
     family='shapes',
@@ -61,7 +61,7 @@ TECHNIQUE = Technique(
                'a gooey amoeba-like background shape that never sits still'),
     related=('blob-to-icon-morph', 'morphing-shape-ident', 'shape-morph-loader', 'liquid-morph',
              'shape-morph', 'particle-morph'),
-    api=('videobuilder.techniques.shapes.morphing_blob.draw_blob',
-         'videobuilder.techniques.shapes.morphing_blob.blob_outline'),
+    api=('videobuilder.capabilities.shapes.morphing_blob.draw_blob',
+         'videobuilder.capabilities.shapes.morphing_blob.blob_outline'),
     demo=lambda: demo.film(draw),
 )

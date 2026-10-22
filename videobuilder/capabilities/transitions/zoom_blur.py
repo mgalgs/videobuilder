@@ -8,7 +8,7 @@ import cairo
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def radial_blur(cv, draw, zoom=1.0, amount=0.3, samples=24, cx=None, cy=None):
@@ -60,7 +60,7 @@ def zoom_blur(cv, a, b, p, zoom=2.2, blur=0.45, cut=0.5, mix=0.12, samples=24):
                         samples)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='zoom-blur',
     name='Zoom blur',
     family='transitions',
@@ -73,7 +73,7 @@ TECHNIQUE = Technique(
                'whoosh into the middle of the frame and come out on the new clip'),
     related=('spin-blur', 'gaussian-blur', 'motion-blur', 'gooey-filter', 'tilt-shift-miniature',
              'blur-up-image-load'),
-    api=('videobuilder.techniques.transitions.zoom_blur.zoom_blur',
-         'videobuilder.techniques.transitions.zoom_blur.radial_blur'),
+    api=('videobuilder.capabilities.transitions.zoom_blur.zoom_blur',
+         'videobuilder.capabilities.transitions.zoom_blur.radial_blur'),
     demo=lambda: demo.two_scenes(zoom_blur, start=0.8, length=1.2),
 )

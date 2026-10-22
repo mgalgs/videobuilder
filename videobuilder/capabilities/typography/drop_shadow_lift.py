@@ -3,7 +3,7 @@ falls further behind it, spreading and softening, so the words seem to float."""
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 from ...type import kit as type_kit
 
 PAPER = '#e9e6df'
@@ -52,7 +52,7 @@ def draw(n, cv):
     cv.mark('text', *box)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='drop-shadow-lift',
     name='Drop shadow lift',
     family='typography',
@@ -65,7 +65,7 @@ TECHNIQUE = Technique(
                'raise the headline so it looks like it is hovering above the page'),
     related=('drop-shadow-breathing', 'drag-lift-with-shadow', 'hover-lift', 'character-rise',
              'long-shadow-extension', 'hover-letter-displacement'),
-    api=('videobuilder.techniques.typography.drop_shadow_lift.draw_lifted',
-         'videobuilder.techniques.typography.drop_shadow_lift.lift_shadow'),
+    api=('videobuilder.capabilities.typography.drop_shadow_lift.draw_lifted',
+         'videobuilder.capabilities.typography.drop_shadow_lift.lift_shadow'),
     demo=lambda: demo.film(draw),
 )

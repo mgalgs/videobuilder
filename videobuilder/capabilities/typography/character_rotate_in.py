@@ -5,7 +5,7 @@ import math
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 from ...type import kit as type_kit
 
 
@@ -55,7 +55,7 @@ def draw(n, cv):
     cv.mark('text', *box)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='character-rotate-in',
     name='Character rotate-in',
     family='typography',
@@ -68,7 +68,7 @@ TECHNIQUE = Technique(
                'make the characters rotate into position in sequence'),
     related=('character-3d-flip', 'orbiting-characters', 'spin', 'letter-sort-animation', 'glyph-cycling',
              'word-carousel-rotate'),
-    api=('videobuilder.techniques.typography.character_rotate_in.draw_rotate_in',
-         'videobuilder.techniques.typography.character_rotate_in.rotate_in'),
+    api=('videobuilder.capabilities.typography.character_rotate_in.draw_rotate_in',
+         'videobuilder.capabilities.typography.character_rotate_in.rotate_in'),
     demo=lambda: demo.film(draw),
 )

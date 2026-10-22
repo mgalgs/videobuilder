@@ -10,7 +10,7 @@ import math
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 NEAR = 0.05
 
@@ -179,7 +179,7 @@ def _draw(n, cv):
     fly_through(cv, _path, boxes, p, 30, ground=ground, start=2.0, fog=45, height=1.1)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='fly-through',
     name='Fly-through',
     family='camera',
@@ -192,10 +192,10 @@ TECHNIQUE = Technique(
                'a first-person glide through the 3D world, passing under the arches'),
     related=('zoom-through', 'noise-terrain-flyover', 'zoom-to-location-map', 'scale-zoom-through',
              'object-pass-through', 'follow-through'),
-    api=('videobuilder.techniques.camera.fly_through.fly_through',
-         'videobuilder.techniques.camera.fly_through.draw_world',
-         'videobuilder.techniques.camera.fly_through.path_camera',
-         'videobuilder.techniques.camera.fly_through.look_at',
-         'videobuilder.techniques.camera.fly_through.road'),
+    api=('videobuilder.capabilities.camera.fly_through.fly_through',
+         'videobuilder.capabilities.camera.fly_through.draw_world',
+         'videobuilder.capabilities.camera.fly_through.path_camera',
+         'videobuilder.capabilities.camera.fly_through.look_at',
+         'videobuilder.capabilities.camera.fly_through.road'),
     demo=lambda: demo.film(_draw),
 )

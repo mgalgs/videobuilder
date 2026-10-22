@@ -7,7 +7,7 @@ import videobuilder as vb
 from videobuilder import paths
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def outline_points(x, y, w, h, radius=0, per_corner=12):
@@ -55,7 +55,7 @@ def draw(n, cv):
     cv.mark('button', x, y, w, h)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='border-draw-button',
     name='Border draw button',
     family='ui',
@@ -68,8 +68,8 @@ TECHNIQUE = Technique(
                'two lines race round the edge of the button and meet'),
     related=('stroke-draw-on', 'border-glow-follow', 'button-ending', 'checkbox-check-draw',
              'icon-line-to-fill', 'line-draw-logo-reveal'),
-    api=('videobuilder.techniques.ui.border_draw_button.border_draw',
-         'videobuilder.techniques.ui.border_draw_button.outline_points',
+    api=('videobuilder.capabilities.ui.border_draw_button.border_draw',
+         'videobuilder.capabilities.ui.border_draw_button.outline_points',
          'videobuilder.paths.reveal'),
     demo=lambda: demo.film(draw),
 )

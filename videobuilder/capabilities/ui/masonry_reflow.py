@@ -4,7 +4,7 @@ each column closing up its gaps instead of the grid jumping."""
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def masonry_layout(heights, columns, x, y, width, gap=24):
@@ -82,7 +82,7 @@ def draw(n, cv):
                   alpha=alpha, scale=scale)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='masonry-reflow',
     name='Masonry reflow',
     family='ui',
@@ -95,7 +95,7 @@ TECHNIQUE = Technique(
                'the waterfall of cards repacks smoothly when the column count changes'),
     related=('grid-reflow-shuffle', 'swiss-grid-slide', 'grid-diagonal-stagger', 'shape-stacking-drop',
              'treemap-re-layout', 'mograph-grid-flip'),
-    api=('videobuilder.techniques.ui.masonry_reflow.reflow',
-         'videobuilder.techniques.ui.masonry_reflow.masonry_layout'),
+    api=('videobuilder.capabilities.ui.masonry_reflow.reflow',
+         'videobuilder.capabilities.ui.masonry_reflow.masonry_layout'),
     demo=lambda: demo.film(draw),
 )

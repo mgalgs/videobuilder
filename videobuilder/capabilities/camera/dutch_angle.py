@@ -5,7 +5,7 @@ import math
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def cover_scale(width, height, angle):
@@ -79,7 +79,7 @@ def _draw(n, cv):
     demo.word(cv, f'{math.degrees(angle):4.1f}°', 84, demo.H - 43, size=22, font=demo.mono(22))
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='dutch-angle',
     name='Dutch angle',
     family='camera',
@@ -92,7 +92,7 @@ TECHNIQUE = Technique(
                'roll the view off level so everything is on a diagonal'),
     related=('slant-axis-swing', 'isometric-view', 'angled-lower-third', 'diagonal-wipe', 'globe-spin',
              'bend-deformer'),
-    api=('videobuilder.techniques.camera.dutch_angle.dutch_angle',
-         'videobuilder.techniques.camera.dutch_angle.cover_scale'),
+    api=('videobuilder.capabilities.camera.dutch_angle.dutch_angle',
+         'videobuilder.capabilities.camera.dutch_angle.cover_scale'),
     demo=lambda: demo.film(_draw),
 )

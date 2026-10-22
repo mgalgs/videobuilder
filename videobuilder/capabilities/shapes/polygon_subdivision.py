@@ -6,7 +6,7 @@ import random
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 from ...looks import kit as looks
 
 
@@ -83,7 +83,7 @@ def draw(n, cv):
     cv.mark('polygon', cx - r * 0.866, cy - r, r * 1.732, r * 1.5)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='polygon-subdivision',
     name='Polygon subdivision',
     family='shapes',
@@ -96,8 +96,8 @@ TECHNIQUE = Technique(
                'the polygon fractures into a finer and finer mesh'),
     related=('recursive-rectangle-subdivision', 'recursive-tree', 'shape-assemble-from-fragments',
              'shape-boolean-merge', 'koch-snowflake', 'tessellation-triangle-flip'),
-    api=('videobuilder.techniques.shapes.polygon_subdivision.draw_subdivision',
-         'videobuilder.techniques.shapes.polygon_subdivision.subdivide',
-         'videobuilder.techniques.shapes.polygon_subdivision.split'),
+    api=('videobuilder.capabilities.shapes.polygon_subdivision.draw_subdivision',
+         'videobuilder.capabilities.shapes.polygon_subdivision.subdivide',
+         'videobuilder.capabilities.shapes.polygon_subdivision.split'),
     demo=lambda: demo.film(draw),
 )

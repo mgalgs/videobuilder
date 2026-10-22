@@ -6,7 +6,7 @@ import math
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def trail_points(path, t, window=1.5, step=1 / 60):
@@ -113,7 +113,7 @@ def draw(n, cv):
         cv.mark(f'player {label}', x - 22, y - 22, 44, 44)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='player-movement-trail',
     name='Player movement trail',
     family='broadcast',
@@ -126,7 +126,7 @@ TECHNIQUE = Technique(
                'tracking lines that follow the players around the pitch'),
     related=('cursor-particle-trail', 'path-emitter', 'follow-cam', 'map-route-draw', 'per-line-fade-in',
              'tracking-shot'),
-    api=('videobuilder.techniques.broadcast.player_movement_trail.draw_movement_trail',
-         'videobuilder.techniques.broadcast.player_movement_trail.trail_points'),
+    api=('videobuilder.capabilities.broadcast.player_movement_trail.draw_movement_trail',
+         'videobuilder.capabilities.broadcast.player_movement_trail.trail_points'),
     demo=lambda: demo.film(draw),
 )

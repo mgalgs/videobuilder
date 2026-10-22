@@ -3,7 +3,7 @@ the visible picture has a wider, cinema-style aspect ratio."""
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def letterbox(cv, p=1.0, ratio=2.39, color='#000000', ease=vb.ease_in_out_quart):
@@ -32,7 +32,7 @@ def draw(n, cv):
         vb.text.draw(cv, ['2.39 : 1'], f, demo.W - w - 40, demo.H - h - 34, demo.MUTED)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='letterbox',
     name='Letterbox',
     family='vfx',
@@ -45,6 +45,6 @@ TECHNIQUE = Technique(
                'bring in cinematic bars at the top and bottom'),
     related=('box-wipe', 'copper-bars', 'video-clipped-inside-letterforms', 'vhs-tracking-bar', 'corner-wipe',
              'film-edge-frame'),
-    api=('videobuilder.techniques.vfx.letterbox.letterbox',),
+    api=('videobuilder.capabilities.vfx.letterbox.letterbox',),
     demo=lambda: demo.film(draw),
 )

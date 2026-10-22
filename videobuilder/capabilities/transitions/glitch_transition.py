@@ -7,7 +7,7 @@ import random
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 TINTS = ('#ff2bd6', '#00e5ff')  # a magenta and a cyan, standing in for split colour channels
 
@@ -69,7 +69,7 @@ def _smooth(e0, e1, x):
     return t * t * (3 - 2 * t)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='glitch-transition',
     name='Glitch transition',
     family='transitions',
@@ -83,6 +83,6 @@ TECHNIQUE = Technique(
                'a corrupted, jittery video switch between the two scenes'),
     related=('glitch-text', 'scanline-tear', 'pixelate-transition', 'scanline-jitter', 'glitch-sound',
              'screen-tearing'),
-    api=('videobuilder.techniques.transitions.glitch_transition.glitch_transition',),
+    api=('videobuilder.capabilities.transitions.glitch_transition.glitch_transition',),
     demo=lambda: demo.two_scenes(glitch_transition, start=0.9, length=1.2),
 )

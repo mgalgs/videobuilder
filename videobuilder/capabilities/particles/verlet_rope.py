@@ -5,7 +5,7 @@ import math
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def verlet_rope(start, t, pins=(0,), gravity=1800.0, drag=1.2, iterations=12, hz=120, circles=()):
@@ -93,7 +93,7 @@ def draw(n, cv):
     demo.dot(cv, *PIN, 5, demo.BG)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='verlet-rope',
     name='Verlet rope',
     family='particles',
@@ -106,6 +106,6 @@ TECHNIQUE = Technique(
                'a dangling cable that sways and settles with physics'),
     related=('chain-follow-through', 'newton-s-cradle', 'line-weave', 'bezier-handle-bend',
              'ping-pong-loop', 'seamless-loop'),
-    api=('videobuilder.techniques.particles.verlet_rope.verlet_rope',),
+    api=('videobuilder.capabilities.particles.verlet_rope.verlet_rope',),
     demo=lambda: demo.film(draw),
 )

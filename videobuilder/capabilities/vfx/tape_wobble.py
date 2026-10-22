@@ -8,7 +8,7 @@ import cairo
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 from ...canvas import Canvas
 
 
@@ -89,7 +89,7 @@ def draw(n, cv):
     vb.text.draw(cv, [f'0:00:{int(t):02d}'], demo.mono(24, 700), demo.W - 160, 28, demo.INK)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='tape-wobble',
     name='Tape wobble',
     family='vfx',
@@ -102,7 +102,7 @@ TECHNIQUE = Technique(
                'bend the frame in slow sideways waves like the tape is stretching'),
     related=('rolling-shutter-wobble', 'scanline-jitter', 'handheld-shake', 'wobble', 'wiggle-path',
              'play-pause-morph'),
-    api=('videobuilder.techniques.vfx.tape_wobble.tape_wobble',
-         'videobuilder.techniques.vfx.tape_wobble.wobble_offset'),
+    api=('videobuilder.capabilities.vfx.tape_wobble.tape_wobble',
+         'videobuilder.capabilities.vfx.tape_wobble.wobble_offset'),
     demo=lambda: demo.film(draw),
 )

@@ -5,7 +5,7 @@ import videobuilder as vb
 from videobuilder import paths
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def sparkline_points(values, x, y, w, h, pad=0.08):
@@ -65,7 +65,7 @@ def draw(n, cv):
     cv.mark('sparkline', bx, by, bw, bh)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='sparkline-draw',
     name='Sparkline draw',
     family='broadcast',
@@ -78,8 +78,8 @@ TECHNIQUE = Technique(
                'show the figure with a tiny chart sketching its history'),
     related=('streamlines', 'stroke-draw-on', 'magnetic-field-lines', 'line-weave', 'map-route-draw',
              'isolines-contour-animation'),
-    api=('videobuilder.techniques.broadcast.sparkline_draw.draw_sparkline',
-         'videobuilder.techniques.broadcast.sparkline_draw.sparkline_points',
+    api=('videobuilder.capabilities.broadcast.sparkline_draw.draw_sparkline',
+         'videobuilder.capabilities.broadcast.sparkline_draw.sparkline_points',
          'videobuilder.paths.reveal'),
     demo=lambda: demo.film(draw),
 )

@@ -7,7 +7,7 @@ from PIL import Image, ImageChops
 
 from .. import _demo as demo
 from ...looks import fx
-from ..schema import Technique
+from ..schema import Capability
 
 
 def halftone_image(im, pitch, ink='#141414', paper='#f2ede2', light=False, soft=6, dx=0.0, dy=0.0):
@@ -56,7 +56,7 @@ def draw(n, cv):
     cv.mark('picture', 0, 0, demo.W, demo.H)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='halftone',
     name='Halftone',
     family='vfx',
@@ -69,8 +69,8 @@ TECHNIQUE = Technique(
                'a comic-print dot screen over the footage'),
     related=('halftone-dot-scaling', 'duotone', 'dither-reveal', 'ink-splash-spread', 'dot-matrix-text',
              'dot-density-map'),
-    api=('videobuilder.techniques.vfx.halftone.halftone',
-         'videobuilder.techniques.vfx.halftone.halftone_image',
+    api=('videobuilder.capabilities.vfx.halftone.halftone',
+         'videobuilder.capabilities.vfx.halftone.halftone_image',
          'videobuilder.looks.fx.halftone'),
     demo=lambda: demo.film(draw),
 )

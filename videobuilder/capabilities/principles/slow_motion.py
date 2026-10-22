@@ -4,7 +4,7 @@ one moment (here a bounce) stretches out and can be read."""
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def _weight(t, start, end, ramp):
@@ -103,7 +103,7 @@ def draw(n, cv):
     demo.word(cv, 'SLOW MOTION', demo.W / 2, 70, size=34, color=demo.INK, alpha=slow)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='slow-motion',
     name='Slow Motion',
     family='principles',
@@ -116,7 +116,7 @@ TECHNIQUE = Technique(
                'stretch out the bounce so you can really see it'),
     related=('slow-in-and-slow-out', 'delay', 'timing', 'friction-deceleration', 'frame-stutter',
              'scatter-time-playback'),
-    api=('videobuilder.techniques.principles.slow_motion.slow_motion',
-         'videobuilder.techniques.principles.slow_motion.slow_motion_rate'),
+    api=('videobuilder.capabilities.principles.slow_motion.slow_motion',
+         'videobuilder.capabilities.principles.slow_motion.slow_motion_rate'),
     demo=lambda: demo.film(draw),
 )

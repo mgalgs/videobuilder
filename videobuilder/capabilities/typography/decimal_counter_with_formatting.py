@@ -4,7 +4,7 @@ equal-width cell so the figure never shuffles sideways as it changes."""
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 DIGITS = '0123456789'
 
@@ -53,7 +53,7 @@ def draw(n, cv):
     demo.word(cv, 'TOTAL RAISED', demo.W / 2, top - 40, size=26, color=demo.MUTED, weight=700)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='decimal-counter-with-formatting',
     name='Decimal counter with formatting',
     family='typography',
@@ -66,8 +66,8 @@ TECHNIQUE = Technique(
                'a money total that rolls up to the final number, cents and all'),
     related=('odometer-roll', 'timecode-counter', 'seven-segment-display', 'stopwatch-count-up',
              'axis-rescale', 'floating-label'),
-    api=('videobuilder.techniques.typography.decimal_counter_with_formatting.draw_counter',
-         'videobuilder.techniques.typography.decimal_counter_with_formatting.format_count',
-         'videobuilder.techniques.typography.decimal_counter_with_formatting.count_value'),
+    api=('videobuilder.capabilities.typography.decimal_counter_with_formatting.draw_counter',
+         'videobuilder.capabilities.typography.decimal_counter_with_formatting.format_count',
+         'videobuilder.capabilities.typography.decimal_counter_with_formatting.count_value'),
     demo=lambda: demo.film(draw),
 )

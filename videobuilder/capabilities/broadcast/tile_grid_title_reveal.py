@@ -7,7 +7,7 @@ import random
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 STYLES = ('flip', 'scale', 'fade')
 ORDERS = ('random', 'diagonal', 'centre', 'columns')
@@ -113,7 +113,7 @@ def draw(n, cv):
     cv.mark('title', *box)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='tile-grid-title-reveal',
     name='Tile grid title reveal',
     family='broadcast',
@@ -126,7 +126,7 @@ TECHNIQUE = Technique(
                'a mosaic of tiles fills the screen and together they form the show title'),
     related=('title-card-reveal', 'tile-flip', 'swiss-grid-slide', 'bento-grid-reveal', 'hexagon-tile-reveal',
              'pixelation-reveal'),
-    api=('videobuilder.techniques.broadcast.tile_grid_title_reveal.tile_grid_reveal',
-         'videobuilder.techniques.broadcast.tile_grid_title_reveal.tile_delays'),
+    api=('videobuilder.capabilities.broadcast.tile_grid_title_reveal.tile_grid_reveal',
+         'videobuilder.capabilities.broadcast.tile_grid_title_reveal.tile_delays'),
     demo=lambda: demo.film(draw),
 )

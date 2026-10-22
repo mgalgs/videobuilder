@@ -7,7 +7,7 @@ import random
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 GLYPHS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
 
@@ -72,7 +72,7 @@ def draw(n, cv):
     cv.mark('rain', 0, 0, demo.W, demo.H)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='falling-letter-rain',
     name='Falling letter rain',
     family='typography',
@@ -85,7 +85,7 @@ TECHNIQUE = Technique(
                'letters dropping from the sky like rain behind the title'),
     related=('falling-glyph-rain-reveal', 'character-drop', 'rainfall', 'matrix-digital-rain',
              'rain-on-glass', 'meteor-shower'),
-    api=('videobuilder.techniques.typography.falling_letter_rain.draw_letter_rain',
-         'videobuilder.techniques.typography.falling_letter_rain.letter_rain'),
+    api=('videobuilder.capabilities.typography.falling_letter_rain.draw_letter_rain',
+         'videobuilder.capabilities.typography.falling_letter_rain.letter_rain'),
     demo=lambda: demo.film(draw),
 )

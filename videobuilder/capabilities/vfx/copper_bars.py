@@ -10,7 +10,7 @@ import videobuilder as vb
 from videobuilder.canvas import rgba
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 # The demo's bars, top of the stack first: copper, magenta, sky, gold, violet, mint.
 COLORS = ('#e2793b', '#e0457b', '#4fa6ef', '#f2c230', '#8f6cf0', '#3fd6a4')
@@ -76,7 +76,7 @@ def draw(n, cv):
         cv.mark(f'bar{i}', *box)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='copper-bars',
     name='Copper bars',
     family='vfx',
@@ -89,7 +89,7 @@ TECHNIQUE = Technique(
                'chrome-looking colour bands that weave over each other across the screen'),
     related=('refresh-bar', 'audio-waveform-bars', 'striped-progress-bar', 'vhs-tracking-bar', 'letterbox',
              'ridgeline-ripple'),
-    api=('videobuilder.techniques.vfx.copper_bars.copper_bars',
-         'videobuilder.techniques.vfx.copper_bars.copper_bar'),
+    api=('videobuilder.capabilities.vfx.copper_bars.copper_bars',
+         'videobuilder.capabilities.vfx.copper_bars.copper_bar'),
     demo=lambda: demo.film(draw),
 )

@@ -10,7 +10,7 @@ import videobuilder as vb
 from videobuilder.looks.fx import Filter, apply, boil, edges, grow, luma, noise, shrink, work_factor
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 PAPER = (238, 237, 232)
 GRAPHITE = (78, 80, 86)
@@ -92,7 +92,7 @@ def draw(n, cv):
     cv.mark('photo', x, y, pw, ph)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='pencil-sketch',
     name='Pencil sketch',
     family='vfx',
@@ -105,7 +105,7 @@ TECHNIQUE = Technique(
                'a hand-drawn sketch version of the picture with hatching'),
     related=('whiteboard-marker-drawing', 'ink-outline', 'line-chart-draw-on', 'stroke-draw-on', 'line-boil',
              'parallel-coordinates-draw'),
-    api=('videobuilder.techniques.vfx.pencil_sketch.pencil',
-         'videobuilder.techniques.vfx.pencil_sketch.sketch'),
+    api=('videobuilder.capabilities.vfx.pencil_sketch.pencil',
+         'videobuilder.capabilities.vfx.pencil_sketch.sketch'),
     demo=lambda: demo.film(draw),
 )

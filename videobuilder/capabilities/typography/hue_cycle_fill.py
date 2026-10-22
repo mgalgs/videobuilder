@@ -6,7 +6,7 @@ import colorsys
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def hue_color(hue, saturation=0.8, lightness=0.6):
@@ -45,7 +45,7 @@ def draw(n, cv):
     cv.mark('text', *box)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='hue-cycle-fill',
     name='Hue cycle fill',
     family='typography',
@@ -58,8 +58,8 @@ TECHNIQUE = Technique(
                'rainbow text where the colours flow across the letters'),
     related=('color-cycling', 'color-fill-rise', 'choropleth-fill', 'shape-fill-sweep',
              'karaoke-highlight-sweep', 'glyph-cycling'),
-    api=('videobuilder.techniques.typography.hue_cycle_fill.draw_hue_cycle',
-         'videobuilder.techniques.typography.hue_cycle_fill.hue_cycle',
-         'videobuilder.techniques.typography.hue_cycle_fill.hue_color'),
+    api=('videobuilder.capabilities.typography.hue_cycle_fill.draw_hue_cycle',
+         'videobuilder.capabilities.typography.hue_cycle_fill.hue_cycle',
+         'videobuilder.capabilities.typography.hue_cycle_fill.hue_color'),
     demo=lambda: demo.film(draw),
 )

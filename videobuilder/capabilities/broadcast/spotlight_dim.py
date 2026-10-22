@@ -7,7 +7,7 @@ import cairo
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def _hole(ctx, x, y, w, h, r):
@@ -72,7 +72,7 @@ def draw(n, cv):
     cv.mark('spotlit', *boxes[1])
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='spotlight-dim',
     name='Spotlight dim',
     family='broadcast',
@@ -85,6 +85,6 @@ TECHNIQUE = Technique(
                'put a spotlight on that one item and dim the background'),
     related=('spotlight-hover', 'spotlight-follow', 'vignette', 'rim-light',
              'coachmark-spotlight-cutout', 'shine-glint-sweep'),
-    api=('videobuilder.techniques.broadcast.spotlight_dim.spotlight_dim',),
+    api=('videobuilder.capabilities.broadcast.spotlight_dim.spotlight_dim',),
     demo=lambda: demo.film(draw),
 )

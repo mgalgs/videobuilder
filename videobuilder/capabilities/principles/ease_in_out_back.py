@@ -4,7 +4,7 @@ it -- an overshoot at both ends of the move."""
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def ease_in_out_back(x, overshoot=1.70158):
@@ -40,7 +40,7 @@ def draw(n, cv):
     demo.dot(cv, gx + gw * t, gy - gh * p, 8)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='ease-in-out-back',
     name='Ease In-Out Back',
     family='principles',
@@ -53,6 +53,6 @@ TECHNIQUE = Technique(
                'a slide with a little wind-up at the start and a bounce-back at the end'),
     related=('dolly-in-and-out', 'slow-in-and-slow-out', 'reverse-playback', 'follow-through',
              'overshoot-bounce-in', 'interruptible-motion'),
-    api=('videobuilder.techniques.principles.ease_in_out_back.ease_in_out_back',),
+    api=('videobuilder.capabilities.principles.ease_in_out_back.ease_in_out_back',),
     demo=lambda: demo.film(draw),
 )

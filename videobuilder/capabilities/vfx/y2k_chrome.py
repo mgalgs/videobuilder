@@ -10,7 +10,7 @@ import cairo
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 SKY = ('#f6f8ff', '#bccaf4', '#6676c4')          # top of the face down to the horizon
 GROUND = ('#0d0f33', '#262a72', '#9ba7ec', '#f2f4ff')  # under the horizon down to the foot
@@ -206,7 +206,7 @@ def draw(n, cv):
     cv.mark('text', *box)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='y2k-chrome',
     name='Y2K chrome',
     family='vfx',
@@ -219,10 +219,10 @@ TECHNIQUE = Technique(
                'turn this shape into glossy reflective chrome with a sparkle on it'),
     related=('chrome-specular-shimmer', 'chrome-reflection', 'gooch-shading', 'thin-film-iridescence',
              'text-reflection-shimmer', 'heat-haze'),
-    api=('videobuilder.techniques.vfx.y2k_chrome.y2k_chrome',
-         'videobuilder.techniques.vfx.y2k_chrome.text_silhouette',
-         'videobuilder.techniques.vfx.y2k_chrome.polygon_silhouette',
-         'videobuilder.techniques.vfx.y2k_chrome.sparkle_points',
-         'videobuilder.techniques.vfx.y2k_chrome.sparkle'),
+    api=('videobuilder.capabilities.vfx.y2k_chrome.y2k_chrome',
+         'videobuilder.capabilities.vfx.y2k_chrome.text_silhouette',
+         'videobuilder.capabilities.vfx.y2k_chrome.polygon_silhouette',
+         'videobuilder.capabilities.vfx.y2k_chrome.sparkle_points',
+         'videobuilder.capabilities.vfx.y2k_chrome.sparkle'),
     demo=lambda: demo.film(draw),
 )

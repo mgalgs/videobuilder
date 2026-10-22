@@ -9,7 +9,7 @@ import videobuilder as vb
 
 from ... import fonts
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 OPSZ_TEXT, OPSZ_DISPLAY = 14.0, 32.0  # the bundled Inter's opsz range
 _registered = []
@@ -68,7 +68,7 @@ def draw(n, cv):
     demo.word(cv, f'opsz {f.opsz:.0f}', demo.W / 2, ty - 26, size=22, color=demo.TEAL, font=small)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='optical-size-shift',
     name='Optical size shift',
     family='typography',
@@ -81,8 +81,8 @@ TECHNIQUE = Technique(
                'the type morphs between its small-print and display versions without changing size'),
     related=('axis-rescale', 'optical-zoom', 'tilt-shift-miniature', 'dot-matrix-text', 'chart-type-morph',
              'op-art-vibrating-pattern'),
-    api=('videobuilder.techniques.typography.optical_size_shift.optical_size_shift',
-         'videobuilder.techniques.typography.optical_size_shift.optical_font',
-         'videobuilder.techniques.typography.optical_size_shift.OpticalFont'),
+    api=('videobuilder.capabilities.typography.optical_size_shift.optical_size_shift',
+         'videobuilder.capabilities.typography.optical_size_shift.optical_font',
+         'videobuilder.capabilities.typography.optical_size_shift.OpticalFont'),
     demo=lambda: demo.film(draw),
 )

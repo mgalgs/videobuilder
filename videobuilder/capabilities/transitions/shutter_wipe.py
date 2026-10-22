@@ -4,7 +4,7 @@ whole picture has changed."""
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def shutter_wipe(cv, a, b, p, slats=8, vertical=True, stagger=0.6, reverse=False, ease=vb.ease_in_out_quart):
@@ -41,7 +41,7 @@ def shutter_wipe(cv, a, b, p, slats=8, vertical=True, stagger=0.6, reverse=False
     ctx.restore()
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='shutter-wipe',
     name='Shutter wipe',
     family='transitions',
@@ -54,6 +54,6 @@ TECHNIQUE = Technique(
                'cut to the next clip in slats instead of one straight wipe'),
     related=('pan', 'paint-brush-wipe', 'uncover', 'split-screen-comparison', 'shutter-slat-reveal',
              'split-screen-transition'),
-    api=('videobuilder.techniques.transitions.shutter_wipe.shutter_wipe',),
+    api=('videobuilder.capabilities.transitions.shutter_wipe.shutter_wipe',),
     demo=lambda: demo.two_scenes(shutter_wipe),
 )

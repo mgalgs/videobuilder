@@ -6,7 +6,7 @@ import math
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def callout_line(cv, target, anchor, label, p, color=demo.INK, dot_color=demo.ACCENT, font=None,
@@ -66,7 +66,7 @@ def draw(n, cv):
                  demo.phase(n, 0.3, 2.3), font=demo.font(40, 800), dot=12)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='callout-line-with-label',
     name='Callout line with label',
     family='broadcast',
@@ -79,6 +79,6 @@ TECHNIQUE = Technique(
                'annotate this part of the image with a little label and a line to it'),
     related=('callout-highlight', 'virtual-first-down-line', 'line-chart-draw-on', 'streamlines',
              'icon-line-to-fill', 'sparkline-draw'),
-    api=('videobuilder.techniques.broadcast.callout_line_with_label.callout_line',),
+    api=('videobuilder.capabilities.broadcast.callout_line_with_label.callout_line',),
     demo=lambda: demo.film(draw),
 )

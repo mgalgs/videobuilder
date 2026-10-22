@@ -9,7 +9,7 @@ import videobuilder as vb
 from videobuilder.canvas import rgba
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 PHI = (1 + math.sqrt(5)) / 2
 THIN, THICK = 0, 1
@@ -99,7 +99,7 @@ def draw(n, cv):
     draw_penrose(cv, demo.phase(n, 0.15, 2.4), rotation=0.06 * t, generations=5)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='penrose-tiling',
     name='Penrose tiling',
     family='particles',
@@ -112,8 +112,8 @@ TECHNIQUE = Technique(
                'an aperiodic diamond tile background like a quasicrystal'),
     related=('pattern-tiling', 'tessellation-triangle-flip', 'mosaic-tiling', 'radial-repeater', 'tile-flip',
              'tesseract-rotation'),
-    api=('videobuilder.techniques.particles.penrose_tiling.draw_penrose',
-         'videobuilder.techniques.particles.penrose_tiling.penrose_rhombi',
-         'videobuilder.techniques.particles.penrose_tiling.penrose_triangles'),
+    api=('videobuilder.capabilities.particles.penrose_tiling.draw_penrose',
+         'videobuilder.capabilities.particles.penrose_tiling.penrose_rhombi',
+         'videobuilder.capabilities.particles.penrose_tiling.penrose_triangles'),
     demo=lambda: demo.film(draw),
 )

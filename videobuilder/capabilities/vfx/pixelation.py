@@ -13,7 +13,7 @@ import cairo
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def pixelate(cv, scene, block, x=0.0, y=0.0, w=None, h=None):
@@ -81,7 +81,7 @@ def draw(n, cv):
     pixelate(cv, scene, round(_block(n)))
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='pixelation',
     name='Pixelation',
     family='vfx',
@@ -95,6 +95,6 @@ TECHNIQUE = Technique(
                'put a mosaic over it like a censored face'),
     related=('pixelate-transition', 'pixelation-reveal', 'pixel-sorting', 'blur-up-image-load', 'gaussian-blur',
              'pixel-build'),
-    api=('videobuilder.techniques.vfx.pixelation.pixelate', 'videobuilder.Canvas.pixelated'),
+    api=('videobuilder.capabilities.vfx.pixelation.pixelate', 'videobuilder.Canvas.pixelated'),
     demo=lambda: demo.film(draw),
 )

@@ -6,7 +6,7 @@ import math
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 LAND, HOP_END = 0.42, 0.72  # fractions of the move: first touchdown, end of the hop
 
@@ -123,7 +123,7 @@ def draw(n, cv):
     cv.mark('pin', *pin)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='map-pin-drop',
     name='Map pin drop',
     family='shapes',
@@ -136,8 +136,8 @@ TECHNIQUE = Technique(
                'pin the place on the map with a little bounce and a ripple'),
     related=('location-ripple-pulse', 'numbered-hotspot-pins', 'badge-stamp-impact',
              'bouncing-ball-word-marker', 'drop-target-highlight', 'highlighter-swipe'),
-    api=('videobuilder.techniques.shapes.map_pin_drop.draw_pin_drop',
-         'videobuilder.techniques.shapes.map_pin_drop.pin_drop',
-         'videobuilder.techniques.shapes.map_pin_drop.draw_pin'),
+    api=('videobuilder.capabilities.shapes.map_pin_drop.draw_pin_drop',
+         'videobuilder.capabilities.shapes.map_pin_drop.pin_drop',
+         'videobuilder.capabilities.shapes.map_pin_drop.draw_pin'),
     demo=lambda: demo.film(draw),
 )

@@ -5,7 +5,7 @@ import math
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def stack_drop(t, count, height, ground, top=-200.0, start=0.0, every=0.4, fall=0.4, settle=0.2):
@@ -51,7 +51,7 @@ def draw(n, cv):
         cv.mark(f'block{i}', x, y - bh, bw, bh)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='shape-stacking-drop',
     name='Shape stacking drop',
     family='shapes',
@@ -64,6 +64,6 @@ TECHNIQUE = Technique(
                'drop the pieces in so they stack into a column'),
     related=('stacked-bar-build', 'stacked-line-build', 'rigid-body-pile', 'voxel-build', 'pyramid-build',
              'domino-toppling'),
-    api=('videobuilder.techniques.shapes.shape_stacking_drop.stack_drop',),
+    api=('videobuilder.capabilities.shapes.shape_stacking_drop.stack_drop',),
     demo=lambda: demo.film(draw),
 )

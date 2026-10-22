@@ -6,7 +6,7 @@ import math
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def bend_handles(a, b, bend_a, bend_b, reach=1 / 3):
@@ -67,7 +67,7 @@ def draw(n, cv):
     cv.mark('curve', min(xs), min(ys), max(xs) - min(xs), max(ys) - min(ys) or 1)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='bezier-handle-bend',
     name='Bezier handle bend',
     family='shapes',
@@ -80,8 +80,8 @@ TECHNIQUE = Technique(
                'animate the bezier handles so the path flexes'),
     related=('arc-bend-morph', 'bend-deformer', 'pendulum-swing', 'custom-cubic-bezier-easing',
              'dragon-curve', 'twist-deformer'),
-    api=('videobuilder.techniques.shapes.bezier_handle_bend.draw_bend',
-         'videobuilder.techniques.shapes.bezier_handle_bend.bend_handles',
-         'videobuilder.techniques.shapes.bezier_handle_bend.cubic_points'),
+    api=('videobuilder.capabilities.shapes.bezier_handle_bend.draw_bend',
+         'videobuilder.capabilities.shapes.bezier_handle_bend.bend_handles',
+         'videobuilder.capabilities.shapes.bezier_handle_bend.cubic_points'),
     demo=lambda: demo.film(draw),
 )

@@ -6,7 +6,7 @@ import math
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def impact(t, shove=40.0, squash=0.2, hz=4.0, damping=0.3):
@@ -74,7 +74,7 @@ def draw(n, cv):
                     by + r1 * math.sin(r), demo.INK, width=5, alpha=fade)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='impact',
     name='Impact',
     family='principles',
@@ -87,6 +87,6 @@ TECHNIQUE = Technique(
                'show a collision with some recoil'),
     related=('impact-hit', 'hitstop', 'impact-shake', 'elastic-collisions', 'fracture-shatter',
              'badge-stamp-impact'),
-    api=('videobuilder.techniques.principles.impact.impact',),
+    api=('videobuilder.capabilities.principles.impact.impact',),
     demo=lambda: demo.film(draw),
 )

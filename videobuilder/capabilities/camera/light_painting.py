@@ -7,7 +7,7 @@ import cairo
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 # (extra width, alpha) of each stroke, widest and faintest first: the soft
 # bloom around the trail, then the core, then a near-white hot centre.
@@ -73,7 +73,7 @@ def draw(n, cv):
         cv.mark('light', tip[0] - 20, tip[1] - 20, 40, 40)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='light-painting',
     name='Light painting',
     family='camera',
@@ -86,7 +86,7 @@ TECHNIQUE = Technique(
                'make it look like someone wrote in the air with a torch on a long exposure'),
     related=('light-trail-logo-reveal', 'multiples', 'phosphor-persistence', 'paint-brush-wipe',
              'long-shadow-extension', 'long-shadow-growth'),
-    api=('videobuilder.techniques.camera.light_painting.light_painting',
+    api=('videobuilder.capabilities.camera.light_painting.light_painting',
          'videobuilder.paths.reveal'),
     demo=lambda: demo.film(draw),
 )

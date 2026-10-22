@@ -7,7 +7,7 @@ import random
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 _HAND = vb.bezier(0.45, 0.0, 0.25, 1.0)  # a quick flick: slow start, fast middle, soft finish
 
@@ -75,7 +75,7 @@ def draw(n, cv):
     cv.mark('word', *box)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='underline-swash-draw',
     name='Underline swash draw',
     family='broadcast',
@@ -88,8 +88,8 @@ TECHNIQUE = Technique(
                'swoosh a brushy line underneath that word to stress it'),
     related=('highlighter-swipe', 'underline-wipe', 'stroke-draw-on', 'whiteboard-marker-drawing',
              'per-character-fade-in', 'character-rise'),
-    api=('videobuilder.techniques.broadcast.underline_swash_draw.underline_swash',
-         'videobuilder.techniques.broadcast.underline_swash_draw.draw_swash',
-         'videobuilder.techniques.broadcast.underline_swash_draw.swash_path'),
+    api=('videobuilder.capabilities.broadcast.underline_swash_draw.underline_swash',
+         'videobuilder.capabilities.broadcast.underline_swash_draw.draw_swash',
+         'videobuilder.capabilities.broadcast.underline_swash_draw.swash_path'),
     demo=lambda: demo.film(draw),
 )

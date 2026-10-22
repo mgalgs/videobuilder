@@ -6,7 +6,7 @@ import math
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def sphere_points(count, radius):
@@ -102,7 +102,7 @@ def draw(n, cv):
     cv.mark('tiles', *box)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='sphere-to-grid-morph',
     name='Sphere-to-grid morph',
     family='camera',
@@ -115,11 +115,11 @@ TECHNIQUE = Technique(
                'morph the 3D ball of items into a flat table layout'),
     related=('projection-morph', 'shape-morph', 'text-to-shape-morph', 'particle-morph', 'globe-spin',
              'liquid-morph'),
-    api=('videobuilder.techniques.camera.sphere_to_grid_morph.draw_sphere_to_grid',
-         'videobuilder.techniques.camera.sphere_to_grid_morph.morph_positions',
-         'videobuilder.techniques.camera.sphere_to_grid_morph.sphere_points',
-         'videobuilder.techniques.camera.sphere_to_grid_morph.grid_points',
-         'videobuilder.techniques.camera.sphere_to_grid_morph.pair_up',
-         'videobuilder.techniques.camera.sphere_to_grid_morph.project'),
+    api=('videobuilder.capabilities.camera.sphere_to_grid_morph.draw_sphere_to_grid',
+         'videobuilder.capabilities.camera.sphere_to_grid_morph.morph_positions',
+         'videobuilder.capabilities.camera.sphere_to_grid_morph.sphere_points',
+         'videobuilder.capabilities.camera.sphere_to_grid_morph.grid_points',
+         'videobuilder.capabilities.camera.sphere_to_grid_morph.pair_up',
+         'videobuilder.capabilities.camera.sphere_to_grid_morph.project'),
     demo=lambda: demo.film(draw),
 )

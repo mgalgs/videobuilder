@@ -9,7 +9,7 @@ import videobuilder as vb
 from videobuilder.canvas import rgba
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def _displace(points, rough, rng, depth):
@@ -105,7 +105,7 @@ def draw(n, cv):
     cv.mark('bolt', demo.W * 0.3, demo.H * 0.08, demo.W * 0.4, demo.H * 0.82)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='lightning-bolt',
     name='Lightning bolt',
     family='particles',
@@ -117,8 +117,8 @@ TECHNIQUE = Technique(
                'zap it with an electric strike that forks and flickers',
                'add a jagged glowing lightning streak that fades out'),
     related=('lightning-flash', 'particle-trail', 'diffraction-spikes', 'k-rm-n-vortex-street', 'embers', 'sparks'),
-    api=('videobuilder.techniques.particles.lightning_bolt.draw_bolt',
-         'videobuilder.techniques.particles.lightning_bolt.bolt',
-         'videobuilder.techniques.particles.lightning_bolt.brightness'),
+    api=('videobuilder.capabilities.particles.lightning_bolt.draw_bolt',
+         'videobuilder.capabilities.particles.lightning_bolt.bolt',
+         'videobuilder.capabilities.particles.lightning_bolt.brightness'),
     demo=lambda: demo.film(draw),
 )

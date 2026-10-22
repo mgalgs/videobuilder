@@ -8,7 +8,7 @@ import videobuilder as vb
 
 from .. import _demo as demo
 from ...compendium import kit
-from ..schema import Technique
+from ..schema import Capability
 
 
 def displace(px, py, fx, fy, radius=180.0, strength=60.0):
@@ -82,7 +82,7 @@ def draw(n, cv):
     c.stroke()
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='dot-grid-displacement',
     name='Dot grid displacement',
     family='particles',
@@ -95,7 +95,7 @@ TECHNIQUE = Technique(
                'dots ripple away from a point moving across a dotted background'),
     related=('cursor-follower-dot-and-ring', 'bouncing-dots', 'dot-matrix-text', 'halftone-dot-scaling',
              'dot-density-map', 'hover-letter-displacement'),
-    api=('videobuilder.techniques.particles.dot_grid_displacement.draw_dot_grid',
-         'videobuilder.techniques.particles.dot_grid_displacement.displace'),
+    api=('videobuilder.capabilities.particles.dot_grid_displacement.draw_dot_grid',
+         'videobuilder.capabilities.particles.dot_grid_displacement.displace'),
     demo=lambda: demo.film(draw),
 )

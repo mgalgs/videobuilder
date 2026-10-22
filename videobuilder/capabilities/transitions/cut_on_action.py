@@ -7,7 +7,7 @@ import math
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def cut_on_action(cv, a, b, p, action, at=0.5, zoom=1.0, focus=None):
@@ -73,7 +73,7 @@ def _demo():
     return demo.film(draw)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='cut-on-action',
     name='Cut on action',
     family='transitions',
@@ -85,6 +85,6 @@ TECHNIQUE = Technique(
                'make the edit mid-motion so you barely notice the cut',
                'switch shots halfway through the throw and keep the movement going'),
     related=('push', 'strobe-cut', 'interruptible-motion', 'hold', 'cut-to-the-beat', 'overlapping-action'),
-    api=('videobuilder.techniques.transitions.cut_on_action.cut_on_action',),
+    api=('videobuilder.capabilities.transitions.cut_on_action.cut_on_action',),
     demo=_demo,
 )

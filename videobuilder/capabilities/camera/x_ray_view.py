@@ -3,7 +3,7 @@ built inside it show through while the shell stays as a faint outline."""
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def x_ray_view(cv, shell, inside, p, ghost=0.15, rim=None, rim_width=2, box=None, radius=0):
@@ -65,7 +65,7 @@ def draw(n, cv):
     cv.mark('object', *BOX)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='x-ray-view',
     name='X-ray view',
     family='camera',
@@ -78,6 +78,6 @@ TECHNIQUE = Technique(
                'fade the shell away to reveal the inner workings'),
     related=('x-ray', 'uncover', 'zoom-out-reveal', 'extrusion-depth-reveal', 'depth-slicing',
              'text-mask-reveal'),
-    api=('videobuilder.techniques.camera.x_ray_view.x_ray_view',),
+    api=('videobuilder.capabilities.camera.x_ray_view.x_ray_view',),
     demo=lambda: demo.film(draw),
 )

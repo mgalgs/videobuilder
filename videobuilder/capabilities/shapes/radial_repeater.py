@@ -6,7 +6,7 @@ import math
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def radial_repeat(cv, cx, cy, count, draw_one, radius=0.0, rotation=0.0, spin=0.0):
@@ -46,7 +46,7 @@ def draw(n, cv):
     cv.mark('ring', cx - r, cy - r, 2 * r, 2 * r)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='radial-repeater',
     name='Radial repeater',
     family='shapes',
@@ -59,6 +59,6 @@ TECHNIQUE = Technique(
                'copies of the icon arranged like clock marks, rotating'),
     related=('sound-reactive-radial-shape', 'radial-stagger', 'circle-packing', 'pie-sweep', 'circle-pop',
              'rotating-polygon-loop'),
-    api=('videobuilder.techniques.shapes.radial_repeater.radial_repeat',),
+    api=('videobuilder.capabilities.shapes.radial_repeater.radial_repeat',),
     demo=lambda: demo.film(draw),
 )

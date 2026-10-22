@@ -4,7 +4,7 @@ screen to its place in the new one, while everything around it crossfades."""
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def shared_element_transition(cv, a, b, p, element, start, end, radius=(0, 0), ease=vb.ease_in_out_quart,
@@ -76,7 +76,7 @@ def _demo():
     return demo.two_scenes(transition, start=0.8, length=1.2, a=scene_a, b=scene_b)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='shared-element-transition',
     name='Shared-element transition',
     family='transitions',
@@ -89,6 +89,6 @@ TECHNIQUE = Technique(
                'carry the card over from the list view into the detail view'),
     related=('palette-shift-transition', 'split-screen-transition', 'icon-state-morph', 'zoom-through',
              'pixelate-transition', 'theme-swap-crossfade'),
-    api=('videobuilder.techniques.transitions.shared_element_transition.shared_element_transition',),
+    api=('videobuilder.capabilities.transitions.shared_element_transition.shared_element_transition',),
     demo=_demo,
 )

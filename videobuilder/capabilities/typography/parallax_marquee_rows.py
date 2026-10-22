@@ -8,7 +8,7 @@ import videobuilder as vb
 from videobuilder import parallax
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 @dataclass(frozen=True)
@@ -72,7 +72,7 @@ def draw(n, cv):
     cv.mark('rows', 0, ROWS[0].y, demo.W, ROWS[-1].y + ROWS[-1].font.size - ROWS[0].y)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='parallax-marquee-rows',
     name='Parallax marquee rows',
     family='typography',
@@ -85,9 +85,9 @@ TECHNIQUE = Technique(
                'layered ticker lines going left and right'),
     related=('scroll-parallax-layers', 'infinite-marquee', 'parallax-slide', 'smooth-scroll-inertia',
              'scroll-snap-sections', 'scroll-velocity-skew'),
-    api=('videobuilder.techniques.typography.parallax_marquee_rows.draw_marquee_rows',
-         'videobuilder.techniques.typography.parallax_marquee_rows.Row',
-         'videobuilder.techniques.typography.parallax_marquee_rows.rows_for',
+    api=('videobuilder.capabilities.typography.parallax_marquee_rows.draw_marquee_rows',
+         'videobuilder.capabilities.typography.parallax_marquee_rows.Row',
+         'videobuilder.capabilities.typography.parallax_marquee_rows.rows_for',
          'videobuilder.parallax.draw'),
     demo=lambda: demo.film(draw),
 )

@@ -8,7 +8,7 @@ import random
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 LOBES = (2, 3, 5)   # harmonics of the blob's wobble: broad bulges plus a smaller ripple
 
@@ -81,7 +81,7 @@ def draw(n, cv):
             demo.dot(cv, cx + (k - 1) * 56, cy, r=16 * vb.ease_out_back(a), color=demo.INK)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='blob-to-icon-morph',
     name='Blob-to-icon morph',
     family='shapes',
@@ -94,9 +94,9 @@ TECHNIQUE = Technique(
                'morph an organic blob into a crisp symbol'),
     related=('morphing-blob', 'morphing-shape-ident', 'shape-morph-loader', 'text-to-shape-morph',
              'liquid-morph', 'particle-morph'),
-    api=('videobuilder.techniques.shapes.blob_to_icon_morph.blob_to_icon',
-         'videobuilder.techniques.shapes.blob_to_icon_morph.blob',
-         'videobuilder.techniques.shapes.blob_to_icon_morph.speech_bubble',
+    api=('videobuilder.capabilities.shapes.blob_to_icon_morph.blob_to_icon',
+         'videobuilder.capabilities.shapes.blob_to_icon_morph.blob',
+         'videobuilder.capabilities.shapes.blob_to_icon_morph.speech_bubble',
          'videobuilder.paths.morph', 'videobuilder.paths.draw'),
     demo=lambda: demo.film(draw),
 )

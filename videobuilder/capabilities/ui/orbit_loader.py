@@ -6,7 +6,7 @@ import math
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def orbit_positions(cx, cy, t, r=60, speeds=(1 / 3, 2 / 3, 1.0), starts=None):
@@ -61,7 +61,7 @@ def draw(n, cv):
     demo.word(cv, 'Loading', cx, cy + 250, size=40, color=demo.MUTED, weight=600)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='orbit-loader',
     name='Orbit loader',
     family='ui',
@@ -73,7 +73,7 @@ TECHNIQUE = Technique(
                'dots orbiting a centre point while it loads',
                'a planet-style loader with moons circling at different speeds'),
     related=('orbital-pulse', 'orbit', 'orbiting-characters', 'two-body-orbit', 'orbit-shot', 'circle-pop'),
-    api=('videobuilder.techniques.ui.orbit_loader.draw_orbit_loader',
-         'videobuilder.techniques.ui.orbit_loader.orbit_positions'),
+    api=('videobuilder.capabilities.ui.orbit_loader.draw_orbit_loader',
+         'videobuilder.capabilities.ui.orbit_loader.orbit_positions'),
     demo=lambda: demo.film(draw),
 )

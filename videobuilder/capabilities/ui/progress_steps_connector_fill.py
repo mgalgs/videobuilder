@@ -6,7 +6,7 @@ import math
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def step_states(count, p):
@@ -97,7 +97,7 @@ def draw(n, cv):
     cv.mark('stepper', xs[0] - 30, demo.H / 2 - 50, xs[-1] - xs[0] + 60, 60)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='progress-steps-connector-fill',
     name='Progress steps connector fill',
     family='ui',
@@ -110,7 +110,7 @@ TECHNIQUE = Technique(
                'show the user moving through the stages of a form, ticking each one off'),
     related=('step-by-step-process-reveal', 'progress-ring', 'flowchart-build', 'percentage-fill-bar',
              'steps-easing', 'icon-line-to-fill'),
-    api=('videobuilder.techniques.ui.progress_steps_connector_fill.draw_progress_steps',
-         'videobuilder.techniques.ui.progress_steps_connector_fill.step_states'),
+    api=('videobuilder.capabilities.ui.progress_steps_connector_fill.draw_progress_steps',
+         'videobuilder.capabilities.ui.progress_steps_connector_fill.step_states'),
     demo=lambda: demo.film(draw),
 )

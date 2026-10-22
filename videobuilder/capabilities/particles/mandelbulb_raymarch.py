@@ -8,7 +8,7 @@ from PIL import Image as PILImage
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def _rgb(color):
@@ -122,7 +122,7 @@ def draw(n, cv):
     cv.mark('bulb', *box)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='mandelbulb-raymarch',
     name='Mandelbulb raymarch',
     family='particles',
@@ -135,8 +135,8 @@ TECHNIQUE = Technique(
                'fly around a glowing fractal sculpture'),
     related=('raymarched-sdf-shapes', 'penrose-tiling', 'fractal-brownian-motion', 'solid-drawing',
              'god-rays', 'tessellation-triangle-flip'),
-    api=('videobuilder.techniques.particles.mandelbulb_raymarch.draw_mandelbulb',
-         'videobuilder.techniques.particles.mandelbulb_raymarch.mandelbulb',
-         'videobuilder.techniques.particles.mandelbulb_raymarch.bulb_distance'),
+    api=('videobuilder.capabilities.particles.mandelbulb_raymarch.draw_mandelbulb',
+         'videobuilder.capabilities.particles.mandelbulb_raymarch.mandelbulb',
+         'videobuilder.capabilities.particles.mandelbulb_raymarch.bulb_distance'),
     demo=lambda: demo.film(draw),
 )

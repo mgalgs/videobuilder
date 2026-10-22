@@ -10,7 +10,7 @@ import videobuilder as vb
 
 from ... import paths, text
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 @lru_cache(maxsize=256)
@@ -80,7 +80,7 @@ def draw(n, cv):
     cv.mark('text', *box)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='stroke-draw-on',
     name='Stroke draw-on',
     family='typography',
@@ -94,8 +94,8 @@ TECHNIQUE = Technique(
                'trace the word like a pen going round each letter'),
     related=('line-draw-logo-reveal', 'ink-outline', 'stroke-draw-logo-loader', 'line-chart-draw-on',
              'map-route-draw', 'icon-line-to-fill'),
-    api=('videobuilder.techniques.typography.stroke_draw_on.draw_stroke_on',
-         'videobuilder.techniques.typography.stroke_draw_on.letter_contours',
+    api=('videobuilder.capabilities.typography.stroke_draw_on.draw_stroke_on',
+         'videobuilder.capabilities.typography.stroke_draw_on.letter_contours',
          'videobuilder.paths.reveal'),
     demo=lambda: demo.film(draw),
 )

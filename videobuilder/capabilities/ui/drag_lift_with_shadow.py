@@ -6,7 +6,7 @@ import math
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def lift_look(lift, scale=0.08, rest=(4, 10, 0.4), held=(26, 44, 0.85)):
@@ -92,7 +92,7 @@ def draw(n, cv):
     pointer(cv, px, py, pressed=0.5 <= n / demo.FPS < 2.1)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='drag-lift-with-shadow',
     name='Drag lift with shadow',
     family='ui',
@@ -105,8 +105,8 @@ TECHNIQUE = Technique(
                'show the card being dragged with a raised, elevated look'),
     related=('drop-shadow-lift', 'hover-lift', 'drop-shadow-breathing', 'shadow-play',
              'hover-letter-displacement', 'magnetic-snap'),
-    api=('videobuilder.techniques.ui.drag_lift_with_shadow.draw_lifted',
-         'videobuilder.techniques.ui.drag_lift_with_shadow.lift_look',
-         'videobuilder.techniques.ui.drag_lift_with_shadow.pointer'),
+    api=('videobuilder.capabilities.ui.drag_lift_with_shadow.draw_lifted',
+         'videobuilder.capabilities.ui.drag_lift_with_shadow.lift_look',
+         'videobuilder.capabilities.ui.drag_lift_with_shadow.pointer'),
     demo=lambda: demo.film(draw),
 )

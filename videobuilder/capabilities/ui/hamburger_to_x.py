@@ -6,7 +6,7 @@ import math
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def _bar(cv, cx, cy, length, thickness, angle, color, alpha=1.0):
@@ -52,7 +52,7 @@ def draw(n, cv):
     cv.mark('icon', *box)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='hamburger-to-x',
     name='Hamburger to X',
     family='ui',
@@ -65,6 +65,6 @@ TECHNIQUE = Technique(
                'the burger icon morphs into a cross and back'),
     related=('context-menu-origin-reveal', 'radial-menu-fan-out', 'sidebar-collapse-width',
              'dropdown-stagger-reveal', 'icon-state-morph', 'text-to-shape-morph'),
-    api=('videobuilder.techniques.ui.hamburger_to_x.hamburger_to_x',),
+    api=('videobuilder.capabilities.ui.hamburger_to_x.hamburger_to_x',),
     demo=lambda: demo.film(draw),
 )

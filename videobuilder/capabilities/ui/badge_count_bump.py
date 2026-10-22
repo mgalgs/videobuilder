@@ -3,7 +3,7 @@ time its count goes up, the new number swapping in at the top of the swell."""
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 BUMP = vb.damped(0.3, hz=4.0)  # under-damped: one clear swell, a small dip, then rest
 
@@ -56,7 +56,7 @@ def draw(n, cv):
     draw_badge(cv, count, cx + w / 2 - 6, cy - h / 2 + 6, r=34, scale=s)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='badge-count-bump',
     name='Badge count bump',
     family='ui',
@@ -69,8 +69,8 @@ TECHNIQUE = Technique(
                'make the little red counter jump as it increments'),
     related=('badge-stamp-impact', 'number-count-up', 'live-indicator-pulse', 'like-heart-burst',
              'delta-arrow-badge', 'circle-pop'),
-    api=('videobuilder.techniques.ui.badge_count_bump.badge_state',
-         'videobuilder.techniques.ui.badge_count_bump.draw_badge',
-         'videobuilder.techniques.ui.badge_count_bump.bump_scale'),
+    api=('videobuilder.capabilities.ui.badge_count_bump.badge_state',
+         'videobuilder.capabilities.ui.badge_count_bump.draw_badge',
+         'videobuilder.capabilities.ui.badge_count_bump.bump_scale'),
     demo=lambda: demo.film(draw),
 )

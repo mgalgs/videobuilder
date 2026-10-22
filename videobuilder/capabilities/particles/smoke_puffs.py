@@ -8,7 +8,7 @@ import cairo
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def puffs(t, rate=9.0, life=2.2, rise=420, spread=40, drift=0.0, size=(22, 120), seed=0):
@@ -79,7 +79,7 @@ def draw(n, cv):
     cv.mark('plume', *box)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='smoke-puffs',
     name='Smoke puffs',
     family='particles',
@@ -92,8 +92,8 @@ TECHNIQUE = Technique(
                'billowy smoke made of overlapping fuzzy blobs'),
     related=('smoke-dissolve', 'smoke-overlay', 'smoke-simulation', 'curl-noise-flow', 'particle-morph',
              'layered-fog-bands'),
-    api=('videobuilder.techniques.particles.smoke_puffs.smoke_puffs',
-         'videobuilder.techniques.particles.smoke_puffs.puffs',
-         'videobuilder.techniques.particles.smoke_puffs.draw_puff'),
+    api=('videobuilder.capabilities.particles.smoke_puffs.smoke_puffs',
+         'videobuilder.capabilities.particles.smoke_puffs.puffs',
+         'videobuilder.capabilities.particles.smoke_puffs.draw_puff'),
     demo=lambda: demo.film(draw),
 )

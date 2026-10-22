@@ -5,7 +5,7 @@ import math
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 STEPS = 12  # equal slices of time, marked on the track so the widening spacing shows the pickup
 
@@ -32,7 +32,7 @@ def draw(n, cv):
     cv.mark('dot', x - 40, y - 40, 80, 80)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='ease-in-sine',
     name='Ease In Sine',
     family='principles',
@@ -45,6 +45,6 @@ TECHNIQUE = Technique(
                'a soft, subtle acceleration from standstill'),
     related=('slow-in-and-slow-out', 'smooth-scroll-inertia', 'sine-wave-text', 'sine-wave-distortion',
              'settle', 'oscillation'),
-    api=('videobuilder.techniques.principles.ease_in_sine.ease_in_sine',),
+    api=('videobuilder.capabilities.principles.ease_in_sine.ease_in_sine',),
     demo=lambda: demo.film(draw),
 )

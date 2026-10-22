@@ -10,7 +10,7 @@ import math
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def rossler(steps, dt=0.02, a=0.2, b=0.2, c=5.7, start=(1.0, 1.0, 0.0), settle=2000):
@@ -87,7 +87,7 @@ def draw(n, cv):
     draw_rossler(cv, _PATH, p, demo.W / 2 - 10, demo.H / 2 + 50, 17, yaw=-0.5 + 0.25 * t, tilt=0.38)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='rossler-attractor',
     name='Rossler attractor',
     family='particles',
@@ -100,8 +100,8 @@ TECHNIQUE = Technique(
                'a point swirling round a disc and flicking up into an arch, leaving a band of lines'),
     related=('gravity-well-attraction', 'spinner-ring', 'wander-steering', 'wiggle-path', 'spiral-galaxy',
              'radial-repeater'),
-    api=('videobuilder.techniques.particles.rossler_attractor.draw_rossler',
-         'videobuilder.techniques.particles.rossler_attractor.rossler',
-         'videobuilder.techniques.particles.rossler_attractor.project'),
+    api=('videobuilder.capabilities.particles.rossler_attractor.draw_rossler',
+         'videobuilder.capabilities.particles.rossler_attractor.rossler',
+         'videobuilder.capabilities.particles.rossler_attractor.project'),
     demo=lambda: demo.film(draw),
 )

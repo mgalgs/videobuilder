@@ -6,7 +6,7 @@ import math
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def logo_loader(cv, points, t, color, track=demo.LINE, width=6, closed=True, draw=0.55, fill=0.2,
@@ -54,7 +54,7 @@ def draw(n, cv):
     cv.mark('logo', cx - r, cy - r, 2 * r, 2 * r)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='stroke-draw-logo-loader',
     name='Stroke draw logo loader',
     family='ui',
@@ -67,7 +67,7 @@ TECHNIQUE = Technique(
                'loop the logo being sketched by a line until the page is ready'),
     related=('line-draw-logo-reveal', 'stroke-draw-on', 'icon-line-to-fill', 'scroll-drawn-svg-path',
              'line-chart-draw-on', 'pencil-sketch'),
-    api=('videobuilder.techniques.ui.stroke_draw_logo_loader.logo_loader',
+    api=('videobuilder.capabilities.ui.stroke_draw_logo_loader.logo_loader',
          'videobuilder.paths.reveal',
          'videobuilder.paths.draw'),
     demo=lambda: demo.film(draw),

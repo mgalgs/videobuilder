@@ -4,7 +4,7 @@ floor -- the classic two-line lower third."""
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def kicker_title_progress(p, split=0.45, ease=vb.ease_out_quint):
@@ -51,7 +51,7 @@ def draw(n, cv):
     cv.mark('text', *box)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='two-tier-kicker-and-title-stack',
     name='Two-tier kicker and title stack',
     family='broadcast',
@@ -64,7 +64,7 @@ TECHNIQUE = Technique(
                'eyebrow text first, then the title comes up beneath'),
     related=('stacked-line-build', 'virtual-first-down-line', 'podium-rise', 'character-rise',
              'title-card-reveal', 'emboss'),
-    api=('videobuilder.techniques.broadcast.two_tier_kicker_and_title_stack.draw_kicker_title',
-         'videobuilder.techniques.broadcast.two_tier_kicker_and_title_stack.kicker_title_progress'),
+    api=('videobuilder.capabilities.broadcast.two_tier_kicker_and_title_stack.draw_kicker_title',
+         'videobuilder.capabilities.broadcast.two_tier_kicker_and_title_stack.kicker_title_progress'),
     demo=lambda: demo.film(draw),
 )

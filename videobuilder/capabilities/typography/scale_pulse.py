@@ -5,7 +5,7 @@ import math
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def pulse_scale(t, period=1.0, amount=0.15, attack=0.3):
@@ -37,7 +37,7 @@ def draw(n, cv):
     cv.mark('text', *box)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='scale-pulse',
     name='Scale pulse',
     family='typography',
@@ -50,7 +50,7 @@ TECHNIQUE = Technique(
                'the text gently grows and shrinks on a loop to draw the eye'),
     related=('stroke-width-pulse', 'pulse-loader', 'scale-tile-wave', 'like-heart-burst', 'live-indicator-pulse',
              'character-scale-in'),
-    api=('videobuilder.techniques.typography.scale_pulse.draw_scale_pulse',
-         'videobuilder.techniques.typography.scale_pulse.pulse_scale'),
+    api=('videobuilder.capabilities.typography.scale_pulse.draw_scale_pulse',
+         'videobuilder.capabilities.typography.scale_pulse.pulse_scale'),
     demo=lambda: demo.film(draw),
 )

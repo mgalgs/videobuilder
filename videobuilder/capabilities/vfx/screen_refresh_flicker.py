@@ -7,7 +7,7 @@ import random
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def refresh_bar(t, h, roll=1.2, bar=0.38):
@@ -72,7 +72,7 @@ def draw(n, cv):
     cv.mark('screen', bx, by, bw, bh)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='screen-refresh-flicker',
     name='Screen refresh flicker',
     family='vfx',
@@ -84,7 +84,7 @@ TECHNIQUE = Technique(
                'add the flickering band you get when a camera records a computer screen',
                'give the screen a retro monitor flicker with lines sweeping down'),
     related=('screen-tearing', 'glitch-transition', 'pixel-sorting', 'scanline-jitter', 'crumple', 'static-noise'),
-    api=('videobuilder.techniques.vfx.screen_refresh_flicker.screen_refresh_flicker',
-         'videobuilder.techniques.vfx.screen_refresh_flicker.refresh_bar'),
+    api=('videobuilder.capabilities.vfx.screen_refresh_flicker.screen_refresh_flicker',
+         'videobuilder.capabilities.vfx.screen_refresh_flicker.refresh_bar'),
     demo=lambda: demo.film(draw),
 )

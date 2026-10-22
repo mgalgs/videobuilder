@@ -6,7 +6,7 @@ import math
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def append_rows(base, added, p, stagger=0.15, rise=20, ease=vb.ease_out_quint):
@@ -83,7 +83,7 @@ def draw(n, cv):
     cv.mark('list', x, y, w, h)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='infinite-scroll-append',
     name='Infinite scroll append',
     family='ui',
@@ -96,7 +96,7 @@ TECHNIQUE = Technique(
                'an endless list that keeps adding cards as it scrolls'),
     related=('pull-to-refresh', 'infinite-marquee', 'fade-up-scroll-reveal', 'sticky-card-stack-on-scroll',
              'scrollspy-nav-indicator', 'scroll-driven-text-reveal'),
-    api=('videobuilder.techniques.ui.infinite_scroll_append.draw_scroll_append',
-         'videobuilder.techniques.ui.infinite_scroll_append.append_rows'),
+    api=('videobuilder.capabilities.ui.infinite_scroll_append.draw_scroll_append',
+         'videobuilder.capabilities.ui.infinite_scroll_append.append_rows'),
     demo=lambda: demo.film(draw),
 )

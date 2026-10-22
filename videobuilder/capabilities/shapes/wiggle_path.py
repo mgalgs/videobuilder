@@ -9,7 +9,7 @@ import math
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def _hash(i, j, seed):
@@ -90,7 +90,7 @@ def draw(n, cv):
     cv.mark('path', min(xs), min(ys), max(xs) - min(xs), max(ys) - min(ys))
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='wiggle-path',
     name='Wiggle path',
     family='shapes',
@@ -102,6 +102,6 @@ TECHNIQUE = Technique(
                'a squiggly stroke that keeps wiggling but holds its shape',
                'add some organic noise to the path so it never sits still'),
     related=('jiggle', 'noise-vertex-wobble', 'scanline-jitter', 'wobble', 'path-emitter', 'tape-wobble'),
-    api=('videobuilder.techniques.shapes.wiggle_path.wiggle', 'videobuilder.paths.draw'),
+    api=('videobuilder.capabilities.shapes.wiggle_path.wiggle', 'videobuilder.paths.draw'),
     demo=lambda: demo.film(draw),
 )

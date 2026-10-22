@@ -6,7 +6,7 @@ import math
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 # The rig, standing: joint -> (x, y) as shares of its height, feet at (0, 0), y down.
 STANDING = {
@@ -174,7 +174,7 @@ def draw(n, cv):
     cv.mark('ragdoll', min(xs), min(ys), max(xs) - min(xs), max(ys) - min(ys))
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='ragdoll',
     name='Ragdoll',
     family='particles',
@@ -187,8 +187,8 @@ TECHNIQUE = Technique(
                'a jointed body that crumples to the ground with real physics'),
     related=('rigid-body-pile', 'bounce-ease-out', 'physics-letter-drop', 'bounce-ease-in', 'gravity-drop',
              'newton-s-cradle'),
-    api=('videobuilder.techniques.particles.ragdoll.ragdoll',
-         'videobuilder.techniques.particles.ragdoll.standing_pose',
-         'videobuilder.techniques.particles.ragdoll.draw_ragdoll'),
+    api=('videobuilder.capabilities.particles.ragdoll.ragdoll',
+         'videobuilder.capabilities.particles.ragdoll.standing_pose',
+         'videobuilder.capabilities.particles.ragdoll.draw_ragdoll'),
     demo=lambda: demo.film(draw),
 )

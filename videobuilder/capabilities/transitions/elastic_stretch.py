@@ -6,7 +6,7 @@ import math
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 AXES = {'left': (0, -1), 'right': (0, 1), 'up': (1, -1), 'down': (1, 1)}
 
@@ -97,7 +97,7 @@ def elastic_stretch(cv, a, b, p, direction='left', stretch=0.7, release=0.5, str
     _stretched(cv, a, s, shift, axis, sign, strips)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='elastic-stretch',
     name='Elastic stretch',
     family='transitions',
@@ -110,6 +110,6 @@ TECHNIQUE = Technique(
                'a gooey stretchy wipe to the next scene'),
     related=('rubber-band-snap', 'rubber-band-overscroll', 'elastic-ease-out', 'elastic-ease-in',
              'squash-on-tap', 'crumple'),
-    api=('videobuilder.techniques.transitions.elastic_stretch.elastic_stretch',),
+    api=('videobuilder.capabilities.transitions.elastic_stretch.elastic_stretch',),
     demo=lambda: demo.two_scenes(elastic_stretch, start=0.6, length=1.8),
 )

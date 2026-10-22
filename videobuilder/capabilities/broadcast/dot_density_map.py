@@ -8,7 +8,7 @@ import random
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def inside(poly, x, y):
@@ -129,7 +129,7 @@ def draw(n, cv):
     cv.mark('map', 170, 50, 620, 370)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='dot-density-map',
     name='Dot density map',
     family='broadcast',
@@ -142,8 +142,8 @@ TECHNIQUE = Technique(
                'dots pepper the map, thick around the city and thin in the countryside'),
     related=('halftone-dot-scaling', 'dot-grid-displacement', 'radio-dot-scale', 'bouncing-dots',
              'scatter-plot-point-appear', 'dot-matrix-text'),
-    api=('videobuilder.techniques.broadcast.dot_density_map.draw_dot_density_map',
-         'videobuilder.techniques.broadcast.dot_density_map.dot_density',
-         'videobuilder.techniques.broadcast.dot_density_map.scatter'),
+    api=('videobuilder.capabilities.broadcast.dot_density_map.draw_dot_density_map',
+         'videobuilder.capabilities.broadcast.dot_density_map.dot_density',
+         'videobuilder.capabilities.broadcast.dot_density_map.scatter'),
     demo=lambda: demo.film(draw),
 )

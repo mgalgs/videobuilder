@@ -6,7 +6,7 @@ import math
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def sine_warp(points, t, amplitude=40.0, wavelength=400.0, speed=1.0, axis='y', phase=0.0):
@@ -44,7 +44,7 @@ def draw(n, cv):
     cv.mark('band', x0, cy - half - 44, x1 - x0, 2 * (half + 44))
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='sine-wave-distortion',
     name='Sine wave distortion',
     family='shapes',
@@ -56,7 +56,7 @@ TECHNIQUE = Technique(
                'ripple this line with a rolling sine wave',
                'bend the shape into waves that keep moving along it'),
     related=('wave-deformer', 'sine-wave-text', 'wave-stagger', 'oscillation', 'wobble', 'ocean-waves'),
-    api=('videobuilder.techniques.shapes.sine_wave_distortion.sine_warp',
+    api=('videobuilder.capabilities.shapes.sine_wave_distortion.sine_warp',
          'videobuilder.paths.resample', 'videobuilder.paths.draw'),
     demo=lambda: demo.film(draw),
 )

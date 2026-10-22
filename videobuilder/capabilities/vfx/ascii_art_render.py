@@ -6,7 +6,7 @@ from PIL import ImageOps
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 from ..typography.ascii_glyph_density_reveal import RAMP, draw_density
 
 
@@ -96,7 +96,7 @@ def draw(n, cv):
     cv.mark('image', *box)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='ascii-art-render',
     name='ASCII art render',
     family='vfx',
@@ -109,9 +109,9 @@ TECHNIQUE = Technique(
                'redraw the picture using text characters instead of pixels'),
     related=('ascii-glyph-density-reveal', 'pixel-sort-text', 'dot-matrix-text', 'per-character-fade-in',
              'symbol-to-letter-decode', 'pixelation-reveal'),
-    api=('videobuilder.techniques.vfx.ascii_art_render.ascii_render',
-         'videobuilder.techniques.vfx.ascii_art_render.draw_ascii',
-         'videobuilder.techniques.vfx.ascii_art_render.luminance_grid',
-         'videobuilder.techniques.typography.ascii_glyph_density_reveal.draw_density'),
+    api=('videobuilder.capabilities.vfx.ascii_art_render.ascii_render',
+         'videobuilder.capabilities.vfx.ascii_art_render.draw_ascii',
+         'videobuilder.capabilities.vfx.ascii_art_render.luminance_grid',
+         'videobuilder.capabilities.typography.ascii_glyph_density_reveal.draw_density'),
     demo=lambda: demo.film(draw),
 )

@@ -6,7 +6,7 @@ import math
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def smear_frame(cv, draw, x0, y0, x1, y1, size, threshold=0.25, thin=0.5):
@@ -63,11 +63,11 @@ def draw(n, cv):
     cv.mark('ball', min(x0, x1) - R, Y - R, abs(x1 - x0) + 2 * R, 2 * R)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='smear-frame',
     name='Smear Frame',
     family='principles',
-    group='Principle sub-techniques',
+    group='Principle sub-capabilities',
     aliases=('smear', 'smears', 'stretch smear', 'animation smear'),
     definition='During a very quick move, the object is drawn for a frame or two as one long stretched '
                'shape spanning where it was and where it is, instead of jumping between the two.',
@@ -75,6 +75,6 @@ TECHNIQUE = Technique(
                'make the fast move look cartoony, smeared between positions',
                'draw it elongated for a couple of frames while it whooshes over'),
     related=('motion-blur', 'accumulation-motion-blur', 'spin-blur', 'whip-pan', 'linear-wipe', 'zoom-blur'),
-    api=('videobuilder.techniques.principles.smear_frame.smear_frame',),
+    api=('videobuilder.capabilities.principles.smear_frame.smear_frame',),
     demo=lambda: demo.film(draw),
 )

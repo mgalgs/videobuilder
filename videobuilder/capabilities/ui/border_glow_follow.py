@@ -7,7 +7,7 @@ import cairo
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 ARROW = ((0, 0), (0, 27), (7, 21), (12, 32), (17.5, 29.5), (12.5, 19), (21, 19))
 
@@ -91,7 +91,7 @@ def draw(n, cv):
     _pointer(cv, px, py)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='border-glow-follow',
     name='Border glow follow',
     family='ui',
@@ -104,6 +104,6 @@ TECHNIQUE = Technique(
                'make the outline shine just next to the pointer as it moves around'),
     related=('outline-pulse-glow', 'fresnel-edge-glow', 'drop-target-highlight', 'highlighter-swipe',
              'gradient-border-spin', 'border-draw-button'),
-    api=('videobuilder.techniques.ui.border_glow_follow.border_glow',),
+    api=('videobuilder.capabilities.ui.border_glow_follow.border_glow',),
     demo=lambda: demo.film(draw),
 )

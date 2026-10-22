@@ -11,7 +11,7 @@ from PIL import Image as PILImage
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def _neighbours(width, height, moore):
@@ -92,7 +92,7 @@ def draw(n, cv):
     cv.mark('grid', 0, 0, demo.W, demo.H)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='cyclic-cellular-automaton',
     name='Cyclic cellular automaton',
     family='particles',
@@ -105,9 +105,9 @@ TECHNIQUE = Technique(
                'a generative cellular pattern where colour bands chase each other round in loops'),
     related=('hop-cycle', 'cycle-diagram-rotation', 'geometric-loop', 'thomas-attractor',
              'rotating-polygon-loop', 'seamless-loop'),
-    api=('videobuilder.techniques.particles.cyclic_cellular_automaton.draw_cca',
-         'videobuilder.techniques.particles.cyclic_cellular_automaton.cca_run',
-         'videobuilder.techniques.particles.cyclic_cellular_automaton.cca_step',
-         'videobuilder.techniques.particles.cyclic_cellular_automaton.cca_palette'),
+    api=('videobuilder.capabilities.particles.cyclic_cellular_automaton.draw_cca',
+         'videobuilder.capabilities.particles.cyclic_cellular_automaton.cca_run',
+         'videobuilder.capabilities.particles.cyclic_cellular_automaton.cca_step',
+         'videobuilder.capabilities.particles.cyclic_cellular_automaton.cca_palette'),
     demo=lambda: demo.film(draw),
 )

@@ -2,7 +2,7 @@
 close detail of the action, or something related to it -- then hard-cuts
 straight back to the main shot, which has carried on in the meantime."""
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def insert_cutaway(cv, a, b, p, start=0.3, end=0.7):
@@ -55,7 +55,7 @@ def draw(n, cv):
     insert_cutaway(cv, main, insert, demo.phase(n, 0.2, 2.8), start=0.3, end=0.62)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='insert-cutaway',
     name='Insert cutaway',
     family='transitions',
@@ -68,7 +68,7 @@ TECHNIQUE = Technique(
                'show a short close-up insert in the middle of the shot'),
     related=('strike-through-draw', 'zoom-through', 'strobe-cut', 'cut-out-paper-animation',
              'dolly-in-and-out', 'zoom-out-reveal'),
-    api=('videobuilder.techniques.transitions.insert_cutaway.insert_cutaway',
-         'videobuilder.techniques.transitions.insert_cutaway.close_up'),
+    api=('videobuilder.capabilities.transitions.insert_cutaway.insert_cutaway',
+         'videobuilder.capabilities.transitions.insert_cutaway.close_up'),
     demo=lambda: demo.film(draw),
 )

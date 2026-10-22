@@ -7,7 +7,7 @@ import random
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 GLITCHES = ('pro_glitch/standard', 'pro_glitch/fastroll', 'pro_glitch/crunchy', 'pro_glitch/framelock',
             'pro_glitch/data', 'pro_glitch/sparse')
@@ -122,7 +122,7 @@ def make_demo():
     return demo.film(lambda n, cv: draw(n, cv, bursts), sounds=sounds)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='glitch-sound',
     name='Glitch sound',
     family='sound',
@@ -135,9 +135,9 @@ TECHNIQUE = Technique(
                'a buzzy digital stutter under the glitch effect'),
     related=('glitch-text', 'glitch-transition', 'static-noise', 'data-bending', 'logo-glitch-reveal',
              'silence-drop'),
-    api=('videobuilder.techniques.sound.glitch_sound.glitch_sound',
-         'videobuilder.techniques.sound.glitch_sound.glitch_amount',
-         'videobuilder.techniques.sound.glitch_sound.stutter',
+    api=('videobuilder.capabilities.sound.glitch_sound.glitch_sound',
+         'videobuilder.capabilities.sound.glitch_sound.glitch_amount',
+         'videobuilder.capabilities.sound.glitch_sound.stutter',
          'videobuilder.sfx.sound'),
     demo=make_demo,
 )

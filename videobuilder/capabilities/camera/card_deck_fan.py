@@ -5,7 +5,7 @@ import math
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def fan_pose(i, count, p, spread=0.9, radius=520, stack=4.0):
@@ -59,7 +59,7 @@ def draw(n, cv):
     cv.mark('deck', demo.W / 2 - 420, demo.H / 2 - 200, 840, 360)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='card-deck-fan',
     name='Card deck fan',
     family='camera',
@@ -72,7 +72,7 @@ TECHNIQUE = Technique(
                'cards pile up then swing apart into an arc'),
     related=('sticky-card-stack-on-scroll', 'stacked-card-reveal', 'flip', 'shape-stacking-drop',
              'rotating-polygon-loop', 'character-3d-flip'),
-    api=('videobuilder.techniques.camera.card_deck_fan.draw_fan',
-         'videobuilder.techniques.camera.card_deck_fan.fan_pose'),
+    api=('videobuilder.capabilities.camera.card_deck_fan.draw_fan',
+         'videobuilder.capabilities.camera.card_deck_fan.fan_pose'),
     demo=lambda: demo.film(draw),
 )

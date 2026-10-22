@@ -6,7 +6,7 @@ import math
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 FIELD_HALF = 26.65   # half the field's width, in yards
 YELLOW = '#f5d23a'
@@ -126,7 +126,7 @@ def draw(n, cv):
     cv.mark('line', min(a, c), min(b, d) - 6, abs(c - a), abs(d - b) + 12)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='virtual-first-down-line',
     name='Virtual first-down line',
     family='broadcast',
@@ -139,8 +139,8 @@ TECHNIQUE = Technique(
                'show the line to gain across the field like on a football broadcast'),
     related=('line-chart-draw-on', 'callout-line-with-label', 'crt-scanlines', 'streamlines',
              'isolines-contour-animation', 'speed-lines'),
-    api=('videobuilder.techniques.broadcast.virtual_first_down_line.first_down_line',
-         'videobuilder.techniques.broadcast.virtual_first_down_line.field_camera',
-         'videobuilder.techniques.broadcast.virtual_first_down_line.ground_polygon'),
+    api=('videobuilder.capabilities.broadcast.virtual_first_down_line.first_down_line',
+         'videobuilder.capabilities.broadcast.virtual_first_down_line.field_camera',
+         'videobuilder.capabilities.broadcast.virtual_first_down_line.ground_polygon'),
     demo=lambda: demo.film(draw),
 )

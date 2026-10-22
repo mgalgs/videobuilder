@@ -4,7 +4,7 @@ through the rest of it, one story after another, without end."""
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 from ..ui.infinite_marquee import marquee_offset
 
 SEPARATOR = 0.6  # the bullet between stories, as a fraction of the font size
@@ -79,7 +79,7 @@ def draw(n, cv):
     cv.mark('ticker', *box)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='news-ticker-crawl',
     name='News ticker crawl',
     family='broadcast',
@@ -92,8 +92,8 @@ TECHNIQUE = Technique(
                'add a scrolling ticker of updates under the picture'),
     related=('infinite-marquee', 'timeline-scroll', 'scroll-progress-bar', 'scroll-snap-sections',
              'horizontal-scroll-section', 'scrollytelling-step-sequence'),
-    api=('videobuilder.techniques.broadcast.news_ticker_crawl.ticker_crawl',
-         'videobuilder.techniques.broadcast.news_ticker_crawl.crawl_cycle',
-         'videobuilder.techniques.ui.infinite_marquee.marquee_offset'),
+    api=('videobuilder.capabilities.broadcast.news_ticker_crawl.ticker_crawl',
+         'videobuilder.capabilities.broadcast.news_ticker_crawl.crawl_cycle',
+         'videobuilder.capabilities.ui.infinite_marquee.marquee_offset'),
     demo=lambda: demo.film(draw),
 )

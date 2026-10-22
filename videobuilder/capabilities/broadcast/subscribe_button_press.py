@@ -6,7 +6,7 @@ import math
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 from ..ui.press_depress import CURSOR
 
 RED = '#e8352f'
@@ -134,7 +134,7 @@ def draw(n, cv):
         _cursor(cv, px, py, s=1.6 - 0.2 * st['press'])
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='subscribe-button-press',
     name='Subscribe button press',
     family='broadcast',
@@ -147,8 +147,8 @@ TECHNIQUE = Technique(
                'the classic "remember to subscribe" button click for my video'),
     related=('press-depress', 'hold-to-confirm', 'click-ripple-indicator', 'glow-button', 'ui-sound-effects',
              'swipe-action-row'),
-    api=('videobuilder.techniques.broadcast.subscribe_button_press.subscribe_button',
-         'videobuilder.techniques.broadcast.subscribe_button_press.subscribe_state',
-         'videobuilder.techniques.broadcast.subscribe_button_press.draw_bell'),
+    api=('videobuilder.capabilities.broadcast.subscribe_button_press.subscribe_button',
+         'videobuilder.capabilities.broadcast.subscribe_button_press.subscribe_state',
+         'videobuilder.capabilities.broadcast.subscribe_button_press.draw_bell'),
     demo=lambda: demo.film(draw),
 )

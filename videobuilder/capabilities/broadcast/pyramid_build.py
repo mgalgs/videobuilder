@@ -5,7 +5,7 @@ import videobuilder as vb
 
 from ...canvas import rgba
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def tier_arrivals(count, p, overlap=1.5, ease=vb.ease_out_back):
@@ -77,7 +77,7 @@ def draw(n, cv):
     cv.mark('pyramid', *box)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='pyramid-build',
     name='Pyramid build',
     family='broadcast',
@@ -90,7 +90,7 @@ TECHNIQUE = Technique(
                'show a tiered pyramid diagram assembling with labels on each band'),
     related=('stacked-bar-build', 'shape-stacking-drop', 'stacked-line-build', 'voxel-build',
              'exploded-view', 'isometric-bar-rise'),
-    api=('videobuilder.techniques.broadcast.pyramid_build.draw_pyramid',
-         'videobuilder.techniques.broadcast.pyramid_build.tier_arrivals'),
+    api=('videobuilder.capabilities.broadcast.pyramid_build.draw_pyramid',
+         'videobuilder.capabilities.broadcast.pyramid_build.tier_arrivals'),
     demo=lambda: demo.film(draw),
 )

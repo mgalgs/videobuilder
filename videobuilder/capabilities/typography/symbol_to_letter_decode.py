@@ -6,7 +6,7 @@ import math
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def _circle_plus(c, r):
@@ -148,7 +148,7 @@ def draw(n, cv):
     cv.mark('text', *box)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='symbol-to-letter-decode',
     name='Symbol-to-letter decode',
     family='typography',
@@ -161,8 +161,8 @@ TECHNIQUE = Technique(
                'little pictograms that decode into the brand name'),
     related=('text-to-shape-morph', 'scramble-decode', 'pictogram-counting', 'ascii-art-render',
              'icon-state-morph', 'character-slide-in'),
-    api=('videobuilder.techniques.typography.symbol_to_letter_decode.draw_symbol_decode',
-         'videobuilder.techniques.typography.symbol_to_letter_decode.draw_icon',
-         'videobuilder.techniques.typography.symbol_to_letter_decode.swap_progress'),
+    api=('videobuilder.capabilities.typography.symbol_to_letter_decode.draw_symbol_decode',
+         'videobuilder.capabilities.typography.symbol_to_letter_decode.draw_icon',
+         'videobuilder.capabilities.typography.symbol_to_letter_decode.swap_progress'),
     demo=lambda: demo.film(draw),
 )

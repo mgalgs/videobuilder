@@ -9,7 +9,7 @@ from PIL import Image
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def _pixels(cv, draw):
@@ -164,7 +164,7 @@ def _draw(n, cv):
         cv.arc(bx, by, _RADIUS, 0, 2 * math.pi, demo.INK, width=2, alpha=0.8)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='liquify',
     name='Liquify',
     family='vfx',
@@ -177,8 +177,8 @@ TECHNIQUE = Technique(
                'push the pixels around as if the image were liquid'),
     related=('pixelate-transition', 'gradient-wipe', 'gaussian-blur', 'blur-dissolve', 'domain-warping',
              'pixelation'),
-    api=('videobuilder.techniques.vfx.liquify.push_warp',
-         'videobuilder.techniques.vfx.liquify.liquify',
-         'videobuilder.techniques.vfx.liquify.dabs'),
+    api=('videobuilder.capabilities.vfx.liquify.push_warp',
+         'videobuilder.capabilities.vfx.liquify.liquify',
+         'videobuilder.capabilities.vfx.liquify.dabs'),
     demo=lambda: demo.film(_draw),
 )

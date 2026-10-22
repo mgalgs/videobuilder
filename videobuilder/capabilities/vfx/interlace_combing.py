@@ -7,7 +7,7 @@ import contextlib
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 @contextlib.contextmanager
@@ -77,7 +77,7 @@ def draw(n, cv):
     cv.mark('dot', _x(t) - 86, demo.H / 2 - 106, 172, 172)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='interlace-combing',
     name='Interlace combing',
     family='vfx',
@@ -90,6 +90,6 @@ TECHNIQUE = Technique(
                'an interlacing artifact where every other row trails behind'),
     related=('line-weave', 'frame-interpolation', 'cross-zoom', 'isolines-contour-animation', 'morph-cut',
              'speed-lines'),
-    api=('videobuilder.techniques.vfx.interlace_combing.interlace_combing',),
+    api=('videobuilder.capabilities.vfx.interlace_combing.interlace_combing',),
     demo=lambda: demo.film(draw),
 )

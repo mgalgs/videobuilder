@@ -7,7 +7,7 @@ from PIL import Image as PILImage, ImageDraw
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def crossfade_slideshow(cv, slides, box, t, hold=1.0, fade=0.5, radius=0, loop=False, ease=vb.ease_in_out_quart):
@@ -90,7 +90,7 @@ def draw(n, cv):
         demo.dot(cv, demo.W / 2 + (i - 1) * 32, y, r=6 + 2 * on, color=demo.kit.mix(demo.MUTED, demo.INK, on))
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='image-crossfade-slideshow',
     name='Image crossfade slideshow',
     family='ui',
@@ -103,6 +103,6 @@ TECHNIQUE = Technique(
                'cycle through some pictures with soft fades in the same frame'),
     related=('cross-dissolve', 'carousel-slide', 'cross-zoom', 'theme-swap-crossfade', 'view-transition',
              'parallax-slide'),
-    api=('videobuilder.techniques.ui.image_crossfade_slideshow.crossfade_slideshow',),
+    api=('videobuilder.capabilities.ui.image_crossfade_slideshow.crossfade_slideshow',),
     demo=lambda: demo.film(draw),
 )

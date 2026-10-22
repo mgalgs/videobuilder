@@ -8,7 +8,7 @@ import cairo
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 from ...canvas import rgba
 from ...type import kit as type_kit
 
@@ -107,7 +107,7 @@ def draw(n, cv):
     cv.mark('text', *box)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='ripple-displacement',
     name='Ripple displacement',
     family='typography',
@@ -121,8 +121,8 @@ TECHNIQUE = Technique(
                'a water-drop wave that warps the text and then calms down'),
     related=('ripple', 'height-field-ripples', 'refraction-ripple', 'wave-deformer',
              'text-reflection-shimmer', 'sine-wave-text'),
-    api=('videobuilder.techniques.typography.ripple_displacement.draw_ripple_text',
-         'videobuilder.techniques.typography.ripple_displacement.ripple_offset',
-         'videobuilder.techniques.typography.ripple_displacement.text_polylines'),
+    api=('videobuilder.capabilities.typography.ripple_displacement.draw_ripple_text',
+         'videobuilder.capabilities.typography.ripple_displacement.ripple_offset',
+         'videobuilder.capabilities.typography.ripple_displacement.text_polylines'),
     demo=lambda: demo.film(draw),
 )

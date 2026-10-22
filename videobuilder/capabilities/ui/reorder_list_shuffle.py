@@ -4,7 +4,7 @@ always open where it will drop."""
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 ROW = '#1d1f26'
 ROW_LIFTED = '#272a33'
@@ -100,7 +100,7 @@ def draw(n, cv):
     _cursor(cv, gx + 80 * home, gy + 40 * home, s=0.7)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='reorder-list-shuffle',
     name='Reorder list shuffle',
     family='ui',
@@ -113,7 +113,7 @@ TECHNIQUE = Technique(
                'pick up a list item and move it, with the rest shuffling to fill in'),
     related=('sorted-bar-reorder', 'grid-reflow-shuffle', 'letter-sort-animation', 'leaderboard-row-swap',
              'letter-roll', 'infinite-scroll-append'),
-    api=('videobuilder.techniques.ui.reorder_list_shuffle.draw_reorder',
-         'videobuilder.techniques.ui.reorder_list_shuffle.reorder_slots'),
+    api=('videobuilder.capabilities.ui.reorder_list_shuffle.draw_reorder',
+         'videobuilder.capabilities.ui.reorder_list_shuffle.reorder_slots'),
     demo=lambda: demo.film(draw),
 )

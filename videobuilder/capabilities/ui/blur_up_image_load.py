@@ -7,7 +7,7 @@ from PIL import ImageFilter
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 LEVELS = 6  # blur steps from the placeholder down to sharp; drawing crossfades between neighbours
 
@@ -61,7 +61,7 @@ def draw(n, cv):
     cv.mark('image', x, y, w, h)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='blur-up-image-load',
     name='Blur-up image load',
     family='ui',
@@ -74,6 +74,6 @@ TECHNIQUE = Technique(
                'images that fade from a blurred preview into crisp detail'),
     related=('gaussian-blur', 'pixelation', 'zoom-blur', 'blur-dissolve', 'spin-blur',
              'nearest-neighbor-upscale'),
-    api=('videobuilder.techniques.ui.blur_up_image_load.blur_up',),
+    api=('videobuilder.capabilities.ui.blur_up_image_load.blur_up',),
     demo=lambda: demo.film(draw),
 )

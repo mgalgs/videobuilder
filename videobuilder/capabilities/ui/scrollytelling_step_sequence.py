@@ -5,7 +5,7 @@ import videobuilder as vb
 
 from .. import _demo as demo
 from ...compendium import kit
-from ..schema import Technique
+from ..schema import Capability
 
 
 def step_weights(scroll, count, edge=0.5, soft=0.2):
@@ -102,7 +102,7 @@ def draw(n, cv):
     cv.mark('page', *box)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='scrollytelling-step-sequence',
     name='Scrollytelling step sequence',
     family='ui',
@@ -115,8 +115,8 @@ TECHNIQUE = Technique(
                'a story page where each section scrolls in and spotlights a different piece of the graphic'),
     related=('scroll-driven-text-reveal', 'timeline-scroll', 'roll-up', 'page-load-sequence',
              'rolling-end-credits', 'perspective-crawl'),
-    api=('videobuilder.techniques.ui.scrollytelling_step_sequence.draw_scrollytelling',
-         'videobuilder.techniques.ui.scrollytelling_step_sequence.step_weights',
-         'videobuilder.techniques.ui.scrollytelling_step_sequence.scroll_holds'),
+    api=('videobuilder.capabilities.ui.scrollytelling_step_sequence.draw_scrollytelling',
+         'videobuilder.capabilities.ui.scrollytelling_step_sequence.step_weights',
+         'videobuilder.capabilities.ui.scrollytelling_step_sequence.scroll_holds'),
     demo=lambda: demo.film(draw),
 )

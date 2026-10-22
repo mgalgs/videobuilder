@@ -1,9 +1,9 @@
-"""Rendering every technique's demo for review by eye: `<id>.mp4` and a
+"""Rendering every registry capability's demo for review by eye: `<id>.mp4` and a
 `<id>.jpg` poster each, and `index.html`, a self-contained gallery page (one
-looping tile per technique, grouped by family and group, a filter box, light
+looping tile per capability, grouped by family and group, a filter box, light
 and dark themes).
 
-    python -m videobuilder techniques build --out DIR [--only ID]... [--family F]
+    python -m videobuilder capabilities gallery --out DIR [--only ID]... [--family F]
 """
 import html
 import os
@@ -27,8 +27,8 @@ def _save_poster(film, path):
 
 
 def build(out_dir, only=None, family=None, jobs=None, crf=30, log=None):
-    """Render each technique (all, one `family`'s, or the ids in `only`) to
-    `out_dir`, then write `index.html` for those that built. A technique that
+    """Render each capability (all, one `family`'s, or the ids in `only`) to
+    `out_dir`, then write `index.html` for those that built. A capability that
     fails to build is reported, not fatal: the rest still build. Returns
     `(results, failures)`: `[{id, seconds, bytes}]` and `[(id, message)]`."""
     from ..render import render
@@ -37,7 +37,7 @@ def build(out_dir, only=None, family=None, jobs=None, crf=30, log=None):
     if only:
         unknown = set(only) - set(ids())
         if unknown:
-            raise ValueError(f'unknown technique id(s): {", ".join(sorted(unknown))}')
+            raise ValueError(f'unknown capability id(s): {", ".join(sorted(unknown))}')
         chosen = tuple(t for t in chosen if t.id in only)
     os.makedirs(out_dir, exist_ok=True)
     results, failures, built = [], [], []
@@ -118,43 +118,38 @@ filter();
 
 
 def _family_title(slug):
-    from ..capabilities import TECHNIQUE_FAMILIES
-    return TECHNIQUE_FAMILIES.get(slug, (slug,))[0]
-
-
-def _group_title(group):
-    from ..capabilities import _display_group
-    return _display_group(group)
+    from . import REGISTRY_FAMILIES
+    return REGISTRY_FAMILIES.get(slug, (slug,))[0]
 
 
 def _tile(t):
     e = html.escape
     search = ' '.join((t.id, t.name, t.family, t.group, t.definition, *t.aliases, *t.phrasings)).lower()
-    # A sound technique is the one tile worth hearing: controls, not muted.
+    # A sound capability is the one tile worth hearing: controls, not muted.
     media = 'controls preload="none"' if t.family == 'sound' else 'muted loop playsinline preload="none"'
     return (f'<article class="tile" id="{e(t.id)}" data-search="{e(search)}">'
             f'<video src="{e(t.id)}.mp4" poster="{e(t.id)}.jpg" {media}></video>'
             f'<div class="text"><div class="name">{e(t.name)}</div>'
-            f'<div class="meta">{e(_family_title(t.family))} / {e(_group_title(t.group))} &middot; '
+            f'<div class="meta">{e(_family_title(t.family))} / {e(t.group)} &middot; '
             f'<code>{e(t.id)}</code></div>'
             f'<p>{e(t.definition)}</p></div></article>')
 
 
-def gallery_html(techniques):
-    """The gallery page for `techniques`, whose clips and posters sit beside it."""
-    groups = grouped(techniques)
+def gallery_html(capabilities):
+    """The gallery page for `capabilities`, whose clips and posters sit beside it."""
+    groups = grouped(capabilities)
     nav = ''.join(f'<a href="#family-{fam}">{html.escape(_family_title(fam))}</a>' for fam, _ in groups)
     body = []
     for fam, gs in groups:
         body.append(f'<section id="family-{fam}"><h2>{html.escape(_family_title(fam))}</h2>')
         for g, ts in gs:
-            body.append(f'<div class="group"><h3>{html.escape(_group_title(g))}</h3><div class="grid">'
+            body.append(f'<div class="group"><h3>{html.escape(g)}</h3><div class="grid">'
                         + ''.join(_tile(t) for t in ts) + '</div></div>')
         body.append('</section>')
     return ('<!doctype html>\n<html lang="en"><head><meta charset="utf-8">'
             '<meta name="viewport" content="width=device-width, initial-scale=1">'
             f'<title>videobuilder capabilities</title><style>{_CSS}</style></head><body>'
             '<header><h1>videobuilder capabilities</h1>'
-            f'<span class="count" id="count">{len(techniques)}</span>'
+            f'<span class="count" id="count">{len(capabilities)}</span>'
             '<input id="q" type="search" placeholder="Filter by name, family, words..." autocomplete="off">'
             f'<nav>{nav}</nav></header><main>{"".join(body)}</main><script>{_JS}</script></body></html>\n')

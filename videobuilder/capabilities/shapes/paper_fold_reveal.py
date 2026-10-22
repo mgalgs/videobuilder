@@ -8,7 +8,7 @@ import cairo
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def _smooth(t):
@@ -141,7 +141,7 @@ def draw(n, cv):
     cv.mark('sheet', *box)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='paper-fold-reveal',
     name='Paper fold reveal',
     family='shapes',
@@ -154,6 +154,6 @@ TECHNIQUE = Technique(
                'the message is folded up at first and then unfolds to reveal itself'),
     related=('origami-fold', 'accordion-fold-text', 'accordion-fold', 'corner-wipe', 'crumple',
              'word-flip-in'),
-    api=('videobuilder.techniques.shapes.paper_fold_reveal.paper_fold_reveal',),
+    api=('videobuilder.capabilities.shapes.paper_fold_reveal.paper_fold_reveal',),
     demo=lambda: demo.film(draw),
 )

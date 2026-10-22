@@ -7,7 +7,7 @@ import random
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 from ...type import kit as type_kit
 
 
@@ -100,7 +100,7 @@ def draw(n, cv):
     cv.mark('text', *box)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='letter-sort-animation',
     name='Letter sort animation',
     family='typography',
@@ -113,8 +113,8 @@ TECHNIQUE = Technique(
                'letters shuffle around and settle into the right order'),
     related=('letter-roll', 'grid-reflow-shuffle', 'random-order-character-reveal', 'character-slide-in',
              'pixel-sort-text', 'character-rotate-in'),
-    api=('videobuilder.techniques.typography.letter_sort_animation.draw_letter_sort',
-         'videobuilder.techniques.typography.letter_sort_animation.letter_sort',
-         'videobuilder.techniques.typography.letter_sort_animation.shuffled'),
+    api=('videobuilder.capabilities.typography.letter_sort_animation.draw_letter_sort',
+         'videobuilder.capabilities.typography.letter_sort_animation.letter_sort',
+         'videobuilder.capabilities.typography.letter_sort_animation.shuffled'),
     demo=lambda: demo.film(draw),
 )

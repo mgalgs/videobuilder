@@ -4,7 +4,7 @@ if winding up, then accelerates hard toward its target -- the mirror of
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def ease_in_back(x, overshoot=1.70158):
@@ -23,7 +23,7 @@ def draw(n, cv):
     demo.card(cv, x0 + (x1 - x0) * p, y)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='ease-in-back',
     name='Ease In Back',
     family='principles',
@@ -36,6 +36,6 @@ TECHNIQUE = Technique(
                'leans back a touch before it takes off'),
     related=('slow-in-and-slow-out', 'anticipation', 'smooth-scroll-inertia', 'reverse-playback',
              'settle', 'follow-through'),
-    api=('videobuilder.techniques.principles.ease_in_back.ease_in_back',),
+    api=('videobuilder.capabilities.principles.ease_in_back.ease_in_back',),
     demo=lambda: demo.film(draw),
 )

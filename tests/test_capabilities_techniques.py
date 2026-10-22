@@ -16,7 +16,8 @@ import urllib.error
 import urllib.request
 from pathlib import Path
 
-from videobuilder import capabilities, techniques
+from videobuilder import capabilities
+from videobuilder.capabilities import registry
 
 from tests import fixtures
 
@@ -33,19 +34,19 @@ def _status(base, path, headers=None):
 
 class FamilyTitles(unittest.TestCase):
     def test_every_family_slug_has_a_title_and_description(self):
-        self.assertEqual(set(capabilities.TECHNIQUE_FAMILIES), set(techniques.FAMILIES))
-        for fam, (title, description) in capabilities.TECHNIQUE_FAMILIES.items():
+        self.assertEqual(set(capabilities.REGISTRY_FAMILIES), set(registry.FAMILIES))
+        for fam, (title, description) in capabilities.REGISTRY_FAMILIES.items():
             with self.subTest(family=fam):
                 self.assertTrue(title.strip())
                 self.assertTrue(description.strip())
 
     def test_family_titles_are_in_registry_order(self):
-        self.assertEqual(tuple(capabilities.TECHNIQUE_FAMILIES), techniques.FAMILIES)
+        self.assertEqual(tuple(capabilities.REGISTRY_FAMILIES), registry.FAMILIES)
 
 
 class CategoryMapping(unittest.TestCase):
     def test_every_family_slug_maps_to_a_category_the_page_actually_has(self):
-        self.assertEqual(set(capabilities.FAMILY_CATEGORY), set(techniques.FAMILIES))
+        self.assertEqual(set(capabilities.FAMILY_CATEGORY), set(registry.FAMILIES))
         categories = set(capabilities.categories())
         for fam, category in capabilities.FAMILY_CATEGORY.items():
             with self.subTest(family=fam):
@@ -54,27 +55,27 @@ class CategoryMapping(unittest.TestCase):
     def test_no_family_slug_collides_with_a_capability_id_or_alias(self):
         # /capabilities/<id>.mp4 and /capabilities/<family> share the same prefix; a family slug
         # equal to a capability id (or an old id in ALIASES) would make the routes ambiguous.
-        self.assertFalse(set(techniques.FAMILIES) & set(capabilities.ids()))
-        self.assertFalse(set(techniques.FAMILIES) & set(capabilities.ALIASES))
+        self.assertFalse(set(registry.FAMILIES) & set(capabilities.ids()))
+        self.assertFalse(set(registry.FAMILIES) & set(capabilities.ALIASES))
 
 
 class Overlap(unittest.TestCase):
     def test_both_sides_of_every_overlap_row_exist(self):
-        self.assertTrue(capabilities.TECHNIQUE_OVERLAP)  # at least one row in this checkout
-        for technique_id, capability_id in capabilities.TECHNIQUE_OVERLAP.items():
+        self.assertTrue(capabilities.REGISTRY_OVERLAP)  # at least one row in this checkout
+        for technique_id, capability_id in capabilities.REGISTRY_OVERLAP.items():
             with self.subTest(technique=technique_id, capability=capability_id):
-                techniques.get(technique_id)              # KeyError if unknown
+                registry.get(technique_id)              # KeyError if unknown
                 capabilities.get(capability_id)            # KeyError if unknown
 
     def test_reverse_lookup(self):
-        self.assertEqual(capabilities._capability_overlap_technique('eased-entrances'), 'ease-out-back')
-        self.assertIsNone(capabilities._capability_overlap_technique('staggered-reveals'))
+        self.assertEqual(capabilities._registry_overlap('eased-entrances'), 'ease-out-back')
+        self.assertIsNone(capabilities._registry_overlap('staggered-reveals'))
 
 
 class BuildTechniques(unittest.TestCase):
     def test_build_techniques_writes_clip_and_poster_under_a_techniques_subdir(self):
         with tempfile.TemporaryDirectory() as d:
-            results = capabilities.build_techniques(d, only={'ease-out-back'})
+            results = capabilities.build_registry(d, only={'ease-out-back'})
             self.assertEqual([r['id'] for r in results], ['ease-out-back'])
             self.assertTrue((Path(d) / 'techniques' / 'ease-out-back.mp4').is_file())
             self.assertTrue((Path(d) / 'techniques' / 'ease-out-back.jpg').is_file())
@@ -102,15 +103,15 @@ class BuildTechniques(unittest.TestCase):
 
 class ClipFile(unittest.TestCase):
     def test_unknown_technique_id_refused(self):
-        self.assertIsNone(capabilities.technique_clip_file('/c', 'not-a-technique', 'mp4'))
+        self.assertIsNone(capabilities.registry_clip_file('/c', 'not-a-technique', 'mp4'))
 
     def test_no_dir_configured_refused(self):
-        self.assertIsNone(capabilities.technique_clip_file(None, 'ease-out-back', 'mp4'))
+        self.assertIsNone(capabilities.registry_clip_file(None, 'ease-out-back', 'mp4'))
 
     def test_known_id_builds_a_techniques_subdir_path(self):
-        self.assertEqual(capabilities.technique_clip_file('/c', 'ease-out-back', 'mp4'),
+        self.assertEqual(capabilities.registry_clip_file('/c', 'ease-out-back', 'mp4'),
                          '/c/techniques/ease-out-back.mp4')
-        self.assertEqual(capabilities.technique_clip_file('/c', 'ease-out-back', 'jpg'),
+        self.assertEqual(capabilities.registry_clip_file('/c', 'ease-out-back', 'jpg'),
                          '/c/techniques/ease-out-back.jpg')
 
 
@@ -131,9 +132,9 @@ class MainPageSection(unittest.TestCase):
 
     def test_one_card_per_family_with_at_least_one_member_in_its_category(self):
         page = capabilities.page_html(None, '0').decode()
-        for fam in techniques.FAMILIES:
-            members = techniques.catalog(fam)
-            title, _ = capabilities.TECHNIQUE_FAMILIES[fam]
+        for fam in registry.FAMILIES:
+            members = registry.catalog(fam)
+            title, _ = capabilities.REGISTRY_FAMILIES[fam]
             section = _section(page, capabilities.FAMILY_CATEGORY[fam])
             if members:
                 self.assertIn(f'href="/capabilities/{fam}"', section, fam)
@@ -149,14 +150,14 @@ class MainPageSection(unittest.TestCase):
     def test_card_shows_count_and_clip_not_built_placeholder(self):
         page = capabilities.page_html(None, '0').decode()
         section = _section(page, capabilities.FAMILY_CATEGORY['principles'])
-        n = len(techniques.catalog('principles'))
+        n = len(registry.catalog('principles'))
         self.assertIn(f'({n} capabilit{"ies" if n != 1 else "y"})', section)
         self.assertIn('clip not built', section)
 
     def test_poster_shown_once_built(self):
         with tempfile.TemporaryDirectory() as d:
             Path(d, 'techniques').mkdir()
-            first = techniques.catalog('principles')[0]
+            first = registry.catalog('principles')[0]
             Path(d, 'techniques', f'{first.id}.mp4').write_bytes(b'mp4')
             page = capabilities.page_html(d, '0').decode()
         section = _section(page, capabilities.FAMILY_CATEGORY['principles'])
@@ -164,12 +165,12 @@ class MainPageSection(unittest.TestCase):
 
     def test_search_data_and_hit_list_present(self):
         page = capabilities.page_html(None, '0').decode()
-        self.assertIn('id="techniques-search-data"', page)
+        self.assertIn('id="registry-search-data"', page)
         self.assertIn('id="tech-hits"', page)
-        data = json.loads(re.search(r'<script id="techniques-search-data" type="application/json">(.*?)</script>',
+        data = json.loads(re.search(r'<script id="registry-search-data" type="application/json">(.*?)</script>',
                                     page, re.S).group(1))
         ids = {e['id'] for e in data}
-        self.assertEqual(ids, set(techniques.ids()))
+        self.assertEqual(ids, set(registry.ids()))
 
     def test_overlapping_capability_links_to_its_technique(self):
         page = capabilities.page_html(None, '0').decode()
@@ -181,7 +182,7 @@ class MainPageSection(unittest.TestCase):
 
 class FamilyPage(unittest.TestCase):
     def test_lists_its_own_techniques_grouped_by_group_in_registry_order(self):
-        page = capabilities.techniques_family_page_html('principles', None, '0').decode()
+        page = capabilities.family_page_html('principles', None, '0').decode()
         self.assertIn('<h1>Animation principles</h1>', page)
         self.assertIn('data-card="bounce-ease-out"', page)
         self.assertIn('data-card="ease-out-back"', page)
@@ -190,11 +191,11 @@ class FamilyPage(unittest.TestCase):
 
     def test_unknown_family_raises_key_error(self):
         with self.assertRaises(KeyError):
-            capabilities.techniques_family_page_html('not-a-family', None, '0')
+            capabilities.family_page_html('not-a-family', None, '0')
 
     def test_modal_data_has_definition_phrasings_aliases_and_api(self):
-        page = capabilities.techniques_family_page_html('transitions', None, '0').decode()
-        data = json.loads(re.search(r'<script id="techniques-data" type="application/json">(.*?)</script>',
+        page = capabilities.family_page_html('transitions', None, '0').decode()
+        data = json.loads(re.search(r'<script id="registry-data" type="application/json">(.*?)</script>',
                                     page, re.S).group(1))
         entry = next(t for t in data if t['id'] == 'dip-to-black')
         self.assertIn('fades all the way down to black', entry['description'])
@@ -203,8 +204,8 @@ class FamilyPage(unittest.TestCase):
         self.assertGreaterEqual(len(entry['prompts']), 2)
 
     def test_technique_modal_links_back_to_its_overlapping_capability(self):
-        page = capabilities.techniques_family_page_html('principles', None, '0').decode()
-        data = json.loads(re.search(r'<script id="techniques-data" type="application/json">(.*?)</script>',
+        page = capabilities.family_page_html('principles', None, '0').decode()
+        data = json.loads(re.search(r'<script id="registry-data" type="application/json">(.*?)</script>',
                                     page, re.S).group(1))
         entry = next(t for t in data if t['id'] == 'ease-out-back')
         self.assertEqual(entry['overlap'], {'id': 'eased-entrances', 'title': 'Eased entrances'})
@@ -212,28 +213,28 @@ class FamilyPage(unittest.TestCase):
         self.assertNotIn('overlap', other)
 
     def test_search_box_present(self):
-        page = capabilities.techniques_family_page_html('principles', None, '0').decode()
+        page = capabilities.family_page_html('principles', None, '0').decode()
         self.assertIn('<input type="search" id="tech-search"', page)
-        self.assertIn(capabilities._TECHNIQUES_SEARCH_SCRIPT, page)
+        self.assertIn(capabilities._REGISTRY_SEARCH_SCRIPT, page)
 
     def test_title_and_search_say_the_familys_name(self):
-        page = capabilities.techniques_family_page_html('typography', None, '0').decode()
+        page = capabilities.family_page_html('typography', None, '0').decode()
         self.assertIn('<title>Typography · videobuilder</title>', page)
         self.assertIn('placeholder="Search typography…"', page)
         self.assertIn('aria-label="Search typography"', page)
 
     def test_modal_category_line_uses_the_familys_display_title(self):
-        page = capabilities.techniques_family_page_html('principles', None, '0').decode()
-        data = json.loads(re.search(r'<script id="techniques-data" type="application/json">(.*?)</script>',
+        page = capabilities.family_page_html('principles', None, '0').decode()
+        data = json.loads(re.search(r'<script id="registry-data" type="application/json">(.*?)</script>',
                                     page, re.S).group(1))
         entry = next(t for t in data if t['id'] == 'ease-out-back')
         self.assertEqual(entry['familyTitle'], 'Animation principles')
 
     def test_group_heading_and_modal_group_never_say_technique(self):
-        page = capabilities.techniques_family_page_html('principles', None, '0').decode()
+        page = capabilities.family_page_html('principles', None, '0').decode()
         self.assertNotIn('<h3 class="kind">Principle sub-techniques</h3>', page)
         self.assertIn('<h3 class="kind">Principle sub-capabilities</h3>', page)
-        data = json.loads(re.search(r'<script id="techniques-data" type="application/json">(.*?)</script>',
+        data = json.loads(re.search(r'<script id="registry-data" type="application/json">(.*?)</script>',
                                     page, re.S).group(1))
         entry = next(t for t in data if t['id'] == 'delay')
         self.assertEqual(entry['group'], 'Principle sub-capabilities')
@@ -261,11 +262,11 @@ class VisibleWording(unittest.TestCase):
         self.assertNotIn('technique', _visible_text(page).lower())
 
     def test_family_page_wording_is_capability_only(self):
-        for fam in techniques.FAMILIES:
-            if not techniques.catalog(fam):
+        for fam in registry.FAMILIES:
+            if not registry.catalog(fam):
                 continue
             with self.subTest(family=fam):
-                page = capabilities.techniques_family_page_html(fam, None, '0').decode()
+                page = capabilities.family_page_html(fam, None, '0').decode()
                 self.assertNotIn('technique', _visible_text(page).lower())
 
 
@@ -273,7 +274,7 @@ class Sheet(unittest.TestCase):
     def test_capability_families_section_lists_every_family_no_per_member_lines(self):
         sheet = capabilities.sheet_markdown()
         part = sheet[sheet.index('## Capability families'):]
-        for fam, (title, description) in capabilities.TECHNIQUE_FAMILIES.items():
+        for fam, (title, description) in capabilities.REGISTRY_FAMILIES.items():
             self.assertIn(f'**{title}** (`{fam}`): {description}', part)
         self.assertIn('python -m videobuilder techniques index --family <family>', part)
         self.assertNotIn('ease-out-back', part)
@@ -343,7 +344,7 @@ class RoutesWithClip(fixtures.API):
     def test_family_page_reflects_the_built_clip(self):
         code, page, _ = _status(self.base, '/capabilities/principles')
         self.assertEqual(code, 200)
-        data = json.loads(re.search(rb'<script id="techniques-data" type="application/json">(.*?)</script>',
+        data = json.loads(re.search(rb'<script id="registry-data" type="application/json">(.*?)</script>',
                                     page, re.S).group(1))
         entry = next(t for t in data if t['id'] == 'ease-out-back')
         self.assertTrue(entry['available'])

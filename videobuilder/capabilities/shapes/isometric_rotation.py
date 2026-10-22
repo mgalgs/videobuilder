@@ -7,7 +7,7 @@ import videobuilder as vb
 
 from .. import _demo as demo
 from ...compendium import kit
-from ..schema import Technique
+from ..schema import Capability
 
 COS30, SIN30 = math.cos(math.pi / 6), 0.5
 
@@ -126,7 +126,7 @@ def draw(n, cv):
     cv.mark('box', *box)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='isometric-rotation',
     name='Isometric rotation',
     family='shapes',
@@ -139,8 +139,8 @@ TECHNIQUE = Technique(
                'spin the isometric icon in steps to show all its faces'),
     related=('turntable-rotation', 'isometric-assembly', 'isometric-view', 'globe-spin', 'character-rotate-in',
              'spin'),
-    api=('videobuilder.techniques.shapes.isometric_rotation.isometric_box',
-         'videobuilder.techniques.shapes.isometric_rotation.stepped_turns',
-         'videobuilder.techniques.shapes.isometric_rotation.iso_point'),
+    api=('videobuilder.capabilities.shapes.isometric_rotation.isometric_box',
+         'videobuilder.capabilities.shapes.isometric_rotation.stepped_turns',
+         'videobuilder.capabilities.shapes.isometric_rotation.iso_point'),
     demo=lambda: demo.film(draw),
 )

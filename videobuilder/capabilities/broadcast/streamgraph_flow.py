@@ -6,7 +6,7 @@ import math
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def streamgraph_layers(series, baseline='wiggle'):
@@ -115,7 +115,7 @@ def draw(n, cv):
     cv.mark('stream', *box)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='streamgraph-flow',
     name='Streamgraph flow',
     family='broadcast',
@@ -127,7 +127,7 @@ TECHNIQUE = Technique(
                'show how the share of each category changes over time as wavy coloured streams',
                'animated organic ribbons of data drifting across the screen'),
     related=('streamlines', 'flow-map-lines', 'curl-noise-flow', 'flowchart-build', 'flow-field', 'line-boil'),
-    api=('videobuilder.techniques.broadcast.streamgraph_flow.streamgraph',
-         'videobuilder.techniques.broadcast.streamgraph_flow.streamgraph_layers'),
+    api=('videobuilder.capabilities.broadcast.streamgraph_flow.streamgraph',
+         'videobuilder.capabilities.broadcast.streamgraph_flow.streamgraph_layers'),
     demo=lambda: demo.film(draw),
 )

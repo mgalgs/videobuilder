@@ -6,7 +6,7 @@ import math
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def stagger(p, i, count, spread=0.5):
@@ -50,7 +50,7 @@ def draw(n, cv):
     cv.mark('row', x0 - SIZE / 2, y0 - RISE - SIZE / 2, GAP * (COUNT - 1) + SIZE, RISE + SIZE)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='linear-repeater-stagger',
     name='Linear repeater stagger',
     family='shapes',
@@ -63,7 +63,7 @@ TECHNIQUE = Technique(
                'the same animation on every copy, cascading down the line'),
     related=('linear-stagger', 'wave-stagger', 'grid-diagonal-stagger', 'proximity-stagger',
              'frame-delay-echo', 'eased-stagger'),
-    api=('videobuilder.techniques.shapes.linear_repeater_stagger.linear_repeater',
-         'videobuilder.techniques.shapes.linear_repeater_stagger.stagger'),
+    api=('videobuilder.capabilities.shapes.linear_repeater_stagger.linear_repeater',
+         'videobuilder.capabilities.shapes.linear_repeater_stagger.stagger'),
     demo=lambda: demo.film(draw),
 )

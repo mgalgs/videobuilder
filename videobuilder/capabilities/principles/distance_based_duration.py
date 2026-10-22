@@ -4,7 +4,7 @@ it travels at a similar pace instead of all sharing one fixed length."""
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def distance_duration(distance, ref_distance=400.0, ref_seconds=0.6, exponent=0.5, shortest=0.12, longest=None):
@@ -49,7 +49,7 @@ def draw(n, cv):
         vb.text.draw(cv, [label], f, x1 + 56, y - 14, demo.INK if arrived else demo.MUTED)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='distance-based-duration',
     name='Distance-Based Duration',
     family='principles',
@@ -61,6 +61,6 @@ TECHNIQUE = Technique(
                'time each move by how far it has to go',
                'keep the speed consistent instead of giving every move the same duration'),
     related=('timing', 'time-remapping', 'delay', 'offset', 'speed-ramp', 'proximity-stagger'),
-    api=('videobuilder.techniques.principles.distance_based_duration.distance_duration',),
+    api=('videobuilder.capabilities.principles.distance_based_duration.distance_duration',),
     demo=lambda: demo.film(draw),
 )

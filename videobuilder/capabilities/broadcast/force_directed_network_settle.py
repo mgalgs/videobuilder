@@ -9,7 +9,7 @@ from functools import lru_cache
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def force_layout(count, edges, frames, fps=30, center=(demo.W / 2, demo.H / 2), spread=40.0, length=150.0,
@@ -104,7 +104,7 @@ def draw(n, cv):
     draw_graph(cv, frames[max(0, n - hold)], EDGES, LABELS)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='force-directed-network-settle',
     name='Force-directed network settle',
     family='broadcast',
@@ -118,7 +118,7 @@ TECHNIQUE = Technique(
                'animate a connection map relaxing into a clean layout'),
     related=('connector-network', 'springs-network', 'hub-and-spoke-spread', 'social-force-crowd',
              'chain-follow-through', 'settle'),
-    api=('videobuilder.techniques.broadcast.force_directed_network_settle.force_layout',
-         'videobuilder.techniques.broadcast.force_directed_network_settle.draw_graph'),
+    api=('videobuilder.capabilities.broadcast.force_directed_network_settle.force_layout',
+         'videobuilder.capabilities.broadcast.force_directed_network_settle.draw_graph'),
     demo=lambda: demo.film(draw),
 )

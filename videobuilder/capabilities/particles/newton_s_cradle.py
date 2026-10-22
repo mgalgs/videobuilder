@@ -5,7 +5,7 @@ import math
 
 from .. import _demo as demo
 from ..principles.pendulum_swing import pendulum_point
-from ..schema import Technique
+from ..schema import Capability
 
 
 def cradle_angles(t, count=5, lifted=1, amplitude=0.55, period=1.4, decay=0.0):
@@ -54,7 +54,7 @@ def draw(n, cv):
         cv.mark(f'ball{i}', x - R, y - R, 2 * R, 2 * R)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='newton-s-cradle',
     name="Newton's cradle",
     family='particles',
@@ -67,7 +67,7 @@ TECHNIQUE = Technique(
                'one ball hits the row and the one on the other end swings out',
                'pass the momentum down a line of hanging balls'),
     related=('elastic-collisions', 'momentum-fling', 'ball-bounce', 'magnetic-snap', 'offset', 'recoil'),
-    api=('videobuilder.techniques.particles.newton_s_cradle.cradle_angles',
-         'videobuilder.techniques.principles.pendulum_swing.pendulum_point'),
+    api=('videobuilder.capabilities.particles.newton_s_cradle.cradle_angles',
+         'videobuilder.capabilities.principles.pendulum_swing.pendulum_point'),
     demo=lambda: demo.film(draw),
 )

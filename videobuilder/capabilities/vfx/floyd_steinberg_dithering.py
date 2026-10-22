@@ -9,7 +9,7 @@ from PIL import Image
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 from ...looks.fx import Filter, apply, palette_image, posterize
 
 ONE_BIT = ('#000000', '#ffffff')
@@ -67,7 +67,7 @@ def draw(n, cv):
     cv.mark('photo', 0, 0, demo.W, demo.H)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='floyd-steinberg-dithering',
     name='Floyd-Steinberg dithering',
     family='vfx',
@@ -80,8 +80,8 @@ TECHNIQUE = Technique(
                'give it that grainy 1-bit dithered look'),
     related=('fractal-brownian-motion', 'film-grain', 'domain-warping', 'gaussian-blur', 'blur-up-image-load',
              'curl-noise-flow'),
-    api=('videobuilder.techniques.vfx.floyd_steinberg_dithering.floyd_steinberg',
-         'videobuilder.techniques.vfx.floyd_steinberg_dithering.fs_dither',
+    api=('videobuilder.capabilities.vfx.floyd_steinberg_dithering.floyd_steinberg',
+         'videobuilder.capabilities.vfx.floyd_steinberg_dithering.fs_dither',
          'videobuilder.looks.fx.posterize'),
     demo=lambda: demo.film(draw),
 )

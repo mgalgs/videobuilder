@@ -16,7 +16,7 @@ import videobuilder as vb
 
 from ...looks.fx import Filter, apply, boil, edges, grow, luma, noise, shrink, threshold, work_factor
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 INK = '#16141a'
 PAPER = '#efe9dc'
@@ -88,7 +88,7 @@ def draw(n, cv):
         cv.rect(edge - 3, 0, 6, demo.H, demo.ACCENT)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='linocut',
     name='Linocut',
     family='vfx',
@@ -101,8 +101,8 @@ TECHNIQUE = Technique(
                'give it that hand-cut block print look with rough gouge marks'),
     related=('hard-cut', 'cut-out-paper-animation', 'emboss', 'unsharp-mask', 'underline-swash-draw',
              'gooch-shading'),
-    api=('videobuilder.techniques.vfx.linocut.linocut',
-         'videobuilder.techniques.vfx.linocut.treat',
-         'videobuilder.techniques.vfx.linocut.LINOCUT'),
+    api=('videobuilder.capabilities.vfx.linocut.linocut',
+         'videobuilder.capabilities.vfx.linocut.treat',
+         'videobuilder.capabilities.vfx.linocut.LINOCUT'),
     demo=lambda: demo.film(draw),
 )

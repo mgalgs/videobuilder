@@ -7,7 +7,7 @@ import videobuilder as vb
 
 from .. import _demo as demo
 from ...canvas import rgba
-from ..schema import Technique
+from ..schema import Capability
 
 # An arrow pointer, tip at (0, 0), in px at scale 1.
 POINTER = ((0, 0), (0, 30), (7, 23), (12, 35), (17, 33), (12, 21), (22, 21))
@@ -67,7 +67,7 @@ def draw(n, cv):
     _pointer(cv, sx + (tx - sx) * arrive, sy + (ty - sy) * arrive)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='glow-button',
     name='Glow button',
     family='ui',
@@ -80,6 +80,6 @@ TECHNIQUE = Technique(
                'mouse over the call to action and it starts glowing'),
     related=('outline-pulse-glow', 'bloom', 'spotlight-hover', 'fresnel-edge-glow', 'drop-target-highlight',
              'border-glow-follow'),
-    api=('videobuilder.techniques.ui.glow_button.glow_button',),
+    api=('videobuilder.capabilities.ui.glow_button.glow_button',),
     demo=lambda: demo.film(draw),
 )

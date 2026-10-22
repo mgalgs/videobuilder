@@ -6,7 +6,7 @@ import math
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def _hash(i, j, seed):
@@ -86,7 +86,7 @@ def draw(n, cv):
     cv.mark('terrain', 0, demo.H * 0.38, demo.W, demo.H * 0.62)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='wireframe-terrain',
     name='Wireframe terrain',
     family='particles',
@@ -99,7 +99,7 @@ TECHNIQUE = Technique(
                'an endless mesh of hills moving past like an 80s game'),
     related=('displacement-map', 'slopegraph-reveal', 'wireframe-reveal', 'scrollytelling-step-sequence',
              'isolines-contour-animation', 'scroll-parallax-layers'),
-    api=('videobuilder.techniques.particles.wireframe_terrain.wireframe_terrain',
-         'videobuilder.techniques.particles.wireframe_terrain.terrain_height'),
+    api=('videobuilder.capabilities.particles.wireframe_terrain.wireframe_terrain',
+         'videobuilder.capabilities.particles.wireframe_terrain.terrain_height'),
     demo=lambda: demo.film(draw),
 )

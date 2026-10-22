@@ -7,7 +7,7 @@ import random
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 # The classic arrow pointer, tip at (0, 0), in px at scale 1.
 ARROW = ((0, 0), (0, 27), (7, 21), (12, 32), (17.5, 29.5), (12.5, 19), (21, 19))
@@ -80,7 +80,7 @@ def draw(n, cv):
     draw_cursor(cv, *_route(t))
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='cursor-particle-trail',
     name='Cursor particle trail',
     family='ui',
@@ -93,8 +93,8 @@ TECHNIQUE = Technique(
                'little particles spray out behind the pointer and fade'),
     related=('cursor-path-animation', 'player-movement-trail', 'particle-trail', 'path-emitter',
              'magnetic-button', 'blinking-cursor'),
-    api=('videobuilder.techniques.ui.cursor_particle_trail.draw_particle_trail',
-         'videobuilder.techniques.ui.cursor_particle_trail.trail_particles',
-         'videobuilder.techniques.ui.cursor_particle_trail.draw_cursor'),
+    api=('videobuilder.capabilities.ui.cursor_particle_trail.draw_particle_trail',
+         'videobuilder.capabilities.ui.cursor_particle_trail.trail_particles',
+         'videobuilder.capabilities.ui.cursor_particle_trail.draw_cursor'),
     demo=lambda: demo.film(draw),
 )

@@ -7,7 +7,7 @@ import math
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def superformula(phi, m, n1, n2, n3, a=1.0, b=1.0):
@@ -71,7 +71,7 @@ def draw(n, cv):
               color=demo.MUTED, font=demo.mono(20, 500))
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='superformula-morph',
     name='Superformula morph',
     family='shapes',
@@ -84,8 +84,8 @@ TECHNIQUE = Technique(
                'animate the superformula so the outline grows points and petals'),
     related=('shape-morph', 'koch-snowflake', 'projection-morph', 'julia-set-morph', 'morphing-shape-ident',
              'hilbert-curve'),
-    api=('videobuilder.techniques.shapes.superformula_morph.superformula_morph',
-         'videobuilder.techniques.shapes.superformula_morph.superformula_points',
-         'videobuilder.techniques.shapes.superformula_morph.superformula'),
+    api=('videobuilder.capabilities.shapes.superformula_morph.superformula_morph',
+         'videobuilder.capabilities.shapes.superformula_morph.superformula_points',
+         'videobuilder.capabilities.shapes.superformula_morph.superformula'),
     demo=lambda: demo.film(draw),
 )

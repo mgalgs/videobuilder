@@ -6,7 +6,7 @@ import math
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 GOLDEN_ANGLE = math.pi * (3 - math.sqrt(5))  # ~137.5 degrees: the turn between neighbouring seeds
 
@@ -62,7 +62,7 @@ def draw(n, cv):
     cv.mark('bloom', cx - 230, cy - 230, 460, 460)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='spiral-bloom',
     name='Spiral bloom',
     family='shapes',
@@ -74,7 +74,7 @@ TECHNIQUE = Technique(
                'a sunflower pattern that grows outward from the centre',
                'shapes blossoming outward in a swirling spiral'),
     related=('phyllotaxis', 'spiral-galaxy', 'spiral-wipe', 'shape-burst', 'bloom', 'swirl'),
-    api=('videobuilder.techniques.shapes.spiral_bloom.draw_spiral_bloom',
-         'videobuilder.techniques.shapes.spiral_bloom.spiral_bloom'),
+    api=('videobuilder.capabilities.shapes.spiral_bloom.draw_spiral_bloom',
+         'videobuilder.capabilities.shapes.spiral_bloom.spiral_bloom'),
     demo=lambda: demo.film(draw),
 )

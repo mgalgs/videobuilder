@@ -9,7 +9,7 @@ from PIL import Image
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 from ...canvas import rgba
 
 TILE = (96, 192)  # rows, cols of one wrap-around smoke texture
@@ -108,7 +108,7 @@ def draw(n, cv):
     cv.mark('smoke', *box)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='smoke-overlay',
     name='Smoke overlay',
     family='vfx',
@@ -121,8 +121,8 @@ TECHNIQUE = Technique(
                'make it look like smoke is blowing past in front of the scene'),
     related=('smoke-dissolve', 'smoke-puffs', 'heat-haze', 'lens-dirt-overlay', 'layered-fog-bands',
              'smoke-simulation'),
-    api=('videobuilder.techniques.vfx.smoke_overlay.smoke_overlay',
-         'videobuilder.techniques.vfx.smoke_overlay.smoke_density',
-         'videobuilder.techniques.vfx.smoke_overlay.smoke_texture'),
+    api=('videobuilder.capabilities.vfx.smoke_overlay.smoke_overlay',
+         'videobuilder.capabilities.vfx.smoke_overlay.smoke_density',
+         'videobuilder.capabilities.vfx.smoke_overlay.smoke_texture'),
     demo=lambda: demo.film(draw),
 )

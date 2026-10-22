@@ -5,7 +5,7 @@ import math
 
 from ...looks import kit as looks
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def infinite_zoom(cv, scene, travel, ratio=2.2, cx=None, cy=None, depth=None, border='#ffffff',
@@ -66,7 +66,7 @@ def draw(n, cv):
     cv.mark('tunnel', demo.W / 2 - 60, demo.H / 2 - 34, 120, 68)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='infinite-zoom-tunnel',
     name='Infinite zoom',
     family='vfx',
@@ -79,6 +79,6 @@ TECHNIQUE = Technique(
                'pictures nested inside pictures, zooming in forever'),
     related=('zoom-through-shape', 'canvas-pan-and-zoom', 'zoom-through', 'scale-zoom-through',
              'ui-walkthrough-camera-zoom', 'zoom-to-location-map'),
-    api=('videobuilder.techniques.vfx.infinite_zoom_tunnel.infinite_zoom',),
+    api=('videobuilder.capabilities.vfx.infinite_zoom_tunnel.infinite_zoom',),
     demo=lambda: demo.film(draw),
 )

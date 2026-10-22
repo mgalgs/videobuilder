@@ -3,7 +3,7 @@ along a parabola, peaks at the halfway point, then sheds it the same way."""
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def ease_in_out_quad(x):
@@ -32,7 +32,7 @@ def draw(n, cv):
     demo.card(cv, x0 + (x1 - x0) * p, y)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='ease-in-out-quad',
     name='Ease In-Out Quad',
     family='principles',
@@ -45,6 +45,6 @@ TECHNIQUE = Technique(
                'a gentle, balanced acceleration and deceleration'),
     related=('slow-in-and-slow-out', 'asymmetric-fast-in-slow-out', 'smooth-scroll-inertia', 'inertia',
              'settle', 'dolly-in-and-out'),
-    api=('videobuilder.techniques.principles.ease_in_out_quad.ease_in_out_quad',),
+    api=('videobuilder.capabilities.principles.ease_in_out_quad.ease_in_out_quad',),
     demo=lambda: demo.film(draw),
 )

@@ -7,7 +7,7 @@ import random
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def point_progress(i, count, p, span=0.22):
@@ -81,7 +81,7 @@ def draw(n, cv):
     cv.mark('plot', *plot)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='scatter-plot-point-appear',
     name='Scatter plot point appear',
     family='broadcast',
@@ -94,7 +94,7 @@ TECHNIQUE = Technique(
                'build up the scatter chart point by point so the trend emerges'),
     related=('dot-density-map', 'point-cloud-reveal', 'ink-splash-spread', 'diffraction-spikes',
              'halftone-dot-scaling', 'cursor-particle-trail'),
-    api=('videobuilder.techniques.broadcast.scatter_plot_point_appear.draw_scatter_appear',
-         'videobuilder.techniques.broadcast.scatter_plot_point_appear.point_progress'),
+    api=('videobuilder.capabilities.broadcast.scatter_plot_point_appear.draw_scatter_appear',
+         'videobuilder.capabilities.broadcast.scatter_plot_point_appear.point_progress'),
     demo=lambda: demo.film(draw),
 )

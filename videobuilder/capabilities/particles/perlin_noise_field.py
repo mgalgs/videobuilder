@@ -10,7 +10,7 @@ from PIL import Image
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 from ...canvas import rgba
 
 # Gradients at the corners of each lattice cube: the twelve cube-edge midpoints.
@@ -108,7 +108,7 @@ def draw(n, cv):
     cv.mark('field', x, y, w, h)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='perlin-noise-field',
     name='Perlin noise field',
     family='particles',
@@ -121,8 +121,8 @@ TECHNIQUE = Technique(
                'fill the panel with animated Perlin noise'),
     related=('perlin-noise-drift', 'gradient-mesh-drift', 'film-grain', 'turbulence-displacement',
              'noise-field-warp', 'gradient-wipe'),
-    api=('videobuilder.techniques.particles.perlin_noise_field.draw_noise_field',
-         'videobuilder.techniques.particles.perlin_noise_field.field_value',
-         'videobuilder.techniques.particles.perlin_noise_field.perlin3'),
+    api=('videobuilder.capabilities.particles.perlin_noise_field.draw_noise_field',
+         'videobuilder.capabilities.particles.perlin_noise_field.field_value',
+         'videobuilder.capabilities.particles.perlin_noise_field.perlin3'),
     demo=lambda: demo.film(draw),
 )

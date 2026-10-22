@@ -5,7 +5,7 @@ its target."""
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 START = 0.4                  # seconds: when the spring is released
 SPRING = vb.critical(40.0)  # damping ratio exactly 1; settles in about a second
@@ -32,7 +32,7 @@ def draw(n, cv):
     demo.dot(cv, *prev, r=6)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='critically-damped-spring',
     name='Critically Damped Spring',
     family='principles',

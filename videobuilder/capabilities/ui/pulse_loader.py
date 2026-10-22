@@ -6,7 +6,7 @@ import math
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def pulse_rings(t, period=1.2, rings=2):
@@ -43,7 +43,7 @@ def draw(n, cv):
     cv.mark('loader', *box)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='pulse-loader',
     name='Pulse loader',
     family='ui',
@@ -56,7 +56,7 @@ TECHNIQUE = Technique(
                'show that it is thinking with a beacon that keeps pinging'),
     related=('orbital-pulse', 'live-indicator-pulse', 'scale-pulse', 'location-ripple-pulse',
              'stroke-width-pulse', 'like-heart-burst'),
-    api=('videobuilder.techniques.ui.pulse_loader.draw_pulse_loader',
-         'videobuilder.techniques.ui.pulse_loader.pulse_rings'),
+    api=('videobuilder.capabilities.ui.pulse_loader.draw_pulse_loader',
+         'videobuilder.capabilities.ui.pulse_loader.pulse_rings'),
     demo=lambda: demo.film(draw),
 )

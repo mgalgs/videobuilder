@@ -11,7 +11,7 @@ import videobuilder as vb
 from .. import _demo as demo
 from ...parallax import ridge
 from ...paths import draw as draw_path
-from ..schema import Technique
+from ..schema import Capability
 
 
 @dataclass(frozen=True)
@@ -116,7 +116,7 @@ def draw(n, cv):
     cv.mark('planes', demo.W / 2 - K * PW / 2, demo.H / 2 - K * PH / 2, K * PW, K * PH)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='multiplane-camera',
     name='Multiplane camera',
     family='camera',
@@ -128,8 +128,8 @@ TECHNIQUE = Technique(
                'an old-school animated depth shot where the trees slide past faster than the mountains',
                'push into a layered flat scene so it feels three-dimensional'),
     related=('multiples', 'zoom-to-location-map', 'fly-through', 'pan', 'orbit-shot', 'truck'),
-    api=('videobuilder.techniques.camera.multiplane_camera.multiplane',
-         'videobuilder.techniques.camera.multiplane_camera.Plane',
-         'videobuilder.techniques.camera.multiplane_camera.plane_transform'),
+    api=('videobuilder.capabilities.camera.multiplane_camera.multiplane',
+         'videobuilder.capabilities.camera.multiplane_camera.Plane',
+         'videobuilder.capabilities.camera.multiplane_camera.plane_transform'),
     demo=lambda: demo.film(draw),
 )

@@ -10,7 +10,7 @@ import videobuilder as vb
 
 from .. import _demo as demo
 from ...looks import fx
-from ..schema import Technique
+from ..schema import Capability
 
 # Cold to hot: the stops of the heat palette, (position 0..1, '#rrggbb').
 HEAT = ((0.00, '#000004'), (0.18, '#2a0b5c'), (0.36, '#781c6d'), (0.52, '#c2283f'),
@@ -114,7 +114,7 @@ def draw(n, cv):
     _legend(cv, demo.W - 90, demo.H / 2 - 180, 28, 360)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='thermal-false-color',
     name='Thermal false color',
     family='vfx',
@@ -127,8 +127,8 @@ TECHNIQUE = Technique(
                'recolour the footage so bright things glow hot and shadows go cold purple'),
     related=('heatmap-fill', 'heat-haze', 'photographic-negative', 'thin-film-iridescence', 'luma-key',
              'gooch-shading'),
-    api=('videobuilder.techniques.vfx.thermal_false_color.thermal_false_color',
-         'videobuilder.techniques.vfx.thermal_false_color.thermal_image',
-         'videobuilder.techniques.vfx.thermal_false_color.heat_ramp'),
+    api=('videobuilder.capabilities.vfx.thermal_false_color.thermal_false_color',
+         'videobuilder.capabilities.vfx.thermal_false_color.thermal_image',
+         'videobuilder.capabilities.vfx.thermal_false_color.heat_ramp'),
     demo=lambda: demo.film(draw),
 )

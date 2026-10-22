@@ -9,7 +9,7 @@ import videobuilder as vb
 from videobuilder.canvas import rgba
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def loop_angle(t, sides, period, ease=vb.ease_in_out_quart, direction=1, offset=0.0):
@@ -66,7 +66,7 @@ def draw(n, cv):
     cv.mark('polygons', cx - 215, cy - 215, 430, 430)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='rotating-polygon-loop',
     name='Rotating polygon loop',
     family='shapes',
@@ -79,8 +79,8 @@ TECHNIQUE = Technique(
                'a looping spinner made of nested polygons'),
     related=('geometric-loop', 'cycle-diagram-rotation', 'turntable-rotation', 'tessellation-triangle-flip',
              'coin-flip', 'globe-spin'),
-    api=('videobuilder.techniques.shapes.rotating_polygon_loop.loop_angle',
-         'videobuilder.techniques.shapes.rotating_polygon_loop.draw_polygon',
-         'videobuilder.techniques.shapes.rotating_polygon_loop.polygon_points'),
+    api=('videobuilder.capabilities.shapes.rotating_polygon_loop.loop_angle',
+         'videobuilder.capabilities.shapes.rotating_polygon_loop.draw_polygon',
+         'videobuilder.capabilities.shapes.rotating_polygon_loop.polygon_points'),
     demo=lambda: demo.film(draw),
 )

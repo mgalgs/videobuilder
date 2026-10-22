@@ -10,7 +10,7 @@ from PIL import Image as PILImage, ImageDraw, ImageFilter
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 STEP = 4  # the goo field is worked out at 1/STEP of frame px, then smoothed back up
 
@@ -112,7 +112,7 @@ def liquid_morph(cv, a, b, p, color=demo.ACCENT, rim=26, goo=60, count=16, seed=
     paint_masked(cv, goo_mask(field, 140), b)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='liquid-morph',
     name='Liquid morph',
     family='transitions',
@@ -125,9 +125,9 @@ TECHNIQUE = Technique(
                'drops that swell and stick together until they fill the screen'),
     related=('metaball-goo-text', 'morphing-blob', 'particle-morph', 'blob-to-icon-morph',
              'liquid-fill-level', 'sphere-to-grid-morph'),
-    api=('videobuilder.techniques.transitions.liquid_morph.liquid_morph',
-         'videobuilder.techniques.transitions.liquid_morph.metaballs',
-         'videobuilder.techniques.transitions.liquid_morph.goo_field',
-         'videobuilder.techniques.transitions.liquid_morph.goo_mask'),
+    api=('videobuilder.capabilities.transitions.liquid_morph.liquid_morph',
+         'videobuilder.capabilities.transitions.liquid_morph.metaballs',
+         'videobuilder.capabilities.transitions.liquid_morph.goo_field',
+         'videobuilder.capabilities.transitions.liquid_morph.goo_mask'),
     demo=lambda: demo.two_scenes(liquid_morph, start=0.6, length=1.8),
 )

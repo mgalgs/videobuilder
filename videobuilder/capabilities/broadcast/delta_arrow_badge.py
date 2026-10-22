@@ -4,7 +4,7 @@ direction, so the number reads as "up 19" or "down 6" at a glance."""
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 UP = demo.TEAL
 DOWN = demo.ACCENT
@@ -90,7 +90,7 @@ def draw(n, cv):
         draw_delta_badge(cv, after - before, 640, cy, demo.phase(n, 1.25 + 0.2 * i, 1.85 + 0.2 * i), size=46)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='delta-arrow-badge',
     name='Delta arrow badge',
     family='broadcast',
@@ -103,7 +103,7 @@ TECHNIQUE = Technique(
                'add a little change pill to each value, red when it dropped'),
     related=('badge-count-bump', 'arrow-slide', 'live-indicator-pulse', 'badge-stamp-impact',
              'gradient-shift-button', 'striped-progress-bar'),
-    api=('videobuilder.techniques.broadcast.delta_arrow_badge.draw_delta_badge',
-         'videobuilder.techniques.broadcast.delta_arrow_badge.delta_text'),
+    api=('videobuilder.capabilities.broadcast.delta_arrow_badge.draw_delta_badge',
+         'videobuilder.capabilities.broadcast.delta_arrow_badge.delta_text'),
     demo=lambda: demo.film(draw),
 )

@@ -6,7 +6,7 @@ import math
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 RED, YELLOW, BLUE = '#e0402f', '#f2bf2c', '#2f5fd0'
 
@@ -97,7 +97,7 @@ def draw(n, cv):
     draw_shuffle(cv, SHAPES, LAYOUTS, (first + second) / 2)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='bauhaus-geometric-shuffle',
     name='Bauhaus geometric shuffle',
     family='shapes',
@@ -110,8 +110,8 @@ TECHNIQUE = Technique(
                'simple geometric shapes that keep regrouping into a new composition'),
     related=('geometric-loop', 'tesseract-rotation', 'recursive-rectangle-subdivision', 'radial-repeater',
              'spin', 'tangram-rearrangement'),
-    api=('videobuilder.techniques.shapes.bauhaus_geometric_shuffle.draw_shuffle',
-         'videobuilder.techniques.shapes.bauhaus_geometric_shuffle.shuffle_poses',
-         'videobuilder.techniques.shapes.bauhaus_geometric_shuffle.draw_shape'),
+    api=('videobuilder.capabilities.shapes.bauhaus_geometric_shuffle.draw_shuffle',
+         'videobuilder.capabilities.shapes.bauhaus_geometric_shuffle.shuffle_poses',
+         'videobuilder.capabilities.shapes.bauhaus_geometric_shuffle.draw_shape'),
     demo=lambda: demo.film(draw),
 )

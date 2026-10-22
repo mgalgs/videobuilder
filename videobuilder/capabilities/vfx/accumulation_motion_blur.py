@@ -7,7 +7,7 @@ import math
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def accumulation_blur(cv, draw, t, frame=1 / demo.FPS, shutter=0.5, samples=16, background=None):
@@ -83,7 +83,7 @@ def draw(n, cv):
     _label(cv, '24 renders averaged across the shutter', demo.H / 2 + 24)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='accumulation-motion-blur',
     name='Accumulation motion blur',
     family='vfx',
@@ -96,6 +96,6 @@ TECHNIQUE = Technique(
                'blur the spinning card along its actual curve, not just sideways',
                'render several sub-frames per frame and mix them so fast moves look smooth'),
     related=('motion-blur', 'gaussian-blur', 'spin-blur', 'blur-up-image-load', 'smear-frame', 'multiples'),
-    api=('videobuilder.techniques.vfx.accumulation_motion_blur.accumulation_blur',),
+    api=('videobuilder.capabilities.vfx.accumulation_motion_blur.accumulation_blur',),
     demo=lambda: demo.film(draw),
 )

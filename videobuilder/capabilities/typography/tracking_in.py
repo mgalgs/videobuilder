@@ -5,7 +5,7 @@ import dataclasses
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 SETTLE = vb.bezier(0.2, 0.6, 0.35, 1)  # a soft ease-out: quick start, long gentle landing
 
@@ -33,7 +33,7 @@ def draw(n, cv):
     cv.mark('text', *box)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='tracking-in',
     name='Tracking in',
     family='typography',
@@ -46,7 +46,7 @@ TECHNIQUE = Technique(
                'a wide-spaced headline that squeezes into place'),
     related=('scanline-jitter', 'dolly-in-and-out', 'tracking-shot', 'rubber-band-overscroll',
              'player-movement-trail', 'cursor-follower-dot-and-ring'),
-    api=('videobuilder.techniques.typography.tracking_in.draw_tracking_in',
-         'videobuilder.techniques.typography.tracking_in.tracking_at'),
+    api=('videobuilder.capabilities.typography.tracking_in.draw_tracking_in',
+         'videobuilder.capabilities.typography.tracking_in.tracking_at'),
     demo=lambda: demo.film(draw),
 )

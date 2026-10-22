@@ -4,7 +4,7 @@ growing out of its tail corner with a small overshoot."""
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def bubble_pops(t, arrivals, pop=0.35, ease=vb.ease_out_back):
@@ -80,7 +80,7 @@ def draw(n, cv):
             cv.mark('bubble', *box)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='chat-bubble-sequence',
     name='Chat bubble sequence',
     family='broadcast',
@@ -93,8 +93,8 @@ TECHNIQUE = Technique(
                'a fake phone chat that plays out message by message'),
     related=('bouncing-dots', 'bubbles', 'circle-pop', 'staggered-cascade-reveal', 'jitter-and-boil-text',
              'like-heart-burst'),
-    api=('videobuilder.techniques.broadcast.chat_bubble_sequence.draw_chat_sequence',
-         'videobuilder.techniques.broadcast.chat_bubble_sequence.draw_chat_bubble',
-         'videobuilder.techniques.broadcast.chat_bubble_sequence.bubble_pops'),
+    api=('videobuilder.capabilities.broadcast.chat_bubble_sequence.draw_chat_sequence',
+         'videobuilder.capabilities.broadcast.chat_bubble_sequence.draw_chat_bubble',
+         'videobuilder.capabilities.broadcast.chat_bubble_sequence.bubble_pops'),
     demo=lambda: demo.film(draw),
 )

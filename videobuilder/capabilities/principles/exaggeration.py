@@ -7,7 +7,7 @@ import math
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def exaggerate(value, rest=0.0, amount=2.0):
@@ -55,7 +55,7 @@ def draw(n, cv):
         demo.word(cv, label, cx, ground + 36, size=24, color=demo.MUTED, weight=700)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='exaggeration',
     name='Exaggeration',
     family='principles',
@@ -67,7 +67,7 @@ TECHNIQUE = Technique(
                'push the motion further so it really pops',
                'overdo the squash and stretch so it feels lively'),
     related=('slow-motion', 'push-in', 'moving-hold', 'focus-breathing', 'motion-blur', 'center-out-stagger'),
-    api=('videobuilder.techniques.principles.exaggeration.exaggerate',
-         'videobuilder.techniques.principles.exaggeration.hop_pose'),
+    api=('videobuilder.capabilities.principles.exaggeration.exaggerate',
+         'videobuilder.capabilities.principles.exaggeration.hop_pose'),
     demo=lambda: demo.film(draw),
 )

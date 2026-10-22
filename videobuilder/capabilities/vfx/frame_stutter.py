@@ -7,7 +7,7 @@ import random
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def frame_stutter(n, seed=0, chance=0.3, longest=5, start=0):
@@ -66,7 +66,7 @@ def draw(n, cv):
                  demo.ACCENT if stuck else demo.MUTED)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='frame-stutter',
     name='Frame stutter',
     family='vfx',
@@ -79,7 +79,7 @@ TECHNIQUE = Technique(
                'have the footage freeze for a moment here and there then jump forward'),
     related=('stutter-cut', 'screen-tearing', 'scanline-jitter', 'wiggle-path', 'smooth-scroll-inertia',
              'slow-motion'),
-    api=('videobuilder.techniques.vfx.frame_stutter.frame_stutter',
-         'videobuilder.techniques.vfx.frame_stutter.stutter_jumped'),
+    api=('videobuilder.capabilities.vfx.frame_stutter.frame_stutter',
+         'videobuilder.capabilities.vfx.frame_stutter.stutter_jumped'),
     demo=lambda: demo.film(draw),
 )

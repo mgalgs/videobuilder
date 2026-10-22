@@ -3,7 +3,7 @@ pausing at each end of its arc and moving fastest as it passes the bottom."""
 import math
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def pendulum_angle(t, amplitude=0.6, period=1.5, decay=0.0, phase=0.0):
@@ -39,7 +39,7 @@ def draw(n, cv):
     cv.mark('bob', x - BOB, y - BOB, 2 * BOB, 2 * BOB)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='pendulum-swing',
     name='Pendulum Swing',
     family='principles',
@@ -52,7 +52,7 @@ TECHNIQUE = Technique(
                'make the sign sway on its hook'),
     related=('bezier-handle-bend', 'door-swing', 'slant-axis-swing', 'walk-cycle', 'newton-s-cradle',
              'ping-pong-loop'),
-    api=('videobuilder.techniques.principles.pendulum_swing.pendulum_angle',
-         'videobuilder.techniques.principles.pendulum_swing.pendulum_point'),
+    api=('videobuilder.capabilities.principles.pendulum_swing.pendulum_angle',
+         'videobuilder.capabilities.principles.pendulum_swing.pendulum_point'),
     demo=lambda: demo.film(draw),
 )

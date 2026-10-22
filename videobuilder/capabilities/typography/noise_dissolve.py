@@ -9,7 +9,7 @@ from PIL import Image
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 from ...canvas import _a8, rgba
 from ...looks.fx import noise
 
@@ -93,7 +93,7 @@ def draw(n, cv):
     cv.mark('text', *box)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='noise-dissolve',
     name='Noise dissolve',
     family='typography',
@@ -106,7 +106,7 @@ TECHNIQUE = Technique(
                'burn the text away with a glowing edge'),
     related=('blur-dissolve', 'dither-reveal', 'smoke-dissolve', 'pixelation-reveal', 'noise-field-warp',
              'film-dissolve'),
-    api=('videobuilder.techniques.typography.noise_dissolve.noise_dissolve',
-         'videobuilder.techniques.typography.noise_dissolve.noise_field'),
+    api=('videobuilder.capabilities.typography.noise_dissolve.noise_dissolve',
+         'videobuilder.capabilities.typography.noise_dissolve.noise_field'),
     demo=lambda: demo.film(draw),
 )

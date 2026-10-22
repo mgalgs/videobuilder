@@ -7,7 +7,7 @@ import videobuilder as vb
 
 from .. import _demo as demo
 from ...compendium import kit
-from ..schema import Technique
+from ..schema import Capability
 
 # The six faces of a unit cube: outward normal, then its four corners (offsets
 # from the cube's minimum corner), wound consistently.
@@ -151,7 +151,7 @@ def draw(n, cv):
     cv.mark('model', demo.W / 2 - 330, demo.H / 2 - 300, 660, 560)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='voxel-build',
     name='Voxel build',
     family='camera',
@@ -164,8 +164,8 @@ TECHNIQUE = Technique(
                'assemble the object from voxels piece by piece with a turning camera'),
     related=('shape-stacking-drop', 'pyramid-build', 'shape-assemble-from-fragments', 'stacked-bar-build',
              'stacked-line-build', 'isometric-assembly'),
-    api=('videobuilder.techniques.camera.voxel_build.voxel_build',
-         'videobuilder.techniques.camera.voxel_build.OrbitCamera',
-         'videobuilder.techniques.camera.voxel_build.draw_voxel'),
+    api=('videobuilder.capabilities.camera.voxel_build.voxel_build',
+         'videobuilder.capabilities.camera.voxel_build.OrbitCamera',
+         'videobuilder.capabilities.camera.voxel_build.draw_voxel'),
     demo=lambda: demo.film(draw),
 )

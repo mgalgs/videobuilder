@@ -5,7 +5,7 @@ import random
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def random_delays(count, seed=0):
@@ -49,7 +49,7 @@ def draw(n, cv):
     cv.mark('grid', x0, y0, size, size)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='random-stagger',
     name='Random Stagger',
     family='principles',
@@ -62,7 +62,7 @@ TECHNIQUE = Technique(
                'stagger them but shuffle the order'),
     related=('random-order-character-reveal', 'offset', 'linear-repeater-stagger', 'staggered-cascade-reveal',
              'letter-sort-animation', 'wiggle-path'),
-    api=('videobuilder.techniques.principles.random_stagger.random_stagger',
-         'videobuilder.techniques.principles.random_stagger.random_delays'),
+    api=('videobuilder.capabilities.principles.random_stagger.random_stagger',
+         'videobuilder.capabilities.principles.random_stagger.random_delays'),
     demo=lambda: demo.film(draw),
 )

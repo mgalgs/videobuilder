@@ -7,7 +7,7 @@ import math
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def draw_halftone(cv, x, y, w, h, pitch, tone, color, alpha=1.0, min_r=0.0, max_r=None):
@@ -66,7 +66,7 @@ def draw(n, cv):
     cv.mark('halftone', *box)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='halftone-dot-scaling',
     name='Halftone dot scaling',
     family='shapes',
@@ -79,7 +79,7 @@ TECHNIQUE = Technique(
                'dot pattern whose dots get bigger where the image is bright'),
     related=('halftone', 'radio-dot-scale', 'dot-density-map', 'dot-grid-displacement', 'circle-pop',
              'dither-reveal'),
-    api=('videobuilder.techniques.shapes.halftone_dot_scaling.draw_halftone',
-         'videobuilder.techniques.shapes.halftone_dot_scaling.blob_tone'),
+    api=('videobuilder.capabilities.shapes.halftone_dot_scaling.draw_halftone',
+         'videobuilder.capabilities.shapes.halftone_dot_scaling.blob_tone'),
     demo=lambda: demo.film(draw),
 )

@@ -4,7 +4,7 @@ time, each figure counting up as its row lands."""
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 from ..typography.number_count_up import count_up
 
 HEADER = '#2b3350'
@@ -102,7 +102,7 @@ def draw(n, cv):
                      STATS, demo.phase(n, 0.1, 2.6))
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='player-stat-card',
     name='Player stat card',
     family='broadcast',
@@ -115,8 +115,8 @@ TECHNIQUE = Technique(
                'pop up a profile card for the athlete and reveal their numbers one after another'),
     related=('odometer-roll', 'versus-card', 'number-count-up', 'end-card-with-subscribe-slot',
              'sticky-card-stack-on-scroll', 'broadcast-title-card-stinger'),
-    api=('videobuilder.techniques.broadcast.player_stat_card.draw_player_card',
-         'videobuilder.techniques.broadcast.player_stat_card.card_timing',
-         'videobuilder.techniques.typography.number_count_up.count_up'),
+    api=('videobuilder.capabilities.broadcast.player_stat_card.draw_player_card',
+         'videobuilder.capabilities.broadcast.player_stat_card.card_timing',
+         'videobuilder.capabilities.typography.number_count_up.count_up'),
     demo=lambda: demo.film(draw),
 )

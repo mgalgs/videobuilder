@@ -4,7 +4,7 @@ slow to get going, takes longer, and carries past its mark before it settles."""
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def weight_ease(mass):
@@ -56,11 +56,11 @@ def draw(n, cv):
         cv.mark(name, cx - bw / 2, ground - bh, bw, bh)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='weight-and-mass',
     name='Weight and Mass',
     family='principles',
-    group='Principle sub-techniques',
+    group='Principle sub-capabilities',
     aliases=('heaviness', 'mass perception', 'sense of weight'),
     definition='Timing that tells you how heavy something is: a heavy object starts slowly, takes longer, '
                'and drifts past its mark before settling, while a light one zips off and stops at once.',
@@ -69,8 +69,8 @@ TECHNIQUE = Technique(
                'the light thing should zip and the heavy thing should lumber'),
     related=('gravity-well-attraction', 'inertia', 'mass-spring-cloth', 'timing', 'air-drag',
              'variable-font-weight-animation'),
-    api=('videobuilder.techniques.principles.weight_and_mass.weight_ease',
-         'videobuilder.techniques.principles.weight_and_mass.weight_seconds',
-         'videobuilder.techniques.principles.weight_and_mass.weight_squash'),
+    api=('videobuilder.capabilities.principles.weight_and_mass.weight_ease',
+         'videobuilder.capabilities.principles.weight_and_mass.weight_seconds',
+         'videobuilder.capabilities.principles.weight_and_mass.weight_squash'),
     demo=lambda: demo.film(draw),
 )

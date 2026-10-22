@@ -7,7 +7,7 @@ import math
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 from ...canvas import rgba
 
 
@@ -97,7 +97,7 @@ def draw(n, cv):
     cv.mark('chart', x, y, w, h)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='ridgeline-ripple',
     name='Ridgeline ripple',
     family='broadcast',
@@ -110,7 +110,7 @@ TECHNIQUE = Technique(
                'stack the density curves like mountain ridges and animate them in from the top'),
     related=('ripple', 'ripple-rings', 'refraction-ripple', 'ripple-displacement', 'location-ripple-pulse',
              'height-field-ripples'),
-    api=('videobuilder.techniques.broadcast.ridgeline_ripple.ridgeline_ripple',
-         'videobuilder.techniques.broadcast.ridgeline_ripple.density'),
+    api=('videobuilder.capabilities.broadcast.ridgeline_ripple.ridgeline_ripple',
+         'videobuilder.capabilities.broadcast.ridgeline_ripple.density'),
     demo=lambda: demo.film(draw),
 )

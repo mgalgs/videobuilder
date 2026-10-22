@@ -15,7 +15,7 @@ import cairo
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 from ...compendium.components.title_extruded_3d import _outline
 
 NEAR = 0.2   # the camera's near plane, in tunnel half-heights: glyphs are cut off where they cross it
@@ -134,7 +134,7 @@ def draw(n, cv):
     cv.mark('text', 0, 0, demo.W, demo.H)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='perspective-tunnel-type',
     name='Perspective tunnel type',
     family='typography',
@@ -147,6 +147,6 @@ TECHNIQUE = Technique(
                'the title repeated on the walls, floor and ceiling of a 3D tunnel'),
     related=('perspective-crawl', 'scale-zoom-through', 'texture-tunnel', 'word-flip-in', 'zoom-through-shape',
              'infinite-zoom-tunnel'),
-    api=('videobuilder.techniques.typography.perspective_tunnel_type.draw_tunnel_type',),
+    api=('videobuilder.capabilities.typography.perspective_tunnel_type.draw_tunnel_type',),
     demo=lambda: demo.film(draw),
 )

@@ -3,7 +3,7 @@ left to right in step with how far the page has been scrolled."""
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def scroll_progress(offset, content_h, view_h):
@@ -73,7 +73,7 @@ def draw(n, cv):
         cv.mark('bar', *box)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='scroll-progress-bar',
     name='Scroll progress bar',
     family='ui',
@@ -86,7 +86,7 @@ TECHNIQUE = Technique(
                'a reading progress line that tracks the scroll'),
     related=('percentage-fill-bar', 'timeline-scroll', 'scroll-driven-text-reveal', 'news-ticker-crawl',
              'indeterminate-bar', 'striped-progress-bar'),
-    api=('videobuilder.techniques.ui.scroll_progress_bar.draw_scroll_progress_bar',
-         'videobuilder.techniques.ui.scroll_progress_bar.scroll_progress'),
+    api=('videobuilder.capabilities.ui.scroll_progress_bar.draw_scroll_progress_bar',
+         'videobuilder.capabilities.ui.scroll_progress_bar.scroll_progress'),
     demo=lambda: demo.film(draw),
 )

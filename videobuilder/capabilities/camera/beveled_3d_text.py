@@ -9,7 +9,7 @@ import cairo
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def _shade(color, k):
@@ -115,7 +115,7 @@ def draw(n, cv):
     cv.mark('text', *box)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='beveled-3d-text',
     name='Beveled 3D text',
     family='camera',
@@ -128,6 +128,6 @@ TECHNIQUE = Technique(
                'give the text a real bevel and depth, like a carved logo turning in space'),
     related=('text-on-a-path', 'dot-matrix-text', 'solid-drawing', 'three-d-word-cube', 'arc-bend-morph',
              'extrusion-depth-reveal'),
-    api=('videobuilder.techniques.camera.beveled_3d_text.draw_beveled_text',),
+    api=('videobuilder.capabilities.camera.beveled_3d_text.draw_beveled_text',),
     demo=lambda: demo.film(draw),
 )

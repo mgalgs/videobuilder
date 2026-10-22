@@ -3,7 +3,7 @@ speeds up harder and harder, arriving at full speed -- progress cubed."""
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def ease_in_cubic(x):
@@ -42,7 +42,7 @@ def draw(n, cv):
     demo.dot(cv, gx + gw * t, gy + gh * (1 - ease_in_cubic(t)), 7, color=demo.INK)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='ease-in-cubic',
     name='Ease In Cubic',
     family='principles',
@@ -55,6 +55,6 @@ TECHNIQUE = Technique(
                'accelerates out, like it is gathering momentum'),
     related=('slow-in-and-slow-out', 'smooth-scroll-inertia', 'asymmetric-fast-in-slow-out',
              'friction-deceleration', 'three-d-word-cube', 'push-in'),
-    api=('videobuilder.techniques.principles.ease_in_cubic.ease_in_cubic',),
+    api=('videobuilder.capabilities.principles.ease_in_cubic.ease_in_cubic',),
     demo=lambda: demo.film(draw),
 )

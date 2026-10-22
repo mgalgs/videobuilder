@@ -9,7 +9,7 @@ import cairo
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def velocity_skew(velocity, max_degrees=8.0, per_degree=150.0, max_stretch=0.08):
@@ -88,7 +88,7 @@ def draw(n, cv):
     cv.mark('list', px, py, PANEL_W, PANEL_H)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='scroll-velocity-skew',
     name='Scroll velocity skew',
     family='ui',
@@ -101,8 +101,8 @@ TECHNIQUE = Technique(
                'items shear a little as they whip past, like they are being dragged'),
     related=('rolling-shutter-wobble', 'momentum-fling', 'timeline-scroll', 'tape-wobble', 'motion-blur',
              'frame-stutter'),
-    api=('videobuilder.techniques.ui.scroll_velocity_skew.velocity_skew',
-         'videobuilder.techniques.ui.scroll_velocity_skew.skewed',
-         'videobuilder.techniques.ui.scroll_velocity_skew.scroll_velocity'),
+    api=('videobuilder.capabilities.ui.scroll_velocity_skew.velocity_skew',
+         'videobuilder.capabilities.ui.scroll_velocity_skew.skewed',
+         'videobuilder.capabilities.ui.scroll_velocity_skew.scroll_velocity'),
     demo=lambda: demo.film(draw),
 )

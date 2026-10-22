@@ -4,7 +4,7 @@ fill has reached."""
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 EDGES = ('left', 'right', 'top', 'bottom')
 
@@ -69,7 +69,7 @@ def draw(n, cv):
     _pointer(cv, 770 + (x + w * 0.84 - 770) * glide, 430 + (y + h * 0.62 - 430) * glide, s=0.9)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='fill-sweep-button',
     name='Fill sweep button',
     family='ui',
@@ -81,6 +81,6 @@ TECHNIQUE = Technique(
                'a hover state where a colour bar wipes across the button',
                'make the button background slide in on mouse-over and flip the text colour'),
     related=('shape-fill-sweep', 'area-fill-sweep', 'linear-wipe', 'drip-wipe', 'diagonal-wipe', 'wipe-reveal'),
-    api=('videobuilder.techniques.ui.fill_sweep_button.draw_fill_sweep_button',),
+    api=('videobuilder.capabilities.ui.fill_sweep_button.draw_fill_sweep_button',),
     demo=lambda: demo.film(draw),
 )

@@ -4,7 +4,7 @@ only opacity changes."""
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def word_alphas(count, p, fade=0.35, ease=vb.ease_in_out_quart):
@@ -50,7 +50,7 @@ def draw(n, cv):
     cv.mark('text', *box)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='per-word-fade-in',
     name='Per-word fade-in',
     family='typography',
@@ -63,7 +63,7 @@ TECHNIQUE = Technique(
                'each word gently appears in turn until the line is complete'),
     related=('text-mask-reveal', 'linear-stagger', 'word-by-word-emphasis', 'center-out-stagger',
              'proximity-stagger', 'scroll-driven-text-reveal'),
-    api=('videobuilder.techniques.typography.per_word_fade_in.draw_word_fade',
-         'videobuilder.techniques.typography.per_word_fade_in.word_alphas'),
+    api=('videobuilder.capabilities.typography.per_word_fade_in.draw_word_fade',
+         'videobuilder.capabilities.typography.per_word_fade_in.word_alphas'),
     demo=lambda: demo.film(draw),
 )

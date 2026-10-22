@@ -12,7 +12,7 @@ import videobuilder as vb
 from videobuilder import parallax, paths
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 @dataclass(frozen=True)
@@ -154,7 +154,7 @@ def draw(n, cv):
     cv.mark('sky', 0, 0, W, horizon)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='day-night-cycle',
     name='Day-night cycle',
     family='camera',
@@ -167,11 +167,11 @@ TECHNIQUE = Technique(
                'show the passing of a day with the light changing'),
     related=('synthwave-sun', 'color-cycling', 'palette-shift-transition', 'hue-cycle-fill',
              'night-vision', 'solarization'),
-    api=('videobuilder.techniques.camera.day_night_cycle.light_at',
-         'videobuilder.techniques.camera.day_night_cycle.draw_sky',
-         'videobuilder.techniques.camera.day_night_cycle.wash',
-         'videobuilder.techniques.camera.day_night_cycle.glow',
-         'videobuilder.techniques.camera.day_night_cycle.sky_path',
-         'videobuilder.techniques.camera.day_night_cycle.Light'),
+    api=('videobuilder.capabilities.camera.day_night_cycle.light_at',
+         'videobuilder.capabilities.camera.day_night_cycle.draw_sky',
+         'videobuilder.capabilities.camera.day_night_cycle.wash',
+         'videobuilder.capabilities.camera.day_night_cycle.glow',
+         'videobuilder.capabilities.camera.day_night_cycle.sky_path',
+         'videobuilder.capabilities.camera.day_night_cycle.Light'),
     demo=lambda: demo.film(draw),
 )

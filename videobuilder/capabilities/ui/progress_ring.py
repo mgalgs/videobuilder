@@ -5,7 +5,7 @@ import math
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 TOP = -math.pi / 2  # canvas angles run clockwise from 3 o'clock
 
@@ -39,7 +39,7 @@ def draw(n, cv):
     cv.mark('percent', *box)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='progress-ring',
     name='Progress ring',
     family='ui',
@@ -52,6 +52,6 @@ TECHNIQUE = Technique(
                'a ring that closes around the percentage in the middle'),
     related=('rotating-rings', 'highlight-circle-draw', 'chord-diagram-draw', 'rotating-circular-text',
              'percentage-fill-bar', 'cycle-diagram-rotation'),
-    api=('videobuilder.techniques.ui.progress_ring.draw_progress_ring',),
+    api=('videobuilder.capabilities.ui.progress_ring.draw_progress_ring',),
     demo=lambda: demo.film(draw),
 )

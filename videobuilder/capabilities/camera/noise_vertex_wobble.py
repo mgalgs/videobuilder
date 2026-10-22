@@ -12,7 +12,7 @@ import videobuilder as vb
 from videobuilder.canvas import rgba
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def _hash(i, j, k, seed):
@@ -164,7 +164,7 @@ def draw(n, cv):
     cv.mark('mesh', *box)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='noise-vertex-wobble',
     name='Noise vertex wobble',
     family='camera',
@@ -177,9 +177,9 @@ TECHNIQUE = Technique(
                'deform the mesh with moving noise so it breathes'),
     related=('domain-warping', 'wiggle-path', 'wobble', 'noise-field-warp', 'worley-cellular-noise',
              'fractal-brownian-motion'),
-    api=('videobuilder.techniques.camera.noise_vertex_wobble.noise_wobble',
-         'videobuilder.techniques.camera.noise_vertex_wobble.icosphere',
-         'videobuilder.techniques.camera.noise_vertex_wobble.draw_mesh',
-         'videobuilder.techniques.camera.noise_vertex_wobble.noise3'),
+    api=('videobuilder.capabilities.camera.noise_vertex_wobble.noise_wobble',
+         'videobuilder.capabilities.camera.noise_vertex_wobble.icosphere',
+         'videobuilder.capabilities.camera.noise_vertex_wobble.draw_mesh',
+         'videobuilder.capabilities.camera.noise_vertex_wobble.noise3'),
     demo=lambda: demo.film(draw),
 )

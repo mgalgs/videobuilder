@@ -1,4 +1,4 @@
 """Camera moves: pans, pushes, zooms, shakes, parallax and focus pulls.
 
-One technique per module; see `videobuilder/techniques/__init__.py`.
+One capability per module; see `videobuilder/capabilities/__init__.py`.
 """

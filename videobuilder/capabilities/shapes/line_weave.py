@@ -6,7 +6,7 @@ import math
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def _at(a, b, t):
@@ -66,7 +66,7 @@ def draw(n, cv):
     cv.mark('weave', cx - arm, cy - arm, 2 * arm, 2 * arm)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='line-weave',
     name='Line weave',
     family='shapes',
@@ -79,7 +79,7 @@ TECHNIQUE = Technique(
                'a thread pattern that reshapes as its corners swing'),
     related=('streamlines', 'line-chart-draw-on', 'interlace-combing', 'speed-lines', 'stroke-draw-on',
              'line-to-polygon-transform'),
-    api=('videobuilder.techniques.shapes.line_weave.draw_weave',
-         'videobuilder.techniques.shapes.line_weave.weave'),
+    api=('videobuilder.capabilities.shapes.line_weave.draw_weave',
+         'videobuilder.capabilities.shapes.line_weave.weave'),
     demo=lambda: demo.film(draw),
 )

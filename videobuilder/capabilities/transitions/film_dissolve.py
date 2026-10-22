@@ -8,7 +8,7 @@ from PIL import Image, ImageChops, ImageMath
 from ... import canvas
 from ...looks.fx import image_surface, noise, surface_image
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 _TOP = 65535.0
 _TO_LINEAR = [_TOP * ((i / 255) / 12.92 if i <= 10 else ((i / 255 + 0.055) / 1.055) ** 2.4) for i in range(256)]
@@ -86,7 +86,7 @@ def _day(cv):
     demo.word(cv, 'Scene B', 90, 40, size=24, color=demo.BG)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='film-dissolve',
     name='Film dissolve',
     family='transitions',
@@ -99,6 +99,6 @@ TECHNIQUE = Technique(
                'an old-movie style blend between two scenes'),
     related=('noise-dissolve', 'pixelate-transition', 'cross-zoom', 'thin-film-iridescence', 'screen-blend',
              'halation'),
-    api=('videobuilder.techniques.transitions.film_dissolve.film_dissolve',),
+    api=('videobuilder.capabilities.transitions.film_dissolve.film_dissolve',),
     demo=lambda: demo.two_scenes(film_dissolve, start=0.6, length=1.8, a=_night, b=_day),
 )

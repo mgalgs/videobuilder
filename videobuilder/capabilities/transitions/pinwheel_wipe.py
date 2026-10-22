@@ -4,7 +4,7 @@ uncovering the incoming scene blade by blade until the slices close up."""
 import math
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def pinwheel_wipe(cv, a, b, p, blades=6, cx=None, cy=None, start=-math.pi / 2, clockwise=True,
@@ -52,7 +52,7 @@ def pinwheel_wipe(cv, a, b, p, blades=6, cx=None, cy=None, start=-math.pi / 2, c
             cv.line(cx, cy, cx + r * math.cos(t), cy + r * math.sin(t), edge, width=edge_width)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='pinwheel-wipe',
     name='Pinwheel wipe',
     family='transitions',
@@ -64,7 +64,7 @@ TECHNIQUE = Technique(
                'a clock wipe but with lots of hands going round at once',
                'reveal the next shot with rotating pie slices from the middle'),
     related=('paint-brush-wipe', 'coin-flip', 'spin', 'ribbon-sweep', 'flip', 'fill-sweep-button'),
-    api=('videobuilder.techniques.transitions.pinwheel_wipe.pinwheel_wipe',),
+    api=('videobuilder.capabilities.transitions.pinwheel_wipe.pinwheel_wipe',),
     demo=lambda: demo.two_scenes(lambda cv, a, b, p: pinwheel_wipe(
         cv, a, b, demo.vb.ease_in_out_quart(p), edge=demo.ACCENT)),
 )

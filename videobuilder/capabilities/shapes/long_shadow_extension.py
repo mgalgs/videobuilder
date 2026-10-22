@@ -6,7 +6,7 @@ import math
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 from ...canvas import rgba
 from ...looks import kit as looks
 
@@ -90,7 +90,7 @@ def draw(n, cv):
     cv.mark('shapes', demo.W / 2 - 342, y - 58, 608, 110)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='long-shadow-extension',
     name='Long shadow extension',
     family='shapes',
@@ -103,8 +103,8 @@ TECHNIQUE = Technique(
                'a hard diagonal shadow that slides out behind the logo'),
     related=('long-shadow-growth', 'drop-shadow-lift', 'shadow-play', 'bend-deformer', 'light-painting',
              'extrusion'),
-    api=('videobuilder.techniques.shapes.long_shadow_extension.draw_long_shadow',
-         'videobuilder.techniques.shapes.long_shadow_extension.long_shadow_pieces',
-         'videobuilder.techniques.shapes.long_shadow_extension.circle_points'),
+    api=('videobuilder.capabilities.shapes.long_shadow_extension.draw_long_shadow',
+         'videobuilder.capabilities.shapes.long_shadow_extension.long_shadow_pieces',
+         'videobuilder.capabilities.shapes.long_shadow_extension.circle_points'),
     demo=lambda: demo.film(draw),
 )

@@ -6,7 +6,7 @@ import math
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def elevation_shadow(height, near=(4, 8, 0.55), far=(42, 64, 0.22)):
@@ -53,7 +53,7 @@ def draw(n, cv):
     cv.mark('card', *box)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='drop-shadow-breathing',
     name='Drop shadow breathing',
     family='shapes',
@@ -66,8 +66,8 @@ TECHNIQUE = Technique(
                'a gentle hover where the shadow spreads out and pulls back in'),
     related=('drop-shadow-lift', 'drag-lift-with-shadow', 'shadow-play', 'long-shadow-growth', 'gravity-drop',
              'twist-deformer'),
-    api=('videobuilder.techniques.shapes.drop_shadow_breathing.draw_elevated',
-         'videobuilder.techniques.shapes.drop_shadow_breathing.elevation_shadow',
-         'videobuilder.techniques.shapes.drop_shadow_breathing.breath'),
+    api=('videobuilder.capabilities.shapes.drop_shadow_breathing.draw_elevated',
+         'videobuilder.capabilities.shapes.drop_shadow_breathing.elevation_shadow',
+         'videobuilder.capabilities.shapes.drop_shadow_breathing.breath'),
     demo=lambda: demo.film(draw),
 )

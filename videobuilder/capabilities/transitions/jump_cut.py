@@ -2,7 +2,7 @@
 to another while everything around it stays put, and the edit reads as
 skipped time."""
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def jump_cut(cv, a, b, p, at=0.5):
@@ -53,7 +53,7 @@ def _room(cv, take, q):
     demo.word(cv, clock, 92, 36, size=24, color=demo.INK, font=demo.mono(24, 600))
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='jump-cut',
     name='Jump cut',
     family='transitions',
@@ -65,7 +65,7 @@ TECHNIQUE = Technique(
                'chop the same shot so it skips ahead in time',
                'vlog-style cuts where the subject snaps around the frame'),
     related=('delay', 'tracking-shot', 'cut-to-the-beat', 'strobe-cut', 'punch-in', 'interruptible-motion'),
-    api=('videobuilder.techniques.transitions.jump_cut.jump_cut',
-         'videobuilder.techniques.transitions.jump_cut.jump_cuts'),
+    api=('videobuilder.capabilities.transitions.jump_cut.jump_cut',
+         'videobuilder.capabilities.transitions.jump_cut.jump_cuts'),
     demo=lambda: demo.film(lambda n, cv: jump_cuts(cv, _room, TAKES, n / (demo.FPS * demo.SECONDS))),
 )

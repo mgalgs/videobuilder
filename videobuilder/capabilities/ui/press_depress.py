@@ -4,7 +4,7 @@ let go."""
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 CURSOR = [(0, 0), (0, 34), (9, 26), (15, 40), (21, 37), (15, 24), (26, 24)]  # an arrow pointer, tip at (0, 0)
 
@@ -83,7 +83,7 @@ def draw(n, cv):
         _cursor(cv, px, py)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='press-depress',
     name='Press depress',
     family='ui',
@@ -96,7 +96,7 @@ TECHNIQUE = Technique(
                'a clicky 3D button that goes down under the cursor'),
     related=('subscribe-button-press', 'drag-lift-with-shadow', 'drop-shadow-breathing', 'drop-shadow-lift',
              'swipe-to-dismiss', 'speed-dial-fan'),
-    api=('videobuilder.techniques.ui.press_depress.press_depth',
-         'videobuilder.techniques.ui.press_depress.draw_press_button'),
+    api=('videobuilder.capabilities.ui.press_depress.press_depth',
+         'videobuilder.capabilities.ui.press_depress.draw_press_button'),
     demo=lambda: demo.film(draw),
 )

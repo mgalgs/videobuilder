@@ -11,7 +11,7 @@ from PIL import Image
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 CLASSIC = (-1.4, 1.6, 1.0, 0.7)  # a, b, c, d: a well-known pair of curling lobes
 
@@ -115,7 +115,7 @@ def draw(n, cv):
                      r=5, color=demo.TEAL, alpha=(1 - p) * (i + 1) / len(pts))
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='clifford-attractor',
     name='Clifford attractor',
     family='particles',
@@ -128,8 +128,8 @@ TECHNIQUE = Technique(
                'iterate a chaotic equation and let the points paint a glowing shape'),
     related=('circle-pop', 'tesseract-rotation', 'sierpinski-gasket', 'swirl', 'gravity-well-attraction',
              'radial-repeater'),
-    api=('videobuilder.techniques.particles.clifford_attractor.draw_clifford',
-         'videobuilder.techniques.particles.clifford_attractor.clifford_points',
-         'videobuilder.techniques.particles.clifford_attractor.clifford_step'),
+    api=('videobuilder.capabilities.particles.clifford_attractor.draw_clifford',
+         'videobuilder.capabilities.particles.clifford_attractor.clifford_points',
+         'videobuilder.capabilities.particles.clifford_attractor.clifford_step'),
     demo=lambda: demo.film(draw),
 )

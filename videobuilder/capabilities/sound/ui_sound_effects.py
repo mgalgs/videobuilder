@@ -6,7 +6,7 @@ import math
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 from ..ui.cursor_state_change import draw_cursor
 from ..ui.press_depress import draw_press_button, press_depth
 from ..ui.toggle_switch_slide import draw_toggle
@@ -138,7 +138,7 @@ def draw(n, cv):
     draw_cursor(cv, px, py, 0, size=1.6)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='ui-sound-effects',
     name='UI sounds',
     family='sound',
@@ -151,10 +151,10 @@ TECHNIQUE = Technique(
                'give the UI animation some tactile sound effects'),
     related=('silence-drop', 'icon-hover-bounce', 'audio-reactive-particles', 'ui-walkthrough-camera-zoom',
              'speed-dial-fan', 'stereo-panning'),
-    api=('videobuilder.techniques.sound.ui_sound_effects.ui_sound',
-         'videobuilder.techniques.sound.ui_sound_effects.ui_sounds',
-         'videobuilder.techniques.sound.ui_sound_effects.ui_effect',
-         'videobuilder.techniques.sound.ui_sound_effects.draw_sound_ring',
+    api=('videobuilder.capabilities.sound.ui_sound_effects.ui_sound',
+         'videobuilder.capabilities.sound.ui_sound_effects.ui_sounds',
+         'videobuilder.capabilities.sound.ui_sound_effects.ui_effect',
+         'videobuilder.capabilities.sound.ui_sound_effects.draw_sound_ring',
          'videobuilder.sfx.sound'),
     demo=lambda: demo.film(draw, sounds=ui_sounds((e, round(at * demo.FPS)) for e, at in EVENTS)),
 )

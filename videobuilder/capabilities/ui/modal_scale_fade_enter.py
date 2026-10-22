@@ -4,7 +4,7 @@ fading in as it goes."""
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def modal_enter(cv, p, dialog, cx, cy, from_scale=0.9, backdrop='#000000', dim=0.6, ease=vb.ease_out_quint):
@@ -61,7 +61,7 @@ def draw(n, cv):
     modal_enter(cv, demo.phase(n, 0.8, 1.6), _dialog, demo.W / 2, demo.H / 2, from_scale=0.85)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='modal-scale-fade-enter',
     name='Modal scale-fade enter',
     family='ui',
@@ -74,6 +74,6 @@ TECHNIQUE = Technique(
                'open a modal with a little zoom and fade'),
     related=('scale-zoom-through', 'image-hover-zoom', 'ui-walkthrough-camera-zoom', 'zoom-through',
              'callout-highlight', 'zoom-out-reveal'),
-    api=('videobuilder.techniques.ui.modal_scale_fade_enter.modal_enter', 'videobuilder.ease_out_quint'),
+    api=('videobuilder.capabilities.ui.modal_scale_fade_enter.modal_enter', 'videobuilder.ease_out_quint'),
     demo=lambda: demo.film(draw),
 )

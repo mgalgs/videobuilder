@@ -6,7 +6,7 @@ import math
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def fan_layout(n, p, distance=130, start=math.pi, end=1.5 * math.pi, stagger=0.18):
@@ -90,7 +90,7 @@ def draw(n, cv):
     draw_speed_dial(cv, demo.W - 170, demo.H - 110, p)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='speed-dial-fan',
     name='Speed dial fan',
     family='ui',
@@ -103,7 +103,7 @@ TECHNIQUE = Technique(
                'the plus turns into an x and the extra actions pop out one by one'),
     related=('plus-to-close-rotate', 'hover-lift', 'liquid-button', 'magnetic-button', 'turntable-rotation',
              'spin'),
-    api=('videobuilder.techniques.ui.speed_dial_fan.draw_speed_dial',
-         'videobuilder.techniques.ui.speed_dial_fan.fan_layout'),
+    api=('videobuilder.capabilities.ui.speed_dial_fan.draw_speed_dial',
+         'videobuilder.capabilities.ui.speed_dial_fan.fan_layout'),
     demo=lambda: demo.film(draw),
 )

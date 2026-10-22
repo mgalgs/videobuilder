@@ -4,7 +4,7 @@ the two slide past each other into their new ranks (the "bar chart race")."""
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 COLORS = (demo.ACCENT, demo.TEAL, '#8b8ff7', '#f2b84b', '#6fa8dc')
 
@@ -103,7 +103,7 @@ def draw(n, cv):
     draw_bar_race(cv, LABELS, KEYS, t, x, y, w, row_h, spacing=spacing)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='sorted-bar-reorder',
     name='Sorted bar reorder',
     family='broadcast',
@@ -116,8 +116,8 @@ TECHNIQUE = Technique(
                'bars that keep re-sorting themselves so the biggest is always on top'),
     related=('leaderboard-row-swap', 'reorder-list-shuffle', 'letter-sort-animation', 'layout-animation-flip',
              'refresh-bar', 'pull-to-refresh'),
-    api=('videobuilder.techniques.broadcast.sorted_bar_reorder.draw_bar_race',
-         'videobuilder.techniques.broadcast.sorted_bar_reorder.race_state',
-         'videobuilder.techniques.broadcast.sorted_bar_reorder.race_slots'),
+    api=('videobuilder.capabilities.broadcast.sorted_bar_reorder.draw_bar_race',
+         'videobuilder.capabilities.broadcast.sorted_bar_reorder.race_state',
+         'videobuilder.capabilities.broadcast.sorted_bar_reorder.race_slots'),
     demo=lambda: demo.film(draw),
 )

@@ -8,7 +8,7 @@ import videobuilder as vb
 from videobuilder import parallax, paths
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 PAN = 900                  # px the ground travels over the demo
 HORIZON = demo.H * 0.36
@@ -63,7 +63,7 @@ def draw(n, cv):
     parallax.draw(cv, LAYERS, cam)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='parallax-layers',
     name='Parallax layers',
     family='camera',

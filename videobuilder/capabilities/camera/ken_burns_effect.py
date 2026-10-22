@@ -6,7 +6,7 @@ import math
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def _slow_both_ends(t):
@@ -62,7 +62,7 @@ def draw(n, cv):
     cv.outline(tx + cx * k - vw / 2, ty + cy * k - vh / 2, vw, vh, demo.ACCENT, width=3)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='ken-burns-effect',
     name='Ken Burns effect',
     family='camera',
@@ -75,8 +75,8 @@ TECHNIQUE = Technique(
                'slowly push into the picture while panning across it'),
     related=('whip-pan', 'canvas-pan-and-zoom', 'zoom-blur', 'tilt-shift-miniature', 'image-hover-zoom',
              'infinite-zoom-tunnel'),
-    api=('videobuilder.techniques.camera.ken_burns_effect.ken_burns',
-         'videobuilder.techniques.camera.ken_burns_effect.ken_burns_view',
+    api=('videobuilder.capabilities.camera.ken_burns_effect.ken_burns',
+         'videobuilder.capabilities.camera.ken_burns_effect.ken_burns_view',
          'videobuilder.Canvas.view'),
     demo=lambda: demo.film(draw),
 )

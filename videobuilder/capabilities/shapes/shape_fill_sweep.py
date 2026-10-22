@@ -5,7 +5,7 @@ import cairo
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 DIRECTIONS = ('right', 'left', 'down', 'up')
 
@@ -68,7 +68,7 @@ def draw(n, cv):
     cv.mark('shape', *box)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='shape-fill-sweep',
     name='Shape fill sweep',
     family='shapes',
@@ -81,7 +81,7 @@ TECHNIQUE = Technique(
                'make the icon fill in from the bottom up'),
     related=('area-fill-sweep', 'fill-sweep-button', 'outline-to-fill', 'karaoke-highlight-sweep',
              'choropleth-fill', 'icon-line-to-fill'),
-    api=('videobuilder.techniques.shapes.shape_fill_sweep.fill_sweep',
-         'videobuilder.techniques.shapes.shape_fill_sweep.arrow'),
+    api=('videobuilder.capabilities.shapes.shape_fill_sweep.fill_sweep',
+         'videobuilder.capabilities.shapes.shape_fill_sweep.arrow'),
     demo=lambda: demo.film(draw),
 )

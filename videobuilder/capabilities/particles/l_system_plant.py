@@ -7,7 +7,7 @@ import random
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 PLANT_AXIOM = 'X'
 PLANT_RULES = {'X': 'F+[[X]-X]-F[-FX]+X', 'F': 'FF'}
@@ -116,7 +116,7 @@ def draw(n, cv):
     vb.text.draw(cv, ['X -> F+[[X]-X]-F[-FX]+X', 'F -> FF'], f, 40, 36, demo.MUTED)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='l-system-plant',
     name='L-system plant',
     family='particles',
@@ -129,9 +129,9 @@ TECHNIQUE = Technique(
                'a generative fern sprouting and branching on screen'),
     related=('langton-s-ant', 'space-colonization', 'physarum-slime-mold', 'lenia',
              'diffusion-limited-aggregation', 'springs-network'),
-    api=('videobuilder.techniques.particles.l_system_plant.draw_l_system_plant',
-         'videobuilder.techniques.particles.l_system_plant.l_system_plant',
-         'videobuilder.techniques.particles.l_system_plant.rewrite',
-         'videobuilder.techniques.particles.l_system_plant.turtle'),
+    api=('videobuilder.capabilities.particles.l_system_plant.draw_l_system_plant',
+         'videobuilder.capabilities.particles.l_system_plant.l_system_plant',
+         'videobuilder.capabilities.particles.l_system_plant.rewrite',
+         'videobuilder.capabilities.particles.l_system_plant.turtle'),
     demo=lambda: demo.film(draw),
 )

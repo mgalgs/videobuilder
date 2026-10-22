@@ -4,7 +4,7 @@ starts again from the left -- "working on it" with no percentage."""
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def indeterminate_segments(t, period=1.6, segments=2, lead=0.2):
@@ -46,7 +46,7 @@ def draw(n, cv):
     cv.mark('bar', *box)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='indeterminate-bar',
     name='Indeterminate bar',
     family='ui',
@@ -59,7 +59,7 @@ TECHNIQUE = Technique(
                'the endless loading strip under the header while something is busy'),
     related=('tab-underline-slide', 'balance-bar-tug', 'vhs-tracking-bar', 'refresh-bar',
              'percentage-fill-bar', 'scroll-progress-bar'),
-    api=('videobuilder.techniques.ui.indeterminate_bar.draw_indeterminate_bar',
-         'videobuilder.techniques.ui.indeterminate_bar.indeterminate_segments'),
+    api=('videobuilder.capabilities.ui.indeterminate_bar.draw_indeterminate_bar',
+         'videobuilder.capabilities.ui.indeterminate_bar.indeterminate_segments'),
     demo=lambda: demo.film(draw),
 )

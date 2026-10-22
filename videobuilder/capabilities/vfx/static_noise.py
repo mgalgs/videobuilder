@@ -10,7 +10,7 @@ import videobuilder as vb
 
 from ...looks.fx import image_surface, noise
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def static_noise(cv, amount=1.0, t=0.0, seed=0, grain=2.0, box=None, fps=30, roll=0.25):
@@ -69,7 +69,7 @@ def _draw(n, cv):
     static_noise(cv, amount=max(flicker, vb.ease_in_out_quart(lose) * (1 - vb.ease_in_out_quart(regain))), t=t)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='static-noise',
     name='Static noise',
     family='vfx',
@@ -82,6 +82,6 @@ TECHNIQUE = Technique(
                'cut to snow like a dead channel'),
     related=('snowfall', 'analog-ghosting', 'fractal-brownian-motion', 'glitch-sound', 'domain-warping',
              'film-grain'),
-    api=('videobuilder.techniques.vfx.static_noise.static_noise', 'videobuilder.looks.fx.noise'),
+    api=('videobuilder.capabilities.vfx.static_noise.static_noise', 'videobuilder.looks.fx.noise'),
     demo=lambda: demo.film(_draw),
 )

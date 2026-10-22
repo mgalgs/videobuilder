@@ -7,7 +7,7 @@ from collections import namedtuple
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 Hold = namedtuple('Hold', 'dx dy scale angle')
 
@@ -50,11 +50,11 @@ def draw(n, cv):
     cv.ctx.restore()
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='moving-hold',
     name='Moving Hold',
     family='principles',
-    group='Principle sub-techniques',
+    group='Principle sub-capabilities',
     aliases=('breathing hold', 'slight drift hold', 'living hold'),
     definition='Once something has stopped, it keeps up a faint, slow drift and swell so the pause '
                'feels alive instead of looking like a paused frame.',
@@ -62,6 +62,6 @@ TECHNIQUE = Technique(
                'stops but still floats a tiny bit so it never looks frozen',
                'keep a little life in it while it sits there'),
     related=('freeze-frame', 'breathing-idle', 'settle', 'push-in', 'handheld-shake', 'momentum-fling'),
-    api=('videobuilder.techniques.principles.moving_hold.moving_hold',),
+    api=('videobuilder.capabilities.principles.moving_hold.moving_hold',),
     demo=lambda: demo.film(draw),
 )

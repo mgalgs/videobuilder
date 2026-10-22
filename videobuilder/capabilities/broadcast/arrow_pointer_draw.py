@@ -7,7 +7,7 @@ import videobuilder as vb
 from videobuilder import paths
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def pointer_arrow_path(start, end, bend=0.35, wave=0.0, steps=64):
@@ -81,7 +81,7 @@ def draw(n, cv):
         cv.mark('tip', tip[0] - 8, tip[1] - 8, 16, 16)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='arrow-pointer-draw',
     name='Arrow pointer draw',
     family='broadcast',
@@ -95,8 +95,8 @@ TECHNIQUE = Technique(
                'animate a pointer arrow that writes itself on and lands on the button'),
     related=('arrow-slide', 'cursor-path-animation', 'cursor-particle-trail', 'whiteboard-marker-drawing',
              'cursor-follower-dot-and-ring', 'map-route-draw'),
-    api=('videobuilder.techniques.broadcast.arrow_pointer_draw.draw_pointer_arrow',
-         'videobuilder.techniques.broadcast.arrow_pointer_draw.pointer_arrow_path',
+    api=('videobuilder.capabilities.broadcast.arrow_pointer_draw.draw_pointer_arrow',
+         'videobuilder.capabilities.broadcast.arrow_pointer_draw.pointer_arrow_path',
          'videobuilder.paths.reveal'),
     demo=lambda: demo.film(draw),
 )

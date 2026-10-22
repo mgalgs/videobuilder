@@ -5,7 +5,7 @@ import math
 import random
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def body(x, y, vx=0.0, vy=0.0, mass=0.0):
@@ -116,7 +116,7 @@ def draw(n, cv):
         cv.mark(f'body{i}', x - radii[i], y - radii[i], 2 * radii[i], 2 * radii[i])
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='n-body-gravity',
     name='N-body gravity',
     family='particles',
@@ -129,9 +129,9 @@ TECHNIQUE = Technique(
                'bodies in space that orbit and slingshot off each other by gravity'),
     related=('gravity-well-attraction', 'orbit', 'elastic-collisions', 'orbiting-characters', 'gravity-drop',
              'orbit-loader'),
-    api=('videobuilder.techniques.particles.n_body_gravity.simulate',
-         'videobuilder.techniques.particles.n_body_gravity.body',
-         'videobuilder.techniques.particles.n_body_gravity.circular',
-         'videobuilder.techniques.particles.n_body_gravity.draw_bodies'),
+    api=('videobuilder.capabilities.particles.n_body_gravity.simulate',
+         'videobuilder.capabilities.particles.n_body_gravity.body',
+         'videobuilder.capabilities.particles.n_body_gravity.circular',
+         'videobuilder.capabilities.particles.n_body_gravity.draw_bodies'),
     demo=lambda: demo.film(draw),
 )

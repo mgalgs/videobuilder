@@ -7,7 +7,7 @@ import videobuilder as vb
 from videobuilder.canvas import rgba
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def wave_height(u, v, t, amplitude=60.0, wavelength=420.0, speed=0.6, heading=0.0, phase=0.0):
@@ -105,7 +105,7 @@ def draw(n, cv):
     cv.mark('sheet', *box)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='wave-deformer',
     name='Wave deformer',
     family='camera',
@@ -118,7 +118,7 @@ TECHNIQUE = Technique(
                'the grid should bend into waves that keep travelling along it'),
     related=('sine-wave-distortion', 'wave-stagger', 'ripple-displacement', 'height-field-ripples',
              'ripple', 'refraction-ripple'),
-    api=('videobuilder.techniques.camera.wave_deformer.wave_sheet',
-         'videobuilder.techniques.camera.wave_deformer.wave_height'),
+    api=('videobuilder.capabilities.camera.wave_deformer.wave_sheet',
+         'videobuilder.capabilities.camera.wave_deformer.wave_height'),
     demo=lambda: demo.film(draw),
 )

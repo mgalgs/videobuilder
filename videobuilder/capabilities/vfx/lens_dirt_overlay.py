@@ -10,7 +10,7 @@ import cairo
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def dirt_spots(w, h, count=70, seed=0, sizes=(6, 90)):
@@ -117,7 +117,7 @@ def draw(n, cv):
     cv.mark('dirt', 0, 0, demo.W, demo.H)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='lens-dirt-overlay',
     name='Lens dirt overlay',
     family='vfx',
@@ -129,8 +129,8 @@ TECHNIQUE = Technique(
                'add smudges on the glass that light up near the bright light',
                'give the shot that grimy lens glow when it points at the sun'),
     related=('dust-and-scratches', 'lens-flare', 'heat-haze', 'dust-motes', 'smoke-overlay', 'light-leak'),
-    api=('videobuilder.techniques.vfx.lens_dirt_overlay.lens_dirt',
-         'videobuilder.techniques.vfx.lens_dirt_overlay.dirt_spots',
-         'videobuilder.techniques.vfx.lens_dirt_overlay.dirt_glow'),
+    api=('videobuilder.capabilities.vfx.lens_dirt_overlay.lens_dirt',
+         'videobuilder.capabilities.vfx.lens_dirt_overlay.dirt_spots',
+         'videobuilder.capabilities.vfx.lens_dirt_overlay.dirt_glow'),
     demo=lambda: demo.film(draw),
 )

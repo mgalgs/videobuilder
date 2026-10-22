@@ -7,7 +7,7 @@ import math
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def grating(cv, x, y, w, h, cx, cy, pitch=14.0, angle=0.0, kind='rings', color=demo.INK, width=None,
@@ -70,7 +70,7 @@ def draw(n, cv):
     cv.mark('pattern', 0, 0, demo.W, demo.H)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='moire-pattern',
     name='Moire pattern',
     family='particles',
@@ -83,7 +83,7 @@ TECHNIQUE = Technique(
                'concentric circles sliding over each other to make trippy swirling bands'),
     related=('interlace-combing', 'line-weave', 'sine-wave-distortion', 'scanline-jitter',
              'op-art-vibrating-pattern', 'scanline-tear'),
-    api=('videobuilder.techniques.particles.moire_pattern.moire_pattern',
-         'videobuilder.techniques.particles.moire_pattern.grating'),
+    api=('videobuilder.capabilities.particles.moire_pattern.moire_pattern',
+         'videobuilder.capabilities.particles.moire_pattern.grating'),
     demo=lambda: demo.film(draw),
 )

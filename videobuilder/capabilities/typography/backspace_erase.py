@@ -3,7 +3,7 @@ until nothing is left but the caret -- typing played backwards."""
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def erased(text, p, hold=0.0, speedup=0.6):
@@ -44,7 +44,7 @@ def draw(n, cv):
     cv.mark('text', *box)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='backspace-erase',
     name='Backspace erase',
     family='typography',
@@ -57,7 +57,7 @@ TECHNIQUE = Technique(
                'the words get erased backwards with a blinking cursor'),
     related=('wipe-reveal', 'glitch-text', 'underline-wipe', 'per-character-fade-in', 'character-drop',
              'scanline-wipe'),
-    api=('videobuilder.techniques.typography.backspace_erase.draw_backspace',
-         'videobuilder.techniques.typography.backspace_erase.erased'),
+    api=('videobuilder.capabilities.typography.backspace_erase.draw_backspace',
+         'videobuilder.capabilities.typography.backspace_erase.erased'),
     demo=lambda: demo.film(draw),
 )

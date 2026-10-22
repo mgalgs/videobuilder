@@ -4,7 +4,7 @@ choppy at one playback rate."""
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def on_steps(n, step, start=0):
@@ -36,11 +36,11 @@ def draw(n, cv):
         cv.mark(f'dot-{step}', x - r, y - r, 2 * r, 2 * r)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='on-ones-on-twos-on-threes',
     name='On Ones, On Twos, On Threes',
     family='principles',
-    group='Principle sub-techniques',
+    group='Principle sub-capabilities',
     aliases=('on ones', 'on twos', 'on threes', 'animating on twos', 'shooting on twos', 'frame holds'),
     definition='The moving thing gets a new pose every frame, every other frame or every third frame, '
                'so the same motion looks fluid, hand-made or deliberately steppy.',
@@ -49,6 +49,6 @@ TECHNIQUE = Technique(
                'animate at a lower frame rate than the rest of the video'),
     related=('frame-by-frame-hand-drawn-animation', 'frame-interpolation', 'pulldown-judder',
              'interruptible-motion', 'view-transition', 'stop-motion-animation'),
-    api=('videobuilder.techniques.principles.on_ones_on_twos_on_threes.on_steps',),
+    api=('videobuilder.capabilities.principles.on_ones_on_twos_on_threes.on_steps',),
     demo=lambda: demo.film(draw),
 )

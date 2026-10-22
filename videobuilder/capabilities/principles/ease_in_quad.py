@@ -3,7 +3,7 @@ squared, so a move starts from rest and picks up speed all the way to its end.""
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def ease_in_quad(x):
@@ -30,7 +30,7 @@ def draw(n, cv):
     demo.card(cv, x0 + (x1 - x0) * ease_in_quad(demo.phase(n, START, END)), y)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='ease-in-quad',
     name='Ease In Quad',
     family='principles',
@@ -43,6 +43,6 @@ TECHNIQUE = Technique(
                'eases out of rest and picks up pace toward the end'),
     related=('asymmetric-fast-in-slow-out', 'slow-in-and-slow-out', 'settle', 'smooth-scroll-inertia',
              'inertia', 'friction-deceleration'),
-    api=('videobuilder.techniques.principles.ease_in_quad.ease_in_quad',),
+    api=('videobuilder.capabilities.principles.ease_in_quad.ease_in_quad',),
     demo=lambda: demo.film(draw),
 )

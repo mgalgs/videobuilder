@@ -5,7 +5,7 @@ import math
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def oscillate(t, amplitude=1.0, hz=1.0, phase=0.0, decay=0.0):
@@ -39,7 +39,7 @@ def draw(n, cv):
     cv.mark('dot', x - r, TOP - r, 2 * r, 2 * r)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='oscillation',
     name='Oscillation',
     family='principles',
@@ -52,6 +52,6 @@ TECHNIQUE = Technique(
                'bob it up and down in a steady rhythm'),
     related=('sine-wave-text', 'sine-wave-distortion', 'wave-stagger', 'wave-deformer', 'ocean-waves',
              'ease-out-sine'),
-    api=('videobuilder.techniques.principles.oscillation.oscillate',),
+    api=('videobuilder.capabilities.principles.oscillation.oscillate',),
     demo=lambda: demo.film(draw),
 )

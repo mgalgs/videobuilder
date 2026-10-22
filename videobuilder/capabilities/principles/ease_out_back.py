@@ -3,7 +3,7 @@ entry only names it and demos it -- the template for an existing API."""
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def draw(n, cv):
@@ -13,7 +13,7 @@ def draw(n, cv):
     demo.card(cv, x0 + (x1 - x0) * p, y)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='ease-out-back',
     name='Ease Out Back',
     family='principles',

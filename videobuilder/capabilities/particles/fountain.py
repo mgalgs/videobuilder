@@ -4,7 +4,7 @@ import math
 import random
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def fountain(t, x, y, rate=120, speed=720, spread=0.22, jitter=0.15, gravity=900, floor=None,
@@ -55,7 +55,7 @@ def draw(n, cv):
     cv.mark('fountain', x - 260, 60, 520, ground - 60)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='fountain',
     name='Fountain',
     family='particles',
@@ -68,7 +68,7 @@ TECHNIQUE = Technique(
                'make the dots gush upward from one spot and drop back down'),
     related=('particle-morph', 'curl-noise-flow', 'flow-field', 'confetti-burst', 'ripple',
              'k-rm-n-vortex-street'),
-    api=('videobuilder.techniques.particles.fountain.fountain',
-         'videobuilder.techniques.particles.fountain.draw_fountain'),
+    api=('videobuilder.capabilities.particles.fountain.fountain',
+         'videobuilder.capabilities.particles.fountain.draw_fountain'),
     demo=lambda: demo.film(draw),
 )

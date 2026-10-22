@@ -7,7 +7,7 @@ import math
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 B = 0.208186   # the classic damping: just below 0.2082, where the motion turns chaotic
 
@@ -81,7 +81,7 @@ def draw(n, cv):
     cv.mark('attractor', demo.W / 2 - 420, demo.H / 2 - 420, 840, 840)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='thomas-attractor',
     name='Thomas attractor',
     family='particles',
@@ -94,8 +94,8 @@ TECHNIQUE = Technique(
                'a point leaving a swirling knotted orbit behind it, like a generative math plot'),
     related=('cyclic-cellular-automaton', 'gravity-well-attraction', 'spinner-ring', 'wander-steering',
              'orbit-loader', 'verlet-rope'),
-    api=('videobuilder.techniques.particles.thomas_attractor.thomas_attractor',
-         'videobuilder.techniques.particles.thomas_attractor.project',
-         'videobuilder.techniques.particles.thomas_attractor.draw_attractor'),
+    api=('videobuilder.capabilities.particles.thomas_attractor.thomas_attractor',
+         'videobuilder.capabilities.particles.thomas_attractor.project',
+         'videobuilder.capabilities.particles.thomas_attractor.draw_attractor'),
     demo=lambda: demo.film(draw),
 )

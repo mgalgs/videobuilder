@@ -6,7 +6,7 @@ import math
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def stripe_edges(x, j, t, amp, wavelength=220.0, speed=2.4, twist=0.35, wobble=0.0):
@@ -80,7 +80,7 @@ def draw(n, cv):
     cv.mark('pattern', 0, 0, demo.W, demo.H)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='op-art-vibrating-pattern',
     name='Op-art vibrating pattern',
     family='shapes',
@@ -92,7 +92,7 @@ TECHNIQUE = Technique(
                'a trippy optical-illusion stripe pattern that seems to vibrate',
                'wavy stripes like a 60s op art painting, moving'),
     related=('refraction-ripple', 'hologram-effect', 'lens-flare', 'domain-warping', 'swirl', 'line-weave'),
-    api=('videobuilder.techniques.shapes.op_art_vibrating_pattern.draw_op_art',
-         'videobuilder.techniques.shapes.op_art_vibrating_pattern.stripe_edges'),
+    api=('videobuilder.capabilities.shapes.op_art_vibrating_pattern.draw_op_art',
+         'videobuilder.capabilities.shapes.op_art_vibrating_pattern.stripe_edges'),
     demo=lambda: demo.film(draw),
 )

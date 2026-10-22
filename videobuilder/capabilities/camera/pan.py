@@ -5,7 +5,7 @@ import math
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 GLIDE = vb.bezier(0.45, 0.0, 0.55, 1.0)   # a gentle start and stop, like a fluid head on a tripod
 
@@ -81,7 +81,7 @@ def _demo():
     return demo.film(draw)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='pan',
     name='Pan',
     family='camera',
@@ -94,7 +94,7 @@ TECHNIQUE = Technique(
                'glide across a wide shot that does not fit in one frame'),
     related=('shutter-wipe', 'whip-pan', 'stereo-panning', 'canvas-pan-and-zoom',
              'horizontal-scroll-section', 'spin'),
-    api=('videobuilder.techniques.camera.pan.pan', 'videobuilder.techniques.camera.pan.pan_x',
+    api=('videobuilder.capabilities.camera.pan.pan', 'videobuilder.capabilities.camera.pan.pan_x',
          'videobuilder.Canvas.view'),
     demo=_demo,
 )

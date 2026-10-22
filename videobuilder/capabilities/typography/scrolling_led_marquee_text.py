@@ -6,7 +6,7 @@ import math
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 # A 5x7 lamp font: each glyph is seven rows of five lamps, top to bottom.
 FONT = {
@@ -126,7 +126,7 @@ def draw(n, cv):
     cv.mark('sign', *box)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='scrolling-led-marquee-text',
     name='Scrolling LED marquee text',
     family='typography',
@@ -139,8 +139,8 @@ TECHNIQUE = Technique(
                'a scrolling message on a dotted LED display'),
     related=('dot-matrix-text', 'scroll-driven-text-reveal', 'infinite-marquee', 'fade-up-scroll-reveal',
              'scroll-linked-background-shift', 'scrollspy-nav-indicator'),
-    api=('videobuilder.techniques.typography.scrolling_led_marquee_text.draw_led_marquee',
-         'videobuilder.techniques.typography.scrolling_led_marquee_text.led_columns',
-         'videobuilder.techniques.typography.scrolling_led_marquee_text.marquee_shift'),
+    api=('videobuilder.capabilities.typography.scrolling_led_marquee_text.draw_led_marquee',
+         'videobuilder.capabilities.typography.scrolling_led_marquee_text.led_columns',
+         'videobuilder.capabilities.typography.scrolling_led_marquee_text.marquee_shift'),
     demo=lambda: demo.film(draw),
 )

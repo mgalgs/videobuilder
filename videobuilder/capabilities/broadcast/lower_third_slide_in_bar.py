@@ -4,7 +4,7 @@ out the way it came."""
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def lower_third_bar(cv, title, subtitle, enter, leave=0.0, x=80, bottom=None, width=640,
@@ -51,7 +51,7 @@ def draw(n, cv):
                     demo.phase(n, 0.3, 1.1), demo.phase(n, 2.3, 2.8), x=96, width=720)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='lower-third-slide-in-bar',
     name='Lower third slide-in bar',
     family='broadcast',
@@ -65,6 +65,6 @@ TECHNIQUE = Technique(
                'a TV-style caption strip that slides on and off screen'),
     related=('refresh-bar', 'carousel-slide', 'tab-panel-slide', 'character-slide-in',
              'tab-underline-slide', 'indeterminate-bar'),
-    api=('videobuilder.techniques.broadcast.lower_third_slide_in_bar.lower_third_bar',),
+    api=('videobuilder.capabilities.broadcast.lower_third_slide_in_bar.lower_third_bar',),
     demo=lambda: demo.film(draw),
 )

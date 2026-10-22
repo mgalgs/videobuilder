@@ -8,7 +8,7 @@ import videobuilder as vb
 
 from .. import _demo as demo
 from ...compendium import kit
-from ..schema import Technique
+from ..schema import Capability
 
 
 def _unit(v):
@@ -143,7 +143,7 @@ def draw(n, cv):
                  roll=0.2, color=demo.ACCENT, shadow=demo.BG)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='low-poly-faceting',
     name='Low-poly faceting',
     family='camera',
@@ -156,7 +156,7 @@ TECHNIQUE = Technique(
                'chunky triangle geometry where every face is one flat colour'),
     related=('gooch-shading', 'cel-shading-look', 'fresnel-edge-glow', 'cross-hatch-shading',
              'matcap-shading', 'angled-lower-third'),
-    api=('videobuilder.techniques.camera.low_poly_faceting.draw_faceted',
-         'videobuilder.techniques.camera.low_poly_faceting.low_poly_mesh'),
+    api=('videobuilder.capabilities.camera.low_poly_faceting.draw_faceted',
+         'videobuilder.capabilities.camera.low_poly_faceting.low_poly_mesh'),
     demo=lambda: demo.film(draw),
 )

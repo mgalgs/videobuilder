@@ -7,7 +7,7 @@ from videobuilder import Box
 from videobuilder.canvas import rgba
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def vignette(cv, amount=0.6, inner=0.45, color='#000000', box=None, center=None, oval=True):
@@ -52,7 +52,7 @@ def draw(n, cv):
     vignette(cv, amount=0.92 * p, inner=0.7 - 0.45 * p)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='vignette',
     name='Vignette',
     family='camera',
@@ -65,6 +65,6 @@ TECHNIQUE = Technique(
                'add a soft shadow around the border of the picture'),
     related=('spotlight-dim', 'gradient-border-spin', 'solarization', 'lens-dirt-overlay',
              'tilt-shift-miniature', 'theme-swap-crossfade'),
-    api=('videobuilder.techniques.camera.vignette.vignette',),
+    api=('videobuilder.capabilities.camera.vignette.vignette',),
     demo=lambda: demo.film(draw),
 )

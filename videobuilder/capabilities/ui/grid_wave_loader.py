@@ -5,7 +5,7 @@ import math
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def wave_levels(count, t, period=1.2, spread=0.6, sharpness=2.0):
@@ -43,7 +43,7 @@ def draw(n, cv):
     cv.mark('loader', *box)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='grid-wave-loader',
     name='Grid wave loader',
     family='ui',
@@ -56,7 +56,7 @@ TECHNIQUE = Technique(
                'a row of blocks bobbing up and down in sequence as a spinner'),
     related=('scale-tile-wave', 'audio-waveform-bars', 'grid-diagonal-stagger', 'wave-stagger',
              'wave-function-collapse', 'wave-deformer'),
-    api=('videobuilder.techniques.ui.grid_wave_loader.draw_wave_loader',
-         'videobuilder.techniques.ui.grid_wave_loader.wave_levels'),
+    api=('videobuilder.capabilities.ui.grid_wave_loader.draw_wave_loader',
+         'videobuilder.capabilities.ui.grid_wave_loader.wave_levels'),
     demo=lambda: demo.film(draw),
 )

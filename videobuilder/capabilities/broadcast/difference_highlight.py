@@ -6,7 +6,7 @@ import math
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 MARKER = '#f5c84b'
 
@@ -92,7 +92,7 @@ def draw(n, cv):
     difference_highlight(cv, REGIONS, demo.phase(n, 0.5, 2.4), panels=PANELS)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='difference-highlight',
     name='Difference highlight',
     family='broadcast',
@@ -105,6 +105,6 @@ TECHNIQUE = Technique(
                'a spot-the-difference reveal on a before and after'),
     related=('difference-blend', 'luma-wipe', 'series-isolate-highlight', 'pixelation-reveal',
              'callout-highlight', 'border-glow-follow'),
-    api=('videobuilder.techniques.broadcast.difference_highlight.difference_highlight',),
+    api=('videobuilder.capabilities.broadcast.difference_highlight.difference_highlight',),
     demo=lambda: demo.film(draw),
 )

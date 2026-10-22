@@ -4,7 +4,7 @@ nested shapes grows downward one generation at a time."""
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def automaton(width, rows, rule=30, seed=None):
@@ -60,7 +60,7 @@ def draw(n, cv):
     cv.mark('grid', *box)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='rule-30-automaton',
     name='Rule 30 automaton',
     family='particles',
@@ -73,7 +73,7 @@ TECHNIQUE = Technique(
                'generative grid art that unfolds one line at a time'),
     related=('pattern-tiling', 'random-stagger', 'wave-function-collapse', 'grid-diagonal-stagger',
              'recursive-tree', 'sierpinski-gasket'),
-    api=('videobuilder.techniques.particles.rule_30_automaton.draw_automaton',
-         'videobuilder.techniques.particles.rule_30_automaton.automaton'),
+    api=('videobuilder.capabilities.particles.rule_30_automaton.draw_automaton',
+         'videobuilder.capabilities.particles.rule_30_automaton.automaton'),
     demo=lambda: demo.film(draw),
 )

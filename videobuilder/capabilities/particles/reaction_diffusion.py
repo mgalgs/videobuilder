@@ -7,7 +7,7 @@ import videobuilder as vb
 from PIL import Image
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 _SIMS = {}  # the arguments of reaction_diffusion -> _Sim, so frames share one run
 CHECKPOINT = 100  # steps between saved states, so going back in time never restarts from zero
@@ -134,7 +134,7 @@ def draw(n, cv):
     cv.mark('pattern', *box)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='reaction-diffusion',
     name='Reaction-diffusion',
     family='particles',
@@ -147,7 +147,7 @@ TECHNIQUE = Technique(
                'animal-skin stripes forming by themselves'),
     related=('ink-in-water', 'brian-s-brain', 'fractal-brownian-motion', 'dissolve-to-particles',
              'ink-splash-spread', 'particle-life'),
-    api=('videobuilder.techniques.particles.reaction_diffusion.reaction_diffusion',
-         'videobuilder.techniques.particles.reaction_diffusion.draw_reaction_diffusion'),
+    api=('videobuilder.capabilities.particles.reaction_diffusion.reaction_diffusion',
+         'videobuilder.capabilities.particles.reaction_diffusion.draw_reaction_diffusion'),
     demo=lambda: demo.film(draw),
 )

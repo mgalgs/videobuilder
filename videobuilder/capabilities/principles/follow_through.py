@@ -5,7 +5,7 @@ import math
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def follow_through(path, t, hz=1.6, ratio=0.22, step=1 / 240):
@@ -58,7 +58,7 @@ def draw(n, cv):
     cv.mark('body', bx - R, by - R, 2 * R, 2 * R)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='follow-through',
     name='Follow Through',
     family='principles',
@@ -71,6 +71,6 @@ TECHNIQUE = Technique(
                'the floppy parts should keep going after the body stops'),
     related=('chain-follow-through', 'tracking-shot', 'path-follow-motion', 'fly-through', 'cut-on-action',
              'dolly-in-and-out'),
-    api=('videobuilder.techniques.principles.follow_through.follow_through',),
+    api=('videobuilder.capabilities.principles.follow_through.follow_through',),
     demo=lambda: demo.film(draw),
 )

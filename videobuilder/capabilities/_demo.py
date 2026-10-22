@@ -1,4 +1,4 @@
-"""The shared demo kit: every technique's demo is built from these, so the set
+"""The shared demo kit: every capability's demo is built from these, so the set
 reads as one family -- the same 16:9 frame, background, palette and length,
 and the same plain subjects (a card, a dot, a word, a photo) to animate.
 
@@ -8,7 +8,7 @@ and the same plain subjects (a card, a dot, a word, a photo) to animate.
         p = demo.phase(n, 0.5, 1.5)          # 0 -> 1 between 0.5 s and 1.5 s
         demo.card(cv, demo.W / 2, demo.H / 2 + 200 * (1 - p))
 
-    TECHNIQUE = Technique(..., demo=lambda: demo.film(draw))
+    CAPABILITY = Capability(..., demo=lambda: demo.film(draw))
 
 A transition is a function `transition(cv, a, b, p)`: `a` and `b` draw the
 outgoing and incoming scenes (each `a(cv)`), `p` runs 0 -> 1 across the
@@ -16,7 +16,7 @@ transition. `two_scenes(transition)` demos one between `scene_a` and
 `scene_b`; a real film calls the same function inside its own overlap.
 
 Styling comes from `videobuilder/compendium/kit.py`. Extend this kit only
-through a technique's own module (or a `_helper.py` beside it).
+through a capability's own module (or a `_helper.py` beside it).
 """
 import math
 
@@ -37,7 +37,7 @@ mono = kit.mono
 def film(draw, seconds=SECONDS, **kw):
     """A demo `vb.Film`: `draw(n, cv)` over `seconds` at 30 fps, 16:9, on the
     kit's background. `kw` passes through (`sounds=`, `audio=` for sound
-    techniques)."""
+    capabilities)."""
     return vb.Film(draw=draw, fps=FPS, frames=round(seconds * FPS), formats=(FORMAT,), background=BG, **kw)
 
 

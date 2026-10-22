@@ -4,7 +4,7 @@ hitching rhythm -- long hold, short hold, long hold -- instead of gliding."""
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def pulldown_frame(n, cadence=(3, 2)):
@@ -81,7 +81,7 @@ def draw(n, cv):
     _ribbon(cv, n)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='pulldown-judder',
     name='Pulldown judder',
     family='vfx',
@@ -94,7 +94,7 @@ TECHNIQUE = Technique(
                'hold every other frame a beat longer so the motion hiccups'),
     related=('video-feedback-loop', 'on-ones-on-twos-on-threes', 'push-in', 'whip-pan',
              'interruptible-motion', 'tilt-shift-miniature'),
-    api=('videobuilder.techniques.vfx.pulldown_judder.pulldown_time',
-         'videobuilder.techniques.vfx.pulldown_judder.pulldown_frame'),
+    api=('videobuilder.capabilities.vfx.pulldown_judder.pulldown_time',
+         'videobuilder.capabilities.vfx.pulldown_judder.pulldown_frame'),
     demo=lambda: demo.film(draw),
 )

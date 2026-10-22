@@ -8,7 +8,7 @@ from functools import lru_cache
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def _clip(poly, ax, ay, nx, ny):
@@ -145,7 +145,7 @@ def draw(n, cv):
     cv.mark('cells', *BOX)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='voronoi-relaxation',
     name='Voronoi relaxation',
     family='particles',
@@ -158,9 +158,9 @@ TECHNIQUE = Technique(
                'points push apart and settle like bubbles in a foam'),
     related=('eden-growth', 'worley-cellular-noise', 'lenia', 'pollen-drift', 'diffusion-limited-aggregation',
              'volume-preservation'),
-    api=('videobuilder.techniques.particles.voronoi_relaxation.draw_voronoi',
-         'videobuilder.techniques.particles.voronoi_relaxation.lloyd_steps',
-         'videobuilder.techniques.particles.voronoi_relaxation.relaxed_at',
-         'videobuilder.techniques.particles.voronoi_relaxation.voronoi_cells'),
+    api=('videobuilder.capabilities.particles.voronoi_relaxation.draw_voronoi',
+         'videobuilder.capabilities.particles.voronoi_relaxation.lloyd_steps',
+         'videobuilder.capabilities.particles.voronoi_relaxation.relaxed_at',
+         'videobuilder.capabilities.particles.voronoi_relaxation.voronoi_cells'),
     demo=lambda: demo.film(draw),
 )

@@ -6,7 +6,7 @@ import math
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def drop_target(cv, x, y, w, h, hover, t=0.0, color=demo.ACCENT, idle=demo.MUTED, radius=18,
@@ -74,7 +74,7 @@ def draw(n, cv):
     cv.mark('zone', *ZONE)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='drop-target-highlight',
     name='Drop target highlight',
     family='ui',
@@ -87,7 +87,7 @@ TECHNIQUE = Technique(
                'highlight where you can let go of the thing you are dragging'),
     related=('border-glow-follow', 'spotlight-hover', 'glow-button', 'coachmark-spotlight-cutout',
              'map-pin-drop', 'outline-pulse-glow'),
-    api=('videobuilder.techniques.ui.drop_target_highlight.drop_target',
-         'videobuilder.techniques.ui.drop_target_highlight.cursor'),
+    api=('videobuilder.capabilities.ui.drop_target_highlight.drop_target',
+         'videobuilder.capabilities.ui.drop_target_highlight.cursor'),
     demo=lambda: demo.film(draw),
 )

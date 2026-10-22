@@ -6,7 +6,7 @@ import math
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 from ...looks import kit as looks
 
 
@@ -78,7 +78,7 @@ def draw(n, cv):
     cv.mark('panel', *PANEL)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='shadow-play',
     name='Shadow play',
     family='camera',
@@ -91,7 +91,7 @@ TECHNIQUE = Technique(
                'move the shapes toward the lamp so their shadows grow huge'),
     related=('drop-shadow-breathing', 'drop-shadow-lift', 'long-shadow-growth', 'noise-terrain-flyover',
              'cut-out-paper-animation', 'drag-lift-with-shadow'),
-    api=('videobuilder.techniques.camera.shadow_play.draw_cast_shadow',
-         'videobuilder.techniques.camera.shadow_play.cast_shadow'),
+    api=('videobuilder.capabilities.camera.shadow_play.draw_cast_shadow',
+         'videobuilder.capabilities.camera.shadow_play.cast_shadow'),
     demo=lambda: demo.film(draw),
 )

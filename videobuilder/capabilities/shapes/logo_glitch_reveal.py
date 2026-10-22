@@ -7,7 +7,7 @@ import random
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 SPLIT = ('#ff2d5a', '#29e3ff')
 
@@ -81,7 +81,7 @@ def draw(n, cv):
     cv.mark('logo', *box)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='logo-glitch-reveal',
     name='Logo glitch reveal',
     family='shapes',
@@ -94,6 +94,6 @@ TECHNIQUE = Technique(
                'the logo flickers and tears with colour splits before it settles'),
     related=('station-id-bug', 'glitch-text', 'glitch-transition', 'light-trail-logo-reveal', 'glitch-sound',
              'line-draw-logo-reveal'),
-    api=('videobuilder.techniques.shapes.logo_glitch_reveal.glitch_reveal',),
+    api=('videobuilder.capabilities.shapes.logo_glitch_reveal.glitch_reveal',),
     demo=lambda: demo.film(draw),
 )

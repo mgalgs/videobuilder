@@ -6,7 +6,7 @@ import math
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 PICKUP = ('G5', 'A5', 'B5')
 CHORD = ('C6', 'E6', 'G6')
@@ -88,7 +88,7 @@ def demo_film():
     return demo.film(draw, sounds=sting(HIT, TUNE, LAND, gap=GAP, chord_gain_db=-6, hit='pro_impact/short'))
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='stinger',
     name='Musical sting',
     family='sound',
@@ -101,8 +101,8 @@ TECHNIQUE = Technique(
                'a few notes and a chord right on the reveal'),
     related=('logo-sting', 'foley', 'impact-hit', 'broadcast-title-card-stinger', 'chat-bubble-sequence',
              'kinetic-lyric-typography'),
-    api=('videobuilder.techniques.sound.stinger.sting',
-         'videobuilder.techniques.sound.stinger.sting_frames',
+    api=('videobuilder.capabilities.sound.stinger.sting',
+         'videobuilder.capabilities.sound.stinger.sting_frames',
          'videobuilder.sfx.sound'),
     demo=demo_film,
 )

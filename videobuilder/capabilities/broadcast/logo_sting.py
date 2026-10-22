@@ -4,7 +4,7 @@ import videobuilder as vb
 from videobuilder import impact
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def _bar(cv, x, w, slant, color):
@@ -67,7 +67,7 @@ def draw(n, cv):
     cv.mark('logo', demo.W / 2 - 110, demo.H / 2 - 150, 220, 220)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='logo-sting',
     name='Logo sting',
     family='broadcast',
@@ -80,6 +80,6 @@ TECHNIQUE = Technique(
                'a short punchy logo hit for the start or end of the video'),
     related=('stinger', 'sonic-logo', 'logo-glitch-reveal', 'logo-mask-wipe-reveal', 'sine-wave-text',
              'impact-shake'),
-    api=('videobuilder.techniques.broadcast.logo_sting.logo_sting', 'videobuilder.impact.shake'),
+    api=('videobuilder.capabilities.broadcast.logo_sting.logo_sting', 'videobuilder.impact.shake'),
     demo=lambda: demo.film(draw),
 )

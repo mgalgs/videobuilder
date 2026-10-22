@@ -10,7 +10,7 @@ import cairo
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 ANGLES = (math.radians(-38), math.radians(52), math.radians(8))   # each layer's line direction
 
@@ -106,7 +106,7 @@ def draw(n, cv):
     hatch_sphere(cv, cx, cy, r, light, paper=demo.INK, ink=demo.BG)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='cross-hatch-shading',
     name='Cross-hatch shading',
     family='camera',
@@ -119,8 +119,8 @@ TECHNIQUE = Technique(
                'give the ball an old engraving look with hatched shading'),
     related=('cel-shading-look', 'low-poly-faceting', 'cross-processing', 'line-weave',
              'theme-swap-crossfade', 'rim-light'),
-    api=('videobuilder.techniques.camera.cross_hatch_shading.hatch',
-         'videobuilder.techniques.camera.cross_hatch_shading.hatch_sphere',
-         'videobuilder.techniques.camera.cross_hatch_shading.sphere_darkness'),
+    api=('videobuilder.capabilities.camera.cross_hatch_shading.hatch',
+         'videobuilder.capabilities.camera.cross_hatch_shading.hatch_sphere',
+         'videobuilder.capabilities.camera.cross_hatch_shading.sphere_darkness'),
     demo=lambda: demo.film(draw),
 )

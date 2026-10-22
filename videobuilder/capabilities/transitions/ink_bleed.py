@@ -12,7 +12,7 @@ from PIL import Image, ImageChops, ImageDraw, ImageFilter, ImageStat
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 # Where the ink lands, as (x, y, final radius) in fractions of the frame
 # width, and when each blot starts (a fraction of the transition). Together
@@ -130,7 +130,7 @@ def ink_bleed(cv, a, b, p, ink='#15131a', blots=BLOTS, seed=7):
     _paint(cv, lambda c: c.set_source_rgba(*vb.canvas.rgba(ink, wet)), field.point(_RIM), dev_w, dev_h)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='ink-bleed',
     name='Ink bleed',
     family='transitions',
@@ -143,6 +143,6 @@ TECHNIQUE = Technique(
                'have scene two bleed through scene one like spilled ink'),
     related=('ink-spread-reveal', 'ink-splash-spread', 'watercolor-bleed', 'chroma-bleed', 'ink-in-water',
              'ink-outline'),
-    api=('videobuilder.techniques.transitions.ink_bleed.ink_bleed',),
+    api=('videobuilder.capabilities.transitions.ink_bleed.ink_bleed',),
     demo=lambda: demo.two_scenes(ink_bleed, start=0.6, length=1.9),
 )

@@ -4,7 +4,7 @@ while a progress line runs along the axis from marker to marker."""
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def milestone_markers(cv, milestones, p, x0, x1, y, color=demo.ACCENT, line=demo.TEAL,
@@ -57,7 +57,7 @@ def draw(n, cv):
     milestone_markers(cv, MILESTONES, demo.phase(n, 0.3, 2.6), 60, demo.W - 60, demo.H / 2 + 90)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='milestone-marker-pop',
     name='Milestone marker pop',
     family='broadcast',
@@ -70,6 +70,6 @@ TECHNIQUE = Technique(
                'a timeline where the key events pop in left to right'),
     related=('callout-highlight', 'circle-pop', 'numbered-hotspot-pins', 'circle-check-draw',
              'live-indicator-pulse', 'scatter-plot-point-appear'),
-    api=('videobuilder.techniques.broadcast.milestone_marker_pop.milestone_markers',),
+    api=('videobuilder.capabilities.broadcast.milestone_marker_pop.milestone_markers',),
     demo=lambda: demo.film(draw),
 )

@@ -6,7 +6,7 @@ import math
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def _area(points):
@@ -79,7 +79,7 @@ def draw(n, cv):
     cv.mark('shape', min(xs), min(ys), max(xs) - min(xs), max(ys) - min(ys))
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='offset-path-expansion',
     name='Offset path expansion',
     family='shapes',
@@ -92,7 +92,7 @@ TECHNIQUE = Technique(
                'rings that follow the shape\'s own silhouette expanding away from it'),
     related=('stroke-draw-on', 'isochrone-expansion', 'offset', 'outline-to-fill', 'focus-ring-draw',
              'stroke-width-pulse'),
-    api=('videobuilder.techniques.shapes.offset_path_expansion.offset_path',
-         'videobuilder.techniques.shapes.offset_path_expansion.draw_offset_expansion'),
+    api=('videobuilder.capabilities.shapes.offset_path_expansion.offset_path',
+         'videobuilder.capabilities.shapes.offset_path_expansion.draw_offset_expansion'),
     demo=lambda: demo.film(draw),
 )

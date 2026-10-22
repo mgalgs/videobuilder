@@ -10,7 +10,7 @@ from videobuilder.canvas import rgba
 from videobuilder.type import kit
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def rim_mask(cv, shape, angle, width):
@@ -114,7 +114,7 @@ def draw(n, cv):
     cv.mark('subject', *box)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='rim-light',
     name='Rim light',
     family='camera',
@@ -127,7 +127,7 @@ TECHNIQUE = Technique(
                'give the shape a bright rim so it pops off the dark background'),
     related=('fresnel-edge-glow', 'shine-glint-sweep', 'spotlight-dim', 'gooch-shading', 'gradient-border-spin',
              'spotlight-hover'),
-    api=('videobuilder.techniques.camera.rim_light.draw_rim_light',
-         'videobuilder.techniques.camera.rim_light.rim_mask'),
+    api=('videobuilder.capabilities.camera.rim_light.draw_rim_light',
+         'videobuilder.capabilities.camera.rim_light.rim_mask'),
     demo=lambda: demo.film(draw),
 )

@@ -5,7 +5,7 @@ import math
 from contextlib import contextmanager
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def squash_stretch_scale(amount, limit=0.6):
@@ -106,7 +106,7 @@ def draw(n, cv):
     cv.mark('ball', x - R * across, top, 2 * R * across, 2 * R * along)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='squash-and-stretch',
     name='Squash and Stretch',
     family='principles',
@@ -119,7 +119,7 @@ TECHNIQUE = Technique(
                'stretch it while it flies and splat it on impact'),
     related=('elastic-horizontal-squash', 'squash-on-tap', 'volume-preservation', 'elastic-ease-out',
              'elastic-stretch', 'rubber-band-overscroll'),
-    api=('videobuilder.techniques.principles.squash_and_stretch.squash_stretch',
-         'videobuilder.techniques.principles.squash_and_stretch.squash_stretch_scale'),
+    api=('videobuilder.capabilities.principles.squash_and_stretch.squash_stretch',
+         'videobuilder.capabilities.principles.squash_and_stretch.squash_stretch_scale'),
     demo=lambda: demo.film(draw),
 )

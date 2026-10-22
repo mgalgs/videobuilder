@@ -5,7 +5,7 @@ import math
 
 from ...looks import kit as looks
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def polygon(cx, cy, r, sides=4, turn=0.0):
@@ -52,7 +52,7 @@ def draw(n, cv):
     cv.mark('tunnel', demo.W / 2 - 40, demo.H / 2 - 40, 80, 80)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='zoom-through-shape',
     name='Zoom-through shape',
     family='shapes',
@@ -65,8 +65,8 @@ TECHNIQUE = Technique(
                'a portal of outlines we pass straight through'),
     related=('infinite-zoom-tunnel', 'scale-zoom-through', 'canvas-pan-and-zoom', 'zoom-through',
              'mandelbrot-zoom', 'cross-zoom'),
-    api=('videobuilder.techniques.shapes.zoom_through_shape.zoom_through_shape',
-         'videobuilder.techniques.shapes.zoom_through_shape.polygon',
+    api=('videobuilder.capabilities.shapes.zoom_through_shape.zoom_through_shape',
+         'videobuilder.capabilities.shapes.zoom_through_shape.polygon',
          'videobuilder.looks.kit.outline'),
     demo=lambda: demo.film(draw),
 )

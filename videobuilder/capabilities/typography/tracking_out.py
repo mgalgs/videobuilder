@@ -5,7 +5,7 @@ import dataclasses
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 SETTLE = vb.bezier(0.3, 0.1, 0.4, 1.0)  # a long, soft ease-out: the drift keeps moving almost to the end
 
@@ -36,7 +36,7 @@ def draw(n, cv):
               alpha=demo.phase(n, 0.9, 1.6))
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='tracking-out',
     name='Tracking out',
     family='typography',
@@ -49,7 +49,7 @@ TECHNIQUE = Technique(
                'the word breathes out, its letters drifting away from each other'),
     related=('offset-path-expansion', 'dolly-in-and-out', 'text-mask-reveal', 'letter-roll', 'noise-field-warp',
              'scroll-linked-clip-reveal'),
-    api=('videobuilder.techniques.typography.tracking_out.draw_tracking_out',
-         'videobuilder.techniques.typography.tracking_out.tracking_at'),
+    api=('videobuilder.capabilities.typography.tracking_out.draw_tracking_out',
+         'videobuilder.capabilities.typography.tracking_out.tracking_at'),
     demo=lambda: demo.film(draw),
 )

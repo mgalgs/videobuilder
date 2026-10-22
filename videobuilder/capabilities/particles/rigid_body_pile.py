@@ -5,7 +5,7 @@ import random
 from functools import lru_cache
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def _axes(b):
@@ -201,7 +201,7 @@ def draw(n, cv):
         cv.mark('pile', min(xs) - r, min(ys) - r, max(xs) - min(xs) + 2 * r, max(ys) - min(ys) + 2 * r)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='rigid-body-pile',
     name='Rigid body pile',
     family='particles',
@@ -214,7 +214,7 @@ TECHNIQUE = Technique(
                'make cubes rain down and settle into a heap'),
     related=('shape-stacking-drop', 'falling-sand', 'ragdoll', 'physics-letter-drop', 'circle-packing',
              'momentum-fling'),
-    api=('videobuilder.techniques.particles.rigid_body_pile.simulate_pile',
-         'videobuilder.techniques.particles.rigid_body_pile.draw_pile'),
+    api=('videobuilder.capabilities.particles.rigid_body_pile.simulate_pile',
+         'videobuilder.capabilities.particles.rigid_body_pile.draw_pile'),
     demo=lambda: demo.film(draw),
 )

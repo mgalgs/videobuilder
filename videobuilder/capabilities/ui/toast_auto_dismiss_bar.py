@@ -6,7 +6,7 @@ import math
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def toast_timeline(t, life, enter=0.35, leave=0.35):
@@ -58,7 +58,7 @@ def draw(n, cv):
     cv.mark('toast', *box)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='toast-auto-dismiss-bar',
     name='Toast auto-dismiss bar',
     family='ui',
@@ -71,7 +71,7 @@ TECHNIQUE = Technique(
                'a "saved" message that times out with a draining bar'),
     related=('swipe-to-dismiss', 'hover-reveal-actions', 'number-count-down', 'tooltip-fade-follow',
              'tab-underline-slide', 'bottom-sheet-slide-up'),
-    api=('videobuilder.techniques.ui.toast_auto_dismiss_bar.draw_toast',
-         'videobuilder.techniques.ui.toast_auto_dismiss_bar.toast_timeline'),
+    api=('videobuilder.capabilities.ui.toast_auto_dismiss_bar.draw_toast',
+         'videobuilder.capabilities.ui.toast_auto_dismiss_bar.toast_timeline'),
     demo=lambda: demo.film(draw),
 )

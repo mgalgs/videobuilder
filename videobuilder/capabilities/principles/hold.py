@@ -3,7 +3,7 @@ move, so the eye has time to read where the thing has landed."""
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def _mix(a, b, p):
@@ -67,11 +67,11 @@ def draw(n, cv):
               color=demo.TEAL if on else demo.MUTED, weight=800 if on else 500)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='hold',
     name='Hold',
     family='principles',
-    group='Principle sub-techniques',
+    group='Principle sub-capabilities',
     aliases=('hold frame', 'held pose', 'moving hold', 'pose hold', 'beat'),
     definition='A move comes to a full stop and the subject stays put on that pose for a beat, '
                'letting it register before the next move begins.',
@@ -80,7 +80,7 @@ TECHNIQUE = Technique(
                'stop, hold, then carry on to the next spot'),
     related=('freeze-frame', 'cut-on-action', 'interruptible-motion', 'seamless-loop', 'handheld-shake',
              'play-pause-morph'),
-    api=('videobuilder.techniques.principles.hold.hold',
-         'videobuilder.techniques.principles.hold.holding'),
+    api=('videobuilder.capabilities.principles.hold.hold',
+         'videobuilder.capabilities.principles.hold.holding'),
     demo=lambda: demo.film(draw),
 )

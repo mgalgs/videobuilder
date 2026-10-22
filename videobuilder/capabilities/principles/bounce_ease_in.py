@@ -3,7 +3,7 @@ a few hops that grow each time, then launches off the last one to its target."""
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 from .bounce_ease_out import bounce_ease_out
 
 
@@ -30,7 +30,7 @@ def draw(n, cv):
     cv.mark('ball', demo.W / 2 - r, y - r, 2 * r, 2 * r)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='bounce-ease-in',
     name='Bounce Ease In',
     family='principles',
@@ -43,6 +43,6 @@ TECHNIQUE = Technique(
                'the bounce happens at the start instead of the end'),
     related=('ball-bounce', 'overshoot-bounce-in', 'settle', 'momentum-fling', 'smooth-scroll-inertia',
              'icon-hover-bounce'),
-    api=('videobuilder.techniques.principles.bounce_ease_in.bounce_ease_in',),
+    api=('videobuilder.capabilities.principles.bounce_ease_in.bounce_ease_in',),
     demo=lambda: demo.film(draw),
 )

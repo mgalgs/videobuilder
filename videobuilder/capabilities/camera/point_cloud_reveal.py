@@ -6,7 +6,7 @@ import math
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def torus(ring=1.0, tube=0.42):
@@ -109,7 +109,7 @@ def draw(n, cv):
     cv.mark('form', *box)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='point-cloud-reveal',
     name='Point cloud reveal',
     family='camera',
@@ -122,7 +122,7 @@ TECHNIQUE = Technique(
                'show the shape as a dotted wireframe that resolves into the finished model'),
     related=('particle-morph', 'scatter-plot-point-appear', 'ripple', 'location-ripple-pulse',
              'image-to-particles', 'smoke-dissolve'),
-    api=('videobuilder.techniques.camera.point_cloud_reveal.draw_point_cloud_reveal',
-         'videobuilder.techniques.camera.point_cloud_reveal.torus'),
+    api=('videobuilder.capabilities.camera.point_cloud_reveal.draw_point_cloud_reveal',
+         'videobuilder.capabilities.camera.point_cloud_reveal.torus'),
     demo=lambda: demo.film(draw),
 )

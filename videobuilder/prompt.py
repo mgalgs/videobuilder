@@ -139,7 +139,7 @@ def _type_lines(community_styles):
 
 def _community_lines(community):
     lines = ['## Community capabilities', '',
-             'Other creators submitted these from a post they saw showing a technique; each ships '
+             'Other creators submitted these from a post they saw showing a capability; each ships '
              'an original demo film and a reference doc, read-only, at the paths below. Reach for '
              'one of these before building a similar effect from scratch -- read the doc and the '
              'demo first, then adapt it to this note. They are reference only, read-only material, '
@@ -346,7 +346,7 @@ def render(note, payload, image, compendium=False, votes=None, sources=None, com
         lines += ['Not every request is something this tool can do, or do well. Sort each one: '
                   'if it asks for something you have no means to do at all (real-world footage '
                   'of real people, a voice you cannot produce, and the like), never fake it or '
-                  'quietly swap in a different technique — stop and ask instead, the same way as '
+                  'quietly swap in a different capability — stop and ask instead, the same way as '
                   'above, saying plainly what is not possible and offering 2 to 4 concrete '
                   'alternatives as the choices. If you can do it but not well, build the best '
                   'version you can, then say so in your reply: name the weak spot, and add one '
@@ -361,7 +361,7 @@ def render(note, payload, image, compendium=False, votes=None, sources=None, com
                   'do it but not well, build the best version you can, then say so in your '
                   'reply: name the weak spot, and add one line on what would improve it (a '
                   'reference image, a different format, a simpler ask).']
-    lines += ['Never quietly substitute a different technique and call it done. Whenever a '
+    lines += ['Never quietly substitute a different capability and call it done. Whenever a '
               'reply falls short either way, say so in plain language, with no file names or '
               'internal terms, and end that part of your reply with one more fenced block — '
               'placed before the ```questions block if you are asking — a line containing only '

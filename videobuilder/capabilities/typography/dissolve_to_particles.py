@@ -6,7 +6,7 @@ import random
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 _SPECKS = {}  # (lines, repr(font), step) -> [(dx, dy), ...]
 
@@ -73,7 +73,7 @@ def draw(n, cv):
     cv.mark('text', *box)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='dissolve-to-particles',
     name='Dissolve to particles',
     family='typography',
@@ -86,7 +86,7 @@ TECHNIQUE = Technique(
                'disintegrate the text like sand in the wind'),
     related=('particle-text-formation', 'dither-reveal', 'pixelation-reveal', 'film-dissolve', 'blur-dissolve',
              'character-drop'),
-    api=('videobuilder.techniques.typography.dissolve_to_particles.draw_dissolve',
-         'videobuilder.techniques.typography.dissolve_to_particles.text_specks'),
+    api=('videobuilder.capabilities.typography.dissolve_to_particles.draw_dissolve',
+         'videobuilder.capabilities.typography.dissolve_to_particles.text_specks'),
     demo=lambda: demo.film(draw),
 )

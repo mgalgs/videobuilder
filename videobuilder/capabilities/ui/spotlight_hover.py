@@ -8,7 +8,7 @@ import cairo
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def _rounded(ctx, x, y, w, h, r):
@@ -112,7 +112,7 @@ def draw(n, cv):
     pointer(cv, mx, my)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='spotlight-hover',
     name='Spotlight hover',
     family='ui',
@@ -125,7 +125,7 @@ TECHNIQUE = Technique(
                'the card border catches the light near the pointer'),
     related=('spotlight-dim', 'spotlight-follow', 'shine-glint-sweep', 'highlighter-swipe', 'glow-button',
              'star-rating-fill'),
-    api=('videobuilder.techniques.ui.spotlight_hover.spotlight',
-         'videobuilder.techniques.ui.spotlight_hover.pointer'),
+    api=('videobuilder.capabilities.ui.spotlight_hover.spotlight',
+         'videobuilder.capabilities.ui.spotlight_hover.pointer'),
     demo=lambda: demo.film(draw),
 )

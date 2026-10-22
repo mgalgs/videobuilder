@@ -4,7 +4,7 @@ content cards rise one after another -- instead of appearing all at once."""
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def load_progress(i, count, p, overlap=0.55):
@@ -81,7 +81,7 @@ def draw(n, cv):
     page_load_sequence(cv, PARTS, demo.phase(n, 0.3, 2.4), overlap=0.45)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='page-load-sequence',
     name='Page load sequence',
     family='ui',
@@ -94,7 +94,7 @@ TECHNIQUE = Technique(
                'animate the page elements in on load instead of showing everything at once'),
     related=('scrollytelling-step-sequence', 'staging', 'page-turn', 'staggered-cascade-reveal',
              'scroll-driven-text-reveal', 'staged-onboarding-walkthrough'),
-    api=('videobuilder.techniques.ui.page_load_sequence.page_load_sequence',
-         'videobuilder.techniques.ui.page_load_sequence.load_progress'),
+    api=('videobuilder.capabilities.ui.page_load_sequence.page_load_sequence',
+         'videobuilder.capabilities.ui.page_load_sequence.load_progress'),
     demo=lambda: demo.film(draw),
 )

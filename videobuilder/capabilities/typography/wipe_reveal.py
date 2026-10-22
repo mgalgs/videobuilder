@@ -5,7 +5,7 @@ import cairo
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 DIRECTIONS = ('right', 'left', 'down', 'up')
 
@@ -89,7 +89,7 @@ def draw(n, cv):
     cv.mark('text', *box)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='wipe-reveal',
     name='Wipe reveal',
     family='typography',
@@ -102,7 +102,7 @@ TECHNIQUE = Technique(
                'the words appear as if a mask slides off them sideways'),
     related=('ink-spread-reveal', 'scanline-wipe', 'text-mask-reveal', 'underline-wipe', 'linear-wipe',
              'handwriting-reveal'),
-    api=('videobuilder.techniques.typography.wipe_reveal.wipe_reveal',
-         'videobuilder.techniques.typography.wipe_reveal.wipe_lines'),
+    api=('videobuilder.capabilities.typography.wipe_reveal.wipe_reveal',
+         'videobuilder.capabilities.typography.wipe_reveal.wipe_lines'),
     demo=lambda: demo.film(draw),
 )

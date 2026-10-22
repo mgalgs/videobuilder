@@ -10,7 +10,7 @@ import videobuilder as vb
 from .. import _demo as demo
 from ...compendium import kit
 from ... import paths
-from ..schema import Technique
+from ..schema import Capability
 
 
 @dataclass(frozen=True)
@@ -175,7 +175,7 @@ def draw(n, cv):
     draw_flowchart(cv, NODES, EDGES, demo.phase(n, 0.15, 2.6))
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='flowchart-build',
     name='Flowchart build',
     family='broadcast',
@@ -188,10 +188,10 @@ TECHNIQUE = Technique(
                'show the decision tree appearing box by box along its arrows'),
     related=('chord-diagram-draw', 'waterfall-build', 'sankey-flow', 'connector-network', 'flow-map-lines',
              'streamgraph-flow'),
-    api=('videobuilder.techniques.broadcast.flowchart_build.draw_flowchart',
-         'videobuilder.techniques.broadcast.flowchart_build.schedule',
-         'videobuilder.techniques.broadcast.flowchart_build.Node',
-         'videobuilder.techniques.broadcast.flowchart_build.Edge',
+    api=('videobuilder.capabilities.broadcast.flowchart_build.draw_flowchart',
+         'videobuilder.capabilities.broadcast.flowchart_build.schedule',
+         'videobuilder.capabilities.broadcast.flowchart_build.Node',
+         'videobuilder.capabilities.broadcast.flowchart_build.Edge',
          'videobuilder.paths.reveal'),
     demo=lambda: demo.film(draw),
 )

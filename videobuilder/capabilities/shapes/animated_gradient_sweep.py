@@ -6,7 +6,7 @@ import cairo
 
 from .. import _demo as demo
 from ...canvas import rgba
-from ..schema import Technique
+from ..schema import Capability
 
 SWEEP_COLORS = ('#ef5b4c', '#f2a65a', '#4fc3b0', '#6c63ff')
 
@@ -42,7 +42,7 @@ def draw(n, cv):
     cv.mark('panel', x, y, w, h)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='animated-gradient-sweep',
     name='Animated gradient sweep',
     family='shapes',
@@ -55,6 +55,6 @@ TECHNIQUE = Technique(
                'shift the colours of the fill sideways over time'),
     related=('gradient-shift-button', 'gradient-sweep-across-text', 'swirl', 'gradient-border-spin',
              'isolines-contour-animation', 'aurora-gradient-background'),
-    api=('videobuilder.techniques.shapes.animated_gradient_sweep.gradient_sweep',),
+    api=('videobuilder.capabilities.shapes.animated_gradient_sweep.gradient_sweep',),
     demo=lambda: demo.film(draw),
 )

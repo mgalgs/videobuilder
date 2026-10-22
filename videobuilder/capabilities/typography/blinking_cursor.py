@@ -3,7 +3,7 @@ steady beat, held solid while letters are still arriving."""
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def cursor_on(t, since=0.0, period=1.0, duty=0.55, soft=0.0):
@@ -58,7 +58,7 @@ def draw(n, cv):
     cv.mark('text', x, y, w, h)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='blinking-cursor',
     name='Blinking cursor',
     family='typography',
@@ -71,7 +71,7 @@ TECHNIQUE = Technique(
                'the caret keeps pulsing on and off once the typing stops'),
     related=('cursor-follower-dot-and-ring', 'cursor-state-change', 'spotlight-hover',
              'cursor-particle-trail', 'hover-lift', 'cursor-follow-auto-zoom'),
-    api=('videobuilder.techniques.typography.blinking_cursor.draw_cursor',
-         'videobuilder.techniques.typography.blinking_cursor.cursor_on'),
+    api=('videobuilder.capabilities.typography.blinking_cursor.draw_cursor',
+         'videobuilder.capabilities.typography.blinking_cursor.cursor_on'),
     demo=lambda: demo.film(draw),
 )

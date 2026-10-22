@@ -7,7 +7,7 @@ import math
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def rubber_band_snap(t, pull=1.0, hold=0.15, ratio=0.25, hz=2.2):
@@ -45,7 +45,7 @@ def draw(n, cv):
     cv.mark('ball', bx - 30, by - 30, 60, 60)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='rubber-band-snap',
     name='Rubber Band Snap',
     family='principles',
@@ -58,7 +58,7 @@ TECHNIQUE = Technique(
                'drag it away and have it spring back past where it started'),
     related=('elastic-stretch', 'rubber-band-overscroll', 'elastic-ease-out', 'squash-on-tap',
              'elastic-ease-in', 'elastic-horizontal-squash'),
-    api=('videobuilder.techniques.principles.rubber_band_snap.rubber_band_snap', 'videobuilder.spring',
+    api=('videobuilder.capabilities.principles.rubber_band_snap.rubber_band_snap', 'videobuilder.spring',
          'videobuilder.damped'),
     demo=lambda: demo.film(draw),
 )

@@ -8,7 +8,7 @@ from PIL import Image, ImageChops, ImageFilter, ImageOps
 
 from ...looks import fx
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 @lru_cache(maxsize=4)
@@ -104,7 +104,7 @@ def _draw(n, cv):
         _night_scene(cv, t)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='night-vision',
     name='Night vision',
     family='vfx',
@@ -117,8 +117,8 @@ TECHNIQUE = Technique(
                'turn this dark shot into that glowing green surveillance look'),
     related=('spotlight-dim', 'day-night-cycle', 'chroma-key', 'vignette', 'matcap-shading',
              'photographic-negative'),
-    api=('videobuilder.techniques.vfx.night_vision.night_vision',
-         'videobuilder.techniques.vfx.night_vision.NIGHT_VISION',
+    api=('videobuilder.capabilities.vfx.night_vision.night_vision',
+         'videobuilder.capabilities.vfx.night_vision.NIGHT_VISION',
          'videobuilder.looks.fx.apply'),
     demo=lambda: demo.film(_draw),
 )

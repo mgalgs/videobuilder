@@ -6,7 +6,7 @@ import math
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def lissajous(cx, cy, rx, ry, fx=3, fy=2, phase=math.pi / 2, p=1.0, turns=1.0, damping=0.0, samples=720):
@@ -62,7 +62,7 @@ def draw(n, cv):
     draw_lissajous_trace(cv, demo.W / 2 + 35, demo.H / 2 + 25, 250, 185, p)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='lissajous-figure-trace',
     name='Lissajous figure trace',
     family='shapes',
@@ -76,7 +76,7 @@ TECHNIQUE = Technique(
                'show a harmonograph-style curve drawing itself'),
     related=('map-route-draw', 'rotoscope-look', 'bezier-handle-bend', 'parallel-coordinates-draw',
              'scroll-drawn-svg-path', 'cycle-diagram-rotation'),
-    api=('videobuilder.techniques.shapes.lissajous_figure_trace.draw_lissajous_trace',
-         'videobuilder.techniques.shapes.lissajous_figure_trace.lissajous'),
+    api=('videobuilder.capabilities.shapes.lissajous_figure_trace.draw_lissajous_trace',
+         'videobuilder.capabilities.shapes.lissajous_figure_trace.lissajous'),
     demo=lambda: demo.film(draw),
 )

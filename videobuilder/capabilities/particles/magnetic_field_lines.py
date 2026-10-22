@@ -7,7 +7,7 @@ import videobuilder as vb
 
 from .. import _demo as demo
 from ...compendium import kit
-from ..schema import Technique
+from ..schema import Capability
 
 
 def _field(x, y, north, south):
@@ -130,7 +130,7 @@ def draw(n, cv):
         cv.mark(label, x - 17, y - 17, 34, 34)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='magnetic-field-lines',
     name='Magnetic field lines',
     family='particles',
@@ -143,7 +143,7 @@ TECHNIQUE = Technique(
                'animate a magnetic field arcing from one pole to the other'),
     related=('sparkline-draw', 'speed-lines', 'line-weave', 'line-chart-draw-on', 'flow-map-lines',
              'virtual-first-down-line'),
-    api=('videobuilder.techniques.particles.magnetic_field_lines.dipole_field_lines',
-         'videobuilder.techniques.particles.magnetic_field_lines.draw_field_lines'),
+    api=('videobuilder.capabilities.particles.magnetic_field_lines.dipole_field_lines',
+         'videobuilder.capabilities.particles.magnetic_field_lines.draw_field_lines'),
     demo=lambda: demo.film(draw),
 )

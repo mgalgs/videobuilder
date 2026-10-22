@@ -4,7 +4,7 @@ next word in the list."""
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 from ...type.typewriter import schedule
 
 
@@ -80,7 +80,7 @@ def draw(n, cv):
     cv.mark('text', *box)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='typed-word-rotator',
     name='Typed word rotator',
     family='typography',
@@ -93,7 +93,7 @@ TECHNIQUE = Technique(
                'a headline where the final word cycles through options like someone is typing them'),
     related=('word-carousel-rotate', 'headline-rotator', 'word-flip-in', 'twirl-warp-text',
              'scroll-driven-text-reveal', 'letter-roll'),
-    api=('videobuilder.techniques.typography.typed_word_rotator.draw_typed_rotator',
-         'videobuilder.techniques.typography.typed_word_rotator.rotate_typed'),
+    api=('videobuilder.capabilities.typography.typed_word_rotator.draw_typed_rotator',
+         'videobuilder.capabilities.typography.typed_word_rotator.rotate_typed'),
     demo=lambda: demo.film(draw),
 )

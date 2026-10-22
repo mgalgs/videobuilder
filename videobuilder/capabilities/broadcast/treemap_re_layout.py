@@ -4,7 +4,7 @@ repacks to the new numbers."""
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def treemap_layout(values, x, y, w, h, gap=0):
@@ -83,7 +83,7 @@ def draw(n, cv):
     cv.rect(PANEL[0], PANEL[1] + PANEL[3] + 22, PANEL[2] * run, 3, demo.ACCENT)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='treemap-re-layout',
     name='Treemap re-layout',
     family='broadcast',
@@ -96,7 +96,7 @@ TECHNIQUE = Technique(
                'show the market-share boxes reshuffling smoothly to next quarter\'s figures'),
     related=('recursive-tree', 'org-chart-grow', 'decision-tree-branch-growth',
              'recursive-rectangle-subdivision', 'tangram-rearrangement', 'grid-reflow-shuffle'),
-    api=('videobuilder.techniques.broadcast.treemap_re_layout.treemap_relayout',
-         'videobuilder.techniques.broadcast.treemap_re_layout.treemap_layout'),
+    api=('videobuilder.capabilities.broadcast.treemap_re_layout.treemap_relayout',
+         'videobuilder.capabilities.broadcast.treemap_re_layout.treemap_layout'),
     demo=lambda: demo.film(draw),
 )

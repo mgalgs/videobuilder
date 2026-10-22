@@ -8,7 +8,7 @@ import cairo
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 SHADOW = (0.24, 0.17, 0.13)     # what pure black fades up to: a dusty brown
 PAPER = (0.96, 0.90, 0.78)      # what pure white sinks to: aged cream
@@ -63,7 +63,7 @@ def _draw(n, cv):
     faded_print(cv, vb.ease_in_out_quart(demo.phase(n, 0.6, 2.0)), seed=n % 6)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='faded-print-look',
     name='Faded print look',
     family='vfx',
@@ -76,6 +76,6 @@ TECHNIQUE = Technique(
                'lift the blacks and warm it up so it looks sun-bleached'),
     related=('dip-to-black', 'crumple', 'gradient-wipe', 'screen-blend', 'multiply-blend',
              'per-character-fade-in'),
-    api=('videobuilder.techniques.vfx.faded_print_look.faded_print',),
+    api=('videobuilder.capabilities.vfx.faded_print_look.faded_print',),
     demo=lambda: demo.film(_draw),
 )

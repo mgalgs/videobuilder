@@ -4,7 +4,7 @@ into it from below, looping through a list."""
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def carousel(words, t, hold=0.6, swap=0.35, ease=vb.ease_in_out_quart):
@@ -62,7 +62,7 @@ def draw(n, cv):
     cv.mark('word', *box)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='word-carousel-rotate',
     name='Word carousel rotate',
     family='typography',
@@ -75,7 +75,7 @@ TECHNIQUE = Technique(
                'rotate through several words in the same spot'),
     related=('word-flip-in', 'typed-word-rotator', 'carousel-slide', 'headline-rotator', 'twirl-warp-text',
              'character-slide-in'),
-    api=('videobuilder.techniques.typography.word_carousel_rotate.draw_carousel',
-         'videobuilder.techniques.typography.word_carousel_rotate.carousel'),
+    api=('videobuilder.capabilities.typography.word_carousel_rotate.draw_carousel',
+         'videobuilder.capabilities.typography.word_carousel_rotate.carousel'),
     demo=lambda: demo.film(draw),
 )

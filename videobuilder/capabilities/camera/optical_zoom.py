@@ -5,7 +5,7 @@ the parallax a camera move would add."""
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def optical_zoom_scale(p, start_mm=24.0, end_mm=70.0):
@@ -97,7 +97,7 @@ def _draw(n, cv):
     _viewfinder(cv, focal_length(p), p)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='optical-zoom',
     name='Optical zoom',
     family='camera',
@@ -110,8 +110,8 @@ TECHNIQUE = Technique(
                'slowly zoom in from where the camera stands'),
     related=('focus-breathing', 'dolly-zoom', 'zoom-to-detail-magnifier', 'canvas-pan-and-zoom',
              'ui-walkthrough-camera-zoom', 'infinite-zoom-tunnel'),
-    api=('videobuilder.techniques.camera.optical_zoom.optical_zoom',
-         'videobuilder.techniques.camera.optical_zoom.optical_zoom_scale',
-         'videobuilder.techniques.camera.optical_zoom.focal_length'),
+    api=('videobuilder.capabilities.camera.optical_zoom.optical_zoom',
+         'videobuilder.capabilities.camera.optical_zoom.optical_zoom_scale',
+         'videobuilder.capabilities.camera.optical_zoom.focal_length'),
     demo=lambda: demo.film(_draw),
 )

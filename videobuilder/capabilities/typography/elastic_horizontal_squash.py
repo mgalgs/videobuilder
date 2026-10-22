@@ -6,7 +6,7 @@ import math
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def squash(t, amp=0.45, hz=2.2, decay=2.6):
@@ -57,7 +57,7 @@ def draw(n, cv):
     cv.mark('text', *box)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='elastic-horizontal-squash',
     name='Elastic horizontal squash',
     family='typography',
@@ -70,8 +70,8 @@ TECHNIQUE = Technique(
                'each letter wobbles fat then thin, like jelly'),
     related=('squash-and-stretch', 'squash-on-tap', 'elastic-stretch', 'rubber-band-overscroll',
              'rubber-band-snap', 'elastic-ease-out'),
-    api=('videobuilder.techniques.typography.elastic_horizontal_squash.draw_squash',
-         'videobuilder.techniques.typography.elastic_horizontal_squash.squash',
-         'videobuilder.techniques.typography.elastic_horizontal_squash.squash_scale'),
+    api=('videobuilder.capabilities.typography.elastic_horizontal_squash.draw_squash',
+         'videobuilder.capabilities.typography.elastic_horizontal_squash.squash',
+         'videobuilder.capabilities.typography.elastic_horizontal_squash.squash_scale'),
     demo=lambda: demo.film(draw),
 )

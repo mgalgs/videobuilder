@@ -9,7 +9,7 @@ import math
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 DUCK_DB = -16
 FG_START, FG_FRAMES = 27, 42                 # the foreground: frames 27..69 (0.9 s to 2.3 s)
@@ -94,7 +94,7 @@ def film():
     return demo.film(draw, audio=bed, sounds=dings + voice)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='ducking',
     name='Ducking',
     family='sound',

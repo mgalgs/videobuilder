@@ -3,7 +3,7 @@ outward and thin out to nothing, like rings spreading on a pond."""
 import math
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def ripple_rings(cv, cx, cy, t, radius=420, every=0.5, life=1.6, color=demo.ACCENT, width=4,
@@ -42,7 +42,7 @@ def draw(n, cv):
     cv.mark('source', cx - 12, cy - 12, 24, 24)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='ripple-rings',
     name='Ripple rings',
     family='shapes',
@@ -55,6 +55,6 @@ TECHNIQUE = Technique(
                'circles that spread out and fade like a drop in a pond'),
     related=('refraction-ripple', 'ripple', 'height-field-ripples', 'location-ripple-pulse',
              'rotating-rings', 'ripple-displacement'),
-    api=('videobuilder.techniques.shapes.ripple_rings.ripple_rings',),
+    api=('videobuilder.capabilities.shapes.ripple_rings.ripple_rings',),
     demo=lambda: demo.film(draw),
 )

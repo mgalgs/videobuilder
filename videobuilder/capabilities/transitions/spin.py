@@ -6,7 +6,7 @@ import math
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def spin(cv, a, b, p, turns=1.0, depth=0.2, color=demo.BG):
@@ -33,7 +33,7 @@ def spin(cv, a, b, p, turns=1.0, depth=0.2, color=demo.BG):
     c.restore()
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='spin',
     name='Spin',
     family='transitions',
@@ -45,6 +45,6 @@ TECHNIQUE = Technique(
                'make the screen twirl round into the next scene',
                'rotate out of this clip and into the next'),
     related=('swirl', 'turntable-rotation', 'roll-up', 'globe-spin', 'gradient-border-spin', 'spin-blur'),
-    api=('videobuilder.techniques.transitions.spin.spin',),
+    api=('videobuilder.capabilities.transitions.spin.spin',),
     demo=lambda: demo.two_scenes(spin),
 )

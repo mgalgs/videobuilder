@@ -11,7 +11,7 @@ from gi.repository import PangoCairo
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 from ... import paths, text
 
 
@@ -150,7 +150,7 @@ def draw(n, cv):
     cv.mark('text', *box)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='liquid-melt',
     name='Liquid melt',
     family='typography',
@@ -163,8 +163,8 @@ TECHNIQUE = Technique(
                'have the text turn to liquid and ooze downwards'),
     related=('color-fill-rise', 'type-explosion', 'drip-wipe', 'liquid-button', 'jitter-and-boil-text',
              'line-boil'),
-    api=('videobuilder.techniques.typography.liquid_melt.draw_melt',
-         'videobuilder.techniques.typography.liquid_melt.melt',
-         'videobuilder.techniques.typography.liquid_melt.drips'),
+    api=('videobuilder.capabilities.typography.liquid_melt.draw_melt',
+         'videobuilder.capabilities.typography.liquid_melt.melt',
+         'videobuilder.capabilities.typography.liquid_melt.drips'),
     demo=lambda: demo.film(draw),
 )

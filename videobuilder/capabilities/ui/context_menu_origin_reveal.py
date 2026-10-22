@@ -6,7 +6,7 @@ with it."""
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 PANEL, HOVER, RULE = '#23252d', '#ef5b4c', '#33363f'
 
@@ -117,7 +117,7 @@ def draw(n, cv):
     cv.mark('pointer', px, py, 19, 30)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='context-menu-origin-reveal',
     name='Context menu origin reveal',
     family='ui',
@@ -130,7 +130,7 @@ TECHNIQUE = Technique(
                'animate the menu scaling open from the click point'),
     related=('hamburger-to-x', 'plus-to-close-rotate', 'device-mockup-slide-in', 'hover-lift', 'zoom-out-reveal',
              'corner-wipe'),
-    api=('videobuilder.techniques.ui.context_menu_origin_reveal.draw_context_menu',
-         'videobuilder.techniques.ui.context_menu_origin_reveal.menu_placement'),
+    api=('videobuilder.capabilities.ui.context_menu_origin_reveal.draw_context_menu',
+         'videobuilder.capabilities.ui.context_menu_origin_reveal.menu_placement'),
     demo=lambda: demo.film(draw),
 )

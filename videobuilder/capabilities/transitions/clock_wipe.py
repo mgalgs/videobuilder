@@ -5,7 +5,7 @@ import math
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 SWEEP = vb.ease.bezier(0.45, 0, 0.55, 1)  # gentle in and out: the hand starts, travels, settles
 
@@ -46,7 +46,7 @@ def clock_wipe(cv, a, b, p, cx=None, cy=None, start=-math.pi / 2, clockwise=True
         cv.line(cx, cy, cx + r * math.cos(hand), cy + r * math.sin(hand), edge, width=edge_width)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='clock-wipe',
     name='Clock wipe',
     family='transitions',
@@ -58,6 +58,6 @@ TECHNIQUE = Technique(
                'a radial reveal that spins around the middle of the screen',
                'turn a line around the centre to uncover the new scene'),
     related=('wipe-reveal', 'spin', 'area-fill-sweep', 'fill-sweep-button', 'circular-clip-reveal', 'coin-flip'),
-    api=('videobuilder.techniques.transitions.clock_wipe.clock_wipe',),
+    api=('videobuilder.capabilities.transitions.clock_wipe.clock_wipe',),
     demo=lambda: demo.two_scenes(clock_wipe),
 )

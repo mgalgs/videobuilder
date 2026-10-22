@@ -6,7 +6,7 @@ import cairo
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 STOPS = ('#f2c14e', '#ef5b4c', '#8b7cf6', '#4fc3b0')
 
@@ -43,7 +43,7 @@ def draw(n, cv):
     cv.mark('text', *box)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='gradient-sweep-across-text',
     name='Gradient sweep across text',
     family='typography',
@@ -56,6 +56,6 @@ TECHNIQUE = Technique(
                'colour washes over the letters one after another and fades back to white'),
     related=('animated-gradient-sweep', 'gradient-wipe', 'sheen-sweep', 'gradient-mesh-drift',
              'gradient-border-spin', 'twirl-warp-text'),
-    api=('videobuilder.techniques.typography.gradient_sweep_across_text.draw_gradient_sweep',),
+    api=('videobuilder.capabilities.typography.gradient_sweep_across_text.draw_gradient_sweep',),
     demo=lambda: demo.film(draw),
 )

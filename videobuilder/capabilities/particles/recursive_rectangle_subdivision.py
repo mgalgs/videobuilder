@@ -6,7 +6,7 @@ import random
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 COLOURS = ('#e9e6df', demo.ACCENT, '#f2b45a', '#3a7bd5', demo.TEAL, '#e9e6df', '#2e3240')
 
@@ -83,7 +83,7 @@ def draw(n, cv):
     cv.mark('panel', x, y, w, h)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='recursive-rectangle-subdivision',
     name='Recursive rectangle subdivision',
     family='particles',
@@ -96,7 +96,7 @@ TECHNIQUE = Technique(
                'split the panel at random, then split the halves again'),
     related=('polygon-subdivision', 'recursive-tree', 'shape-stacking-drop', 'diffusion-limited-aggregation',
              'koch-snowflake', 'bauhaus-geometric-shuffle'),
-    api=('videobuilder.techniques.particles.recursive_rectangle_subdivision.draw_rect_subdivision',
-         'videobuilder.techniques.particles.recursive_rectangle_subdivision.subdivide'),
+    api=('videobuilder.capabilities.particles.recursive_rectangle_subdivision.draw_rect_subdivision',
+         'videobuilder.capabilities.particles.recursive_rectangle_subdivision.subdivide'),
     demo=lambda: demo.film(draw),
 )

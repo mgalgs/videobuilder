@@ -5,7 +5,7 @@ import math
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def ease_in_circ(x):
@@ -50,7 +50,7 @@ def draw(n, cv):
     demo.dot(cv, *_graph_point(t), 8)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='ease-in-circ',
     name='Ease In Circ',
     family='principles',
@@ -63,6 +63,6 @@ TECHNIQUE = Technique(
                'a slow wind-up that suddenly whips away'),
     related=('arcs', 'slow-in-and-slow-out', 'progress-ring', 'bend-deformer', 'pie-sweep',
              'smooth-scroll-inertia'),
-    api=('videobuilder.techniques.principles.ease_in_circ.ease_in_circ',),
+    api=('videobuilder.capabilities.principles.ease_in_circ.ease_in_circ',),
     demo=lambda: demo.film(draw),
 )

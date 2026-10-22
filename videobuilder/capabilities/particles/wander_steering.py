@@ -9,7 +9,7 @@ import random
 from videobuilder.canvas import rgba
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def wander(steps, seed=0, start=(0.0, 0.0), heading=0.0, speed=6.0, distance=60.0, radius=30.0,
@@ -105,7 +105,7 @@ def draw(n, cv):
         draw_agent(cv, x, y, h, size=30 if lead else 22, color=color)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='wander-steering',
     name='Wander steering',
     family='particles',
@@ -118,7 +118,7 @@ TECHNIQUE = Technique(
                'agents that roam with gentle random turns instead of jittering'),
     related=('random-walk', 'arcs', 'path-emitter', 'path-follow-motion', 'wiggle-path',
              'rossler-attractor'),
-    api=('videobuilder.techniques.particles.wander_steering.wander',
-         'videobuilder.techniques.particles.wander_steering.draw_agent'),
+    api=('videobuilder.capabilities.particles.wander_steering.wander',
+         'videobuilder.capabilities.particles.wander_steering.draw_agent'),
     demo=lambda: demo.film(draw),
 )

@@ -6,7 +6,7 @@ import math
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def wave(text, font, t, amplitude=None, wavelength=None, period=1.5, tilt=0.4):
@@ -56,7 +56,7 @@ def draw(n, cv):
     cv.mark('text', *box)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='sine-wave-text',
     name='Sine wave text',
     family='typography',
@@ -69,7 +69,7 @@ TECHNIQUE = Technique(
                'wavy text that undulates across the word'),
     related=('sine-wave-distortion', 'wave-stagger', 'oscillation', 'wave-deformer', 'ripple-displacement',
              'text-on-a-path'),
-    api=('videobuilder.techniques.typography.sine_wave_text.draw_wave_text',
-         'videobuilder.techniques.typography.sine_wave_text.wave'),
+    api=('videobuilder.capabilities.typography.sine_wave_text.draw_wave_text',
+         'videobuilder.capabilities.typography.sine_wave_text.wave'),
     demo=lambda: demo.film(draw),
 )

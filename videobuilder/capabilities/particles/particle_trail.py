@@ -5,7 +5,7 @@ import random
 
 from ...compendium import kit
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def trail_particles(path, t, rate=90, life=0.9, spread=70, drag=0.6, gravity=0.0, seed=0):
@@ -74,7 +74,7 @@ def draw(n, cv):
                         rate=110, life=1.1, spread=70, gravity=40, seed=3)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='particle-trail',
     name='Particle trail',
     family='particles',
@@ -87,7 +87,7 @@ TECHNIQUE = Technique(
                'a comet-like tail of glitter following the path'),
     related=('cursor-particle-trail', 'echo-trail-type', 'particle-morph', 'orbit-loader',
              'player-movement-trail', 'lightning-bolt'),
-    api=('videobuilder.techniques.particles.particle_trail.draw_particle_trail',
-         'videobuilder.techniques.particles.particle_trail.trail_particles'),
+    api=('videobuilder.capabilities.particles.particle_trail.draw_particle_trail',
+         'videobuilder.capabilities.particles.particle_trail.trail_particles'),
     demo=lambda: demo.film(draw),
 )

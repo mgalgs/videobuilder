@@ -8,7 +8,7 @@ import cairo
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def accordion_fold(cv, a, b, p, pleats=8, axis='x', shade=0.7, depth=0.14, ease=vb.bezier(0.6, 0, 0.4, 1)):
@@ -82,7 +82,7 @@ def accordion_fold(cv, a, b, p, pleats=8, axis='x', shade=0.7, depth=0.14, ease=
             ctx.restore()
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='accordion-fold',
     name='Accordion fold',
     family='transitions',
@@ -95,6 +95,6 @@ TECHNIQUE = Technique(
                'squash the scene into zigzag folds and reveal what is behind'),
     related=('accordion-fold-text', 'paper-fold-reveal', 'accordion-height-expand', 'zigzag-wipe', 'corner-wipe',
              'word-flip-in'),
-    api=('videobuilder.techniques.transitions.accordion_fold.accordion_fold',),
+    api=('videobuilder.capabilities.transitions.accordion_fold.accordion_fold',),
     demo=lambda: demo.two_scenes(accordion_fold, start=0.7, length=1.6),
 )

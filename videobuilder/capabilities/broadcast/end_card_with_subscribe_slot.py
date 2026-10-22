@@ -6,7 +6,7 @@ import math
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def end_card_slots(box, header=90, gap=16, link=56, split=0.64):
@@ -134,7 +134,7 @@ def draw(n, cv):
                    demo.ACCENT, width=2.5, radius=bh / 2 + g, alpha=1 - q)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='end-card-with-subscribe-slot',
     name='End card with subscribe slot',
     family='broadcast',
@@ -147,8 +147,8 @@ TECHNIQUE = Technique(
                'lay out the closing slots for a recommended video and a subscribe prompt'),
     related=('stacked-card-reveal', 'sticky-card-stack-on-scroll', 'title-card-reveal',
              'broadcast-title-card-stinger', 'card-deck-fan', 'swipe-to-dismiss'),
-    api=('videobuilder.techniques.broadcast.end_card_with_subscribe_slot.draw_end_card',
-         'videobuilder.techniques.broadcast.end_card_with_subscribe_slot.end_card_slots',
-         'videobuilder.techniques.broadcast.end_card_with_subscribe_slot.slot_reveal'),
+    api=('videobuilder.capabilities.broadcast.end_card_with_subscribe_slot.draw_end_card',
+         'videobuilder.capabilities.broadcast.end_card_with_subscribe_slot.end_card_slots',
+         'videobuilder.capabilities.broadcast.end_card_with_subscribe_slot.slot_reveal'),
     demo=lambda: demo.film(draw),
 )

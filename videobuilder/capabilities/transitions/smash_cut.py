@@ -6,7 +6,7 @@ import math
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def smash_cut(cv, a, b, p, at=0.15, punch=0.08, settle=0.5):
@@ -51,7 +51,7 @@ def _draw(n, cv):
     smash_cut(cv, lambda c: _quiet(c, t), _loud, p, at=0.125)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='smash-cut',
     name='Smash cut',
     family='transitions',
@@ -63,6 +63,6 @@ TECHNIQUE = Technique(
                'abruptly cut to a totally different shot for shock value',
                'no fade, just slam into the next scene'),
     related=('zoom-blur', 'strobe-cut', 'punch-in', 'impact-hit', 'impact-shake', 'silence-drop'),
-    api=('videobuilder.techniques.transitions.smash_cut.smash_cut',),
+    api=('videobuilder.capabilities.transitions.smash_cut.smash_cut',),
     demo=lambda: demo.film(_draw),
 )

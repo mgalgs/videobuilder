@@ -5,7 +5,7 @@ import math
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def _shade(color, k):
@@ -50,7 +50,7 @@ def draw(n, cv):
     cv.mark('text', *box)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='extrusion-depth-reveal',
     name='Extrusion depth reveal',
     family='typography',
@@ -63,7 +63,7 @@ TECHNIQUE = Technique(
                'extrude the headline out so it gains depth over a couple of seconds'),
     related=('extrusion', 'x-ray-view', 'text-mask-reveal', 'character-rise', 'typewriter-reveal',
              'long-shadow-growth'),
-    api=('videobuilder.techniques.typography.extrusion_depth_reveal.draw_extruded',
-         'videobuilder.techniques.typography.extrusion_depth_reveal.depth_at'),
+    api=('videobuilder.capabilities.typography.extrusion_depth_reveal.draw_extruded',
+         'videobuilder.capabilities.typography.extrusion_depth_reveal.depth_at'),
     demo=lambda: demo.film(draw),
 )

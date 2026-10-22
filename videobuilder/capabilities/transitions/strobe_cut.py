@@ -6,7 +6,7 @@ Mind photosensitive viewers: keep the flashes at most three in any one
 second (`check.py --video` counts them), i.e. a transition of `flashes`
 pulses should last more than `flashes / 3` seconds."""
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def strobe_cut(cv, a, b, p, flashes=5, decay=0.6, color='#ffffff'):
@@ -30,7 +30,7 @@ def _demo():
     return demo.two_scenes(strobe_cut, start=0.6, length=1.8)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='strobe-cut',
     name='Strobe cut',
     family='transitions',
@@ -42,6 +42,6 @@ TECHNIQUE = Technique(
                'a strobe-light transition into the next scene',
                'flash white a few times, swapping scenes on each flash'),
     related=('lightning-flash', 'smash-cut', 'cut-on-action', 'morph-cut', 'whip-pan', 'zoom-blur'),
-    api=('videobuilder.techniques.transitions.strobe_cut.strobe_cut',),
+    api=('videobuilder.capabilities.transitions.strobe_cut.strobe_cut',),
     demo=_demo,
 )

@@ -8,7 +8,7 @@ import random
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def jitter_offsets(t, rows, amount=1.0, shift=18.0, seed=0, rate=24, wave=0.6, grain=0.4):
@@ -82,7 +82,7 @@ def draw(n, cv):
     scanline_jitter(cv, _scene, t, _unsteady(t), line=6, shift=34, seed=11)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='scanline-jitter',
     name='Scanline jitter',
     family='vfx',
@@ -95,7 +95,7 @@ TECHNIQUE = Technique(
                'shaky horizontal lines, as if the TV can\'t hold the picture steady'),
     related=('scanline-tear', 'vhs-tracking-bar', 'tape-wobble', 'glitch-transition', 'speed-lines',
              'wiggle-path'),
-    api=('videobuilder.techniques.vfx.scanline_jitter.scanline_jitter',
-         'videobuilder.techniques.vfx.scanline_jitter.jitter_offsets'),
+    api=('videobuilder.capabilities.vfx.scanline_jitter.scanline_jitter',
+         'videobuilder.capabilities.vfx.scanline_jitter.jitter_offsets'),
     demo=lambda: demo.film(draw),
 )

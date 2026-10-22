@@ -7,7 +7,7 @@ import videobuilder as vb
 from videobuilder.canvas import rgba
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def icosahedron(r=1.0):
@@ -124,7 +124,7 @@ def draw(n, cv):
     cv.mark('model', *box)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='wireframe-reveal',
     name='Wireframe reveal',
     family='camera',
@@ -137,7 +137,7 @@ TECHNIQUE = Technique(
                'start with a wireframe and turn it into the real object'),
     related=('line-draw-logo-reveal', 'logo-build-on-reveal', 'zoom-out-reveal', 'text-reveal-through-shape-mask',
              'curtain-reveal', 'device-mockup-slide-in'),
-    api=('videobuilder.techniques.camera.wireframe_reveal.wireframe_reveal',
-         'videobuilder.techniques.camera.wireframe_reveal.icosahedron'),
+    api=('videobuilder.capabilities.camera.wireframe_reveal.wireframe_reveal',
+         'videobuilder.capabilities.camera.wireframe_reveal.icosahedron'),
     demo=lambda: demo.film(draw),
 )

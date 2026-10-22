@@ -8,7 +8,7 @@ from PIL import Image as PILImage, ImageDraw
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 # (a, b, c, d, e, f, weight): x' = a x + b y + e, y' = c x + d y + f. In order:
 # the stem, the ever-smaller copy of the whole frond, the left and right leaflets.
@@ -84,7 +84,7 @@ def draw(n, cv):
     cv.mark('fern', *box)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='barnsley-fern',
     name='Barnsley fern',
     family='particles',
@@ -97,7 +97,7 @@ TECHNIQUE = Technique(
                'grow a leaf out of scattered particles that settle into a fern shape'),
     related=('l-system-plant', 'recursive-tree', 'diffusion-limited-aggregation', 'voronoi-relaxation',
              'falling-leaves', 'domino-toppling'),
-    api=('videobuilder.techniques.particles.barnsley_fern.draw_fern',
-         'videobuilder.techniques.particles.barnsley_fern.fern_points'),
+    api=('videobuilder.capabilities.particles.barnsley_fern.draw_fern',
+         'videobuilder.capabilities.particles.barnsley_fern.fern_points'),
     demo=lambda: demo.film(draw),
 )

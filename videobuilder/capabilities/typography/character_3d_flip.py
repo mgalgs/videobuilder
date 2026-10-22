@@ -6,7 +6,7 @@ import math
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def flip_angles(count, p, stagger=0.55, ease=vb.ease_in_out_quart):
@@ -63,7 +63,7 @@ def draw(n, cv):
     cv.mark('text', *box)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='character-3d-flip',
     name='Character 3D flip',
     family='typography',
@@ -75,7 +75,7 @@ TECHNIQUE = Technique(
                'the characters spin around like cards and come back as different letters',
                'a ripple of letters turning over in 3D across the title'),
     related=('flip', 'logo-3d-spin-reveal', 'character-rotate-in', 'word-flip-in', 'tile-flip', 'coin-flip'),
-    api=('videobuilder.techniques.typography.character_3d_flip.draw_char_flip',
-         'videobuilder.techniques.typography.character_3d_flip.flip_angles'),
+    api=('videobuilder.capabilities.typography.character_3d_flip.draw_char_flip',
+         'videobuilder.capabilities.typography.character_3d_flip.flip_angles'),
     demo=lambda: demo.film(draw),
 )

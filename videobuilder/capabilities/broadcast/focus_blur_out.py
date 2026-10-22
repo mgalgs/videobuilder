@@ -8,7 +8,7 @@ import cairo
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 from ...type.kit import blurred
 
 
@@ -91,7 +91,7 @@ def draw(n, cv):
     cv.mark('focus', *FOCUS)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='focus-blur-out',
     name='Focus blur-out',
     family='broadcast',
@@ -104,6 +104,6 @@ TECHNIQUE = Technique(
                'defocus the background to point at that part of the shot'),
     related=('depth-of-field', 'focus-breathing', 'rack-focus', 'gaussian-blur', 'focus-ring-draw',
              'character-blur-in'),
-    api=('videobuilder.techniques.broadcast.focus_blur_out.focus_blur_out', 'videobuilder.type.kit.blurred'),
+    api=('videobuilder.capabilities.broadcast.focus_blur_out.focus_blur_out', 'videobuilder.type.kit.blurred'),
     demo=lambda: demo.film(draw),
 )

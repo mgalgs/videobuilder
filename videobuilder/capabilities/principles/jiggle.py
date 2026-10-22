@@ -3,7 +3,7 @@ dying away within a fraction of a second -- a nudge rather than a move."""
 import math
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def jiggle(t, amount=1.0, hz=9.0, decay=6.0):
@@ -36,7 +36,7 @@ def draw(n, cv):
     cv.ctx.restore()
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='jiggle',
     name='Jiggle',
     family='principles',
@@ -49,6 +49,6 @@ TECHNIQUE = Technique(
                'a fast wobble that dies away right away'),
     related=('wiggle-path', 'handheld-shake', 'jitter-and-boil-text', 'tape-wobble', 'scanline-jitter',
              'icon-hover-bounce'),
-    api=('videobuilder.techniques.principles.jiggle.jiggle',),
+    api=('videobuilder.capabilities.principles.jiggle.jiggle',),
     demo=lambda: demo.film(draw),
 )

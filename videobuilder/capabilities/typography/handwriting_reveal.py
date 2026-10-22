@@ -13,7 +13,7 @@ import cairo
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def smooth(points, steps=12):
@@ -105,7 +105,7 @@ def draw(n, cv):
     cv.mark('word', demo.W / 2 - 2.9 * size, demo.H / 2 - 1.5 * size, 5.8 * size, 2.6 * size)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='handwriting-reveal',
     name='Handwriting reveal',
     family='typography',
@@ -118,8 +118,8 @@ TECHNIQUE = Technique(
                'the cursive word writes itself onto the screen'),
     related=('brush-stroke-paint-reveal', 'text-mask-reveal', 'ink-spread-reveal', 'typewriter-reveal',
              'wipe-reveal', 'line-draw-logo-reveal'),
-    api=('videobuilder.techniques.typography.handwriting_reveal.write_on',
-         'videobuilder.techniques.typography.handwriting_reveal.smooth',
+    api=('videobuilder.capabilities.typography.handwriting_reveal.write_on',
+         'videobuilder.capabilities.typography.handwriting_reveal.smooth',
          'videobuilder.paths.reveal'),
     demo=lambda: demo.film(draw),
 )

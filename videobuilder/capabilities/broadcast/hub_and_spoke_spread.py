@@ -6,7 +6,7 @@ import math
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def spoke_positions(cx, cy, count, rx, ry=None, start=-90.0):
@@ -86,7 +86,7 @@ def draw(n, cv):
     cv.mark('hub', *box)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='hub-and-spoke-spread',
     name='Hub-and-spoke spread',
     family='broadcast',
@@ -99,8 +99,8 @@ TECHNIQUE = Technique(
                'animate a radial diagram where the items burst out from the middle'),
     related=('radar-chart-fill', 'force-directed-network-settle', 'connector-network', 'circle-packing',
              'avatar-stack-spread', 'sunburst-build'),
-    api=('videobuilder.techniques.broadcast.hub_and_spoke_spread.draw_hub_and_spoke',
-         'videobuilder.techniques.broadcast.hub_and_spoke_spread.spoke_positions',
-         'videobuilder.techniques.broadcast.hub_and_spoke_spread.spread_timing'),
+    api=('videobuilder.capabilities.broadcast.hub_and_spoke_spread.draw_hub_and_spoke',
+         'videobuilder.capabilities.broadcast.hub_and_spoke_spread.spoke_positions',
+         'videobuilder.capabilities.broadcast.hub_and_spoke_spread.spread_timing'),
     demo=lambda: demo.film(draw),
 )

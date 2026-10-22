@@ -9,7 +9,7 @@ import videobuilder as vb
 
 from .. import _demo as demo
 from ..particles.wireframe_terrain import wireframe_terrain
-from ..schema import Technique
+from ..schema import Capability
 
 SUN_TOP, SUN_BOTTOM = '#ffe95c', '#ff2a7a'
 SKY_TOP, SKY_HORIZON = '#12062b', '#7a1f6e'
@@ -99,7 +99,7 @@ def draw(n, cv):
     cv.mark('sun', demo.W / 2 - r, horizon - r, 2 * r, r)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='synthwave-sun',
     name='Synthwave sun',
     family='vfx',
@@ -112,7 +112,7 @@ TECHNIQUE = Technique(
                'a vaporwave sun sliced into bars on the horizon'),
     related=('day-night-cycle', 'meteor-shower', 'sunburst-build', 'aurora-gradient-background',
              'solarization', 'lens-flare'),
-    api=('videobuilder.techniques.vfx.synthwave_sun.synthwave_sun',
-         'videobuilder.techniques.vfx.synthwave_sun.sun_bands'),
+    api=('videobuilder.capabilities.vfx.synthwave_sun.synthwave_sun',
+         'videobuilder.capabilities.vfx.synthwave_sun.sun_bands'),
     demo=lambda: demo.film(draw),
 )

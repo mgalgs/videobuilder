@@ -6,7 +6,7 @@ tuned chord, a tight hit and a sub under it, all landing on one frame.
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def button_ending(at, fps=30, chord=('G5', 'B5', 'D6'), length=0.25, tone='pro_notify/ding_2045',
@@ -87,7 +87,7 @@ def sounds():
     return phrase + button_ending(BUTTON, demo.FPS, chord=_near(tone, ('G5', 'B5', 'D6')))
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='button-ending',
     name='Button ending',
     family='sound',
@@ -100,6 +100,6 @@ TECHNIQUE = Technique(
                'finish with a final stab and then dead silence'),
     related=('border-draw-button', 'magnetic-button', 'glow-button', 'keystroke-overlay', 'liquid-button',
              'fill-sweep-button'),
-    api=('videobuilder.techniques.sound.button_ending.button_ending', 'videobuilder.sfx.sound'),
+    api=('videobuilder.capabilities.sound.button_ending.button_ending', 'videobuilder.sfx.sound'),
     demo=lambda: demo.film(draw, SECONDS, sounds=sounds()),
 )

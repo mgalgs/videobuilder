@@ -5,7 +5,7 @@ import math
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def inset_box(cv, at='bottom-right', size=0.3, margin=48):
@@ -68,7 +68,7 @@ def draw(n, cv):
     picture_in_picture(cv, _main(n), _inset(n), demo.phase(n, 0.5, 1.2), border_color=demo.ACCENT)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='picture-in-picture',
     name='Picture-in-picture',
     family='vfx',
@@ -81,7 +81,7 @@ TECHNIQUE = Technique(
                'pop a mini player up in the bottom corner'),
     related=('film-edge-frame', 'angled-lower-third', 'pan', 'shutter-wipe', 'scroll-linked-clip-reveal',
              'corner-wipe'),
-    api=('videobuilder.techniques.vfx.picture_in_picture.picture_in_picture',
-         'videobuilder.techniques.vfx.picture_in_picture.inset_box'),
+    api=('videobuilder.capabilities.vfx.picture_in_picture.picture_in_picture',
+         'videobuilder.capabilities.vfx.picture_in_picture.inset_box'),
     demo=lambda: demo.film(draw),
 )

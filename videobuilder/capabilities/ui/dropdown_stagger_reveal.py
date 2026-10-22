@@ -3,7 +3,7 @@ its items drop in one after another, each sliding a little and fading up."""
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def stagger(i, n, p, spread=0.5):
@@ -62,7 +62,7 @@ def draw(n, cv):
     draw_dropdown(cv, bx, by + 72, w, ITEMS, demo.font(24, 600), demo.phase(n, 0.5, 1.9), active=active)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='dropdown-stagger-reveal',
     name='Dropdown stagger reveal',
     family='ui',
@@ -75,7 +75,7 @@ TECHNIQUE = Technique(
                'the list unfolds under the button with each row arriving slightly later'),
     related=('staggered-cascade-reveal', 'fade-up-scroll-reveal', 'linear-stagger', 'edge-in-stagger',
              'center-out-stagger', 'hamburger-to-x'),
-    api=('videobuilder.techniques.ui.dropdown_stagger_reveal.draw_dropdown',
-         'videobuilder.techniques.ui.dropdown_stagger_reveal.stagger'),
+    api=('videobuilder.capabilities.ui.dropdown_stagger_reveal.draw_dropdown',
+         'videobuilder.capabilities.ui.dropdown_stagger_reveal.stagger'),
     demo=lambda: demo.film(draw),
 )

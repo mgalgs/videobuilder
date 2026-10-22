@@ -5,7 +5,7 @@ import videobuilder as vb
 
 from .. import _demo as demo
 from ...compendium import kit
-from ..schema import Technique
+from ..schema import Capability
 
 
 def underline_span(spans, src, dst, p, stretch=0.3, ease=vb.ease_in_out_quart):
@@ -64,7 +64,7 @@ def draw(n, cv):
     draw_tab_bar(cv, LABELS, f, x, y, src, dst, p)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='tab-underline-slide',
     name='Tab underline slide',
     family='ui',
@@ -77,7 +77,7 @@ TECHNIQUE = Technique(
                'a stretchy indicator line that follows the selected tab'),
     related=('tab-panel-slide', 'underline-wipe', 'bottom-sheet-slide-up', 'indeterminate-bar',
              'input-underline-grow', 'lower-third-slide-in-bar'),
-    api=('videobuilder.techniques.ui.tab_underline_slide.draw_tab_bar',
-         'videobuilder.techniques.ui.tab_underline_slide.underline_span'),
+    api=('videobuilder.capabilities.ui.tab_underline_slide.draw_tab_bar',
+         'videobuilder.capabilities.ui.tab_underline_slide.underline_span'),
     demo=lambda: demo.film(draw),
 )

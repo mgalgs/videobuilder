@@ -10,7 +10,7 @@ import videobuilder as vb
 
 from .. import _demo as demo
 from ...compendium import kit
-from ..schema import Technique
+from ..schema import Capability
 
 INK = '#0d0f14'
 
@@ -177,7 +177,7 @@ def draw(n, cv):
                 colors=_COLORS, width=7, crease=2.5, amount=ink)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='ink-outline',
     name='Ink outline',
     family='camera',
@@ -191,8 +191,8 @@ TECHNIQUE = Technique(
                'toon-style render with dark lines round the silhouette and the corners'),
     related=('stroke-draw-on', 'line-draw-logo-reveal', 'outline-to-fill', 'ink-bleed',
              'ink-splash-spread', 'ink-spread-reveal'),
-    api=('videobuilder.techniques.camera.ink_outline.ink_outline',
-         'videobuilder.techniques.camera.ink_outline.solid',
-         'videobuilder.techniques.camera.ink_outline.turn'),
+    api=('videobuilder.capabilities.camera.ink_outline.ink_outline',
+         'videobuilder.capabilities.camera.ink_outline.solid',
+         'videobuilder.capabilities.camera.ink_outline.turn'),
     demo=lambda: demo.film(draw),
 )

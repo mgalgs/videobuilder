@@ -7,7 +7,7 @@ from contextlib import contextmanager
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def circle(cx, cy, r, n=72):
@@ -76,7 +76,7 @@ def draw(n, cv):
     cv.mark('aperture', cx - r, cy - r, 2 * r, 2 * r)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='text-reveal-through-shape-mask',
     name='Text reveal through shape mask',
     family='typography',
@@ -90,8 +90,8 @@ TECHNIQUE = Technique(
                'a little window slides along the word and then opens up to show the whole thing'),
     related=('text-mask-reveal', 'character-rise', 'typewriter-reveal', 'wipe-reveal', 'handwriting-reveal',
              'wireframe-reveal'),
-    api=('videobuilder.techniques.typography.text_reveal_through_shape_mask.draw_text_through_shape',
-         'videobuilder.techniques.typography.text_reveal_through_shape_mask.through_shape',
-         'videobuilder.techniques.typography.text_reveal_through_shape_mask.circle'),
+    api=('videobuilder.capabilities.typography.text_reveal_through_shape_mask.draw_text_through_shape',
+         'videobuilder.capabilities.typography.text_reveal_through_shape_mask.through_shape',
+         'videobuilder.capabilities.typography.text_reveal_through_shape_mask.circle'),
     demo=lambda: demo.film(draw),
 )

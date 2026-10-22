@@ -9,7 +9,7 @@ import videobuilder as vb
 from videobuilder.beats import BeatGrid
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def beat_shot(n, grid, every=1):
@@ -127,7 +127,7 @@ def demo_film():
     return demo.film(draw, sounds=kicks + hats)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='cut-to-the-beat',
     name='Cut to the beat',
     family='sound',
@@ -139,9 +139,9 @@ TECHNIQUE = Technique(
                'sync the edits to the drum hits',
                'cut on every beat of the song'),
     related=('cut-on-action', 'jump-cut', 'reverse-motion-cut', 'match-cut', 'timing', 'follow-through'),
-    api=('videobuilder.techniques.sound.cut_to_the_beat.cut_to_the_beat',
-         'videobuilder.techniques.sound.cut_to_the_beat.beat_pulse',
-         'videobuilder.techniques.sound.cut_to_the_beat.beat_sounds',
+    api=('videobuilder.capabilities.sound.cut_to_the_beat.cut_to_the_beat',
+         'videobuilder.capabilities.sound.cut_to_the_beat.beat_pulse',
+         'videobuilder.capabilities.sound.cut_to_the_beat.beat_sounds',
          'videobuilder.beats.BeatGrid'),
     demo=demo_film,
 )

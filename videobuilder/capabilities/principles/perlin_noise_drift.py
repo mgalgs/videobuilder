@@ -5,7 +5,7 @@ import math
 import random
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def _gradients(seed, count=256):
@@ -76,7 +76,7 @@ def draw(n, cv):
     demo.card(cv, cx + dx, cy + dy)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='perlin-noise-drift',
     name='Perlin Noise Drift',
     family='principles',
@@ -89,8 +89,8 @@ TECHNIQUE = Technique(
                'have the elements drift lazily like they are underwater'),
     related=('perlin-noise-field', 'fractal-brownian-motion', 'turbulence-displacement', 'wiggle-path',
              'noise-vertex-wobble', 'gradient-mesh-drift'),
-    api=('videobuilder.techniques.principles.perlin_noise_drift.drift_xy',
-         'videobuilder.techniques.principles.perlin_noise_drift.noise_drift',
-         'videobuilder.techniques.principles.perlin_noise_drift.perlin1d'),
+    api=('videobuilder.capabilities.principles.perlin_noise_drift.drift_xy',
+         'videobuilder.capabilities.principles.perlin_noise_drift.noise_drift',
+         'videobuilder.capabilities.principles.perlin_noise_drift.perlin1d'),
     demo=lambda: demo.film(draw),
 )

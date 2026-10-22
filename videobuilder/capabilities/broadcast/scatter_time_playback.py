@@ -4,7 +4,7 @@ been, with the current period shown large and a scrubber along the bottom."""
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def _catmull(a, b, c, d, u):
@@ -105,7 +105,7 @@ def draw(n, cv):
     cv.mark('chart', *draw_scatter_playback(cv, box, SERIES, demo.phase(n, 0.2, 2.8), periods=(2010, 2024)))
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='scatter-time-playback',
     name='Scatter time playback',
     family='broadcast',
@@ -118,7 +118,7 @@ TECHNIQUE = Technique(
                'show how each country moved on the chart from 2010 to 2024'),
     related=('frame-delay-echo', 'time-remapping', 'hyperlapse', 'accumulation-motion-blur', 'delay',
              'slow-motion'),
-    api=('videobuilder.techniques.broadcast.scatter_time_playback.draw_scatter_playback',
-         'videobuilder.techniques.broadcast.scatter_time_playback.sample'),
+    api=('videobuilder.capabilities.broadcast.scatter_time_playback.draw_scatter_playback',
+         'videobuilder.capabilities.broadcast.scatter_time_playback.sample'),
     demo=lambda: demo.film(draw),
 )

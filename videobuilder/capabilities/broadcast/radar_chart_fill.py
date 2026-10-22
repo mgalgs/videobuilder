@@ -7,7 +7,7 @@ import videobuilder as vb
 from videobuilder.looks import kit as looks
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def radar_points(cx, cy, radius, values, p=1.0, start=-math.pi / 2, stagger=0.0, ease=vb.ease_out_back):
@@ -85,7 +85,7 @@ def draw(n, cv):
     radar_chart(cv, cx, cy, radius, VALUES, demo.phase(n, 0.8, 2.3), demo.ACCENT)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='radar-chart-fill',
     name='Radar chart fill',
     family='broadcast',
@@ -98,8 +98,8 @@ TECHNIQUE = Technique(
                'a player stats web where the coloured shape expands to each value'),
     related=('hub-and-spoke-spread', 'choropleth-fill', 'polar-coordinate-warp', 'hypocycloid-spirograph',
              'sound-reactive-radial-shape', 'dot-density-map'),
-    api=('videobuilder.techniques.broadcast.radar_chart_fill.radar_chart',
-         'videobuilder.techniques.broadcast.radar_chart_fill.radar_grid',
-         'videobuilder.techniques.broadcast.radar_chart_fill.radar_points'),
+    api=('videobuilder.capabilities.broadcast.radar_chart_fill.radar_chart',
+         'videobuilder.capabilities.broadcast.radar_chart_fill.radar_grid',
+         'videobuilder.capabilities.broadcast.radar_chart_fill.radar_points'),
     demo=lambda: demo.film(draw),
 )

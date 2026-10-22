@@ -5,7 +5,7 @@ import math
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 ERROR = '#f2b134'
 
@@ -50,7 +50,7 @@ def draw(n, cv):
     demo.word(cv, 'Continue', bx + bw / 2, by + bh / 2, size=17, color='#121318', weight=700)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='error-shake',
     name='Error shake',
     family='ui',
@@ -62,6 +62,6 @@ TECHNIQUE = Technique(
                'make the field wiggle no when the entry is invalid',
                'the login form shakes its head at a bad code'),
     related=('impact-shake', 'shake', 'handheld-shake', 'bouncing-dots', 'jiggle', 'noise-dissolve'),
-    api=('videobuilder.techniques.ui.error_shake.error_shake',),
+    api=('videobuilder.capabilities.ui.error_shake.error_shake',),
     demo=lambda: demo.film(draw),
 )

@@ -8,7 +8,7 @@ import cairo
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 _BLENDS = {'screen': cairo.OPERATOR_SCREEN, 'add': cairo.OPERATOR_ADD, 'over': cairo.OPERATOR_OVER}
 
@@ -63,7 +63,7 @@ def _draw(n, cv):
     double_exposure(cv, _landscape, lambda c: _portrait(c, drift), amount)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='double-exposure',
     name='Double exposure',
     family='vfx',
@@ -76,6 +76,6 @@ TECHNIQUE = Technique(
                'a ghostly superimposed image of two scenes at the same time'),
     related=('multiples', 'cross-dissolve', 'lens-dirt-overlay', 'blur-up-image-load',
              'image-crossfade-slideshow', 'smoke-overlay'),
-    api=('videobuilder.techniques.vfx.double_exposure.double_exposure',),
+    api=('videobuilder.capabilities.vfx.double_exposure.double_exposure',),
     demo=lambda: demo.film(_draw),
 )

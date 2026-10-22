@@ -6,7 +6,7 @@ import math
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def scroll_pin(scroll, top, length, at=0.0):
@@ -96,7 +96,7 @@ def draw(n, cv):
     cv.mark('scrollbar', track_x, thumb_y, 5, thumb_h)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='scroll-pin-section',
     name='Scroll pin section',
     family='ui',
@@ -109,6 +109,6 @@ TECHNIQUE = Technique(
                'a sticky block that steps through its content before the page moves on'),
     related=('roll-up', 'timeline-scroll', 'scroll-driven-text-reveal', 'infinite-scroll-append', 'uncover',
              'skeleton-shimmer'),
-    api=('videobuilder.techniques.ui.scroll_pin_section.scroll_pin',),
+    api=('videobuilder.capabilities.ui.scroll_pin_section.scroll_pin',),
     demo=lambda: demo.film(draw),
 )

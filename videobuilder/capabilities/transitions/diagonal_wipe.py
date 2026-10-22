@@ -6,7 +6,7 @@ import math
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 from ...looks.kit import clip_to
 
 
@@ -43,7 +43,7 @@ def transition(cv, a, b, p):
     diagonal_wipe(cv, a, b, p, edge=demo.ACCENT)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='diagonal-wipe',
     name='Diagonal wipe',
     family='transitions',
@@ -55,6 +55,6 @@ TECHNIQUE = Technique(
                'sweep the new scene in on a diagonal, corner to corner',
                'an angled line crossing the screen that swaps one scene for the other'),
     related=('paint-brush-wipe', 'wipe-reveal', 'ribbon-sweep', 'area-fill-sweep', 'roll-up', 'flip'),
-    api=('videobuilder.techniques.transitions.diagonal_wipe.diagonal_wipe',),
+    api=('videobuilder.capabilities.transitions.diagonal_wipe.diagonal_wipe',),
     demo=lambda: demo.two_scenes(transition),
 )

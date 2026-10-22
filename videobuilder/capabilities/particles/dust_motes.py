@@ -8,7 +8,7 @@ import cairo
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def light_shaft(cv, x, width, angle=0.3, color='#fff4dc', alpha=0.12):
@@ -93,7 +93,7 @@ def draw(n, cv):
     cv.mark('dust', 0, 0, demo.W, demo.H)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='dust-motes',
     name='Dust motes',
     family='particles',
@@ -106,8 +106,8 @@ TECHNIQUE = Technique(
                'add some floating dust particles to the shot'),
     related=('lens-dirt-overlay', 'film-grain', 'layered-fog-bands', 'heat-haze', 'falling-sand',
              'dust-and-scratches'),
-    api=('videobuilder.techniques.particles.dust_motes.dust_motes',
-         'videobuilder.techniques.particles.dust_motes.light_shaft',
-         'videobuilder.techniques.particles.dust_motes.motes'),
+    api=('videobuilder.capabilities.particles.dust_motes.dust_motes',
+         'videobuilder.capabilities.particles.dust_motes.light_shaft',
+         'videobuilder.capabilities.particles.dust_motes.motes'),
     demo=lambda: demo.film(draw),
 )

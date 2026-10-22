@@ -7,7 +7,7 @@ from functools import lru_cache
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 @lru_cache(maxsize=8)
@@ -67,7 +67,7 @@ def draw(n, cv):
     draw_hopalong(cv, demo.W / 2, demo.H / 2, demo.W - 260, demo.H - 160, (1 - (1 - p) ** 1.6))
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='hopalong-attractor',
     name='Hopalong attractor',
     family='particles',
@@ -80,7 +80,7 @@ TECHNIQUE = Technique(
                'a point hopping around leaving a doily of dots behind'),
     related=('sierpinski-gasket', 'space-colonization', 'gravity-well-attraction', 'hop-cycle', 'wiggle-path',
              'circle-pop'),
-    api=('videobuilder.techniques.particles.hopalong_attractor.draw_hopalong',
-         'videobuilder.techniques.particles.hopalong_attractor.hopalong'),
+    api=('videobuilder.capabilities.particles.hopalong_attractor.draw_hopalong',
+         'videobuilder.capabilities.particles.hopalong_attractor.hopalong'),
     demo=lambda: demo.film(draw),
 )

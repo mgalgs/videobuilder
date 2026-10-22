@@ -6,7 +6,7 @@ import videobuilder as vb
 from videobuilder.type import kit as type_kit
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def reveal_order(text, seed=0):
@@ -56,7 +56,7 @@ def draw(n, cv):
     cv.mark('text', *box)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='random-order-character-reveal',
     name='Random-order character reveal',
     family='typography',
@@ -69,8 +69,8 @@ TECHNIQUE = Technique(
                'characters blink on randomly until the whole headline is there'),
     related=('scramble-decode', 'letter-sort-animation', 'random-stagger', 'text-mask-reveal',
              'typewriter-reveal', 'dither-reveal'),
-    api=('videobuilder.techniques.typography.random_order_character_reveal.draw_random_reveal',
-         'videobuilder.techniques.typography.random_order_character_reveal.random_reveal',
-         'videobuilder.techniques.typography.random_order_character_reveal.reveal_order'),
+    api=('videobuilder.capabilities.typography.random_order_character_reveal.draw_random_reveal',
+         'videobuilder.capabilities.typography.random_order_character_reveal.random_reveal',
+         'videobuilder.capabilities.typography.random_order_character_reveal.reveal_order'),
     demo=lambda: demo.film(draw),
 )

@@ -8,7 +8,7 @@ import cairo
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 STRIPS = 64  # vertical slices per face: cairo maps images affinely, so perspective is built from thin strips
 
@@ -104,7 +104,7 @@ def cube_rotate(cv, a, b, p, direction='left', ease=vb.ease_in_out_quart, depth=
         _face(cv, surface, density, project, shade)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='cube-rotate',
     name='Cube rotate',
     family='transitions',
@@ -117,6 +117,6 @@ TECHNIQUE = Technique(
                'make the slides rotate like the sides of a cube'),
     related=('three-d-word-cube', 'turntable-rotation', 'tesseract-rotation', 'globe-spin', 'word-flip-in',
              'swirl'),
-    api=('videobuilder.techniques.transitions.cube_rotate.cube_rotate',),
+    api=('videobuilder.capabilities.transitions.cube_rotate.cube_rotate',),
     demo=lambda: demo.two_scenes(cube_rotate),
 )

@@ -6,7 +6,7 @@ import math
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def network_timing(edges, p, lead=0.12, overlap=0.35):
@@ -91,7 +91,7 @@ def draw(n, cv):
     cv.mark('network', *box)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='connector-network',
     name='Connector network',
     family='shapes',
@@ -104,8 +104,8 @@ TECHNIQUE = Technique(
                'animate the nodes and links of a graph drawing themselves'),
     related=('force-directed-network-settle', 'flowchart-build', 'org-chart-grow', 'chord-diagram-draw',
              'flow-map-lines', 'sankey-flow'),
-    api=('videobuilder.techniques.shapes.connector_network.draw_network',
-         'videobuilder.techniques.shapes.connector_network.network_timing',
-         'videobuilder.techniques.shapes.connector_network.draw_node'),
+    api=('videobuilder.capabilities.shapes.connector_network.draw_network',
+         'videobuilder.capabilities.shapes.connector_network.network_timing',
+         'videobuilder.capabilities.shapes.connector_network.draw_node'),
     demo=lambda: demo.film(draw),
 )

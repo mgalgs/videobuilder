@@ -3,7 +3,7 @@ each one a little behind its neighbour, so a wave rolls along the row."""
 import math
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def wave_stagger(t, i, period=1.2, lag=0.1, start=0.0):
@@ -31,7 +31,7 @@ def draw(n, cv):
         cv.mark(f'dot{i}', x - r, y - r, 2 * r, 2 * r)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='wave-stagger',
     name='Wave Stagger',
     family='principles',
@@ -44,6 +44,6 @@ TECHNIQUE = Technique(
                'offset each one a bit so the bounce travels down the line like a stadium wave'),
     related=('wave-deformer', 'sine-wave-text', 'linear-repeater-stagger', 'sine-wave-distortion',
              'oscillation', 'ocean-waves'),
-    api=('videobuilder.techniques.principles.wave_stagger.wave_stagger',),
+    api=('videobuilder.capabilities.principles.wave_stagger.wave_stagger',),
     demo=lambda: demo.film(draw),
 )

@@ -13,7 +13,7 @@ from PIL import ImageFilter
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 class Smoke:
@@ -174,7 +174,7 @@ def draw(n, cv):
     cv.mark('smoke', 0, 0, demo.W, demo.H)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='smoke-simulation',
     name='Smoke simulation',
     family='particles',
@@ -187,8 +187,8 @@ TECHNIQUE = Technique(
                'simulate rising smoke instead of faking it with sprites'),
     related=('curl-noise-flow', 'smoke-puffs', 'smoke-dissolve', 'turbulence-displacement',
              'doom-style-fire', 'smoke-overlay'),
-    api=('videobuilder.techniques.particles.smoke_simulation.Smoke',
-         'videobuilder.techniques.particles.smoke_simulation.plume',
-         'videobuilder.techniques.particles.smoke_simulation.draw_smoke'),
+    api=('videobuilder.capabilities.particles.smoke_simulation.Smoke',
+         'videobuilder.capabilities.particles.smoke_simulation.plume',
+         'videobuilder.capabilities.particles.smoke_simulation.draw_smoke'),
     demo=lambda: demo.film(draw),
 )

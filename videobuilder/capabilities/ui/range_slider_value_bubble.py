@@ -4,7 +4,7 @@ number, then tucks away when the thumb is let go."""
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def draw_slider(cv, x, y, w, value, bubble=0.0, lo=0, hi=100, color=demo.ACCENT, track=demo.LINE,
@@ -88,7 +88,7 @@ def draw(n, cv):
     _cursor(cv, tx + 4 + 40 * approach, ty + 3 + 60 * approach, size=24, pressed=held)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='range-slider-value-bubble',
     name='Range slider value bubble',
     family='ui',
@@ -101,6 +101,6 @@ TECHNIQUE = Technique(
                'drag the volume slider and have the value appear in a bubble over the thumb'),
     related=('tooltip-fade-follow', 'arrow-slide', 'before-after-slider', 'dock-magnification',
              'cursor-state-change', 'carousel-slide'),
-    api=('videobuilder.techniques.ui.range_slider_value_bubble.draw_slider',),
+    api=('videobuilder.capabilities.ui.range_slider_value_bubble.draw_slider',),
     demo=lambda: demo.film(draw),
 )

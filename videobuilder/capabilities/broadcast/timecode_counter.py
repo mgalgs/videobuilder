@@ -4,7 +4,7 @@ seconds, minutes and hours like an edit suite's clock."""
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def timecode(frame, fps=30, start=0, drop_frame=False):
@@ -68,7 +68,7 @@ def draw(n, cv):
                 demo.ACCENT if on else demo.MUTED, radius=3, alpha=1.0 if on else 0.35)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='timecode-counter',
     name='Timecode counter',
     family='broadcast',
@@ -81,7 +81,7 @@ TECHNIQUE = Technique(
                'add a frame counter like the one in a video editor'),
     related=('camcorder-timecode-overlay', 'timing', 'number-count-down', 'time-remapping',
              'game-clock-countdown', 'number-count-up'),
-    api=('videobuilder.techniques.broadcast.timecode_counter.timecode',
-         'videobuilder.techniques.broadcast.timecode_counter.draw_timecode'),
+    api=('videobuilder.capabilities.broadcast.timecode_counter.timecode',
+         'videobuilder.capabilities.broadcast.timecode_counter.draw_timecode'),
     demo=lambda: demo.film(draw),
 )

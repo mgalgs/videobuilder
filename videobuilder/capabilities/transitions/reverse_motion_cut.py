@@ -3,7 +3,7 @@ into the edit, and the incoming shot picks up moving the reversed way."""
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def rewind_time(p, turn=0.45, cut=0.7, speed=1.5):
@@ -74,7 +74,7 @@ def draw(n, cv):
     reverse_motion_cut(cv, shot_a, shot_b, demo.phase(n, 0.2, 2.7))
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='reverse-motion-cut',
     name='Reverse motion cut',
     family='transitions',
@@ -86,7 +86,7 @@ TECHNIQUE = Technique(
                'make it look like the tape runs backwards into the cut',
                'play the end of the shot in reverse and then jump to the next scene'),
     related=('reverse-playback', 'interruptible-motion', 'reverse-cymbal', 'flip', 'tracking-shot', 'push'),
-    api=('videobuilder.techniques.transitions.reverse_motion_cut.reverse_motion_cut',
-         'videobuilder.techniques.transitions.reverse_motion_cut.rewind_time'),
+    api=('videobuilder.capabilities.transitions.reverse_motion_cut.reverse_motion_cut',
+         'videobuilder.capabilities.transitions.reverse_motion_cut.rewind_time'),
     demo=lambda: demo.film(draw),
 )

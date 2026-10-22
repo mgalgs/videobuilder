@@ -5,7 +5,7 @@ already shows an image through a clipped window at any scale."""
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 POINTER = ((0, 0), (0, 27), (7, 21), (12, 32), (17.5, 29.5), (12.5, 19), (21, 19))
 
@@ -60,7 +60,7 @@ def draw(n, cv):
     pointer(cv, tx + (demo.W * 0.32) * (1 - come) + 90 * go, ty + 130 * (1 - come) + 115 * go)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='image-hover-zoom',
     name='Image hover zoom',
     family='ui',
@@ -73,8 +73,8 @@ TECHNIQUE = Technique(
                'a gallery tile whose picture zooms in on hover'),
     related=('zoom-to-detail-magnifier', 'scale-zoom-through', 'zoom-blur', 'ui-walkthrough-camera-zoom',
              'infinite-zoom-tunnel', 'nearest-neighbor-upscale'),
-    api=('videobuilder.techniques.ui.image_hover_zoom.hover_zoom',
+    api=('videobuilder.capabilities.ui.image_hover_zoom.hover_zoom',
          'videobuilder.Canvas.view',
-         'videobuilder.techniques.ui.image_hover_zoom.pointer'),
+         'videobuilder.capabilities.ui.image_hover_zoom.pointer'),
     demo=lambda: demo.film(draw),
 )

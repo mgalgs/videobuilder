@@ -15,7 +15,7 @@ from PIL import Image as PILImage, ImageFilter
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 # The water surface: (waves across, waves down, height, angular speed, phase).
 # Whole numbers of waves across the patch keep it tileable.
@@ -114,7 +114,7 @@ def draw(n, cv):
     cv.mark('pool', x, y, w, h)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='caustics',
     name='Caustics',
     family='camera',
@@ -126,8 +126,8 @@ TECHNIQUE = Technique(
                'add that rippling underwater light pattern over the floor',
                'shimmering water reflections moving across the surface'),
     related=('water-caustics', 'refraction-ripple', 'gooch-shading', 'cymatics', 'ripple', 'ripple-rings'),
-    api=('videobuilder.techniques.camera.caustics.caustics',
-         'videobuilder.techniques.camera.caustics.caustic_image',
-         'videobuilder.techniques.camera.caustics.caustic_light'),
+    api=('videobuilder.capabilities.camera.caustics.caustics',
+         'videobuilder.capabilities.camera.caustics.caustic_image',
+         'videobuilder.capabilities.camera.caustics.caustic_light'),
     demo=lambda: demo.film(draw),
 )

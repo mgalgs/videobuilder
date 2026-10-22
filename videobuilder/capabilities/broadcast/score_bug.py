@@ -6,7 +6,7 @@ import math
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def draw_score_bug(cv, x, y, teams, scores, clock, period, reveal=1.0, previous=None, change=1.0,
@@ -90,7 +90,7 @@ def draw(n, cv):
     cv.mark('score-bug', *box)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='score-bug',
     name='Score bug',
     family='broadcast',
@@ -103,6 +103,6 @@ TECHNIQUE = Technique(
                'a live game overlay with the score, quarter and time remaining'),
     related=('station-id-bug', 'camcorder-timecode-overlay', 'pop-on-captions', 'coachmark-spotlight-cutout',
              'breaking-news-banner-slam', 'screen-tearing'),
-    api=('videobuilder.techniques.broadcast.score_bug.draw_score_bug',),
+    api=('videobuilder.capabilities.broadcast.score_bug.draw_score_bug',),
     demo=lambda: demo.film(draw),
 )

@@ -3,7 +3,7 @@ entry only names it and demos it."""
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 START, END = 0.5, 2.3  # seconds the move runs between
 
@@ -34,7 +34,7 @@ def draw(n, cv):
     demo.dot(cv, gx + gw * p, gy + gh * (1 - e), 7, color=demo.INK)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='ease-in-expo',
     name='Ease In Expo',
     family='principles',

@@ -5,7 +5,7 @@ import math
 from functools import lru_cache
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def elastic_collisions(balls, box, frames, fps=30, substeps=8):
@@ -103,7 +103,7 @@ def draw(n, cv):
         cv.mark(f'ball{i}', x - r, y - r, 2 * r, 2 * r)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='elastic-collisions',
     name='Elastic collisions',
     family='particles',
@@ -116,6 +116,6 @@ TECHNIQUE = Technique(
                'make the circles collide and bounce apart'),
     related=('impact', 'ball-bounce', 'newton-s-cradle', 'physics-letter-drop', 'overlapping-action',
              'n-body-gravity'),
-    api=('videobuilder.techniques.particles.elastic_collisions.elastic_collisions',),
+    api=('videobuilder.capabilities.particles.elastic_collisions.elastic_collisions',),
     demo=lambda: demo.film(draw),
 )

@@ -5,7 +5,7 @@ by it slows and speeds up smoothly."""
 import math
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def speed_ramp(t, keys):
@@ -95,7 +95,7 @@ def draw(n, cv):
     demo.word(cv, 'speed', gx - 40, py(1), size=18, color=demo.MUTED, weight=600)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='speed-ramp',
     name='Speed Ramp',
     family='principles',
@@ -108,7 +108,7 @@ TECHNIQUE = Technique(
                'make the action go fast, then slow, then fast again, smoothly'),
     related=('steps-easing', 'speed-lines', 'velocity-preserving-retarget', 'linear-easing',
              'animated-gradient-sweep', 'distance-based-duration'),
-    api=('videobuilder.techniques.principles.speed_ramp.speed_ramp',
-         'videobuilder.techniques.principles.speed_ramp.speed_at'),
+    api=('videobuilder.capabilities.principles.speed_ramp.speed_ramp',
+         'videobuilder.capabilities.principles.speed_ramp.speed_at'),
     demo=lambda: demo.film(draw),
 )

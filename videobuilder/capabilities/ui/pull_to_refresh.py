@@ -6,7 +6,7 @@ import math
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def rubber_band(d, limit):
@@ -86,7 +86,7 @@ def draw(n, cv):
     cv.mark('list', px, py, pw, ph)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='pull-to-refresh',
     name='Pull to refresh',
     family='ui',
@@ -99,8 +99,8 @@ TECHNIQUE = Technique(
                'the list stretches down, a spinner spins, then it snaps back updated'),
     related=('infinite-scroll-append', 'scroll-progress-bar', 'fade-up-scroll-reveal', 'scroll-pin-section',
              'sorted-bar-reorder', 'roll-up'),
-    api=('videobuilder.techniques.ui.pull_to_refresh.pull_to_refresh',
-         'videobuilder.techniques.ui.pull_to_refresh.draw_spinner',
-         'videobuilder.techniques.ui.pull_to_refresh.rubber_band'),
+    api=('videobuilder.capabilities.ui.pull_to_refresh.pull_to_refresh',
+         'videobuilder.capabilities.ui.pull_to_refresh.draw_spinner',
+         'videobuilder.capabilities.ui.pull_to_refresh.rubber_band'),
     demo=lambda: demo.film(draw),
 )

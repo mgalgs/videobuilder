@@ -9,7 +9,7 @@ from PIL import Image
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def _smooth(t):
@@ -109,7 +109,7 @@ def swirl(cv, a, b, p, turns=1.25, center=None, radius=None, blend=0.3):
     c.restore()
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='swirl',
     name='Swirl',
     family='transitions',
@@ -122,7 +122,7 @@ TECHNIQUE = Technique(
                'a vortex transition between the two scenes'),
     related=('twirl-warp-text', 'spin', 'animated-gradient-sweep', 'spiral-wipe', 'rotoscope-look',
              'globe-spin'),
-    api=('videobuilder.techniques.transitions.swirl.swirl',
-         'videobuilder.techniques.transitions.swirl.twirl'),
+    api=('videobuilder.capabilities.transitions.swirl.swirl',
+         'videobuilder.capabilities.transitions.swirl.twirl'),
     demo=lambda: demo.two_scenes(swirl, start=0.6, length=1.8),
 )

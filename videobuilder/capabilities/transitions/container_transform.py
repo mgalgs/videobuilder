@@ -4,7 +4,7 @@ inside it as it grows."""
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 CARD = (demo.W * 0.5 - 150, demo.H * 0.62 - 70, 300, 140)   # the demo's tappable card, (x, y, w, h)
 
@@ -62,7 +62,7 @@ def _list(cv):
     _face(cv, x, y, w, h, 1.0)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='container-transform',
     name='Container transform',
     family='transitions',
@@ -75,7 +75,7 @@ TECHNIQUE = Technique(
                'expand this tile into the detail view'),
     related=('accordion-height-expand', 'scroll-linked-clip-reveal', 'corner-wipe', 'box-wipe',
              'title-card-reveal', 'modal-scale-fade-enter'),
-    api=('videobuilder.techniques.transitions.container_transform.container_transform',),
+    api=('videobuilder.capabilities.transitions.container_transform.container_transform',),
     demo=lambda: demo.two_scenes(lambda cv, a, b, p: container_transform(cv, a, b, p, face=_face),
                                  start=0.8, length=1.2, a=_list),
 )

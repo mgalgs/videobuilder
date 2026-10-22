@@ -6,7 +6,7 @@ import math
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def echo_trail(cv, draw_copy, t, copies=6, lag=0.05, falloff=0.62):
@@ -52,7 +52,7 @@ def draw(n, cv):
     cv.mark('text', *box)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='echo-trail-type',
     name='Echo trail type',
     family='typography',
@@ -65,7 +65,7 @@ TECHNIQUE = Technique(
                'give the word a stuttered after-image trail while it flies in'),
     related=('frame-delay-echo', 'text-on-a-path', 'particle-trail', 'player-movement-trail',
              'per-character-fade-in', 'cursor-particle-trail'),
-    api=('videobuilder.techniques.typography.echo_trail_type.echo_trail',
-         'videobuilder.techniques.typography.echo_trail_type.draw_echo_trail'),
+    api=('videobuilder.capabilities.typography.echo_trail_type.echo_trail',
+         'videobuilder.capabilities.typography.echo_trail_type.draw_echo_trail'),
     demo=lambda: demo.film(draw),
 )

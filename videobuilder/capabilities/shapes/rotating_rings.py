@@ -7,7 +7,7 @@ from dataclasses import dataclass
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 TAU = 2 * math.pi
 
@@ -72,7 +72,7 @@ def draw(n, cv):
     cv.mark('rings', *box)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='rotating-rings',
     name='Rotating rings',
     family='shapes',
@@ -84,8 +84,8 @@ TECHNIQUE = Technique(
                'layered rings turning in opposite directions, like a sci-fi loader',
                'concentric dashed circles slowly rotating around the middle'),
     related=('spinner-ring', 'ripple-rings', 'rotating-circular-text', 'progress-ring', 'radial-stagger', 'spin'),
-    api=('videobuilder.techniques.shapes.rotating_rings.rotating_rings',
-         'videobuilder.techniques.shapes.rotating_rings.Ring',
-         'videobuilder.techniques.shapes.rotating_rings.draw_ring'),
+    api=('videobuilder.capabilities.shapes.rotating_rings.rotating_rings',
+         'videobuilder.capabilities.shapes.rotating_rings.Ring',
+         'videobuilder.capabilities.shapes.rotating_rings.draw_ring'),
     demo=lambda: demo.film(draw),
 )

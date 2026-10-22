@@ -6,7 +6,7 @@ import math
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def polar_area_rose(values, p, radius, stagger=0.5, start=-math.pi / 2):
@@ -67,7 +67,7 @@ def draw(n, cv):
     cv.mark('rose', cx - 175, cy - 175, 350, 350)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='polar-area-rose',
     name='Polar area rose',
     family='broadcast',
@@ -80,7 +80,7 @@ TECHNIQUE = Technique(
                'a radial bar chart made of wedges that grow outward'),
     related=('spiral-bloom', 'phyllotaxis', 'sound-reactive-radial-shape', 'polar-coordinate-warp',
              'hub-and-spoke-spread', 'card-deck-fan'),
-    api=('videobuilder.techniques.broadcast.polar_area_rose.draw_polar_area_rose',
-         'videobuilder.techniques.broadcast.polar_area_rose.polar_area_rose'),
+    api=('videobuilder.capabilities.broadcast.polar_area_rose.draw_polar_area_rose',
+         'videobuilder.capabilities.broadcast.polar_area_rose.polar_area_rose'),
     demo=lambda: demo.film(draw),
 )

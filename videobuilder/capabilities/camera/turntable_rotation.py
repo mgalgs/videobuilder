@@ -8,7 +8,7 @@ import videobuilder as vb
 
 from .. import _demo as demo
 from ...compendium import kit
-from ..schema import Technique
+from ..schema import Capability
 
 
 def turntable_yaw(t, period=3.0, start=0.0, direction=1):
@@ -174,7 +174,7 @@ def draw(n, cv):
     cv.mark('object', *box)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='turntable-rotation',
     name='Turntable rotation',
     family='camera',
@@ -187,7 +187,7 @@ TECHNIQUE = Technique(
                'do a full 360 of the object on a rotating stand'),
     related=('globe-spin', 'spin', 'isometric-rotation', 'cube-rotate', 'rotating-polygon-loop',
              'rotating-rings'),
-    api=('videobuilder.techniques.camera.turntable_rotation.turntable',
-         'videobuilder.techniques.camera.turntable_rotation.turntable_yaw'),
+    api=('videobuilder.capabilities.camera.turntable_rotation.turntable',
+         'videobuilder.capabilities.camera.turntable_rotation.turntable_yaw'),
     demo=lambda: demo.film(draw),
 )

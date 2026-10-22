@@ -9,7 +9,7 @@ from PIL import Image as PILImage
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 # The whole set, ship upright (imaginary axis pointing down the frame).
 HOME = (-0.4, -0.55)
@@ -104,7 +104,7 @@ def draw(n, cv):
     cv.mark('fractal', 0, 0, demo.W, demo.H)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='burning-ship-fractal',
     name='Burning Ship fractal',
     family='particles',
@@ -117,9 +117,9 @@ TECHNIQUE = Technique(
                'a dark fractal with glowing orange edges that we fly into'),
     related=('fractal-brownian-motion', 'doom-style-fire', 'confetti', 'displacement-map', 'recursive-tree',
              'circle-packing'),
-    api=('videobuilder.techniques.particles.burning_ship_fractal.draw_burning_ship',
-         'videobuilder.techniques.particles.burning_ship_fractal.burning_ship_image',
-         'videobuilder.techniques.particles.burning_ship_fractal.burning_ship',
-         'videobuilder.techniques.particles.burning_ship_fractal.zoom_span'),
+    api=('videobuilder.capabilities.particles.burning_ship_fractal.draw_burning_ship',
+         'videobuilder.capabilities.particles.burning_ship_fractal.burning_ship_image',
+         'videobuilder.capabilities.particles.burning_ship_fractal.burning_ship',
+         'videobuilder.capabilities.particles.burning_ship_fractal.zoom_span'),
     demo=lambda: demo.film(draw),
 )

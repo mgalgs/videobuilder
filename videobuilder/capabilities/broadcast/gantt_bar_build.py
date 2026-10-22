@@ -3,7 +3,7 @@ growing along the time axis from its start to its end."""
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def gantt_bars(cv, tasks, box, p, span=None, colors=(demo.ACCENT, demo.TEAL), ticks=6, stagger=0.55,
@@ -65,7 +65,7 @@ def draw(n, cv):
         cv.mark(f'bar-{i}', *b)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='gantt-bar-build',
     name='Gantt bar build',
     family='broadcast',
@@ -78,6 +78,6 @@ TECHNIQUE = Technique(
                'show the roadmap phases filling in across the weeks'),
     related=('percentage-fill-bar', 'copper-bars', 'isometric-bar-rise', 'audio-waveform-bars',
              'flowchart-build', 'refresh-bar'),
-    api=('videobuilder.techniques.broadcast.gantt_bar_build.gantt_bars',),
+    api=('videobuilder.capabilities.broadcast.gantt_bar_build.gantt_bars',),
     demo=lambda: demo.film(draw),
 )

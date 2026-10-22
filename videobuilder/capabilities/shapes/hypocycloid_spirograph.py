@@ -6,7 +6,7 @@ import math
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def turns(ring, wheel):
@@ -65,7 +65,7 @@ def draw(n, cv):
     cv.mark('figure', *box)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='hypocycloid-spirograph',
     name='Spirograph',
     family='shapes',
@@ -78,7 +78,7 @@ TECHNIQUE = Technique(
                'animate the line of a spirograph toy building up'),
     related=('highlight-circle-draw', 'cycle-diagram-rotation', 'radial-stagger', 'rotating-polygon-loop',
              'radar-chart-fill', 'cymatics'),
-    api=('videobuilder.techniques.shapes.hypocycloid_spirograph.draw_spirograph',
-         'videobuilder.techniques.shapes.hypocycloid_spirograph.spirograph'),
+    api=('videobuilder.capabilities.shapes.hypocycloid_spirograph.draw_spirograph',
+         'videobuilder.capabilities.shapes.hypocycloid_spirograph.spirograph'),
     demo=lambda: demo.film(draw),
 )

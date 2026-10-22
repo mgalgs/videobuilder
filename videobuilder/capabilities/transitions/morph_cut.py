@@ -4,7 +4,7 @@ the subject seems to glide from where it was to where it is."""
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def _ease(t):
@@ -76,7 +76,7 @@ def take_b(cv):
     _presenter(cv, TAKE_B, True)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='morph-cut',
     name='Morph cut',
     family='transitions',
@@ -89,7 +89,7 @@ TECHNIQUE = Technique(
                'blend the two clips so the speaker does not jump'),
     related=('shape-morph', 'shape-boolean-merge', 'whip-pan', 'isolines-contour-animation',
              'cut-out-paper-animation', 'play-pause-morph'),
-    api=('videobuilder.techniques.transitions.morph_cut.morph_cut',),
+    api=('videobuilder.capabilities.transitions.morph_cut.morph_cut',),
     demo=lambda: demo.two_scenes(lambda cv, a, b, p: morph_cut(cv, a, b, p, TAKE_A, TAKE_B),
                                  start=0.9, length=1.2, a=take_a, b=take_b),
 )

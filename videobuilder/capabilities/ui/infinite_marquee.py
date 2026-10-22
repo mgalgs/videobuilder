@@ -5,7 +5,7 @@ import math
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def marquee_offset(t, speed, cycle):
@@ -108,7 +108,7 @@ def draw(n, cv):
     cv.mark('marquee', *box)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='infinite-marquee',
     name='Infinite marquee',
     family='ui',
@@ -121,7 +121,7 @@ TECHNIQUE = Technique(
                'a banner of words that scrolls by forever'),
     related=('news-ticker-crawl', 'parallax-marquee-rows', 'scrolling-led-marquee-text',
              'infinite-scroll-append', 'seamless-loop', 'timeline-scroll'),
-    api=('videobuilder.techniques.ui.infinite_marquee.marquee',
-         'videobuilder.techniques.ui.infinite_marquee.marquee_offset'),
+    api=('videobuilder.capabilities.ui.infinite_marquee.marquee',
+         'videobuilder.capabilities.ui.infinite_marquee.marquee_offset'),
     demo=lambda: demo.film(draw),
 )

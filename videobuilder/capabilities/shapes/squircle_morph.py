@@ -6,7 +6,7 @@ import math
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 SQUARE, SQUIRCLE, CIRCLE, DIAMOND = 40.0, 4.0, 2.0, 1.0  # superellipse exponents of the named shapes
 
@@ -57,7 +57,7 @@ def draw(n, cv):
               font=demo.mono(36, 600))
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='squircle-morph',
     name='Squircle morph',
     family='shapes',
@@ -70,8 +70,8 @@ TECHNIQUE = Technique(
                'corners melt away until the square becomes a dot'),
     related=('text-to-shape-morph', 'circle-pop', 'julia-set-morph', 'letter-morph', 'particle-morph',
              'shape-morph-loader'),
-    api=('videobuilder.techniques.shapes.squircle_morph.draw_squircle_morph',
-         'videobuilder.techniques.shapes.squircle_morph.squircle',
-         'videobuilder.techniques.shapes.squircle_morph.squircle_exponent'),
+    api=('videobuilder.capabilities.shapes.squircle_morph.draw_squircle_morph',
+         'videobuilder.capabilities.shapes.squircle_morph.squircle',
+         'videobuilder.capabilities.shapes.squircle_morph.squircle_exponent'),
     demo=lambda: demo.film(draw),
 )

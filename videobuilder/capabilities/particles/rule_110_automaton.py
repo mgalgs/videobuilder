@@ -5,7 +5,7 @@ watch."""
 import math
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def rule_step(row, rule=110):
@@ -66,7 +66,7 @@ def draw(n, cv):
     cv.mark('grid', x, y, w, h)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='rule-110-automaton',
     name='Rule 110 automaton',
     family='particles',
@@ -79,8 +79,8 @@ TECHNIQUE = Technique(
                'a generative grid of pixels where each row is computed from the row above'),
     related=('reaction-diffusion', 'maze-carving', 'recursive-tree', 'recursive-rectangle-subdivision',
              'overlapping-action', 'geometric-loop'),
-    api=('videobuilder.techniques.particles.rule_110_automaton.draw_automaton',
-         'videobuilder.techniques.particles.rule_110_automaton.generations',
-         'videobuilder.techniques.particles.rule_110_automaton.rule_step'),
+    api=('videobuilder.capabilities.particles.rule_110_automaton.draw_automaton',
+         'videobuilder.capabilities.particles.rule_110_automaton.generations',
+         'videobuilder.capabilities.particles.rule_110_automaton.rule_step'),
     demo=lambda: demo.film(draw),
 )

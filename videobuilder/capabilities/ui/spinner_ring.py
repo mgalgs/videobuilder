@@ -6,7 +6,7 @@ import math
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def spinner_arc(t, period=1.5, turns=1.0, shortest=0.06, longest=0.72):
@@ -54,7 +54,7 @@ def draw(n, cv):
     demo.word(cv, 'Loading', demo.W / 2, demo.H / 2 + 170, size=44, color=demo.MUTED, weight=600, alpha=fade)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='spinner-ring',
     name='Spinner ring',
     family='ui',
@@ -67,7 +67,7 @@ TECHNIQUE = Technique(
                'a busy spinner like an app shows before content appears'),
     related=('rotating-rings', 'rotating-circular-text', 'radial-stagger', 'cycle-diagram-rotation', 'spin',
              'turntable-rotation'),
-    api=('videobuilder.techniques.ui.spinner_ring.spinner_ring',
-         'videobuilder.techniques.ui.spinner_ring.spinner_arc'),
+    api=('videobuilder.capabilities.ui.spinner_ring.spinner_ring',
+         'videobuilder.capabilities.ui.spinner_ring.spinner_arc'),
     demo=lambda: demo.film(draw),
 )

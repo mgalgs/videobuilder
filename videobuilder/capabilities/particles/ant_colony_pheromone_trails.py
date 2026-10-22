@@ -10,7 +10,7 @@ from PIL import Image as PILImage, ImageFilter
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 class AntColony:
@@ -173,7 +173,7 @@ def draw(n, cv):
     draw_ants(cv, snap)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='ant-colony-pheromone-trails',
     name='Ant colony pheromone trails',
     family='particles',
@@ -186,9 +186,9 @@ TECHNIQUE = Technique(
                'show the trails building up between the colony and the food piles'),
     related=('dashed-line-march', 'particle-trail', 'fireflies', 'langton-s-ant', 'cursor-particle-trail',
              'echo-trail-type'),
-    api=('videobuilder.techniques.particles.ant_colony_pheromone_trails.AntColony',
-         'videobuilder.techniques.particles.ant_colony_pheromone_trails.colony_frames',
-         'videobuilder.techniques.particles.ant_colony_pheromone_trails.draw_pheromone',
-         'videobuilder.techniques.particles.ant_colony_pheromone_trails.draw_ants'),
+    api=('videobuilder.capabilities.particles.ant_colony_pheromone_trails.AntColony',
+         'videobuilder.capabilities.particles.ant_colony_pheromone_trails.colony_frames',
+         'videobuilder.capabilities.particles.ant_colony_pheromone_trails.draw_pheromone',
+         'videobuilder.capabilities.particles.ant_colony_pheromone_trails.draw_ants'),
     demo=lambda: demo.film(draw),
 )

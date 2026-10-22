@@ -8,7 +8,7 @@ import cairo
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def fresnel(r, power=3.0, base=0.0):
@@ -79,7 +79,7 @@ def draw(n, cv):
     fresnel_sphere(cv, cx, cy, 150, glow=demo.TEAL, power=power, strength=up)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='fresnel-edge-glow',
     name='Fresnel edge glow',
     family='camera',
@@ -92,8 +92,8 @@ TECHNIQUE = Technique(
                'give the shape that holographic edge light'),
     related=('rim-light', 'thin-film-iridescence', 'subsurface-scattering-glow', 'border-glow-follow',
              'glow-button', 'shine-glint-sweep'),
-    api=('videobuilder.techniques.camera.fresnel_edge_glow.fresnel_sphere',
-         'videobuilder.techniques.camera.fresnel_edge_glow.fresnel_pattern',
-         'videobuilder.techniques.camera.fresnel_edge_glow.fresnel'),
+    api=('videobuilder.capabilities.camera.fresnel_edge_glow.fresnel_sphere',
+         'videobuilder.capabilities.camera.fresnel_edge_glow.fresnel_pattern',
+         'videobuilder.capabilities.camera.fresnel_edge_glow.fresnel'),
     demo=lambda: demo.film(draw),
 )

@@ -9,7 +9,7 @@ import videobuilder as vb
 
 from .. import _demo as demo
 from ...canvas import rgba
-from ..schema import Technique
+from ..schema import Capability
 
 G = 9.81 * 60  # gravity in px/s^2 for a surface ~60 px to the metre: sets how fast each wavelength travels
 
@@ -97,7 +97,7 @@ def draw(n, cv):
     draw_ocean(cv, t, box=(0, horizon, demo.W, demo.H - horizon))
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='ocean-waves',
     name='Ocean waves',
     family='particles',
@@ -110,7 +110,7 @@ TECHNIQUE = Technique(
                'animated ocean with peaked waves behind the title'),
     related=('wave-deformer', 'wave-stagger', 'sine-wave-text', 'sine-wave-distortion', 'oscillation',
              'ripple-rings'),
-    api=('videobuilder.techniques.particles.ocean_waves.gerstner',
-         'videobuilder.techniques.particles.ocean_waves.draw_ocean'),
+    api=('videobuilder.capabilities.particles.ocean_waves.gerstner',
+         'videobuilder.capabilities.particles.ocean_waves.draw_ocean'),
     demo=lambda: demo.film(draw),
 )

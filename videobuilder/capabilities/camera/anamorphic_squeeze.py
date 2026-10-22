@@ -5,7 +5,7 @@ flare streaks across the highlights."""
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 from ...ease import ease_in_out_quart
 
 
@@ -88,7 +88,7 @@ def _draw(n, cv):
     cv.mark('picture', demo.W / 2 * (1 - (0.5 + 0.5 * p)), _TOP, demo.W * (0.5 + 0.5 * p), _PIC_H)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='anamorphic-squeeze',
     name='Anamorphic squeeze',
     family='camera',
@@ -101,8 +101,8 @@ TECHNIQUE = Technique(
                'that movie look with the black bars and long blue lens streaks'),
     related=('zoom-to-detail-magnifier', 'scale-zoom-through', 'infinite-zoom-tunnel', 'optical-zoom',
              'dolly-zoom', 'crt-curvature'),
-    api=('videobuilder.techniques.camera.anamorphic_squeeze.anamorphic_squeeze',
-         'videobuilder.techniques.camera.anamorphic_squeeze.anamorphic_streak',
-         'videobuilder.techniques.camera.anamorphic_squeeze.letterbox'),
+    api=('videobuilder.capabilities.camera.anamorphic_squeeze.anamorphic_squeeze',
+         'videobuilder.capabilities.camera.anamorphic_squeeze.anamorphic_streak',
+         'videobuilder.capabilities.camera.anamorphic_squeeze.letterbox'),
     demo=lambda: demo.film(_draw),
 )

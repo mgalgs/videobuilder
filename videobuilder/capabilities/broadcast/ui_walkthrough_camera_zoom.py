@@ -3,7 +3,7 @@ pushes in and pans so one region of the interface fills the frame."""
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def ui_camera_zoom(cv, screen, focus, p, margin=0.08, max_zoom=4.0):
@@ -88,7 +88,7 @@ def draw(n, cv):
     ui_camera_zoom(cv, app_screen, tuple(v * U for v in PANEL), p)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='ui-walkthrough-camera-zoom',
     name='UI walkthrough camera zoom',
     family='broadcast',
@@ -101,6 +101,6 @@ TECHNIQUE = Technique(
                'show the full UI, then move in close on that one button'),
     related=('canvas-pan-and-zoom', 'zoom-through', 'scale-zoom-through', 'zoom-to-location-map',
              'infinite-zoom-tunnel', 'image-hover-zoom'),
-    api=('videobuilder.techniques.broadcast.ui_walkthrough_camera_zoom.ui_camera_zoom',),
+    api=('videobuilder.capabilities.broadcast.ui_walkthrough_camera_zoom.ui_camera_zoom',),
     demo=lambda: demo.film(draw),
 )

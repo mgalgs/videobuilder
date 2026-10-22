@@ -8,7 +8,7 @@ import cairo
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def before_after_slider(cv, before, after, split, box=None, line='#f4f4f2', ring=demo.ACCENT, handle_r=22,
@@ -96,7 +96,7 @@ def draw(n, cv):
     before_after_slider(cv, _before, _photo, slider_sweep(demo.phase(n, 0.3, 2.8)))
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='before-after-slider',
     name='Before-after slider',
     family='ui',
@@ -109,8 +109,8 @@ TECHNIQUE = Technique(
                'reveal the change by sweeping a divider across the picture'),
     related=('range-slider-value-bubble', 'carousel-slide', 'scroll-scrubbed-frame-sequence', 'cross-dissolve',
              'pixelate-transition', 'difference-highlight'),
-    api=('videobuilder.techniques.ui.before_after_slider.before_after_slider',
-         'videobuilder.techniques.ui.before_after_slider.slider_sweep',
+    api=('videobuilder.capabilities.ui.before_after_slider.before_after_slider',
+         'videobuilder.capabilities.ui.before_after_slider.slider_sweep',
          'videobuilder.compendium.components.images_before_after.COMPONENT'),
     demo=lambda: demo.film(draw),
 )

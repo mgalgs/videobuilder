@@ -14,7 +14,7 @@ from functools import lru_cache
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 class SPHFluid:
@@ -213,7 +213,7 @@ def draw(n, cv):
     cv.mark('fluid', min(xs), min(ys), max(xs) - min(xs), max(ys) - min(ys))
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='sph-fluid',
     name='SPH fluid',
     family='particles',
@@ -226,8 +226,8 @@ TECHNIQUE = Technique(
                'a physics-driven fluid that pours and settles'),
     related=('animated-sprite-particles', 'glitter-pour', 'liquid-fill-level', 'curl-noise-flow',
              'smoke-puffs', 'liquid-morph'),
-    api=('videobuilder.techniques.particles.sph_fluid.SPHFluid',
-         'videobuilder.techniques.particles.sph_fluid.simulate',
-         'videobuilder.techniques.particles.sph_fluid.draw_fluid'),
+    api=('videobuilder.capabilities.particles.sph_fluid.SPHFluid',
+         'videobuilder.capabilities.particles.sph_fluid.simulate',
+         'videobuilder.capabilities.particles.sph_fluid.draw_fluid'),
     demo=lambda: demo.film(draw),
 )

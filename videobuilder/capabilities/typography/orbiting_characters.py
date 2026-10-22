@@ -5,7 +5,7 @@ import math
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def orbits(text, t, cx, cy, r0=90, gap=55, squash=0.6, tilt=-0.35, speed=0.5, seed=0):
@@ -64,7 +64,7 @@ def draw(n, cv):
     cv.mark('centre', cx - 10, cy - 10, 20, 20)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='orbiting-characters',
     name='Orbiting characters',
     family='typography',
@@ -77,7 +77,7 @@ TECHNIQUE = Technique(
                'the letters of the title orbit a dot like a tiny solar system'),
     related=('orbit', 'two-body-orbit', 'character-rotate-in', 'orbit-loader', 'orbital-pulse',
              'character-slide-in'),
-    api=('videobuilder.techniques.typography.orbiting_characters.draw_orbiting',
-         'videobuilder.techniques.typography.orbiting_characters.orbits'),
+    api=('videobuilder.capabilities.typography.orbiting_characters.draw_orbiting',
+         'videobuilder.capabilities.typography.orbiting_characters.orbits'),
     demo=lambda: demo.film(draw),
 )

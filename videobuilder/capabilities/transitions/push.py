@@ -3,7 +3,7 @@ scene out of the opposite edge, the two locked together as they move."""
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 DIRECTIONS = {'left': (-1, 0), 'right': (1, 0), 'up': (0, -1), 'down': (0, 1)}
 
@@ -30,7 +30,7 @@ def push(cv, a, b, p, direction='left', ease=vb.ease_in_out_quart):
             b(cv)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='push',
     name='Push',
     family='transitions',
@@ -42,6 +42,6 @@ TECHNIQUE = Technique(
                'slide the next scene in and knock the last one out sideways',
                'shove the first frame out of the way with the second'),
     related=('push-in', 'roll-up', 'corner-wipe', 'zoom-through', 'cut-on-action', 'zoom-out-reveal'),
-    api=('videobuilder.techniques.transitions.push.push',),
+    api=('videobuilder.capabilities.transitions.push.push',),
     demo=lambda: demo.two_scenes(push),
 )

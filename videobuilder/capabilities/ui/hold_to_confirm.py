@@ -6,7 +6,7 @@ import math
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def hold_progress(t, press, hold=1.2, release=None, drain=0.3):
@@ -108,7 +108,7 @@ def draw(n, cv):
     _cursor(cv, px, py, down)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='hold-to-confirm',
     name='Hold to confirm',
     family='ui',
@@ -121,7 +121,7 @@ TECHNIQUE = Technique(
                'a long-press button that charges up before it triggers'),
     related=('subscribe-button-press', 'shape-fill-sweep', 'progress-steps-connector-fill',
              'circle-check-draw', 'area-fill-sweep', 'bookmark-fill'),
-    api=('videobuilder.techniques.ui.hold_to_confirm.draw_hold_button',
-         'videobuilder.techniques.ui.hold_to_confirm.hold_progress'),
+    api=('videobuilder.capabilities.ui.hold_to_confirm.draw_hold_button',
+         'videobuilder.capabilities.ui.hold_to_confirm.hold_progress'),
     demo=lambda: demo.film(draw),
 )

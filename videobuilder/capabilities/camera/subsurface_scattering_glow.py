@@ -11,7 +11,7 @@ from videobuilder.layout import Box
 from videobuilder.type import kit
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def _ellipse(ctx, cx, cy, rx, ry, tilt=0.0):
@@ -107,7 +107,7 @@ def draw(n, cv):
     cv.mark('body', *box)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='subsurface-scattering-glow',
     name='Subsurface scattering glow',
     family='camera',
@@ -120,7 +120,7 @@ TECHNIQUE = Technique(
                'a soft inner glow around the rim as a light moves behind it'),
     related=('fresnel-edge-glow', 'outline-pulse-glow', 'heat-haze', 'shine-glint-sweep', 'glow-button',
              'matcap-shading'),
-    api=('videobuilder.techniques.camera.subsurface_scattering_glow.draw_scatter_glow',
-         'videobuilder.techniques.camera.subsurface_scattering_glow.light_point'),
+    api=('videobuilder.capabilities.camera.subsurface_scattering_glow.draw_scatter_glow',
+         'videobuilder.capabilities.camera.subsurface_scattering_glow.light_point'),
     demo=lambda: demo.film(draw),
 )

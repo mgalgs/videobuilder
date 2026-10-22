@@ -1,7 +1,7 @@
 """Hard cut: the outgoing scene is replaced by the incoming one between one
 frame and the next, with nothing drawn in between."""
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def hard_cut(cv, a, b, p, at=0.5):
@@ -15,7 +15,7 @@ def hard_cut(cv, a, b, p, at=0.5):
     (a if p < at else b)(cv)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='hard-cut',
     name='Hard cut',
     family='transitions',
@@ -28,6 +28,6 @@ TECHNIQUE = Technique(
                'jump from one scene to the other on a single frame'),
     related=('zoom-blur', 'gaussian-blur', 'film-edge-frame', 'push-in', 'cut-out-paper-animation',
              'whip-pan'),
-    api=('videobuilder.techniques.transitions.hard_cut.hard_cut',),
+    api=('videobuilder.capabilities.transitions.hard_cut.hard_cut',),
     demo=lambda: demo.two_scenes(hard_cut),
 )

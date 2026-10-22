@@ -5,7 +5,7 @@ import random
 from functools import lru_cache
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 @lru_cache(maxsize=8)
@@ -79,7 +79,7 @@ def draw(n, cv):
     cv.mark('well', WELL[0] - 16, WELL[1] - 16, 32, 32)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='gravity-well-attraction',
     name='Gravity well attraction',
     family='particles',
@@ -92,7 +92,7 @@ TECHNIQUE = Technique(
                'a little black hole pulling everything around it inward'),
     related=('magnetic-snap', 'n-body-gravity', 'hopalong-attractor', 'gravity-drop', 'lorenz-attractor',
              'rossler-attractor'),
-    api=('videobuilder.techniques.particles.gravity_well_attraction.gravity_well',
-         'videobuilder.techniques.particles.gravity_well_attraction.draw_gravity_well'),
+    api=('videobuilder.capabilities.particles.gravity_well_attraction.gravity_well',
+         'videobuilder.capabilities.particles.gravity_well_attraction.draw_gravity_well'),
     demo=lambda: demo.film(draw),
 )

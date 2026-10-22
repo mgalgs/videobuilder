@@ -9,7 +9,7 @@ from PIL import Image, ImageOps
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 # Atkinson's kernel: 1/8 of the error to each of six neighbours (x, y offsets),
 # so 2/8 of it is simply dropped.
@@ -88,7 +88,7 @@ def draw(n, cv):
     cv.mark('photo', 0, 0, demo.W, demo.H)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='atkinson-dithering',
     name='Atkinson dithering',
     family='vfx',
@@ -101,7 +101,7 @@ TECHNIQUE = Technique(
                'a dithered two-tone version of the picture with chunky pixels'),
     related=('blur-up-image-load', 'gradient-wipe', 'desaturation', 'blur-dissolve', 'unsharp-mask',
              'gradient-mesh-drift'),
-    api=('videobuilder.techniques.vfx.atkinson_dithering.atkinson',
-         'videobuilder.techniques.vfx.atkinson_dithering.draw_atkinson'),
+    api=('videobuilder.capabilities.vfx.atkinson_dithering.atkinson',
+         'videobuilder.capabilities.vfx.atkinson_dithering.draw_atkinson'),
     demo=lambda: demo.film(draw),
 )

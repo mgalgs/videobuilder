@@ -5,7 +5,7 @@ import math
 from functools import lru_cache
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def spring_lattice(x, y, w, h, frames, fps=30, cols=11, rows=7, pokes=(), pinned='corners',
@@ -130,7 +130,7 @@ def draw(n, cv):
             demo.dot(cv, *grid[r][c], 6 + 12 * glow, color=demo.ACCENT, alpha=0.4 + 0.6 * glow)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='springs-network',
     name='Springs network',
     family='particles',
@@ -143,7 +143,7 @@ TECHNIQUE = Technique(
                'a wobbly elastic mesh that shakes and then settles'),
     related=('spring-motion', 'spring-return', 'small-multiples-cascade', 'critically-damped-spring',
              'overdamped-spring', 'force-directed-network-settle'),
-    api=('videobuilder.techniques.particles.springs_network.spring_lattice',
-         'videobuilder.techniques.particles.springs_network.draw_lattice'),
+    api=('videobuilder.capabilities.particles.springs_network.spring_lattice',
+         'videobuilder.capabilities.particles.springs_network.draw_lattice'),
     demo=lambda: demo.film(draw),
 )

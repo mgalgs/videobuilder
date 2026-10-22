@@ -10,7 +10,7 @@ from PIL import Image as PILImage
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 from ...looks import fx
 
 
@@ -108,7 +108,7 @@ def draw(n, cv):
     cv.mark('photo', x, y, w, h)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='oil-paint-filter',
     name='Oil paint filter',
     family='vfx',
@@ -120,7 +120,7 @@ TECHNIQUE = Technique(
                'turn the footage into brushy painted patches but keep the edges sharp',
                'give this shot a painterly smeared look'),
     related=('unsharp-mask', 'gooey-filter', 'liquify', 'heat-haze', 'emboss', 'ken-burns-effect'),
-    api=('videobuilder.techniques.vfx.oil_paint_filter.oil_paint',
-         'videobuilder.techniques.vfx.oil_paint_filter.kuwahara'),
+    api=('videobuilder.capabilities.vfx.oil_paint_filter.oil_paint',
+         'videobuilder.capabilities.vfx.oil_paint_filter.kuwahara'),
     demo=lambda: demo.film(draw),
 )

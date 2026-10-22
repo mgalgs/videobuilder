@@ -8,7 +8,7 @@ import cairo
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def _glow(cv, x, y, r, color, alpha):
@@ -75,7 +75,7 @@ def draw(n, cv):
     fireflies(cv, n / demo.FPS, count=30, seed=4, size=8)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='fireflies',
     name='Fireflies',
     family='particles',
@@ -88,6 +88,6 @@ TECHNIQUE = Technique(
                'a dark background with a few soft lights drifting and pulsing'),
     related=('bloom', 'neon-flicker', 'lens-flare', 'kuramoto-synchronization', 'diffraction-spikes',
              'glow-button'),
-    api=('videobuilder.techniques.particles.fireflies.fireflies',),
+    api=('videobuilder.capabilities.particles.fireflies.fireflies',),
     demo=lambda: demo.film(draw),
 )

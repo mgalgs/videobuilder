@@ -9,7 +9,7 @@ import videobuilder as vb
 from videobuilder.canvas import rgba
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 # Seahorse valley: a spot on the set's edge with a small copy of the set at it.
 SEAHORSE = (-0.743643887037151, 0.131825904205330)
@@ -77,7 +77,7 @@ def draw(n, cv):
     demo.word(cv, f'×{zoom:,.0f}', demo.W - 190, demo.H - 72, font=demo.mono(38, 700))
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='mandelbrot-zoom',
     name='Mandelbrot zoom',
     family='particles',
@@ -90,7 +90,7 @@ TECHNIQUE = Technique(
                'a psychedelic endless zoom into those swirly math patterns'),
     related=('scale-zoom-through', 'infinite-zoom-tunnel', 'zoom-to-location-map', 'canvas-pan-and-zoom',
              'zoom-through-shape', 'zoom-to-detail-magnifier'),
-    api=('videobuilder.techniques.particles.mandelbrot_zoom.mandelbrot_zoom',
-         'videobuilder.techniques.particles.mandelbrot_zoom.mandelbrot'),
+    api=('videobuilder.capabilities.particles.mandelbrot_zoom.mandelbrot_zoom',
+         'videobuilder.capabilities.particles.mandelbrot_zoom.mandelbrot'),
     demo=lambda: demo.film(draw),
 )

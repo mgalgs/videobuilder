@@ -8,7 +8,7 @@ from functools import lru_cache
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def chaos_game(corners, count, seed=0, start=None, ratio=0.5, skip=8):
@@ -78,7 +78,7 @@ def draw(n, cv):
     cv.mark('gasket', min(xs), min(ys), max(xs) - min(xs), max(ys) - min(ys))
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='sierpinski-gasket',
     name='Sierpinski gasket',
     family='particles',
@@ -91,8 +91,8 @@ TECHNIQUE = Technique(
                'show the chaos game drawing a Sierpinski triangle'),
     related=('hopalong-attractor', 'circle-pop', 'circle-packing', 'de-jong-attractor', 'wiggle-path',
              'delaunay-triangle-mesh'),
-    api=('videobuilder.techniques.particles.sierpinski_gasket.chaos_game',
-         'videobuilder.techniques.particles.sierpinski_gasket.draw_points',
-         'videobuilder.techniques.particles.sierpinski_gasket.triangle'),
+    api=('videobuilder.capabilities.particles.sierpinski_gasket.chaos_game',
+         'videobuilder.capabilities.particles.sierpinski_gasket.draw_points',
+         'videobuilder.capabilities.particles.sierpinski_gasket.triangle'),
     demo=lambda: demo.film(draw),
 )

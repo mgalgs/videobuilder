@@ -6,7 +6,7 @@ import random
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def carve_maze(cols, rows, seed=0, start=(0, 0)):
@@ -113,7 +113,7 @@ def draw(n, cv):
 MOVES = carve_maze(COLS, ROWS, seed=7)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='maze-carving',
     name='Maze carving',
     family='particles',
@@ -126,8 +126,8 @@ TECHNIQUE = Technique(
                'a little dot carves a maze, backtracking when it gets stuck'),
     related=('voxel-build', 'pattern-tiling', 'recursive-tree', 'follow-through', 'extrusion',
              'reverse-motion-cut'),
-    api=('videobuilder.techniques.particles.maze_carving.draw_maze',
-         'videobuilder.techniques.particles.maze_carving.carve_maze',
-         'videobuilder.techniques.particles.maze_carving.maze_state'),
+    api=('videobuilder.capabilities.particles.maze_carving.draw_maze',
+         'videobuilder.capabilities.particles.maze_carving.carve_maze',
+         'videobuilder.capabilities.particles.maze_carving.maze_state'),
     demo=lambda: demo.film(draw),
 )

@@ -4,7 +4,7 @@ lights up only where the logo is."""
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 from ...canvas import rgba
 
 
@@ -69,7 +69,7 @@ def draw(n, cv):
     cv.mark('logo', x, y, LOGO_W, LOGO_H)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='logo-mask-wipe-reveal',
     name='Logo mask wipe reveal',
     family='shapes',
@@ -82,6 +82,6 @@ TECHNIQUE = Technique(
                'the logo gets revealed by a moving mask'),
     related=('luma-wipe', 'image-hover-mask-reveal', 'light-trail-logo-reveal', 'brush-stroke-paint-reveal',
              'text-mask-reveal', 'wipe-reveal'),
-    api=('videobuilder.techniques.shapes.logo_mask_wipe_reveal.mask_wipe',),
+    api=('videobuilder.capabilities.shapes.logo_mask_wipe_reveal.mask_wipe',),
     demo=lambda: demo.film(draw),
 )

@@ -7,7 +7,7 @@ import random
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 from ..typography.noise_field_warp import Noise
 
 
@@ -114,7 +114,7 @@ def draw(n, cv):
     cv.mark('field', BOX.x, BOX.y, BOX.w, BOX.h)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='flow-field',
     name='Flow field',
     family='particles',
@@ -127,8 +127,8 @@ TECHNIQUE = Technique(
                'generative hair-like strokes following a noise field'),
     related=('wind-field', 'turbulence-displacement', 'starfield', 'particle-morph', 'particle-field-repel',
              'flow-map-lines'),
-    api=('videobuilder.techniques.particles.flow_field.draw_flow_field',
-         'videobuilder.techniques.particles.flow_field.FlowField',
-         'videobuilder.techniques.particles.flow_field.flow_trails'),
+    api=('videobuilder.capabilities.particles.flow_field.draw_flow_field',
+         'videobuilder.capabilities.particles.flow_field.FlowField',
+         'videobuilder.capabilities.particles.flow_field.flow_trails'),
     demo=lambda: demo.film(draw),
 )

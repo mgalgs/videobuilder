@@ -7,7 +7,7 @@ import math
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 DIGITS = '0123456789'
 
@@ -85,7 +85,7 @@ def draw(n, cv):
         demo.dot(cv, px + pw - 40, py + 44, r=7, color=demo.ACCENT, alpha=0.55 + 0.45 * (int(t * 2) % 2 == 0))
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='stopwatch-count-up',
     name='Stopwatch count-up',
     family='broadcast',
@@ -98,8 +98,8 @@ TECHNIQUE = Technique(
                'add a race clock in the corner that keeps going'),
     related=('number-count-down', 'number-count-up', 'game-clock-countdown', 'timing',
              'decimal-counter-with-formatting', 'delay'),
-    api=('videobuilder.techniques.broadcast.stopwatch_count_up.draw_stopwatch',
-         'videobuilder.techniques.broadcast.stopwatch_count_up.stopwatch_text',
-         'videobuilder.techniques.broadcast.stopwatch_count_up.elapsed'),
+    api=('videobuilder.capabilities.broadcast.stopwatch_count_up.draw_stopwatch',
+         'videobuilder.capabilities.broadcast.stopwatch_count_up.stopwatch_text',
+         'videobuilder.capabilities.broadcast.stopwatch_count_up.elapsed'),
     demo=lambda: demo.film(draw),
 )

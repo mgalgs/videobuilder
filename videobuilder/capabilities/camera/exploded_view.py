@@ -7,7 +7,7 @@ import videobuilder as vb
 
 from .. import _demo as demo
 from ...compendium import kit
-from ..schema import Technique
+from ..schema import Capability
 from ..shapes.isometric_rotation import iso_point
 
 
@@ -130,7 +130,7 @@ def draw(n, cv):
     cv.mark('assembly', *box)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='exploded-view',
     name='Exploded view',
     family='camera',
@@ -144,7 +144,7 @@ TECHNIQUE = Technique(
                'separate every piece of the product like an assembly diagram'),
     related=('isometric-assembly', 'shape-assemble-from-fragments', 'depth-slicing', 'shatter', 'shape-burst',
              'type-explosion'),
-    api=('videobuilder.techniques.camera.exploded_view.exploded_view',
-         'videobuilder.techniques.camera.exploded_view.explode_offsets'),
+    api=('videobuilder.capabilities.camera.exploded_view.exploded_view',
+         'videobuilder.capabilities.camera.exploded_view.explode_offsets'),
     demo=lambda: demo.film(draw),
 )

@@ -9,7 +9,7 @@ import videobuilder as vb
 from videobuilder import paths
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def _rotate(points, cx, cy, angle):
@@ -95,7 +95,7 @@ def draw(n, cv):
         cv.mark('text', *box)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='morphing-shape-ident',
     name='Morphing shape ident',
     family='broadcast',
@@ -108,9 +108,9 @@ TECHNIQUE = Technique(
                'a morphing geometric sting that resolves into the brand mark'),
     related=('blob-to-icon-morph', 'morphing-blob', 'shape-morph-loader', 'shape-morph',
              'text-to-shape-morph', 'letter-morph'),
-    api=('videobuilder.techniques.broadcast.morphing_shape_ident.morph_ident',
-         'videobuilder.techniques.broadcast.morphing_shape_ident.ident_step',
-         'videobuilder.techniques.broadcast.morphing_shape_ident.regular',
+    api=('videobuilder.capabilities.broadcast.morphing_shape_ident.morph_ident',
+         'videobuilder.capabilities.broadcast.morphing_shape_ident.ident_step',
+         'videobuilder.capabilities.broadcast.morphing_shape_ident.regular',
          'videobuilder.paths.morph', 'videobuilder.paths.draw'),
     demo=lambda: demo.film(draw),
 )

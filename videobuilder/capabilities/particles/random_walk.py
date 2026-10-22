@@ -5,7 +5,7 @@ import math
 import random
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def random_walk(count, seed=0, step=10.0, start=(0.0, 0.0), bounds=None, jitter=0.5):
@@ -57,7 +57,7 @@ def draw(n, cv):
     draw_walk(cv, WALK[:k + 1], demo.TEAL, head_color=demo.ACCENT, fresh_color=demo.INK)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='random-walk',
     name='Random walk',
     family='particles',
@@ -70,7 +70,7 @@ TECHNIQUE = Technique(
                'animate a line that keeps taking random little steps until it covers the area'),
     related=('wander-steering', 'diffusion-limited-aggregation', 'path-emitter', 'cursor-particle-trail',
              'walk-cycle', 'player-movement-trail'),
-    api=('videobuilder.techniques.particles.random_walk.random_walk',
-         'videobuilder.techniques.particles.random_walk.draw_walk'),
+    api=('videobuilder.capabilities.particles.random_walk.random_walk',
+         'videobuilder.capabilities.particles.random_walk.draw_walk'),
     demo=lambda: demo.film(draw),
 )

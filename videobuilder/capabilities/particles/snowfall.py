@@ -8,7 +8,7 @@ import cairo
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def snowflakes(t, w, h, count=160, seed=0, speed=120.0, size=6.0, sway=24.0, wind=0.0):
@@ -66,7 +66,7 @@ def draw(n, cv):
     cv.mark('snow', 0, 0, demo.W, demo.H)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='snowfall',
     name='Snowfall',
     family='particles',
@@ -79,7 +79,7 @@ TECHNIQUE = Technique(
                'add a winter snow overlay'),
     related=('static-noise', 'frost', 'koch-snowflake', 'falling-sand', 'fractal-brownian-motion',
              'noise-terrain-flyover'),
-    api=('videobuilder.techniques.particles.snowfall.draw_snowfall',
-         'videobuilder.techniques.particles.snowfall.snowflakes'),
+    api=('videobuilder.capabilities.particles.snowfall.draw_snowfall',
+         'videobuilder.capabilities.particles.snowfall.snowflakes'),
     demo=lambda: demo.film(draw),
 )

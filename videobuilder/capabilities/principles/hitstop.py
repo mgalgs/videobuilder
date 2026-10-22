@@ -4,7 +4,7 @@ force of the hit."""
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def hitstop(n, at, hold=6):
@@ -63,7 +63,7 @@ def draw(n, cv):
         demo.word(cv, 'HOLD', demo.W / 2, 110, size=22, color=demo.MUTED, font=demo.mono(22, 700))
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='hitstop',
     name='Hitstop',
     family='principles',
@@ -75,7 +75,7 @@ TECHNIQUE = Technique(
                'freeze the action for a split second on impact',
                'make the hit feel heavy with a tiny stop on contact'),
     related=('impact-hit', 'impact', 'impact-shake', 'punch-in', 'recoil', 'smash-cut'),
-    api=('videobuilder.techniques.principles.hitstop.hitstop',
-         'videobuilder.techniques.principles.hitstop.frozen'),
+    api=('videobuilder.capabilities.principles.hitstop.hitstop',
+         'videobuilder.capabilities.principles.hitstop.frozen'),
     demo=lambda: demo.film(draw),
 )

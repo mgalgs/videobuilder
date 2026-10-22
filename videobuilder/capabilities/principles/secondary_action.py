@@ -6,7 +6,7 @@ from dataclasses import replace
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 FRONT_ARM = ('front_arm', 'front_elbow')
 
@@ -44,7 +44,7 @@ def draw(n, cv):
     FIG.draw(cv, pose, (demo.W - travel) / 2 + step.x, ground - step.lift, face='happy', mark='figure')
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='secondary-action',
     name='Secondary Action',
     family='principles',
@@ -56,8 +56,8 @@ TECHNIQUE = Technique(
                'add a little extra gesture on top of the main move',
                'something small happening alongside the main motion to give it life'),
     related=('cut-on-action', 'spring-motion', 'two-body-orbit', 'spin', 'multiples', 'recoil'),
-    api=('videobuilder.techniques.principles.secondary_action.secondary_action',
-         'videobuilder.techniques.principles.secondary_action.envelope',
+    api=('videobuilder.capabilities.principles.secondary_action.secondary_action',
+         'videobuilder.capabilities.principles.secondary_action.envelope',
          'videobuilder.Stick.gait'),
     demo=lambda: demo.film(draw),
 )

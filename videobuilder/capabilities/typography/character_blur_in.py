@@ -4,7 +4,7 @@ import videobuilder as vb
 from videobuilder.type import kit as type_kit
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def blur_in(text, p, overlap=2.5, ease=vb.ease_out_quint):
@@ -46,7 +46,7 @@ def draw(n, cv):
     cv.mark('text', *box)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='character-blur-in',
     name='Character blur-in',
     family='typography',
@@ -59,8 +59,8 @@ TECHNIQUE = Technique(
                'letters fade in out of a blur in sequence'),
     related=('text-mask-reveal', 'typewriter-reveal', 'blur-dissolve', 'focus-ring-draw', 'focus-blur-out',
              'outline-pulse-glow'),
-    api=('videobuilder.techniques.typography.character_blur_in.draw_blur_in',
-         'videobuilder.techniques.typography.character_blur_in.blur_in',
+    api=('videobuilder.capabilities.typography.character_blur_in.draw_blur_in',
+         'videobuilder.capabilities.typography.character_blur_in.blur_in',
          'videobuilder.type.kit.blurred'),
     demo=lambda: demo.film(draw),
 )

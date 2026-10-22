@@ -5,7 +5,7 @@ import math
 from collections import namedtuple
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 Hop = namedtuple('Hop', 'lift sx sy')
 Hop.__doc__ = """One moment of a hop: `lift` is the height off the floor as a
@@ -57,7 +57,7 @@ def draw(n, cv):
     cv.mark('ball', cx - rx, cy - ry, 2 * rx, 2 * ry)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='hop-cycle',
     name='Hop Cycle',
     family='principles',
@@ -70,6 +70,6 @@ TECHNIQUE = Technique(
                'have the ball jump over and over like it is excited'),
     related=('steps-easing', 'rotating-polygon-loop', 'geometric-loop', 'cyclic-cellular-automaton',
              'hopalong-attractor', 'cycle-diagram-rotation'),
-    api=('videobuilder.techniques.principles.hop_cycle.hop_cycle',),
+    api=('videobuilder.capabilities.principles.hop_cycle.hop_cycle',),
     demo=lambda: demo.film(draw),
 )

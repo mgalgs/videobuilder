@@ -6,7 +6,7 @@ import math
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def spring_drag(rest, pointer, t, fps=30, radius=120.0, push=50.0, hz=2.4, ratio=0.32, tilt=0.003, steps=4):
@@ -110,7 +110,7 @@ def draw(n, cv):
     _arrow(cv, *p, s=1.0)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='spring-drag-letters',
     name='Spring-drag letters',
     family='typography',
@@ -123,7 +123,7 @@ TECHNIQUE = Technique(
                'springy text that reacts to the pointer and settles again'),
     related=('hover-letter-displacement', 'magnetic-button', 'cursor-follower-dot-and-ring',
              'cursor-particle-trail', 'spring-return', 'particle-field-repel'),
-    api=('videobuilder.techniques.typography.spring_drag_letters.draw_spring_letters',
-         'videobuilder.techniques.typography.spring_drag_letters.spring_drag'),
+    api=('videobuilder.capabilities.typography.spring_drag_letters.draw_spring_letters',
+         'videobuilder.capabilities.typography.spring_drag_letters.spring_drag'),
     demo=lambda: demo.film(draw),
 )

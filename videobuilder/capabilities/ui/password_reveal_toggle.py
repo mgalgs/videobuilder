@@ -5,7 +5,7 @@ import math
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def _almond(ctx, cx, cy, half, lift, sag):
@@ -128,7 +128,7 @@ def draw(n, cv):
     _pointer(cv, cx, cy, s=0.7 * (1 - 0.12 * press))
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='password-reveal-toggle',
     name='Password reveal toggle',
     family='ui',
@@ -141,7 +141,7 @@ TECHNIQUE = Technique(
                'an eye icon that blinks open to unmask the password'),
     related=('plus-to-close-rotate', 'image-hover-mask-reveal', 'blinking-cursor', 'toggle-switch-slide',
              'fade-up-scroll-reveal', 'circular-clip-reveal'),
-    api=('videobuilder.techniques.ui.password_reveal_toggle.draw_eye',
-         'videobuilder.techniques.ui.password_reveal_toggle.draw_masked'),
+    api=('videobuilder.capabilities.ui.password_reveal_toggle.draw_eye',
+         'videobuilder.capabilities.ui.password_reveal_toggle.draw_masked'),
     demo=lambda: demo.film(draw),
 )

@@ -9,7 +9,7 @@ import videobuilder as vb
 from videobuilder.canvas import rgba
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 SPARKLE_AT = 0.8  # with a sparkle, the streak's share of the progress
 
@@ -98,7 +98,7 @@ def draw(n, cv):
     cv.mark('text', *box)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='shine-glint-sweep',
     name='Shine glint sweep',
     family='typography',
@@ -111,7 +111,7 @@ TECHNIQUE = Technique(
                'a gleam runs across the letters and ends in a little twinkle'),
     related=('sheen-sweep', 'text-reflection-shimmer', 'rim-light', 'spotlight-hover', 'fresnel-edge-glow',
              'gooch-shading'),
-    api=('videobuilder.techniques.typography.shine_glint_sweep.draw_glint',
-         'videobuilder.techniques.typography.shine_glint_sweep.star'),
+    api=('videobuilder.capabilities.typography.shine_glint_sweep.draw_glint',
+         'videobuilder.capabilities.typography.shine_glint_sweep.star'),
     demo=lambda: demo.film(draw),
 )

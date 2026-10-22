@@ -8,7 +8,7 @@ from functools import lru_cache
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def _corners(x, y, a, hw, hh):
@@ -165,7 +165,7 @@ def draw(n, cv):
     cv.mark('letters', *box)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='physics-letter-drop',
     name='Physics letter drop',
     family='typography',
@@ -178,8 +178,8 @@ TECHNIQUE = Technique(
                'make the text fall with real physics and crash into a pile'),
     related=('character-drop', 'gravity-drop', 'hover-letter-displacement', 'elastic-collisions',
              'letter-roll', 'falling-sand'),
-    api=('videobuilder.techniques.typography.physics_letter_drop.simulate',
-         'videobuilder.techniques.typography.physics_letter_drop.draw_letter_drop',
-         'videobuilder.techniques.typography.physics_letter_drop.letter_boxes'),
+    api=('videobuilder.capabilities.typography.physics_letter_drop.simulate',
+         'videobuilder.capabilities.typography.physics_letter_drop.draw_letter_drop',
+         'videobuilder.capabilities.typography.physics_letter_drop.letter_boxes'),
     demo=lambda: demo.film(draw),
 )

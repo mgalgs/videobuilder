@@ -7,7 +7,7 @@ import numpy as np
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def _trailing_box(a, n):
@@ -82,7 +82,7 @@ def _draw(n, cv):
     chroma_bleed(cv, _scene, amount)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='chroma-bleed',
     name='Chroma bleed',
     family='vfx',
@@ -95,6 +95,6 @@ TECHNIQUE = Technique(
                'give it that blurry analogue colour fringing'),
     related=('watercolor-bleed', 'ink-bleed', 'ink-spread-reveal', 'gradient-wipe', 'smear-frame',
              'light-leak'),
-    api=('videobuilder.techniques.vfx.chroma_bleed.chroma_bleed',),
+    api=('videobuilder.capabilities.vfx.chroma_bleed.chroma_bleed',),
     demo=lambda: demo.film(_draw),
 )

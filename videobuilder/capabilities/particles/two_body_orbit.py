@@ -6,7 +6,7 @@ import math
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def kepler_orbit(cx, cy, a, e, t, period=1.0, phase=0.0, rotation=0.0, spin=1):
@@ -67,7 +67,7 @@ def draw(n, cv):
     cv.mark('planet', x - 9, y - 9, 18, 18)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='two-body-orbit',
     name='Two-body orbit',
     family='particles',
@@ -79,7 +79,7 @@ TECHNIQUE = Technique(
                'make a moon swing around like real gravity, slow far away and quick up close',
                'an elliptical orbit that speeds up near the star'),
     related=('orbit', 'orbiting-characters', 'orbit-loader', 'orbital-pulse', 'orbit-shot', 'phyllotaxis'),
-    api=('videobuilder.techniques.particles.two_body_orbit.kepler_orbit',
-         'videobuilder.techniques.particles.two_body_orbit.kepler_path'),
+    api=('videobuilder.capabilities.particles.two_body_orbit.kepler_orbit',
+         'videobuilder.capabilities.particles.two_body_orbit.kepler_path'),
     demo=lambda: demo.film(draw),
 )

@@ -7,7 +7,7 @@ import videobuilder as vb
 from videobuilder import impact
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def stamp_pose(n, at, fall=8, height=420, lift=0.4, squash=0.2, shake=12, settle=14, fps=30, seed=0):
@@ -79,7 +79,7 @@ def draw(n, cv):
     cv.mark('badge', *box)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='badge-stamp-impact',
     name='Badge stamp impact',
     family='shapes',
@@ -91,8 +91,8 @@ TECHNIQUE = Technique(
                'the badge stamps on with a thud and a little shake',
                'drop a stamp onto the frame like it was hit with a rubber stamp'),
     related=('stamp-impression', 'badge-count-bump', 'map-pin-drop', 'impact-hit', 'impact', 'impact-shake'),
-    api=('videobuilder.techniques.shapes.badge_stamp_impact.draw_badge_stamp',
-         'videobuilder.techniques.shapes.badge_stamp_impact.stamp_pose',
+    api=('videobuilder.capabilities.shapes.badge_stamp_impact.draw_badge_stamp',
+         'videobuilder.capabilities.shapes.badge_stamp_impact.stamp_pose',
          'videobuilder.impact.shake'),
     demo=lambda: demo.film(draw),
 )

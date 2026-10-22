@@ -8,7 +8,7 @@ import cairo
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 COLORS = ('#e0a83a', '#f2c66b', '#7f8fe0', '#a7b2f0', '#dfe3ea')
 
@@ -75,7 +75,7 @@ def draw(n, cv):
     draw_bokeh(cv, n / demo.FPS, LIGHTS, demo.W, demo.H, pulse=0.45, fade=0.4 + 0.6 * demo.phase(n, 0, 0.6))
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='bokeh-particles',
     name='Bokeh particles',
     family='particles',
@@ -87,8 +87,8 @@ TECHNIQUE = Technique(
                'a dreamy out-of-focus lights backdrop behind the title',
                'glowing defocused dots drifting around like fairy lights'),
     related=('bokeh-highlights', 'depth-of-field', 'particle-morph', 'bloom', 'ripple', 'diffraction-spikes'),
-    api=('videobuilder.techniques.particles.bokeh_particles.draw_bokeh',
-         'videobuilder.techniques.particles.bokeh_particles.bokeh_lights',
-         'videobuilder.techniques.particles.bokeh_particles.bokeh_disc'),
+    api=('videobuilder.capabilities.particles.bokeh_particles.draw_bokeh',
+         'videobuilder.capabilities.particles.bokeh_particles.bokeh_lights',
+         'videobuilder.capabilities.particles.bokeh_particles.bokeh_disc'),
     demo=lambda: demo.film(draw),
 )

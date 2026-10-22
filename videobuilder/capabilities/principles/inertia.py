@@ -4,7 +4,7 @@ going the old way a moment before the pull wins and it reverses."""
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def inertia(t, moves, start=0.0, ratio=1.0, hz=0.9):
@@ -72,7 +72,7 @@ def draw(n, cv):
         cv.line(tip, y, tip - head, y + 9, demo.INK, width=4)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='inertia',
     name='Inertia',
     family='principles',
@@ -85,8 +85,8 @@ TECHNIQUE = Technique(
                'give it some weight so it catches up instead of snapping'),
     related=('linear-easing', 'slow-in-and-slow-out', 'momentum-fling', 'velocity-preserving-retarget',
              'bounce-ease-in', 'ease-in-out-back'),
-    api=('videobuilder.techniques.principles.inertia.inertia',
-         'videobuilder.techniques.principles.inertia.inertia_velocity',
+    api=('videobuilder.capabilities.principles.inertia.inertia',
+         'videobuilder.capabilities.principles.inertia.inertia_velocity',
          'videobuilder.spring', 'videobuilder.damped'),
     demo=lambda: demo.film(draw),
 )

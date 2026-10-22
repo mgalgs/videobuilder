@@ -6,7 +6,7 @@ import math
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def snap_position(s, hold=0.55, ease=vb.ease_in_out_quart):
@@ -70,7 +70,7 @@ def draw(n, cv):
     cv.mark('slide', *box)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='carousel-slide',
     name='Carousel slide',
     family='ui',
@@ -83,7 +83,7 @@ TECHNIQUE = Technique(
                'a horizontal slider cycling through reviews'),
     related=('word-carousel-rotate', 'image-crossfade-slideshow', 'timeline-scroll', 'before-after-slider',
              'lower-third-slide-in-bar', 'layout-animation-flip'),
-    api=('videobuilder.techniques.ui.carousel_slide.draw_carousel',
-         'videobuilder.techniques.ui.carousel_slide.snap_position'),
+    api=('videobuilder.capabilities.ui.carousel_slide.draw_carousel',
+         'videobuilder.capabilities.ui.carousel_slide.snap_position'),
     demo=lambda: demo.film(draw),
 )

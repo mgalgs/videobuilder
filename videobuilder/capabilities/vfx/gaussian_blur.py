@@ -8,7 +8,7 @@ import videobuilder as vb
 from videobuilder.type.kit import blurred
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 PANEL = vb.Box(demo.W / 2 - 300, 50, 600, 338)
 MAX_RADIUS = 18
@@ -43,7 +43,7 @@ def draw(n, cv):
     vb.text.draw(cv, [f'{math.floor(r + 0.5):>2d} px'], f, x1 + 28, y - 12, demo.INK)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='gaussian-blur',
     name='Gaussian blur',
     family='vfx',

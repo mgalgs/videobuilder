@@ -7,7 +7,7 @@ from functools import lru_cache
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def cloth_sheet(x, y, w, h, frames, fps=30, cols=20, rows=14, tilt=90.0, pins=None, releases=(), gravity=1400.0,
@@ -182,7 +182,7 @@ def draw(n, cv):
             demo.dot(cv, *project(grid[0][k]), r=10, color=demo.ACCENT)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='mass-spring-cloth',
     name='Mass-spring cloth',
     family='particles',
@@ -195,7 +195,7 @@ TECHNIQUE = Technique(
                'a flag or curtain made of a stretchy grid that ripples'),
     related=('spring-motion', 'spring-return', 'falling-sand', 'soft-body-jelly', 'line-weave',
              'overdamped-spring'),
-    api=('videobuilder.techniques.particles.mass_spring_cloth.cloth_sheet',
-         'videobuilder.techniques.particles.mass_spring_cloth.draw_cloth'),
+    api=('videobuilder.capabilities.particles.mass_spring_cloth.cloth_sheet',
+         'videobuilder.capabilities.particles.mass_spring_cloth.draw_cloth'),
     demo=lambda: demo.film(draw),
 )

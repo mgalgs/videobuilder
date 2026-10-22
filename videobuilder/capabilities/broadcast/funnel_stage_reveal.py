@@ -5,7 +5,7 @@ import videobuilder as vb
 from videobuilder.canvas import rgba
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def _trapezoid(cv, cx, y0, y1, w0, w1, color, alpha=1.0):
@@ -88,7 +88,7 @@ def draw(n, cv):
         cv.mark('stage', *b)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='funnel-stage-reveal',
     name='Funnel stage reveal',
     family='broadcast',
@@ -101,8 +101,8 @@ TECHNIQUE = Technique(
                'build up a funnel chart from visits down to paying customers'),
     related=('staggered-cascade-reveal', 'step-by-step-process-reveal', 'zoom-out-reveal', 'wireframe-reveal',
              'org-chart-grow', 'flowchart-build'),
-    api=('videobuilder.techniques.broadcast.funnel_stage_reveal.draw_funnel',
-         'videobuilder.techniques.broadcast.funnel_stage_reveal.stage_progress',
-         'videobuilder.techniques.broadcast.funnel_stage_reveal.drop_label'),
+    api=('videobuilder.capabilities.broadcast.funnel_stage_reveal.draw_funnel',
+         'videobuilder.capabilities.broadcast.funnel_stage_reveal.stage_progress',
+         'videobuilder.capabilities.broadcast.funnel_stage_reveal.drop_label'),
     demo=lambda: demo.film(draw),
 )

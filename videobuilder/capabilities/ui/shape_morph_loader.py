@@ -8,7 +8,7 @@ import videobuilder as vb
 
 from .. import _demo as demo
 from ...compendium import kit
-from ..schema import Technique
+from ..schema import Capability
 
 N = 96  # outline points: enough for a smooth circle at any loader size
 
@@ -85,7 +85,7 @@ def draw(n, cv):
     vb.text.draw(cv, ['Loading' + dots], f, (demo.W - w) / 2, demo.H / 2 + 150, demo.MUTED)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='shape-morph-loader',
     name='Shape morph loader',
     family='ui',
@@ -98,8 +98,8 @@ TECHNIQUE = Technique(
                'a loader made of one shape that melts between geometric forms on a loop'),
     related=('morphing-blob', 'morphing-shape-ident', 'shape-morph', 'blob-to-icon-morph',
              'text-to-shape-morph', 'particle-morph'),
-    api=('videobuilder.techniques.ui.shape_morph_loader.draw_loader',
-         'videobuilder.techniques.ui.shape_morph_loader.loader_outline',
+    api=('videobuilder.capabilities.ui.shape_morph_loader.draw_loader',
+         'videobuilder.capabilities.ui.shape_morph_loader.loader_outline',
          'videobuilder.paths.morph'),
     demo=lambda: demo.film(draw),
 )

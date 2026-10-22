@@ -6,7 +6,7 @@ moves the other way so the upright strokes keep about the same thickness."""
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def stroke_weight(weight, width):
@@ -82,7 +82,7 @@ def draw(n, cv):
     _slider(cv, sum(widths) / len(widths), demo.H / 2 + 110)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='variable-font-width-animation',
     name='Variable-font width animation',
     family='typography',
@@ -95,8 +95,8 @@ TECHNIQUE = Technique(
                'the word breathes in and out horizontally like a variable font'),
     related=('text-to-shape-morph', 'chart-type-morph', 'axis-rescale', 'twirl-warp-text', 'julia-set-morph',
              'arc-bend-morph'),
-    api=('videobuilder.techniques.typography.variable_font_width_animation.draw_width',
-         'videobuilder.techniques.typography.variable_font_width_animation.width_wave',
-         'videobuilder.techniques.typography.variable_font_width_animation.stroke_weight'),
+    api=('videobuilder.capabilities.typography.variable_font_width_animation.draw_width',
+         'videobuilder.capabilities.typography.variable_font_width_animation.width_wave',
+         'videobuilder.capabilities.typography.variable_font_width_animation.stroke_weight'),
     demo=lambda: demo.film(draw),
 )

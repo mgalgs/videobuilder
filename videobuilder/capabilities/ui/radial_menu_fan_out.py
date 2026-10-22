@@ -6,7 +6,7 @@ import math
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def fan_out(count, p, radius, start=-math.pi, spread=math.pi, stagger=0.45, ease=vb.ease_out_back):
@@ -92,7 +92,7 @@ def draw(n, cv):
     draw_radial_menu(cv, demo.W / 2, demo.H / 2 + 120, p, ITEMS, radius=270, size=96, trigger=130)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='radial-menu-fan-out',
     name='Radial menu fan-out',
     family='ui',
@@ -105,7 +105,7 @@ TECHNIQUE = Technique(
                'tap the plus and the choices spread out in a circle around it'),
     related=('hamburger-to-x', 'circle-pop', 'plus-to-close-rotate', 'circle-check-draw', 'pie-sweep',
              'sound-reactive-radial-shape'),
-    api=('videobuilder.techniques.ui.radial_menu_fan_out.draw_radial_menu',
-         'videobuilder.techniques.ui.radial_menu_fan_out.fan_out'),
+    api=('videobuilder.capabilities.ui.radial_menu_fan_out.draw_radial_menu',
+         'videobuilder.capabilities.ui.radial_menu_fan_out.fan_out'),
     demo=lambda: demo.film(draw),
 )

@@ -205,5 +205,23 @@ class OneTechniqueAlone(unittest.TestCase):
         self.assertIn('Ran 1 test', proc.stderr)
 
 
+class Compatibility(unittest.TestCase):
+    """videobuilder.techniques is now only a compatibility shim (see its own
+    module docstring): a film written before the rename may still use its old
+    dotted paths, so those must keep resolving."""
+
+    def test_old_dotted_module_path_still_imports_and_resolves(self):
+        from videobuilder.techniques.principles.follow_through import follow_through
+        self.assertTrue(callable(follow_through))
+
+    def test_old_class_name_aliases_the_new_one(self):
+        from videobuilder.capabilities.schema import Capability
+        self.assertIs(techniques.Technique, Capability)
+
+    def test_old_package_name_answers_the_same_registry(self):
+        from videobuilder.capabilities import registry
+        self.assertEqual(set(techniques.ids()), set(registry.ids()))
+
+
 if __name__ == '__main__':
     unittest.main()

@@ -8,7 +8,7 @@ import videobuilder as vb
 from videobuilder.canvas import rgba
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 ORBIT = vb.bezier(0.37, 0, 0.63, 1)
 LIGHT = (-0.45, 0.8, -0.4)  # towards the light: upper left, in front of the camera at yaw 0
@@ -130,7 +130,7 @@ def draw(n, cv):
     cv.mark('grid', *box)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='cloner-grid',
     name='Cloner grid',
     family='camera',
@@ -143,6 +143,6 @@ TECHNIQUE = Technique(
                'a 3D wall of pillars that pulses outward from the middle while the camera orbits'),
     related=('mograph-grid-flip', 'pattern-tiling', 'radial-repeater', 'mosaic-tiling', 'penrose-tiling',
              'small-multiples-cascade'),
-    api=('videobuilder.techniques.camera.cloner_grid.cloner_grid',),
+    api=('videobuilder.capabilities.camera.cloner_grid.cloner_grid',),
     demo=lambda: demo.film(draw),
 )

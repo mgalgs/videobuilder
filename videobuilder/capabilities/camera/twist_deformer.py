@@ -7,7 +7,7 @@ import videobuilder as vb
 from videobuilder.canvas import rgba
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def twist(points, angle, bottom, top, ease=None):
@@ -131,7 +131,7 @@ def draw(n, cv):
     cv.mark('box', *box)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='twist-deformer',
     name='Twist deformer',
     family='camera',
@@ -144,7 +144,7 @@ TECHNIQUE = Technique(
                'make the 3D block spiral around itself and then straighten out'),
     related=('confetti', 'swirl', 'arc-bend-morph', 'origami-fold', 'globe-spin',
              'line-to-polygon-transform'),
-    api=('videobuilder.techniques.camera.twist_deformer.twisted_box',
-         'videobuilder.techniques.camera.twist_deformer.twist'),
+    api=('videobuilder.capabilities.camera.twist_deformer.twisted_box',
+         'videobuilder.capabilities.camera.twist_deformer.twist'),
     demo=lambda: demo.film(draw),
 )

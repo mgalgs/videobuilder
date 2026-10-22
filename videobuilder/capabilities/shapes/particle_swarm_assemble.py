@@ -7,7 +7,7 @@ import random
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def outline_targets(points, n, seed=0, spread=6.0, closed=True):
@@ -73,7 +73,7 @@ def draw(n, cv):
     cv.mark('shape', *box)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='particle-swarm-assemble',
     name='Particle swarm assemble',
     family='shapes',
@@ -87,8 +87,8 @@ TECHNIQUE = Technique(
                'the outline builds itself out of hundreds of little dots'),
     related=('particle-text-formation', 'shape-assemble-from-fragments', 'image-to-particles', 'particle-morph',
              'animated-sprite-particles', 'dot-density-map'),
-    api=('videobuilder.techniques.shapes.particle_swarm_assemble.swarm',
-         'videobuilder.techniques.shapes.particle_swarm_assemble.draw_swarm',
-         'videobuilder.techniques.shapes.particle_swarm_assemble.outline_targets'),
+    api=('videobuilder.capabilities.shapes.particle_swarm_assemble.swarm',
+         'videobuilder.capabilities.shapes.particle_swarm_assemble.draw_swarm',
+         'videobuilder.capabilities.shapes.particle_swarm_assemble.outline_targets'),
     demo=lambda: demo.film(draw),
 )

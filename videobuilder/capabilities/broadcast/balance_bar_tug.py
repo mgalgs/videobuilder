@@ -4,7 +4,7 @@ the other -- possession stats, a live poll, a head-to-head."""
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def tug_share(t, keys, start=0.5, stiffness=120.0, damping=11.0):
@@ -64,7 +64,7 @@ def draw(n, cv):
     cv.mark('divider', split - 2, y, 4, bh)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='balance-bar-tug',
     name='Balance bar tug',
     family='broadcast',
@@ -78,7 +78,7 @@ TECHNIQUE = Technique(
                'a head-to-head bar that slides towards whoever is winning'),
     related=('indeterminate-bar', 'gauge-needle-sweep', 'percentage-fill-bar', 'bar-chart-race',
              'audio-waveform-bars', 'vhs-tracking-bar'),
-    api=('videobuilder.techniques.broadcast.balance_bar_tug.draw_balance_bar',
-         'videobuilder.techniques.broadcast.balance_bar_tug.tug_share'),
+    api=('videobuilder.capabilities.broadcast.balance_bar_tug.draw_balance_bar',
+         'videobuilder.capabilities.broadcast.balance_bar_tug.tug_share'),
     demo=lambda: demo.film(draw),
 )

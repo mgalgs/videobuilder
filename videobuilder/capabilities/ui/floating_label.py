@@ -5,7 +5,7 @@ import videobuilder as vb
 
 from .. import _demo as demo
 from ...compendium import kit
-from ..schema import Technique
+from ..schema import Capability
 
 
 def label_at(box, font, p, lift=0.72, inset=28):
@@ -65,7 +65,7 @@ def draw(n, cv):
         cv.rect(cx, ty + 6, 4, vb.text.line_height(vf) - 12, demo.TEAL)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='floating-label',
     name='Floating label',
     family='ui',
@@ -78,7 +78,7 @@ TECHNIQUE = Technique(
                'form field where the hint text floats above the box on focus'),
     related=('idle-float-bob', 'letter-roll', 'floating-reaction-emoji', 'decimal-counter-with-formatting',
              'dock-magnification', 'liquid-fill-level'),
-    api=('videobuilder.techniques.ui.floating_label.draw_floating_label',
-         'videobuilder.techniques.ui.floating_label.label_at'),
+    api=('videobuilder.capabilities.ui.floating_label.draw_floating_label',
+         'videobuilder.capabilities.ui.floating_label.label_at'),
     demo=lambda: demo.film(draw),
 )

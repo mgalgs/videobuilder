@@ -7,7 +7,7 @@ import random
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 NEAR, FAR = 0.05, 1.0
 
@@ -70,7 +70,7 @@ def draw(n, cv):
     draw_starfield(cv, _travel(t), FIELD, streak=0.08 * (v - 0.18) / 1.4 + 0.004, color=demo.INK)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='starfield',
     name='Starfield',
     family='particles',
@@ -83,7 +83,7 @@ TECHNIQUE = Technique(
                'a space background where the stars streak outward from the middle'),
     related=('diffraction-spikes', 'flow-field', 'shape-burst', 'star-rating-fill', 'dot-grid-displacement',
              'turbulence-displacement'),
-    api=('videobuilder.techniques.particles.starfield.draw_starfield',
-         'videobuilder.techniques.particles.starfield.stars'),
+    api=('videobuilder.capabilities.particles.starfield.draw_starfield',
+         'videobuilder.capabilities.particles.starfield.stars'),
     demo=lambda: demo.film(draw),
 )

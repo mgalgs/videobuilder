@@ -6,7 +6,7 @@ import math
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 ARROW = ((0, 0), (0, 27), (7, 21), (12, 32), (17.5, 29.5), (12.5, 19), (21, 19))  # a pointer, tip at (0, 0)
 
@@ -128,7 +128,7 @@ def draw(n, cv):
     cv.mark('pointer', cx, cy, 18, 27)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='tooltip-fade-follow',
     name='Tooltip fade follow',
     family='ui',
@@ -141,9 +141,9 @@ TECHNIQUE = Technique(
                'a hover label that fades in, follows the pointer, then fades out'),
     related=('range-slider-value-bubble', 'fade-up-scroll-reveal', 'arrow-slide', 'image-hover-mask-reveal',
              'highlighter-swipe', 'per-line-fade-in'),
-    api=('videobuilder.techniques.ui.tooltip_fade_follow.tooltip_fade_follow',
-         'videobuilder.techniques.ui.tooltip_fade_follow.follow',
-         'videobuilder.techniques.ui.tooltip_fade_follow.hover',
-         'videobuilder.techniques.ui.tooltip_fade_follow.draw_tooltip'),
+    api=('videobuilder.capabilities.ui.tooltip_fade_follow.tooltip_fade_follow',
+         'videobuilder.capabilities.ui.tooltip_fade_follow.follow',
+         'videobuilder.capabilities.ui.tooltip_fade_follow.hover',
+         'videobuilder.capabilities.ui.tooltip_fade_follow.draw_tooltip'),
     demo=lambda: demo.film(draw),
 )

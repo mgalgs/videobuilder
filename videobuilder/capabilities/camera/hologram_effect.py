@@ -10,7 +10,7 @@ import videobuilder as vb
 from videobuilder.canvas import rgba
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 from ...type import kit as tk
 
 
@@ -190,7 +190,7 @@ def draw(n, cv):
     cv.mark('hologram', *box)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='hologram-effect',
     name='Hologram effect',
     family='camera',
@@ -204,9 +204,9 @@ TECHNIQUE = Technique(
                'show the 3D shape as a flickering holographic projection'),
     related=('op-art-vibrating-pattern', 'gooch-shading', 'lens-distortion', 'solarization', 'heat-haze',
              'lens-flare'),
-    api=('videobuilder.techniques.camera.hologram_effect.hologram',
-         'videobuilder.techniques.camera.hologram_effect.hologram_flicker',
-         'videobuilder.techniques.camera.hologram_effect.wire_solid',
-         'videobuilder.techniques.camera.hologram_effect.icosahedron'),
+    api=('videobuilder.capabilities.camera.hologram_effect.hologram',
+         'videobuilder.capabilities.camera.hologram_effect.hologram_flicker',
+         'videobuilder.capabilities.camera.hologram_effect.wire_solid',
+         'videobuilder.capabilities.camera.hologram_effect.icosahedron'),
     demo=lambda: demo.film(draw),
 )

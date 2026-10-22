@@ -9,7 +9,7 @@ import cairo
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def pollen(t, w, h, count=90, seed=0, wind=(60.0, -35.0), life=(4.0, 8.0), wobble=26.0):
@@ -79,7 +79,7 @@ def draw(n, cv):
     cv.mark('field', 0, 0, demo.W, demo.H)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='pollen-drift',
     name='Pollen drift',
     family='particles',
@@ -92,7 +92,7 @@ TECHNIQUE = Technique(
                'pollen hanging in the air and drifting on the wind'),
     related=('spiral-bloom', 'wander-steering', 'voronoi-relaxation', 'turbulence-displacement', 'wind-field',
              'phyllotaxis'),
-    api=('videobuilder.techniques.particles.pollen_drift.draw_pollen',
-         'videobuilder.techniques.particles.pollen_drift.pollen'),
+    api=('videobuilder.capabilities.particles.pollen_drift.draw_pollen',
+         'videobuilder.capabilities.particles.pollen_drift.pollen'),
     demo=lambda: demo.film(draw),
 )

@@ -20,7 +20,7 @@ from PIL import Image
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 from ...looks import fx
 from ...looks import kit as lk
 
@@ -122,7 +122,7 @@ def draw(n, cv):
         vb.text.draw(cv, ['VISIBLE'], f, demo.W - 24 - w, 20, '#0d1b2a')
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='infrared-false-color',
     name='Infrared false color',
     family='vfx',
@@ -135,7 +135,7 @@ TECHNIQUE = Technique(
                'give the landscape that false-colour infrared camera look'),
     related=('rgb-split', 'rgb-channel-split', 'channel-shuffle', 'thin-film-iridescence',
              'photographic-negative', 'solarization'),
-    api=('videobuilder.techniques.vfx.infrared_false_color.infrared_false_color',
-         'videobuilder.techniques.vfx.infrared_false_color.infrared'),
+    api=('videobuilder.capabilities.vfx.infrared_false_color.infrared_false_color',
+         'videobuilder.capabilities.vfx.infrared_false_color.infrared'),
     demo=lambda: demo.film(draw),
 )

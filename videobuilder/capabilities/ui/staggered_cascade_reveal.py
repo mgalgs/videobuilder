@@ -4,7 +4,7 @@ group fills in as a ripple rather than all at once."""
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def cascade(p, count, spread=0.6, ease=vb.ease_out_quint):
@@ -44,7 +44,7 @@ def draw(n, cv):
         reveal(cv, lambda cv, cx=cx, cy=cy, i=i: demo.card(cv, cx, cy, w=CW, h=CH, color=colors[i % 2]), q)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='staggered-cascade-reveal',
     name='Staggered cascade reveal',
     family='ui',
@@ -57,7 +57,7 @@ TECHNIQUE = Technique(
                'as the section appears, stagger the items in with a small delay each'),
     related=('dropdown-stagger-reveal', 'uncover', 'linear-stagger', 'small-multiples-cascade', 'roll-up',
              'stacked-card-reveal'),
-    api=('videobuilder.techniques.ui.staggered_cascade_reveal.cascade',
-         'videobuilder.techniques.ui.staggered_cascade_reveal.reveal'),
+    api=('videobuilder.capabilities.ui.staggered_cascade_reveal.cascade',
+         'videobuilder.capabilities.ui.staggered_cascade_reveal.reveal'),
     demo=lambda: demo.film(draw),
 )

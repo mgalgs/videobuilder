@@ -3,7 +3,7 @@ covering more ground every frame until it reaches the floor."""
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def gravity_drop(t, start, end, duration):
@@ -37,7 +37,7 @@ def draw(n, cv):
     cv.mark('ball', cx - r, y - r, 2 * r, 2 * r)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='gravity-drop',
     name='Gravity Drop',
     family='principles',
@@ -50,6 +50,6 @@ TECHNIQUE = Technique(
                'have it free-fall onto the floor'),
     related=('physics-letter-drop', 'character-drop', 'sub-drop', 'falling-leaves',
              'gravity-well-attraction', 'momentum-fling'),
-    api=('videobuilder.techniques.principles.gravity_drop.gravity_drop',),
+    api=('videobuilder.capabilities.principles.gravity_drop.gravity_drop',),
     demo=lambda: demo.film(draw),
 )

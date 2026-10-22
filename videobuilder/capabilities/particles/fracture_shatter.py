@@ -7,7 +7,7 @@ import random
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 from ..shapes.shape_assemble_from_fragments import shatter
 
 
@@ -132,7 +132,7 @@ def draw(n, cv):
     cv.mark('block', *BLOCK)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='fracture-shatter',
     name='Fracture shatter',
     family='particles',
@@ -144,9 +144,9 @@ TECHNIQUE = Technique(
                'the ball hits the wall and it breaks into pieces that fall to the floor',
                'make the block blow apart into tumbling fragments'),
     related=('shatter', 'impact', 'dam-break', 'type-explosion', 'impact-hit', 'smash-cut'),
-    api=('videobuilder.techniques.particles.fracture_shatter.draw_fracture',
-         'videobuilder.techniques.particles.fracture_shatter.launch',
-         'videobuilder.techniques.particles.fracture_shatter.pose',
-         'videobuilder.techniques.shapes.shape_assemble_from_fragments.shatter'),
+    api=('videobuilder.capabilities.particles.fracture_shatter.draw_fracture',
+         'videobuilder.capabilities.particles.fracture_shatter.launch',
+         'videobuilder.capabilities.particles.fracture_shatter.pose',
+         'videobuilder.capabilities.shapes.shape_assemble_from_fragments.shatter'),
     demo=lambda: demo.film(draw),
 )

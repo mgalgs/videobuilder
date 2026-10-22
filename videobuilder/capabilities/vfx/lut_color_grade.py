@@ -19,7 +19,7 @@ import videobuilder as vb
 
 from .. import _demo as demo
 from ...looks.fx import Filter, apply
-from ..schema import Technique
+from ..schema import Capability
 
 
 def teal_orange(r, g, b):
@@ -97,7 +97,7 @@ def draw(n, cv):
         _tag(cv, 'LUT: TEAL & ORANGE', 40, 36)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='lut-color-grade',
     name='LUT color grade',
     family='vfx',
@@ -111,8 +111,8 @@ TECHNIQUE = Technique(
                'apply a LUT to the clip'),
     related=('luma-wipe', 'shine-glint-sweep', 'palette-shift-transition', 'theme-swap-crossfade',
              'hue-cycle-fill', 'gradient-sweep-across-text'),
-    api=('videobuilder.techniques.vfx.lut_color_grade.lut_grade',
-         'videobuilder.techniques.vfx.lut_color_grade.make_lut',
-         'videobuilder.techniques.vfx.lut_color_grade.grade_image'),
+    api=('videobuilder.capabilities.vfx.lut_color_grade.lut_grade',
+         'videobuilder.capabilities.vfx.lut_color_grade.make_lut',
+         'videobuilder.capabilities.vfx.lut_color_grade.grade_image'),
     demo=lambda: demo.film(draw),
 )

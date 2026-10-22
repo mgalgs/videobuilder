@@ -6,7 +6,7 @@ import functools
 import random
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 NEIGHBOURS = tuple((dx, dy) for dx in (-1, 0, 1) for dy in (-1, 0, 1) if dx or dy)
 
@@ -76,7 +76,7 @@ def draw(n, cv):
     draw_brain(cv, firing, dying, (demo.W - COLS * CELL) / 2, (demo.H - ROWS * CELL) / 2, CELL)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='brian-s-brain',
     name="Brian's Brain",
     family='particles',
@@ -89,9 +89,9 @@ TECHNIQUE = Technique(
                'a generative grid of firing cells with a fading trail behind each one'),
     related=('reaction-diffusion', 'rossler-attractor', 'outline-pulse-glow', 'fireflies', 'lorenz-attractor',
              'kuramoto-synchronization'),
-    api=('videobuilder.techniques.particles.brian_s_brain.draw_brain',
-         'videobuilder.techniques.particles.brian_s_brain.generations',
-         'videobuilder.techniques.particles.brian_s_brain.brain_step',
-         'videobuilder.techniques.particles.brian_s_brain.seed_clump'),
+    api=('videobuilder.capabilities.particles.brian_s_brain.draw_brain',
+         'videobuilder.capabilities.particles.brian_s_brain.generations',
+         'videobuilder.capabilities.particles.brian_s_brain.brain_step',
+         'videobuilder.capabilities.particles.brian_s_brain.seed_clump'),
     demo=lambda: demo.film(draw),
 )

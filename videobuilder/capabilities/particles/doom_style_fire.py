@@ -9,7 +9,7 @@ from PIL import Image as PILImage
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 HOT = 36  # the hottest heat value; 0 is cold
 
@@ -86,7 +86,7 @@ def draw(n, cv):
     cv.mark('fire', *box)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='doom-style-fire',
     name='Doom-style fire',
     family='particles',
@@ -98,7 +98,7 @@ TECHNIQUE = Technique(
                'that retro game title-screen fire made of big pixels',
                'a low-res flickering blaze like the one in classic 90s shooters'),
     related=('fire-overlay', 'heat-haze', 'fireworks', 'burning-ship-fractal', 'smoke-simulation', 'line-boil'),
-    api=('videobuilder.techniques.particles.doom_style_fire.draw_doom_fire',
-         'videobuilder.techniques.particles.doom_style_fire.fire_heat'),
+    api=('videobuilder.capabilities.particles.doom_style_fire.draw_doom_fire',
+         'videobuilder.capabilities.particles.doom_style_fire.fire_heat'),
     demo=lambda: demo.film(draw),
 )

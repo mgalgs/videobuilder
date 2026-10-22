@@ -4,7 +4,7 @@ order (or back up it, reversed)."""
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def linear_stagger(p, i, count, spread=0.6, reverse=False):
@@ -33,7 +33,7 @@ def draw(n, cv):
         cv.mark(f'item{i}', x, y, SIZE, SIZE)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='linear-stagger',
     name='Linear Stagger',
     family='principles',
@@ -47,6 +47,6 @@ TECHNIQUE = Technique(
                'cascade the list in, same gap between every item'),
     related=('linear-repeater-stagger', 'staggered-cascade-reveal', 'per-word-fade-in', 'delay',
              'random-order-character-reveal', 'offset'),
-    api=('videobuilder.techniques.principles.linear_stagger.linear_stagger',),
+    api=('videobuilder.capabilities.principles.linear_stagger.linear_stagger',),
     demo=lambda: demo.film(draw),
 )

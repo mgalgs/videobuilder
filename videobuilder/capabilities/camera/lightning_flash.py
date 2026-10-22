@@ -18,7 +18,7 @@ import videobuilder as vb
 
 from .. import _demo as demo
 from ...compendium import kit
-from ..schema import Technique
+from ..schema import Capability
 
 FLASH = '#dfe6ff'
 
@@ -139,7 +139,7 @@ def _draw(n, cv):
     lightning_flash(cv, t, BOLT)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='lightning-flash',
     name='Lightning flash',
     family='camera',
@@ -151,8 +151,8 @@ TECHNIQUE = Technique(
                'a stormy flash where everything goes bright for a split second',
                'add a thunderstorm flash with a zigzag bolt'),
     related=('lightning-bolt', 'strobe-cut', 'electric-arc', 'sparks', 'fireflies', 'meteor-shower'),
-    api=('videobuilder.techniques.camera.lightning_flash.lightning_flash',
-         'videobuilder.techniques.camera.lightning_flash.lightning_bolt',
-         'videobuilder.techniques.camera.lightning_flash.flash_level'),
+    api=('videobuilder.capabilities.camera.lightning_flash.lightning_flash',
+         'videobuilder.capabilities.camera.lightning_flash.lightning_bolt',
+         'videobuilder.capabilities.camera.lightning_flash.flash_level'),
     demo=lambda: demo.film(_draw),
 )

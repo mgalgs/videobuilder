@@ -5,7 +5,7 @@ overshooting and ringing down each time."""
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 SPRING = vb.damped(0.22, hz=1.6)    # light damping: a clear overshoot and a few visible wobbles
 WALL = demo.W * 0.12                # x of the fixed anchor the coil hangs from
@@ -43,7 +43,7 @@ def draw(n, cv):
     demo.card(cv, x, y, w=w, h=h)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='spring-motion',
     name='Spring Motion',
     family='principles',

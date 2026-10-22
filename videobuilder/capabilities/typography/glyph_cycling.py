@@ -4,7 +4,7 @@ staggered across the word so the cycling rolls through it."""
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 SETS = ('ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz', '0123456789')
 
@@ -61,7 +61,7 @@ def draw(n, cv):
     cv.mark('text', *box)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='glyph-cycling',
     name='Glyph cycling',
     family='typography',
@@ -74,8 +74,8 @@ TECHNIQUE = Technique(
                'the letters cycle through other characters like a counter before settling'),
     related=('character-rotate-in', 'letter-morph', 'hue-cycle-fill', 'letter-sort-animation',
              'typeface-crossfade', 'scramble-decode'),
-    api=('videobuilder.techniques.typography.glyph_cycling.draw_glyph_cycle',
-         'videobuilder.techniques.typography.glyph_cycling.glyph_cycle',
-         'videobuilder.techniques.typography.glyph_cycling.cycle_char'),
+    api=('videobuilder.capabilities.typography.glyph_cycling.draw_glyph_cycle',
+         'videobuilder.capabilities.typography.glyph_cycling.glyph_cycle',
+         'videobuilder.capabilities.typography.glyph_cycling.cycle_char'),
     demo=lambda: demo.film(draw),
 )

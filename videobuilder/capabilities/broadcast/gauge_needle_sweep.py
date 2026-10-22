@@ -7,7 +7,7 @@ import videobuilder as vb
 from videobuilder.canvas import rgba
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 START = math.radians(135)    # bottom left; canvas angles run clockwise
 SWEEP = math.radians(270)
@@ -77,7 +77,7 @@ def draw(n, cv):
     cv.mark('needle', min(cx, tx) - 6, min(cy, ty) - 6, abs(tx - cx) + 12, abs(ty - cy) + 12)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='gauge-needle-sweep',
     name='Gauge needle sweep',
     family='broadcast',
@@ -90,7 +90,7 @@ TECHNIQUE = Technique(
                'a meter needle that overshoots and settles on the reading'),
     related=('balance-bar-tug', 'dimension-line-annotation', 'stopwatch-count-up', 'interlace-combing',
              'jiggle', 'scanline-jitter'),
-    api=('videobuilder.techniques.broadcast.gauge_needle_sweep.draw_gauge',
-         'videobuilder.techniques.broadcast.gauge_needle_sweep.needle_value'),
+    api=('videobuilder.capabilities.broadcast.gauge_needle_sweep.draw_gauge',
+         'videobuilder.capabilities.broadcast.gauge_needle_sweep.needle_value'),
     demo=lambda: demo.film(draw),
 )

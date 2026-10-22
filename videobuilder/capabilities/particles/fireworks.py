@@ -9,7 +9,7 @@ import cairo
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 GOLD = '#ffcf6b'
 
@@ -132,7 +132,7 @@ def draw(n, cv):
     cv.rect(0, ground, demo.W, demo.H - ground, '#0c0d10')
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='fireworks',
     name='Fireworks',
     family='particles',
@@ -144,6 +144,6 @@ TECHNIQUE = Technique(
                'rockets that go up and explode into colourful sparks',
                'a celebration with fireworks bursting in the night sky'),
     related=('shape-burst', 'doom-style-fire', 'confetti-burst', 'lens-flare', 'bloom', 'diffraction-spikes'),
-    api=('videobuilder.techniques.particles.fireworks.firework',),
+    api=('videobuilder.capabilities.particles.fireworks.firework',),
     demo=lambda: demo.film(draw),
 )

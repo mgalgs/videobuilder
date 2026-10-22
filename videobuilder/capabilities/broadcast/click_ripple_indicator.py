@@ -6,7 +6,7 @@ import math
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 from ..ui.cursor_state_change import draw_cursor
 
 
@@ -80,7 +80,7 @@ def draw(n, cv):
     cv.mark('cursor', *draw_cursor(cv, x, y, 0, size=1.8 - 0.2 * max(pressed)))
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='click-ripple-indicator',
     name='Click ripple indicator',
     family='broadcast',
@@ -93,7 +93,7 @@ TECHNIQUE = Technique(
                'a little ring animation at the cursor every time it taps something'),
     related=('touch-ripple', 'location-ripple-pulse', 'focus-ring-draw', 'callout-highlight',
              'drop-target-highlight', 'border-glow-follow'),
-    api=('videobuilder.techniques.broadcast.click_ripple_indicator.click_ripple',
-         'videobuilder.techniques.ui.cursor_state_change.draw_cursor'),
+    api=('videobuilder.capabilities.broadcast.click_ripple_indicator.click_ripple',
+         'videobuilder.capabilities.ui.cursor_state_change.draw_cursor'),
     demo=lambda: demo.film(draw),
 )

@@ -7,7 +7,7 @@ import cairo
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def hose_curve(x0, y0, x1, y1, length, bend=1.0):
@@ -113,7 +113,7 @@ def draw(n, cv):
     cv.mark('character', cx - 140, cy - r, 280, ground - cy + r + 20)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='rubber-hose-limb-animation',
     name='Rubber hose animation',
     family='shapes',
@@ -127,7 +127,7 @@ TECHNIQUE = Technique(
                'old-timey cartoon character with wiggly boneless limbs'),
     related=('rotoscope-look', 'stop-motion-animation', 'handheld-shake', 'elastic-stretch',
              'animated-sprite-particles', 'swirl'),
-    api=('videobuilder.techniques.shapes.rubber_hose_limb_animation.hose_limb',
-         'videobuilder.techniques.shapes.rubber_hose_limb_animation.hose_curve'),
+    api=('videobuilder.capabilities.shapes.rubber_hose_limb_animation.hose_limb',
+         'videobuilder.capabilities.shapes.rubber_hose_limb_animation.hose_curve'),
     demo=lambda: demo.film(draw),
 )

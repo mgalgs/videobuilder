@@ -5,7 +5,7 @@ import random
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 GLYPHS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789#%&*+=<>/?'
 
@@ -50,7 +50,7 @@ def draw(n, cv):
     cv.mark('text', *box)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='scramble-decode',
     name='Scramble Decode',
     family='typography',
@@ -62,7 +62,7 @@ TECHNIQUE = Technique(
                'letters cycle like a code being cracked until the title appears',
                'random characters that resolve into the headline'),
     related=('typewriter', 'split-flap', 'glitch-text'),
-    api=('videobuilder.techniques.typography.scramble_decode.draw_scramble',
-         'videobuilder.techniques.typography.scramble_decode.scramble'),
+    api=('videobuilder.capabilities.typography.scramble_decode.draw_scramble',
+         'videobuilder.capabilities.typography.scramble_decode.scramble'),
     demo=lambda: demo.film(draw),
 )

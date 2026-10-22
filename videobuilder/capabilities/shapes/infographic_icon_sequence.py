@@ -7,7 +7,7 @@ import videobuilder as vb
 from videobuilder.canvas import rgba
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 # ---- icon glyphs: each draws in a unit box centred on (0, 0), radius ~1, stroked in the current colour ----
@@ -116,7 +116,7 @@ def draw(n, cv):
         cv.mark(f'icon{i}', *box)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='infographic-icon-sequence',
     name='Infographic icon sequence',
     family='shapes',
@@ -129,8 +129,8 @@ TECHNIQUE = Technique(
                'an explainer graphic where each stage gets its own little icon'),
     related=('pictogram-counting', 'flowchart-build', 'step-by-step-process-reveal', 'logo-build-on-reveal',
              'slopegraph-reveal', 'line-draw-logo-reveal'),
-    api=('videobuilder.techniques.shapes.infographic_icon_sequence.icon_sequence',
-         'videobuilder.techniques.shapes.infographic_icon_sequence.draw_icon',
-         'videobuilder.techniques.shapes.infographic_icon_sequence.stagger'),
+    api=('videobuilder.capabilities.shapes.infographic_icon_sequence.icon_sequence',
+         'videobuilder.capabilities.shapes.infographic_icon_sequence.draw_icon',
+         'videobuilder.capabilities.shapes.infographic_icon_sequence.stagger'),
     demo=lambda: demo.film(draw),
 )

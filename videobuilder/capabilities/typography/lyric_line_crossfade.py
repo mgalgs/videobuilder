@@ -4,7 +4,7 @@ over it."""
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def _smooth(x):
@@ -58,7 +58,7 @@ def draw(n, cv):
         cv.mark('text', *box)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='lyric-line-crossfade',
     name='Lyric line crossfade',
     family='typography',
@@ -71,7 +71,7 @@ TECHNIQUE = Technique(
                'smooth fades between the lines of the song text'),
     related=('theme-swap-crossfade', 'cross-dissolve', 'typeface-crossfade', 'per-line-fade-in',
              'cross-zoom', 'image-crossfade-slideshow'),
-    api=('videobuilder.techniques.typography.lyric_line_crossfade.draw_lyric_crossfade',
-         'videobuilder.techniques.typography.lyric_line_crossfade.lyric_alphas'),
+    api=('videobuilder.capabilities.typography.lyric_line_crossfade.draw_lyric_crossfade',
+         'videobuilder.capabilities.typography.lyric_line_crossfade.lyric_alphas'),
     demo=lambda: demo.film(draw),
 )

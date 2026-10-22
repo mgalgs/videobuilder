@@ -9,7 +9,7 @@ import videobuilder as vb
 
 from .. import _demo as demo
 from ..principles.perlin_noise_drift import noise_drift
-from ..schema import Technique
+from ..schema import Capability
 
 
 def gate_weave(n, fps=30, amount=6.0, seed=0, drift=0.6, speed=1.4):
@@ -47,7 +47,7 @@ def draw(n, cv):
     cv.mark('picture', x + dx, y + dy, w, h)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='gate-weave',
     name='Gate weave',
     family='vfx',
@@ -60,6 +60,6 @@ TECHNIQUE = Technique(
                'give the footage a slight frame-to-frame unsteadiness like a reel of celluloid'),
     related=('line-weave', 'wiggle-path', 'screen-tearing', 'scanline-jitter', 'tape-wobble',
              'gradient-border-spin'),
-    api=('videobuilder.techniques.vfx.gate_weave.gate_weave',),
+    api=('videobuilder.capabilities.vfx.gate_weave.gate_weave',),
     demo=lambda: demo.film(draw),
 )

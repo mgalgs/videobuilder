@@ -6,7 +6,7 @@ import math
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def held(n, on=2):
@@ -98,7 +98,7 @@ def draw(n, cv):
     demo.word(cv, f'{which + 1:03d}', demo.W - 70, 40, size=24, color=demo.MUTED, font=demo.mono(24, 700))
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='frame-by-frame-hand-drawn-animation',
     name='Frame-by-frame hand-drawn animation',
     family='shapes',
@@ -112,10 +112,10 @@ TECHNIQUE = Technique(
                'give it a traditional 2D animation feel instead of smooth computer motion'),
     related=('flipbook-sprite-animation', 'layout-animation-flip', 'flip', 'interruptible-motion',
              'scroll-scrubbed-frame-sequence', 'seamless-loop'),
-    api=('videobuilder.techniques.shapes.frame_by_frame_hand_drawn_animation.draw_sketch',
-         'videobuilder.techniques.shapes.frame_by_frame_hand_drawn_animation.sketch',
-         'videobuilder.techniques.shapes.frame_by_frame_hand_drawn_animation.held',
-         'videobuilder.techniques.shapes.frame_by_frame_hand_drawn_animation.drawing',
+    api=('videobuilder.capabilities.shapes.frame_by_frame_hand_drawn_animation.draw_sketch',
+         'videobuilder.capabilities.shapes.frame_by_frame_hand_drawn_animation.sketch',
+         'videobuilder.capabilities.shapes.frame_by_frame_hand_drawn_animation.held',
+         'videobuilder.capabilities.shapes.frame_by_frame_hand_drawn_animation.drawing',
          'videobuilder.paths.jitter'),
     demo=lambda: demo.film(draw),
 )

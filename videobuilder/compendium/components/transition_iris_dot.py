@@ -2,7 +2,7 @@
 accent colour that pulses on every beat, throwing a faint ring each time;
 then the dot crouches, and the incoming picture grows out of it -- a circle
 that swells, drifts to the frame's centre and morphs into the full frame
-(`paths.morph`, the shape-morph technique), its rim drawn in the accent.
+(`paths.morph`, the shape-morph capability), its rim drawn in the accent.
 The picture inside settles from a slight zoom while the outgoing card sinks
 back; the incoming title's words then pop in on springs.
 

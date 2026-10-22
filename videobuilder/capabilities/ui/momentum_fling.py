@@ -3,7 +3,7 @@ the speed it was thrown, slowing smoothly under friction until it stops."""
 import math
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def fling(t, velocity, decay=4.0):
@@ -61,7 +61,7 @@ def draw(n, cv):
     cv.mark('card', x - CW / 2, y - CH / 2, CW, CH)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='momentum-fling',
     name='Momentum fling',
     family='ui',
@@ -74,8 +74,8 @@ TECHNIQUE = Technique(
                'swipe it away so it keeps going on its own momentum'),
     related=('smooth-scroll-inertia', 'friction-deceleration', 'air-drag', 'bounce-ease-in', 'recoil',
              'scroll-velocity-skew'),
-    api=('videobuilder.techniques.ui.momentum_fling.drag_and_fling',
-         'videobuilder.techniques.ui.momentum_fling.fling',
-         'videobuilder.techniques.ui.momentum_fling.fling_rest'),
+    api=('videobuilder.capabilities.ui.momentum_fling.drag_and_fling',
+         'videobuilder.capabilities.ui.momentum_fling.fling',
+         'videobuilder.capabilities.ui.momentum_fling.fling_rest'),
     demo=lambda: demo.film(draw),
 )

@@ -4,7 +4,7 @@ walls of the pool and cross each other, and the surface slowly calms."""
 from functools import lru_cache
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 from ...canvas import rgba
 
 
@@ -128,7 +128,7 @@ def draw(n, cv):
     cv.mark('pool', demo.W / 2 - 380, demo.H / 2 - 180, 760, 380)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='height-field-ripples',
     name='Height-field ripples',
     family='particles',
@@ -141,8 +141,8 @@ TECHNIQUE = Technique(
                'simulate a little pond with waves reflecting off its walls'),
     related=('ripple', 'ripple-rings', 'ripple-displacement', 'wave-deformer', 'refraction-ripple',
              'ridgeline-ripple'),
-    api=('videobuilder.techniques.particles.height_field_ripples.HeightField',
-         'videobuilder.techniques.particles.height_field_ripples.ripple_frames',
-         'videobuilder.techniques.particles.height_field_ripples.draw_height_field'),
+    api=('videobuilder.capabilities.particles.height_field_ripples.HeightField',
+         'videobuilder.capabilities.particles.height_field_ripples.ripple_frames',
+         'videobuilder.capabilities.particles.height_field_ripples.draw_height_field'),
     demo=lambda: demo.film(draw),
 )

@@ -9,7 +9,7 @@ import cairo
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 OPS = ('union', 'subtract', 'intersect', 'exclude')
 
@@ -122,7 +122,7 @@ def draw(n, cv):
     cv.mark('shape', cx - 190 - gap, cy - 140, 375 + 2 * gap, 240)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='shape-boolean-merge',
     name='Shape boolean merge',
     family='shapes',
@@ -135,8 +135,8 @@ TECHNIQUE = Technique(
                'merge the pieces like a union in a vector app, but animated'),
     related=('morph-cut', 'circle-packing', 'shape-morph', 'polygon-subdivision', 'shape-fill-sweep',
              'geometric-loop'),
-    api=('videobuilder.techniques.shapes.shape_boolean_merge.boolean_shape',
-         'videobuilder.techniques.shapes.shape_boolean_merge.circle_points',
-         'videobuilder.techniques.shapes.shape_boolean_merge.rounded_rect_points'),
+    api=('videobuilder.capabilities.shapes.shape_boolean_merge.boolean_shape',
+         'videobuilder.capabilities.shapes.shape_boolean_merge.circle_points',
+         'videobuilder.capabilities.shapes.shape_boolean_merge.rounded_rect_points'),
     demo=lambda: demo.film(draw),
 )

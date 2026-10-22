@@ -6,7 +6,7 @@ import math
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 # An action -> the bank sounds that can play it, best first, each with its
 # level. Mostly the bank's fitted sounds, made from real recordings, so a cue
@@ -151,7 +151,7 @@ def draw(n, cv):
     _lane(cv, n)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='foley',
     name='Foley',
     family='sound',
@@ -164,7 +164,7 @@ TECHNIQUE = Technique(
                'sync little action noises to what happens on screen'),
     related=('stop-motion-animation', 'sound-bridge', 'rotoscope-look', 'analog-ghosting', 'ambience',
              'staging'),
-    api=('videobuilder.techniques.sound.foley.foley', 'videobuilder.techniques.sound.foley.footfalls',
+    api=('videobuilder.capabilities.sound.foley.foley', 'videobuilder.capabilities.sound.foley.footfalls',
          'videobuilder.sfx.sound'),
     demo=lambda: demo.film(draw, sounds=foley(CUES)),
 )

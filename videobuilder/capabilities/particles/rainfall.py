@@ -7,7 +7,7 @@ import random
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def _drops(w, floor_y, count, speed, slant, layers, seed):
@@ -99,7 +99,7 @@ def draw(n, cv):
     cv.mark('rain', 0, 0, demo.W, GROUND)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='rainfall',
     name='Rainfall',
     family='particles',
@@ -112,8 +112,8 @@ TECHNIQUE = Technique(
                'a rainy-weather overlay of drops coming down'),
     related=('rain-on-glass', 'falling-letter-rain', 'falling-glyph-rain-reveal', 'matrix-digital-rain',
              'drip-wipe', 'ripple'),
-    api=('videobuilder.techniques.particles.rainfall.draw_rain',
-         'videobuilder.techniques.particles.rainfall.raindrops',
-         'videobuilder.techniques.particles.rainfall.splashes'),
+    api=('videobuilder.capabilities.particles.rainfall.draw_rain',
+         'videobuilder.capabilities.particles.rainfall.raindrops',
+         'videobuilder.capabilities.particles.rainfall.splashes'),
     demo=lambda: demo.film(draw),
 )

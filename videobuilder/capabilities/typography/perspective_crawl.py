@@ -12,7 +12,7 @@ from functools import lru_cache
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def crawl_page(lines, font, width, color, align='center', scale=1.0):
@@ -101,7 +101,7 @@ def draw(n, cv):
     cv.mark('text', demo.W / 2 - 380, demo.H * 0.25, 760, demo.H * 0.75)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='perspective-crawl',
     name='Perspective crawl',
     family='typography',
@@ -114,7 +114,7 @@ TECHNIQUE = Technique(
                'make the story text slide back into the distance in perspective'),
     related=('perspective-tunnel-type', 'word-flip-in', 'isometric-view', 'scroll-driven-text-reveal',
              'infinite-zoom-tunnel', 'tilt'),
-    api=('videobuilder.techniques.typography.perspective_crawl.draw_crawl',
-         'videobuilder.techniques.typography.perspective_crawl.crawl_page'),
+    api=('videobuilder.capabilities.typography.perspective_crawl.draw_crawl',
+         'videobuilder.capabilities.typography.perspective_crawl.crawl_page'),
     demo=lambda: demo.film(draw),
 )

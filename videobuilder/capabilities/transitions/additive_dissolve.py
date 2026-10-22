@@ -4,7 +4,7 @@ and everything bright piles up into a glow before the outgoing scene drains away
 import cairo
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def additive_dissolve(cv, a, b, p, overlap=1.0):
@@ -40,7 +40,7 @@ def _scene_b(cv):
     demo.word(cv, 'Scene B', 40 + 90, 32 + 17, size=28, color=demo.INK)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='additive-dissolve',
     name='Additive dissolve',
     family='transitions',
@@ -53,6 +53,6 @@ TECHNIQUE = Technique(
                'crossfade like light being added, not a flat mix'),
     related=('screen-blend', 'multiply-blend', 'difference-blend', 'pixelate-transition', 'noise-dissolve',
              'unsharp-mask'),
-    api=('videobuilder.techniques.transitions.additive_dissolve.additive_dissolve',),
+    api=('videobuilder.capabilities.transitions.additive_dissolve.additive_dissolve',),
     demo=lambda: demo.two_scenes(additive_dissolve, b=_scene_b),
 )

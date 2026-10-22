@@ -6,7 +6,7 @@ import math
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def pov_eye(distance, height=1.6, stride=1.5, bob=0.05, sway=0.035, roll=0.012):
@@ -105,7 +105,7 @@ def draw(n, cv):
     cv.mark('hands', demo.W / 2 - 350, demo.H - 120, 700, 120)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='pov-shot',
     name='POV shot',
     family='camera',
@@ -118,7 +118,7 @@ TECHNIQUE = Technique(
                'let the viewer see what the character is seeing'),
     related=('ui-walkthrough-camera-zoom', 'zoom-through', 'match-cut', 'focus-breathing',
              'cctv-surveillance-look', 'virtual-first-down-line'),
-    api=('videobuilder.techniques.camera.pov_shot.pov_project',
-         'videobuilder.techniques.camera.pov_shot.pov_eye'),
+    api=('videobuilder.capabilities.camera.pov_shot.pov_project',
+         'videobuilder.capabilities.camera.pov_shot.pov_eye'),
     demo=lambda: demo.film(draw),
 )

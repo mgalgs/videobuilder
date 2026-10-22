@@ -377,7 +377,7 @@ async function openPicker(fam) {
     `<div class="sg-list">${ms.map(m => `<div class="sg-srow ${sug.has(m.k) ? 'sug' : ''}"><button type="button" class="p" data-play="${esc(m.k)}" aria-label="Play ${esc(m.title)}">${svg(I.play, 12)}</button>` +
       `<span class="info"><b style="font-family:inherit;font-size:13.5px">${esc(m.title)}</b><span>${(m.tags || []).map(t => `<span class="sg-tag">${esc(t)}</span>`).join('')} ${m.duration != null ? fmtTime(m.duration) : ''}</span></span>` +
       `<button type="button" class="use" data-pick="${esc(m.k)}">Use</button></div>`).join('')}</div></section>`;
-  // Capabilities, curated (hand-written) and from the videobuilder.techniques registry alike (a registry
+  // Capabilities, curated (hand-written) and from the videobuilder.capabilities registry alike (a registry
   // entry carries `group`, which a curated one never does -- that's how the two are told apart here).
   // With the search box empty, curated ones show flat as before; each registry family collapses into
   // one row (title, count, a few cards) until clicked, since there can be hundreds in one family.

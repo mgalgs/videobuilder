@@ -8,7 +8,7 @@ from dataclasses import dataclass
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 @dataclass(frozen=True)
@@ -99,7 +99,7 @@ def draw(n, cv):
     _puppet(cv, x, ground, hop, pose)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='stop-motion-animation',
     name='Stop-motion animation',
     family='shapes',
@@ -112,7 +112,7 @@ TECHNIQUE = Technique(
                'give it that jerky puppet-on-a-tabletop feel'),
     related=('interruptible-motion', 'delay', 'steps-easing', 'on-ones-on-twos-on-threes', 'hold',
              'moving-hold'),
-    api=('videobuilder.techniques.shapes.stop_motion_animation.stop_motion',
-         'videobuilder.techniques.shapes.stop_motion_animation.lumpy'),
+    api=('videobuilder.capabilities.shapes.stop_motion_animation.stop_motion',
+         'videobuilder.capabilities.shapes.stop_motion_animation.lumpy'),
     demo=lambda: demo.film(draw),
 )

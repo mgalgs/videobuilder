@@ -11,7 +11,7 @@ import cairo
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def rolling_credits(cv, credits, scroll, role_font=None, name_font=None, heading_font=None, cx=None, gutter=14,
@@ -97,7 +97,7 @@ def draw(n, cv):
     rolling_credits(cv, CREDITS, demo.H * 0.55 + SPEED * n / demo.FPS)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='rolling-end-credits',
     name='Rolling end credits',
     family='broadcast',
@@ -110,7 +110,7 @@ TECHNIQUE = Technique(
                'a slow upward crawl of cast and crew names'),
     related=('roll-up', 'horizontal-scroll-section', 'timeline-scroll', 'scrollytelling-step-sequence',
              'scroll-driven-text-reveal', 'scrolling-led-marquee-text'),
-    api=('videobuilder.techniques.broadcast.rolling_end_credits.rolling_credits',
+    api=('videobuilder.capabilities.broadcast.rolling_end_credits.rolling_credits',
          'videobuilder.compendium.components.ending_credits_roll.COMPONENT'),
     demo=lambda: demo.film(draw),
 )

@@ -8,7 +8,7 @@ import cairo
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 HOT = ((1.0, 1.0, 0.92), (1.0, 0.86, 0.35), (1.0, 0.48, 0.12))   # white-hot, yellow, orange
 
@@ -130,7 +130,7 @@ def draw(n, cv):
     cv.mark('emitter', cx + 35, cy - 50, 40, 40)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='sparks',
     name='Sparks',
     family='particles',
@@ -143,8 +143,8 @@ TECHNIQUE = Technique(
                'make it throw off welding sparks'),
     related=('electric-arc', 'lightning-flash', 'lens-flare', 'lightning-bolt', 'fresnel-edge-glow',
              'diffraction-spikes'),
-    api=('videobuilder.techniques.particles.sparks.draw_sparks',
-         'videobuilder.techniques.particles.sparks.sparks',
-         'videobuilder.techniques.particles.sparks.heat_color'),
+    api=('videobuilder.capabilities.particles.sparks.draw_sparks',
+         'videobuilder.capabilities.particles.sparks.sparks',
+         'videobuilder.capabilities.particles.sparks.heat_color'),
     demo=lambda: demo.film(draw),
 )

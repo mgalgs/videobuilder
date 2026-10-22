@@ -6,11 +6,11 @@ call itself, and suggest-notes.md (the design round that specified this) for
 the full picture.
 
 The catalog the model sees is two system blocks. A small, cached one
-(Looks, Type, Fonts, and one line per `capabilities.TECHNIQUE_FAMILIES`
+(Looks, Type, Fonts, and one line per `capabilities.REGISTRY_FAMILIES`
 family) lists what's cheap to list in full every time. Everything else --
 every other hand-written capability, every capability in the
-`videobuilder.techniques` registry (hundreds of them; to the director these
-are simply more capabilities, the package name is an implementation detail),
+`videobuilder.capabilities.registry` (hundreds of them; to the director these
+are simply more capabilities, the registry is an implementation detail),
 every sound effect and every music track -- is far too large to list in
 full without making a small model's choice vague and slow. Those are
 matched per note instead, by a BM25 index (`suggest_index.py`) built over
@@ -94,9 +94,9 @@ def _catalog_entry_line(e):
 def _build_static_block():
     """The static, cacheable system block: instructions, then Looks, Type
     and Fonts in full (small, curated lists, cheap to always list), then
-    one line per `capabilities.TECHNIQUE_FAMILIES` family so the model
+    one line per `capabilities.REGISTRY_FAMILIES` family so the model
     knows what else exists. Every other capability (hand-written or from
-    the `videobuilder.techniques` registry), every sound effect and every
+    the `videobuilder.capabilities.registry`), every sound effect and every
     music track is matched per note instead -- see `_build_indices` and
     `_shortlist_block` -- because listing hundreds of them here every time
     would make a small model's choice vague and slow."""
@@ -128,7 +128,7 @@ def _build_static_block():
     lines.append('')
     lines.append('Capability families (hundreds more capabilities than listed above, grouped; the per-note '
                  'block carries this note\'s own best matches from them):')
-    for fam, (title, description) in capabilities.TECHNIQUE_FAMILIES.items():
+    for fam, (title, description) in capabilities.REGISTRY_FAMILIES.items():
         lines.append(f'{fam} | {title} | {description}')
     return '\n'.join(lines)
 
@@ -136,7 +136,7 @@ def _build_static_block():
 def _capability_line(entry):
     """One retrieval-block line, in the static block's own format (id |
     capabilities | title | card | example phrasings) -- for a hand-written
-    catalog entry (a dict) or a `videobuilder.techniques` registry record,
+    catalog entry (a dict) or a `videobuilder.capabilities.registry` record,
     whichever shape `entry` is. The director never sees which kind it is."""
     if isinstance(entry, dict):
         prompts = ' / '.join(entry.get('prompts', ())[:2])
@@ -146,31 +146,33 @@ def _capability_line(entry):
 
 
 def _capability_entry(id_):
-    """The hand-written catalog entry or `videobuilder.techniques` record
-    named `id_` -- the two pools a "capabilities" answer may come from.
-    KeyError if it is neither (never happens for an id the index itself
-    just handed back)."""
-    from . import capabilities, techniques as techniques_module
+    """The hand-written catalog entry or `videobuilder.capabilities.registry`
+    record named `id_` -- the two pools a "capabilities" answer may come
+    from. KeyError if it is neither (never happens for an id the index
+    itself just handed back)."""
+    from . import capabilities
+    from .capabilities import registry
     try:
         return capabilities.get(id_)
     except KeyError:
         pass
-    return techniques_module.get(id_)
+    return registry.get(id_)
 
 
 def _capability_docs():
     """Every capability's retrieval text: hand-written catalog entries
     (apart from Looks and Type, which stay in the static block) and the
-    `videobuilder.techniques` registry, indexed alike -- both answer with
+    `videobuilder.capabilities.registry`, indexed alike -- both answer with
     family "capabilities", and a director never sees the difference."""
-    from . import capabilities, techniques as techniques_module
+    from . import capabilities
+    from .capabilities import registry
     docs = []
     for e in capabilities.entries():
         if e.get('family') is not None or e.get('children') is not None:
             continue  # a look/type member (stays in the static block), or a family wrapper
         docs.append((e['id'], ' '.join((e['title'], e['card'], e['description'], *e.get('prompts', ()),
                                         e['category']))))
-    for t in techniques_module.catalog():
+    for t in registry.catalog():
         docs.append((t.id, ' '.join((t.name, *t.aliases, *t.phrasings, t.definition, t.group, t.family))))
     return docs
 

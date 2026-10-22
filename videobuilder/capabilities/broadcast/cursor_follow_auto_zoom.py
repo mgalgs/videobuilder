@@ -6,7 +6,7 @@ import math
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 from ..ui.cursor_state_change import draw_cursor
 
 
@@ -158,7 +158,7 @@ def draw(n, cv):
     cursor_follow_auto_zoom(cv, lambda c: _screen(c, t), t, _pointer, CLICKS)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='cursor-follow-auto-zoom',
     name='Cursor-follow auto zoom',
     family='broadcast',
@@ -171,9 +171,9 @@ TECHNIQUE = Technique(
                'auto-zoom the product demo onto the cursor, then back out'),
     related=('canvas-pan-and-zoom', 'zoom-through', 'cursor-state-change', 'dock-magnification',
              'cursor-particle-trail', 'magnetic-button'),
-    api=('videobuilder.techniques.broadcast.cursor_follow_auto_zoom.cursor_follow_auto_zoom',
-         'videobuilder.techniques.broadcast.cursor_follow_auto_zoom.auto_zoom_camera',
-         'videobuilder.techniques.broadcast.cursor_follow_auto_zoom.zoom_amount',
-         'videobuilder.techniques.broadcast.cursor_follow_auto_zoom.follow'),
+    api=('videobuilder.capabilities.broadcast.cursor_follow_auto_zoom.cursor_follow_auto_zoom',
+         'videobuilder.capabilities.broadcast.cursor_follow_auto_zoom.auto_zoom_camera',
+         'videobuilder.capabilities.broadcast.cursor_follow_auto_zoom.zoom_amount',
+         'videobuilder.capabilities.broadcast.cursor_follow_auto_zoom.follow'),
     demo=lambda: demo.film(draw, SECONDS),
 )

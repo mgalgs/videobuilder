@@ -6,7 +6,7 @@ import math
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 from ...looks import kit as looks
 
 COLORS = (demo.ACCENT, demo.TEAL, '#f2b84b', '#7a8cff', '#c77dff')
@@ -103,7 +103,7 @@ def draw(n, cv):
     cv.mark('chart', demo.W / 2 - 300, 60, 600, 420)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='chart-type-morph',
     name='Chart type morph',
     family='broadcast',
@@ -116,7 +116,7 @@ TECHNIQUE = Technique(
                'animate the graph changing from one kind of chart to another'),
     related=('text-to-shape-morph', 'shape-morph', 'play-pause-morph', 'icon-state-morph',
              'variable-font-weight-animation', 'letter-morph'),
-    api=('videobuilder.techniques.broadcast.chart_type_morph.bar_to_pie',
-         'videobuilder.techniques.broadcast.chart_type_morph.draw_bar_to_pie'),
+    api=('videobuilder.capabilities.broadcast.chart_type_morph.bar_to_pie',
+         'videobuilder.capabilities.broadcast.chart_type_morph.draw_bar_to_pie'),
     demo=lambda: demo.film(draw),
 )

@@ -7,7 +7,7 @@ import random
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def point_on_path(points, f, closed=False):
@@ -85,7 +85,7 @@ def draw(n, cv):
         demo.dot(cv, x, y, r=14, color=demo.INK)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='path-emitter',
     name='Path emitter',
     family='particles',
@@ -98,8 +98,8 @@ TECHNIQUE = Technique(
                'a glowing point runs along the path shedding particles behind it'),
     related=('path-follow-motion', 'player-movement-trail', 'cursor-particle-trail', 'wiggle-path',
              'text-on-a-path', 'map-route-draw'),
-    api=('videobuilder.techniques.particles.path_emitter.draw_path_emitter',
-         'videobuilder.techniques.particles.path_emitter.path_particles',
-         'videobuilder.techniques.particles.path_emitter.point_on_path'),
+    api=('videobuilder.capabilities.particles.path_emitter.draw_path_emitter',
+         'videobuilder.capabilities.particles.path_emitter.path_particles',
+         'videobuilder.capabilities.particles.path_emitter.point_on_path'),
     demo=lambda: demo.film(draw),
 )

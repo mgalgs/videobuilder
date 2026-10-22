@@ -9,7 +9,7 @@ import cairo
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def held(n, every=2, seed=None, boil=0.0):
@@ -126,7 +126,7 @@ def draw(n, cv):
     cv.mark('bird', x - 210, y - 200, 330, 270)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='cut-out-paper-animation',
     name='Cut-out paper animation',
     family='shapes',
@@ -138,7 +138,7 @@ TECHNIQUE = Technique(
                'make the character out of construction paper pieces that move in stop-motion',
                'a handmade, papercraft look where flat shapes jerk from pose to pose'),
     related=('crumple', 'morph-cut', 'cut-on-action', 'smash-cut', 'origami-fold', 'strobe-cut'),
-    api=('videobuilder.techniques.shapes.cut_out_paper_animation.paper_piece',
-         'videobuilder.techniques.shapes.cut_out_paper_animation.held'),
+    api=('videobuilder.capabilities.shapes.cut_out_paper_animation.paper_piece',
+         'videobuilder.capabilities.shapes.cut_out_paper_animation.held'),
     demo=lambda: demo.film(draw),
 )

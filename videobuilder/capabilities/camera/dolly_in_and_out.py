@@ -7,7 +7,7 @@ from contextlib import contextmanager
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def dolly_scale(depth, z):
@@ -88,7 +88,7 @@ def draw(n, cv):
             paint(cv)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='dolly-in-and-out',
     name='Dolly in and out',
     family='camera',
@@ -100,8 +100,8 @@ TECHNIQUE = Technique(
                'glide forward into the scene, then retreat',
                'push in closer like the camera is on wheels, then roll back'),
     related=('zoom-through', 'ease-in-out-back', 'push', 'dolly-zoom', 'zoom-out-reveal', 'roll-up'),
-    api=('videobuilder.techniques.camera.dolly_in_and_out.dolly',
-         'videobuilder.techniques.camera.dolly_in_and_out.dolly_scale',
-         'videobuilder.techniques.camera.dolly_in_and_out.dolly_in_out'),
+    api=('videobuilder.capabilities.camera.dolly_in_and_out.dolly',
+         'videobuilder.capabilities.camera.dolly_in_and_out.dolly_scale',
+         'videobuilder.capabilities.camera.dolly_in_and_out.dolly_in_out'),
     demo=lambda: demo.film(draw),
 )

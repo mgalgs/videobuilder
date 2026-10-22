@@ -6,7 +6,7 @@ import math
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 COLORS = ('#ef5b4c', '#4fc3b0', '#f2b84b', '#7b8cff', '#d27ce8', '#6cc56a', '#e8875a', '#5bb8e8')
 
@@ -141,7 +141,7 @@ def draw(n, cv):
     draw_bar_race(cv, vb.Box(60, 96, demo.W - 120, demo.H - 130), SERIES, t, top=6)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='bar-chart-race',
     name='Bar chart race',
     family='broadcast',
@@ -154,8 +154,8 @@ TECHNIQUE = Technique(
                'show which item pulls ahead over time as a race of bars'),
     related=('leaderboard-row-swap', 'percentage-fill-bar', 'audio-waveform-bars', 'refresh-bar',
              'balance-bar-tug', 'poll-result-bar-fill'),
-    api=('videobuilder.techniques.broadcast.bar_chart_race.draw_bar_race',
-         'videobuilder.techniques.broadcast.bar_chart_race.race_values',
-         'videobuilder.techniques.broadcast.bar_chart_race.race_ranks'),
+    api=('videobuilder.capabilities.broadcast.bar_chart_race.draw_bar_race',
+         'videobuilder.capabilities.broadcast.bar_chart_race.race_values',
+         'videobuilder.capabilities.broadcast.bar_chart_race.race_ranks'),
     demo=lambda: demo.film(draw),
 )

@@ -4,7 +4,7 @@ past the stop and settle on their own time."""
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def overlapping_action(t, i, parts, lag=0.06, hz=1.6, lead=1.0, tail=0.3):
@@ -34,7 +34,7 @@ def draw(n, cv):
     cv.mark('tassel', left - 22, top - 55, right - left + 44, pts[-1][1] - top + 77)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='overlapping-action',
     name='Overlapping Action',
     family='principles',
@@ -46,7 +46,7 @@ TECHNIQUE = Technique(
                'make the tail lag behind and catch up after it lands',
                'give the parts a bit of drag so they don\'t all move at once'),
     related=('offset', 'interruptible-motion', 'delay', 'cut-on-action', 'shape-boolean-merge', 'jump-cut'),
-    api=('videobuilder.techniques.principles.overlapping_action.overlapping_action', 'videobuilder.spring',
+    api=('videobuilder.capabilities.principles.overlapping_action.overlapping_action', 'videobuilder.spring',
          'videobuilder.damped'),
     demo=lambda: demo.film(draw),
 )

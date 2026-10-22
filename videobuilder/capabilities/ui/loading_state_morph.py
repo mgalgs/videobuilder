@@ -6,7 +6,7 @@ import math
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 CURSOR = ((0, 0), (0, 27), (7, 21), (12, 32), (17.5, 29.5), (12.5, 19), (21, 19))
 
@@ -99,7 +99,7 @@ def draw(n, cv):
     _cursor(cv, px, py, alpha=1 - 0.6 * leave)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='loading-state-morph',
     name='Loading state morph',
     family='ui',
@@ -112,7 +112,7 @@ TECHNIQUE = Technique(
                'button collapses into a loader, then expands with a check mark'),
     related=('loading-to-success-morph', 'icon-state-morph', 'shape-morph-loader', 'spinner-ring',
              'play-pause-morph', 'cursor-state-change'),
-    api=('videobuilder.techniques.ui.loading_state_morph.draw_loading_morph',
-         'videobuilder.techniques.ui.loading_state_morph.morph_state'),
+    api=('videobuilder.capabilities.ui.loading_state_morph.draw_loading_morph',
+         'videobuilder.capabilities.ui.loading_state_morph.morph_state'),
     demo=lambda: demo.film(draw),
 )

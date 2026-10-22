@@ -4,7 +4,7 @@ import math
 import random
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 COLORS = (demo.ACCENT, demo.TEAL, '#f2c14e', '#8e7cf0', demo.INK)
 
@@ -82,7 +82,7 @@ def draw(n, cv):
     cv.mark('burst', cx - 40, cy - 40, 80, 80)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='confetti-burst',
     name='Confetti burst',
     family='shapes',
@@ -95,8 +95,8 @@ TECHNIQUE = Technique(
                'celebrate with confetti shooting up and raining down'),
     related=('confetti', 'like-heart-burst', 'meteor-shower', 'type-explosion', 'falling-letter-rain',
              'fireworks'),
-    api=('videobuilder.techniques.shapes.confetti_burst.draw_confetti',
-         'videobuilder.techniques.shapes.confetti_burst.pieces',
-         'videobuilder.techniques.shapes.confetti_burst.place'),
+    api=('videobuilder.capabilities.shapes.confetti_burst.draw_confetti',
+         'videobuilder.capabilities.shapes.confetti_burst.pieces',
+         'videobuilder.capabilities.shapes.confetti_burst.place'),
     demo=lambda: demo.film(draw),
 )

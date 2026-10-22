@@ -4,7 +4,7 @@ panel pushes the outgoing one off."""
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def split_screen_transition(cv, a, b, p, hold=0.3, split=0.5, gap=8, color='#000000',
@@ -30,7 +30,7 @@ def split_screen_transition(cv, a, b, p, hold=0.3, split=0.5, gap=8, color='#000
         cv.rect(x - gap / 2, 0, gap, h, color)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='split-screen-transition',
     name='Split-screen transition',
     family='transitions',
@@ -43,6 +43,6 @@ TECHNIQUE = Technique(
                'push the next clip in halfway, pause on the split, then finish the push'),
     related=('split-screen-comparison', 'view-transition', 'barn-door-wipe', 'shutter-wipe',
              'curtain-reveal', 'split-flap-display'),
-    api=('videobuilder.techniques.transitions.split_screen_transition.split_screen_transition',),
+    api=('videobuilder.capabilities.transitions.split_screen_transition.split_screen_transition',),
     demo=lambda: demo.two_scenes(split_screen_transition, start=0.5, length=2.1),
 )

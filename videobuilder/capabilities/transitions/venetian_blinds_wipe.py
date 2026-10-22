@@ -4,7 +4,7 @@ strips meet and the new scene fills the frame."""
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def venetian_blinds_wipe(cv, a, b, p, slats=10, vertical=False, stagger=0.0, ease=vb.ease_in_out_quart):
@@ -35,7 +35,7 @@ def venetian_blinds_wipe(cv, a, b, p, slats=10, vertical=False, stagger=0.0, eas
             b(cv)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='venetian-blinds-wipe',
     name='Venetian blinds wipe',
     family='transitions',
@@ -48,6 +48,6 @@ TECHNIQUE = Technique(
                'a blinds-style wipe between the two scenes'),
     related=('shutter-slat-reveal', 'paint-brush-wipe', 'wipe-reveal', 'ribbon-sweep',
              'tile-grid-title-reveal', 'curtain-reveal'),
-    api=('videobuilder.techniques.transitions.venetian_blinds_wipe.venetian_blinds_wipe',),
+    api=('videobuilder.capabilities.transitions.venetian_blinds_wipe.venetian_blinds_wipe',),
     demo=lambda: demo.two_scenes(venetian_blinds_wipe),
 )

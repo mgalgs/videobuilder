@@ -4,7 +4,7 @@ takes its time arriving."""
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def asymmetric_ease(x, split=0.3):
@@ -55,7 +55,7 @@ def draw(n, cv):
     cv.mark('dot', cx - 26, y - 26, 52, 52)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='asymmetric-fast-in-slow-out',
     name='Asymmetric easing',
     family='principles',
@@ -68,6 +68,6 @@ TECHNIQUE = Technique(
                'ease in and out, but with much more of the ease at the end'),
     related=('linear-easing', 'eased-stagger', 'steps-easing', 'slow-in-and-slow-out', 'ease-in-out-quad',
              'ease-in-out-expo'),
-    api=('videobuilder.techniques.principles.asymmetric_fast_in_slow_out.asymmetric_ease',),
+    api=('videobuilder.capabilities.principles.asymmetric_fast_in_slow_out.asymmetric_ease',),
     demo=lambda: demo.film(draw),
 )

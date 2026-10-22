@@ -10,7 +10,7 @@ import videobuilder as vb
 from .. import _demo as demo
 from ...canvas import rgba
 from ...looks.fx import Filter, apply
-from ..schema import Technique
+from ..schema import Capability
 
 # the toning ramp, darkest first: where black, the mid-grey and white land
 SHADOW, MID, HIGHLIGHT = '#1e120a', '#8a6440', '#f6ead0'
@@ -67,7 +67,7 @@ def draw(n, cv):
         cv.image(img, *vb.Box.of(cv).cover(img.w, img.h))
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='sepia-tone',
     name='Sepia tone',
     family='vfx',
@@ -80,7 +80,7 @@ TECHNIQUE = Technique(
                'fade the colour out to that warm antique brown'),
     related=('halftone', 'rgb-channel-split', 'chromatic-dispersion', 'gooch-shading',
              'cel-shading-look', 'night-vision'),
-    api=('videobuilder.techniques.vfx.sepia_tone.sepia_tone',
-         'videobuilder.techniques.vfx.sepia_tone.sepia'),
+    api=('videobuilder.capabilities.vfx.sepia_tone.sepia_tone',
+         'videobuilder.capabilities.vfx.sepia_tone.sepia'),
     demo=lambda: demo.film(draw),
 )

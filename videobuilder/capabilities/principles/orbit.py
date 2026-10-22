@@ -5,7 +5,7 @@ import math
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def orbit(cx, cy, radius, t, period=1.0, phase=0.0, tilt=0.35, spin=1):
@@ -49,7 +49,7 @@ def draw(n, cv):
         body()
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='orbit',
     name='Orbit',
     family='principles',
@@ -62,7 +62,7 @@ TECHNIQUE = Technique(
                'something going round the centre like a planet'),
     related=('two-body-orbit', 'orbiting-characters', 'orbital-pulse', 'orbit-loader', 'spiral-galaxy',
              'orbit-shot'),
-    api=('videobuilder.techniques.principles.orbit.orbit',
-         'videobuilder.techniques.principles.orbit.ring'),
+    api=('videobuilder.capabilities.principles.orbit.orbit',
+         'videobuilder.capabilities.principles.orbit.ring'),
     demo=lambda: demo.film(draw),
 )

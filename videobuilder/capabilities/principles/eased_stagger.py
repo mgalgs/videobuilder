@@ -4,7 +4,7 @@ widen towards the last (or the other way round, with another curve)."""
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def ease_in_quad(x):
@@ -55,7 +55,7 @@ def draw(n, cv):
     cv.mark('row', x0, y, tx1 - tx0, bh)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='eased-stagger',
     name='Eased Stagger',
     family='principles',
@@ -68,7 +68,7 @@ TECHNIQUE = Technique(
                'cascade the bars in with the delays easing out instead of even spacing'),
     related=('asymmetric-fast-in-slow-out', 'linear-easing', 'linear-repeater-stagger', 'per-word-fade-in',
              'steps-easing', 'ease-out-expo'),
-    api=('videobuilder.techniques.principles.eased_stagger.eased_stagger',
-         'videobuilder.techniques.principles.eased_stagger.stagger_starts'),
+    api=('videobuilder.capabilities.principles.eased_stagger.eased_stagger',
+         'videobuilder.capabilities.principles.eased_stagger.stagger_starts'),
     demo=lambda: demo.film(draw),
 )

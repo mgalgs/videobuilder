@@ -6,7 +6,7 @@ import math
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def ring_text(text, font, radius, fill=True, sep='  •  '):
@@ -74,7 +74,7 @@ def draw(n, cv):
     cv.mark('ring', *box)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='rotating-circular-text',
     name='Rotating circular text',
     family='typography',
@@ -87,7 +87,7 @@ TECHNIQUE = Technique(
                'put the slogan on a ring and have it slowly rotate around the logo'),
     related=('spinner-ring', 'rotating-rings', 'letter-roll', 'highlight-circle-draw', 'character-rotate-in',
              'progress-ring'),
-    api=('videobuilder.techniques.typography.rotating_circular_text.draw_circular_text',
-         'videobuilder.techniques.typography.rotating_circular_text.ring_text'),
+    api=('videobuilder.capabilities.typography.rotating_circular_text.draw_circular_text',
+         'videobuilder.capabilities.typography.rotating_circular_text.ring_text'),
     demo=lambda: demo.film(draw),
 )

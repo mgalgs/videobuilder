@@ -5,7 +5,7 @@ import videobuilder as vb
 
 from .. import _demo as demo
 from ...compendium import kit
-from ..schema import Technique
+from ..schema import Capability
 
 
 def hover(t, enter, leave=None, rise=0.4, fall=0.2):
@@ -84,7 +84,7 @@ def draw(n, cv):
     pointer(cv, xa + (xb - xa) * q, ya + (yb - ya) * q)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='hover-reveal-actions',
     name='Hover-reveal actions',
     family='ui',
@@ -97,8 +97,8 @@ TECHNIQUE = Technique(
                'hovering a list item pops out its little toolbar'),
     related=('swipe-action-row', 'image-hover-mask-reveal', 'hover-lift', 'spotlight-hover',
              'icon-hover-bounce', 'fade-up-scroll-reveal'),
-    api=('videobuilder.techniques.ui.hover_reveal_actions.reveal_actions',
-         'videobuilder.techniques.ui.hover_reveal_actions.hover',
-         'videobuilder.techniques.ui.hover_reveal_actions.pointer'),
+    api=('videobuilder.capabilities.ui.hover_reveal_actions.reveal_actions',
+         'videobuilder.capabilities.ui.hover_reveal_actions.hover',
+         'videobuilder.capabilities.ui.hover_reveal_actions.pointer'),
     demo=lambda: demo.film(draw),
 )

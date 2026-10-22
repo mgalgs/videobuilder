@@ -8,7 +8,7 @@ import cairo
 from PIL import Image, ImageChops, ImageFilter, ImageOps
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 FIELD = 6  # the smoke field is worked out at 1/FIELD of the frame's size, then smoothed up
 
@@ -101,7 +101,7 @@ def smoke_dissolve(cv, a, b, p, color='#d9d6cf', opacity=0.9, **kw):
     c.restore()
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='smoke-dissolve',
     name='Smoke dissolve',
     family='transitions',
@@ -113,7 +113,7 @@ TECHNIQUE = Technique(
                'a foggy, wispy transition where the new shot clears through the haze',
                'let the picture vanish in a puff of smoke and reveal what comes next'),
     related=('smoke-overlay', 'smoke-puffs', 'noise-dissolve', 'layered-fog-bands', 'heat-haze', 'drip-wipe'),
-    api=('videobuilder.techniques.transitions.smoke_dissolve.smoke_dissolve',
-         'videobuilder.techniques.transitions.smoke_dissolve.smoke_masks'),
+    api=('videobuilder.capabilities.transitions.smoke_dissolve.smoke_dissolve',
+         'videobuilder.capabilities.transitions.smoke_dissolve.smoke_masks'),
     demo=lambda: demo.two_scenes(smoke_dissolve, start=0.6, length=1.9),
 )

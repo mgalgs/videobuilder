@@ -6,7 +6,7 @@ from PIL import Image
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 from ...looks.fx import image_surface, surface_image
 
 ORDERS = ('rgb', 'gbr', 'brg', 'bgr', 'grb', 'rbg')
@@ -66,7 +66,7 @@ def draw(n, cv):
     cv.mark('order', x, y, w, h)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='channel-shuffle',
     name='Channel shuffle',
     family='vfx',
@@ -79,8 +79,8 @@ TECHNIQUE = Technique(
                'trade red and blue in the footage for a glitchy look'),
     related=('color-cycling', 'rgb-split', 'rgb-channel-split', 'grid-reflow-shuffle',
              'theme-swap-crossfade', 'palette-shift-transition'),
-    api=('videobuilder.techniques.vfx.channel_shuffle.channel_shuffle',
-         'videobuilder.techniques.vfx.channel_shuffle.shuffle_image',
-         'videobuilder.techniques.vfx.channel_shuffle.ORDERS'),
+    api=('videobuilder.capabilities.vfx.channel_shuffle.channel_shuffle',
+         'videobuilder.capabilities.vfx.channel_shuffle.shuffle_image',
+         'videobuilder.capabilities.vfx.channel_shuffle.ORDERS'),
     demo=lambda: demo.film(draw),
 )

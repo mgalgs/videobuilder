@@ -9,7 +9,7 @@ from PIL import Image
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 from ...canvas import Canvas
 from ...looks.fx import image_surface, surface_image
 
@@ -133,7 +133,7 @@ def draw(n, cv):
     cv.mark('haze', 0, demo.H * 0.4, demo.W, demo.H * 0.6)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='heat-haze',
     name='Heat haze',
     family='vfx',
@@ -146,7 +146,7 @@ TECHNIQUE = Technique(
                'make the background ripple like a desert mirage'),
     related=('gooch-shading', 'lens-dirt-overlay', 'lens-flare', 'atmospheric-fog', 'smoke-overlay',
              'fresnel-edge-glow'),
-    api=('videobuilder.techniques.vfx.heat_haze.heat_haze',
-         'videobuilder.techniques.vfx.heat_haze.haze_offset'),
+    api=('videobuilder.capabilities.vfx.heat_haze.heat_haze',
+         'videobuilder.capabilities.vfx.heat_haze.haze_offset'),
     demo=lambda: demo.film(draw),
 )

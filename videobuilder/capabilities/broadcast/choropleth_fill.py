@@ -7,7 +7,7 @@ import random
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 RAMP = ('#1d3b4f', '#2f7f86', '#7fbf8e', '#f2d27a', '#ee8a4f')  # low -> high
 
@@ -110,7 +110,7 @@ def draw(n, cv):
     cv.mark('map', demo.W / 2 - 330, demo.H / 2 - 220, 660, 380)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='choropleth-fill',
     name='Choropleth fill',
     family='broadcast',
@@ -123,10 +123,10 @@ TECHNIQUE = Technique(
                'animate the counties filling with colour like a data map'),
     related=('area-fill-sweep', 'hue-cycle-fill', 'shape-fill-sweep', 'heatmap-fill', 'color-fill-rise',
              'radar-chart-fill'),
-    api=('videobuilder.techniques.broadcast.choropleth_fill.choropleth_fill',
-         'videobuilder.techniques.broadcast.choropleth_fill.ramp',
-         'videobuilder.techniques.broadcast.choropleth_fill.legend',
-         'videobuilder.techniques.broadcast.choropleth_fill.fill_order',
-         'videobuilder.techniques.broadcast.choropleth_fill.patchwork'),
+    api=('videobuilder.capabilities.broadcast.choropleth_fill.choropleth_fill',
+         'videobuilder.capabilities.broadcast.choropleth_fill.ramp',
+         'videobuilder.capabilities.broadcast.choropleth_fill.legend',
+         'videobuilder.capabilities.broadcast.choropleth_fill.fill_order',
+         'videobuilder.capabilities.broadcast.choropleth_fill.patchwork'),
     demo=lambda: demo.film(draw),
 )

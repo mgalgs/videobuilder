@@ -6,7 +6,7 @@ the picture over."""
 from PIL import Image
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 from ...looks import fx
 
 
@@ -72,7 +72,7 @@ def _draw(n, cv):
     _curve_inset(cv, threshold, amount)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='solarization',
     name='Solarization',
     family='vfx',
@@ -84,8 +84,8 @@ TECHNIQUE = Technique(
                'invert just the bright parts of the shot',
                'a trippy partly-inverted photo look'),
     related=('halation', 'posterization', 'gooch-shading', 'theme-swap-crossfade', 'heat-haze', 'vignette'),
-    api=('videobuilder.techniques.vfx.solarization.solarize',
-         'videobuilder.techniques.vfx.solarization.solarize_image',
-         'videobuilder.techniques.vfx.solarization.solarize_curve'),
+    api=('videobuilder.capabilities.vfx.solarization.solarize',
+         'videobuilder.capabilities.vfx.solarization.solarize_image',
+         'videobuilder.capabilities.vfx.solarization.solarize_curve'),
     demo=lambda: demo.film(_draw),
 )

@@ -7,7 +7,7 @@ import videobuilder as vb
 from videobuilder.canvas import rgba
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def triangle_grid(x, y, w, h, side):
@@ -89,7 +89,7 @@ def draw(n, cv):
     tessellation_flip(cv, demo.phase(n, 0.35, 2.65), _front, _back, side=150, gap=3)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='tessellation-triangle-flip',
     name='Tessellation triangle flip',
     family='shapes',
@@ -101,8 +101,8 @@ TECHNIQUE = Technique(
                'make the background a triangle pattern and have the tiles turn over in a wave',
                'triangles rotating like cards to change the pattern'),
     related=('tile-flip', 'mosaic-tiling', 'penrose-tiling', 'tesseract-rotation', 'flip', 'truchet-tiles'),
-    api=('videobuilder.techniques.shapes.tessellation_triangle_flip.tessellation_flip',
-         'videobuilder.techniques.shapes.tessellation_triangle_flip.draw_flip',
-         'videobuilder.techniques.shapes.tessellation_triangle_flip.triangle_grid'),
+    api=('videobuilder.capabilities.shapes.tessellation_triangle_flip.tessellation_flip',
+         'videobuilder.capabilities.shapes.tessellation_triangle_flip.draw_flip',
+         'videobuilder.capabilities.shapes.tessellation_triangle_flip.triangle_grid'),
     demo=lambda: demo.film(draw),
 )

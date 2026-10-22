@@ -8,7 +8,7 @@ import random
 import cairo
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def _rng(seed, *key):
@@ -107,7 +107,7 @@ def _draw(n, cv):
     dust_and_scratches(cv, n, amount=0.15 + 0.85 * demo.phase(n, 0.3, 1.0), seed=4)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='dust-and-scratches',
     name='Dust and scratches',
     family='vfx',
@@ -119,6 +119,6 @@ TECHNIQUE = Technique(
                'add some film dirt and scratch lines over the shot',
                'give it that dusty, beat-up projector feel'),
     related=('lens-dirt-overlay', 'screen-tearing', 'light-leak', 'heat-haze', 'dust-motes', 'glitch-transition'),
-    api=('videobuilder.techniques.vfx.dust_and_scratches.dust_and_scratches',),
+    api=('videobuilder.capabilities.vfx.dust_and_scratches.dust_and_scratches',),
     demo=lambda: demo.film(_draw),
 )

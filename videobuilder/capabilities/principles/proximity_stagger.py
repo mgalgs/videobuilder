@@ -6,7 +6,7 @@ import math
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 # A pointer arrow, tip at (0, 0), in pixels at scale 1.
 ARROW = ((0, 0), (0, 27), (7, 21), (12, 32), (17.5, 29.5), (12.5, 19), (21, 19))
@@ -74,7 +74,7 @@ def draw(n, cv):
     cv.mark('pointer', tx, ty, 28, 42)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='proximity-stagger',
     name='Proximity Stagger',
     family='principles',
@@ -87,7 +87,7 @@ TECHNIQUE = Technique(
                'make the grid react in a ripple out from one spot'),
     related=('cursor-follower-dot-and-ring', 'linear-repeater-stagger', 'cursor-path-animation',
              'per-word-fade-in', 'cursor-state-change', 'cursor-particle-trail'),
-    api=('videobuilder.techniques.principles.proximity_stagger.proximity_stagger',
-         'videobuilder.techniques.principles.proximity_stagger.proximity_delays'),
+    api=('videobuilder.capabilities.principles.proximity_stagger.proximity_stagger',
+         'videobuilder.capabilities.principles.proximity_stagger.proximity_delays'),
     demo=lambda: demo.film(draw),
 )

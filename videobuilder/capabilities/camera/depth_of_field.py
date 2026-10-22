@@ -4,7 +4,7 @@ with a shallow focus band."""
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 from ...type.kit import blurred
 
 
@@ -49,7 +49,7 @@ def draw(n, cv):
         cv.mark(f'z{z}', x - r, y - r, 2 * r, 2 * r)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='depth-of-field',
     name='Depth of field',
     family='camera',
@@ -62,8 +62,8 @@ TECHNIQUE = Technique(
                'make it look shot with a wide-open lens'),
     related=('focus-blur-out', 'bokeh-particles', 'gaussian-blur', 'focus-breathing', 'motion-blur',
              'character-blur-in'),
-    api=('videobuilder.techniques.camera.depth_of_field.draw_at_depth',
-         'videobuilder.techniques.camera.depth_of_field.defocus',
+    api=('videobuilder.capabilities.camera.depth_of_field.draw_at_depth',
+         'videobuilder.capabilities.camera.depth_of_field.defocus',
          'videobuilder.type.kit.blurred'),
     demo=lambda: demo.film(draw),
 )

@@ -7,7 +7,7 @@ import math
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 ARPEGGIO = ('C4', 'E4', 'G4', 'C5', 'E5', 'G5', 'A5', 'C6')   # a climbing C major line
 PEAK_CHORD = ('C4', 'G4', 'C5', 'E5', 'C6')
@@ -134,7 +134,7 @@ def draw(n, cv):
               alpha=0.35 + 0.65 * level)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='music-swell',
     name='Swell',
     family='sound',
@@ -146,8 +146,8 @@ TECHNIQUE = Technique(
                'bring the score in quietly and have it grow until it hits the reveal',
                'a crescendo in the music leading into the title'),
     related=('riser', 'like-heart-burst', 'scale-pulse', 'sound-bridge', 'liquid-fill-level', 'wobble'),
-    api=('videobuilder.techniques.sound.music_swell.music_swell',
-         'videobuilder.techniques.sound.music_swell.swell_schedule',
-         'videobuilder.techniques.sound.music_swell.swell_level'),
+    api=('videobuilder.capabilities.sound.music_swell.music_swell',
+         'videobuilder.capabilities.sound.music_swell.swell_schedule',
+         'videobuilder.capabilities.sound.music_swell.swell_level'),
     demo=lambda: demo.film(draw, sounds=demo_sounds()),
 )

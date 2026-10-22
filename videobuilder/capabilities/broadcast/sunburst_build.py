@@ -7,7 +7,7 @@ import math
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 from ...canvas import rgba
 
 
@@ -83,7 +83,7 @@ def draw(n, cv):
     cv.mark('chart', cx - 256, cy - 256, 512, 512)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='sunburst-build',
     name='Sunburst build',
     family='broadcast',
@@ -96,8 +96,8 @@ TECHNIQUE = Technique(
                'build up a hierarchy as rings around a centre total, layer by layer'),
     related=('synthwave-sun', 'diffraction-spikes', 'hub-and-spoke-spread', 'circle-packing', 'org-chart-grow',
              'phyllotaxis'),
-    api=('videobuilder.techniques.broadcast.sunburst_build.sunburst_build',
-         'videobuilder.techniques.broadcast.sunburst_build.sunburst_layout',
-         'videobuilder.techniques.broadcast.sunburst_build.tint'),
+    api=('videobuilder.capabilities.broadcast.sunburst_build.sunburst_build',
+         'videobuilder.capabilities.broadcast.sunburst_build.sunburst_layout',
+         'videobuilder.capabilities.broadcast.sunburst_build.tint'),
     demo=lambda: demo.film(draw),
 )

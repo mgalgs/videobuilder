@@ -2,7 +2,7 @@
 blocks, swaps for the incoming scene at its coarsest, and the incoming scene
 sharpens back down from those blocks to full detail."""
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def pixelate_transition(cv, a, b, p, block=72, blend=0.12):
@@ -38,7 +38,7 @@ def pixelate_transition(cv, a, b, p, block=72, blend=0.12):
         draw(b, 1.0, alpha=(p - lo) / (hi - lo))
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='pixelate-transition',
     name='Pixelate transition',
     family='transitions',
@@ -50,7 +50,7 @@ TECHNIQUE = Technique(
                'turn the picture into big blocky pixels and resolve it into the new scene',
                'a retro mosaic transition between the two clips'),
     related=('pixelation', 'pixelation-reveal', 'pixel-sorting', 'pixel-build', 'glitch-transition', 'liquify'),
-    api=('videobuilder.techniques.transitions.pixelate_transition.pixelate_transition',
+    api=('videobuilder.capabilities.transitions.pixelate_transition.pixelate_transition',
          'videobuilder.Canvas.pixelated'),
     demo=lambda: demo.two_scenes(pixelate_transition, start=0.7, length=1.6),
 )

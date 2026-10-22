@@ -7,7 +7,7 @@ import videobuilder as vb
 from videobuilder.canvas import rgba
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def spin_angle(p, turns=1.25, ease=lambda t: 1 - (1 - t) ** 3):
@@ -103,7 +103,7 @@ def draw(n, cv):
     cv.mark('logo', *box)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='logo-3d-spin-reveal',
     name='Logo 3D spin reveal',
     family='shapes',
@@ -115,7 +115,7 @@ TECHNIQUE = Technique(
                'the logo flips around in 3D and lands front-on',
                'reveal the badge with a perspective turn that slows to a stop'),
     related=('character-3d-flip', 'flip', 'word-flip-in', 'tile-flip', 'line-draw-logo-reveal', 'spin'),
-    api=('videobuilder.techniques.shapes.logo_3d_spin_reveal.logo_spin',
-         'videobuilder.techniques.shapes.logo_3d_spin_reveal.spin_angle'),
+    api=('videobuilder.capabilities.shapes.logo_3d_spin_reveal.logo_spin',
+         'videobuilder.capabilities.shapes.logo_3d_spin_reveal.spin_angle'),
     demo=lambda: demo.film(draw),
 )

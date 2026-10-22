@@ -3,7 +3,7 @@ full speed and slows steadily (a parabola) until it stops on its target."""
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def ease_out_quad(x):
@@ -33,7 +33,7 @@ def draw(n, cv):
     demo.card(cv, at(p), y, w=w, h=h)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='ease-out-quad',
     name='Ease Out Quad',
     family='principles',
@@ -46,6 +46,6 @@ TECHNIQUE = Technique(
                'a soft, natural slow-down at the end of the move'),
     related=('slow-in-and-slow-out', 'asymmetric-fast-in-slow-out', 'settle', 'inertia',
              'dolly-in-and-out', 'friction-deceleration'),
-    api=('videobuilder.techniques.principles.ease_out_quad.ease_out_quad',),
+    api=('videobuilder.capabilities.principles.ease_out_quad.ease_out_quad',),
     demo=lambda: demo.film(draw),
 )

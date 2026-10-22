@@ -10,7 +10,7 @@ import videobuilder as vb
 from videobuilder.canvas import rgba
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 GOLD = '#f2b636'
 
@@ -92,7 +92,7 @@ def draw(n, cv):
     cv.mark('lights', 0, 0, demo.W, demo.H)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='bokeh-highlights',
     name='Bokeh highlights',
     family='camera',
@@ -105,7 +105,7 @@ TECHNIQUE = Technique(
                'turn the sparkles into big blurry orbs'),
     related=('bokeh-particles', 'focus-blur-out', 'gooey-filter', 'blur-dissolve', 'character-blur-in',
              'gaussian-blur'),
-    api=('videobuilder.techniques.camera.bokeh_highlights.bokeh_highlights',
-         'videobuilder.techniques.camera.bokeh_highlights.bokeh_disc'),
+    api=('videobuilder.capabilities.camera.bokeh_highlights.bokeh_highlights',
+         'videobuilder.capabilities.camera.bokeh_highlights.bokeh_disc'),
     demo=lambda: demo.film(draw),
 )

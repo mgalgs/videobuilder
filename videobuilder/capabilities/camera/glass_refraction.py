@@ -7,7 +7,7 @@ import cairo
 from PIL import Image
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 from ...canvas import Canvas
 from ...looks.fx import image_surface, surface_image
 
@@ -129,7 +129,7 @@ def _draw(n, cv):
     glass_refraction(cv, _backdrop, x, y, 130)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='glass-refraction',
     name='Glass refraction',
     family='camera',
@@ -141,6 +141,6 @@ TECHNIQUE = Technique(
                'make it look like we are seeing the scene through a curved glass lens',
                'a see-through crystal ball that bends the shapes behind it'),
     related=('refraction-ripple', 'lens-distortion', 'crt-curvature', 'heat-haze', 'rain-on-glass', 'ripple'),
-    api=('videobuilder.techniques.camera.glass_refraction.glass_refraction',),
+    api=('videobuilder.capabilities.camera.glass_refraction.glass_refraction',),
     demo=lambda: demo.film(_draw),
 )

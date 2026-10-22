@@ -9,7 +9,7 @@ import cairo
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 ARC_COLOR = '#8fd8ff'
 
@@ -109,7 +109,7 @@ def draw(n, cv):
         cv.mark('arc', min(xs), min(ys), max(xs) - min(xs), max(ys) - min(ys) + 1)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='electric-arc',
     name='Electric arc',
     family='particles',
@@ -121,7 +121,7 @@ TECHNIQUE = Technique(
                'sparks of lightning zapping from one point to the other',
                'make it look like current is arcing across the gap'),
     related=('flight-arc', 'diffraction-spikes', 'sparks', 'fireflies', 'lightning-flash', 'embers'),
-    api=('videobuilder.techniques.particles.electric_arc.draw_arc',
-         'videobuilder.techniques.particles.electric_arc.arc_points'),
+    api=('videobuilder.capabilities.particles.electric_arc.draw_arc',
+         'videobuilder.capabilities.particles.electric_arc.arc_points'),
     demo=lambda: demo.film(draw),
 )

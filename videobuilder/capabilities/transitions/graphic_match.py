@@ -3,7 +3,7 @@ in the same place and size, so the eye carries over the cut on the shape."""
 import math
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def graphic_match(cv, a, b, p, at=None, zoom=1.35, cut=0.5):
@@ -60,7 +60,7 @@ def demo_film():
                            start=0.5, length=2.0, a=moon_scene, b=clock_scene)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='graphic-match',
     name='Graphic match',
     family='transitions',
@@ -73,6 +73,6 @@ TECHNIQUE = Technique(
                'a match cut where the shape carries over from scene to scene'),
     related=('shape-boolean-merge', 'strike-through-draw', 'shape-morph', 'shape-assemble-from-fragments',
              'difference-highlight', 'morphing-shape-ident'),
-    api=('videobuilder.techniques.transitions.graphic_match.graphic_match',),
+    api=('videobuilder.capabilities.transitions.graphic_match.graphic_match',),
     demo=demo_film,
 )

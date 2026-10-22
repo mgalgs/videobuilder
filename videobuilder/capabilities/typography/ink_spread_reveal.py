@@ -7,7 +7,7 @@ import random
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 STEPS = 72  # points around each blot's edge
 
@@ -98,7 +98,7 @@ def draw(n, cv):
     cv.mark('text', *box)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='ink-spread-reveal',
     name='Ink spread reveal',
     family='typography',
@@ -111,7 +111,7 @@ TECHNIQUE = Technique(
                'reveal the text through growing ink stains'),
     related=('ink-bleed', 'ink-splash-spread', 'wipe-reveal', 'handwriting-reveal', 'text-mask-reveal',
              'ink-in-water'),
-    api=('videobuilder.techniques.typography.ink_spread_reveal.draw_ink_spread',
-         'videobuilder.techniques.typography.ink_spread_reveal.ink_spread'),
+    api=('videobuilder.capabilities.typography.ink_spread_reveal.draw_ink_spread',
+         'videobuilder.capabilities.typography.ink_spread_reveal.ink_spread'),
     demo=lambda: demo.film(draw),
 )

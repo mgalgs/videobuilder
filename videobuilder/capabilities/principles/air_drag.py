@@ -6,7 +6,7 @@ import math
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def air_drag(t, terminal=360.0, gravity=720.0):
@@ -86,7 +86,7 @@ def draw(n, cv):
     vb.text.draw(cv, ['speed'], small, mx - 10, my + mh + 14, demo.MUTED)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='air-drag',
     name='Air Drag',
     family='principles',
@@ -98,6 +98,6 @@ TECHNIQUE = Technique(
                'it should speed up and then level off at a constant falling speed',
                'drop it with air resistance so it hits terminal velocity'),
     related=('momentum-fling', 'wind-field', 'fountain', 'falling-leaves', 'smoke-simulation', 'speed-lines'),
-    api=('videobuilder.techniques.principles.air_drag.air_drag',),
+    api=('videobuilder.capabilities.principles.air_drag.air_drag',),
     demo=lambda: demo.film(draw),
 )

@@ -7,7 +7,7 @@ import random
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def _clip(poly, ax, ay, bx, by):
@@ -124,7 +124,7 @@ def draw(n, cv):
     cv.mark('cells', x, y, w, h)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='voronoi-cells',
     name='Voronoi cells',
     family='particles',
@@ -137,8 +137,8 @@ TECHNIQUE = Technique(
                'organic cell tiles that grow out from dots and meet at the edges'),
     related=('worley-cellular-noise', 'eden-growth', 'streamgraph-flow', 'smoke-simulation',
              'area-fill-sweep', 'connector-network'),
-    api=('videobuilder.techniques.particles.voronoi_cells.draw_cells',
-         'videobuilder.techniques.particles.voronoi_cells.voronoi_cells',
-         'videobuilder.techniques.particles.voronoi_cells.wandering_seeds'),
+    api=('videobuilder.capabilities.particles.voronoi_cells.draw_cells',
+         'videobuilder.capabilities.particles.voronoi_cells.voronoi_cells',
+         'videobuilder.capabilities.particles.voronoi_cells.wandering_seeds'),
     demo=lambda: demo.film(draw),
 )

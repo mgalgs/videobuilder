@@ -5,7 +5,7 @@ import math
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def tumble(cv, a, b, p, focal=2.0, shade=0.55, ease=lambda t: t * t):
@@ -70,7 +70,7 @@ def tumble(cv, a, b, p, focal=2.0, shade=0.55, ease=lambda t: t * t):
         c.fill()
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='tumble',
     name='Tumble',
     family='transitions',
@@ -82,6 +82,6 @@ TECHNIQUE = Technique(
                'tip the shot over like a panel falling flat',
                'the old scene topples away in 3D and the new one is behind it'),
     related=('roll-up', 'corner-wipe', 'push', 'zoom-out-reveal', 'star-wipe', 'tile-flip'),
-    api=('videobuilder.techniques.transitions.tumble.tumble',),
+    api=('videobuilder.capabilities.transitions.tumble.tumble',),
     demo=lambda: demo.two_scenes(tumble, start=0.7, length=1.6),
 )

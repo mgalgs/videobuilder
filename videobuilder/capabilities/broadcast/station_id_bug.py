@@ -6,7 +6,7 @@ import math
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def corner_box(width, height, w, h, corner='top-right', margin=48):
@@ -78,7 +78,7 @@ def draw(n, cv):
     station_bug(cv, _logo, box, t, start=0.2, cues=(1.3,))
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='station-id-bug',
     name='Logo bug',
     family='broadcast',
@@ -92,8 +92,8 @@ TECHNIQUE = Technique(
                'a channel bug over the video that lights up when something happens'),
     related=('logo-glitch-reveal', 'score-bug', 'glitch-text', 'glitch-transition', 'data-bending',
              'shrinking-sticky-header'),
-    api=('videobuilder.techniques.broadcast.station_id_bug.station_bug',
-         'videobuilder.techniques.broadcast.station_id_bug.corner_box',
-         'videobuilder.techniques.broadcast.station_id_bug.bug_pulse'),
+    api=('videobuilder.capabilities.broadcast.station_id_bug.station_bug',
+         'videobuilder.capabilities.broadcast.station_id_bug.corner_box',
+         'videobuilder.capabilities.broadcast.station_id_bug.bug_pulse'),
     demo=lambda: demo.film(draw),
 )

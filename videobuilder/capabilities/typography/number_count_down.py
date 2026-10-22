@@ -5,7 +5,7 @@ import math
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def countdown(t, start=10, step=1.0, end=0):
@@ -42,7 +42,7 @@ def draw(n, cv):
     cv.mark('number', *box)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='number-count-down',
     name='Number count-down',
     family='typography',
@@ -54,7 +54,7 @@ TECHNIQUE = Technique(
                'a timer ticking down the last few seconds'),
     related=('stopwatch-count-up', 'game-clock-countdown', 'timecode-counter', 'odometer-roll',
              'seven-segment-display', 'badge-count-bump'),
-    api=('videobuilder.techniques.typography.number_count_down.draw_countdown',
-         'videobuilder.techniques.typography.number_count_down.countdown'),
+    api=('videobuilder.capabilities.typography.number_count_down.draw_countdown',
+         'videobuilder.capabilities.typography.number_count_down.countdown'),
     demo=lambda: demo.film(draw),
 )

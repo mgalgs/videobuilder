@@ -9,7 +9,7 @@ import videobuilder as vb
 from videobuilder.canvas import rgba
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 @functools.lru_cache(maxsize=8)
@@ -144,7 +144,7 @@ def draw(n, cv):
     cv.mark('flock', *box)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='boids-flocking',
     name='Boids flocking',
     family='particles',
@@ -157,8 +157,8 @@ TECHNIQUE = Technique(
                'make the particles swarm and move together like a murmuration'),
     related=('rigid-body-pile', 'bokeh-particles', 'k-rm-n-vortex-street', 'card-deck-fan',
              'particle-swarm-assemble', 'random-stagger'),
-    api=('videobuilder.techniques.particles.boids_flocking.flock',
-         'videobuilder.techniques.particles.boids_flocking.draw_flock',
-         'videobuilder.techniques.particles.boids_flocking.draw_boid'),
+    api=('videobuilder.capabilities.particles.boids_flocking.flock',
+         'videobuilder.capabilities.particles.boids_flocking.draw_flock',
+         'videobuilder.capabilities.particles.boids_flocking.draw_boid'),
     demo=lambda: demo.film(draw),
 )

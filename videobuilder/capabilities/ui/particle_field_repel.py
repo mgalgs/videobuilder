@@ -7,7 +7,7 @@ import random
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 POINTER = ((0, 0), (0, 27), (7, 21), (12, 32), (17.5, 29.5), (12.5, 19), (21, 19))
 
@@ -117,7 +117,7 @@ def draw(n, cv):
     cv.mark('field', *BOX)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='particle-field-repel',
     name='Particle field repel',
     family='ui',
@@ -130,9 +130,9 @@ TECHNIQUE = Technique(
                'particles that flee the pointer as it moves across them'),
     related=('dot-grid-displacement', 'flow-field', 'spring-drag-letters', 'cursor-path-animation',
              'wind-field', 'proximity-stagger'),
-    api=('videobuilder.techniques.ui.particle_field_repel.repel',
-         'videobuilder.techniques.ui.particle_field_repel.field',
-         'videobuilder.techniques.ui.particle_field_repel.draw_field',
-         'videobuilder.techniques.ui.particle_field_repel.draw_pointer'),
+    api=('videobuilder.capabilities.ui.particle_field_repel.repel',
+         'videobuilder.capabilities.ui.particle_field_repel.field',
+         'videobuilder.capabilities.ui.particle_field_repel.draw_field',
+         'videobuilder.capabilities.ui.particle_field_repel.draw_pointer'),
     demo=lambda: demo.film(draw),
 )

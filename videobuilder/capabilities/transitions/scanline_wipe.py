@@ -4,7 +4,7 @@ bottom, then the lines between them fill the gaps on a second pass."""
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def scanline_wipe(cv, a, b, p, line=18, overlap=0.15, spread=0.3, beam='#fff6dc'):
@@ -47,7 +47,7 @@ def scanline_wipe(cv, a, b, p, line=18, overlap=0.15, spread=0.3, beam='#fff6dc'
         cv.rect(max(0, x - line * 0.6), y, min(x, line * 0.6), line, beam, alpha=0.9)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='scanline-wipe',
     name='Scanline wipe',
     family='transitions',
@@ -60,6 +60,6 @@ TECHNIQUE = Technique(
                'an interlaced, retro-monitor style transition between the scenes'),
     related=('crt-scanlines', 'wipe-reveal', 'area-fill-sweep', 'scroll-scrubbed-frame-sequence',
              'scanline-tear', 'paint-brush-wipe'),
-    api=('videobuilder.techniques.transitions.scanline_wipe.scanline_wipe',),
+    api=('videobuilder.capabilities.transitions.scanline_wipe.scanline_wipe',),
     demo=lambda: demo.two_scenes(scanline_wipe, start=0.7, length=1.6),
 )

@@ -9,7 +9,7 @@ from PIL import Image as PILImage
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def look_around_view(pano, yaw, pitch=0.0, fov=90.0, size=(960, 540)):
@@ -131,7 +131,7 @@ def _compass(cv, yaw):
     cv.line(cx, cy, cx + r * 0.85 * math.cos(a), cy + r * 0.85 * math.sin(a), demo.ACCENT, width=4)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='look-around',
     name='Look-around',
     family='camera',
@@ -144,7 +144,7 @@ TECHNIQUE = Technique(
                'look around the whole place from where you stand'),
     related=('polar-coordinate-warp', 'rotoscope-look', 'zoom-through', 'canvas-pan-and-zoom',
              'turntable-rotation', 'flip'),
-    api=('videobuilder.techniques.camera.look_around.look_around',
-         'videobuilder.techniques.camera.look_around.look_around_view'),
+    api=('videobuilder.capabilities.camera.look_around.look_around',
+         'videobuilder.capabilities.camera.look_around.look_around_view'),
     demo=lambda: demo.film(_draw),
 )

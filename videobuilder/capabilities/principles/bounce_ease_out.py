@@ -3,7 +3,7 @@ hitting the target and bouncing off it in shrinking hops before it settles."""
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def bounce_ease_out(x):
@@ -38,7 +38,7 @@ def draw(n, cv):
     cv.mark('ball', demo.W / 2 - r, y - r, 2 * r, 2 * r)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='bounce-ease-out',
     name='Bounce Ease Out',
     family='principles',
@@ -50,6 +50,6 @@ TECHNIQUE = Technique(
                'lands like a bouncing ball',
                'falls and bounces on the ground'),
     related=('ease-out-back', 'bounce-ease-in', 'squash-and-stretch'),
-    api=('videobuilder.techniques.principles.bounce_ease_out.bounce_ease_out',),
+    api=('videobuilder.capabilities.principles.bounce_ease_out.bounce_ease_out',),
     demo=lambda: demo.film(draw),
 )

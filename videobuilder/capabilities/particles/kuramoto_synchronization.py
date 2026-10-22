@@ -8,7 +8,7 @@ import random
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 GLOW = '#f2d16b'
 
@@ -94,7 +94,7 @@ def draw(n, cv):
     cv.rect(cx - 100, cy + rad + 66, 200 * r, 8, demo.TEAL, radius=4)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='kuramoto-synchronization',
     name='Kuramoto synchronization',
     family='particles',
@@ -107,8 +107,8 @@ TECHNIQUE = Technique(
                'show a swarm falling into sync on its own'),
     related=('fireflies', 'scanline-jitter', 'lorenz-attractor', 'turbulence-displacement', 'electric-arc',
              'location-ripple-pulse'),
-    api=('videobuilder.techniques.particles.kuramoto_synchronization.kuramoto',
-         'videobuilder.techniques.particles.kuramoto_synchronization.order',
-         'videobuilder.techniques.particles.kuramoto_synchronization.flash'),
+    api=('videobuilder.capabilities.particles.kuramoto_synchronization.kuramoto',
+         'videobuilder.capabilities.particles.kuramoto_synchronization.order',
+         'videobuilder.capabilities.particles.kuramoto_synchronization.flash'),
     demo=lambda: demo.film(draw),
 )

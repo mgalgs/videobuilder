@@ -13,7 +13,7 @@ import math
 from PIL import Image, ImageChops, ImageFilter, ImageOps
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 from ...ease import ease_in_out_quart
 from ...looks.fx import Filter, apply
 
@@ -131,7 +131,7 @@ def _draw(n, cv):
     demo.word(cv, 'X-RAY', x + w / 2, 56, size=40, color='#bfe3ff', font=demo.mono(40))
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='x-ray',
     name='X-ray',
     family='vfx',
@@ -144,6 +144,6 @@ TECHNIQUE = Technique(
                'a scanner window that sees through things as it slides past'),
     related=('x-ray-view', 'crt-scanlines', 'god-rays', 'photographic-negative', 'mandelbulb-raymarch',
              'solarization'),
-    api=('videobuilder.techniques.vfx.x_ray.x_ray', 'videobuilder.techniques.vfx.x_ray.radiograph'),
+    api=('videobuilder.capabilities.vfx.x_ray.x_ray', 'videobuilder.capabilities.vfx.x_ray.radiograph'),
     demo=lambda: demo.film(_draw),
 )

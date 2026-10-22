@@ -5,7 +5,7 @@ import math
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def _rest_angle(spacing, height, thickness, next_angle):
@@ -85,7 +85,7 @@ def draw(n, cv):
     demo.dot(cv, bx, ground - r, r, color=demo.INK)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='domino-toppling',
     name='Domino toppling',
     family='particles',
@@ -98,6 +98,6 @@ TECHNIQUE = Technique(
                'a row of tiles toppling in sequence'),
     related=('shape-stacking-drop', 'truchet-tiles', 'tessellation-triangle-flip', 'stacked-line-build',
              'tile-flip', 'pattern-tiling'),
-    api=('videobuilder.techniques.particles.domino_toppling.domino_angles',),
+    api=('videobuilder.capabilities.particles.domino_toppling.domino_angles',),
     demo=lambda: demo.film(draw, seconds=3.2),
 )

@@ -3,7 +3,7 @@ entry only names it and demos it."""
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 START, END = 0.4, 2.2
 TICKS = 12  # where the card was at even steps of time: wide gaps early, packed tight at the end
@@ -22,7 +22,7 @@ def draw(n, cv):
     demo.card(cv, x0 + (x1 - x0) * vb.ease_out_expo(demo.phase(n, START, END)), y)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='ease-out-expo',
     name='Ease Out Expo',
     family='principles',

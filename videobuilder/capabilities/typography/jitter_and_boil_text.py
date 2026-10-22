@@ -12,7 +12,7 @@ import videobuilder as vb
 from videobuilder.looks.fx import boil
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 _scratch = cairo.Context(cairo.ImageSurface(cairo.FORMAT_ARGB32, 1, 1))
 
@@ -127,7 +127,7 @@ def draw(n, cv):
     cv.mark('text', *box)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='jitter-and-boil-text',
     name='Jitter and boil text',
     family='typography',
@@ -139,7 +139,7 @@ TECHNIQUE = Technique(
                'the word should shake and wobble like a pencil drawing redrawn every frame',
                'give the text that nervous, boiling cartoon outline'),
     related=('line-boil', 'jiggle', 'scanline-jitter', 'wiggle-path', 'tape-wobble', 'wobble'),
-    api=('videobuilder.techniques.typography.jitter_and_boil_text.draw_boil_text',
-         'videobuilder.techniques.typography.jitter_and_boil_text.boil_text'),
+    api=('videobuilder.capabilities.typography.jitter_and_boil_text.draw_boil_text',
+         'videobuilder.capabilities.typography.jitter_and_boil_text.boil_text'),
     demo=lambda: demo.film(draw),
 )

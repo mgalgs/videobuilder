@@ -6,7 +6,7 @@ import math
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def live_pulse(t, period=1.2, start=0.0):
@@ -68,7 +68,7 @@ def draw(n, cv):
     draw_live_badge(cv, (demo.W - w) / 2, (demo.H - h) / 2, t, size=size, period=1.0, start=0.3)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='live-indicator-pulse',
     name='Live indicator pulse',
     family='broadcast',
@@ -81,8 +81,8 @@ TECHNIQUE = Technique(
                'a throbbing red light next to the word live'),
     related=('pulse-loader', 'badge-count-bump', 'location-ripple-pulse', 'scale-pulse',
              'numbered-hotspot-pins', 'like-heart-burst'),
-    api=('videobuilder.techniques.broadcast.live_indicator_pulse.draw_live_badge',
-         'videobuilder.techniques.broadcast.live_indicator_pulse.live_pulse',
-         'videobuilder.techniques.broadcast.live_indicator_pulse.badge_size'),
+    api=('videobuilder.capabilities.broadcast.live_indicator_pulse.draw_live_badge',
+         'videobuilder.capabilities.broadcast.live_indicator_pulse.live_pulse',
+         'videobuilder.capabilities.broadcast.live_indicator_pulse.badge_size'),
     demo=lambda: demo.film(draw),
 )

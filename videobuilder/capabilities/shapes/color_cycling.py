@@ -7,7 +7,7 @@ import videobuilder as vb
 from videobuilder.canvas import rgba
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def ramp(stops, steps):
@@ -75,7 +75,7 @@ def draw(n, cv):
     cv.mark('palette', x0, y, sw * len(PALETTE), 26)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='color-cycling',
     name='Color cycling',
     family='shapes',
@@ -88,9 +88,9 @@ TECHNIQUE = Technique(
                'loop the colours round and round through the bands'),
     related=('hue-cycle-fill', 'channel-shuffle', 'cross-processing', 'swirl',
              'scroll-linked-background-shift', 'gradient-shift-button'),
-    api=('videobuilder.techniques.shapes.color_cycling.draw_cycled_bands',
-         'videobuilder.techniques.shapes.color_cycling.cycled',
-         'videobuilder.techniques.shapes.color_cycling.ramp',
-         'videobuilder.techniques.shapes.color_cycling.cycle_shift'),
+    api=('videobuilder.capabilities.shapes.color_cycling.draw_cycled_bands',
+         'videobuilder.capabilities.shapes.color_cycling.cycled',
+         'videobuilder.capabilities.shapes.color_cycling.ramp',
+         'videobuilder.capabilities.shapes.color_cycling.cycle_shift'),
     demo=lambda: demo.film(draw),
 )

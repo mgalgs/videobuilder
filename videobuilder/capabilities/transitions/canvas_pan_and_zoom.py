@@ -6,7 +6,7 @@ import math
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def camera(p, offset, out=0.4):
@@ -92,7 +92,7 @@ def _demo():
     return demo.film(draw)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='canvas-pan-and-zoom',
     name='Canvas pan and zoom',
     family='transitions',
@@ -105,7 +105,7 @@ TECHNIQUE = Technique(
                'move between slides like they are all laid out on one huge canvas'),
     related=('ui-walkthrough-camera-zoom', 'infinite-zoom-tunnel', 'zoom-to-location-map',
              'zoom-through-shape', 'zoom-through', 'ken-burns-effect'),
-    api=('videobuilder.techniques.transitions.canvas_pan_and_zoom.canvas_pan_and_zoom',
-         'videobuilder.techniques.transitions.canvas_pan_and_zoom.camera'),
+    api=('videobuilder.capabilities.transitions.canvas_pan_and_zoom.canvas_pan_and_zoom',
+         'videobuilder.capabilities.transitions.canvas_pan_and_zoom.camera'),
     demo=_demo,
 )

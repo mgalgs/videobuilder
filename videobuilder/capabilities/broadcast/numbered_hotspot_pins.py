@@ -6,7 +6,7 @@ import math
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 from ..shapes.ripple_rings import ripple_rings
 
 
@@ -81,7 +81,7 @@ def draw(n, cv):
         cv.mark(f'pin{k + 1}', *b)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='numbered-hotspot-pins',
     name='Numbered hotspot pins',
     family='broadcast',
@@ -94,8 +94,8 @@ TECHNIQUE = Technique(
                'pop numbered pins onto the photo in order as we explain them'),
     related=('map-pin-drop', 'milestone-marker-pop', 'highlighter-swipe', 'live-indicator-pulse',
              'scatter-plot-point-appear', 'location-ripple-pulse'),
-    api=('videobuilder.techniques.broadcast.numbered_hotspot_pins.hotspot_pins',
-         'videobuilder.techniques.broadcast.numbered_hotspot_pins.hotspot_pin',
-         'videobuilder.techniques.shapes.ripple_rings.ripple_rings'),
+    api=('videobuilder.capabilities.broadcast.numbered_hotspot_pins.hotspot_pins',
+         'videobuilder.capabilities.broadcast.numbered_hotspot_pins.hotspot_pin',
+         'videobuilder.capabilities.shapes.ripple_rings.ripple_rings'),
     demo=lambda: demo.film(draw),
 )

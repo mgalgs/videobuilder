@@ -3,7 +3,7 @@ over and over, so it reads as hovering in place rather than sitting still."""
 import math
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def bob(t, amplitude=14.0, period=2.0, phase=0.0):
@@ -29,7 +29,7 @@ def draw(n, cv):
     demo.card(cv, cx, rest + dy)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='idle-float-bob',
     name='Idle Float Bob',
     family='principles',
@@ -42,6 +42,6 @@ TECHNIQUE = Technique(
                'have the card bob in place like it is floating'),
     related=('floating-label', 'empty-state-idle-loop', 'floating-reaction-emoji',
              'hover-letter-displacement', 'bouncing-dots', 'smooth-scroll-inertia'),
-    api=('videobuilder.techniques.principles.idle_float_bob.bob',),
+    api=('videobuilder.capabilities.principles.idle_float_bob.bob',),
     demo=lambda: demo.film(draw),
 )

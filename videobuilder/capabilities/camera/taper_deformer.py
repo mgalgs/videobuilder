@@ -6,7 +6,7 @@ import math
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def taper(points, amount, axis=1, start=0.0, end=1.0, center=None):
@@ -132,7 +132,7 @@ def draw(n, cv):
     cv.mark('box', min(xs), min(ys), max(xs) - min(xs), max(ys) - min(ys))
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='taper-deformer',
     name='Taper deformer',
     family='camera',
@@ -145,6 +145,6 @@ TECHNIQUE = Technique(
                'flare the shape out so it gets wider at one end'),
     related=('pucker-and-bloat', 'koch-snowflake', 'lens-distortion', 'circle-pop',
              'variable-font-width-animation', 'angled-lower-third'),
-    api=('videobuilder.techniques.camera.taper_deformer.taper', 'videobuilder.paths.draw'),
+    api=('videobuilder.capabilities.camera.taper_deformer.taper', 'videobuilder.paths.draw'),
     demo=lambda: demo.film(draw),
 )

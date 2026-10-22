@@ -7,7 +7,7 @@ import videobuilder as vb
 
 from .. import _demo as demo
 from ...compendium import kit
-from ..schema import Technique
+from ..schema import Capability
 
 
 def orbit_shot(p, sweep=math.radians(140), start=math.radians(-70), pitch=math.radians(22), distance=1600,
@@ -119,7 +119,7 @@ def draw(n, cv):
     cv.mark('subject', demo.W / 2 - s, demo.H / 2 - s, 2 * s, 2 * s)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='orbit-shot',
     name='Orbit shot',
     family='camera',
@@ -132,6 +132,6 @@ TECHNIQUE = Technique(
                'do a slow sweep around the hero while keeping it centred'),
     related=('orbit-loader', 'dolly-zoom', 'orbit', 'zoom-to-location-map', 'two-body-orbit',
              'rolling-shutter-wobble'),
-    api=('videobuilder.techniques.camera.orbit_shot.orbit_shot',),
+    api=('videobuilder.capabilities.camera.orbit_shot.orbit_shot',),
     demo=lambda: demo.film(draw),
 )

@@ -12,7 +12,7 @@ import videobuilder as vb
 
 from ... import fonts
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 THIN, BLACK = 100, 900
 
@@ -95,7 +95,7 @@ def draw(n, cv):
     vb.text.draw(cv, [f'{BLACK}'], label, tx + tw + 16, ty - 13, demo.MUTED)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='variable-font-weight-animation',
     name='Variable-font weight animation',
     family='typography',
@@ -108,8 +108,8 @@ TECHNIQUE = Technique(
                'animate the font weight so the letters swell and slim down'),
     related=('text-to-shape-morph', 'chart-type-morph', 'shape-morph-loader', 'arc-bend-morph',
              'twirl-warp-text', 'julia-set-morph'),
-    api=('videobuilder.techniques.typography.variable_font_weight_animation.draw_weighted',
-         'videobuilder.techniques.typography.variable_font_weight_animation.weight_wave',
+    api=('videobuilder.capabilities.typography.variable_font_weight_animation.draw_weighted',
+         'videobuilder.capabilities.typography.variable_font_weight_animation.weight_wave',
          'videobuilder.Font'),
     demo=lambda: demo.film(draw),
 )

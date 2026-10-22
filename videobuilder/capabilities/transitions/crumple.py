@@ -8,7 +8,7 @@ import cairo
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def _mesh(cols, rows, seed):
@@ -141,7 +141,7 @@ def crumple(cv, a, b, p, backdrop=demo.BG, size=0.32, seed=7):
     c.restore()
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='crumple',
     name='Crumple',
     family='transitions',
@@ -154,7 +154,7 @@ TECHNIQUE = Technique(
                'a crinkled-paper transition between the two clips'),
     related=('cut-out-paper-animation', 'pixelate-transition', 'crt-scanlines', 'elastic-stretch', 'confetti',
              'paper-fold-reveal'),
-    api=('videobuilder.techniques.transitions.crumple.crumple',
-         'videobuilder.techniques.transitions.crumple.crumple_sheet'),
+    api=('videobuilder.capabilities.transitions.crumple.crumple',
+         'videobuilder.capabilities.transitions.crumple.crumple_sheet'),
     demo=lambda: demo.two_scenes(crumple, start=0.6, length=1.8),
 )

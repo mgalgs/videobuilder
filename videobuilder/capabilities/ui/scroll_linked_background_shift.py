@@ -5,7 +5,7 @@ import videobuilder as vb
 
 from .. import _demo as demo
 from ...compendium import kit
-from ..schema import Technique
+from ..schema import Capability
 
 
 def scroll_tint(scroll, sections, view_h, band=0.6):
@@ -75,7 +75,7 @@ def draw(n, cv):
     cv.mark('page', 0, 0, demo.W, demo.H)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='scroll-linked-background-shift',
     name='Scroll-linked background shift',
     family='ui',
@@ -88,7 +88,7 @@ TECHNIQUE = Technique(
                'scroll the page and let the backdrop morph from dark to blue to light'),
     related=('scroll-driven-text-reveal', 'theme-swap-crossfade', 'palette-shift-transition',
              'timeline-scroll', 'roll-up', 'gradient-shift-button'),
-    api=('videobuilder.techniques.ui.scroll_linked_background_shift.scroll_tint',
-         'videobuilder.techniques.ui.scroll_linked_background_shift.ink_on'),
+    api=('videobuilder.capabilities.ui.scroll_linked_background_shift.scroll_tint',
+         'videobuilder.capabilities.ui.scroll_linked_background_shift.ink_on'),
     demo=lambda: demo.film(draw),
 )

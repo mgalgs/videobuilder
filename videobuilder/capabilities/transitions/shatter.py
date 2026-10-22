@@ -7,7 +7,7 @@ from functools import lru_cache
 
 from ...canvas import rgba
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def _clip(pts, w, h):
@@ -128,7 +128,7 @@ def shatter(cv, a, b, p, at=None, crack=0.2, spokes=14, rings=5, seed=0, edge='#
         c.restore()
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='shatter',
     name='Shatter',
     family='transitions',
@@ -140,7 +140,7 @@ TECHNIQUE = Technique(
                'the picture breaks into pieces that fall away',
                'crack the frame and let it shatter into the next scene'),
     related=('fracture-shatter', 'type-explosion', 'smash-cut', 'rain-on-glass', 'shake', 'exploded-view'),
-    api=('videobuilder.techniques.transitions.shatter.shatter',
-         'videobuilder.techniques.transitions.shatter.shards'),
+    api=('videobuilder.capabilities.transitions.shatter.shatter',
+         'videobuilder.capabilities.transitions.shatter.shards'),
     demo=lambda: demo.two_scenes(shatter, start=0.6, length=1.8),
 )

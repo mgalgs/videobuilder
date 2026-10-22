@@ -7,7 +7,7 @@ from gi.repository import PangoCairo
 
 from ... import text as vbtext
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def twirl(x, y, cx, cy, angle, radius):
@@ -77,7 +77,7 @@ def draw(n, cv):
     cv.mark('text', *box)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='twirl-warp-text',
     name='Twirl warp text',
     family='typography',
@@ -90,7 +90,7 @@ TECHNIQUE = Technique(
                'letters swirled like water going down a drain, settling back to normal'),
     related=('swirl', 'arc-bend-morph', 'text-on-a-path', 'word-carousel-rotate', 'type-explosion',
              'gradient-sweep-across-text'),
-    api=('videobuilder.techniques.typography.twirl_warp_text.draw_twirl',
-         'videobuilder.techniques.typography.twirl_warp_text.twirl'),
+    api=('videobuilder.capabilities.typography.twirl_warp_text.draw_twirl',
+         'videobuilder.capabilities.typography.twirl_warp_text.twirl'),
     demo=lambda: demo.film(draw),
 )

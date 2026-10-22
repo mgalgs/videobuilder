@@ -6,7 +6,7 @@ import cairo
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 from ...type.kit import blurred
 
 
@@ -127,7 +127,7 @@ def draw(n, cv):
     cv.mark('focus band', 0, ROAD_Y - 0.06 * demo.H, demo.W, 0.12 * demo.H)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='tilt-shift-miniature',
     name='Tilt-shift miniature',
     family='camera',
@@ -139,6 +139,6 @@ TECHNIQUE = Technique(
                'blur the top and bottom of the shot and keep a sharp stripe in the middle',
                'that miniature look where real streets seem tiny'),
     related=('zoom-blur', 'tilt', 'focus-breathing', 'whip-pan', 'dolly-zoom', 'handheld-shake'),
-    api=('videobuilder.techniques.camera.tilt_shift_miniature.tilt_shift', 'videobuilder.type.kit.blurred'),
+    api=('videobuilder.capabilities.camera.tilt_shift_miniature.tilt_shift', 'videobuilder.type.kit.blurred'),
     demo=lambda: demo.film(draw),
 )

@@ -4,7 +4,7 @@ speaker's name slides in last behind a short rule."""
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def _bezier(p0, p1, p2, n=24):
@@ -94,7 +94,7 @@ def draw(n, cv):
     cv.mark('text', *out)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='quote-card-reveal',
     name='Quote card reveal',
     family='broadcast',
@@ -107,7 +107,7 @@ TECHNIQUE = Technique(
                'show a pull quote on a card, words first, then who said it'),
     related=('title-card-reveal', 'text-mask-reveal', 'stacked-card-reveal', 'scroll-driven-text-reveal',
              'scroll-linked-clip-reveal', 'wipe-reveal'),
-    api=('videobuilder.techniques.broadcast.quote_card_reveal.draw_quote_card',
-         'videobuilder.techniques.broadcast.quote_card_reveal.draw_quote_mark'),
+    api=('videobuilder.capabilities.broadcast.quote_card_reveal.draw_quote_card',
+         'videobuilder.capabilities.broadcast.quote_card_reveal.draw_quote_mark'),
     demo=lambda: demo.film(draw),
 )

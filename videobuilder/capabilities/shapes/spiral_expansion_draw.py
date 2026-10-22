@@ -5,7 +5,7 @@ import math
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def spiral_points(cx, cy, radius, turns=4.0, inner=0.02, kind='log', start=0.0, clockwise=True, steps=90):
@@ -61,7 +61,7 @@ def draw(n, cv):
     cv.mark('spiral', cx - r, cy - r, 2 * r, 2 * r)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='spiral-expansion-draw',
     name='Spiral expansion draw',
     family='shapes',
@@ -74,7 +74,7 @@ TECHNIQUE = Technique(
                'animate a golden spiral drawing itself turn by turn'),
     related=('spiral-wipe', 'spiral-bloom', 'dragon-curve', 'chord-diagram-draw', 'squircle-morph',
              'phyllotaxis'),
-    api=('videobuilder.techniques.shapes.spiral_expansion_draw.draw_spiral_expansion',
-         'videobuilder.techniques.shapes.spiral_expansion_draw.spiral_points'),
+    api=('videobuilder.capabilities.shapes.spiral_expansion_draw.draw_spiral_expansion',
+         'videobuilder.capabilities.shapes.spiral_expansion_draw.spiral_points'),
     demo=lambda: demo.film(draw),
 )

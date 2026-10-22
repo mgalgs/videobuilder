@@ -4,7 +4,7 @@ its new one instead of snapping."""
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 DARK = {'bg': '#1d1f24', 'surface': '#2a2d35', 'line': '#3a3e48', 'ink': '#eef0f3',
         'muted': '#8a909c', 'track': '#454a56', 'knob': '#f4f4f2'}
@@ -61,7 +61,7 @@ def draw(n, cv):
     _panel(cv, t, knob)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='theme-swap-crossfade',
     name='Theme swap crossfade',
     family='ui',
@@ -74,7 +74,7 @@ TECHNIQUE = Technique(
                'animate the switch to dark mode instead of a hard cut'),
     related=('palette-shift-transition', 'typeface-crossfade', 'lyric-line-crossfade', 'cross-dissolve',
              'scroll-linked-background-shift', 'cross-processing'),
-    api=('videobuilder.techniques.ui.theme_swap_crossfade.theme_at',
-         'videobuilder.techniques.ui.theme_swap_crossfade.mix_color'),
+    api=('videobuilder.capabilities.ui.theme_swap_crossfade.theme_at',
+         'videobuilder.capabilities.ui.theme_swap_crossfade.mix_color'),
     demo=lambda: demo.film(draw),
 )

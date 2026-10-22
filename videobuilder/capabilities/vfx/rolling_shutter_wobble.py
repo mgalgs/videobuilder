@@ -6,7 +6,7 @@ import math
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def rolling_shutter(cv, scene, t, readout=1 / 30, bands=72, y=0.0, h=None):
@@ -62,7 +62,7 @@ def draw(n, cv):
     rolling_shutter(cv, lambda c, t: skyline(c, shake(t)), n / demo.FPS, readout=0.12)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='rolling-shutter-wobble',
     name='Rolling shutter wobble',
     family='vfx',
@@ -74,7 +74,7 @@ TECHNIQUE = Technique(
                'the buildings bend and lean as the camera whips side to side',
                'give it that jelly smartphone-camera skew'),
     related=('tape-wobble', 'scroll-velocity-skew', 'crane-shot', 'handheld-shake', 'whip-pan', 'swirl'),
-    api=('videobuilder.techniques.vfx.rolling_shutter_wobble.rolling_shutter',
-         'videobuilder.techniques.vfx.rolling_shutter_wobble.shake'),
+    api=('videobuilder.capabilities.vfx.rolling_shutter_wobble.rolling_shutter',
+         'videobuilder.capabilities.vfx.rolling_shutter_wobble.shake'),
     demo=lambda: demo.film(draw),
 )

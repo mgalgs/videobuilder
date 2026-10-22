@@ -8,7 +8,7 @@ import math
 import cairo
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def spectrum(bands):
@@ -82,7 +82,7 @@ def _draw(n, cv):
     chromatic_dispersion(cv, _scene, amount)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='chromatic-dispersion',
     name='Chromatic dispersion',
     family='camera',
@@ -96,7 +96,7 @@ TECHNIQUE = Technique(
                'give it that dispersed, spectral glass look around the edges'),
     related=('rgb-split', 'rgb-channel-split', 'palette-shift-transition', 'film-dissolve', 'flash-cut',
              'hue-cycle-fill'),
-    api=('videobuilder.techniques.camera.chromatic_dispersion.chromatic_dispersion',
-         'videobuilder.techniques.camera.chromatic_dispersion.spectrum'),
+    api=('videobuilder.capabilities.camera.chromatic_dispersion.chromatic_dispersion',
+         'videobuilder.capabilities.camera.chromatic_dispersion.spectrum'),
     demo=lambda: demo.film(_draw),
 )

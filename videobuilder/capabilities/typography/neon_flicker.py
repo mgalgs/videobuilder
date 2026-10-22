@@ -7,7 +7,7 @@ import cairo
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 from ...type import kit as tk
 
 
@@ -78,7 +78,7 @@ def draw(n, cv):
     cv.mark('text', *box)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='neon-flicker',
     name='Neon flicker',
     family='typography',
@@ -91,7 +91,7 @@ TECHNIQUE = Technique(
                'a neon sign that flickers a few times and then stays on'),
     related=('outline-pulse-glow', 'fireflies', 'glow-button', 'light-trail-logo-reveal', 'electric-arc',
              'jitter-and-boil-text'),
-    api=('videobuilder.techniques.typography.neon_flicker.draw_neon',
-         'videobuilder.techniques.typography.neon_flicker.flicker'),
+    api=('videobuilder.capabilities.typography.neon_flicker.draw_neon',
+         'videobuilder.capabilities.typography.neon_flicker.flicker'),
     demo=lambda: demo.film(draw),
 )

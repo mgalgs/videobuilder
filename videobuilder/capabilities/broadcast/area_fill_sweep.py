@@ -8,7 +8,7 @@ import videobuilder as vb
 from videobuilder.canvas import rgba
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def swept(points, p):
@@ -84,7 +84,7 @@ def draw(n, cv):
     cv.mark('chart', left, top, right - left, base - top)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='area-fill-sweep',
     name='Area fill sweep',
     family='broadcast',
@@ -97,7 +97,7 @@ TECHNIQUE = Technique(
                'sweep the area under the line in over time'),
     related=('shape-fill-sweep', 'fill-sweep-button', 'choropleth-fill', 'scanline-wipe', 'wipe-reveal',
              'diagonal-wipe'),
-    api=('videobuilder.techniques.broadcast.area_fill_sweep.area_fill_sweep',
-         'videobuilder.techniques.broadcast.area_fill_sweep.swept'),
+    api=('videobuilder.capabilities.broadcast.area_fill_sweep.area_fill_sweep',
+         'videobuilder.capabilities.broadcast.area_fill_sweep.swept'),
     demo=lambda: demo.film(draw),
 )

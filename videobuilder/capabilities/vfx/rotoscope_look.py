@@ -18,7 +18,7 @@ import videobuilder as vb
 
 from .. import _demo as demo
 from ...looks.fx import Filter, apply, boil, grow, luma, shrink, threshold, work_factor
-from ..schema import Technique
+from ..schema import Capability
 
 INK = '#15131c'
 
@@ -116,7 +116,7 @@ def draw(n, cv):
         cv.line(x, 0, x, demo.H, '#ffffff', width=4)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='rotoscope-look',
     name='Rotoscope look',
     family='vfx',
@@ -129,7 +129,7 @@ TECHNIQUE = Technique(
                'that drawn-over-real-video animation style'),
     related=('swirl', 'animated-gradient-sweep', 'look-around', 'whip-pan', 'spin',
              'frame-by-frame-hand-drawn-animation'),
-    api=('videobuilder.techniques.vfx.rotoscope_look.rotoscope_look',
-         'videobuilder.techniques.vfx.rotoscope_look.rotoscope'),
+    api=('videobuilder.capabilities.vfx.rotoscope_look.rotoscope_look',
+         'videobuilder.capabilities.vfx.rotoscope_look.rotoscope'),
     demo=lambda: demo.film(draw),
 )

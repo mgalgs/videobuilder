@@ -8,7 +8,7 @@ import math
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def shift_hue(color, turns):
@@ -98,7 +98,7 @@ def draw(n, cv):
     cv.mark('feedback', *box)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='video-feedback-loop',
     name='Video feedback loop',
     family='vfx',
@@ -112,7 +112,7 @@ TECHNIQUE = Technique(
                'make the shot echo into itself with trails like old analogue feedback'),
     related=('seamless-loop', 'follow-cam', 'pulldown-judder', 'hyperlapse', 'rotoscope-look',
              'interruptible-motion'),
-    api=('videobuilder.techniques.vfx.video_feedback_loop.video_feedback',
-         'videobuilder.techniques.vfx.video_feedback_loop.shift_hue'),
+    api=('videobuilder.capabilities.vfx.video_feedback_loop.video_feedback',
+         'videobuilder.capabilities.vfx.video_feedback_loop.shift_hue'),
     demo=lambda: demo.film(draw),
 )

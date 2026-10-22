@@ -4,7 +4,7 @@ order until the letters are solid."""
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def bayer(order=3):
@@ -68,7 +68,7 @@ def draw(n, cv):
     cv.mark('text', *box)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='dither-reveal',
     name='Dither reveal',
     family='typography',
@@ -81,8 +81,8 @@ TECHNIQUE = Technique(
                'letters made of dots that get denser until they are solid'),
     related=('halftone', 'noise-dissolve', 'wipe-reveal', 'pixel-sort-text', 'random-order-character-reveal',
              'dissolve-to-particles'),
-    api=('videobuilder.techniques.typography.dither_reveal.dither_reveal',
-         'videobuilder.techniques.typography.dither_reveal.draw_dither_text',
-         'videobuilder.techniques.typography.dither_reveal.bayer'),
+    api=('videobuilder.capabilities.typography.dither_reveal.dither_reveal',
+         'videobuilder.capabilities.typography.dither_reveal.draw_dither_text',
+         'videobuilder.capabilities.typography.dither_reveal.bayer'),
     demo=lambda: demo.film(draw),
 )

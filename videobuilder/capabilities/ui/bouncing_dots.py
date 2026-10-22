@@ -3,7 +3,7 @@ loader that says "working on it" or "someone is typing"."""
 import math
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def bouncing_dots(cv, cx, cy, t, count=3, r=14, gap=None, height=None, period=0.9, stagger=0.15,
@@ -34,7 +34,7 @@ def draw(n, cv):
     cv.mark('dots', cx - w / 2, cy - h / 2, w, h)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='bouncing-dots',
     name='Bouncing dots',
     family='ui',
@@ -47,6 +47,6 @@ TECHNIQUE = Technique(
                'dots bouncing in a wave while it loads'),
     related=('dot-grid-displacement', 'cursor-follower-dot-and-ring', 'dot-density-map', 'circle-pop',
              'comment-pop-up-stack', 'icon-hover-bounce'),
-    api=('videobuilder.techniques.ui.bouncing_dots.bouncing_dots',),
+    api=('videobuilder.capabilities.ui.bouncing_dots.bouncing_dots',),
     demo=lambda: demo.film(draw),
 )

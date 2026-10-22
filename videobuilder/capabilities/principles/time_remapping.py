@@ -7,7 +7,7 @@ import math
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def speed_ramp(t, times, speeds):
@@ -95,7 +95,7 @@ def draw(n, cv):
               font=demo.mono(56))
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='time-remapping',
     name='Time Remapping',
     family='principles',
@@ -108,8 +108,8 @@ TECHNIQUE = Technique(
                'change how fast the animation plays partway through'),
     related=('hyperlapse', 'scatter-time-playback', 'timing', 'distance-based-duration',
              'timecode-counter', 'delay'),
-    api=('videobuilder.techniques.principles.time_remapping.speed_ramp',
-         'videobuilder.techniques.principles.time_remapping.remapped',
-         'videobuilder.techniques.principles.time_remapping.speed_at'),
+    api=('videobuilder.capabilities.principles.time_remapping.speed_ramp',
+         'videobuilder.capabilities.principles.time_remapping.remapped',
+         'videobuilder.capabilities.principles.time_remapping.speed_at'),
     demo=lambda: demo.film(draw),
 )

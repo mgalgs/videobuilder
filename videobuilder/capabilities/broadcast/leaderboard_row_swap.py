@@ -5,7 +5,7 @@ import math
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def row_slots(before, after, p, ease=vb.ease_in_out_quart):
@@ -71,7 +71,7 @@ def draw(n, cv):
             cv.mark('climber', x + dx, y, w, h)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='leaderboard-row-swap',
     name='Leaderboard row swap',
     family='broadcast',
@@ -84,7 +84,7 @@ TECHNIQUE = Technique(
                'rows swap places on the leaderboard'),
     related=('sorted-bar-reorder', 'bar-chart-race', 'reorder-list-shuffle', 'axis-rescale',
              'layout-animation-flip', 'grid-reflow-shuffle'),
-    api=('videobuilder.techniques.broadcast.leaderboard_row_swap.row_slots',
-         'videobuilder.techniques.broadcast.leaderboard_row_swap.draw_order'),
+    api=('videobuilder.capabilities.broadcast.leaderboard_row_swap.row_slots',
+         'videobuilder.capabilities.broadcast.leaderboard_row_swap.draw_order'),
     demo=lambda: demo.film(draw),
 )

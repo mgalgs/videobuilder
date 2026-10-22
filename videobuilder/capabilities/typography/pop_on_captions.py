@@ -7,7 +7,7 @@ import bisect
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def cue_at(cues, t):
@@ -65,7 +65,7 @@ def draw(n, cv):
     cv.line(px, y - 20, px, y + 20, demo.INK, width=3)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='pop-on-captions',
     name='Pop-on captions',
     family='typography',
@@ -78,7 +78,7 @@ TECHNIQUE = Technique(
                'swap in each subtitle as a complete two-line chunk on its timing'),
     related=('callout-highlight', 'slide-over-cover', 'jump-cut', 'comment-pop-up-stack', 'voiceover',
              'play-pause-morph'),
-    api=('videobuilder.techniques.typography.pop_on_captions.draw_pop_on',
-         'videobuilder.techniques.typography.pop_on_captions.cue_at'),
+    api=('videobuilder.capabilities.typography.pop_on_captions.draw_pop_on',
+         'videobuilder.capabilities.typography.pop_on_captions.cue_at'),
     demo=lambda: demo.film(draw),
 )

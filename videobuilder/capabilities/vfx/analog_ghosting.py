@@ -4,7 +4,7 @@ hard edge carries a pale double."""
 import math
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def analog_ghosting(cv, scene, strength=0.35, offset=0.03, echoes=2, decay=0.5, dy=0.0):
@@ -42,7 +42,7 @@ def _draw(n, cv):
     analog_ghosting(cv, _broadcast, strength=0.38 * p, offset=0.03 * p * wobble)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='analog-ghosting',
     name='Analog ghosting',
     family='vfx',
@@ -55,6 +55,6 @@ TECHNIQUE = Technique(
                'make the edges smear into a see-through double like a worn VHS'),
     related=('double-exposure', 'static-noise', 'frame-delay-echo', 'linear-repeater-stagger', 'pixelation',
              'glitch-transition'),
-    api=('videobuilder.techniques.vfx.analog_ghosting.analog_ghosting',),
+    api=('videobuilder.capabilities.vfx.analog_ghosting.analog_ghosting',),
     demo=lambda: demo.film(_draw),
 )

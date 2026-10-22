@@ -5,7 +5,7 @@ from contextlib import contextmanager
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def tap_squash(t, depth=0.2, press=0.09, spec=vb.damped(0.28, hz=4.0)):
@@ -88,7 +88,7 @@ def draw(n, cv):
     _cursor(cv, px, py, 0.88 if down else 1.0)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='squash-on-tap',
     name='Squash on tap',
     family='ui',
@@ -101,7 +101,7 @@ TECHNIQUE = Technique(
                'a springy press on the button, flattening then wobbling back'),
     related=('squash-and-stretch', 'elastic-stretch', 'rubber-band-snap', 'elastic-horizontal-squash',
              'icon-hover-bounce', 'rubber-band-overscroll'),
-    api=('videobuilder.techniques.ui.squash_on_tap.tap_squash',
-         'videobuilder.techniques.ui.squash_on_tap.squashed'),
+    api=('videobuilder.capabilities.ui.squash_on_tap.tap_squash',
+         'videobuilder.capabilities.ui.squash_on_tap.squashed'),
     demo=lambda: demo.film(draw),
 )

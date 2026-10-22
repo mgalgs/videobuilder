@@ -7,7 +7,7 @@ import videobuilder as vb
 from videobuilder.canvas import rgba
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def person(c):
@@ -114,7 +114,7 @@ def draw(n, cv):
         cv.mark(f'row{i}', *box)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='pictogram-counting',
     name='Pictogram counting',
     family='broadcast',
@@ -127,9 +127,9 @@ TECHNIQUE = Technique(
                'fill each row with tiny symbols until it reaches its total'),
     related=('symbol-to-letter-decode', 'infographic-icon-sequence', 'isometric-bar-rise',
              'decimal-counter-with-formatting', 'number-count-up', 'pixel-sorting'),
-    api=('videobuilder.techniques.broadcast.pictogram_counting.pictogram_chart',
-         'videobuilder.techniques.broadcast.pictogram_counting.pictogram_row',
-         'videobuilder.techniques.broadcast.pictogram_counting.draw_pictogram',
-         'videobuilder.techniques.broadcast.pictogram_counting.person'),
+    api=('videobuilder.capabilities.broadcast.pictogram_counting.pictogram_chart',
+         'videobuilder.capabilities.broadcast.pictogram_counting.pictogram_row',
+         'videobuilder.capabilities.broadcast.pictogram_counting.draw_pictogram',
+         'videobuilder.capabilities.broadcast.pictogram_counting.person'),
     demo=lambda: demo.film(draw),
 )

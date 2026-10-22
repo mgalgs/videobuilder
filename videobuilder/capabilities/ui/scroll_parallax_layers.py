@@ -9,7 +9,7 @@ import videobuilder as vb
 from videobuilder import parallax, paths
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def scroll_offset(scroll, rate):
@@ -66,7 +66,7 @@ def draw(n, cv):
     cv.rect(demo.W - 14, 20 + (track - 180) * p, 6, 180, demo.MUTED, radius=3)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='scroll-parallax-layers',
     name='Scroll parallax layers',
     family='ui',
@@ -79,7 +79,7 @@ TECHNIQUE = Technique(
                'give the scroll some depth, hero image lagging behind the content'),
     related=('parallax-layers', 'parallax-slide', 'pointer-parallax-layers', 'parallax-letter-layers',
              'layered-fog-bands', 'parallax-marquee-rows'),
-    api=('videobuilder.techniques.ui.scroll_parallax_layers.draw_scroll_layers',
-         'videobuilder.techniques.ui.scroll_parallax_layers.scroll_offset'),
+    api=('videobuilder.capabilities.ui.scroll_parallax_layers.draw_scroll_layers',
+         'videobuilder.capabilities.ui.scroll_parallax_layers.scroll_offset'),
     demo=lambda: demo.film(draw),
 )

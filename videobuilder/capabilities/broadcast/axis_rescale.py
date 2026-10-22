@@ -8,7 +8,7 @@ import videobuilder as vb
 from videobuilder import Box, text
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def nice_ticks(lo, hi, count=5):
@@ -92,7 +92,7 @@ def draw(n, cv):
     demo.word(cv, 'Axis rescale', demo.W / 2, 82, size=44, color=demo.INK, weight=800)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='axis-rescale',
     name='Axis rescale',
     family='broadcast',
@@ -105,8 +105,8 @@ TECHNIQUE = Technique(
                'make the scale adjust smoothly when a value goes off the top'),
     related=('optical-size-shift', 'leaderboard-row-swap', 'variable-font-width-animation',
              'isolines-contour-animation', 'slant-axis-swing', 'speed-ramp'),
-    api=('videobuilder.techniques.broadcast.axis_rescale.axis_rescale',
-         'videobuilder.techniques.broadcast.axis_rescale.rescaled_domain',
-         'videobuilder.techniques.broadcast.axis_rescale.nice_ticks'),
+    api=('videobuilder.capabilities.broadcast.axis_rescale.axis_rescale',
+         'videobuilder.capabilities.broadcast.axis_rescale.rescaled_domain',
+         'videobuilder.capabilities.broadcast.axis_rescale.nice_ticks'),
     demo=lambda: demo.film(draw),
 )

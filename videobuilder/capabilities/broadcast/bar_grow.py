@@ -4,7 +4,7 @@ component is a whole titled shot; this is the move on its own, for any box.)"""
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def bar_grow(count, p, stagger=0.6, ease=vb.ease_out_quint):
@@ -65,7 +65,7 @@ def draw(n, cv):
         vb.text.draw(cv, [lbl], f, box.x + col * (i + 0.5) - lw / 2, box.bottom + 14, demo.MUTED)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='bar-grow',
     name='Bar grow',
     family='broadcast',
@@ -78,7 +78,7 @@ TECHNIQUE = Technique(
                'grow the bars in from the bottom'),
     related=('isometric-bar-rise', 'org-chart-grow', 'decision-tree-branch-growth', 'audio-waveform-bars',
              'shape-stacking-drop', 'percentage-fill-bar'),
-    api=('videobuilder.techniques.broadcast.bar_grow.draw_bar_grow',
-         'videobuilder.techniques.broadcast.bar_grow.bar_grow'),
+    api=('videobuilder.capabilities.broadcast.bar_grow.draw_bar_grow',
+         'videobuilder.capabilities.broadcast.bar_grow.bar_grow'),
     demo=lambda: demo.film(draw),
 )

@@ -3,7 +3,7 @@ while the content scrolls under it, collapsing to a slim bar as it goes."""
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Technique
+from ..schema import Capability
 
 
 def header_collapse(scroll, tall, short):
@@ -62,7 +62,7 @@ def draw(n, cv):
     cv.mark('panel', px, py, pw, ph)
 
 
-TECHNIQUE = Technique(
+CAPABILITY = Capability(
     id='shrinking-sticky-header',
     name='Shrinking sticky header',
     family='ui',
@@ -75,7 +75,7 @@ TECHNIQUE = Technique(
                'a tall app header that shrinks into a slim pinned bar on scroll'),
     related=('rubber-band-overscroll', 'station-id-bug', 'logo-build-on-reveal', 'accordion-height-expand',
              'row-collapse-removal', 'infinite-scroll-append'),
-    api=('videobuilder.techniques.ui.shrinking_sticky_header.draw_sticky_header',
-         'videobuilder.techniques.ui.shrinking_sticky_header.header_collapse'),
+    api=('videobuilder.capabilities.ui.shrinking_sticky_header.draw_sticky_header',
+         'videobuilder.capabilities.ui.shrinking_sticky_header.header_collapse'),
     demo=lambda: demo.film(draw),
 )
