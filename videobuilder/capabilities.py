@@ -1092,6 +1092,22 @@ def _capability_overlap_technique(capability_id):
     return None
 
 
+_GROUP_DISPLAY_NAMES = {
+    # The registry field itself is out of scope (any file under
+    # videobuilder/techniques/), but a director still must never read
+    # "technique" anywhere on the page, so the one group label that says it
+    # gets rewritten here, display-only.
+    'Principle sub-techniques': 'Principle sub-capabilities',
+}
+
+
+def _display_group(group):
+    """`group` as a director reads it on the page or in the modal: capability
+    wording, never "technique", even where the registry's own field still
+    says it."""
+    return _GROUP_DISPLAY_NAMES.get(group, group)
+
+
 def _technique_groups(members):
     """`members` (one family's techniques, registry/catalog order) grouped by
     their `group` field, each group's first-seen order kept: [(group,
@@ -1174,13 +1190,14 @@ def techniques_family_page_html(family, capabilities_dir, version, header='', he
     search_label = title[0].lower() + title[1:]
     body = []
     for group, group_members in _technique_groups(members):
-        body.append(f'<h3 class="kind">{_esc(group)}</h3><div class="grid">')
+        body.append(f'<h3 class="kind">{_esc(_display_group(group))}</h3><div class="grid">')
         for t in group_members:
             body.append(_card_html(t.id, t.name, t.definition, _technique_thumb(capabilities_dir, t.id)))
         body.append('</div>')
     data = []
     for t in members:
-        item = {'id': t.id, 'title': t.name, 'family': t.family, 'familyTitle': title, 'group': t.group,
+        item = {'id': t.id, 'title': t.name, 'family': t.family, 'familyTitle': title,
+                'group': _display_group(t.group),
                 'description': t.definition, 'prompts': list(t.phrasings), 'aliases': list(t.aliases),
                 'api': list(t.api), 'available': technique_available(capabilities_dir, t.id)}
         overlap = TECHNIQUE_OVERLAP.get(t.id)

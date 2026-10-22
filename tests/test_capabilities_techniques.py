@@ -229,27 +229,32 @@ class FamilyPage(unittest.TestCase):
         entry = next(t for t in data if t['id'] == 'ease-out-back')
         self.assertEqual(entry['familyTitle'], 'Animation principles')
 
+    def test_group_heading_and_modal_group_never_say_technique(self):
+        page = capabilities.techniques_family_page_html('principles', None, '0').decode()
+        self.assertNotIn('<h3 class="kind">Principle sub-techniques</h3>', page)
+        self.assertIn('<h3 class="kind">Principle sub-capabilities</h3>', page)
+        data = json.loads(re.search(r'<script id="techniques-data" type="application/json">(.*?)</script>',
+                                    page, re.S).group(1))
+        entry = next(t for t in data if t['id'] == 'delay')
+        self.assertEqual(entry['group'], 'Principle sub-capabilities')
+
 
 def _visible_text(html):
-    """`html` with every <script>/<style> block, every tag, and every
-    per-entry `group` heading stripped, the way a grep for this round's own
-    chrome wording should read a generated page. Ids, URLs, script/attribute
-    internals and a technique's own `group`/alias text (registry data under
-    videobuilder/techniques/, out of scope for this round) may still say
-    "technique"; this checks only the title, headings, search box, lead
-    lines and cross-links this module actually writes."""
+    """`html` with every <script>/<style> block and every tag stripped, the
+    way a grep for this round's own chrome wording should read a generated
+    page. Ids, URLs and script/attribute internals may still say
+    "technique"; this checks the title, headings (including each family's
+    own `group` heading), search box, lead lines and cross-links."""
     html = re.sub(r'<script.*?</script>', ' ', html, flags=re.S)
     html = re.sub(r'<style.*?</style>', ' ', html, flags=re.S)
-    html = re.sub(r'<h3 class="kind"[^>]*>.*?</h3>', ' ', html, flags=re.S)
     html = re.sub(r'<[^>]+>', ' ', html)
     return html
 
 
 class VisibleWording(unittest.TestCase):
     """The operator's decision: techniques ARE capabilities, so a director
-    reading either generated page's own chrome never meets the word
-    "technique" (a technique's `group` heading, like "Principle
-    sub-techniques", is registry data for a later round, not this one)."""
+    reading either generated page's own chrome, including a family's own
+    `group` heading, never meets the word "technique"."""
 
     def test_main_page_wording_is_capability_only(self):
         page = capabilities.page_html(None, '0').decode()
