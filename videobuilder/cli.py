@@ -10,6 +10,8 @@
     python -m videobuilder edit roll film.py SEGMENT UNTIL
     python -m videobuilder edit copy film.py SEGMENT KEY VALUE
     python -m videobuilder editor PROJECT-DIR [--port 8100] [--host 127.0.0.1] [--state-dir DIR]
+    python -m videobuilder techniques index [--json] [--family F]
+    python -m videobuilder techniques build --out DIR [--only ID]... [--family F]
     python -m videobuilder whats-new add --state DIR --title T [--versions V] [--notes FILE] [--date D] [--video 9x16=MP4 ...]
     python -m videobuilder whats-new list --state DIR
     python -m videobuilder whats-new remove --state DIR ID
@@ -354,6 +356,27 @@ def cmd_compendium(a):
     print(f"{len(results)} clip(s) built in {total:.1f}s total; largest clip {largest / 1024:.0f} KiB")
 
 
+def cmd_techniques(a):
+    from . import techniques
+    if a.techniques_cmd == 'index':
+        try:
+            sys.stdout.write(techniques.index_json(a.family) if a.json else techniques.index_markdown(a.family))
+        except ValueError as e:
+            raise SystemExit(str(e)) from None
+        return
+    from .techniques.gallery import build
+    try:
+        results, failures = build(a.out, only=set(a.only) if a.only else None, family=a.family, jobs=a.jobs,
+                                  crf=a.crf)
+    except ValueError as e:
+        raise SystemExit(str(e)) from None
+    for r in results:
+        print(f"{r['id']}: {r['seconds']:.1f}s, {r['bytes'] / 1024:.0f} KiB")
+    print(f"{len(results)} technique(s) built; gallery at {os.path.join(a.out, 'index.html')}")
+    if failures:
+        raise SystemExit('failed to build:\n' + '\n'.join(f'  {id}: {msg}' for id, msg in failures))
+
+
 def cmd_edit(a):
     from . import edits
     try:
@@ -654,6 +677,20 @@ def main(argv=None):
     compb.add_argument('--jobs', type=int, help='worker processes (default: CPU count)')
     compb.add_argument('--crf', type=int, default=30, help='x264 quality (default 30: small clips over sharpness)')
     compb.set_defaults(fn=cmd_compendium)
+
+    tq = sub.add_parser('techniques', help='named motion-design techniques: the builder sheet and demo clips')
+    tqsub = tq.add_subparsers(dest='techniques_cmd', required=True)
+    tqi = tqsub.add_parser('index', help='print every technique, grouped by family then group (markdown or --json)')
+    tqi.add_argument('--json', action='store_true')
+    tqi.add_argument('--family', help='only this family')
+    tqi.set_defaults(fn=cmd_techniques)
+    tqb = tqsub.add_parser('build', help='render each demo to <out>/<id>.mp4 and .jpg, and a gallery <out>/index.html')
+    tqb.add_argument('--out', required=True, help='output directory')
+    tqb.add_argument('--only', action='append', help='build only this technique id (repeatable)')
+    tqb.add_argument('--family', help='build only this family')
+    tqb.add_argument('--jobs', type=int, help='worker processes (default: CPU count)')
+    tqb.add_argument('--crf', type=int, default=30, help='x264 quality (default 30: small clips over sharpness)')
+    tqb.set_defaults(fn=cmd_techniques)
 
     wn = sub.add_parser('whats-new', help="this instance's own What's new entries, kept in a library's state "
                                           "directory (beside the project's releases, which ship in the package)")

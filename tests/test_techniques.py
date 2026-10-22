@@ -15,8 +15,10 @@ Film; and a few frames rendered at a small scale are not all the same (a
 `sound` technique must carry audio instead).
 """
 import json
+import os
 import subprocess
 import sys
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -111,7 +113,8 @@ class Registry(unittest.TestCase):
                 self.assertIn(a, md)
         data = techniques.index_data()
         self.assertEqual(json.loads(techniques.index_json()), data)
-        self.assertEqual([f['family'] for f in data['families']], ['principles', 'typography', 'transitions'])
+        fams = [f['family'] for f in data['families']]
+        self.assertEqual(fams, [f for f in FAMILIES if f in fams])  # FAMILIES order, whichever have techniques
         only = techniques.index_data('transitions')
         self.assertEqual([f['family'] for f in only['families']], ['transitions'])
 
@@ -148,6 +151,39 @@ class Record(unittest.TestCase):
         with self.assertRaisesRegex(LookupError, 'no_such_thing'):
             self.make(api=('videobuilder.no_such_thing',)).resolve_api()
         self.assertIs(self.make().resolve_api()[0], vb.linear)
+
+
+def cli(*args):
+    return subprocess.run([sys.executable, '-m', 'videobuilder', 'techniques', *args], cwd=ROOT,
+                          capture_output=True, text=True)
+
+
+class Cli(unittest.TestCase):
+    def test_index(self):
+        out = cli('index')
+        self.assertEqual(out.returncode, 0, out.stderr)
+        self.assertEqual(out.stdout, techniques.index_markdown())
+        out = cli('index', '--json', '--family', 'typography')
+        self.assertEqual(json.loads(out.stdout), techniques.index_data('typography'))
+        self.assertNotEqual(cli('index', '--family', 'nope').returncode, 0)
+
+    def test_build_one_writes_clip_poster_and_gallery(self):
+        with tempfile.TemporaryDirectory() as d:
+            out = cli('build', '--out', d, '--only', 'dip-to-black', '--jobs', '2')
+            self.assertEqual(out.returncode, 0, out.stderr)
+            self.assertEqual(sorted(os.listdir(d)), ['dip-to-black.jpg', 'dip-to-black.mp4', 'index.html'])
+            page = Path(d, 'index.html').read_text()
+            self.assertIn('src="dip-to-black.mp4"', page)
+            self.assertIn('poster="dip-to-black.jpg"', page)
+            self.assertIn('prefers-color-scheme: dark', page)
+            self.assertNotIn('bounce-ease-out', page)
+            self.assertNotEqual(cli('build', '--out', d, '--only', 'no-such-id').returncode, 0)
+
+    def test_gallery_escapes_and_groups(self):
+        from videobuilder.techniques.gallery import gallery_html
+        page = gallery_html(techniques.catalog())
+        self.assertLess(page.index('id="family-principles"'), page.index('id="family-transitions"'))
+        self.assertNotIn('http', page)
 
 
 class OneTechniqueAlone(unittest.TestCase):
