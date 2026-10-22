@@ -118,6 +118,10 @@ class Registry(unittest.TestCase):
         only = techniques.index_data('transitions')
         self.assertEqual([f['family'] for f in only['families']], ['transitions'])
 
+    def test_skill_links_the_reference(self):
+        self.assertTrue((ROOT / 'skill' / 'make-a-video' / 'reference' / 'techniques.md').is_file())
+        self.assertIn('reference/techniques.md', (ROOT / 'skill' / 'make-a-video' / 'SKILL.md').read_text())
+
     def test_no_outside_sources_named(self):
         # Definitions and phrasings are our own words; nothing links or credits a catalogue.
         for path in PKG.rglob('*.py'):
