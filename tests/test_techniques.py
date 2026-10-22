@@ -28,7 +28,7 @@ from videobuilder.techniques import Technique
 from videobuilder.techniques.schema import FAMILIES, module_name
 
 ROOT = Path(__file__).resolve().parent.parent
-PKG = ROOT / 'videobuilder' / 'techniques'
+PKG = ROOT / 'videobuilder' / 'capabilities'
 
 SCALE = 0.1      # frames are rendered this small: enough to see movement, cheap over ~900 techniques
 SAMPLES = 5      # frames sampled evenly across each demo
@@ -130,9 +130,9 @@ class Registry(unittest.TestCase):
 
     def test_no_outside_sources_named(self):
         # Definitions and phrasings are our own words; nothing links or credits a catalogue.
-        for path in PKG.rglob('*.py'):
-            text = path.read_text()
-            self.assertNotRegex(text, r'https?://|www\.', path.name)
+        for fam, name in techniques.modules():
+            text = (PKG / fam / f'{name}.py').read_text()
+            self.assertNotRegex(text, r'https?://|www\.', f'{fam}/{name}.py')
 
 
 class Record(unittest.TestCase):

@@ -18,7 +18,7 @@ list shown beside this fixed CATALOG -- never added to it.
 import json
 import os
 
-REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+REPO_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 
 def _entry(id, category, title, card, description, prompts, apis, doc, demo, poster=None, family=None):
@@ -942,8 +942,8 @@ def build_showcase(out_dir, jobs=None, crf=30, log=None):
     Returns {id, seconds, bytes} per format."""
     import sys as _sys
     import time as _time
-    from . import film as _film
-    from .render import render as _render
+    from .. import film as _film
+    from ..render import render as _render
     log = log or _sys.stderr
     mod = _film.load_module(os.path.join(REPO_ROOT, SHOWCASE))
     film = mod.FILM
@@ -974,9 +974,9 @@ def build(out_dir, only=None, jobs=None, crf=30, log=None):
     ones built, in catalog order, the showcase then the techniques last."""
     import sys as _sys
     import time as _time
-    from . import film as _film
-    from . import techniques as _techniques
-    from .render import render as _render
+    from .. import film as _film
+    from .. import techniques as _techniques
+    from ..render import render as _render
     log = log or _sys.stderr
     technique_ids = set(_techniques.ids())
     if only is not None:
@@ -1130,8 +1130,8 @@ def build_techniques(out_dir, only=None, jobs=None, crf=30, log=None):
     ...], registry order."""
     import sys as _sys
     import time as _time
-    from . import techniques as _techniques
-    from .render import render as _render
+    from .. import techniques as _techniques
+    from ..render import render as _render
     log = log or _sys.stderr
     chosen = _techniques.catalog()
     if only is not None:
@@ -1155,7 +1155,7 @@ def technique_clip_file(capabilities_dir, id, kind):
     for an unknown id (checked by looking it up in the technique registry
     itself, never built from the request string directly) or a dir that
     isn't configured."""
-    from . import techniques as _techniques
+    from .. import techniques as _techniques
     if capabilities_dir is None:
         return None
     try:
@@ -1183,7 +1183,7 @@ def techniques_family_page_html(family, capabilities_dir, version, header='', he
     link back to the overlapping capability (TECHNIQUE_OVERLAP), if there is
     one. Raises KeyError for a family that isn't one of techniques.FAMILIES
     (the route checks this, never builds a path from the request string)."""
-    from . import techniques as _techniques
+    from .. import techniques as _techniques
     if family not in _techniques.FAMILIES:
         raise KeyError(family)
     members = tuple(t for t in _techniques.catalog() if t.family == family)
@@ -2056,7 +2056,7 @@ def page_html(capabilities_dir, version, header='', header_style='', community=N
         else:
             published_by_category.setdefault(entry['category'], []).append(entry)
     built = available_ids(capabilities_dir)
-    from . import techniques as _techniques
+    from .. import techniques as _techniques
     all_techniques = _techniques.catalog()
     family_cards_by_category = {}
     for fam in _techniques.FAMILIES:
@@ -2129,7 +2129,7 @@ def page_html(capabilities_dir, version, header='', header_style='', community=N
     dialog_html = dialog_script = community_style = community_data_script = community_script = drafts_html = ''
     style = _PAGE_STYLE + header_style
     if can_submit:
-        from .pages import DROP_SCRIPT
+        from ..pages import DROP_SCRIPT
         style += _ADD_CAPABILITY_STYLE
         dialog_html = _add_capability_html(bool(community.get('fetch')))
         dialog_script = f'<script>{_ADD_CAPABILITY_SCRIPT}</script>' + DROP_SCRIPT
