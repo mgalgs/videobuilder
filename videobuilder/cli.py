@@ -657,9 +657,11 @@ def main(argv=None):
 
     cap = sub.add_parser('capabilities', help="the capabilities catalog's clips and builder sheet")
     capsub = cap.add_subparsers(dest='capabilities_cmd', required=True)
-    capb = capsub.add_parser('build', help='render every demo to <out>/<id>.mp4 and <id>.jpg (or just --only ids)')
+    capb = capsub.add_parser('build', help='render every demo to <out>/<id>.mp4 and <id>.jpg (or just --only ids), '
+                                            'plus every technique to <out>/techniques/<id>.mp4 and .jpg')
     capb.add_argument('--out', required=True, help='output directory')
-    capb.add_argument('--only', action='append', help='build only this capability id (repeatable)')
+    capb.add_argument('--only', action='append',
+                      help='build only this capability or technique id (repeatable)')
     capb.add_argument('--jobs', type=int, help='worker processes (default: CPU count)')
     capb.add_argument('--crf', type=int, default=30, help='x264 quality (default 30: small clips over sharpness)')
     capb.set_defaults(fn=cmd_capabilities)

@@ -96,6 +96,7 @@ class ServedWithTheCatalog(unittest.TestCase):
         with tempfile.TemporaryDirectory() as d, \
                 mock.patch('videobuilder.render.render'), \
                 mock.patch.object(capabilities, 'build_showcase', return_value=[{'id': 'showcase-16x9'}]) as reel, \
+                mock.patch.object(capabilities, 'build_techniques', return_value=[]), \
                 mock.patch.object(capabilities, 'CATALOG', ()):
             capabilities.build(d)
             self.assertEqual(reel.call_count, 1)

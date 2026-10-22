@@ -905,6 +905,17 @@ def sheet_markdown():
                     lines.append('Old ids, now part of these: ' + '; '.join(
                         f"`{old}` is the **{get(new)['title']}**" for old, new in merged) + '.')
                     lines.append('')
+    lines.append('## Techniques')
+    lines.append('')
+    lines.append('Named motion-design techniques (easing curves, transitions, text reveals and the like), too '
+                 'many to list here one by one: each lives in its own file under '
+                 '`videobuilder/techniques/<family>/<id with - as _>.py` and has a short demo of its own. List a '
+                 'family\'s techniques with `python -m videobuilder techniques index --family <family>` (drop '
+                 '`--family` for every technique; add `--json` for machine-readable output). The families:')
+    lines.append('')
+    for fam, (title, description) in TECHNIQUE_FAMILIES.items():
+        lines.append(f'- **{title}** (`{fam}`): {description}')
+    lines.append('')
     return '\n'.join(lines) + '\n'
 
 
@@ -957,15 +968,19 @@ def build(out_dir, only=None, jobs=None, crf=30, log=None):
     built to be mid-clip-settled by its own enter/hold/exit or periodic-phase
     convention, see examples/capabilities/STYLE.md). With no `only`, or with
     'showcase' in it, the showcase reel is built too (`build_showcase`).
-    Returns a list of {id, seconds, bytes} for the ones built, in catalog
-    order, the showcase's last."""
+    Every technique (videobuilder.techniques) is also built, to
+    `<out_dir>/techniques/<id>.mp4`/`.jpg` (`build_techniques`); `only` may
+    name technique ids too. Returns a list of {id, seconds, bytes} for the
+    ones built, in catalog order, the showcase then the techniques last."""
     import sys as _sys
     import time as _time
     from . import film as _film
+    from . import techniques as _techniques
     from .render import render as _render
     log = log or _sys.stderr
+    technique_ids = set(_techniques.ids())
     if only is not None:
-        unknown = set(only) - set(ids()) - {SHOWCASE_ID}
+        unknown = set(only) - set(ids()) - {SHOWCASE_ID} - technique_ids
         if unknown:
             raise ValueError(f'unknown capability id(s): {", ".join(sorted(unknown))}')
     todo = [e for e in entries() if only is None or e['id'] in only]
@@ -984,6 +999,8 @@ def build(out_dir, only=None, jobs=None, crf=30, log=None):
         results.append({'id': entry['id'], 'seconds': _time.time() - t0, 'bytes': os.path.getsize(out_mp4)})
     if only is None or SHOWCASE_ID in only:
         results += build_showcase(out_dir, jobs=jobs, crf=crf, log=log)
+    results += build_techniques(out_dir, only=(only & technique_ids) if only is not None else None,
+                                jobs=jobs, crf=crf, log=log)
     return results
 
 
@@ -1009,6 +1026,162 @@ def available_ids(capabilities_dir):
 def showcase_available(capabilities_dir):
     """Whether the 16:9 showcase reel, the one the page shows, is built."""
     return capabilities_dir is not None and os.path.exists(clip_file(capabilities_dir, SHOWCASE_FILES[0], 'mp4'))
+
+
+# ---- techniques: videobuilder/techniques/<family>/<id>.py, shown here grouped by family ----
+#
+# Techniques are capabilities too, just too many (hundreds) to list one by one on this page: each
+# family with at least one technique gets one card here, linking to its own page
+# (/capabilities/techniques/<family>). The registry (videobuilder.techniques) is read at render and
+# build time, never duplicated into this module -- a technique file landing or changing can never
+# make anything here drift. Family titles and descriptions, though, are ours to write: one row per
+# videobuilder.techniques.FAMILIES slug (tests/test_capabilities_techniques.py checks every slug has
+# one).
+TECHNIQUE_FAMILIES = {
+    'principles': ('Animation principles', "The animator's classic toolkit: easing, timing and weight."),
+    'typography': ('Typography', 'Type-only moves: reveals, effects and kinetic lettering.'),
+    'transitions': ('Transitions', 'Ways from one shot to the next.'),
+    'ui': ('UI and interaction', 'Interface moves: buttons, cursors, menus and loading states.'),
+    'shapes': ('Shapes and icons', 'Vector shapes and icons that draw on, morph and move.'),
+    'particles': ('Particles and generative', 'Particle systems and seeded generative motion.'),
+    'camera': ('Camera moves', 'Virtual camera moves: pans, zooms, shakes and racks.'),
+    'vfx': ('Visual effects', 'Compositing-style effects: glows, distortions and glitches.'),
+    'broadcast': ('Broadcast graphics', 'TV-style graphics: lower thirds, tickers and scoreboards.'),
+    'sound': ('Sound', 'Sound-only techniques: foley, stingers and audio cues.'),
+}
+
+# Techniques that are the same move as an existing capability or a family member: both keep their
+# own card, but each links to the other (see _capability_overlap_technique and the modals in
+# page_html/techniques_family_page_html). Found by reading the technique modules' `api` and `name`
+# against CATALOG. May name only techniques present in this checkout -- a test checks both sides of
+# every row exist; other branches add their own rows as their techniques land.
+TECHNIQUE_OVERLAP = {
+    'ease-out-back': 'eased-entrances',   # both demo vb.ease_out_back
+}
+
+
+def _capability_overlap_technique(capability_id):
+    """The technique id TECHNIQUE_OVERLAP maps to `capability_id`, or None."""
+    for technique_id, mapped in TECHNIQUE_OVERLAP.items():
+        if mapped == capability_id:
+            return technique_id
+    return None
+
+
+def _technique_groups(members):
+    """`members` (one family's techniques, registry/catalog order) grouped by
+    their `group` field, each group's first-seen order kept: [(group,
+    [technique, ...]), ...]. Unlike techniques.grouped(), never re-sorts."""
+    order, by_group = [], {}
+    for t in members:
+        if t.group not in by_group:
+            by_group[t.group] = []
+            order.append(t.group)
+        by_group[t.group].append(t)
+    return [(g, by_group[g]) for g in order]
+
+
+def build_techniques(out_dir, only=None, jobs=None, crf=30, log=None):
+    """Render every technique's demo (or just `only`'s ids) to
+    `<out_dir>/techniques/<id>.mp4` and `<out_dir>/techniques/<id>.jpg` (a
+    poster from the demo's middle frame, built the same way as every other
+    clip here: `_render`, `_save_poster`). Returns [{id, seconds, bytes},
+    ...], registry order."""
+    import sys as _sys
+    import time as _time
+    from . import techniques as _techniques
+    from .render import render as _render
+    log = log or _sys.stderr
+    chosen = _techniques.catalog()
+    if only is not None:
+        chosen = tuple(t for t in chosen if t.id in only)
+    technique_dir = os.path.join(out_dir, 'techniques')
+    os.makedirs(technique_dir, exist_ok=True)
+    results = []
+    for t in chosen:
+        film = t.demo()
+        fmt = film.formats[0]
+        out_mp4 = os.path.join(technique_dir, t.id + '.mp4')
+        t0 = _time.time()
+        _render(film, out_mp4, fmt, jobs=jobs, crf=crf, log=log)
+        _save_poster(film.frame(film.frames // 2, fmt), os.path.join(technique_dir, t.id + '.jpg'))
+        results.append({'id': t.id, 'seconds': _time.time() - t0, 'bytes': os.path.getsize(out_mp4)})
+    return results
+
+
+def technique_clip_file(capabilities_dir, id, kind):
+    """The clip ('mp4') or poster ('jpg') path for a technique id, or None
+    for an unknown id (checked by looking it up in the technique registry
+    itself, never built from the request string directly) or a dir that
+    isn't configured."""
+    from . import techniques as _techniques
+    if capabilities_dir is None:
+        return None
+    try:
+        _techniques.get(id)
+    except KeyError:
+        return None
+    return os.path.join(capabilities_dir, 'techniques', f'{id}.{kind}')
+
+
+def technique_available(capabilities_dir, id):
+    path = technique_clip_file(capabilities_dir, id, 'mp4')
+    return bool(path and os.path.exists(path))
+
+
+def _technique_thumb(capabilities_dir, id):
+    return (f'<img src="/capabilities/techniques/{id}.jpg" alt="" loading="lazy">'
+            if technique_available(capabilities_dir, id) else '<span>clip not built</span>')
+
+
+def techniques_family_page_html(family, capabilities_dir, version, header='', header_style=''):
+    """The /capabilities/techniques/<family> page: that family's techniques,
+    grouped under their own `group` heading, in registry order. Clicking a
+    card opens the same kind of modal /capabilities uses, with the clip, the
+    definition, the phrasings as example prompts, the aliases and the api
+    names, plus a link back to the overlapping capability (TECHNIQUE_OVERLAP),
+    if there is one. Raises KeyError for a family that isn't one of
+    techniques.FAMILIES (the route checks this, never builds a path from the
+    request string)."""
+    from . import techniques as _techniques
+    if family not in _techniques.FAMILIES:
+        raise KeyError(family)
+    members = tuple(t for t in _techniques.catalog() if t.family == family)
+    title, description = TECHNIQUE_FAMILIES[family]
+    body = []
+    for group, group_members in _technique_groups(members):
+        body.append(f'<h3 class="kind">{_esc(group)}</h3><div class="grid">')
+        for t in group_members:
+            body.append(_card_html(t.id, t.name, t.definition, _technique_thumb(capabilities_dir, t.id)))
+        body.append('</div>')
+    data = []
+    for t in members:
+        item = {'id': t.id, 'title': t.name, 'family': t.family, 'group': t.group, 'description': t.definition,
+                'prompts': list(t.phrasings), 'aliases': list(t.aliases), 'api': list(t.api),
+                'available': technique_available(capabilities_dir, t.id)}
+        overlap = TECHNIQUE_OVERLAP.get(t.id)
+        if overlap:
+            cap = get(overlap)
+            item['overlap'] = {'id': cap['id'], 'title': cap['title']}
+        data.append(item)
+    style = _PAGE_STYLE + header_style + _TECHNIQUES_STYLE
+    html = (
+        '<!doctype html><html lang="en"><head><meta charset="utf-8">'
+        f'<title>{_esc(title)} techniques · videobuilder</title>'
+        '<meta name="viewport" content="width=device-width, initial-scale=1">'
+        f'<style>{style}</style></head><body>{header}'
+        f'<main><div class="cap-head"><h1>{_esc(title)}</h1>'
+        f'<span class="version">videobuilder v{_esc(version)}</span>'
+        '<input type="search" id="tech-search" class="cap-search" placeholder="Search techniques…" '
+        'aria-label="Search techniques" autocomplete="off" spellcheck="false"></div>'
+        f'<p class="section-lead">{_esc(description)} <a href="/capabilities">Back to Capabilities</a></p>'
+        f'{"".join(body)}<p class="search-none search-hide" id="search-none" role="status"></p></main>' +
+        _TECHNIQUE_MODAL_HTML +
+        f'<script id="techniques-data" type="application/json">{json.dumps(data)}</script>'
+        f'<script>{_TECHNIQUES_PAGE_SCRIPT}</script><script>{_TECHNIQUES_SEARCH_SCRIPT}</script>'
+        '</body></html>'
+    )
+    return html.encode()
 
 
 def _esc(s):
@@ -1082,6 +1255,14 @@ h2{font-size:15px;text-transform:uppercase;letter-spacing:.04em;color:#a9a9b2;ma
   color:#dcdcdc;font-size:12px;font-weight:700}
 h3.kind{font-size:14px;margin:22px 0 10px;color:#eee}
 h3.kind span{display:block;font-weight:400;font-size:13px;color:#8b8b94;margin-top:2px}
+.tech-overlap{margin:0 0 14px;font-size:13px;color:#a9a9b2}
+.tech-overlap a{color:#ef5b4c}
+#tech-hits{list-style:none;margin:8px 2px 0;padding:0}
+#tech-hits li{margin:4px 0}
+#tech-hits a{color:#eee;text-decoration:none;display:block;padding:8px 10px;border-radius:8px;background:#141417;
+  border:1px solid #26262c}
+#tech-hits a:hover{border-color:#e5483b}
+#tech-hits a span{color:#8b8b94;font-size:12.5px;margin-left:6px}
 @media (max-width:700px){
   #modal{padding:0}
   #modal .box{max-width:none;width:100%;height:100%;max-height:none;border-radius:0}
@@ -1140,6 +1321,7 @@ _PAGE_SCRIPT = """
   var video = document.getElementById('modal-video');
   var placeholder = document.getElementById('modal-placeholder');
   var unmuteBtn = document.getElementById('modal-unmute');
+  var techOverlapEl = document.getElementById('modal-tech-overlap');
   var opener = null;
   var box = modal.querySelector('.box');
   function openCard(id){
@@ -1157,6 +1339,16 @@ _PAGE_SCRIPT = """
       li.textContent = p;
       ul.appendChild(li);
     });
+    if(e.techOverlap){
+      techOverlapEl.innerHTML = '';
+      techOverlapEl.appendChild(document.createTextNode('Also a technique: '));
+      var a = document.createElement('a');
+      a.href = '/capabilities/techniques/' + e.techOverlap.family + '#' + e.techOverlap.id;
+      a.textContent = e.techOverlap.title;
+      techOverlapEl.appendChild(a);
+      techOverlapEl.appendChild(document.createTextNode('.'));
+      techOverlapEl.hidden = false;
+    } else techOverlapEl.hidden = true;
     if(e.available){
       video.src = e.clip || ('/capabilities/' + id + '.mp4');
       video.poster = e.poster || ('/capabilities/' + id + '.jpg');
@@ -1228,6 +1420,177 @@ _PAGE_SCRIPT = """
       btn.addEventListener('click', function(){ reel.pause(); });
     });
   }
+  if(location.hash) openCard(location.hash.slice(1));
+})();
+"""
+
+
+# Extra modal fields only a technique has (aliases, api names): layered on top of _PAGE_STYLE on
+# the family page, which otherwise matches /capabilities exactly.
+_TECHNIQUES_STYLE = """
+#modal .tech-aliases{margin:0 0 14px;color:#a9a9b2;font-size:13px}
+#modal .tech-api{background:#1b1e24;border-radius:10px;padding:14px 16px;margin:0 0 14px}
+#modal .tech-api p{margin:0 0 8px;font-weight:600;font-size:13px;color:#a9a9b2;text-transform:uppercase;
+  letter-spacing:.03em}
+#modal .tech-api ul{margin:0;padding-left:20px}
+#modal .tech-api li{margin:4px 0;color:#eee;font-family:monospace;font-size:13px}
+"""
+
+# The technique family page's modal: like /capabilities' own (clip, title, category line,
+# description, phrasings as "What to tell the builder"), plus aliases, api names and -- only when
+# TECHNIQUE_OVERLAP names this technique -- a link back to the capability it overlaps.
+_TECHNIQUE_MODAL_HTML = (
+    '<div id="modal" hidden role="dialog" aria-modal="true" aria-labelledby="modal-title">'
+    '<div class="box">'
+    '<button class="close" id="modal-close" aria-label="Close">&times;</button>'
+    '<video id="modal-video" autoplay loop muted playsinline hidden></video>'
+    '<div class="placeholder" id="modal-placeholder"><span>clip not built</span></div>'
+    '<button class="unmute" id="modal-unmute" hidden>Unmute</button>'
+    '<div class="body">'
+    '<h3 id="modal-title"></h3><p class="cat" id="modal-cat"></p>'
+    '<p class="desc" id="modal-desc"></p>'
+    '<div class="prompts"><p>What to tell the builder</p><ul id="modal-prompts"></ul></div>'
+    '<p class="tech-aliases" id="modal-aliases" hidden></p>'
+    '<div class="tech-api" id="modal-api-wrap" hidden><p>Build it</p><ul id="modal-api"></ul></div>'
+    '<p class="tech-overlap" id="modal-overlap" hidden></p>'
+    '</div></div></div>'
+)
+
+_TECHNIQUES_PAGE_SCRIPT = """
+(function(){
+  var data = JSON.parse(document.getElementById('techniques-data').textContent);
+  var byId = {};
+  data.forEach(function(t){byId[t.id] = t});
+  var modal = document.getElementById('modal');
+  var video = document.getElementById('modal-video');
+  var placeholder = document.getElementById('modal-placeholder');
+  var unmuteBtn = document.getElementById('modal-unmute');
+  var aliasesEl = document.getElementById('modal-aliases');
+  var apiWrap = document.getElementById('modal-api-wrap');
+  var apiList = document.getElementById('modal-api');
+  var overlapEl = document.getElementById('modal-overlap');
+  var opener = null;
+  var box = modal.querySelector('.box');
+  function openCard(id){
+    var t = byId[id];
+    if(!t) return;
+    opener = document.querySelector('[data-card="' + id + '"]');
+    document.getElementById('modal-title').textContent = t.title;
+    document.getElementById('modal-cat').textContent = t.family + ' \\u00b7 ' + t.group;
+    document.getElementById('modal-desc').textContent = t.description;
+    var ul = document.getElementById('modal-prompts');
+    ul.innerHTML = '';
+    t.prompts.forEach(function(p){
+      var li = document.createElement('li');
+      li.textContent = p;
+      ul.appendChild(li);
+    });
+    if(t.aliases && t.aliases.length){
+      aliasesEl.textContent = 'Also called: ' + t.aliases.join(', ');
+      aliasesEl.hidden = false;
+    } else aliasesEl.hidden = true;
+    apiList.innerHTML = '';
+    t.api.forEach(function(a){
+      var li = document.createElement('li');
+      li.textContent = a;
+      apiList.appendChild(li);
+    });
+    apiWrap.hidden = false;
+    if(t.overlap){
+      overlapEl.innerHTML = '';
+      overlapEl.appendChild(document.createTextNode('Also on the Capabilities page as '));
+      var a = document.createElement('a');
+      a.href = '/capabilities#' + t.overlap.id;
+      a.textContent = t.overlap.title;
+      overlapEl.appendChild(a);
+      overlapEl.appendChild(document.createTextNode('.'));
+      overlapEl.hidden = false;
+    } else overlapEl.hidden = true;
+    if(t.available){
+      video.src = '/capabilities/techniques/' + id + '.mp4';
+      video.poster = '/capabilities/techniques/' + id + '.jpg';
+      video.muted = true;
+      video.hidden = false;
+      placeholder.hidden = true;
+      unmuteBtn.hidden = true;
+      video.play().catch(function(){});
+    } else {
+      video.hidden = true;
+      video.removeAttribute('src');
+      placeholder.hidden = false;
+      unmuteBtn.hidden = true;
+    }
+    modal.hidden = false;
+    box.scrollTop = 0;
+    document.getElementById('modal-close').focus();
+  }
+  function closeModal(){
+    if(modal.hidden) return;
+    modal.hidden = true;
+    video.pause();
+    video.removeAttribute('src');
+    video.load();
+    if(opener) opener.focus();
+  }
+  document.querySelectorAll('[data-card]').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      history.replaceState(null, '', '#' + btn.getAttribute('data-card'));
+      openCard(btn.getAttribute('data-card'));
+    });
+  });
+  document.getElementById('modal-close').addEventListener('click', closeModal);
+  modal.addEventListener('click', function(e){if(e.target === modal) closeModal()});
+  unmuteBtn.addEventListener('click', function(){
+    video.muted = !video.muted;
+    unmuteBtn.textContent = video.muted ? 'Unmute' : 'Mute';
+  });
+  document.addEventListener('keydown', function(e){
+    if(e.key === 'Escape') closeModal();
+  });
+  if(location.hash) openCard(location.hash.slice(1));
+})();
+"""
+
+# The family page's search box: filters its own cards by name, alias and phrasing (no hit list --
+# every technique in the family already has a card right there).
+_TECHNIQUES_SEARCH_SCRIPT = """
+(function(){
+  var input = document.getElementById('tech-search');
+  if(!input) return;
+  var main = document.querySelector('main');
+  var none = document.getElementById('search-none');
+  var data = JSON.parse(document.getElementById('techniques-data').textContent);
+  var text = {};
+  data.forEach(function(t){
+    text[t.id] = [t.title, t.group].concat(t.aliases || [], t.prompts || []).join(' ').toLowerCase();
+  });
+  var cards = Array.prototype.slice.call(main.querySelectorAll('[data-card]'));
+  function hide(el, yes){ el.classList.toggle('search-hide', yes) }
+  function apply(){
+    var words = input.value.toLowerCase().split(/\\s+/).filter(Boolean);
+    var searching = words.length > 0, shown = 0;
+    cards.forEach(function(card){
+      var hay = (text[card.getAttribute('data-card')] || '') + ' ' + card.textContent.toLowerCase();
+      var match = words.every(function(w){ return hay.indexOf(w) >= 0 });
+      hide(card, searching && !match);
+      if(match) shown++;
+    });
+    main.querySelectorAll('.grid').forEach(function(grid){
+      hide(grid, !Array.prototype.some.call(grid.children, function(c){
+        return !c.classList.contains('search-hide') }));
+    });
+    main.querySelectorAll('h3.kind').forEach(function(h){
+      var next = h.nextElementSibling;
+      hide(h, !!next && next.classList.contains('grid') && next.classList.contains('search-hide'));
+    });
+    none.textContent = searching && !shown ? 'No techniques match \\u201c' + input.value.trim() + '\\u201d.' : '';
+    hide(none, !searching || shown > 0);
+  }
+  input.addEventListener('input', apply);
+  input.addEventListener('keydown', function(e){
+    if(e.key === 'Escape' && input.value){ e.preventDefault(); input.value = ''; apply() }
+  });
+  if(input.value) apply();
 })();
 """
 
@@ -1292,6 +1655,9 @@ _SEARCH_SCRIPT = """
     });
   });
   var cards = Array.prototype.slice.call(main.querySelectorAll('[data-card]'));
+  var techEl = document.getElementById('techniques-search-data');
+  var techniques = techEl ? JSON.parse(techEl.textContent) : [];
+  var hits = document.getElementById('tech-hits');
   function hide(el, yes){ el.classList.toggle('search-hide', yes) }
   function apply(){
     var words = input.value.toLowerCase().split(/\\s+/).filter(Boolean);
@@ -1318,8 +1684,32 @@ _SEARCH_SCRIPT = """
       hide(h, searching && !any);
       run.forEach(function(r){ if(r.classList.contains('section-lead')) hide(r, searching && !any) });
     });
-    none.textContent = searching && !shown ? 'No capabilities match \\u201c' + input.value.trim() + '\\u201d.' : '';
-    hide(none, !searching || shown > 0);
+    // Techniques don't have their own cards here (hundreds of them): a match links
+    // straight to its family page instead of filtering a card in place.
+    var techHits = 0;
+    if(hits){
+      hits.innerHTML = '';
+      if(searching){
+        techniques.forEach(function(t){
+          var hay = [t.id, t.title, t.family].concat(t.aliases || []).join(' ').toLowerCase();
+          if(!words.every(function(w){ return hay.indexOf(w) >= 0 })) return;
+          techHits++;
+          var li = document.createElement('li');
+          var a = document.createElement('a');
+          a.href = '/capabilities/techniques/' + t.family + '#' + t.id;
+          a.textContent = t.title;
+          var span = document.createElement('span');
+          span.textContent = t.family;
+          a.appendChild(span);
+          li.appendChild(a);
+          hits.appendChild(li);
+        });
+      }
+      hide(hits, !searching || techHits === 0);
+    }
+    none.textContent = searching && !shown && !techHits ?
+      'No capabilities match \\u201c' + input.value.trim() + '\\u201d.' : '';
+    hide(none, !searching || shown > 0 || techHits > 0);
   }
   input.addEventListener('input', apply);
   input.addEventListener('keydown', function(e){
@@ -1624,6 +2014,7 @@ def page_html(capabilities_dir, version, header='', header_style='', community=N
         else:
             published_by_category.setdefault(entry['category'], []).append(entry)
     built = available_ids(capabilities_dir)
+    from . import techniques as _techniques
     cards = []
     if showcase_available(capabilities_dir):
         name = SHOWCASE_FILES[0]
@@ -1654,6 +2045,22 @@ def page_html(capabilities_dir, version, header='', header_style='', community=N
         for entry in published_by_category.get(category, []):
             cards.append(_community_card_html(entry, is_admin))
         cards.append('</div>')
+    all_techniques = _techniques.catalog()
+    technique_family_cards = []
+    for fam in _techniques.FAMILIES:
+        members = [t for t in all_techniques if t.family == fam]
+        if not members:
+            continue
+        title, description = TECHNIQUE_FAMILIES[fam]
+        n = len(members)
+        line = f"{description} ({n} technique{'s' if n != 1 else ''})"
+        thumb = _technique_thumb(capabilities_dir, members[0].id)
+        technique_family_cards.append(
+            f'<a class="card" href="/capabilities/techniques/{fam}">'
+            f'<span class="thumb">{thumb}</span>'
+            f'<span class="meta"><strong>{_esc(title)}</strong><span>{_esc(line)}</span></span></a>')
+    if technique_family_cards:
+        cards.append('<h2>Techniques</h2><div class="grid">' + ''.join(technique_family_cards) + '</div>')
     data = []
     for e in entries():
         item = {'id': e['id'], 'title': e['title'], 'category': e['category'], 'description': e['description'],
@@ -1662,7 +2069,16 @@ def page_html(capabilities_dir, version, header='', header_style='', community=N
             item.update(members=len(e['children']) + len(published_by_family.get(e['id'], [])), plural=e['noun'][1])
         if e['family']:
             item.update(family=e['family'], kindTitle=_kind_title(e))
+        technique_id = _capability_overlap_technique(e['id'])
+        if technique_id:
+            t = _techniques.get(technique_id)
+            item['techOverlap'] = {'id': t.id, 'family': t.family, 'title': t.name}
         data.append(item)
+    technique_search_data = [{'id': t.id, 'title': t.name, 'family': t.family, 'aliases': list(t.aliases)}
+                             for t in all_techniques]
+    technique_search_json = json.dumps(technique_search_data).replace('<', '\\u003c')
+    technique_search_script = (f'<script id="techniques-search-data" type="application/json">'
+                               f'{technique_search_json}</script>')
     body = ''.join(cards)
     can_submit = bool(community and community.get('can_submit'))
     add_button = ('<button type="button" id="add-capability" class="btn btn-primary">Add capability</button>'
@@ -1700,7 +2116,8 @@ def page_html(capabilities_dir, version, header='', header_style='', community=N
         '<input type="search" id="cap-search" class="cap-search" placeholder="Search capabilities…" '
         f'aria-label="Search capabilities" autocomplete="off" spellcheck="false">{add_button}</div>'
         f'{drafts_html}'
-        f'{body}<p class="search-none search-hide" id="search-none" role="status"></p></main>'
+        f'{body}<ul class="search-hide" id="tech-hits" aria-label="Matching techniques"></ul>'
+        '<p class="search-none search-hide" id="search-none" role="status"></p></main>'
         '<div id="modal" hidden role="dialog" aria-modal="true" aria-labelledby="modal-title">'
         '<div class="box">'
         '<button class="close" id="modal-close" aria-label="Close">&times;</button>'
@@ -1711,9 +2128,10 @@ def page_html(capabilities_dir, version, header='', header_style='', community=N
         '<h3 id="modal-title"></h3><p class="cat" id="modal-cat"></p>'
         '<p class="desc" id="modal-desc"></p>'
         '<div class="prompts"><p>What to tell the builder</p><ul id="modal-prompts"></ul></div>'
+        '<p class="tech-overlap" id="modal-tech-overlap" hidden></p>'
         '</div></div></div>' + dialog_html +
         f'<script id="capabilities-data" type="application/json">{json.dumps(data)}</script>' +
-        community_data_script +
+        community_data_script + technique_search_script +
         f'<script>{_PAGE_SCRIPT}</script><script>{_SEARCH_SCRIPT}</script>' + dialog_script + community_script +
         '</body></html>'
     )

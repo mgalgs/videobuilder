@@ -674,3 +674,18 @@ Old ids, now part of these: `comic-halftone` is the **Pop-art filter**; `pixel-a
 
 **Worked example:** `examples/capabilities/seamless-loops.py` — read it before writing something similar from scratch.
 
+## Techniques
+
+Named motion-design techniques (easing curves, transitions, text reveals and the like), too many to list here one by one: each lives in its own file under `videobuilder/techniques/<family>/<id with - as _>.py` and has a short demo of its own. List a family's techniques with `python -m videobuilder techniques index --family <family>` (drop `--family` for every technique; add `--json` for machine-readable output). The families:
+
+- **Animation principles** (`principles`): The animator's classic toolkit: easing, timing and weight.
+- **Typography** (`typography`): Type-only moves: reveals, effects and kinetic lettering.
+- **Transitions** (`transitions`): Ways from one shot to the next.
+- **UI and interaction** (`ui`): Interface moves: buttons, cursors, menus and loading states.
+- **Shapes and icons** (`shapes`): Vector shapes and icons that draw on, morph and move.
+- **Particles and generative** (`particles`): Particle systems and seeded generative motion.
+- **Camera moves** (`camera`): Virtual camera moves: pans, zooms, shakes and racks.
+- **Visual effects** (`vfx`): Compositing-style effects: glows, distortions and glitches.
+- **Broadcast graphics** (`broadcast`): TV-style graphics: lower thirds, tickers and scoreboards.
+- **Sound** (`sound`): Sound-only techniques: foley, stingers and audio cues.
+
