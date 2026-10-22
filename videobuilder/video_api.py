@@ -311,8 +311,15 @@ def _get_suggest_config(self, route, q, editor, user):
     return self._json(200, editor.suggest.config() if editor.suggest else {'model': False})
 
 
+# A director never sees the word "capabilities" come from "techniques" -- it's an implementation
+# detail of this registry, not a word a director's own UI ever shows. Every group name in the
+# registry is clean of it except this one; relabelled here, at the boundary where the data crosses
+# into the director's own picker, rather than touching the registry file that sets it.
+_GROUP_RELABEL = {'Principle sub-techniques': 'Principle details'}
+
+
 def _get_suggest_catalog(self, route, q, editor, user):
-    from . import capabilities, fonts
+    from . import capabilities, fonts, techniques
     looks, type_, caps = [], [], []
     for e in capabilities.entries():
         family = e.get('family')
@@ -327,7 +334,16 @@ def _get_suggest_catalog(self, route, q, editor, user):
         elif family == 'type':
             type_.append(item)
         elif family is None:
+            item['phrasings'] = list(e.get('prompts', ()))
             caps.append(item)
+    # videobuilder.techniques entries are capabilities too (just too many to hand-write): merged into the
+    # same list, same shape plus group/aliases/phrasings, so the picker can group and search them alike.
+    for t in techniques.catalog():
+        title, _ = capabilities.TECHNIQUE_FAMILIES[t.family]
+        caps.append({'id': t.id, 'title': t.name, 'card': t.definition, 'category': title,
+                     'group': _GROUP_RELABEL.get(t.group, t.group),
+                     'aliases': list(t.aliases), 'phrasings': list(t.phrasings),
+                     'poster': f'/capabilities/techniques/{t.id}.jpg', 'clip': f'/capabilities/techniques/{t.id}.mp4'})
     from . import sfx as sfx_module
     sfx_list = []
     try:

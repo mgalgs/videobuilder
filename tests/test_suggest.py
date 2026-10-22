@@ -102,6 +102,30 @@ class NoModel(Server):
         self.assertTrue(catalog['sfx'])
         self.assertTrue(len(self.get('/api/fonts/inter/file')) > 0)
 
+    def test_catalog_merges_registry_entries_into_capabilities(self):
+        catalog = self.get('/api/suggest/catalog')
+        by_id = {c['id']: c for c in catalog['capabilities']}
+        self.assertIn('ease-out-back', by_id)  # a videobuilder.techniques id
+        entry = by_id['ease-out-back']
+        self.assertEqual(entry['poster'], '/capabilities/techniques/ease-out-back.jpg')
+        self.assertEqual(entry['clip'], '/capabilities/techniques/ease-out-back.mp4')
+        self.assertEqual(entry['category'], 'Animation principles')
+        self.assertEqual(entry['group'], 'Easing')
+        self.assertIn('back out', entry['aliases'])
+        self.assertIn('arrives with a small overshoot', entry['phrasings'])
+        for leaked in ('api', 'related', 'family'):
+            self.assertNotIn(leaked, entry)
+        curated = by_id['seamless-loops']  # a hand-written entry: no group/aliases/phrasings
+        self.assertNotIn('group', curated)
+        self.assertNotIn('aliases', curated)
+
+    def test_no_capability_group_says_technique_a_director_never_sees_that_word(self):
+        catalog = self.get('/api/suggest/catalog')
+        groups = {c['group'] for c in catalog['capabilities'] if c.get('group')}
+        self.assertTrue(groups)
+        self.assertFalse([g for g in groups if 'technique' in g.lower()])
+        self.assertIn('delay', [c['id'] for c in catalog['capabilities'] if c.get('group') == 'Principle details'])
+
 
 class Base(Server):
     def setUp(self):
