@@ -144,7 +144,7 @@ class MainPageSection(unittest.TestCase):
     def test_family_cards_come_after_the_categorys_own_cards(self):
         page = capabilities.page_html(None, '0').decode()
         section = _section(page, 'Motion')
-        self.assertLess(section.index('data-card="shape-morph"'), section.index('href="/capabilities/principles"'))
+        self.assertLess(section.index('data-card="outline-morph"'), section.index('href="/capabilities/principles"'))
 
     def test_card_shows_count_and_clip_not_built_placeholder(self):
         page = capabilities.page_html(None, '0').decode()
