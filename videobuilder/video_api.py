@@ -156,7 +156,7 @@ def _get_community_clip(self, route, q, editor, user, slug, kind):
     return self._send(200, data, 'image/jpeg')
 
 
-def _get_techniques_family(self, route, q, editor, user, family):
+def _get_family_page(self, route, q, editor, user, family):
     from . import __version__, capabilities, pages
     header = style = ''
     if self.library:
@@ -167,8 +167,18 @@ def _get_techniques_family(self, route, q, editor, user, family):
     try:
         page = capabilities.techniques_family_page_html(family, editor.capabilities_dir, __version__, header, style)
     except KeyError:
-        raise HTTPError(404, 'unknown technique family') from None
+        raise HTTPError(404, 'unknown capability family') from None
     return self._send(200, page, 'text/html; charset=utf-8')
+
+
+def _get_family_page_redirect(self, route, q, editor, user, family):
+    """The old /capabilities/techniques/<family> family page, permanently moved to
+    /capabilities/<family> now that techniques are capabilities too; the clips at
+    /capabilities/techniques/<id>.mp4|jpg are unaffected (see _get_technique_clip)."""
+    self.send_response(301)
+    self.send_header('Location', '/capabilities/' + family)
+    self.send_header('Content-Length', '0')
+    self.end_headers()
 
 
 def _get_technique_clip(self, route, q, editor, user, tech_id, kind):
@@ -484,8 +494,9 @@ GET_ROUTES = [
     ('/capabilities', _get_capabilities),
     (re.compile(r'/capabilities/community/([a-z][a-z0-9-]*)\.(mp4|jpg)'), _get_community_clip),
     (re.compile(r'/capabilities/techniques/([a-z][a-z0-9-]*)\.(mp4|jpg)'), _get_technique_clip),
-    (re.compile(r'/capabilities/techniques/([a-z][a-z0-9-]*)'), _get_techniques_family),
+    (re.compile(r'/capabilities/techniques/([a-z][a-z0-9-]*)'), _get_family_page_redirect),
     (re.compile(r'/capabilities/([a-z][a-z0-9-]*)\.(mp4|jpg)'), _get_capability_clip),
+    (re.compile(r'/capabilities/([a-z][a-z0-9-]*)'), _get_family_page),
     ('/compendium', _get_compendium),
     (re.compile(r'/compendium/([a-z][a-z0-9-]*)\.(mp4|jpg)'), _get_compendium_clip),
     ('/api/compendium', _get_api_compendium),

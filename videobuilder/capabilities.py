@@ -905,13 +905,13 @@ def sheet_markdown():
                     lines.append('Old ids, now part of these: ' + '; '.join(
                         f"`{old}` is the **{get(new)['title']}**" for old, new in merged) + '.')
                     lines.append('')
-    lines.append('## Techniques')
+    lines.append('## Capability families')
     lines.append('')
-    lines.append('Named motion-design techniques (easing curves, transitions, text reveals and the like), too '
-                 'many to list here one by one: each lives in its own file under '
+    lines.append('Hundreds more capabilities (easing curves, transitions, text reveals and the like), too many '
+                 'to list here one by one: each lives in its own file under '
                  '`videobuilder/techniques/<family>/<id with - as _>.py` and has a short demo of its own. List a '
-                 'family\'s techniques with `python -m videobuilder techniques index --family <family>` (drop '
-                 '`--family` for every technique; add `--json` for machine-readable output). The families:')
+                 'family\'s with `python -m videobuilder techniques index --family <family>` (drop `--family` '
+                 'for every one; add `--json` for machine-readable output). The families:')
     lines.append('')
     for fam, (title, description) in TECHNIQUE_FAMILIES.items():
         lines.append(f'- **{title}** (`{fam}`): {description}')
@@ -1031,12 +1031,12 @@ def showcase_available(capabilities_dir):
 # ---- techniques: videobuilder/techniques/<family>/<id>.py, shown here grouped by family ----
 #
 # Techniques are capabilities too, just too many (hundreds) to list one by one on this page: each
-# family with at least one technique gets one card here, linking to its own page
-# (/capabilities/techniques/<family>). The registry (videobuilder.techniques) is read at render and
-# build time, never duplicated into this module -- a technique file landing or changing can never
-# make anything here drift. Family titles and descriptions, though, are ours to write: one row per
-# videobuilder.techniques.FAMILIES slug (tests/test_capabilities_techniques.py checks every slug has
-# one).
+# family with at least one technique gets one card, filed into the category section it belongs to
+# (FAMILY_CATEGORY below), linking to its own page (/capabilities/<family>). The registry
+# (videobuilder.techniques) is read at render and build time, never duplicated into this module --
+# a technique file landing or changing can never make anything here drift. Family titles and
+# descriptions, though, are ours to write: one row per videobuilder.techniques.FAMILIES slug
+# (tests/test_capabilities_techniques.py checks every slug has one).
 TECHNIQUE_FAMILIES = {
     'principles': ('Animation principles', "The animator's classic toolkit: easing, timing and weight."),
     'typography': ('Typography', 'Type-only moves: reveals, effects and kinetic lettering.'),
@@ -1047,7 +1047,24 @@ TECHNIQUE_FAMILIES = {
     'camera': ('Camera moves', 'Virtual camera moves: pans, zooms, shakes and racks.'),
     'vfx': ('Visual effects', 'Compositing-style effects: glows, distortions and glitches.'),
     'broadcast': ('Broadcast graphics', 'TV-style graphics: lower thirds, tickers and scoreboards.'),
-    'sound': ('Sound', 'Sound-only techniques: foley, stingers and audio cues.'),
+    'sound': ('Sound', 'Sound-only capabilities: foley, stingers and audio cues.'),
+}
+
+# The existing capability-page category each technique family's card files into, after that
+# category's own cards (techniques ARE capabilities to a director; there is no "Techniques" section
+# of their own). One row per videobuilder.techniques.FAMILIES slug (tests/test_capabilities_techniques.py
+# checks every slug maps to a category capabilities.categories() actually has).
+FAMILY_CATEGORY = {
+    'principles': 'Motion',
+    'transitions': 'Motion',
+    'ui': 'Motion',
+    'shapes': 'Motion',
+    'particles': 'Motion',
+    'typography': 'Type and data',
+    'broadcast': 'Type and data',
+    'camera': 'Imagery and camera',
+    'vfx': 'Imagery and camera',
+    'sound': 'Timing, sound and formats',
 }
 
 # Techniques that are the same move as an existing capability or a family member: both keep their
@@ -1142,19 +1159,19 @@ def _technique_thumb(capabilities_dir, id):
 
 
 def techniques_family_page_html(family, capabilities_dir, version, header='', header_style=''):
-    """The /capabilities/techniques/<family> page: that family's techniques,
-    grouped under their own `group` heading, in registry order. Clicking a
-    card opens the same kind of modal /capabilities uses, with the clip, the
-    definition, the phrasings as example prompts, the aliases and the api
-    names, plus a link back to the overlapping capability (TECHNIQUE_OVERLAP),
-    if there is one. Raises KeyError for a family that isn't one of
-    techniques.FAMILIES (the route checks this, never builds a path from the
-    request string)."""
+    """The /capabilities/<family> page: that family's capabilities, grouped
+    under their own `group` heading, in registry order. Clicking a card opens
+    the same kind of modal /capabilities uses, with the clip, the definition,
+    the phrasings as example prompts, the aliases and the api names, plus a
+    link back to the overlapping capability (TECHNIQUE_OVERLAP), if there is
+    one. Raises KeyError for a family that isn't one of techniques.FAMILIES
+    (the route checks this, never builds a path from the request string)."""
     from . import techniques as _techniques
     if family not in _techniques.FAMILIES:
         raise KeyError(family)
     members = tuple(t for t in _techniques.catalog() if t.family == family)
     title, description = TECHNIQUE_FAMILIES[family]
+    search_label = title[0].lower() + title[1:]
     body = []
     for group, group_members in _technique_groups(members):
         body.append(f'<h3 class="kind">{_esc(group)}</h3><div class="grid">')
@@ -1163,9 +1180,9 @@ def techniques_family_page_html(family, capabilities_dir, version, header='', he
         body.append('</div>')
     data = []
     for t in members:
-        item = {'id': t.id, 'title': t.name, 'family': t.family, 'group': t.group, 'description': t.definition,
-                'prompts': list(t.phrasings), 'aliases': list(t.aliases), 'api': list(t.api),
-                'available': technique_available(capabilities_dir, t.id)}
+        item = {'id': t.id, 'title': t.name, 'family': t.family, 'familyTitle': title, 'group': t.group,
+                'description': t.definition, 'prompts': list(t.phrasings), 'aliases': list(t.aliases),
+                'api': list(t.api), 'available': technique_available(capabilities_dir, t.id)}
         overlap = TECHNIQUE_OVERLAP.get(t.id)
         if overlap:
             cap = get(overlap)
@@ -1174,13 +1191,13 @@ def techniques_family_page_html(family, capabilities_dir, version, header='', he
     style = _PAGE_STYLE + header_style + _TECHNIQUES_STYLE
     html = (
         '<!doctype html><html lang="en"><head><meta charset="utf-8">'
-        f'<title>{_esc(title)} techniques · videobuilder</title>'
+        f'<title>{_esc(title)} · videobuilder</title>'
         '<meta name="viewport" content="width=device-width, initial-scale=1">'
         f'<style>{style}</style></head><body>{header}'
         f'<main><div class="cap-head"><h1>{_esc(title)}</h1>'
         f'<span class="version">videobuilder v{_esc(version)}</span>'
-        '<input type="search" id="tech-search" class="cap-search" placeholder="Search techniques…" '
-        'aria-label="Search techniques" autocomplete="off" spellcheck="false"></div>'
+        f'<input type="search" id="tech-search" class="cap-search" placeholder="Search {_esc(search_label)}…" '
+        f'aria-label="Search {_esc(search_label)}" autocomplete="off" spellcheck="false"></div>'
         f'<p class="section-lead">{_esc(description)} <a href="/capabilities">Back to Capabilities</a></p>'
         f'{"".join(body)}<p class="search-none search-hide" id="search-none" role="status"></p></main>' +
         _TECHNIQUE_MODAL_HTML +
@@ -1348,9 +1365,9 @@ _PAGE_SCRIPT = """
     });
     if(e.techOverlap){
       techOverlapEl.innerHTML = '';
-      techOverlapEl.appendChild(document.createTextNode('Also a technique: '));
+      techOverlapEl.appendChild(document.createTextNode('See also: '));
       var a = document.createElement('a');
-      a.href = '/capabilities/techniques/' + e.techOverlap.family + '#' + e.techOverlap.id;
+      a.href = '/capabilities/' + e.techOverlap.family + '#' + e.techOverlap.id;
       a.textContent = e.techOverlap.title;
       techOverlapEl.appendChild(a);
       techOverlapEl.appendChild(document.createTextNode('.'));
@@ -1483,7 +1500,7 @@ _TECHNIQUES_PAGE_SCRIPT = """
     if(!t) return;
     opener = document.querySelector('[data-card="' + id + '"]');
     document.getElementById('modal-title').textContent = t.title;
-    document.getElementById('modal-cat').textContent = t.family + ' \\u00b7 ' + t.group;
+    document.getElementById('modal-cat').textContent = t.familyTitle + ' \\u00b7 ' + t.group;
     document.getElementById('modal-desc').textContent = t.description;
     var ul = document.getElementById('modal-prompts');
     ul.innerHTML = '';
@@ -1590,7 +1607,7 @@ _TECHNIQUES_SEARCH_SCRIPT = """
       var next = h.nextElementSibling;
       hide(h, !!next && next.classList.contains('grid') && next.classList.contains('search-hide'));
     });
-    none.textContent = searching && !shown ? 'No techniques match \\u201c' + input.value.trim() + '\\u201d.' : '';
+    none.textContent = searching && !shown ? 'No capabilities match \\u201c' + input.value.trim() + '\\u201d.' : '';
     hide(none, !searching || shown > 0);
   }
   input.addEventListener('input', apply);
@@ -1703,7 +1720,7 @@ _SEARCH_SCRIPT = """
           techHits++;
           var li = document.createElement('li');
           var a = document.createElement('a');
-          a.href = '/capabilities/techniques/' + t.family + '#' + t.id;
+          a.href = '/capabilities/' + t.family + '#' + t.id;
           a.textContent = t.title;
           var span = document.createElement('span');
           span.textContent = t.family;
@@ -2022,6 +2039,22 @@ def page_html(capabilities_dir, version, header='', header_style='', community=N
             published_by_category.setdefault(entry['category'], []).append(entry)
     built = available_ids(capabilities_dir)
     from . import techniques as _techniques
+    all_techniques = _techniques.catalog()
+    family_cards_by_category = {}
+    for fam in _techniques.FAMILIES:
+        members = [t for t in all_techniques if t.family == fam]
+        if not members:
+            continue
+        title, description = TECHNIQUE_FAMILIES[fam]
+        n = len(members)
+        line = f"{description} ({n} capabilit{'ies' if n != 1 else 'y'})"
+        ids_ = {t.id for t in members}
+        poster = TECHNIQUE_FAMILY_POSTER.get(fam)
+        thumb = _technique_thumb(capabilities_dir, poster if poster in ids_ else members[0].id)
+        card = (f'<a class="card" href="/capabilities/{fam}">'
+                f'<span class="thumb">{thumb}</span>'
+                f'<span class="meta"><strong>{_esc(title)}</strong><span>{_esc(line)}</span></span></a>')
+        family_cards_by_category.setdefault(FAMILY_CATEGORY[fam], []).append(card)
     cards = []
     if showcase_available(capabilities_dir):
         name = SHOWCASE_FILES[0]
@@ -2051,25 +2084,8 @@ def page_html(capabilities_dir, version, header='', header_style='', community=N
             cards.append(_card_html(e['id'], e['title'], e['card'], _thumb_html(e['id'], built)))
         for entry in published_by_category.get(category, []):
             cards.append(_community_card_html(entry, is_admin))
+        cards.extend(family_cards_by_category.get(category, []))
         cards.append('</div>')
-    all_techniques = _techniques.catalog()
-    technique_family_cards = []
-    for fam in _techniques.FAMILIES:
-        members = [t for t in all_techniques if t.family == fam]
-        if not members:
-            continue
-        title, description = TECHNIQUE_FAMILIES[fam]
-        n = len(members)
-        line = f"{description} ({n} technique{'s' if n != 1 else ''})"
-        ids_ = {t.id for t in members}
-        poster = TECHNIQUE_FAMILY_POSTER.get(fam)
-        thumb = _technique_thumb(capabilities_dir, poster if poster in ids_ else members[0].id)
-        technique_family_cards.append(
-            f'<a class="card" href="/capabilities/techniques/{fam}">'
-            f'<span class="thumb">{thumb}</span>'
-            f'<span class="meta"><strong>{_esc(title)}</strong><span>{_esc(line)}</span></span></a>')
-    if technique_family_cards:
-        cards.append('<h2>Techniques</h2><div class="grid">' + ''.join(technique_family_cards) + '</div>')
     data = []
     for e in entries():
         item = {'id': e['id'], 'title': e['title'], 'category': e['category'], 'description': e['description'],
@@ -2125,7 +2141,7 @@ def page_html(capabilities_dir, version, header='', header_style='', community=N
         '<input type="search" id="cap-search" class="cap-search" placeholder="Search capabilities…" '
         f'aria-label="Search capabilities" autocomplete="off" spellcheck="false">{add_button}</div>'
         f'{drafts_html}'
-        f'{body}<ul class="search-hide" id="tech-hits" aria-label="Matching techniques"></ul>'
+        f'{body}<ul class="search-hide" id="tech-hits" aria-label="Matching capabilities"></ul>'
         '<p class="search-none search-hide" id="search-none" role="status"></p></main>'
         '<div id="modal" hidden role="dialog" aria-modal="true" aria-labelledby="modal-title">'
         '<div class="box">'

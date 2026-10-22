@@ -674,9 +674,9 @@ Old ids, now part of these: `comic-halftone` is the **Pop-art filter**; `pixel-a
 
 **Worked example:** `examples/capabilities/seamless-loops.py` — read it before writing something similar from scratch.
 
-## Techniques
+## Capability families
 
-Named motion-design techniques (easing curves, transitions, text reveals and the like), too many to list here one by one: each lives in its own file under `videobuilder/techniques/<family>/<id with - as _>.py` and has a short demo of its own. List a family's techniques with `python -m videobuilder techniques index --family <family>` (drop `--family` for every technique; add `--json` for machine-readable output). The families:
+Hundreds more capabilities (easing curves, transitions, text reveals and the like), too many to list here one by one: each lives in its own file under `videobuilder/techniques/<family>/<id with - as _>.py` and has a short demo of its own. List a family's with `python -m videobuilder techniques index --family <family>` (drop `--family` for every one; add `--json` for machine-readable output). The families:
 
 - **Animation principles** (`principles`): The animator's classic toolkit: easing, timing and weight.
 - **Typography** (`typography`): Type-only moves: reveals, effects and kinetic lettering.
@@ -687,5 +687,5 @@ Named motion-design techniques (easing curves, transitions, text reveals and the
 - **Camera moves** (`camera`): Virtual camera moves: pans, zooms, shakes and racks.
 - **Visual effects** (`vfx`): Compositing-style effects: glows, distortions and glitches.
 - **Broadcast graphics** (`broadcast`): TV-style graphics: lower thirds, tickers and scoreboards.
-- **Sound** (`sound`): Sound-only techniques: foley, stingers and audio cues.
+- **Sound** (`sound`): Sound-only capabilities: foley, stingers and audio cues.
 

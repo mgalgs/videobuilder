@@ -1,8 +1,13 @@
 """Techniques (videobuilder/techniques/<family>/<id>.py) shown on the
-Capabilities page: a Techniques section of family cards on /capabilities,
-one page per family at /capabilities/techniques/<family>, clips served at
-/capabilities/techniques/<id>.mp4|jpg, and the handful of cross-links
-between a technique and the capability it overlaps."""
+Capabilities page: techniques ARE capabilities to a director, so each
+family with at least one technique gets a card filed into the existing
+category section it belongs to (FAMILY_CATEGORY), not a "Techniques"
+section of its own. One page per family at /capabilities/<family>
+(the old /capabilities/techniques/<family> permanently redirects there);
+clips stay at /capabilities/techniques/<id>.mp4|jpg, and the handful of
+cross-links between a technique and the capability it overlaps use "See
+also" rather than naming "technique"."""
+import http.client
 import json
 import re
 import tempfile
@@ -36,6 +41,21 @@ class FamilyTitles(unittest.TestCase):
 
     def test_family_titles_are_in_registry_order(self):
         self.assertEqual(tuple(capabilities.TECHNIQUE_FAMILIES), techniques.FAMILIES)
+
+
+class CategoryMapping(unittest.TestCase):
+    def test_every_family_slug_maps_to_a_category_the_page_actually_has(self):
+        self.assertEqual(set(capabilities.FAMILY_CATEGORY), set(techniques.FAMILIES))
+        categories = set(capabilities.categories())
+        for fam, category in capabilities.FAMILY_CATEGORY.items():
+            with self.subTest(family=fam):
+                self.assertIn(category, categories)
+
+    def test_no_family_slug_collides_with_a_capability_id_or_alias(self):
+        # /capabilities/<id>.mp4 and /capabilities/<family> share the same prefix; a family slug
+        # equal to a capability id (or an old id in ALIASES) would make the routes ambiguous.
+        self.assertFalse(set(techniques.FAMILIES) & set(capabilities.ids()))
+        self.assertFalse(set(techniques.FAMILIES) & set(capabilities.ALIASES))
 
 
 class Overlap(unittest.TestCase):
@@ -102,23 +122,35 @@ def _section(page, heading):
 
 
 class MainPageSection(unittest.TestCase):
-    def test_one_card_per_family_with_at_least_one_technique(self):
+    """Each technique family's card files into the existing category section
+    it maps to (FAMILY_CATEGORY), not a "Techniques" section of its own."""
+
+    def test_there_is_no_standalone_family_section(self):
         page = capabilities.page_html(None, '0').decode()
-        section = _section(page, 'Techniques')
+        self.assertNotIn('<h2>Techniques</h2>', page)
+
+    def test_one_card_per_family_with_at_least_one_member_in_its_category(self):
+        page = capabilities.page_html(None, '0').decode()
         for fam in techniques.FAMILIES:
             members = techniques.catalog(fam)
             title, _ = capabilities.TECHNIQUE_FAMILIES[fam]
+            section = _section(page, capabilities.FAMILY_CATEGORY[fam])
             if members:
-                self.assertIn(f'href="/capabilities/techniques/{fam}"', section, fam)
+                self.assertIn(f'href="/capabilities/{fam}"', section, fam)
                 self.assertIn(f'<strong>{title}</strong>', section, fam)
             else:
-                self.assertNotIn(f'href="/capabilities/techniques/{fam}"', section, fam)
+                self.assertNotIn(f'href="/capabilities/{fam}"', section, fam)
+
+    def test_family_cards_come_after_the_categorys_own_cards(self):
+        page = capabilities.page_html(None, '0').decode()
+        section = _section(page, 'Motion')
+        self.assertLess(section.index('data-card="shape-morph"'), section.index('href="/capabilities/principles"'))
 
     def test_card_shows_count_and_clip_not_built_placeholder(self):
         page = capabilities.page_html(None, '0').decode()
-        section = _section(page, 'Techniques')
+        section = _section(page, capabilities.FAMILY_CATEGORY['principles'])
         n = len(techniques.catalog('principles'))
-        self.assertIn(f'({n} technique{"s" if n != 1 else ""})', section)
+        self.assertIn(f'({n} capabilit{"ies" if n != 1 else "y"})', section)
         self.assertIn('clip not built', section)
 
     def test_poster_shown_once_built(self):
@@ -127,7 +159,7 @@ class MainPageSection(unittest.TestCase):
             first = techniques.catalog('principles')[0]
             Path(d, 'techniques', f'{first.id}.mp4').write_bytes(b'mp4')
             page = capabilities.page_html(d, '0').decode()
-        section = _section(page, 'Techniques')
+        section = _section(page, capabilities.FAMILY_CATEGORY['principles'])
         self.assertIn(f'/capabilities/techniques/{first.id}.jpg', section)
 
     def test_search_data_and_hit_list_present(self):
@@ -184,11 +216,58 @@ class FamilyPage(unittest.TestCase):
         self.assertIn('<input type="search" id="tech-search"', page)
         self.assertIn(capabilities._TECHNIQUES_SEARCH_SCRIPT, page)
 
+    def test_title_and_search_say_the_familys_name(self):
+        page = capabilities.techniques_family_page_html('typography', None, '0').decode()
+        self.assertIn('<title>Typography · videobuilder</title>', page)
+        self.assertIn('placeholder="Search typography…"', page)
+        self.assertIn('aria-label="Search typography"', page)
+
+    def test_modal_category_line_uses_the_familys_display_title(self):
+        page = capabilities.techniques_family_page_html('principles', None, '0').decode()
+        data = json.loads(re.search(r'<script id="techniques-data" type="application/json">(.*?)</script>',
+                                    page, re.S).group(1))
+        entry = next(t for t in data if t['id'] == 'ease-out-back')
+        self.assertEqual(entry['familyTitle'], 'Animation principles')
+
+
+def _visible_text(html):
+    """`html` with every <script>/<style> block, every tag, and every
+    per-entry `group` heading stripped, the way a grep for this round's own
+    chrome wording should read a generated page. Ids, URLs, script/attribute
+    internals and a technique's own `group`/alias text (registry data under
+    videobuilder/techniques/, out of scope for this round) may still say
+    "technique"; this checks only the title, headings, search box, lead
+    lines and cross-links this module actually writes."""
+    html = re.sub(r'<script.*?</script>', ' ', html, flags=re.S)
+    html = re.sub(r'<style.*?</style>', ' ', html, flags=re.S)
+    html = re.sub(r'<h3 class="kind"[^>]*>.*?</h3>', ' ', html, flags=re.S)
+    html = re.sub(r'<[^>]+>', ' ', html)
+    return html
+
+
+class VisibleWording(unittest.TestCase):
+    """The operator's decision: techniques ARE capabilities, so a director
+    reading either generated page's own chrome never meets the word
+    "technique" (a technique's `group` heading, like "Principle
+    sub-techniques", is registry data for a later round, not this one)."""
+
+    def test_main_page_wording_is_capability_only(self):
+        page = capabilities.page_html(None, '0').decode()
+        self.assertNotIn('technique', _visible_text(page).lower())
+
+    def test_family_page_wording_is_capability_only(self):
+        for fam in techniques.FAMILIES:
+            if not techniques.catalog(fam):
+                continue
+            with self.subTest(family=fam):
+                page = capabilities.techniques_family_page_html(fam, None, '0').decode()
+                self.assertNotIn('technique', _visible_text(page).lower())
+
 
 class Sheet(unittest.TestCase):
-    def test_techniques_section_lists_every_family_no_per_technique_lines(self):
+    def test_capability_families_section_lists_every_family_no_per_member_lines(self):
         sheet = capabilities.sheet_markdown()
-        part = sheet[sheet.index('## Techniques'):]
+        part = sheet[sheet.index('## Capability families'):]
         for fam, (title, description) in capabilities.TECHNIQUE_FAMILIES.items():
             self.assertIn(f'**{title}** (`{fam}`): {description}', part)
         self.assertIn('python -m videobuilder techniques index --family <family>', part)
@@ -203,13 +282,28 @@ class Sheet(unittest.TestCase):
 
 
 class Routes(fixtures.API):
-    def test_family_page_served(self):
+    def test_family_page_served_at_its_new_path(self):
+        code, page, _ = _status(self.base, '/capabilities/principles')
+        self.assertEqual(code, 200)
+        self.assertIn(b'Ease Out Back', page)
+
+    def test_old_family_url_permanently_redirects(self):
+        conn = http.client.HTTPConnection('127.0.0.1', self.httpd.server_address[1], timeout=20)
+        self.addCleanup(conn.close)
+        conn.request('GET', '/capabilities/techniques/principles')
+        response = conn.getresponse()
+        response.read()
+        self.assertEqual((response.status, response.headers['Location']), (301, '/capabilities/principles'))
+
+    def test_old_family_url_still_resolves_the_same_page_once_followed(self):
         code, page, _ = _status(self.base, '/capabilities/techniques/principles')
         self.assertEqual(code, 200)
         self.assertIn(b'Ease Out Back', page)
 
     def test_unknown_family_404s(self):
         for bad in ('not-a-family', '..', '%2e%2e%2fetc%2fpasswd'):
+            code, _, _ = _status(self.base, f'/capabilities/{bad}')
+            self.assertEqual(code, 404, bad)
             code, _, _ = _status(self.base, f'/capabilities/techniques/{bad}')
             self.assertEqual(code, 404, bad)
 
@@ -242,7 +336,7 @@ class RoutesWithClip(fixtures.API):
         self.assertEqual((code, body), (206, b'2345'))
 
     def test_family_page_reflects_the_built_clip(self):
-        code, page, _ = _status(self.base, '/capabilities/techniques/principles')
+        code, page, _ = _status(self.base, '/capabilities/principles')
         self.assertEqual(code, 200)
         data = json.loads(re.search(rb'<script id="techniques-data" type="application/json">(.*?)</script>',
                                     page, re.S).group(1))
