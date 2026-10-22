@@ -101,7 +101,7 @@ whose hold barely moves (`vb.type.FLOOR`). Each demo lists a tall and a wide
 format after the square one, for the preview: every style lays itself out
 per shape.
 
-Four capability demos -- shape-morph, line-chart-callout, hard-light-sweep,
+Four capability demos -- outline-morph, line-chart-callout, hard-light-sweep,
 drawn-on-diagram -- and two since merged into the pop-art and pixel filter
 looks (comic-halftone, pixel-art-layer; the showcase's comic and pixel
 shots still draw them) are after

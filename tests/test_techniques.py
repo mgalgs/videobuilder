@@ -85,6 +85,12 @@ class Registry(unittest.TestCase):
         names = [name for _, name in techniques.modules()]
         self.assertEqual(len(names), len(set(names)), 'two families have a technique with the same id')
 
+    def test_no_technique_id_collides_with_a_curated_capability_look_or_type_id(self):
+        # suggest.py answers a technique the same way as a hand-written capability, family
+        # "capabilities" -- so the two id spaces must never collide, or one would shadow the other.
+        from videobuilder import capabilities
+        self.assertFalse(set(techniques.ids()) & set(capabilities.ids()))
+
     def test_one_test_per_module(self):
         tests = {n for n in dir(EachTechnique) if n.startswith('test_')}
         self.assertEqual(tests, {f'test_{name}' for _, name in techniques.modules()})

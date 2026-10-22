@@ -3,7 +3,7 @@ one idea becoming the next instead of a cut between them -- built on
 `videobuilder.paths.morph`: both outlines are resampled to the same point
 count and interpolated with a smooth ease, with colour travelling along.
 
-    python -m videobuilder preview examples/capabilities/shape-morph.py
+    python -m videobuilder preview examples/capabilities/outline-morph.py
 
 LOOP = True: the clip rests on the settled circle at both ends (frame 0 and
 the last few frames are the same quiet "circle, not yet morphing" state), the
@@ -83,7 +83,7 @@ def lerp_color(a, b, t):
 def draw(n, cv):
     cv.fill(_kit.BG)
     s = _kit.safe(cv, 64)
-    _kit.text_marked(cv, 'title', text.wrap('Shape morph', TITLE_F, s.w), TITLE_F, s.x, s.y, _kit.INK)
+    _kit.text_marked(cv, 'title', text.wrap('Outline morph', TITLE_F, s.w), TITLE_F, s.x, s.y, _kit.INK)
 
     t = shape_phase(n)
     shape = paths.morph(CIRCLE, DOC, t, closed=True)

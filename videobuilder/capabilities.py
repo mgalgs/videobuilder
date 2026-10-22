@@ -491,7 +491,7 @@ CATALOG = (
          'cv.layer(dx=.., dy=.., scale=..)  # the tracking camera'),
         'skill/make-a-video/reference/api.md', 'drawn-on-diagram'),
     _entry(
-        'shape-morph', 'Motion', 'Shape morph',
+        'outline-morph', 'Motion', 'Outline morph',
         'One outline smoothly becomes the next, not a cut.',
         'A circle turns into a document icon and back, its outline resampled to match point for point and '
         'interpolated with a smooth ease while its colour travels along -- one idea turning into the next '
@@ -499,7 +499,7 @@ CATALOG = (
         ("Don't cut between these icons, morph one into the other", 'Turn the circle into the document shape smoothly',
          'Let the colour shift as the shape changes, not just the outline'),
         ('videobuilder.paths.morph(a, b, t, closed=True)', 'videobuilder.paths.draw(cv, points, colour, fill=True)'),
-        'skill/make-a-video/reference/api.md', 'shape-morph'),
+        'skill/make-a-video/reference/api.md', 'outline-morph'),
     # ---- Type and data ----
     _entry(
         'kinetic-typography', 'Type and data', 'Kinetic typography',
@@ -1081,6 +1081,7 @@ TECHNIQUE_FAMILY_POSTER = {
 
 TECHNIQUE_OVERLAP = {
     'ease-out-back': 'eased-entrances',   # both demo vb.ease_out_back
+    'shape-morph': 'outline-morph',       # both demo vb.paths.morph; the technique kept the old capability id
 }
 
 

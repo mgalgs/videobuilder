@@ -220,7 +220,7 @@ What videobuilder can already do, with a worked example for each. Reach for one 
 
 **Worked example:** `examples/capabilities/drawn-on-diagram.py` — read it before writing something similar from scratch.
 
-### Shape morph
+### Outline morph
 
 **What it looks like:** One outline smoothly becomes the next, not a cut. A circle turns into a document icon and back, its outline resampled to match point for point and interpolated with a smooth ease while its colour travels along -- one idea turning into the next instead of a hard cut between two shapes.
 
@@ -234,7 +234,7 @@ What videobuilder can already do, with a worked example for each. Reach for one 
 - `videobuilder.paths.draw(cv, points, colour, fill=True)`
 - Read `skill/make-a-video/reference/api.md`.
 
-**Worked example:** `examples/capabilities/shape-morph.py` — read it before writing something similar from scratch.
+**Worked example:** `examples/capabilities/outline-morph.py` — read it before writing something similar from scratch.
 
 ## Type and data
 

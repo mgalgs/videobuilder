@@ -99,7 +99,7 @@ END_CARD = TIMELINE.find('end').until - TIMELINE.find('end').at
 SHOTS = {
     'hook-1': ['kinetic-typography'], 'hook-2': ['kinetic-typography'], 'hook-3': ['kinetic-typography'],
     'title': ['pop-on-the-beat', 'sound-effects'],
-    'camera': ['shape-morph', 'camera-on-a-screenshot'],
+    'camera': ['outline-morph', 'camera-on-a-screenshot'],
     'redrawn': ['redrawn-product-ui', 'eased-entrances'],
     'lumi': ['character-motion', 'staggered-reveals', 'springs-with-character'],
     'voice': ['footage-with-sound', 'word-timed-captions'],
