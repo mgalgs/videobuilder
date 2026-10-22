@@ -5,15 +5,26 @@ and (where configured) music fit it -- see suggest_client.py for the model
 call itself, and suggest-notes.md (the design round that specified this) for
 the full picture.
 
+The catalog the model sees is two system blocks. A small, cached one
+(Looks, Type, Fonts, and one line per `capabilities.TECHNIQUE_FAMILIES`
+family) lists what's cheap to list in full every time. Everything else --
+every other hand-written capability, every capability in the
+`videobuilder.techniques` registry (hundreds of them; to the director these
+are simply more capabilities, the package name is an implementation detail),
+every sound effect and every music track -- is far too large to list in
+full without making a small model's choice vague and slow. Those are
+matched per note instead, by a BM25 index (`suggest_index.py`) built over
+the same lists, and the best few of each go into a second, per-note block
+(`_shortlist_block`) alongside the bible/timeline block already there.
+
 One `Suggest` exists wherever a model is configured (None otherwise, see
-Editor.__init__/Library.__init__): it builds the two system blocks (a
-static, cached catalog, and a per-video one), asks the client, validates
-every id it gets back against the real catalog/fonts/sfx pack/music list
-(an id or a span that doesn't check out is dropped silently, never shown),
-caps the answer, caches it briefly so retyping or undoing is instant, and
-records token usage per account. Nothing here ever raises past a bad
-request shape; a model failure just answers no items, because a note box
-must never show the director an error for this.
+Editor.__init__/Library.__init__): it builds the two system blocks, asks the
+client, validates every id it gets back against the real catalog/fonts/sfx
+pack/music list (an id or a span that doesn't check out is dropped silently,
+never shown), caps the answer, caches it briefly so retyping or undoing is
+instant, and records token usage per account. Nothing here ever raises past
+a bad request shape; a model failure just answers no items, because a note
+box must never show the director an error for this.
 
 Unlike Pictures (one per project, sharing only its Artbox client), nothing
 in `Suggest` is project-specific: the catalog, the answer cache and the
@@ -33,17 +44,21 @@ from . import fonts as fonts_module
 from . import sfx as sfx_module
 from .editor import HTTPError, _account_key
 from .suggest_client import SuggestCancelled, SuggestError
+from .suggest_index import BM25
 
 NEW_VIDEO_BLOCK = '(There is no video yet: the director is describing a brand new one before it exists.)'
 
 STRONG_CAP = 5
 RELATED_CAP = 8
 MIN_WORDS = 3
-CATALOG_TTL = 600  # seconds: the static block (catalog + fonts + sfx + music) is rebuilt this often
+CATALOG_TTL = 600  # seconds: the static block and the per-note retrieval indices are rebuilt this often
 ANSWER_TTL = 300  # 5 minutes, per the design notes
 ANSWER_CACHE_MAX = 500
 MAX_WHY = 200
 MAX_BIBLE_CHARS = 4000
+CAPABILITY_SHORTLIST = 30  # how many of each per-note retrieval answers, into the per-note block
+SFX_SHORTLIST = 15
+MUSIC_SHORTLIST = 10
 _PUNCT_WS = re.compile(r'[\s,.;:!?]+')
 
 
@@ -53,21 +68,19 @@ def _normalize(text):
     return _PUNCT_WS.sub(' ', text.strip().lower()).strip()
 
 
-def _capability_ids():
-    """(looks ids, type ids, plain-capability ids), from the real catalog --
-    never the family wrapper entries themselves ('looks', 'type'), which
-    aren't things a note can ask for."""
+def _looks_and_type_ids():
+    """(looks ids, type ids), from the real catalog -- never the family
+    wrapper entries themselves ('looks', 'type'), which aren't things a
+    note can ask for."""
     from . import capabilities
-    looks, type_, caps = set(), set(), set()
+    looks, type_ = set(), set()
     for e in capabilities.entries():
         family = e.get('family')
         if family == 'looks':
             looks.add(e['id'])
         elif family == 'type':
             type_.add(e['id'])
-        elif e.get('children') is None:
-            caps.add(e['id'])
-    return looks, type_, caps
+    return looks, type_
 
 
 def _catalog_entry_line(e):
@@ -76,19 +89,25 @@ def _catalog_entry_line(e):
     return f"{e['id']} | {family} | {e['title']} | {e['card']} | {prompts}"
 
 
-def _build_static_block(music):
-    """The static, cacheable system block: the catalog, fonts and sfx pack
-    (always present), then music (only where configured, best-effort -- a
-    source that can't be fetched right now is skipped rather than failing
-    the whole block). Returns (text, known_music_ids)."""
+def _build_static_block():
+    """The static, cacheable system block: instructions, then Looks, Type
+    and Fonts in full (small, curated lists, cheap to always list), then
+    one line per `capabilities.TECHNIQUE_FAMILIES` family so the model
+    knows what else exists. Every other capability (hand-written or from
+    the `videobuilder.techniques` registry), every sound effect and every
+    music track is matched per note instead -- see `_build_indices` and
+    `_shortlist_block` -- because listing hundreds of them here every time
+    would make a small model's choice vague and slow."""
     from . import capabilities
     lines = ['You are the suggestion engine behind a video builder\'s note box. Given a short note from a '
-             'director, suggest the capabilities, looks, type styles, fonts, sound effects or music from the '
-             'catalog below that fit what they are asking for, so they can pick one by name. Whenever the note '
-             'touches something the catalog covers -- a look or style, text or a font, a sound, music, a kind '
-             'of motion -- answer with the best few of that kind (two to six), even when the note is vague '
-             '("change the look to something" gets several looks as "related"). Answer an empty list only '
-             'when nothing in the catalog relates to the note. '
+             'director, suggest the looks, type styles, fonts, sound effects, music or other capabilities that '
+             'fit what they are asking for, so they can pick one by name -- from the catalog below, and from '
+             'the per-note block that follows it (this note\'s own best local matches from much larger lists '
+             'of capabilities, sound effects and music). Whenever the note touches something either block '
+             'covers -- a look or style, text or a font, a sound, music, a kind of motion -- answer with the '
+             'best few of that kind (two to six), even when the note is vague ("change the look to something" '
+             'gets several looks as "related"). Answer an empty list only when nothing in either block relates '
+             'to the note. '
              'Never suggest something the bible or the note already names. Use "strong" only for a direct '
              'match; everything else related is "related". `span` must be the director\'s exact words (a '
              'substring of the note); `text` keeps their words and adds the unique name in plain words, e.g. '
@@ -97,34 +116,125 @@ def _build_static_block(music):
              '("strong"|"related"), "why", "replace": {"span", "text"} or null}]}.',
              '', 'Catalog (id | family | title | card | example phrasings):']
     for e in capabilities.entries():
-        if e.get('family') not in ('looks', 'type') and e.get('children') is not None:
-            continue  # the family wrapper itself, not a pick
+        if e.get('family') not in ('looks', 'type'):
+            continue  # a family wrapper, or a plain capability -- matched per note instead
         lines.append(_catalog_entry_line(e))
     lines.append('')
     lines.append('Fonts (id | family | about):')
     for f in fonts_module.public():
         lines.append(f"{f['id']} | {f['family']} | {f['about']}")
     lines.append('')
-    lines.append('Sound effects (id | role | family | about):')
+    lines.append('Capability families (hundreds more capabilities than listed above, grouped; the per-note '
+                 'block carries this note\'s own best matches from them):')
+    for fam, (title, description) in capabilities.TECHNIQUE_FAMILIES.items():
+        lines.append(f'{fam} | {title} | {description}')
+    return '\n'.join(lines)
+
+
+def _capability_line(entry):
+    """One retrieval-block line, in the static block's own format (id |
+    capabilities | title | card | example phrasings) -- for a hand-written
+    catalog entry (a dict) or a `videobuilder.techniques` registry record,
+    whichever shape `entry` is. The director never sees which kind it is."""
+    if isinstance(entry, dict):
+        prompts = ' / '.join(entry.get('prompts', ())[:2])
+        return f"{entry['id']} | capabilities | {entry['title']} | {entry['card']} | {prompts}"
+    prompts = ' / '.join(entry.phrasings[:2])
+    return f'{entry.id} | capabilities | {entry.name} | {entry.definition} | {prompts}'
+
+
+def _capability_entry(id_):
+    """The hand-written catalog entry or `videobuilder.techniques` record
+    named `id_` -- the two pools a "capabilities" answer may come from.
+    KeyError if it is neither (never happens for an id the index itself
+    just handed back)."""
+    from . import capabilities, techniques as techniques_module
+    try:
+        return capabilities.get(id_)
+    except KeyError:
+        pass
+    return techniques_module.get(id_)
+
+
+def _capability_docs():
+    """Every capability's retrieval text: hand-written catalog entries
+    (apart from Looks and Type, which stay in the static block) and the
+    `videobuilder.techniques` registry, indexed alike -- both answer with
+    family "capabilities", and a director never sees the difference."""
+    from . import capabilities, techniques as techniques_module
+    docs = []
+    for e in capabilities.entries():
+        if e.get('family') is not None or e.get('children') is not None:
+            continue  # a look/type member (stays in the static block), or a family wrapper
+        docs.append((e['id'], ' '.join((e['title'], e['card'], e['description'], *e.get('prompts', ()),
+                                        e['category']))))
+    for t in techniques_module.catalog():
+        docs.append((t.id, ' '.join((t.name, *t.aliases, *t.phrasings, t.definition, t.group, t.family))))
+    return docs
+
+
+def _sfx_docs():
+    docs = []
     try:
         for effect in sfx_module.bank().find():
-            lines.append(f'{effect.id} | {effect.role} | {effect.family} | {effect.about}')
+            docs.append((effect.id, ' '.join((effect.id, effect.role, effect.family, effect.about))))
     except sfx_module.SfxUnavailable:
         pass
-    music_ids = set()
+    return docs
+
+
+def _music_docs(music):
+    """([(id, text), ...], {id: track}) -- best-effort: a source that can't
+    be fetched right now is skipped rather than failing the whole index."""
+    docs, by_id = [], {}
     if music:
-        music_lines = []
         for source in music.list_sources():
             try:
                 _, tracks = music.list_tracks(source['id'])
             except Exception:
                 continue
             for t in tracks:
-                music_ids.add(t['id'])
-                music_lines.append(f"{t['id']} | {t['title']} | {', '.join(t.get('tags', ()))}")
-        if music_lines:
-            lines += ['', 'Music (id | title | tags):', *music_lines]
-    return '\n'.join(lines), music_ids
+                by_id[t['id']] = t
+                docs.append((t['id'], ' '.join((t['title'], *t.get('tags', ())))))
+    return docs, by_id
+
+
+def _build_indices(music):
+    """The per-note retrieval indices, rebuilt on the same schedule as the
+    static block: one BM25 index each for capabilities, sound effects and
+    music tracks (plus `music_by_id`, for formatting a shortlisted track's
+    line and for validating a music id later)."""
+    music_docs, music_by_id = _music_docs(music)
+    return BM25(_capability_docs()), BM25(_sfx_docs()), BM25(music_docs), music_by_id
+
+
+def _shortlist_block(capability_index, sfx_index, music_index, music_by_id, query_text):
+    """The per-note system block: this note's own best local matches from
+    the three retrieval indices, in the static block's own line formats.
+    An empty string when nothing in any index matches."""
+    lines = []
+    cap_ids = capability_index.query(query_text, CAPABILITY_SHORTLIST)
+    if cap_ids:
+        lines.append('Capabilities (id | family | title | card | example phrasings):')
+        lines += [_capability_line(_capability_entry(id_)) for id_ in cap_ids]
+        lines.append('')
+    sfx_ids = sfx_index.query(query_text, SFX_SHORTLIST)
+    if sfx_ids:
+        lines.append('Sound effects (id | role | family | about):')
+        for id_ in sfx_ids:
+            effect = sfx_module.bank().get(id_)
+            lines.append(f'{effect.id} | {effect.role} | {effect.family} | {effect.about}')
+        lines.append('')
+    track_ids = music_index.query(query_text, MUSIC_SHORTLIST)
+    if track_ids:
+        lines.append('Music (id | title | tags):')
+        for id_ in track_ids:
+            t = music_by_id[id_]
+            lines.append(f"{id_} | {t['title']} | {', '.join(t.get('tags', ()))}")
+    if not lines:
+        return ''
+    return '\n'.join(["This note's own best local matches from the much larger capabilities, sound-effect and "
+                      'music lists (not the full lists, which are too many for every prompt):', '', *lines]).rstrip()
 
 
 def _video_block(editor, video):
@@ -178,9 +288,10 @@ class Suggest:
         self.client = client
         self.music = music
         self.has_accounts = has_accounts
-        self._looks_ids, self._type_ids, self._cap_ids = _capability_ids()
+        self._looks_ids, self._type_ids = _looks_and_type_ids()
         self._catalog_lock = threading.Lock()
-        self._catalog = None  # (text, music_ids, built_at)
+        self._catalog = None  # (text, capability_index, capability_ids, sfx_index, music_index, music_ids,
+                               #  music_by_id, built_at)
         self._answer_lock = threading.Lock()
         self._answers = {}  # key -> (items, at)
         self.usage_path = Path(state_dir) / 'suggest-usage.jsonl'
@@ -191,20 +302,23 @@ class Suggest:
     def _static_block(self):
         with self._catalog_lock:
             cached = self._catalog
-            if cached and time.monotonic() - cached[2] < CATALOG_TTL:
-                return cached[0], cached[1]
-        text, music_ids = _build_static_block(self.music)
+            if cached and time.monotonic() - cached[-1] < CATALOG_TTL:
+                return cached[:-1]
+        text = _build_static_block()
+        capability_index, sfx_index, music_index, music_by_id = _build_indices(self.music)
+        bundle = (text, capability_index, frozenset(capability_index.ids), sfx_index, music_index,
+                 frozenset(music_by_id), music_by_id)
         with self._catalog_lock:
-            self._catalog = (text, music_ids, time.monotonic())
-        return text, music_ids
+            self._catalog = bundle + (time.monotonic(),)
+        return bundle
 
-    def _known(self, family, id_, music_ids):
+    def _known(self, family, id_, capability_ids, music_ids):
         if family == 'looks':
             return id_ in self._looks_ids
         if family == 'type':
             return id_ in self._type_ids
         if family == 'capabilities':
-            return id_ in self._cap_ids
+            return id_ in capability_ids
         if family == 'fonts':
             return id_ in fonts_module.ids()
         if family == 'sfx':
@@ -217,7 +331,7 @@ class Suggest:
             return id_ in music_ids
         return False
 
-    def _validate(self, answer, text, music_ids):
+    def _validate(self, answer, text, capability_ids, music_ids):
         raw = answer.get('items') if isinstance(answer, dict) else answer
         if not isinstance(raw, list):
             return []
@@ -228,7 +342,7 @@ class Suggest:
             id_, family, strength = raw_item.get('id'), raw_item.get('family'), raw_item.get('strength')
             if not isinstance(id_, str) or not isinstance(family, str) or strength not in ('strong', 'related'):
                 continue
-            if not self._known(family, id_, music_ids):
+            if not self._known(family, id_, capability_ids, music_ids):
                 continue
             key = (family, id_)
             if key in seen:
@@ -325,7 +439,8 @@ class Suggest:
             editor.project.video(video)
         if len(text.split()) < MIN_WORDS:
             return {'seq': seq, 'items': []}
-        static_block, music_ids = self._static_block()
+        (static_block, capability_index, capability_ids, sfx_index, music_index,
+         music_ids, music_by_id) = self._static_block()
         # In library mode every project's Editor shares this one Suggest, and `video` is the
         # bare in-project name -- so without the project itself in the key, two projects with
         # the same video name and note would share an answer (and its why-text, drawn from the
@@ -336,6 +451,10 @@ class Suggest:
         if cached is not None:
             return {'seq': seq, 'items': cached}
         video_block = _video_block(editor, video) if video is not None else NEW_VIDEO_BLOCK
+        query_text = f'{text} {clip}' if clip else text
+        shortlist_block = _shortlist_block(capability_index, sfx_index, music_index, music_by_id, query_text)
+        if shortlist_block:
+            video_block = f'{video_block}\n\n{shortlist_block}'
         if cancel_event is None:
             cancel_event = threading.Event()
         timer = threading.Timer(self.client.timeout, cancel_event.set)
@@ -353,7 +472,7 @@ class Suggest:
             return {'seq': seq, 'items': []}
         finally:
             timer.cancel()
-        items = self._validate(answer, text, music_ids)
+        items = self._validate(answer, text, capability_ids, music_ids)
         if not items:
             print(f'[editor] suggest: the model matched nothing usable: {json.dumps(answer)[:300]}',
                   file=sys.stderr, flush=True)

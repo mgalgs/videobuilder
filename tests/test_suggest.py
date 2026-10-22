@@ -6,6 +6,7 @@ import http.client
 import json
 import os
 import socket
+import tempfile
 import threading
 import time
 import unittest
@@ -19,6 +20,8 @@ from tests.fake_suggest import FakeSuggest
 from tests.test_project import TempProject
 from videobuilder.editor import Editor, make_handler
 from videobuilder.handler_base import watch_disconnect
+from videobuilder.suggest import CATALOG_TTL, Suggest
+from videobuilder.suggest_index import BM25
 
 VIDEO = 'promo/film'
 
@@ -235,6 +238,27 @@ class Ask(Base):
         conn.close()
         time.sleep(self.fake.stall + 1)  # past the stall: a completed call would have recorded usage by now
         self.assertEqual(self.editor.suggest.usage_totals(), {})
+
+
+class CatalogCaching(unittest.TestCase):
+    """The static block and the per-note retrieval indices are built
+    together and share one cache, rebuilt on CATALOG_TTL's own schedule --
+    against mocks, so this never pays the real catalog's build cost."""
+
+    def test_rebuilt_once_within_ttl_then_again_once_stale(self):
+        empty = BM25([])
+        with tempfile.TemporaryDirectory() as d, \
+             mock.patch('videobuilder.suggest._build_static_block', return_value='TEXT') as build_text, \
+             mock.patch('videobuilder.suggest._build_indices',
+                        return_value=(empty, empty, empty, {})) as build_indices:
+            s = Suggest(d, mock.Mock())
+            s._static_block()
+            s._static_block()
+            self.assertEqual((build_text.call_count, build_indices.call_count), (1, 1))
+            # force staleness without waiting CATALOG_TTL seconds for real
+            s._catalog = s._catalog[:-1] + (s._catalog[-1] - CATALOG_TTL - 1,)
+            s._static_block()
+            self.assertEqual((build_text.call_count, build_indices.call_count), (2, 2))
 
 
 class LibraryWiring(fixtures.LibraryFixture, unittest.TestCase):
