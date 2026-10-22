@@ -15,6 +15,7 @@ what the release is about.
 |---|---|---|
 | A | Aperture | Films made of clips (v0.1.87) |
 | B | Bokeh | Sound effects, type and a stick figure (v0.1.99) |
+| C | Cutaway | 923 new capabilities (v0.1.113) |
 
 Some words for the next few letters (pick any word that fits the letter):
 

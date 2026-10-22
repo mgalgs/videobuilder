@@ -12,6 +12,10 @@ picker, and API keys for scripting. Run it on one machine with Docker Compose
 [Deploying the editor on Kubernetes](#deploying-the-editor-on-kubernetes)). The
 builder is Claude Code, working in a sandbox.
 
+The builder knows hundreds of capabilities by name, from a dip to black to
+an odometer roll. Each one has a short demo clip, and the gallery plays them
+all: https://mgalgs.io/videobuilder/
+
 Under the editor is a small, dependency-light Python framework for making
 videos in code, which is what the builder writes. You need it only to write
 films by hand or to work on videobuilder itself. A film is a Python file with
