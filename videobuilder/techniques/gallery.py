@@ -117,6 +117,16 @@ filter();
 """
 
 
+def _family_title(slug):
+    from ..capabilities import TECHNIQUE_FAMILIES
+    return TECHNIQUE_FAMILIES.get(slug, (slug,))[0]
+
+
+def _group_title(group):
+    from ..capabilities import _display_group
+    return _display_group(group)
+
+
 def _tile(t):
     e = html.escape
     search = ' '.join((t.id, t.name, t.family, t.group, t.definition, *t.aliases, *t.phrasings)).lower()
@@ -125,25 +135,26 @@ def _tile(t):
     return (f'<article class="tile" id="{e(t.id)}" data-search="{e(search)}">'
             f'<video src="{e(t.id)}.mp4" poster="{e(t.id)}.jpg" {media}></video>'
             f'<div class="text"><div class="name">{e(t.name)}</div>'
-            f'<div class="meta">{e(t.family)} / {e(t.group)} &middot; <code>{e(t.id)}</code></div>'
+            f'<div class="meta">{e(_family_title(t.family))} / {e(_group_title(t.group))} &middot; '
+            f'<code>{e(t.id)}</code></div>'
             f'<p>{e(t.definition)}</p></div></article>')
 
 
 def gallery_html(techniques):
     """The gallery page for `techniques`, whose clips and posters sit beside it."""
     groups = grouped(techniques)
-    nav = ''.join(f'<a href="#family-{fam}">{fam}</a>' for fam, _ in groups)
+    nav = ''.join(f'<a href="#family-{fam}">{html.escape(_family_title(fam))}</a>' for fam, _ in groups)
     body = []
     for fam, gs in groups:
-        body.append(f'<section id="family-{fam}"><h2>{fam}</h2>')
+        body.append(f'<section id="family-{fam}"><h2>{html.escape(_family_title(fam))}</h2>')
         for g, ts in gs:
-            body.append(f'<div class="group"><h3>{html.escape(g)}</h3><div class="grid">'
+            body.append(f'<div class="group"><h3>{html.escape(_group_title(g))}</h3><div class="grid">'
                         + ''.join(_tile(t) for t in ts) + '</div></div>')
         body.append('</section>')
     return ('<!doctype html>\n<html lang="en"><head><meta charset="utf-8">'
             '<meta name="viewport" content="width=device-width, initial-scale=1">'
-            f'<title>Techniques</title><style>{_CSS}</style></head><body>'
-            '<header><h1>Techniques</h1>'
+            f'<title>videobuilder capabilities</title><style>{_CSS}</style></head><body>'
+            '<header><h1>videobuilder capabilities</h1>'
             f'<span class="count" id="count">{len(techniques)}</span>'
             '<input id="q" type="search" placeholder="Filter by name, family, words..." autocomplete="off">'
             f'<nav>{nav}</nav></header><main>{"".join(body)}</main><script>{_JS}</script></body></html>\n')
