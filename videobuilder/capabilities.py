@@ -1219,7 +1219,7 @@ h2{font-size:15px;text-transform:uppercase;letter-spacing:.04em;color:#a9a9b2;ma
 @media (max-width:720px){main{padding:8px 16px 48px}.cap-head{padding-top:20px}}
 @media (max-width:700px){.grid{grid-template-columns:repeat(2,1fr)}}
 .card{display:block;width:100%;text-align:left;background:#141417;border:1px solid #26262c;border-radius:12px;
-  padding:0;overflow:hidden;cursor:pointer;color:inherit;font:inherit;min-height:44px}
+  padding:0;overflow:hidden;cursor:pointer;color:inherit;font:inherit;min-height:44px;text-decoration:none}
 .card:hover,.card:focus-visible{border-color:#e5483b;outline:none}
 .card .thumb{width:100%;aspect-ratio:1/1;background:#0d0d10;display:flex;align-items:center;justify-content:center;
   color:#5a5d66;font-size:13px;text-align:center;overflow:hidden}
