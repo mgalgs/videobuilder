@@ -76,7 +76,8 @@ def draw(n, cv):
         if ring < 1:
             cv.arc(cx, _staff_y(LAND[len(LAND) // 2]), 16 + 80 * (1 - (1 - ring) ** 3), 0, 2 * math.pi, demo.ACCENT,
                    width=4 * (1 - ring), alpha=1 - ring)
-        s = vb.ease_out_back(vb.clamp01(age / 9))
+        # cairo refuses a zero scale, which the first frame of the pop would give
+        s = max(vb.ease_out_back(vb.clamp01(age / 9)), 1e-3)
         wx, wy = demo.W / 2, demo.H / 2 + 100
         with cv.layer(dx=wx * (1 - s), dy=wy * (1 - s), scale=s):
             box = demo.word(cv, 'TA-DA!', wx, wy, size=88, color=demo.INK)
