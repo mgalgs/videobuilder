@@ -12,6 +12,7 @@
     python -m videobuilder editor PROJECT-DIR [--port 8100] [--host 127.0.0.1] [--state-dir DIR]
     python -m videobuilder techniques index [--json] [--family F]
     python -m videobuilder techniques build --out DIR [--only ID]... [--family F]
+    python -m videobuilder suggest eval [--notes FILE] [--suggest-url URL] [--suggest-model MODEL]
     python -m videobuilder whats-new add --state DIR --title T [--versions V] [--notes FILE] [--date D] [--video 9x16=MP4 ...]
     python -m videobuilder whats-new list --state DIR
     python -m videobuilder whats-new remove --state DIR ID
@@ -377,6 +378,12 @@ def cmd_techniques(a):
         raise SystemExit('failed to build:\n' + '\n'.join(f'  {id}: {msg}' for id, msg in failures))
 
 
+def cmd_suggest(a):
+    from . import suggest
+    if a.suggest_cmd == 'eval':
+        suggest.run_eval(a.notes, a.suggest_url, a.suggest_model)
+
+
 def cmd_edit(a):
     from . import edits
     try:
@@ -693,6 +700,16 @@ def main(argv=None):
     tqb.add_argument('--jobs', type=int, help='worker processes (default: CPU count)')
     tqb.add_argument('--crf', type=int, default=30, help='x264 quality (default 30: small clips over sharpness)')
     tqb.set_defaults(fn=cmd_techniques)
+
+    sg = sub.add_parser('suggest', help="the note box's capability-suggestion engine: offline evaluation")
+    sgsub = sg.add_subparsers(dest='suggest_cmd', required=True)
+    sge = sgsub.add_parser('eval', help='run retrieval plus the configured model over a fixture of notes, '
+                                        'printing each one\'s picks and a final hit rate')
+    sge.add_argument('--notes', help='a JSONL fixture (default: tests/fixtures/suggest-notes.jsonl)')
+    sge.add_argument('--suggest-url', metavar='URL', help='base URL of an OpenAI-compatible chat endpoint; also '
+                     'needs $VIDEOBUILDER_SUGGEST_KEY set, else this fails cleanly with no model configured')
+    sge.add_argument('--suggest-model', metavar='MODEL')
+    sge.set_defaults(fn=cmd_suggest)
 
     wn = sub.add_parser('whats-new', help="this instance's own What's new entries, kept in a library's state "
                                           "directory (beside the project's releases, which ship in the package)")

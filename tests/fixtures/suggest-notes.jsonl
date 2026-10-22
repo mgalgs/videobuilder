@@ -1,0 +1,43 @@
+{"note": "the little antenna on the mascot should keep wobbling a bit after it stops moving", "good": ["follow-through"]}
+{"note": "have the logo hang back at the start then rocket to its spot really fast by the end", "good": ["ease-in-expo"]}
+{"note": "the balloon should stay in place but keep slowly rising and sinking, like it's never quite settling, while everything else stays put", "good": ["idle-float-bob"]}
+{"note": "stretch that one moment out so we can actually see every part of it happen", "good": ["slow-motion"]}
+{"note": "have it hop a couple times, each hop a little bigger, before it finally launches to the end", "good": ["bounce-ease-in"]}
+{"note": "freeze the action for a second while the camera swings around it, then let it keep going", "good": ["bullet-time"]}
+{"note": "the headline shoud get heavier and bolder right before our eyes", "good": ["variable-font-weight-animation"]}
+{"note": "let the letters pop in out of order instead of marching left to right", "good": ["random-order-character-reveal"]}
+{"note": "have the letters enter one at a time, each one trailing slightly behind the last, sliding in sideways", "good": ["character-slide-in"]}
+{"note": "I want the sign to stutter like a buzzing tube light before it finally catches and stays lit", "good": ["neon-flicker"]}
+{"note": "glitch the title like the signal breifly lost lock, strips sliding sideways out of step", "good": ["scanline-tear"]}
+{"note": "the word should start as a fuzzy smudge and sharpen into focus letter by letter", "good": ["character-blur-in"]}
+{"note": "wipe to the next scene with a coil that spirals outward from the middle of the frame", "good": ["spiral-wipe"]}
+{"note": "ease into the next shot along a soft, curving edge rather than just cutting straight across", "good": ["gradient-wipe"]}
+{"note": "a rectangle in the middle should grow out to the edges, revealing the next scene inside it", "good": ["box-wipe"]}
+{"note": "zoom hard into this shot in a streaking blur and swap to the next one at the peak of it", "good": ["cross-zoom"]}
+{"note": "like dropping a stone in water -- rings spread out and the new scene settles in behind them", "good": ["ripple"]}
+{"note": "the photo should look like a smeared blur first, then snap into focus once it's loaded", "good": ["blur-up-image-load"]}
+{"note": "the buton should sink in when you tap it and spring back up when you let go", "good": ["press-depress"]}
+{"note": "tapping the heart should squeeze it, fill it with colour, and throw little sparkles around it", "good": ["like-heart-burst"]}
+{"note": "the unever grid of boxes should fill in one panal at a time, growing into its slot", "good": ["bento-grid-reveal"]}
+{"note": "streak some lines behind the car to sell just how fast it's going", "good": ["speed-lines"]}
+{"note": "could this icon reshape itself into a new one on tap, rather than just popping to the new image", "good": ["icon-state-morph"]}
+{"note": "draw a line that spirals outward from the centre point until it fills in the whole shape", "good": ["spiral-expansion-draw"]}
+{"note": "dim everything except one spot, box it, and tag what we're pointing at", "good": ["callout-highlight"]}
+{"note": "a cloud of little specks should swirl together until they spell out our word", "good": ["particle-text-formation"]}
+{"note": "leave a fading trail of tiny dots behind the moving dot as it travels", "good": ["particle-trail"]}
+{"note": "can we get a little lightning spark that keeps zapping back and forth between those two points", "good": ["electric-arc"]}
+{"note": "scatter some glowing, out-of-focus dots back there, like city lights you can't quite make out", "good": ["bokeh-particles"]}
+{"note": "have the list items cascade in one after another instead of all popping at once", "good": ["staggered-reveals"]}
+{"note": "the logo should pop a little bigger right on the beat of the music", "good": ["pop-on-the-beat"]}
+{"note": "the big number should count up from zero all the way to the final total", "good": ["counting-numbers"]}
+{"note": "grow each bar in time with the beat and label it right on the bar", "good": ["bar-charts"]}
+{"note": "show it like an old terminal window, typing the lines out and scrolling as it goes", "good": ["terminal-log"]}
+{"note": "make this clip loop forever with absolutely no visible seam at the join", "good": ["seamless-loops"]}
+{"note": "the words should wrap nicely and reveal one at a time with some weight behind them", "good": ["kinetic-typography"]}
+{"note": "when the shot moves sideways, make the far stuff shift less than the near stuff so it feels like there's real depth", "good": ["parallax-scene"]}
+{"note": "every single cut should land exactly on a beat of the music track", "good": ["beat-lock"]}
+{"note": "can the diagram fill in piece by piece like someone's actually drawing it live, with the camera following the pen", "good": ["drawn-on-diagram"]}
+{"note": "add a quick air sound as the title card flies in", "good": ["whoosh_fast/tight"]}
+{"note": "give the badge a little notification chime right when it shows up", "good": ["pro_notify/ding_2045"]}
+{"note": "make the title feel more mechanical and alive instead of just sitting there", "good": ["character-motion", "springs-with-character", "variable-font-weight-animation"]}
+{"note": "give this whole thing a bit more energy and personality somehow", "good": ["character-motion", "pop-on-the-beat", "springs-with-character"]}

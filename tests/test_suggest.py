@@ -20,10 +20,12 @@ from tests.fake_suggest import FakeSuggest
 from tests.test_project import TempProject
 from videobuilder.editor import Editor, make_handler
 from videobuilder.handler_base import watch_disconnect
-from videobuilder.suggest import CATALOG_TTL, Suggest
+from videobuilder.suggest import (CAPABILITY_SHORTLIST, CATALOG_TTL, DEFAULT_NOTES_FIXTURE, MUSIC_SHORTLIST,
+                                  SFX_SHORTLIST, Suggest, _build_indices, _load_notes)
 from videobuilder.suggest_index import BM25
 
 VIDEO = 'promo/film'
+RECALL_TARGET = 0.85
 
 
 class WatchDisconnect(unittest.TestCase):
@@ -283,6 +285,31 @@ class CatalogCaching(unittest.TestCase):
             s._catalog = s._catalog[:-1] + (s._catalog[-1] - CATALOG_TTL - 1,)
             s._static_block()
             self.assertEqual((build_text.call_count, build_indices.call_count), (2, 2))
+
+
+class RetrievalRecall(unittest.TestCase):
+    """Retrieval only -- no model call -- over tests/fixtures/suggest-notes.jsonl
+    (director-style notes, each with the ids that would be a good answer):
+    at least one good id must be in the combined shortlist for at least
+    RECALL_TARGET of the notes, or the per-note block is too narrow to be
+    worth sending. Prints every miss, so a regression says which note broke."""
+
+    def test_recall_meets_target(self):
+        notes = _load_notes(DEFAULT_NOTES_FIXTURE)
+        capability_index, sfx_index, music_index, _ = _build_indices(None)
+        misses = []
+        for note in notes:
+            shortlist = (set(capability_index.query(note['note'], CAPABILITY_SHORTLIST)) |
+                        set(sfx_index.query(note['note'], SFX_SHORTLIST)) |
+                        set(music_index.query(note['note'], MUSIC_SHORTLIST)))
+            if not set(note['good']) & shortlist:
+                misses.append(note)
+        rate = (len(notes) - len(misses)) / len(notes)
+        if misses:
+            print(f'\nretrieval recall: {len(misses)}/{len(notes)} missed ({rate:.0%} hit rate):')
+            for note in misses:
+                print(f"  {note['note']!r} -> wanted one of {note['good']}")
+        self.assertGreaterEqual(rate, RECALL_TARGET)
 
 
 class LibraryWiring(fixtures.LibraryFixture, unittest.TestCase):

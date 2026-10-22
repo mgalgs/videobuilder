@@ -34,6 +34,7 @@ single-project mode -- and `ask()` takes whichever project's Editor the
 request is for (None for New video's "In a few words", asked before any
 video exists)."""
 import json
+import os
 import re
 import sys
 import threading
@@ -60,6 +61,7 @@ CAPABILITY_SHORTLIST = 30  # how many of each per-note retrieval answers, into t
 SFX_SHORTLIST = 15
 MUSIC_SHORTLIST = 10
 _PUNCT_WS = re.compile(r'[\s,.;:!?]+')
+DEFAULT_NOTES_FIXTURE = Path(__file__).resolve().parent.parent / 'tests' / 'fixtures' / 'suggest-notes.jsonl'
 
 
 def _normalize(text):
@@ -408,7 +410,7 @@ class Suggest:
                     t[k] += v
         return totals
 
-    def ask(self, editor, video, body, author, cancel_event=None):
+    def ask(self, editor, video, body, author, cancel_event=None, on_error=None):
         """`editor` and `video` are both None for New video's "In a few
         words" (asked before any video exists, so there is no bible or
         timeline to read yet); otherwise `editor` is the specific project's
@@ -416,7 +418,15 @@ class Suggest:
 
         `cancel_event`, if given, is a `threading.Event` the caller may also
         set from outside (its own request socket closing) -- same event the
-        timeout below arms, so either one stops the model call."""
+        timeout below arms, so either one stops the model call.
+
+        `on_error`, if given, is called with a short string whenever the
+        model call itself failed (timeout or `SuggestError`) rather than
+        just matching nothing -- `run_eval` uses this to tell "the model
+        was bad" apart from "the model was never reached", which an empty
+        `items` list can't say on its own. The note box itself never passes
+        this: a model failure must still just answer no items, never an
+        error."""
         if self.client is None:
             raise HTTPError(404, 'not configured')
         text = body.get('text')
@@ -465,10 +475,15 @@ class Suggest:
                                                  cancel_event=cancel_event)
         except SuggestCancelled:
             if timer.finished.is_set():  # the timer fired; a browser that went away isn't worth a line
-                print(f'[editor] suggest: no answer within {self.client.timeout:g}s', file=sys.stderr, flush=True)
+                msg = f'no answer within {self.client.timeout:g}s'
+                print(f'[editor] suggest: {msg}', file=sys.stderr, flush=True)
+                if on_error:
+                    on_error(msg)
             return {'seq': seq, 'items': []}
         except SuggestError as exc:
             print(f'[editor] suggest: {exc}', file=sys.stderr, flush=True)
+            if on_error:
+                on_error(str(exc))
             return {'seq': seq, 'items': []}
         finally:
             timer.cancel()
@@ -480,3 +495,60 @@ class Suggest:
         if usage:
             self._record_usage(author, usage)
         return {'seq': seq, 'items': items}
+
+
+def _load_notes(path):
+    notes = []
+    with open(path, encoding='utf-8') as fh:
+        for line in fh:
+            line = line.strip()
+            if line:
+                notes.append(json.loads(line))
+    return notes
+
+
+def run_eval(notes_path, suggest_url, suggest_model):
+    """`python -m videobuilder suggest eval`: the full suggest path --
+    retrieval plus the configured model, never a fake -- over a fixture of
+    notes (`tests/fixtures/suggest-notes.jsonl` by default), printing each
+    note's strong and related picks and whether a good id was among them,
+    then a final hit rate. Raises SystemExit, cleanly and without a
+    traceback, when no model is configured (no `--suggest-url`, or
+    $VIDEOBUILDER_SUGGEST_KEY unset) -- some environments this runs in have
+    no network, and a bad config must say so plainly rather than crash."""
+    import tempfile
+    from .suggest_client import SuggestClient
+    key = os.environ.get('VIDEOBUILDER_SUGGEST_KEY')
+    if not suggest_url or not key:
+        raise SystemExit('suggest eval needs --suggest-url and $VIDEOBUILDER_SUGGEST_KEY set; no model is '
+                         'configured')
+    notes = _load_notes(notes_path or DEFAULT_NOTES_FIXTURE)
+    client = SuggestClient(suggest_url, suggest_model, key)
+    hits = 0
+    errors = []  # one entry per note whose model call itself failed, not just matched nothing
+    with tempfile.TemporaryDirectory() as state_dir:
+        suggest = Suggest(state_dir, client)
+        for i, note in enumerate(notes, 1):
+            body = {'text': note['note'], 'surface': 'new', 'clip': note.get('clip'), 'at': None, 'seq': i}
+            note_errors = []
+            result = suggest.ask(None, None, body, 'eval', on_error=note_errors.append)
+            errors += note_errors
+            items = result['items']
+            strong = [it['id'] for it in items if it['strength'] == 'strong']
+            related = [it['id'] for it in items if it['strength'] == 'related']
+            good = set(note.get('good', ()))
+            hit = bool(good & {it['id'] for it in items})
+            hits += hit
+            print(f"{i}. {note['note']!r}")
+            if note_errors:
+                print(f'   model error: {note_errors[0]}')
+            print(f'   strong: {strong}')
+            print(f'   related: {related}')
+            print(f"   {'hit' if hit else 'miss'} (good: {sorted(good)})")
+    rate = hits / len(notes) if notes else 0.0
+    print(f'{hits}/{len(notes)} ({rate:.0%}) hit rate')
+    if errors:
+        print(f'{len(errors)}/{len(notes)} note(s) got a model error rather than an answer -- '
+             'the hit rate above undercounts them')
+    if notes and len(errors) == len(notes):
+        raise SystemExit(f'the model failed on every note ({errors[0]!r}); nothing was measured')
