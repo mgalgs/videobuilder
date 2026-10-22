@@ -1177,7 +1177,7 @@ def techniques_family_page_html(family, capabilities_dir, version, header='', he
         f'<p class="section-lead">{_esc(description)} <a href="/capabilities">Back to Capabilities</a></p>'
         f'{"".join(body)}<p class="search-none search-hide" id="search-none" role="status"></p></main>' +
         _TECHNIQUE_MODAL_HTML +
-        f'<script id="techniques-data" type="application/json">{json.dumps(data)}</script>'
+        f'<script id="techniques-data" type="application/json">{json.dumps(data).replace("<", "\\u003c")}</script>'
         f'<script>{_TECHNIQUES_PAGE_SCRIPT}</script><script>{_TECHNIQUES_SEARCH_SCRIPT}</script>'
         '</body></html>'
     )
