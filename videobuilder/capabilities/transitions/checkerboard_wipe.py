@@ -67,5 +67,5 @@ CAPABILITY = Capability(
     related=('wipe-reveal', 'paint-brush-wipe', 'fill-sweep-button', 'tile-grid-title-reveal',
              'area-fill-sweep', 'tile-flip'),
     api=('videobuilder.capabilities.transitions.checkerboard_wipe.checkerboard_wipe',),
-    demo=lambda: demo.two_scenes(checkerboard_wipe, start=0.7, length=1.6),
+    demo=lambda: demo.two_scenes(checkerboard_wipe, start=1.0, length=1.6),
 )
