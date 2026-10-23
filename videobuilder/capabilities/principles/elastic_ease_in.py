@@ -22,9 +22,13 @@ def elastic_ease_in(x, period=0.3):
 
 
 def draw(n, cv):
-    p = elastic_ease_in(demo.phase(n, 0.4, 2.3))
+    # The move starts before the first frame so its sub-pixel opening quivers stay off screen,
+    # and a slightly short period gives five visible swings before the launch.
+    p = elastic_ease_in(demo.phase(n, -0.5, 2.2), period=0.25)
     w, h = 200, 124
-    x0, x1, y = demo.W / 2 - 220, demo.W / 2 + 220, demo.H / 2
+    # The curve pulls back ~0.44 of the travel, so the start sits far enough right
+    # that the card's deepest back swing still clears the left edge.
+    x0, x1, y = demo.W / 2 - 140, demo.W / 2 + 300, demo.H / 2
     cv.outline(x0 - w / 2, y - h / 2, w, h, demo.MUTED, width=2, radius=18, alpha=0.3)  # where it starts
     cv.outline(x1 - w / 2, y - h / 2, w, h, demo.MUTED, width=2, radius=18, alpha=0.5)  # where it comes to rest
     demo.card(cv, x0 + (x1 - x0) * p, y, w=w, h=h)
