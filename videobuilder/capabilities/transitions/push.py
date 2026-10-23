@@ -43,5 +43,5 @@ CAPABILITY = Capability(
                'shove the first frame out of the way with the second'),
     related=('push-in', 'roll-up', 'corner-wipe', 'zoom-through', 'cut-on-action', 'zoom-out-reveal'),
     api=('videobuilder.capabilities.transitions.push.push',),
-    demo=lambda: demo.two_scenes(push),
+    demo=lambda: demo.two_scenes(push, start=1.2, length=1.6),
 )
