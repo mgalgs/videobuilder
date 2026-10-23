@@ -70,9 +70,10 @@ def _mark(cx, cy, s):
 SHAPES = (regular(CX, CY, R, 64), regular(CX, CY + 20, R * 1.15, 3), regular(CX, CY, R * 1.05, 6, 0),
           _mark(CX, CY, R * 0.95))
 COLORS = (demo.ACCENT, demo.TEAL, '#e8b04a', demo.ACCENT)
-MORPH = (0.2, 2.0)        # seconds the chain of morphs runs over
-SLIDE = (2.05, 2.6)       # the mark slides aside...
-NAME = (2.25, 2.75)       # ...and the name fades in once it has cleared
+MORPH = (0.15, 1.55)      # seconds the chain of morphs runs over
+SLIDE = (1.6, 2.0)        # the mark slides aside...
+NAME = (1.75, 2.1)        # ...and the name fades in once it has cleared, so mark and name are both
+                          # settled by 2.1 s, the gallery's poster point
 
 
 def draw(n, cv):
