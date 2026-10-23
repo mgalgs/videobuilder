@@ -81,7 +81,10 @@ def subject(cv):
 
 
 def draw(n, cv):
-    pixelation_reveal(cv, subject, demo.phase(n, 0.3, 2.4), 0, demo.H * 0.2, demo.W, demo.H * 0.6, block=64)
+    # Eased in so the coarse steps get the time and the poster frame (2.1 s)
+    # lands on the 8 px step; sharp from about 2.6 s, held to the end.
+    p = demo.phase(n, 0.3, 2.75) ** 2
+    pixelation_reveal(cv, subject, p, 0, demo.H * 0.2, demo.W, demo.H * 0.6, block=64)
     f = demo.font(96, 900)
     w, h = vb.text.block_size([TEXT], f)
     cv.mark('text', (demo.W - w) / 2, demo.H / 2 - 20 - h / 2, w, h)
