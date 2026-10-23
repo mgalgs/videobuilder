@@ -61,5 +61,5 @@ CAPABILITY = Capability(
     related=('crt-scanlines', 'wipe-reveal', 'area-fill-sweep', 'scroll-scrubbed-frame-sequence',
              'scanline-tear', 'paint-brush-wipe'),
     api=('videobuilder.capabilities.transitions.scanline_wipe.scanline_wipe',),
-    demo=lambda: demo.two_scenes(scanline_wipe, start=0.7, length=1.6),
+    demo=lambda: demo.two_scenes(scanline_wipe, start=1.2, length=1.5),
 )
