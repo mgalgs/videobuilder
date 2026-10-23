@@ -35,7 +35,10 @@ ROWS, COLS, SIZE, GAP = 6, 10, 52, 12
 
 
 def draw(n, cv):
-    p = demo.phase(n, 0.3, 2.4)
+    # two diagonal passes from the same corner: the tiles pop in, then a
+    # second color sweeps over them, so the front is mid-grid in the poster
+    p = demo.phase(n, 0.2, 1.3)
+    p2 = demo.phase(n, 1.4, 2.8)
     gw, gh = COLS * SIZE + (COLS - 1) * GAP, ROWS * SIZE + (ROWS - 1) * GAP
     x0, y0 = (demo.W - gw) / 2, (demo.H - gh) / 2
     for r in range(ROWS):
@@ -45,9 +48,13 @@ def draw(n, cv):
             q = grid_stagger(p, r, c, ROWS, COLS, spread=0.7)
             if q <= 0:
                 continue
-            s = SIZE * max(0.0, vb.ease_out_back(q))
             cx, cy = x + SIZE / 2, y + SIZE / 2
+            s = SIZE * max(0.0, vb.ease_out_back(q))
             cv.rect(cx - s / 2, cy - s / 2, s, s, demo.ACCENT, radius=10 * s / SIZE, alpha=min(1.0, q * 3))
+            q2 = grid_stagger(p2, r, c, ROWS, COLS, spread=0.7)
+            if q2 > 0:
+                s = SIZE * min(1.0, max(0.0, vb.ease_out_back(q2)))
+                cv.rect(cx - s / 2, cy - s / 2, s, s, demo.TEAL, radius=10 * s / SIZE)
     cv.mark('grid', x0, y0, gw, gh)
 
 
