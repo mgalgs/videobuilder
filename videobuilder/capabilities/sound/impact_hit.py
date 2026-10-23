@@ -13,7 +13,7 @@ weight underneath -- the most a hit should stack:
 `waveform` draws the sound as a small level meter, a spike on the hit
 decaying over its tail, for showing where a hit falls.
 
-The demo drops a heavy block onto a floor: it slams down on one frame, the
+The demo hangs a heavy block over a floor, then drops it: it slams down on one frame, the
 frame jolts (`vb.impact.shake`), a shockwave and dust burst out from the
 contact, and a meter in the corner spikes with the hit.
 """
@@ -66,19 +66,21 @@ def waveform(cv, x, y, w, h, n, at, fps=30, bars=24, color=demo.ACCENT, idle=dem
 
 
 # ---- the demo: a heavy block slams onto the floor ----
-HIT = round(1.3 * demo.FPS)
-FALL = 14                                    # frames of falling before the hit
+HIT = round(2.0 * demo.FPS)                  # late enough that the gallery poster (0.7 in) catches the hit
+FALL = 10                                    # frames of falling before the hit
 FLOOR = demo.H * 0.72
 BW, BH = 300, 200
+HANG = FLOOR - BH - 30                       # the block hangs just inside the top of frame before it drops
 CX = demo.W / 2
 
 
 def _block_y(n):
-    """The block's bottom edge: high above, accelerating down, on the floor from the hit."""
+    """The block's bottom edge: hanging high and bobbing, then accelerating down, on the floor from the hit."""
     if n >= HIT:
         return FLOOR
     p = vb.clamp01((n - (HIT - FALL)) / FALL)
-    return FLOOR - 780 * (1 - p * p)
+    bob = 6 * math.sin(n * 0.25) * (1 - p)
+    return FLOOR - HANG * (1 - p * p) + bob
 
 
 def _squash(n):
@@ -120,6 +122,17 @@ def _dust(cv, n):
             demo.dot(cv, x, y, rnd.uniform(5, 14) * (1 - k / 0.9) + 2, demo.MUTED, alpha=0.8 * (1 - k / 0.9))
 
 
+def _shadow(cv, bottom):
+    """A soft shadow on the floor that grows and darkens as the block comes down."""
+    near = 1 - (FLOOR - bottom) / (HANG + 20)
+    c = cv.ctx
+    c.save()
+    c.translate(CX, FLOOR)
+    c.scale(1, 0.12)
+    demo.dot(cv, 0, 0, BW * (0.3 + 0.3 * near), demo.MUTED, alpha=0.15 + 0.35 * near)
+    c.restore()
+
+
 def draw(n, cv):
     dx, dy = vb.impact.shake(n, HIT, frames=14, amount=26, seed=1)
     with cv.layer(dx=dx, dy=dy):
@@ -128,7 +141,8 @@ def draw(n, cv):
         sx, sy = _squash(n)
         w, h = BW * sx, BH * sy
         bottom = _block_y(n)
-        if n < HIT:                              # speed streaks while it drops
+        if n < HIT:
+            _shadow(cv, bottom)                              # speed streaks while it drops
             p = vb.clamp01((n - (HIT - FALL)) / FALL)
             if p > 0.3:
                 for ox in (-0.3, 0, 0.3):
