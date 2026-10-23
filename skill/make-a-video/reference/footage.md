@@ -38,16 +38,21 @@ with audio, normalised to the same -14 LUFS default as music gets (see below).
 ## Ducking the music
 
 `Audio.duck_db` drops the music while any sound plays, so the music doesn't
-fight the speaker:
+fight the speaker. `-8` is a good starting point for music under a
+voice-over:
 
 ```python
-vb.Audio('assets/music.wav', duck_db=-12)
+vb.Audio('assets/music.wav', duck_db=-8)
 ```
 
-The drop ramps over a few frames at each edge of a sound's span (using that
-sound's own `fade_in_frames`/`fade_out_frames`), computed purely from the
-sounds' spans — a deterministic gain envelope, not a sidechain compressor
-reacting to the actual signal. `duck_db=0`, the default, means no ducking.
+The drop ramps in over the 0.2s before a sound's span starts and back out
+over the 0.6s after it ends (or that sound's own `fade_in_frames`/
+`fade_out_frames`, when longer), computed purely from the sounds' spans — a
+deterministic gain envelope, not a sidechain compressor reacting to the
+actual signal. Spans less than 1.5s apart stay ducked across the gap rather
+than popping back up and down between them; this is automatic, so don't
+hand-roll fades or gaps of your own on top of it. `duck_db=0`, the default,
+means no ducking.
 
 ## One loudness target for the mix
 
@@ -93,7 +98,7 @@ def draw(n, cv):
         cv.image(pic, 0, 0, cv.width, cv.height)
 
 FILM = vb.Film(draw=draw, timeline=TIMELINE,
-               audio=vb.Audio(str(HERE / 'assets' / 'music.wav'), duck_db=-12),
+               audio=vb.Audio(str(HERE / 'assets' / 'music.wav'), duck_db=-8),
                sounds=(footage_a.sound(str(HERE / 'assets' / 'interview.mp4'), gain_db=-3),))
 ```
 

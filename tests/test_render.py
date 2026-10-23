@@ -445,3 +445,25 @@ class Ducking(unittest.TestCase):
         after = peak_level(pcm, 2.3, 2.7)
         self.assertAlmostEqual(before / during, 10 ** (12 / 20), delta=0.4)
         self.assertAlmostEqual(after / during, 10 ** (12 / 20), delta=0.4)
+
+    def test_two_narration_sounds_stay_ducked_across_a_short_gap(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            music = os.path.join(tmp, 'music.wav')
+            sine_wav(music, 220, 3.0, amplitude=10000)
+            frames = 90
+            # Two "sounds" (same silent-trigger trick as above): 0.667-1.333s and
+            # 1.633-2.333s, a 0.3s gap, under the 1.5s bridge, so the music should
+            # stay ducked through it rather than popping back up and down.
+            film = Film(draw=lambda n, cv: None, fps=self.fps, frames=frames, formats=['1x1'],
+                        audio=Audio(music, loudness=None, duck_db=-12),
+                        sounds=(Sound(music, at=20, start=0.0, frames=20, gain_db=-90),
+                                Sound(music, at=49, start=0.0, frames=20, gain_db=-90)))
+            out = os.path.join(tmp, 'x.mp4')
+            with open(os.devnull, 'w') as quiet:
+                render(film, out, jobs=1, chunk=15, log=quiet)
+            pcm = decode_pcm(out)
+        before = peak_level(pcm, 0.1, 0.4)
+        during = peak_level(pcm, 0.9, 1.1)
+        gap = peak_level(pcm, 1.4, 1.56)  # inside the 0.3s gap between the two spans
+        self.assertAlmostEqual(before / during, 10 ** (12 / 20), delta=0.4)
+        self.assertAlmostEqual(gap / during, 1, delta=0.1)  # still ducked, not released

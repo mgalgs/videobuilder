@@ -73,8 +73,9 @@ FOX.draw(cv, 'talk' if MOUTH[n] else 'idle', x, ground_y)
 
 - `VOICE.phrases` (text, start, end in seconds from the file's start) and
   `VOICE.frames(fps)` lay out segments around the voice: give each phrase's
-  shot at least its phrase. With music, `vb.Audio(..., duck_db=-12)` dips
-  it under the voice (see `footage.md`).
+  shot at least its phrase. With music, `vb.Audio(..., duck_db=-8)` dips it
+  under the voice (see `footage.md`): the library ramps the dip in and out
+  and bridges short gaps between phrases on its own, so don't hand-roll that.
 - `MOUTH` opens near each syllable's peak and shuts in the dips, never for
   less than two frames; `vb.speech.holds(MOUTH)` turns it into
   `Puppet.pose_at` holds. Only blink while the mouth is shut.

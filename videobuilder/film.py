@@ -82,11 +82,15 @@ class Audio:
     is `fade_out_frames=m - 1`.
     `loudness`: when the film also has `sounds`, this is the target for the
     whole mix (music plus sounds), not just the music.
-    `duck_db`: how far the music drops while any `Sound` plays (e.g. -12); 0
-    (the default) means no ducking. Sound effects (`vb.sfx`) don't duck it:
-    they drop with it, under the other sounds, unless placed `through`. The drop ramps over a few frames at each
-    edge of a sound's span, as a gain envelope computed from the sounds'
-    spans, not a sidechain compressor reacting to the actual signal.
+    `duck_db`: how far the music drops while any `Sound` plays (-8 is a good
+    starting point for music under a voice-over); 0 (the default) means no
+    ducking. Sound effects (`vb.sfx`) don't duck it: they drop with it, under
+    the other sounds, unless placed `through`. The drop ramps in over the
+    0.2s before a sound's span and back out over the 0.6s after it (or that
+    sound's own fade, when longer), bridging gaps under 1.5s so it doesn't
+    pop up and down between short lines, as a gain envelope computed from
+    the sounds' spans, not a sidechain compressor reacting to the actual
+    signal.
     """
     path: str
     trim_frames: int | None = None
