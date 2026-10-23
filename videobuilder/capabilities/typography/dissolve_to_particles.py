@@ -68,7 +68,7 @@ def draw(n, cv):
     f = demo.font(150, 900)
     text = 'VANISH'
     w, h = vb.text.block_size([text], f)
-    box = draw_dissolve(cv, text, f, (demo.W - w) / 2, (demo.H - h) / 2, demo.phase(n, 0.5, 2.8),
+    box = draw_dissolve(cv, text, f, (demo.W - w) / 2, (demo.H - h) / 2, demo.phase(n, 1.6, 2.95),
                         demo.INK, speck=demo.ACCENT, seed=3)
     cv.mark('text', *box)
 
