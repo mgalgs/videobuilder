@@ -1,7 +1,7 @@
 """Chrome reflection: a mirror-finish ball shows the room around it, bent by
 its curvature -- a light overhead, a horizon across its middle, coloured
 panels on either side squeezed into arcs toward the rim. As the panels
-circle the ball, their reflections slide round it, stretching and pinching
+swing round the ball, their reflections slide round it, stretching and pinching
 as they go."""
 import math
 
@@ -122,12 +122,15 @@ def draw_chrome_ball(cv, cx, cy, r, env, turn=0.0, rim='#08090c'):
     return vb.Box(cx - r, cy - r, 2 * r, 2 * r)
 
 
-PANELS = ((demo.ACCENT, 0), (demo.TEAL, 120), ('#f0b429', 240))
+# Azimuths are chosen so that over the swing in draw() every panel stays beside
+# the ball (|azimuth| between ~33 and ~147 degrees): none ever passes in front of
+# it or hides behind it, so each reflection keeps its source in view.
+PANELS = ((demo.ACCENT, 0), (demo.TEAL, 54), ('#f0b429', -126))
 
 
 def draw(n, cv):
-    t = n / demo.FPS
-    spin = 150 * demo.phase(n, 0.2, 2.8) - 75 + 10 * math.sin(t)   # degrees the panels have travelled
+    t = n / (demo.FPS * demo.SECONDS)
+    spin = 63 - 30 * math.cos(2 * math.pi * t)   # degrees the panels have swung: 33 -> 93 -> 33, loops cleanly
     cx, cy, r = demo.W / 2, demo.H / 2 - 10, 160
     orbit = 330
     placed = [(color, (base + spin + 180) % 360 - 180) for color, base in PANELS]
@@ -154,13 +157,13 @@ def draw(n, cv):
         w = 18 * abs(math.sin(a)) + 3
         cv.rect(x - w / 2, cy + 25 - h, w, h, color, radius=3, alpha=0.55 + 0.45 * (1 + depth) / 2)
 
-    behind = [p for p in placed if math.cos(math.radians(p[1])) < 0]
-    front = [p for p in placed if p not in behind]
-    for p in behind:
-        panel(*p)
+    placed.sort(key=lambda p: math.cos(math.radians(p[1])))   # back to front
+    for p in placed:
+        if math.cos(math.radians(p[1])) < 0:
+            panel(*p)
     box = draw_chrome_ball(cv, cx, cy, r, env)
-    for p in front:
-        if abs(orbit * math.sin(math.radians(p[1]))) > r + 15:   # in front of the ball it would hide it
+    for p in placed:
+        if math.cos(math.radians(p[1])) >= 0:
             panel(*p)
     cv.mark('ball', *box)
 
