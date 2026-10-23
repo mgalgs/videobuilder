@@ -53,7 +53,9 @@ def pixel_build(cv, rows, x, y, size, p, colors, seed=0, sweep=0.6, pop=0.25, dr
 
 
 def draw(n, cv):
-    size = 50
+    # fit the heart to the frame with clear margin, so the finished picture
+    # and the top row falling into place both stay on screen
+    size = min(demo.W * 0.6 / len(HEART[0]), demo.H * 0.75 / len(HEART))
     w, h = len(HEART[0]) * size, len(HEART) * size
     box = pixel_build(cv, HEART, (demo.W - w) / 2, (demo.H - h) / 2, size, demo.phase(n, 0.3, 2.4),
                       {'X': demo.ACCENT, 'O': demo.INK}, seed=3)
