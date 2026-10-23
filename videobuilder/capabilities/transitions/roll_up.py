@@ -11,13 +11,13 @@ from .. import _demo as demo
 from ..schema import Capability
 
 
-STANDARD = vb.ease.bezier(0.4, 0.0, 0.2, 1.0)  # quick to start, settling as it leaves the top
+STANDARD = vb.ease.bezier(0.4, 0.0, 0.2, 1.0)  # easing in, settling as it leaves the top
 
 
 def roll_up(cv, a, b, p, radius=0.07, grow=0.05, strips=48, shadow=0.55, ease=STANDARD):
     """Draw the roll-up at progress `p` (0 -> 1): `b(cv)` underneath, `a(cv)`
-    flat above a roll whose centre climbs from below the bottom edge to above
-    the top. The roll's face shows the last stretch of `a` it wound up,
+    flat above a roll that starts sitting on the bottom edge and climbs until
+    it has left the top. The roll's face shows the last stretch of `a` it wound up,
     squeezed and shaded round the curve, and it casts a soft shadow on `b`.
 
     `radius` is the bare roll's radius as a share of the frame height;
@@ -29,10 +29,10 @@ def roll_up(cv, a, b, p, radius=0.07, grow=0.05, strips=48, shadow=0.55, ease=ST
     `roll_up(cv, lambda c: scene_a(c, old), lambda c: scene_b(c, new), new.f / overlap_frames)`."""
     w, h = cv.width, cv.height
     e = ease(vb.clamp01(p))
-    r_end = h * (radius + grow)
-    yc = (h + r_end) - e * (h + 2 * r_end)          # roll centre: off the bottom -> off the top
+    r0, r_end = h * radius, h * (radius + grow)
+    yc = (h + r0) - e * (h + r0 + r_end)            # roll centre: touching the bottom -> off the top
     rolled = max(0.0, h - yc)
-    r = h * radius + h * grow * math.sqrt(rolled / h) if rolled else h * radius
+    r = r0 + h * grow * math.sqrt(rolled / h) if rolled else r0
     b(cv)
     if yc - r >= h:
         a(cv)
@@ -101,5 +101,5 @@ CAPABILITY = Capability(
                'wind the picture away upward and reveal what is underneath'),
     related=('uncover', 'corner-wipe', 'push', 'zoom-out-reveal', 'tumble', 'slide-over-cover'),
     api=('videobuilder.capabilities.transitions.roll_up.roll_up',),
-    demo=lambda: demo.two_scenes(roll_up, start=0.7, length=1.6),
+    demo=lambda: demo.two_scenes(roll_up, start=1.6, length=1.2),
 )
