@@ -39,8 +39,13 @@ def diagonal_wipe(cv, a, b, p, angle=30.0, ease=vb.ease_in_out_quart, edge=None,
         cv.line(*ends[0], *ends[1], edge, width=edge_width)
 
 
+ease_in_out_cubic = vb.bezier(0.65, 0, 0.35, 1)
+
+
 def transition(cv, a, b, p):
-    diagonal_wipe(cv, a, b, p, edge=demo.ACCENT)
+    # A gentler ease than the default keeps the slanted edge in the middle
+    # of the frame for longer, so the sweep reads rather than flashes.
+    diagonal_wipe(cv, a, b, p, ease=ease_in_out_cubic, edge=demo.ACCENT)
 
 
 CAPABILITY = Capability(
@@ -56,5 +61,5 @@ CAPABILITY = Capability(
                'an angled line crossing the screen that swaps one scene for the other'),
     related=('paint-brush-wipe', 'wipe-reveal', 'ribbon-sweep', 'area-fill-sweep', 'roll-up', 'flip'),
     api=('videobuilder.capabilities.transitions.diagonal_wipe.diagonal_wipe',),
-    demo=lambda: demo.two_scenes(transition),
+    demo=lambda: demo.two_scenes(transition, start=1.1, length=1.7),
 )
