@@ -43,7 +43,7 @@ def holding(t, stops):
 
 GAP = demo.W * 0.3
 STATIONS = (demo.W / 2 - GAP, demo.W / 2, demo.W / 2 + GAP)
-STOPS = ((0.0, 0.35, STATIONS[0]), (0.75, 1.75, STATIONS[1]), (2.15, 3.0, STATIONS[2]))
+STOPS = ((0.0, 0.35, STATIONS[0]), (0.75, 1.45, STATIONS[1]), (1.85, 3.0, STATIONS[2]))
 CW, CH = demo.W * 0.2, demo.W * 0.125
 CY = demo.H * 0.36
 
