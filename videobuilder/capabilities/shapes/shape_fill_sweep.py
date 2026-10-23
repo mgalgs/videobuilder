@@ -63,7 +63,9 @@ def arrow(cx, cy, w=560, h=300, shaft=0.5, head=0.36):
 
 def draw(n, cv):
     pts = arrow(demo.W / 2, demo.H / 2)
-    p = vb.ease_in_out_quart(demo.phase(n, 0.5, 2.4))
+    # A steady, progress-bar sweep over nearly the whole clip, so the poster
+    # (70%) catches the front mid-shape with the arrow's head still unfilled.
+    p = demo.phase(n, 0.4, 2.9)
     box = fill_sweep(cv, pts, p, demo.ACCENT, base='#1f2530', edge=demo.INK, edge_width=4)
     cv.mark('shape', *box)
 
