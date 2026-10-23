@@ -65,7 +65,7 @@ def draw_type_explosion(cv, text, font, x, y, t, color, alpha=1.0, **kw):
     return vb.Box(x, y, w, h)
 
 
-BLAST = 1.0  # seconds into the demo
+BLAST = 1.5  # seconds into the demo: the burst is mid-flight at the 70% poster frame
 
 
 def draw(n, cv):
@@ -84,7 +84,8 @@ def draw(n, cv):
             r = 20 + 420 * vb.ease_out_quint(ring)
             cv.arc(demo.W / 2, demo.H / 2, r, 0, 2 * math.pi, demo.ACCENT, width=24 * (1 - ring) + 1,
                    alpha=1 - ring)
-    box = draw_type_explosion(cv, text, f, x, y, t, demo.INK, seed=3)
+    # A gentler blast than the defaults, so the letters stay big and in frame to the end of the clip.
+    box = draw_type_explosion(cv, text, f, x, y, t, demo.INK, seed=3, speed=3.5, drag=2.5, gravity=1.6, life=1.6)
     cv.mark('text', *box)
 
 
