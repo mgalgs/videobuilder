@@ -32,7 +32,7 @@ def impact(t, shove=40.0, squash=0.2, hz=4.0, damping=0.3):
     return dx, sx, 1 / sx
 
 
-HIT = 1.1                       # seconds: when the ball meets the block
+HIT = 2.1                       # seconds: when the ball meets the block; on frame 63, the 70% poster frame
 BALL_R, BLOCK_W, BLOCK_H = 46, 150, 230
 
 
@@ -49,17 +49,20 @@ def draw(n, cv):
     cv.mark('block', left, ground - h, w, h)
 
     if t < HIT:                  # rolling in at a steady clip...
-        bx = face - BALL_R - 900 * (HIT - t)
+        bx = face - BALL_R - 500 * (HIT - t)
     else:                        # ...then bounced straight back, slowing to a stop
-        u = vb.clamp01((t - HIT) / 1.2)
+        u = vb.clamp01((t - HIT) / 0.8)
         bx = face - BALL_R - 260 * (1 - (1 - u) ** 3)
     by = ground - BALL_R
     k = n - round(HIT * demo.FPS)
-    if 0 <= k < 4:               # a few frames of the ball itself flattened on contact
+    if 0 <= k < 4:               # a few frames of the ball itself flattened on contact, easing off the face
+        e = k / 4
+        sq = 0.8 + 0.2 * e
+        bx = (face - BALL_R * sq) * (1 - e) + bx * e
         cv.ctx.save()
-        cv.ctx.translate(face, by)
-        cv.ctx.scale(0.8, 1.15)
-        demo.dot(cv, -BALL_R, 0, BALL_R)
+        cv.ctx.translate(bx, by)
+        cv.ctx.scale(sq, 1 / sq)
+        demo.dot(cv, 0, 0, BALL_R)
         cv.ctx.restore()
     else:
         demo.dot(cv, bx, by, BALL_R)
