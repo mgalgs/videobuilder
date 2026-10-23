@@ -42,5 +42,5 @@ CAPABILITY = Capability(
                'like dealing a card on top of the last one, keep the first scene still'),
     related=('roll-up', 'corner-wipe', 'coverflow-carousel', 'zoom-out-reveal', 'zoom-through', 'tumble'),
     api=('videobuilder.capabilities.transitions.slide_over_cover.slide_over_cover',),
-    demo=lambda: demo.two_scenes(slide_over_cover),
+    demo=lambda: demo.two_scenes(slide_over_cover, start=1.35, length=1.4),
 )
