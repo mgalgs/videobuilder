@@ -99,9 +99,9 @@ def _cursor(cv, x, y, s=1.0):
 
 
 def draw(n, cv):
-    move = vb.ease_in_out_quart(demo.phase(n, 0.15, 0.75))
-    press = demo.phase(n, 0.75, 0.85) - demo.phase(n, 0.85, 0.95)
-    circular_reveal(cv, dark, light, demo.phase(n, 0.85, 2.15), center=BTN, r0=BTN_R)
+    move = vb.ease_in_out_quart(demo.phase(n, 0.7, 1.5))
+    press = demo.phase(n, 1.5, 1.6) - demo.phase(n, 1.6, 1.7)
+    circular_reveal(cv, dark, light, demo.phase(n, 1.6, 2.8), center=BTN, r0=BTN_R)
     x0, y0 = demo.W * 0.55, demo.H * 0.7
     _cursor(cv, x0 + (BTN[0] + 3 - x0) * move, y0 + (BTN[1] + 2 - y0) * move, 1 - 0.15 * press)
     cv.mark('toggle', BTN[0] - BTN_R, BTN[1] - BTN_R, 2 * BTN_R, 2 * BTN_R)
