@@ -63,7 +63,7 @@ def draw(n, cv):
     f = demo.font(200, 900)
     text = 'DITHER'
     w, h = vb.text.block_size([text], f)
-    p = vb.ease_in_out_quart(demo.phase(n, 0.3, 2.4))
+    p = demo.phase(n, 0.3, 2.85)
     box = draw_dither_text(cv, text, f, (demo.W - w) / 2, (demo.H - h) / 2, p, demo.INK, cell=10)
     cv.mark('text', *box)
 
