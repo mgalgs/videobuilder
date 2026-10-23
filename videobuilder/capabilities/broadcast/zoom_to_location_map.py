@@ -144,21 +144,22 @@ def _pin(cv, x, y, p):
 
 
 def _draw(n, cv):
-    flight = demo.phase(n, 0.25, 2.25)
+    flight = demo.phase(n, 0.2, 1.7)
     to_screen = zoom_to_location(cv, _map, flight, WIDE, CLOSE)
     names = 1 - vb.clamp01(flight * 2.2)  # the region's labels fade as the camera dives
     f = demo.font(20, 700)
+    label_fade = 1 - demo.phase(n, 1.45, 1.6)  # the small target label is gone before the pin lands
     for i, (name, mx, my) in enumerate(CITIES):
         x, y = to_screen(mx, my)
         target = i == 2
         demo.dot(cv, x, y, r=7, color=demo.ACCENT if target else demo.INK, alpha=1 if target else names)
-        if names > 0 or target:
+        if names > 0 or (target and label_fade > 0):
             label = demo.font(20, 800) if target else f
             vb.text.draw(cv, [name], label, x + 14, y - 30, demo.ACCENT if target else demo.MUTED,
-                         alpha=1 - demo.phase(n, 2.2, 2.45) if target else names)
+                         alpha=label_fade if target else names)
     x, y = to_screen(*TARGET)
-    _pin(cv, x, y, demo.phase(n, 2.1, 2.8))
-    title = demo.phase(n, 2.35, 2.75)
+    _pin(cv, x, y, demo.phase(n, 1.6, 2.3))
+    title = demo.phase(n, 1.8, 2.05)
     if title > 0:
         demo.word(cv, 'Port Aster', x, y + 52 - 10 * (1 - title), size=30, alpha=title)
 
