@@ -3,6 +3,8 @@ made-up in-between frames, so a move that stuttered from pose to pose plays
 back smooth at the output rate."""
 import math
 
+import cairo
+
 import videobuilder as vb
 
 from .. import _demo as demo
@@ -17,7 +19,9 @@ def frame_interpolation(cv, draw_at, t, source_fps, mode='motion'):
     - 'hold': no interpolation, each source frame held until the next (the
       choppy original, for a before/after);
     - 'blend': frame blending, the two neighbouring source frames
-      cross-faded by how far `t` sits between them (soft, ghosts on fast moves);
+      cross-faded by how far `t` sits between them, (1 - w) of the earlier
+      plus w of the later, so it holds whether `draw_at` paints an opaque
+      backdrop or a lone sprite on a shared one (soft, ghosts on fast moves);
     - 'motion': motion-compensated in-betweens, the scene evaluated where it
       would really be at `t` (what optical-flow retiming aims for).
 
@@ -29,9 +33,22 @@ def frame_interpolation(cv, draw_at, t, source_fps, mode='motion'):
     if mode == 'hold' or w < 1e-6:
         draw_at(cv, t0)
     elif mode == 'blend':
-        draw_at(cv, t0)
-        with cv.layer(opacity=w):
-            draw_at(cv, t1)
+        # Sum the two weighted frames in a group, then lay the sum over the
+        # canvas: a true (1 - w)·A + w·B mix, opaque scene or sprite alike.
+        c = cv.ctx
+        c.save()
+        c.push_group()
+        with cv.layer(opacity=1 - w):
+            draw_at(cv, t0)
+        c.push_group()
+        draw_at(cv, t1)
+        c.pop_group_to_source()
+        c.set_operator(cairo.OPERATOR_ADD)
+        c.paint_with_alpha(w)
+        c.set_operator(cairo.OPERATOR_OVER)
+        c.pop_group_to_source()
+        c.paint()
+        c.restore()
     elif mode == 'motion':
         draw_at(cv, t)
     else:
