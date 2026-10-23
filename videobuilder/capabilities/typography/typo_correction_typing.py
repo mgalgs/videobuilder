@@ -76,10 +76,12 @@ TEXT, TYPOS = 'MOTION DESIGN', {10: 'GI'}   # DESGI, then back to DES and on
 
 
 def draw(n, cv):
-    f = demo.font(110, 800)
+    # Timed so the red GI and the waiting caret are on screen from 1.34s to 2.32s, across the
+    # poster at 2.1s, and the fixed line still holds from 2.64s; at 88px it keeps ~110px each side.
+    f = demo.font(88, 800)
     w, h = vb.text.block_size([TEXT], f)
-    box = draw_typo_typing(cv, TEXT, TYPOS, f, (demo.W - w) / 2, (demo.H - h) / 2, n / demo.FPS - 0.3,
-                           demo.INK, wrong_color=demo.ACCENT, caret=demo.TEAL, per_char=0.1, pause=0.5, seed=3)
+    box = draw_typo_typing(cv, TEXT, TYPOS, f, (demo.W - w) / 2, (demo.H - h) / 2, n / demo.FPS - 0.5,
+                           demo.INK, wrong_color=demo.ACCENT, caret=demo.TEAL, per_char=0.08, pause=0.9, seed=3)
     cv.mark('text', *box)
 
 
