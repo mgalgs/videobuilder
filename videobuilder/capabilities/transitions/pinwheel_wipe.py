@@ -14,7 +14,9 @@ def pinwheel_wipe(cv, a, b, p, blades=6, cx=None, cy=None, start=-math.pi / 2, c
     centre), each opening from its own spoke -- the first at angle `start`,
     radians, 0 along +x -- and sweeping `2 pi / blades` round by `p` = 1.
     `clockwise=False` turns them the other way. `edge`, a colour, strokes
-    each blade's moving edge so the sweep reads on busy pictures.
+    each blade's moving edge so the sweep reads on busy pictures; it fades
+    out over the last eighth of the wipe so it never sits on the finished
+    frame and pops off.
 
     In a film, call it while two shots are live in an overlap, e.g.
     `pinwheel_wipe(cv, lambda c: scene_a(c, old), lambda c: scene_b(c, new), new.f / overlap_frames)`."""
@@ -46,10 +48,12 @@ def pinwheel_wipe(cv, a, b, p, blades=6, cx=None, cy=None, start=-math.pi / 2, c
     c.clip()
     b(cv)
     c.restore()
-    if edge is not None:
+    fade = min(1.0, (1 - p) * 8)
+    if edge is not None and fade > 0:
         for s in spokes:
             t = s + sweep
-            cv.line(cx, cy, cx + r * math.cos(t), cy + r * math.sin(t), edge, width=edge_width)
+            cv.line(cx, cy, cx + r * math.cos(t), cy + r * math.sin(t), edge,
+                    width=edge_width, alpha=fade)
 
 
 CAPABILITY = Capability(
@@ -65,6 +69,8 @@ CAPABILITY = Capability(
                'reveal the next shot with rotating pie slices from the middle'),
     related=('paint-brush-wipe', 'coin-flip', 'spin', 'ribbon-sweep', 'flip', 'fill-sweep-button'),
     api=('videobuilder.capabilities.transitions.pinwheel_wipe.pinwheel_wipe',),
+    # a gentle smoothstep over 1.0-2.8 s puts the 70% poster frame (2.1 s) at
+    # about two-thirds through the sweep, with A and B in alternating blades
     demo=lambda: demo.two_scenes(lambda cv, a, b, p: pinwheel_wipe(
-        cv, a, b, demo.vb.ease_in_out_quart(p), edge=demo.ACCENT)),
+        cv, a, b, p * p * (3 - 2 * p), edge=demo.ACCENT), start=1.0, length=1.8),
 )
