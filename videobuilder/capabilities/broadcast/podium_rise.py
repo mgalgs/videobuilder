@@ -62,7 +62,7 @@ def podium_rise(cv, names, p, x, baseline, width, height, colors=(GOLD, SILVER, 
 
 def draw(n, cv):
     width = 600
-    podium_rise(cv, ['Ada', 'Ben', 'Cleo'], demo.phase(n, 0.3, 2.5),
+    podium_rise(cv, ['Ada', 'Ben', 'Cleo'], demo.phase(n, 0.2, 1.8),
                 (demo.W - width) / 2, demo.H - 90, width, 300, gap=20)
 
 
