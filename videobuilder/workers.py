@@ -18,6 +18,9 @@ from . import pins
 MINIMUM = '0.1.2'
 TIMEOUT = 60
 IDLE = 300
+# Passed through from the editor's own environment (and bind-mounted read-only
+# into the sandbox) so a film's sound pack and voice models work in a worker too.
+ASSET_DIRS = ('VIDEOBUILDER_SFX_DIR', 'VIDEOBUILDER_KOKORO_DIR')
 
 
 def pin_for(film, root):
@@ -102,6 +105,9 @@ def child_environment(home, source=None):
     env = {'PATH': os.defpath, 'HOME': str(home), 'LANG': 'C.UTF-8', 'LC_ALL': 'C.UTF-8'}
     if source:
         env['PYTHONPATH'] = str(source)
+    for name in ASSET_DIRS:
+        if os.environ.get(name):
+            env[name] = os.environ[name]
     return env
 
 
@@ -120,6 +126,10 @@ def sandbox_command(python, checkout, home, unsandboxed=False, source=None, comm
         # system interpreter, so resolving it would mount /usr and leave the env out.
         env = Path(python).absolute().parent.parent
         for path in dict.fromkeys([sys.prefix, str(env), str(checkout), str(source or '')]):
+            if path and os.path.exists(path):
+                base += ['--ro-bind', path, path]
+        for name in ASSET_DIRS:
+            path = os.environ.get(name)
             if path and os.path.exists(path):
                 base += ['--ro-bind', path, path]
         base += ['--bind', str(home), str(home), '--dev', '/dev']

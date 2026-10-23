@@ -641,7 +641,8 @@ class DraftLoop(TempProject):
             self.assertIsNone(info['error'])
             png = self.editor.drafts.preview('promo/film', 'frame', dict(frame=0, scale=0.1))
         self.assertEqual(png[:8], b'\x89PNG\r\n\x1a\n')
-        self.assertEqual(set(child_environment('/tmp/home')), {'PATH', 'HOME', 'LANG', 'LC_ALL'})
+        self.assertEqual(set(child_environment('/tmp/home')),
+                         {'PATH', 'HOME', 'LANG', 'LC_ALL', 'VIDEOBUILDER_SFX_DIR'})
 
     def test_preview_without_bwrap_refused_unless_opted_in(self):
         self.draft()

@@ -7,13 +7,14 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import textwrap
 import threading
 import unittest
 from unittest import mock
 
 from videobuilder.editor import Editor
 from videobuilder.preview import Session
-from videobuilder.workers import Environments, Worker, pin_for, sandbox_command
+from videobuilder.workers import Environments, Worker, child_environment, pin_for, sandbox_command
 
 from tests.test_project import FILM
 
@@ -65,6 +66,37 @@ class SandboxedWorker(unittest.TestCase):
             png = editor.session('a/film').request('frame', frame=30, format=None, scale=0.25, overlay=False)
             self.assertTrue(png.startswith(b'\x89PNG'))
 
+    def test_film_using_the_sound_pack_loads_in_a_sandboxed_worker(self):
+        sfx_dir = str(Path(__file__).resolve().parent / 'fixtures' / 'sfx-pack')
+        film_src = textwrap.dedent('''
+            import videobuilder as vb
+            CLICK = vb.sfx.sound('fit/click/floss_lid', at=0)
+            def draw(n, cv):
+                cv.rect(0, 0, cv.width, cv.height, '#000000')
+            FILM = vb.Film(draw=draw, frames=4, fps=30, sounds=(CLICK,))
+        ''')
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            film = root / 'film.py'
+            film.write_text(film_src)
+
+            with mock.patch.dict(os.environ, {'VIDEOBUILDER_SFX_DIR': sfx_dir}):
+                worker = Worker(sys.executable, root, film, source=SOURCE.parent)
+            try:
+                self.assertIsNone(worker.request('check')['error'])
+                png = worker.request('frame', frame=0, format=None, scale=0.25, overlay=False)
+                self.assertTrue(png.startswith(b'\x89PNG'))
+            finally:
+                worker.close()
+
+            with mock.patch.dict(os.environ, clear=False):
+                os.environ.pop('VIDEOBUILDER_SFX_DIR', None)
+                worker = Worker(sys.executable, root, film, source=SOURCE.parent)
+            try:
+                self.assertIn('sound-effects pack is not installed', worker.request('check')['error'])
+            finally:
+                worker.close()
+
 
 class SandboxProbe(unittest.TestCase):
     def probe(self, refuse):
@@ -88,6 +120,38 @@ class SandboxProbe(unittest.TestCase):
     def test_refusal_names_the_reason(self):
         with self.assertRaisesRegex(ValueError, 'No permissions to create a new namespace'):
             self.probe(lambda argv: 'bwrap: No permissions to create a new namespace')
+
+    def test_asset_dirs_mounted_when_set(self):
+        with tempfile.TemporaryDirectory() as sfx, tempfile.TemporaryDirectory() as kokoro, \
+                mock.patch.dict(os.environ, {'VIDEOBUILDER_SFX_DIR': sfx, 'VIDEOBUILDER_KOKORO_DIR': kokoro}):
+            command = self.probe(lambda argv: '')
+        for directory in (sfx, kokoro):
+            self.assertEqual(command[command.index(directory) - 1], '--ro-bind')
+
+    def test_asset_dirs_absent_when_unset(self):
+        sfx = os.environ['VIDEOBUILDER_SFX_DIR']  # set by tests/__init__.py for every test
+        with mock.patch.dict(os.environ, clear=False):
+            os.environ.pop('VIDEOBUILDER_SFX_DIR', None)
+            os.environ.pop('VIDEOBUILDER_KOKORO_DIR', None)
+            command = self.probe(lambda argv: '')
+        self.assertNotIn(sfx, command)
+
+
+class ChildEnvironment(unittest.TestCase):
+    def test_asset_dirs_pass_through_when_set(self):
+        with tempfile.TemporaryDirectory() as sfx, tempfile.TemporaryDirectory() as kokoro, \
+                mock.patch.dict(os.environ, {'VIDEOBUILDER_SFX_DIR': sfx, 'VIDEOBUILDER_KOKORO_DIR': kokoro}):
+            env = child_environment('/tmp/home')
+        self.assertEqual(env['VIDEOBUILDER_SFX_DIR'], sfx)
+        self.assertEqual(env['VIDEOBUILDER_KOKORO_DIR'], kokoro)
+
+    def test_asset_dirs_omitted_when_unset(self):
+        with mock.patch.dict(os.environ, clear=False):
+            os.environ.pop('VIDEOBUILDER_SFX_DIR', None)
+            os.environ.pop('VIDEOBUILDER_KOKORO_DIR', None)
+            env = child_environment('/tmp/home')
+        self.assertNotIn('VIDEOBUILDER_SFX_DIR', env)
+        self.assertNotIn('VIDEOBUILDER_KOKORO_DIR', env)
 
 
 class PinnedWorkers(unittest.TestCase):
