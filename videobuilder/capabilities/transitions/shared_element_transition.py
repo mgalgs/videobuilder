@@ -73,7 +73,7 @@ def _demo():
     def transition(cv, a, b, p):
         shared_element_transition(cv, _grid, _detail, p, _photo, SLOT, HEADER, radius=(14, 0))
 
-    return demo.two_scenes(transition, start=0.8, length=1.2, a=scene_a, b=scene_b)
+    return demo.two_scenes(transition, start=1.3, length=1.3, a=scene_a, b=scene_b)
 
 
 CAPABILITY = Capability(
