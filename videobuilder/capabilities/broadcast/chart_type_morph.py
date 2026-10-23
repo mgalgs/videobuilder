@@ -74,15 +74,18 @@ def bar_to_pie(values, p, plot, center, radius, gap=0.35, stagger=0.4, ease=vb.e
 
 def draw_bar_to_pie(cv, values, p, plot, center, radius, colors=COLORS, labels=True, font=None, **kw):
     """Draw `bar_to_pie` marks filled in `colors` (cycled), each labelled
-    with its value unless `labels` is false. `kw` goes to `bar_to_pie`.
-    Returns the marks."""
+    with its value unless `labels` is false. A label fades out as its mark
+    starts to move and back in as it settles, so moving labels never pile up.
+    `kw` goes to `bar_to_pie`. Returns the marks."""
     marks = bar_to_pie(values, p, plot, center, radius, **kw)
     for i, (shape, _, _) in enumerate(marks):
         looks.fill(cv, shape, colors[i % len(colors)], outline=demo.BG, width=3)
     if labels:
         f = font or demo.mono(22, 700)
-        for v, (_, (x, y), _) in zip(values, marks):
-            demo.word(cv, str(v), x, y, font=f, color=demo.INK)
+        for v, (_, (x, y), q) in zip(values, marks):
+            alpha = vb.clamp01(max(1 - q / 0.02, (q - 0.8) / 0.2))
+            if alpha > 0:
+                demo.word(cv, str(v), x, y, font=f, color=demo.INK, alpha=alpha)
     return marks
 
 
@@ -90,16 +93,23 @@ VALUES = (42, 68, 30, 55, 24)
 PLOT = vb.Box(demo.W / 2 - 300, 140, 600, 300)
 
 
+STAGGER = 0.6
+
+
 def draw(n, cv):
-    p = demo.phase(n, 0.7, 2.3)
-    axis = 1 - vb.clamp01(p * 3)
+    # Late and well staggered, so the poster (70% in) catches bars and wedges together.
+    p = demo.phase(n, 1.0, 2.6)
+    qs = [m[2] for m in bar_to_pie(VALUES, p, PLOT, (demo.W / 2, demo.H / 2), 200, stagger=STAGGER)]
+    axis = 1 - vb.clamp01(qs[-1] * 4)
     if axis > 0:
-        demo.floor(cv, PLOT.bottom, demo.LINE)
-        f = demo.font(20, 700)
-        for i, name in enumerate('ABCDE'):
+        with cv.layer(opacity=axis):
+            demo.floor(cv, PLOT.bottom, demo.LINE)
+    f = demo.font(20, 700)
+    for i, (name, q) in enumerate(zip('ABCDE', qs)):
+        if q < 0.25:
             demo.word(cv, name, PLOT.x + PLOT.w / 5 * (i + 0.5), PLOT.bottom + 24, font=f,
-                      color=demo.MUTED, alpha=axis)
-    draw_bar_to_pie(cv, VALUES, p, PLOT, (demo.W / 2, demo.H / 2), 200)
+                      color=demo.MUTED, alpha=1 - q * 4)
+    draw_bar_to_pie(cv, VALUES, p, PLOT, (demo.W / 2, demo.H / 2), 200, stagger=STAGGER)
     cv.mark('chart', demo.W / 2 - 300, 60, 600, 420)
 
 
