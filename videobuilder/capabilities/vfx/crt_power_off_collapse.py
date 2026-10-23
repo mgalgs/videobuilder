@@ -74,7 +74,7 @@ def _halo(cv, x, y, w, h, color, glow, alpha):
 
 
 def draw(n, cv):
-    p = demo.phase(n, 0.6, 2.5)
+    p = demo.phase(n, 1.0, 2.95)
     crt_power_off(cv, demo.scene_a, p, backdrop=demo.BG)
     if p <= 0:
         cv.mark('screen', 0, 0, demo.W, demo.H)
