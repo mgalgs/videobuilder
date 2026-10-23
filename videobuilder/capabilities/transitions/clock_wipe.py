@@ -59,5 +59,5 @@ CAPABILITY = Capability(
                'turn a line around the centre to uncover the new scene'),
     related=('wipe-reveal', 'spin', 'area-fill-sweep', 'fill-sweep-button', 'circular-clip-reveal', 'coin-flip'),
     api=('videobuilder.capabilities.transitions.clock_wipe.clock_wipe',),
-    demo=lambda: demo.two_scenes(clock_wipe),
+    demo=lambda: demo.two_scenes(clock_wipe, length=2.0),  # the poster (at 2.1s) lands about three-quarters round
 )
