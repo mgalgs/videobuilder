@@ -36,7 +36,8 @@ def screen_blend(cv, draw, amount=1.0):
 # ---- demo ----
 
 PANEL = (220, 150, demo.W - 440, demo.H - 300)   # where the overlay layer sits
-ORBS = ((0.24, 0.42, 150, '#ff7a3d'), (0.52, 0.58, 170, '#3dd6ff'), (0.78, 0.36, 140, '#ffd23d'))
+ORBS = ((0.24, 0.42, 120, '#ff7a3d'), (0.52, 0.52, 135, '#3dd6ff'), (0.78, 0.38, 115, '#ffd23d'))
+FEATHER = 70                                       # px over which the glows fade to black at the panel's edges
 
 
 def _glow(c, cx, cy, r, color):
@@ -50,16 +51,39 @@ def _glow(c, cx, cy, r, color):
     c.fill()
 
 
+def _feather(x0, y0, x1, y1):
+    """A mask gradient along (x0, y0) -> (x1, y1) that is clear at both ends and
+    solid across the middle, eased so the fade has no visible start."""
+    g = cairo.LinearGradient(x0, y0, x1, y1)
+    f = FEATHER / math.hypot(x1 - x0, y1 - y0)
+    for k in range(9):
+        u = k / 8
+        a = u * u * (3 - 2 * u)
+        g.add_color_stop_rgba(f * u, 0, 0, 0, a)
+        g.add_color_stop_rgba(1 - f * u, 0, 0, 0, a)
+    return g
+
+
 def _light_layer(cv, t):
-    """The layer being blended: coloured light orbs and a word on solid black."""
+    """The layer being blended: coloured light orbs and a word on solid black.
+    The glows are feathered to black well inside the panel's edges, so once
+    screened nothing of the panel's outline is left."""
     x, y, w, h = PANEL
     cv.rect(x, y, w, h, '#000000')
     c = cv.ctx
     with cv.clip(x, y, w, h):
+        c.push_group()
         for i, (fx, fy, r, color) in enumerate(ORBS):
             dx = 40 * math.sin(t * 1.3 + i * 2.1)
             dy = 25 * math.cos(t * 1.1 + i * 1.7)
             _glow(c, x + w * fx + dx, y + h * fy + dy, r, color)
+        glows = c.pop_group()
+        c.push_group()                         # fade the sides ...
+        c.set_source(glows)
+        c.mask(_feather(x, 0, x + w, 0))
+        sides = c.pop_group()
+        c.set_source(sides)                    # ... then the top and bottom
+        c.mask(_feather(0, y, 0, y + h))
         demo.word(cv, 'LIGHT', x + w / 2, y + h * 0.82, size=88, color='#cfcfcf')
 
 
