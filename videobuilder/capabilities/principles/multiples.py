@@ -30,7 +30,7 @@ LEFT, RIGHT, Y = demo.W * 0.16, demo.W * 0.84, demo.H / 2
 def _x(s):
     """The ball's x at `s` seconds: a hold, a zip right, a hold, a zip back."""
     go = vb.ease_in_out_quart(demo.phase(s * demo.FPS, 0.6, 0.9))
-    back = vb.ease_in_out_quart(demo.phase(s * demo.FPS, 1.8, 2.1))
+    back = vb.ease_in_out_quart(demo.phase(s * demo.FPS, 1.875, 2.175))
     return LEFT + (RIGHT - LEFT) * (go - back)
 
 
