@@ -129,5 +129,5 @@ CAPABILITY = Capability(
          'videobuilder.capabilities.transitions.liquid_morph.metaballs',
          'videobuilder.capabilities.transitions.liquid_morph.goo_field',
          'videobuilder.capabilities.transitions.liquid_morph.goo_mask'),
-    demo=lambda: demo.two_scenes(liquid_morph, start=0.6, length=1.8),
+    demo=lambda: demo.two_scenes(liquid_morph, seconds=4, start=1.7, length=1.8),
 )
