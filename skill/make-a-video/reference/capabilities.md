@@ -595,7 +595,7 @@ Old ids, now part of these: `comic-halftone` is the **Pop-art filter**; `pixel-a
 - `ft = vb.footage(TIMELINE, 'segment', start=seconds)  # picture and sound in sync`
 - `clip.frame(clip.frame_at(ft.seconds_at(n)))`
 - `ft.sound(path) -> Film(sounds=(...))`
-- `vb.Audio(music, duck_db=-12)  # the music ducks while a sound plays`
+- `vb.Audio(music, duck_db=-8)  # the music ducks while a sound plays; -8 for music under a voice-over, ramps and short-gap bridging are automatic`
 - Read `skill/make-a-video/reference/footage.md`.
 
 **Worked example:** `examples/capabilities/footage-with-sound.py` — read it before writing something similar from scratch.

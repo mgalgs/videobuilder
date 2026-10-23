@@ -112,6 +112,13 @@ file beside its source (`sources/boat.vtt` beside `sources/boat.mp4`), or the
 whole of a clip's sound when it is marked `dialogue`. `mute: true` leaves a
 lane out of the mix, items and all, without removing it.
 
+`-8` is a good starting point for `duck_db` on a music lane under a
+voice-over. The drop ramps in over the 0.2s before a span starts and back
+out over the 0.6s after it ends (or that sound's own `fade_in_frames`/
+`fade_out_frames`, when longer), and spans less than 1.5s apart stay ducked
+across the gap rather than popping back up and down between them — this is
+automatic, so don't hand-roll fades or gaps of your own on top of it.
+
 **Sound effects** from the pack (`vb.sfx`, see `sfx.md`) go on a lane too:
 an item with `sfx`, a sound's id, in place of `sound`:
 

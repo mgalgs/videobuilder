@@ -176,15 +176,16 @@ def duck_envelope_expr(sounds, fps, offset):
     merged = []
     for t0, t1, attack, release in spans:
         if merged and t0 - merged[-1][1] < DUCK_BRIDGE_SECONDS:
-            pt0, pt1, pattack, _ = merged[-1]
-            if t1 > pt1:
-                merged[-1] = (pt0, t1, pattack, release)
+            pt0, pt1, pattack, ft1, frelease = merged[-1]
+            if t1 + release > ft1 + frelease:
+                ft1, frelease = t1, release
+            merged[-1] = (pt0, max(pt1, t1), pattack, ft1, frelease)
         else:
-            merged.append((t0, t1, attack, release))
+            merged.append((t0, t1, attack, t1, release))
     terms = []
-    for t0, t1, attack, release in merged:
+    for t0, _, attack, ft1, frelease in merged:
         rise = f'clip((t-{t0 - attack:.6f})/{attack:.6f},0,1)'
-        fall = f'clip(({t1 + release:.6f}-t)/{release:.6f},0,1)'
+        fall = f'clip(({ft1 + frelease:.6f}-t)/{frelease:.6f},0,1)'
         terms.append(f'min({rise},{fall})')
     expr = terms[0]
     for t in terms[1:]:

@@ -418,6 +418,23 @@ class DuckEnvelopeExpr(unittest.TestCase):
         self.assertAlmostEqual(eval_envelope(expr, 3.5), 0.5)              # mid the 3s release
         self.assertEqual(eval_envelope(expr, 5.1), 0)                     # past it
 
+    def test_a_merged_spans_release_keeps_the_longer_members_fade(self):
+        # A: 0-5s with a 3s own fade_out. B: 4-5.5s, default release (0.6s), close
+        # enough to A to merge. The merged span's fall must still end at A's
+        # 3s-later point (8s), not snap to B's shorter release once merged.
+        a = Sound('x', at=0, start=0.0, frames=150, fade_out_frames=90)
+        b = Sound('x', at=120, start=0.0, frames=45)
+        expr = duck_envelope_expr([a, b], self.fps, 0)
+        self.assertAlmostEqual(eval_envelope(expr, 6.5), 0.5)
+
+    def test_a_merged_spans_release_keeps_a_contained_members_longer_fade(self):
+        # C: 0-5s, default release. D: 1-4s (inside C), with a 3s own fade_out
+        # that would carry the envelope past C's own release point.
+        c = Sound('x', at=0, start=0.0, frames=150)
+        d = Sound('x', at=30, start=0.0, frames=90, fade_out_frames=90)
+        expr = duck_envelope_expr([c, d], self.fps, 0)
+        self.assertAlmostEqual(eval_envelope(expr, 5.5), 0.5)
+
 
 @unittest.skipUnless(shutil.which('ffmpeg') and shutil.which('ffprobe'), 'needs ffmpeg')
 class Ducking(unittest.TestCase):
