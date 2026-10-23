@@ -45,29 +45,38 @@ def squash_stretch(cv, ax, ay, amount, angle=math.pi / 2, limit=0.6):
 
 # The demo: a ball dropped onto a floor, bouncing three times. In the air it
 # stretches in proportion to its speed; on each landing it stays on the floor
-# for a few frames and flattens, harder the faster it came in.
-R, DROP, G, RESTITUTION, START = 34, 320.0, 1750.0, 0.55, 0.35
+# for several frames and flattens, harder the faster it came in, holding near
+# its flattest for most of the contact. The drop is timed so the second
+# landing is at its flattest on the gallery's poster frame (70% through).
+R, DROP, G, RESTITUTION = 34, 320.0, 1750.0, 0.55
 STRETCH, SQUASH = 0.32, 0.5     # most stretch in flight, most squash on the hardest landing
+POSTER = int(round(demo.SECONDS * demo.FPS) * 0.7) / demo.FPS   # the poster frame, picked as the gallery picks it
 
 
-def _bounces():
+def _bounces(start=0.0):
     """(start, kind, length, v) phases: 'fall' from rest, 'contact' at impact
-    speed `v`, 'hop' launched at `v`."""
-    v = math.sqrt(2 * G * DROP)
-    t, out = START, [(START, 'fall', v / G, v)]
+    speed `v`, 'hop' launched at `v`. The last landing settles into 'rest'
+    rather than launching a hop too small to read."""
+    v0 = v = math.sqrt(2 * G * DROP)
+    t, out = start, [(start, 'fall', v / G, v)]
     t += v / G
-    while v > 130:
-        contact = 0.05 + 0.08 * v / math.sqrt(2 * G * DROP)
+    while True:
+        contact = 0.08 + 0.12 * v / v0
         out.append((t, 'contact', contact, v))
         t += contact
         v *= RESTITUTION
+        if v <= 130:
+            break
         out.append((t, 'hop', 2 * v / G, v))
         t += 2 * v / G
     out.append((t, 'rest', 99.0, 0.0))
     return out
 
 
-PHASES = _bounces()
+_second = [p for p in _bounces() if p[1] == 'contact'][1]
+START = POSTER - (_second[0] + _second[2] / 2)
+
+PHASES = _bounces(START)
 V0 = PHASES[0][3]
 
 
@@ -83,7 +92,7 @@ def ball(t):
             if kind == 'hop':
                 return v * s - G * s * s / 2, STRETCH * abs(v - G * s) / V0
             if kind == 'contact':
-                return 0.0, -SQUASH * (v / V0) * math.sin(math.pi * s / length)
+                return 0.0, -SQUASH * (v / V0) * math.sin(math.pi * s / length) ** 0.5
     return 0.0, 0.0
 
 
