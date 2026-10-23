@@ -101,7 +101,7 @@ def draw(n, cv):
     text = 'MOTION'
     w, h = vb.text.block_size([text], f)
     # Clean, smear out into streaks, hold, then sort back into the letters.
-    amount = vb.ease_out_quint(demo.phase(n, 0.3, 0.9)) * (1 - vb.ease_in_out_quart(demo.phase(n, 1.3, 2.4)))
+    amount = vb.ease_out_quint(demo.phase(n, 0.3, 0.9)) * (1 - vb.ease_in_out_quart(demo.phase(n, 2.2, 2.8)))
     box = draw_pixel_sort_text(cv, text, f, (demo.W - w) / 2, (demo.H - h) / 2, amount, demo.INK, seed=3)
     cv.mark('text', *box)
 
@@ -115,7 +115,7 @@ CAPABILITY = Capability(
     definition='Strips of a word have their pixels reordered from bright to dark, dragging the letters '
                'into hard horizontal streaks that then pull back into clean type.',
     phrasings=('the title smears sideways into glitchy streaks and then snaps back',
-               'a datamosh-style pixel sort on the headline',
+               'a glitchy pixel sort on the headline',
                'letters melt into horizontal light streaks before settling'),
     related=('pixel-sorting', 'pixelation-reveal', 'dot-matrix-text', 'letter-sort-animation',
              'ascii-art-render', 'pixel-build'),
