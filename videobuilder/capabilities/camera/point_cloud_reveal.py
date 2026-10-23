@@ -103,9 +103,11 @@ def draw_point_cloud_reveal(cv, cx, cy, size, p, surface=None, steps=(96, 40), s
 
 
 def draw(n, cv):
-    t = n / demo.FPS
-    p = vb.ease_in_out_quart(demo.phase(n, 0.4, 2.6))
-    box = draw_point_cloud_reveal(cv, demo.W / 2, demo.H / 2 - 30, 180, p, spin=0.6 + 0.35 * t, tilt=0.6)
+    # the sweep spans nearly the whole clip, so the 70% poster (2.1s) lands mid-scan, p ~0.56
+    p = demo.phase(n, 0.4, 2.9) ** 1.5
+    # a torus is symmetric about its axis, so a spin would not show: lean it toward the camera instead
+    tilt = 0.525 - 0.225 * math.cos(math.pi * demo.phase(n, 0.0, 3.0))   # 0.3 -> 0.75, eased
+    box = draw_point_cloud_reveal(cv, demo.W / 2, demo.H / 2 - 30, 180, p, tilt=tilt)
     cv.mark('form', *box)
 
 
