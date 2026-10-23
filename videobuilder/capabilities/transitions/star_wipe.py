@@ -21,13 +21,14 @@ def star_points(cx, cy, r, points=5, inner=0.45, turn=0.0):
     return out
 
 
-def star_wipe(cv, a, b, p, cx=None, cy=None, points=5, inner=0.45, spin=0.35, ease=vb.bezier(0.45, 0, 0.6, 1),
+def star_wipe(cv, a, b, p, cx=None, cy=None, points=5, inner=0.45, spin=0.35, ease=vb.linear,
               edge=None, edge_width=6):
     """Draw the wipe at progress `p` (0 -> 1): `a(cv)` full frame, with `b(cv)`
     inside a star centred at (cx, cy) (default the frame centre) that grows
     from nothing until even its notches clear every corner, turning `spin`
-    radians on the way. `edge`, if given, strokes the star's outline in that
-    colour, `edge_width` px wide.
+    radians on the way. `ease` shapes `p`; the radius goes as its square, so
+    the star stays whole on screen for most of the wipe. `edge`, if given,
+    strokes the star's outline in that colour, `edge_width` px wide.
 
     In a film, call it while two shots are live in an overlap, e.g.
     `star_wipe(cv, lambda c: scene_a(c, old), lambda c: scene_b(c, new), new.f / overlap_frames)`."""
@@ -37,7 +38,9 @@ def star_wipe(cv, a, b, p, cx=None, cy=None, points=5, inner=0.45, spin=0.35, ea
     # The notches are the star's nearest edge, so they set the size that covers the frame.
     reach = max(math.hypot(x - cx, y - cy) for x, y in ((0, 0), (w, 0), (0, h), (w, h)))
     e = ease(vb.clamp01(p))
-    pts = star_points(cx, cy, e * reach / inner * 1.05, points, inner, spin * e)
+    # The radius goes as e**2: slow while the star is small and whole on screen, fast
+    # once it is past the frame edges, so it reads as a star for most of the wipe.
+    pts = star_points(cx, cy, e * e * reach / inner * 1.05, points, inner, spin * e)
     a(cv)
     c = cv.ctx
     c.save()
@@ -75,5 +78,6 @@ CAPABILITY = Capability(
              'uncover'),
     api=('videobuilder.capabilities.transitions.star_wipe.star_wipe',
          'videobuilder.capabilities.transitions.star_wipe.star_points'),
-    demo=lambda: demo.two_scenes(lambda cv, a, b, p: star_wipe(cv, a, b, p, edge=demo.ACCENT)),
+    demo=lambda: demo.two_scenes(lambda cv, a, b, p: star_wipe(cv, a, b, p, edge=demo.ACCENT),
+                                start=1.35, length=1.5),  # mid-wipe at the 70% poster
 )
