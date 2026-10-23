@@ -60,5 +60,5 @@ CAPABILITY = Capability(
     related=('cross-dissolve', 'infinite-zoom-tunnel', 'image-crossfade-slideshow', 'canvas-pan-and-zoom',
              'scale-zoom-through', 'zoom-through-shape'),
     api=('videobuilder.capabilities.transitions.cross_zoom.cross_zoom',),
-    demo=lambda: demo.two_scenes(cross_zoom, start=0.9, length=1.0),
+    demo=lambda: demo.two_scenes(cross_zoom, start=1.4, length=1.0),
 )
