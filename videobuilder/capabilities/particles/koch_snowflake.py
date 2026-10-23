@@ -42,14 +42,17 @@ def koch_snowflake(cx, cy, r, level, rotation=0.0):
 
 
 LEVELS = 4
-START, STEP = 0.4, 0.5  # level k grows in during [START + (k-1)*STEP, START + k*STEP - 0.05]
+START, STEP = 0.3, 0.42  # level k grows in during [START + (k-1)*STEP, START + k*STEP - 0.05]: level 4 is
+                         # whole by ~1.9 s, before the gallery's poster frame (2.1 s), and holds to the end
 
 
 def draw(n, cv):
     level = sum(vb.ease_in_out_quart(demo.phase(n, START + k * STEP, START + (k + 1) * STEP - 0.05))
                 for k in range(LEVELS))
-    r = demo.H * 0.36
-    cx, cy = demo.W / 2, demo.H / 2 + r * 0.08
+    # the outline reaches r from the centre (the bottom spike from level 1 on), so with the centre
+    # lifted the shape spans y ~77..423 and stays well clear of the caption near the bottom
+    r = demo.H * 0.32
+    cx, cy = demo.W / 2, demo.H / 2 - 20
     pts = koch_snowflake(cx, cy, r, level)
     vb.paths.draw(cv, pts, demo.ACCENT, fill=True, alpha=0.12)
     vb.paths.draw(cv, pts, demo.ACCENT, width=3, closed=True)
