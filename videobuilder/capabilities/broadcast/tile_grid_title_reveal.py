@@ -108,8 +108,10 @@ def title_card(cv):
 
 
 def draw(n, cv):
-    box = tile_grid_reveal(cv, title_card, demo.phase(n, 0.25, 2.35), cols=8, rows=5, style='flip',
-                           order='random', seed=3, stagger=0.75, seams=demo.LINE)
+    # The build runs almost the whole clip, so the gallery's poster (70% in) catches it part-assembled,
+    # with a short hold on the finished card at the end.
+    box = tile_grid_reveal(cv, title_card, demo.phase(n, 0.2, 2.75), cols=8, rows=5, style='flip',
+                           order='random', seed=3, stagger=0.85, ease=vb.ease_in_out_quart, seams=demo.LINE)
     cv.mark('title', *box)
 
 
