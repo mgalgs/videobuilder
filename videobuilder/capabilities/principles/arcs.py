@@ -47,7 +47,10 @@ def _there_and_back(n):
 
 
 def draw(n, cv):
-    x0, y0, x1, y1 = 300, demo.H / 2 + 200, demo.W - 300, demo.H / 2 + 200
+    # Wide across the frame, the baseline low enough that the arc's peak and
+    # the dot below the baseline sit evenly about the middle.
+    y = demo.H / 2 + 105
+    x0, y0, x1, y1 = 140, y, demo.W - 140, y
     bend = 0.32
     # The straight line it doesn't take, faint and dotted, for contrast.
     steps = 40
