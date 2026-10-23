@@ -7,8 +7,6 @@ from functools import lru_cache
 
 from PIL import Image as PILImage
 
-import videobuilder as vb
-
 from ...canvas import _a8
 from .. import _demo as demo
 from ..schema import Capability
@@ -80,7 +78,8 @@ def gradient_wipe(cv, a, b, p, softness=0.2, map=None):
 
 
 def _demo_wipe(cv, a, b, p):
-    gradient_wipe(cv, a, b, vb.ease_in_out_quart(p))
+    # a gentle sine ease keeps the soft front on screen for most of the wipe
+    gradient_wipe(cv, a, b, 0.5 - 0.5 * math.cos(math.pi * p))
 
 
 CAPABILITY = Capability(
@@ -100,5 +99,5 @@ CAPABILITY = Capability(
          'videobuilder.capabilities.transitions.gradient_wipe.wave_map',
          'videobuilder.capabilities.transitions.gradient_wipe.linear_map',
          'videobuilder.capabilities.transitions.gradient_wipe.radial_map'),
-    demo=lambda: demo.two_scenes(_demo_wipe, start=0.6, length=1.8),
+    demo=lambda: demo.two_scenes(_demo_wipe, start=1.3, length=1.6),
 )
