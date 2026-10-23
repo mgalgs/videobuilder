@@ -48,9 +48,10 @@ def _picture(cv):
 
 def _draw(n, cv):
     # A copy slides in from the right and lands on the original (everything
-    # cancels to black), then drifts a few pixels so only the edges glow.
-    slide = vb.ease_out_quint(demo.phase(n, 0.3, 1.6))
-    drift = demo.phase(n, 2.0, 2.6)
+    # cancels to black), holds there a beat, then drifts a few pixels so only
+    # the edges glow, and holds that outline to the end.
+    slide = vb.ease_out_quint(demo.phase(n, 0.2, 1.1))
+    drift = demo.phase(n, 1.4, 1.9)
     dx = (1 - slide) * (PANEL[2] + 60) + 12 * vb.ease_in_out_quart(drift)
     dy = -8 * vb.ease_in_out_quart(drift)
     difference_blend(cv, _picture, _picture, dx=dx, dy=dy)
