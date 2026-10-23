@@ -57,7 +57,7 @@ def draw(n, cv):
     x, y = (demo.W - w) / 2, (demo.H - h) / 2
     _button(cv, x, y, w, h, r)
     demo.word(cv, 'Continue', demo.W / 2, demo.H / 2, size=58, color=demo.BG)
-    p = demo.phase(n, 0.6, 2.1)
+    p = demo.phase(n, 1.3, 2.9)  # centred on the button at the poster frame (2.1 s)
     sheen(cv, x, y, w, h, p * p * (3 - 2 * p), radius=r, strength=0.65)
     cv.mark('button', x, y, w, h)
 
