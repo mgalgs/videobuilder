@@ -41,8 +41,15 @@ LINES = ('A quiet room at dawn.', 'The kettle starts to sing.', 'Somewhere, a do
 
 
 def draw(n, cv):
-    f = demo.font(72, 700)
+    # Step the size down until the widest line fits 80% of the frame, so the
+    # paragraph keeps a clear margin either side.
+    size = 72
+    f = demo.font(size, 700)
     w, h = vb.text.block_size(LINES, f)
+    while w > demo.W * 0.8 and size > 24:
+        size -= 4
+        f = demo.font(size, 700)
+        w, h = vb.text.block_size(LINES, f)
     box = draw_line_fade(cv, LINES, f, (demo.W - w) / 2, (demo.H - h) / 2, demo.phase(n, 0.3, 2.5), demo.INK)
     cv.mark('text', *box)
 
