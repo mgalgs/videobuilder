@@ -172,7 +172,10 @@ class Beat:
 
     @property
     def tag(self):
-        return [t.id for t in self.clips] + ([self.wipe[0]] if self.wipe else [])
+        # A family none of whose demos build here (sound without the pack) shows no clips: its tag
+        # names the family's first capability, so the shot still has one.
+        return ([t.id for t in self.clips] + ([self.wipe[0]] if self.wipe else [])
+                or [self.family.members[0].id])
 
 
 def _beats():
@@ -517,9 +520,12 @@ def wall_scene(cv, s, st):
 
 # ---- one family: where the page files it, its size, its name, four of its demos ----
 def _family_layout(st, n):
-    """(head box, tile boxes) for `n` 16:9 tiles."""
+    """(head box, tile boxes) for `n` 16:9 tiles; with none, the head alone in the middle."""
     c = st.content
     g = 22
+    if n == 0:
+        head_h = 300
+        return Box(c.x, c.y + (c.h - head_h) / 2, c.w, head_h), []
     cols = 2 if n > 1 else 1
     rows = math.ceil(n / cols)
     if st.wide:

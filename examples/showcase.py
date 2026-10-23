@@ -64,15 +64,37 @@ def _family_beats(beat):
     return max(everything.FAMILY_BEATS, _read_beats(len(beat.family.title.split()))) + (1 if beat.sounding else 0)
 
 
+MAX_BEATS = 90 * GRID.bpm // 60   # the film's cap: 90 s
+FAMILY_FLOOR = 2                  # the least a family beat is cut to: the wipe in, and a beat to see it
+
+
+def fit_beats(wants, floors, room):
+    """`wants` cut half a beat at a time, longest first and never below `floors`,
+    until they sum to `room` or less: as families land, their beats get quicker."""
+    out = list(wants)
+    while sum(out) > room:
+        cut = [i for i in range(len(out)) if out[i] - 0.5 >= floors[i]]
+        if not cut:
+            break
+        i = max(cut, key=lambda i: (out[i] - floors[i], -i))
+        out[i] -= 0.5
+    return out
+
+
+def _leaf_beats(parts):
+    return sum(_leaf_beats(body) if isinstance(body, list) else body for _, body, *_ in parts)
+
+
 # ---- the timeline: beats at 120 bpm, 15 frames each ----
 # A section is (name, beats) for a single shot, or (name, [parts]) for a group
 # of shots cut on the beat; parts nest the same way. The third item, where
 # there is one, is the transition in: beats the section before keeps drawing
 # under it (see TRANSITIONS). A fourth is the shot's data (its copy).
-SECTIONS = [
+HEAD = [
     ('open', 4, 0, {'copy': [everything.WORDMARK, str(TOTAL), 'capabilities']}),
     ('wall', 6, 0, {'copy': list(everything.PLAQUE)}),
-    *[(b.name, _family_beats(b), 1, {'copy': [b.family.title]}) for b in everything.BEATS],
+]
+LUMEN = [
     ('ask', 7, 0, {'copy': [everything.ASK]}),
     ('title', 4),
     ('product', [('camera', 4), ('redrawn', 4), ('lumi', 8), ('voice', 5), ('terminal', 4), ('diagram', 5)], 1),
@@ -90,6 +112,15 @@ SECTIONS = [
                 ('paper', [('paper-head', 3), ('paper-pad', 4), ('paper-stamp', 4)])]),
     ('closing', [('beats', [(f'beat-{i + 1}', 1) for i in range(4)]), ('every-format', 5)], 1),
     ('end', 10),
+]
+# The family beats get what the cap leaves them: a sounding one keeps a beat for each of its clips.
+_FAMILY_LENGTHS = fit_beats([_family_beats(b) for b in everything.BEATS],
+                            [FAMILY_FLOOR + (2 if b.sounding else 0) for b in everything.BEATS],
+                            MAX_BEATS - _leaf_beats(HEAD + LUMEN))
+SECTIONS = [
+    *HEAD,
+    *[(b.name, n, 1, {'copy': [b.family.title]}) for b, n in zip(everything.BEATS, _FAMILY_LENGTHS)],
+    *LUMEN,
 ]
 
 

@@ -3,6 +3,8 @@
 transitions, and every shot draws in both formats; `capabilities build`
 renders it and the /capabilities page shows it."""
 import os
+import subprocess
+import sys
 import tempfile
 import unittest
 from pathlib import Path
@@ -57,6 +59,38 @@ class Showcase(unittest.TestCase):
 
     def test_at_most_ninety_seconds(self):
         self.assertLessEqual(self.film.frames / self.timeline.grid.fps, 90)
+
+    def test_family_beats_get_quicker_to_keep_the_film_under_the_cap(self):
+        fit = self.mod.fit_beats
+        self.assertEqual(fit([3, 4, 3.5], [2, 4, 2], 20), [3, 4, 3.5])
+        self.assertEqual(fit([3, 4, 3.5], [2, 4, 2], 9.5), [2.5, 4, 3])
+        self.assertEqual(fit([3, 4, 3.5], [2, 4, 2], 5), [2, 4, 2])
+        # Half as many families again as there are today still fit.
+        beats = self.mod.everything.BEATS
+        beats = beats + beats[:len(beats) // 2]
+        wants = [self.mod._family_beats(b) for b in beats]
+        floors = [self.mod.FAMILY_FLOOR + (2 if b.sounding else 0) for b in beats]
+        room = self.mod.MAX_BEATS - self.mod._leaf_beats(self.mod.HEAD + self.mod.LUMEN)
+        self.assertLessEqual(sum(fit(wants, floors, room)), room)
+
+    def test_without_the_sound_effects_pack_every_family_still_draws(self):
+        """A standalone render on a machine without the pack: the sound family's demos don't
+        build, so its beat draws the family with no clips playing."""
+        code = (
+            'from videobuilder import load_module\n'
+            f'm = load_module({str(SHOWCASE)!r})\n'
+            'assert m.FILM.frames / m.TIMELINE.grid.fps <= 90\n'
+            'for b in m.everything.BEATS:\n'
+            '    a, z = m.TIMELINE.span(b.name)\n'
+            '    for fmt in m.FILM.formats:\n'
+            '        for n in (a, (a + z) // 2, z - 1):\n'
+            '            assert m.FILM.frame(n, fmt, scale=0.1).marks, (b.name, fmt.name, n)\n'
+            'print(sum(not b.clips for b in m.everything.BEATS))\n')
+        with tempfile.TemporaryDirectory() as empty:
+            out = subprocess.run([sys.executable, '-c', code], cwd=ROOT, capture_output=True, text=True,
+                                 env={**os.environ, 'VIDEOBUILDER_SFX_DIR': empty})
+        self.assertEqual(out.returncode, 0, out.stderr)
+        self.assertGreaterEqual(int(out.stdout.split()[-1]), 1, 'expected a family with no clips without the pack')
 
     def test_sections_meet_on_at_least_three_transitions(self):
         overlapping = [s.name for s, _ in self.timeline.walk() if s.overlap]
