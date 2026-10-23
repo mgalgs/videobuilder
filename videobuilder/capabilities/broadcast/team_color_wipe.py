@@ -142,5 +142,5 @@ CAPABILITY = Capability(
              'gradient-sweep-across-text', 'gradient-wipe'),
     api=('videobuilder.capabilities.broadcast.team_color_wipe.team_color_wipe',
          'videobuilder.capabilities.broadcast.team_color_wipe.player_card'),
-    demo=lambda: demo.two_scenes(team_color_wipe, start=0.6, length=1.8, b=player_card),
+    demo=lambda: demo.two_scenes(team_color_wipe, start=1.0, length=1.6, b=player_card),
 )
