@@ -48,7 +48,8 @@ NOTES = ('G5', 'G5', 'A5', 'G5') * 2                   # one figure, played on b
 STEP = 9
 FRAMES = bridge_frames(CUT, len(NOTES), STEP, before=4)
 _HIGH = {'G5': 0.0, 'A5': 1.0}
-LANE_Y, LANE_H = demo.H - 105, 80
+LANE_Y, LANE_H = demo.H - 72, 56
+PAD_TOP, PAD_BOTTOM = 34, 16                           # the top padding holds the 'cut' label
 X0, X1 = 140, demo.W - 140
 
 
@@ -60,10 +61,11 @@ def _lane(cv, n):
     """The phrase as notes on a strip across the bottom: one dot per note at
     its pitch, lit once it has sounded and ringing out as a fading tail
     across the cut line, with a playhead."""
-    cv.rect(X0 - 40, LANE_Y - LANE_H / 2 - 20, X1 - X0 + 80, LANE_H + 40, demo.BG, radius=18, alpha=0.82)
-    cx = _fx(CUT)
-    cv.line(cx, LANE_Y - LANE_H / 2 - 8, cx, LANE_Y + LANE_H / 2 + 8, demo.MUTED, width=2, alpha=0.9)
-    demo.word(cv, 'cut', cx, LANE_Y - LANE_H / 2 - 42, size=24, color=demo.INK, weight=700)
+    panel = (X0 - 40, LANE_Y - LANE_H / 2 - PAD_TOP, X1 - X0 + 80, LANE_H + PAD_TOP + PAD_BOTTOM)
+    cv.rect(*panel, demo.BG, radius=18, alpha=0.82)
+    cx, top, bottom = _fx(CUT), LANE_Y - LANE_H / 2 - 2, LANE_Y + LANE_H / 2 + 6
+    demo.word(cv, 'cut', cx, LANE_Y - LANE_H / 2 - 15, size=18, color=demo.INK, weight=700)
+    cv.line(cx, top, cx, bottom, demo.MUTED, width=2, alpha=0.9)
     x0, px = _fx(FRAMES[0]), _fx(n)
     if px > x0:   # the sound itself: one band, unbroken through the cut
         end = min(px, _fx(FRAMES[-1] + STEP))
@@ -84,8 +86,8 @@ def _lane(cv, n):
             demo.dot(cv, x, y, 11, demo.ACCENT)
         else:
             demo.dot(cv, x, y, 9, demo.LINE)
-    cv.line(px, LANE_Y - LANE_H / 2 - 8, px, LANE_Y + LANE_H / 2 + 8, demo.INK, width=3)
-    cv.mark('lane', X0 - 40, LANE_Y - LANE_H / 2 - 20, X1 - X0 + 80, LANE_H + 40)
+    cv.line(px, top, px, bottom, demo.INK, width=3)
+    cv.mark('lane', *panel)
 
 
 def draw(n, cv):
