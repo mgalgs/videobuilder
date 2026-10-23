@@ -13,9 +13,10 @@ def ball_bounce(t, height, gravity=3000.0, bounciness=0.62, squash=0.3, stretch=
 
     Returns `(h, sx, sy)` for time `t` seconds: `h` the height of the ball's
     bottom above the floor, and `sx`, `sy` the scale to draw it at (anchored
-    on its bottom) -- stretched up to `stretch` along a fast fall, squashed up
-    to `squash` for `contact` seconds around each hit, volume kept. Before 0
-    it hangs at `height`; once the hops get too small to see it lies still."""
+    on its bottom) -- stretched up to `stretch` along a fast fall, and resting
+    on the floor squashed up to `squash` for `contact` seconds around each
+    hit, volume kept. Before 0 it hangs at `height`; once the hops get too
+    small to see it lies still."""
     if t <= 0 or height <= 0:
         return max(height, 0.0), 1.0, 1.0
     v0 = math.sqrt(2 * gravity * height)  # speed at the first hit
@@ -37,10 +38,10 @@ def ball_bounce(t, height, gravity=3000.0, bounciness=0.62, squash=0.3, stretch=
         v = abs(v - gravity * s)
     speed = v / v0
     near = min(x for x in (since, until) if x is not None)
-    if near < contact:  # at the floor: flatten, harder for a faster hit
+    if near < contact:  # on the floor: sit on it and flatten, harder for a faster hit
         hit_speed = (v + gravity * near) / v0
         k = 1 - squash * min(hit_speed, 1) * (1 - near / contact)
-        return max(h, 0.0), 1 / math.sqrt(k), k
+        return 0.0, 1 / math.sqrt(k), k
     k = 1 + stretch * speed
     return h, 1 / math.sqrt(k), k
 
