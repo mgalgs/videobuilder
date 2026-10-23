@@ -26,16 +26,27 @@ def draw_typeface_crossfade(cv, text, font_a, font_b, cx, cy, p, color, ease=vb.
 FACES = (('Sans', demo.font(150, 800)), ('Serif', vb.Font('serif', 150, weight=700, style='italic')))
 
 
+# The blend runs to an even mix, holds there (so the overlap -- and the gallery
+# poster, taken at 2.1 s -- shows both faces at once), then settles on the serif.
+BLEND = ((0.3, 1.1, 2.2, 2.7), (0, 0.5, 0.5, 1))
+SMOOTH = vb.bezier(0.65, 0, 0.35, 1)
+
+
 def draw(n, cv):
-    p = demo.phase(n, 0.9, 2.1)
+    p = vb.interpolate(n / demo.FPS, *BLEND, ease=SMOOTH)
     (name_a, face_a), (name_b, face_b) = FACES
-    box = draw_typeface_crossfade(cv, 'Motion', face_a, face_b, demo.W / 2, demo.H / 2 - 30, p, demo.INK)
+    box = draw_typeface_crossfade(cv, 'Motion', face_a, face_b, demo.W / 2, demo.H / 2 - 30, p, demo.INK,
+                                  ease=vb.linear)
     cv.mark('text', *box)
+    # One fixed caption, side by side, each name lit by its face's share of the mix.
     label = demo.mono(30, 500)
-    k = vb.ease_in_out_quart(p)
-    for name, alpha in ((name_a, 1 - k), (name_b, k)):
-        if alpha > 0:
-            demo.word(cv, name.upper(), demo.W / 2, demo.H / 2 + 120, color=demo.TEAL, font=label, alpha=alpha)
+    parts = ((name_a.upper(), 1 - p), ('\u2192', 0.5), (name_b.upper(), p))
+    gap = 28
+    widths = [vb.text.block_size([t], label)[0] for t, _ in parts]
+    x = demo.W / 2 - (sum(widths) + gap * (len(parts) - 1)) / 2
+    for (text, share), w in zip(parts, widths):
+        demo.word(cv, text, x + w / 2, demo.H / 2 + 120, color=demo.TEAL, font=label, alpha=0.3 + 0.7 * share)
+        x += w + gap
 
 
 CAPABILITY = Capability(
