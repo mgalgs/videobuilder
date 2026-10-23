@@ -65,7 +65,7 @@ def detail_page(cv, with_photo=True):
 
 
 def _draw(n, cv):
-    p = demo.phase(n, 0.8, 2.2)
+    p = demo.phase(n, 1.4, 2.9)  # mid-blend at the gallery poster (2.1 s)
     if p <= 0:
         list_page(cv)
     elif p >= 1:
