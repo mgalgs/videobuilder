@@ -36,7 +36,7 @@ def draw(n, cv):
     bx, by = (demo.W - bw) / 2, (demo.H - bh) / 2
     box = demo.word(cv, text, demo.W / 2, demo.H / 2, size=150)
     cv.mark('text', *box)
-    draw_curtain(cv, bx, by, bw, bh, demo.phase(n, 0.6, 2.2), '#262830',
+    draw_curtain(cv, bx, by, bw, bh, demo.phase(n, 1.1, 2.85), '#3a3f4b',
                  edge=(demo.ACCENT, demo.TEAL), edge_width=5)
 
 
