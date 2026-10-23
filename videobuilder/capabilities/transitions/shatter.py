@@ -142,5 +142,5 @@ CAPABILITY = Capability(
     related=('fracture-shatter', 'type-explosion', 'smash-cut', 'rain-on-glass', 'shake', 'exploded-view'),
     api=('videobuilder.capabilities.transitions.shatter.shatter',
          'videobuilder.capabilities.transitions.shatter.shards'),
-    demo=lambda: demo.two_scenes(shatter, start=0.6, length=1.8),
+    demo=lambda: demo.two_scenes(shatter, start=1.2, length=1.7),
 )
