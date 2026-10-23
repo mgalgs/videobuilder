@@ -73,34 +73,53 @@ def goo_text(cv, letters, font, color, blur=12, cut=0.5, **kw):
 TEXT = 'GOOEY'
 
 
+def _smooth(x):
+    """Ease in and out, 0 -> 1."""
+    return x * x * (3 - 2 * x)
+
+
 def draw(n, cv):
     f = demo.font(118, 900)
     t = n / demo.FPS
     advs = [vb.text.measure(ch, f) for ch in TEXT]
     total = sum(advs)
-    # Spread far apart, flow together until they overlap and fuse, then ease
-    # back to a snug word that keeps wobbling, so necks form and break.
-    gather = vb.ease_in_out_quart(demo.phase(n, 0.2, 1.4))
-    squeeze = math.sin(math.pi * demo.phase(n, 1.1, 2.3))
-    spread = 1.6 * (1 - gather) + 0.9 * gather - 0.22 * squeeze
+    # Spread far apart, flow together until they touch and fuse into one
+    # word, then tug the word in two between the O and the E: a neck forms,
+    # thins and snaps, and the halves flow back and fuse again.
+    gather = vb.ease_in_out_quart(demo.phase(n, 0.1, 1.1))
+    spread = 1.6 * (1 - gather) + 0.97 * gather
+    gap = 72 * (_smooth(demo.phase(n, 1.55, 2.4)) - _smooth(demo.phase(n, 2.45, 2.92)))
     letters, left = [], demo.W / 2 - total * spread / 2
     for i, (ch, adv) in enumerate(zip(TEXT, advs)):
-        cx = left + adv * spread / 2
-        cy = demo.H / 2 + 26 * math.sin(2.4 * t + i * 1.7) * (1 - 0.6 * gather) + 8 * math.sin(4.1 * t + i)
+        cx = left + adv * spread / 2 + (gap / 2 if i >= 3 else -gap / 2)
+        cy = demo.H / 2 + 26 * math.sin(2.4 * t + i * 1.7) * (1 - 0.75 * gather) + 6 * math.sin(4.1 * t + i)
         letters.append((ch, cx, cy))
         left += adv * spread
-    # Two droplets fall into the word and are swallowed.
-    drop = demo.phase(n, 1.3, 2.4)
-    blobs = [(demo.W / 2 - 90, demo.H / 2 - 190 + 160 * vb.ease_in_expo(drop), 17),
-             (demo.W / 2 + 130, demo.H / 2 + 180 - 150 * vb.ease_in_expo(demo.phase(n, 1.5, 2.6)), 13)]
+    # Two droplets are drawn in, stretch toward the word and are swallowed.
+    blobs = [(demo.W / 2 - 90, demo.H / 2 - 190 + 160 * _smooth(demo.phase(n, 0.6, 1.4)), 17),
+             (demo.W / 2 + 150, demo.H / 2 + 180 - 150 * _smooth(demo.phase(n, 0.9, 1.7)), 13)]
+    # The neck between the O and the E: a strand of goo that thins in the
+    # middle as the halves pull apart, pinches off, and its two stubs recoil
+    # into the letters.
+    neck = []
+    if 1.55 < t < 2.45:
+        k = gap / 72
+        (_, ox, oy), (_, ex, ey) = letters[2], letters[3]
+        a, b = ox + 0.3 * advs[2], ex - 0.25 * advs[3]
+        mid, edge = 13 * vb.clamp01(1 - k / 0.9), 13 * vb.clamp01((1 - k) / 0.1)
+        for j in range(17):
+            u = j / 16
+            r = mid + (edge - mid) * (2 * abs(u - 0.5)) ** 2
+            if r > 0.5:
+                neck.append((a + (b - a) * u, oy + (ey - oy) * u, r))
 
     def shapes(sub):
         for ch, cx, cy in letters:
             demo.word(sub, ch, cx, cy, font=f, color='#ffffff')
-        for bx, by, r in blobs:
+        for bx, by, r in blobs + neck:
             demo.dot(sub, bx, by, r, color='#ffffff')
     goo(cv, shapes, demo.ACCENT, blur=13, cut=0.5)
-    cv.mark('text', demo.W / 2 - total * spread / 2, demo.H / 2 - 70, total * spread, 140)
+    cv.mark('text', demo.W / 2 - total * spread / 2 - gap / 2, demo.H / 2 - 70, total * spread + gap, 140)
 
 
 CAPABILITY = Capability(
