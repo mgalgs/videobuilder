@@ -339,7 +339,11 @@ version. While a render is queued, the current frame appears in its place.
 
 Use **Chat** to tell the builder what to change. A timestamp from the current
 playhead is included by default; remove it for a general note. Attach images,
-video, audio, PDF or text files before sending. The note list shows the
+video, audio, PDF or text files before sending. In a hosted library, pasting a
+link to another of your videos (its `/v/<name>` page) -- "like
+https://editor.example.com/v/launch but about squid" -- gives the builder a
+read-only copy of that video to learn from, the same way for a first note as
+for any other (see "Hosting videos" below). The note list shows the
 builder's reply and a Watch button when a new version lands. **Versions** lets
 you watch an older version or restore it as a new commit. The player follows
 new versions automatically until you choose an older one; then a toast offers
@@ -730,6 +734,16 @@ the bare repository. Until it has `main`, the index lists it as empty and
 the video page cannot open. Non-fast-forward pushes and deletion of `main`
 are refused. The index's **New video from…** form creates a new repository
 with one fresh commit containing the source `main` tree.
+
+A note (including a video's first note) that links to another video's
+`/v/<name>` page on this same host is never fetched over the network like an
+ordinary link: the editor resolves it locally and, once the note is
+submitted, gives the builder a read-only snapshot of that video's current
+main -- its code and assets (large media files excluded past a size cap) plus
+a contact sheet of its current render -- under the note's own attachments, to
+learn from, never to edit. A reference to a video you cannot open (wrong name,
+or one you lack access to) is simply left unresolved -- the note still runs --
+and a video can't reference itself.
 
 The editor hosts these remotes and does not push to a forge. To keep a forge
 copy, configure any forge that supports HTTP Git pull mirroring to pull from
