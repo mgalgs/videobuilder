@@ -44,13 +44,24 @@ def draw_squircle_morph(cv, cx, cy, w, h, p, color, start=SQUARE, end=CIRCLE, ro
     return e
 
 
+def _gentle(p):
+    """A soft sine ease-in-out: no lurch, so the log-scale exponent keeps its steady pace."""
+    return 0.5 - 0.5 * math.cos(math.pi * p)
+
+
 def draw(n, cv):
     cx, cy, size = demo.W / 2, demo.H / 2 - 30, 380
-    p = vb.ease_in_out_quart(demo.phase(n, 0.4, 2.4))
+    # two gentle legs with a long rest at the classic squircle between them, so the namesake
+    # shape holds the screen (and the poster frame, 70% in) rather than flashing past
+    to_squircle = _gentle(demo.phase(n, 0.2, 1.2))
+    to_circle = _gentle(demo.phase(n, 2.2, 2.7))
     # faint guides: where it starts (square) and where it lands (circle)
     cv.outline(cx - size / 2, cy - size / 2, size, size, demo.LINE, width=2)
     cv.arc(cx, cy, size / 2, 0, 2 * math.pi, demo.LINE, width=2)
-    e = draw_squircle_morph(cv, cx, cy, size, size, p, demo.ACCENT)
+    if to_circle > 0:
+        e = draw_squircle_morph(cv, cx, cy, size, size, to_circle, demo.ACCENT, start=SQUIRCLE, end=CIRCLE)
+    else:
+        e = draw_squircle_morph(cv, cx, cy, size, size, to_squircle, demo.ACCENT, start=SQUARE, end=SQUIRCLE)
     cv.mark('shape', cx - size / 2, cy - size / 2, size, size)
     label = 'square' if e > 12 else 'circle' if e < 2.15 else 'squircle'
     demo.word(cv, f'{label}   n = {e:4.1f}', cx, cy + size / 2 + 70, size=36, color=demo.MUTED,
