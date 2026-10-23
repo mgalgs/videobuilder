@@ -100,7 +100,7 @@ def ellipse(rx, ry, k=24):
 
 
 SPOT = ellipse(120, 18)
-HOP = 2.5   # seconds of hopping in the demo; 1.6 hops a second lands on 4 hops
+HOP = 1.875  # seconds of hopping in the demo; 1.6 hops a second lands on 3 hops
 
 
 def bird(cv, x, y, wing, tilt, lift):
@@ -159,5 +159,5 @@ CAPABILITY = Capability(
     related=('crumple', 'morph-cut', 'cut-on-action', 'smash-cut', 'origami-fold', 'strobe-cut'),
     api=('videobuilder.capabilities.shapes.cut_out_paper_animation.paper_piece',
          'videobuilder.capabilities.shapes.cut_out_paper_animation.held'),
-    demo=lambda: demo.film(draw, seconds=6.0),
+    demo=lambda: demo.film(draw, seconds=5.0),
 )
