@@ -307,7 +307,14 @@ class Sources:
 
     @staticmethod
     def public(meta):
-        return {k: meta.get(k) for k in PUBLIC_FIELDS}
+        out = {k: meta.get(k) for k in PUBLIC_FIELDS}
+        # license/credit exist only on a source imported from archive.org (see
+        # import_archive_item); added conditionally, rather than as fixed entries
+        # in PUBLIC_FIELDS, so an uploaded source's public dict is unchanged.
+        if meta.get('license') or meta.get('credit'):
+            out['license'] = meta.get('license')
+            out['credit'] = meta.get('credit')
+        return out
 
     def file_path(self, video, name):
         meta = self.get(video, name)
@@ -326,6 +333,51 @@ class Sources:
             raise ValueError('a source upload needs a known Content-Length')
         if content_length == 0:
             raise ValueError('the upload is empty')
+        return self._ingest(video, filename, name, content_type, rfile, content_length)
+
+    def import_archive_item(self, video, identifier, name=None):
+        """Imports one archive.org item (a Prelinger film) as a new source
+        video: picks its largest MP4 derivative that fits this video's
+        remaining size budget, streams it to disk exactly like
+        stream_upload (an archive.org download response is, for this
+        purpose, just something with `.read(n)` and a known length), and
+        records the item's own licence and credit in meta.json -- absent
+        for an ordinary upload, see `public()`. Refuses an item outside
+        the Prelinger collection: this import is scoped to Prelinger
+        footage, not any archive.org item with an mp4. Raises
+        archive_org.NotFound/ArchiveError, `ValueError` (not a Prelinger
+        item, no derivative fits, name clash, unreadable video) or
+        `TooLarge`, and leaves nothing on disk either way."""
+        from . import archive_org
+        self.editor.project.video(video)
+        item = archive_org.get_metadata(identifier)
+        if archive_org.PRELINGER_COLLECTION not in item['collection']:
+            raise ValueError('this archive.org item is not part of the Prelinger collection')
+        existing_total = self._total_bytes(video)
+        if existing_total >= self.max_total:
+            raise TooLarge('this video has reached its total limit for source videos')
+        budget = min(self.max_file, self.max_total - existing_total)
+        filename = archive_org.pick_derivative(item['files'], budget)
+        if filename is None:
+            raise ValueError('no derivative of this archive.org item fits the source size limit')
+        response, content_length, content_type = archive_org.open_download(item['identifier'], filename)
+        try:
+            credit = {'title': item['title'], 'creator': item['creator'], 'year': item['year'],
+                      'item_url': item['details_url']}
+            extra_meta = {'credit': credit}
+            if item['license'] or item['rights']:
+                extra_meta['license'] = item['license'] or item['rights']
+            return self._ingest(video, filename, name or item['title'], content_type, response, content_length,
+                                extra_meta)
+        finally:
+            response.close()
+
+    def _ingest(self, video, filename, name, content_type, rfile, content_length, extra_meta=None):
+        """Shared by stream_upload (an HTTP request body) and
+        import_archive_item (an archive.org download response): both are
+        just something with `.read(n)` and a known length. `extra_meta`,
+        when given, is merged into the saved meta.json (see
+        import_archive_item)."""
         ext = Path(_basename(filename)).suffix.lstrip('.').lower()
         if ext not in EXTS + AUDIO_EXTS:
             raise ValueError('source videos must be .mp4, .mov or .webm (or a sound: .mp3, .m4a, .wav, .aac '
@@ -373,6 +425,8 @@ class Sources:
             raise
         meta = dict(name=slug, ext=ext, size=written, duration=duration, width=width, height=height,
                     has_audio=has_audio, caption=None, created=time.time(), preview_ready=False)
+        if extra_meta:
+            meta.update(extra_meta)
         self._save(video, slug, meta)
         self.sync(video)
         _BUILD_QUEUE.put((self, video, slug))

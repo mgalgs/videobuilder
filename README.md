@@ -455,6 +455,23 @@ has any; with none, the prompt is unchanged. Nothing under a video's
 `sources/` may ever be committed; a builder branch that does is refused and
 reported like any other out-of-scope change.
 
+**Importing footage from archive.org.** Besides uploading your own footage, the
+Sources panel has an "Import from archive.org" search over the Internet
+Archive's Prelinger collection -- thousands of mostly, not entirely, public
+domain ephemeral films -- on by default, needing no configuration. Pick a
+result and the editor downloads the best MP4 derivative of that item that
+fits the video's source-size limits, landing exactly as an upload would (same
+caps, same preview pipeline, same everything), except that it also carries
+that item's own licence and credit (title, creator, year, a link to its
+archive.org page) -- shown in the Sources panel, and in the builder's prompt
+beside that source, so the builder can write a credit for it if the video
+ends with one. The editor never fetches from anywhere but archive.org itself
+for this (`archive.org` and its own `*.archive.org` download mirrors; a
+redirect elsewhere is refused, the same way `xpost.py`'s media fetch is), and
+the import still runs through the per-file/per-video-total source limits, so
+nothing lands if it wouldn't fit. Nothing here reaches the builder's own
+sandbox, which stays offline exactly as it does for an upload.
+
 **Music sources.** Pass `--music-sources FILE` (works in both single-project and
 `--library` mode) to add a music button beside the composer's attach button. It
 opens a picker over a configured music library: search, preview, and attach a

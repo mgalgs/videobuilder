@@ -9,12 +9,14 @@ import threading
 from importlib import resources
 from urllib.parse import unquote
 
+from . import archive_org
 from .attachments import TYPES
 from .editor import HTTPError, _field, _need, _page
 from .gitutil import git
 from .music import FetchError, TooLarge, extension_for, fetch_binary
 from .notes import FINAL
 from .film_api import get_film, get_picture, post_film, post_start
+from .sources import TooLarge as SourceTooLarge
 from .timeline_api import get_footage, get_thumb, get_timeline, post_timeline
 from .transcript import feed_source, read_feed
 from .versions import Refused
@@ -247,6 +249,33 @@ def _get_source_file(self, route, q, editor, user, name):
     except KeyError:
         raise HTTPError(404, 'source not found') from None
     return self._send_ranged_file(path, TYPES[meta['ext']], {'Accept-Ranges': 'bytes'})
+
+
+def _get_archive_search(self, route, q, editor, user):
+    try:
+        results = archive_org.search_films(q.get('q', ''))
+    except archive_org.ArchiveError as exc:
+        raise HTTPError(502, str(exc)) from None
+    return self._json(200, {'results': results})
+
+
+def _post_sources_import(self, route, body, identity, editor, user):
+    video = _field(body, 'video', str)
+    identifier = _field(body, 'identifier', str)
+    name = body.get('name')
+    if name is not None and not isinstance(name, str):
+        raise HTTPError(400, 'name must be a string')
+    try:
+        record = editor.sources.import_archive_item(video, identifier, name)
+    except archive_org.NotFound as exc:
+        raise HTTPError(404, str(exc)) from None
+    except archive_org.ArchiveError as exc:
+        raise HTTPError(502, str(exc)) from None
+    except SourceTooLarge as exc:
+        raise HTTPError(413, str(exc)) from None
+    except ValueError as exc:
+        raise HTTPError(400, str(exc)) from None
+    return self._json(201, record)
 
 
 def _get_music_sources(self, route, q, editor, user):
@@ -520,6 +549,7 @@ GET_ROUTES = [
     (re.compile(r'/api/sources/([^/]+)'), _get_source_file),
     ('/api/music/sources', _get_music_sources),
     ('/api/music/tracks', _get_music_tracks),
+    ('/api/archive/search', _get_archive_search),
     ('/api/pictures', _get_pictures),
     ('/api/pictures/gpu', _get_pictures_gpu),
     (re.compile(r'/api/pictures/([0-9a-f]{16})/([0-3])'), _get_picture_file),
@@ -754,6 +784,7 @@ POST_ROUTES = [
     ('/api/notes', _post_notes),
     ('/api/videos/first-note', _post_first_note),
     (re.compile(r'/api/sources/([^/]+)/delete'), _post_source_delete),
+    ('/api/sources/import', _post_sources_import),
     (re.compile(r'/api/notes/([^/]+)/delete'), _post_note_delete),
     (re.compile(r'/api/notes/([^/]+)/retry'), _post_note_retry),
     (re.compile(r'/api/notes/([^/]+)/answer'), _post_note_answer),

@@ -372,6 +372,139 @@ class DirectUpload(fixtures.API):
             self.assertEqual(max_seen[0], 1)
 
 
+class _FakeDownload:
+    """What archive_org.open_download hands back: something with .read(n) and
+    .close(), standing in for the urllib response Sources.import_archive_item
+    streams from -- exactly as _Rfile stands in for an HTTP request body."""
+
+    def __init__(self, data):
+        self.buf = io.BytesIO(data)
+        self.closed = False
+
+    def read(self, n):
+        return self.buf.read(n)
+
+    def close(self):
+        self.closed = True
+
+
+@unittest.skipUnless(FFMPEG, 'needs ffmpeg/ffprobe')
+class ArchiveImport(fixtures.API):
+    """Direct, Python-level tests against Sources.import_archive_item, with
+    archive_org's own network calls mocked out (see tests/test_archive_org.py
+    for archive_org's own unit tests)."""
+
+    def setUp(self):
+        super().setUp()
+        self.scratch = tempfile.TemporaryDirectory()
+        self.addCleanup(self.scratch.cleanup)
+        self.clip = Path(self.scratch.name) / 'clip.mp4'
+        _mp4(self.clip, audio=True)
+
+    def _item(self, **overrides):
+        item = dict(identifier='farm-safety-1955', title='Farm Safety', creator='A. Studio', year='1955',
+                   license='https://creativecommons.org/publicdomain/mark/1.0/', rights=None,
+                   details_url='https://archive.org/details/farm-safety-1955', collection=['prelinger'],
+                   mediatype='movies',
+                   files=[{'name': 'farm-safety-1955.mp4', 'size': str(len(self.clip.read_bytes()))}])
+        item.update(overrides)
+        return item
+
+    def _import(self, video='promo/film', identifier='farm-safety-1955', name=None, item=None):
+        data = self.clip.read_bytes()
+        download = _FakeDownload(data)
+        with mock.patch('videobuilder.archive_org.get_metadata', return_value=item or self._item()), \
+             mock.patch('videobuilder.archive_org.open_download',
+                        return_value=(download, len(data), 'video/mp4')):
+            record = self.editor.sources.import_archive_item(video, identifier, name)
+        return record, download
+
+    def _nothing_left(self):
+        video_dir = self.editor.sources._video_dir('promo/film')
+        return set(video_dir.rglob('*')) if video_dir.is_dir() else set()
+
+    def test_import_records_license_and_credit(self):
+        record, _ = self._import()
+        self.assertEqual(record['license'], 'https://creativecommons.org/publicdomain/mark/1.0/')
+        self.assertEqual(record['credit'], {'title': 'Farm Safety', 'creator': 'A. Studio', 'year': '1955',
+                                            'item_url': 'https://archive.org/details/farm-safety-1955'})
+
+    def test_defaults_name_to_the_item_title(self):
+        record, _ = self._import()
+        self.assertEqual(record['name'], 'farm-safety')
+
+    def test_explicit_name_overrides_the_item_title(self):
+        record, _ = self._import(name='My Clip')
+        self.assertEqual(record['name'], 'my-clip')
+
+    def test_response_is_closed_after_import(self):
+        _, download = self._import()
+        self.assertTrue(download.closed)
+
+    def test_upload_has_no_license_or_credit(self):
+        data = self.clip.read_bytes()
+        record = self.editor.sources.stream_upload('promo/film', 'clip.mp4', None, 'video/mp4',
+                                                    _Rfile(data), len(data))
+        self.assertNotIn('license', record)
+        self.assertNotIn('credit', record)
+
+    def test_falls_back_to_rights_when_no_licenseurl(self):
+        record, _ = self._import(item=self._item(license=None, rights='could be restricted'))
+        self.assertEqual(record['license'], 'could be restricted')
+
+    def test_no_license_or_rights_still_reports_credit(self):
+        # license is always paired with credit once either is known (see
+        # Sources.public): None here, not omitted, so the picker can tell
+        # "we checked and archive.org names no licence" from "no credit data
+        # at all" (an ordinary upload, where both keys are simply absent).
+        record, _ = self._import(item=self._item(license=None, rights=None))
+        self.assertIsNone(record['license'])
+        self.assertEqual(record['credit']['title'], 'Farm Safety')
+
+    def test_no_derivative_fits_cap_leaves_nothing_on_disk(self):
+        before = self._nothing_left()
+        with mock.patch('videobuilder.archive_org.get_metadata', return_value=self._item(files=[])):
+            with self.assertRaisesRegex(ValueError, 'no derivative'):
+                self.editor.sources.import_archive_item('promo/film', 'farm-safety-1955')
+        self.assertEqual(self._nothing_left(), before)
+
+    def test_item_outside_prelinger_is_refused_with_nothing_left(self):
+        before = self._nothing_left()
+        with mock.patch('videobuilder.archive_org.get_metadata',
+                        return_value=self._item(collection=['opensource'])):
+            with self.assertRaisesRegex(ValueError, 'Prelinger'):
+                self.editor.sources.import_archive_item('promo/film', 'farm-safety-1955')
+        self.assertEqual(self._nothing_left(), before)
+
+    def test_unknown_item_propagates_not_found(self):
+        from videobuilder import archive_org
+        with mock.patch('videobuilder.archive_org.get_metadata',
+                        side_effect=archive_org.NotFound('no such item')):
+            with self.assertRaises(archive_org.NotFound):
+                self.editor.sources.import_archive_item('promo/film', 'nope')
+
+    def test_over_total_limit_is_too_large_with_nothing_left(self):
+        self.editor.sources.max_total = 0  # already at/over the limit before any derivative is even picked
+        before = self._nothing_left()
+        with self.assertRaises(TooLarge):
+            self._import()
+        self.assertEqual(self._nothing_left(), before)
+
+    def test_name_clash_is_refused_with_nothing_left_on_disk(self):
+        self._import(name='farm-safety')
+        before = self._nothing_left()
+        with self.assertRaisesRegex(ValueError, 'already exists'):
+            self._import(name='farm-safety')
+        self.assertEqual(self._nothing_left(), before)
+
+    def test_public_fields_unchanged_for_an_upload(self):
+        data = self.clip.read_bytes()
+        record = self.editor.sources.stream_upload('promo/film', 'clip.mp4', None, 'video/mp4',
+                                                    _Rfile(data), len(data))
+        self.assertEqual(set(record), {'name', 'ext', 'size', 'duration', 'width', 'height', 'has_audio',
+                                       'caption', 'created', 'preview_ready'})
+
+
 @unittest.skipUnless(FFMPEG, 'needs ffmpeg/ffprobe')
 class CheckoutStaging(fixtures.API):
     def setUp(self):

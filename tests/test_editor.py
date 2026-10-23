@@ -182,7 +182,7 @@ class DirectorPageRoutes(API):
         expected = {'project','name','info','frame','video','notes','versions','versions/restore',
                     'attachments','video/retry','roll','copy','undo','draft','draft/info','draft/frame',
                     'draft/accept','draft/drop','upgrade','access','music/sources','music/tracks','music/attach',
-                    'videos/first-note','sources','pictures','pictures/gpu',
+                    'videos/first-note','sources','pictures','pictures/gpu','archive/search','sources/import',
                     'clip','timeline','timeline/thumb','timeline/footage','film','film/picture','film/start',
                     'suggest/catalog'}
         # Dynamic attachment, draft and source actions have their own router patterns.

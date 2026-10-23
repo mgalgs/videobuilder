@@ -102,7 +102,11 @@ GET  /api/sources?video=V            {sources:[{name,ext,size,duration,width,
                                      deleted, unlike an attachment.
                                      preview_ready flips true once a small
                                      copy for the builder's sandbox exists
-                                     (built in the background after upload)
+                                     (built in the background after upload).
+                                     A source imported with POST
+                                     /api/sources/import also carries license
+                                     and credit (title,creator,year,item_url);
+                                     absent for an uploaded source
 POST /api/sources?video=V&filename=F[&name=N]  raw body with Content-Type
                                      (a video, or a sound: mp3/m4a/wav/aac/ogg),
                                      streamed to disk as it arrives; name
@@ -119,6 +123,31 @@ POST /api/sources/<name>/caption?video=V&filename=F  raw .vtt/.srt body; 201
 GET  /api/sources/<name>?video=V     stored bytes, ranged, for the picker's
                                      player; 404 unknown
 POST /api/sources/<name>/delete {video}  200 {deleted:name}; 404 unknown
+GET  /api/archive/search?q=Q         {results:[{identifier,title,year,duration,
+                                     license,rights,thumbnail,details_url}...]};
+                                     up to archive_org.SEARCH_ROWS Prelinger
+                                     films (collection prelinger, mediatype
+                                     movies) from archive.org matching Q (Q=""
+                                     for a default page); license/rights are
+                                     archive.org's own per-item fields, absent
+                                     when it has neither -- Prelinger is mostly,
+                                     not entirely, public domain; cached in
+                                     memory per query for archive_org.CACHE_TTL
+                                     seconds; 502 on an upstream fetch failure
+POST /api/sources/import {video,identifier,name?}
+                                     201 the same source record GET
+                                     /api/sources returns, with license/credit
+                                     present (archive.org's own title, creator,
+                                     year, licence, item URL); downloads the
+                                     largest MP4 derivative of the archive.org
+                                     item that fits this video's remaining
+                                     source budget, streamed to disk exactly as
+                                     an upload lands; 400 no derivative fits the
+                                     size limit, or the name is already taken;
+                                     404 unknown archive.org identifier; 413 the
+                                     chosen derivative exceeds the limit while
+                                     streaming; 502 archive.org could not be
+                                     reached
 GET  /api/music/sources              [{id,name,license}]; [] with none configured
 GET  /api/music/tracks?source=S      {source:{id,name,license},tracks:[...]};
                                      each track may carry its own license,

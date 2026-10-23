@@ -47,8 +47,15 @@ def _sources_lines(sources, directory):
                 'has audio' if item.get('has_audio') else 'no audio',
                 f"caption {item['caption']}" if item.get('caption') else None,
                 'in your sandbox' if item.get('in_sandbox') else 'not in your sandbox']
-        lines.append(f"- sources/{item['name']}.{item['ext']} ({_clock(item.get('duration'))}, "
-                     f"{', '.join(b for b in bits if b)})")
+        line = (f"- sources/{item['name']}.{item['ext']} ({_clock(item.get('duration'))}, "
+               f"{', '.join(b for b in bits if b)})")
+        credit = item.get('credit')
+        if credit:
+            credit_bits = [credit.get('title'), f"by {credit['creator']}" if credit.get('creator') else None,
+                           str(credit['year']) if credit.get('year') else None, item.get('license'),
+                           credit.get('item_url')]
+            line += f" -- credit: {', '.join(b for b in credit_bits if b)}"
+        lines.append(line)
     lines += ['', f'The ones marked "in your sandbox" have a smaller copy, at the same timing, under '
               f'/attachments/sources/. To preview with them, link them in: `ln -s /attachments/sources '
               f'{directory}/sources` and add `/{directory}/sources` to `.git/info/exclude`. Never commit '

@@ -47,7 +47,9 @@ const state = {
   pendingAnswers: {},
   sources: [],
   sourcePending: null,
-  sourcePlayer: null
+  sourcePlayer: null,
+  archiveResults: [],
+  archiveQuery: ''
 };
 const player = $('player');
 const timeLabel = s => {
@@ -1765,6 +1767,20 @@ function renderSources() {
     if(s.caption)meta.push('caption');
     if(!s.preview_ready)meta.push('Preparing…');
     info.append(node('span','source-meta',meta.join(' · ')));
+    if(s.license||s.credit) {
+      const bits=[s.license,s.credit&&s.credit.creator?`by ${s.credit.creator}`:null,
+        s.credit&&s.credit.year?String(s.credit.year):null].filter(Boolean);
+      const license=node('div','source-license');
+      if(bits.length)license.append(document.createTextNode(bits.join(' · ')+' '));
+      if(s.credit&&s.credit.item_url) {
+        const a=node('a',null,'archive.org');
+        a.href=s.credit.item_url;
+        a.target='_blank';
+        a.rel='noopener';
+        license.append(a)
+      }
+      info.append(license)
+    }
     row.append(info);
     const del=node('button','source-delete','Delete');
     del.setAttribute('aria-label','Delete '+s.name);
@@ -1894,6 +1910,99 @@ $('source-upload-button').onclick=async()=> {
   finally {
     $('source-upload-button').disabled=false
   }
+};
+// ---- Importing public-domain footage from archive.org into the Sources panel ----
+function openArchiveImport() {
+  $('archive-error').hidden=true;
+  $('archive-dialog').hidden=false;
+  $('archive-shade').hidden=false;
+  searchArchive('')
+}
+function closeArchiveImport() {
+  $('archive-dialog').hidden=true;
+  $('archive-shade').hidden=true
+}
+async function searchArchive(query) {
+  state.archiveQuery=query;
+  $('archive-error').hidden=true;
+  try {
+    const data=await json('archive/search', {
+      q:query
+    });
+    state.archiveResults=data.results;
+    renderArchiveResults()
+  }
+  catch(e) {
+    $('archive-error').textContent=e.message;
+    $('archive-error').hidden=false
+  }
+}
+function renderArchiveResults() {
+  const list=$('archive-list');
+  list.replaceChildren();
+  for(const result of state.archiveResults) {
+    const row=node('div','archive-row');
+    const img=node('img','archive-thumb');
+    img.alt='';
+    img.loading='lazy';
+    // Thumbnails load straight from archive.org; a missing/broken one just disappears.
+    img.onerror=()=>img.remove();
+    img.src=result.thumbnail;
+    row.append(img);
+    const info=node('div','archive-info');
+    const head=node('div','archive-title-line');
+    head.append(node('span','archive-title',result.title));
+    if(result.year)head.append(node('span','archive-year',result.year));
+    if(result.duration!=null)head.append(node('span','archive-duration',sourceClock(result.duration)));
+    info.append(head);
+    const license=node('div','archive-license');
+    if(result.license||result.rights) {
+      license.textContent=result.license||result.rights
+    }
+    else {
+      const a=node('a',null,'licence not listed — see the archive.org item page');
+      a.href=result.details_url;
+      a.target='_blank';
+      a.rel='noopener';
+      license.append(a)
+    }
+    info.append(license);
+    row.append(info);
+    const useWrap=node('div','archive-use'),use=node('button',null,'Use');
+    use.onclick=()=>importArchiveItem(result,use);
+    useWrap.append(use);
+    row.append(useWrap);
+    list.append(row)
+  }
+  if(!state.archiveResults.length)list.append(node('p','archive-empty','No films match.'))
+}
+async function importArchiveItem(result,button) {
+  button.disabled=true;
+  const original=button.textContent;
+  button.textContent='Importing…';
+  $('archive-error').hidden=true;
+  try {
+    await json('sources/import',null, {
+      video:state.video,identifier:result.identifier
+    });
+    await loadSources();
+    closeArchiveImport()
+  }
+  catch(e) {
+    $('archive-error').textContent=e.message;
+    $('archive-error').hidden=false;
+    button.disabled=false;
+    button.textContent=original
+  }
+}
+$('archive-import-button').onclick=openArchiveImport;
+$('archive-close').onclick=closeArchiveImport;
+$('archive-shade').onclick=closeArchiveImport;
+$('archive-search-go').onclick=()=>searchArchive($('archive-search').value.trim());
+$('archive-search').onkeydown=e=> {
+  if(e.key!=='Enter')return;
+  e.preventDefault();
+  searchArchive($('archive-search').value.trim())
 };
 function updateAddToNoteEnabled() {
   const sp=state.sourcePlayer;

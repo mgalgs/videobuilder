@@ -356,6 +356,7 @@
 </div>
 <div class="composer-row">
 <button id="source-add-button" class="accent">Add a source video</button>
+<button id="archive-import-button" type="button">Import from archive.org</button>
 </div>
 <input id="source-file-picker" type="file" accept=".mp4,.mov,.webm,video/mp4,video/quicktime,video/webm" hidden>
 <input id="source-caption-picker" type="file" accept=".vtt,.srt,text/vtt" hidden>
@@ -424,6 +425,24 @@
 </p>
     <audio id="music-preview" preload="none">
 </audio>
+  </div>
+  <div id="archive-shade" class="music-shade" hidden>
+</div>
+  <div id="archive-dialog" class="music-dialog archive-dialog" role="dialog" aria-modal="true" aria-label="Import from archive.org" hidden>
+    <div class="music-head">
+<input id="archive-search" placeholder="Search Prelinger films…" autocomplete="off">
+<button id="archive-search-go">Search</button>
+<button id="archive-close" aria-label="Close archive.org import">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+<path d="M6 6l12 12M18 6L6 18">
+</path>
+</svg>
+</button>
+</div>
+    <div id="archive-list" class="scroll-list">
+</div>
+    <p id="archive-error" class="composer-error" hidden>
+</p>
   </div>
   <div id="pictures-shade" class="music-shade" hidden>
 </div>
