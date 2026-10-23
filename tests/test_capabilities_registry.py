@@ -1,18 +1,18 @@
-"""Every technique in `videobuilder/techniques/`, checked one by one, plus the
-registry itself.
+"""Every capability in `videobuilder/capabilities/<family>/`, checked one by
+one, plus the registry itself.
 
-`EachTechnique` has one test per technique module, named after the module
-(the id with `-` as `_`), so one technique checks alone with:
+`EachCapability` has one test per capability module, named after the module
+(the id with `-` as `_`), so one capability checks alone with:
 
-    python3 -m unittest tests.test_techniques.EachTechnique.test_<id with - as _>
+    python3 -m unittest tests.test_capabilities_registry.EachCapability.test_<id with - as _>
 
-e.g. `python3 -m unittest tests.test_techniques.EachTechnique.test_bounce_ease_out`.
-That command passing is a new technique's acceptance. Each test imports only
-its own module, so a broken technique fails its own test, not its
+e.g. `python3 -m unittest tests.test_capabilities_registry.EachCapability.test_bounce_ease_out`.
+That command passing is a new capability's acceptance. Each test imports only
+its own module, so a broken capability fails its own test, not its
 neighbours'. It checks: the record is valid; its id matches the file and its
 family the package; every `api` name resolves; the demo builds a short 16:9
 Film; and a few frames rendered at a small scale are not all the same (a
-`sound` technique must carry audio instead).
+`sound` capability must carry audio instead).
 """
 import json
 import os
@@ -23,22 +23,21 @@ import unittest
 from pathlib import Path
 
 import videobuilder as vb
-from videobuilder import techniques
-from videobuilder.techniques import Technique
-from videobuilder.techniques.schema import FAMILIES, module_name
+from videobuilder.capabilities import registry
+from videobuilder.capabilities.schema import FAMILIES, Capability, module_name
 
 ROOT = Path(__file__).resolve().parent.parent
 PKG = ROOT / 'videobuilder' / 'capabilities'
 
-SCALE = 0.1      # frames are rendered this small: enough to see movement, cheap over ~900 techniques
+SCALE = 0.1      # frames are rendered this small: enough to see movement, cheap over ~900 capabilities
 SAMPLES = 5      # frames sampled evenly across each demo
 MIN_SECONDS, MAX_SECONDS = 1.5, 5.0
 WORKED = ('ease-out-back', 'bounce-ease-out', 'dip-to-black', 'scramble-decode')
 
 
 def check(case, family, name):
-    t = techniques.load(family, name)   # validates the record, the id/file and family/package, and `api`
-    case.assertIsInstance(t, Technique)
+    t = registry.load(family, name)   # validates the record, the id/file and family/package, and `api`
+    case.assertIsInstance(t, Capability)
     case.assertEqual(module_name(t.id), name)
     case.assertEqual(t.family, family)
     for obj in t.resolve_api():
@@ -51,25 +50,25 @@ def check(case, family, name):
     case.assertTrue(MIN_SECONDS <= seconds <= MAX_SECONDS,
                     f'{t.id}: demo is {seconds:.2f}s; keep it about 2 to 4 seconds')
     if t.family == 'sound':
-        case.assertTrue(film.audio is not None or film.sounds, f'{t.id}: a sound technique must carry audio')
+        case.assertTrue(film.audio is not None or film.sounds, f'{t.id}: a sound capability must carry audio')
         return
     picks = sorted({round(i * (film.frames - 1) / (SAMPLES - 1)) for i in range(SAMPLES)})
     frames = {film.frame(n, scale=SCALE).bgra() for n in picks}
     case.assertGreater(len(frames), 1, f'{t.id}: frames {picks} are all identical; the demo must move')
 
 
-class EachTechnique(unittest.TestCase):
-    """One `test_<module>` per technique module, added below."""
+class EachCapability(unittest.TestCase):
+    """One `test_<module>` per capability module, added below."""
 
 
 def _add(family, name):
     def test(self):
         check(self, family, name)
     test.__doc__ = f'{family}/{name}.py'
-    setattr(EachTechnique, f'test_{name}', test)
+    setattr(EachCapability, f'test_{name}', test)
 
 
-for _family, _name in techniques.modules():
+for _family, _name in registry.modules():
     _add(_family, _name)
 
 
@@ -79,66 +78,62 @@ class Registry(unittest.TestCase):
             self.assertTrue((PKG / fam / '__init__.py').is_file(), fam)
 
     def test_the_worked_examples_are_there(self):
-        self.assertLessEqual(set(WORKED), set(techniques.ids()))
+        self.assertLessEqual(set(WORKED), set(registry.ids()))
 
     def test_ids_are_unique_across_families(self):
-        names = [name for _, name in techniques.modules()]
-        self.assertEqual(len(names), len(set(names)), 'two families have a technique with the same id')
+        names = [name for _, name in registry.modules()]
+        self.assertEqual(len(names), len(set(names)), 'two families have a capability with the same id')
 
-    def test_no_technique_id_collides_with_a_curated_capability_look_or_type_id(self):
-        # suggest.py answers a technique the same way as a hand-written capability, family
+    def test_no_registry_id_collides_with_a_curated_capability_look_or_type_id(self):
+        # suggest.py answers a registry capability the same way as a hand-written one, family
         # "capabilities" -- so the two id spaces must never collide, or one would shadow the other.
         from videobuilder import capabilities
-        self.assertFalse(set(techniques.ids()) & set(capabilities.ids()))
+        self.assertFalse(set(registry.ids()) & set(capabilities.ids()))
 
-    def test_no_technique_id_collides_with_an_alias_or_a_showcase_file(self):
+    def test_no_registry_id_collides_with_an_alias_or_a_showcase_file(self):
         # clip_file() rewrites ALIASES keys, and shares its directory with SHOWCASE_FILES,
         # before it ever looks at the registry -- a collision there would silently shadow
         # or overwrite a registry capability's clip.
         from videobuilder import capabilities
-        self.assertFalse(set(techniques.ids()) & set(capabilities.ALIASES))
-        self.assertFalse(set(techniques.ids()) & set(capabilities.SHOWCASE_FILES))
+        self.assertFalse(set(registry.ids()) & set(capabilities.ALIASES))
+        self.assertFalse(set(registry.ids()) & set(capabilities.SHOWCASE_FILES))
 
     def test_one_test_per_module(self):
-        tests = {n for n in dir(EachTechnique) if n.startswith('test_')}
-        self.assertEqual(tests, {f'test_{name}' for _, name in techniques.modules()})
+        tests = {n for n in dir(EachCapability) if n.startswith('test_')}
+        self.assertEqual(tests, {f'test_{name}' for _, name in registry.modules()})
 
-    def test_helpers_are_not_techniques(self):
-        names = {name for _, name in techniques.modules()}
+    def test_helpers_are_not_capabilities(self):
+        names = {name for _, name in registry.modules()}
         self.assertFalse(any(n.startswith('_') for n in names))
 
     def test_get_and_family_filter(self):
-        self.assertEqual(techniques.get('dip-to-black').family, 'transitions')
+        self.assertEqual(registry.get('dip-to-black').family, 'transitions')
         with self.assertRaises(KeyError):
-            techniques.get('no-such-technique')
-        self.assertEqual({t.family for t in techniques.catalog('principles')}, {'principles'})
+            registry.get('no-such-capability')
+        self.assertEqual({t.family for t in registry.catalog('principles')}, {'principles'})
         with self.assertRaises(ValueError):
-            techniques.catalog('nope')
+            registry.catalog('nope')
 
     def test_index_groups_by_family_then_group(self):
-        md = techniques.index_markdown()
+        md = registry.index_markdown()
         self.assertLess(md.index('## principles'), md.index('### Easing'))
         self.assertLess(md.index('### Easing'), md.index('## typography'))
         self.assertLess(md.index('## typography'), md.index('## transitions'))
-        for t in techniques.catalog():
+        for t in registry.catalog():
             self.assertIn(f'`{t.id}`', md)
             self.assertIn(t.definition, md)
             for a in t.api:
                 self.assertIn(a, md)
-        data = techniques.index_data()
-        self.assertEqual(json.loads(techniques.index_json()), data)
+        data = registry.index_data()
+        self.assertEqual(json.loads(registry.index_json()), data)
         fams = [f['family'] for f in data['families']]
-        self.assertEqual(fams, [f for f in FAMILIES if f in fams])  # FAMILIES order, whichever have techniques
-        only = techniques.index_data('transitions')
+        self.assertEqual(fams, [f for f in FAMILIES if f in fams])  # FAMILIES order, whichever have capabilities
+        only = registry.index_data('transitions')
         self.assertEqual([f['family'] for f in only['families']], ['transitions'])
-
-    def test_skill_links_the_reference(self):
-        self.assertTrue((ROOT / 'skill' / 'make-a-video' / 'reference' / 'techniques.md').is_file())
-        self.assertIn('reference/techniques.md', (ROOT / 'skill' / 'make-a-video' / 'SKILL.md').read_text())
 
     def test_no_outside_sources_named(self):
         # Definitions and phrasings are our own words; nothing links or credits a catalogue.
-        for fam, name in techniques.modules():
+        for fam, name in registry.modules():
             text = (PKG / fam / f'{name}.py').read_text()
             self.assertNotRegex(text, r'https?://|www\.', f'{fam}/{name}.py')
 
@@ -148,7 +143,7 @@ class Record(unittest.TestCase):
         base = dict(id='a-thing', name='A Thing', family='principles', group='Easing',
                     definition='It moves.', phrasings=('one way', 'another way'),
                     api=('videobuilder.linear',), demo=lambda: None)
-        return Technique(**{**base, **kw})
+        return Capability(**{**base, **kw})
 
     def test_valid_record_normalises_lists(self):
         t = self.make(phrasings=['one way', 'another way'], related=['other-thing'])
@@ -180,9 +175,9 @@ class Cli(unittest.TestCase):
     def test_index(self):
         out = cli('index')
         self.assertEqual(out.returncode, 0, out.stderr)
-        self.assertEqual(out.stdout, techniques.index_markdown())
+        self.assertEqual(out.stdout, registry.index_markdown())
         out = cli('index', '--json', '--family', 'typography')
-        self.assertEqual(json.loads(out.stdout), techniques.index_data('typography'))
+        self.assertEqual(json.loads(out.stdout), registry.index_data('typography'))
         self.assertNotEqual(cli('index', '--family', 'nope').returncode, 0)
 
     def test_build_one_writes_clip_poster_and_gallery(self):
@@ -199,36 +194,18 @@ class Cli(unittest.TestCase):
 
     def test_gallery_escapes_and_groups(self):
         from videobuilder.capabilities.gallery import gallery_html
-        page = gallery_html(techniques.catalog())
+        page = gallery_html(registry.catalog())
         self.assertLess(page.index('id="family-principles"'), page.index('id="family-transitions"'))
         self.assertNotIn('http', page)
 
 
-class OneTechniqueAlone(unittest.TestCase):
-    def test_documented_command_runs_one_technique(self):
+class OneCapabilityAlone(unittest.TestCase):
+    def test_documented_command_runs_one_capability(self):
         proc = subprocess.run([sys.executable, '-m', 'unittest', '-v',
-                               'tests.test_techniques.EachTechnique.test_bounce_ease_out'],
+                               'tests.test_capabilities_registry.EachCapability.test_bounce_ease_out'],
                               cwd=ROOT, capture_output=True, text=True)
         self.assertEqual(proc.returncode, 0, proc.stderr)
         self.assertIn('Ran 1 test', proc.stderr)
-
-
-class Compatibility(unittest.TestCase):
-    """videobuilder.techniques is now only a compatibility shim (see its own
-    module docstring): a film written before the rename may still use its old
-    dotted paths, so those must keep resolving."""
-
-    def test_old_dotted_module_path_still_imports_and_resolves(self):
-        from videobuilder.techniques.principles.follow_through import follow_through
-        self.assertTrue(callable(follow_through))
-
-    def test_old_class_name_aliases_the_new_one(self):
-        from videobuilder.capabilities.schema import Capability
-        self.assertIs(techniques.Technique, Capability)
-
-    def test_old_package_name_answers_the_same_registry(self):
-        from videobuilder.capabilities import registry
-        self.assertEqual(set(techniques.ids()), set(registry.ids()))
 
 
 if __name__ == '__main__':

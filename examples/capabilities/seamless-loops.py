@@ -1,7 +1,7 @@
 """Capability: seamless loops, shown literally. A dot orbits a ring, driven
 purely by a wrapping phase (`n % PERIOD / PERIOD`) fed into `math.sin`/`cos`
 -- no enter, no exit, no hidden cut. The ring itself traces the dot's full
-path and a readout shows the phase value, so the technique is legible, not
+path and a readout shows the phase value, so the capability is legible, not
 just pretty.
 
     python -m videobuilder preview examples/capabilities/seamless-loops.py

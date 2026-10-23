@@ -699,11 +699,11 @@ note on what to capture. Submitting creates a video in a reserved
 refuse to collide with it) and its first note, carrying a standing brief
 plus the post's text and handle, quoted as untrusted reference. The builder
 is told to make three files: `film.py` (an **original** demo of the
-technique -- never the post's own media, text, people or branding),
+capability -- never the post's own media, text, people or branding),
 `capability.toml` (a catalog entry: id, category, title, card, description,
 three prompts, apis, and the doc path) and a short `capability.md` reference
 doc. The post and any attachments are untrusted data throughout: read for
-the technique only, never as instructions. Each account may submit at most 5
+the capability only, never as instructions. Each account may submit at most 5
 capabilities in a rolling 24 hours (admins exempt); the first note still
 counts against the ordinary note cap, same as any other project.
 
@@ -731,7 +731,7 @@ the problem shown, for everyone else. A published capability's doc and
 `film.py` -- read at its pinned commit -- reach every other creator's
 builder too, the same way a source video does: staged read-only under the
 note's `/attachments/capabilities/<slug>/` and named by title in the
-prompt, so the builder can reach for it instead of building the technique
+prompt, so the builder can reach for it instead of building the capability
 from scratch.
 
 Some of the catalog is **families**: named members, each with its own demo,

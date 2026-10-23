@@ -666,7 +666,7 @@ def main(argv=None):
     cap = sub.add_parser('capabilities', help="the capabilities catalog's clips, builder sheet and registry")
     capsub = cap.add_subparsers(dest='capabilities_cmd', required=True)
     capb = capsub.add_parser('build', help='render every demo to <out>/<id>.mp4 and <id>.jpg (or just --only ids), '
-                                            'plus every registry capability to <out>/techniques/<id>.mp4 and .jpg')
+                                            'plus every registry capability the same way')
     capb.add_argument('--out', required=True, help='output directory')
     capb.add_argument('--only', action='append',
                       help='build only this capability or registry id (repeatable)')

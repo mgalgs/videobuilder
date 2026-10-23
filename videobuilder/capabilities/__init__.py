@@ -856,14 +856,15 @@ def sheet_markdown():
     `_REGEN_CMD`; tests/test_capabilities.py fails if the committed file drifts
     from this."""
     lines = [
-        '<!-- GENERATED from videobuilder/capabilities.py by `sheet_markdown()`. Do not hand-edit;',
+        '<!-- GENERATED from videobuilder/capabilities/__init__.py by `sheet_markdown()`. Do not hand-edit;',
         f'     regenerate with `{_REGEN_CMD}` after changing the catalog. -->',
         '# Capabilities catalog',
         '',
         'What videobuilder can already do, with a worked example for each. Reach for one of these '
         'before inventing an effect. Adding a capability later means adding one entry to `CATALOG` in '
-        '`videobuilder/capabilities.py` and one demo film beside the others in `examples/capabilities/`; '
-        'this file and the `/capabilities` page are both generated from that single catalog.',
+        '`videobuilder/capabilities/__init__.py` and one demo film beside the others in '
+        '`examples/capabilities/`; this file and the `/capabilities` page are both generated from that '
+        'single catalog.',
         '',
     ]
     for category in categories():
@@ -910,9 +911,15 @@ def sheet_markdown():
     lines.append('')
     lines.append('Hundreds more capabilities (easing curves, transitions, text reveals and the like), too many '
                  'to list here one by one: each lives in its own file under '
-                 '`videobuilder/techniques/<family>/<id with - as _>.py` and has a short demo of its own. List a '
-                 'family\'s with `python -m videobuilder techniques index --family <family>` (drop `--family` '
-                 'for every one; add `--json` for machine-readable output). The families:')
+                 '`videobuilder/capabilities/<family>/<id with - as _>.py`, ending in a module-level '
+                 '`CAPABILITY = Capability(...)` (see `videobuilder/capabilities/schema.py`), with a short '
+                 'demo of its own. List a family\'s with `python -m videobuilder capabilities index --family '
+                 '<family>` (drop `--family` for every one; add `--json` for machine-readable output). Call '
+                 'what its `api` names to use one in a film -- some are videobuilder\'s own functions, the '
+                 'rest live in the module itself and are imported from there; its own `draw` is a worked '
+                 'demo of the capability alone, read before using it the first time. Add a new one the same '
+                 'way, one new file and nothing else edited, checked by `python3 -m unittest '
+                 'tests.test_capabilities_registry.EachCapability.test_<id with - as _>`. The families:')
     lines.append('')
     for fam, (title, description) in REGISTRY_FAMILIES.items():
         lines.append(f'- **{title}** (`{fam}`): {description}')
@@ -1190,7 +1197,7 @@ def family_page_html(family, capabilities_dir, version, header='', header_style=
         f'<style>{style}</style></head><body>{header}'
         f'<main><div class="cap-head"><h1>{_esc(title)}</h1>'
         f'<span class="version">videobuilder v{_esc(version)}</span>'
-        f'<input type="search" id="tech-search" class="cap-search" placeholder="Search {_esc(search_label)}…" '
+        f'<input type="search" id="reg-search" class="cap-search" placeholder="Search {_esc(search_label)}…" '
         f'aria-label="Search {_esc(search_label)}" autocomplete="off" spellcheck="false"></div>'
         f'<p class="section-lead">{_esc(description)} <a href="/capabilities">Back to Capabilities</a></p>'
         f'{"".join(body)}<p class="search-none search-hide" id="search-none" role="status"></p></main>' +
@@ -1273,14 +1280,14 @@ h2{font-size:15px;text-transform:uppercase;letter-spacing:.04em;color:#a9a9b2;ma
   color:#dcdcdc;font-size:12px;font-weight:700}
 h3.kind{font-size:14px;margin:22px 0 10px;color:#eee}
 h3.kind span{display:block;font-weight:400;font-size:13px;color:#8b8b94;margin-top:2px}
-.tech-overlap{margin:0 0 14px;font-size:13px;color:#a9a9b2}
-.tech-overlap a{color:#ef5b4c}
-#tech-hits{list-style:none;margin:8px 2px 0;padding:0}
-#tech-hits li{margin:4px 0}
-#tech-hits a{color:#eee;text-decoration:none;display:block;padding:8px 10px;border-radius:8px;background:#141417;
+.reg-overlap{margin:0 0 14px;font-size:13px;color:#a9a9b2}
+.reg-overlap a{color:#ef5b4c}
+#reg-hits{list-style:none;margin:8px 2px 0;padding:0}
+#reg-hits li{margin:4px 0}
+#reg-hits a{color:#eee;text-decoration:none;display:block;padding:8px 10px;border-radius:8px;background:#141417;
   border:1px solid #26262c}
-#tech-hits a:hover{border-color:#e5483b}
-#tech-hits a span{color:#8b8b94;font-size:12.5px;margin-left:6px}
+#reg-hits a:hover{border-color:#e5483b}
+#reg-hits a span{color:#8b8b94;font-size:12.5px;margin-left:6px}
 @media (max-width:700px){
   #modal{padding:0}
   #modal .box{max-width:none;width:100%;height:100%;max-height:none;border-radius:0}
@@ -1339,7 +1346,7 @@ _PAGE_SCRIPT = """
   var video = document.getElementById('modal-video');
   var placeholder = document.getElementById('modal-placeholder');
   var unmuteBtn = document.getElementById('modal-unmute');
-  var techOverlapEl = document.getElementById('modal-tech-overlap');
+  var regOverlapEl = document.getElementById('modal-reg-overlap');
   var opener = null;
   var box = modal.querySelector('.box');
   function openCard(id){
@@ -1357,16 +1364,16 @@ _PAGE_SCRIPT = """
       li.textContent = p;
       ul.appendChild(li);
     });
-    if(e.techOverlap){
-      techOverlapEl.innerHTML = '';
-      techOverlapEl.appendChild(document.createTextNode('See also: '));
+    if(e.regOverlap){
+      regOverlapEl.innerHTML = '';
+      regOverlapEl.appendChild(document.createTextNode('See also: '));
       var a = document.createElement('a');
-      a.href = '/capabilities/' + e.techOverlap.family + '#' + e.techOverlap.id;
-      a.textContent = e.techOverlap.title;
-      techOverlapEl.appendChild(a);
-      techOverlapEl.appendChild(document.createTextNode('.'));
-      techOverlapEl.hidden = false;
-    } else techOverlapEl.hidden = true;
+      a.href = '/capabilities/' + e.regOverlap.family + '#' + e.regOverlap.id;
+      a.textContent = e.regOverlap.title;
+      regOverlapEl.appendChild(a);
+      regOverlapEl.appendChild(document.createTextNode('.'));
+      regOverlapEl.hidden = false;
+    } else regOverlapEl.hidden = true;
     if(e.available){
       video.src = e.clip || ('/capabilities/' + id + '.mp4');
       video.poster = e.poster || ('/capabilities/' + id + '.jpg');
@@ -1446,12 +1453,12 @@ _PAGE_SCRIPT = """
 # Extra modal fields only a registry capability has (aliases, api names): layered on top of
 # _PAGE_STYLE on the family page, which otherwise matches /capabilities exactly.
 _REGISTRY_MODAL_STYLE = """
-#modal .tech-aliases{margin:0 0 14px;color:#a9a9b2;font-size:13px}
-#modal .tech-api{background:#1b1e24;border-radius:10px;padding:14px 16px;margin:0 0 14px}
-#modal .tech-api p{margin:0 0 8px;font-weight:600;font-size:13px;color:#a9a9b2;text-transform:uppercase;
+#modal .reg-aliases{margin:0 0 14px;color:#a9a9b2;font-size:13px}
+#modal .reg-api{background:#1b1e24;border-radius:10px;padding:14px 16px;margin:0 0 14px}
+#modal .reg-api p{margin:0 0 8px;font-weight:600;font-size:13px;color:#a9a9b2;text-transform:uppercase;
   letter-spacing:.03em}
-#modal .tech-api ul{margin:0;padding-left:20px}
-#modal .tech-api li{margin:4px 0;color:#eee;font-family:monospace;font-size:13px}
+#modal .reg-api ul{margin:0;padding-left:20px}
+#modal .reg-api li{margin:4px 0;color:#eee;font-family:monospace;font-size:13px}
 """
 
 # The registry family page's modal: like /capabilities' own (clip, title, category line,
@@ -1468,9 +1475,9 @@ _REGISTRY_MODAL_HTML = (
     '<h3 id="modal-title"></h3><p class="cat" id="modal-cat"></p>'
     '<p class="desc" id="modal-desc"></p>'
     '<div class="prompts"><p>What to tell the builder</p><ul id="modal-prompts"></ul></div>'
-    '<p class="tech-aliases" id="modal-aliases" hidden></p>'
-    '<div class="tech-api" id="modal-api-wrap" hidden><p>Build it</p><ul id="modal-api"></ul></div>'
-    '<p class="tech-overlap" id="modal-overlap" hidden></p>'
+    '<p class="reg-aliases" id="modal-aliases" hidden></p>'
+    '<div class="reg-api" id="modal-api-wrap" hidden><p>Build it</p><ul id="modal-api"></ul></div>'
+    '<p class="reg-overlap" id="modal-overlap" hidden></p>'
     '</div></div></div>'
 )
 
@@ -1573,7 +1580,7 @@ _REGISTRY_PAGE_SCRIPT = """
 # every capability in the family already has a card right there).
 _REGISTRY_SEARCH_SCRIPT = """
 (function(){
-  var input = document.getElementById('tech-search');
+  var input = document.getElementById('reg-search');
   if(!input) return;
   var main = document.querySelector('main');
   var none = document.getElementById('search-none');
@@ -1675,7 +1682,7 @@ _SEARCH_SCRIPT = """
   var cards = Array.prototype.slice.call(main.querySelectorAll('[data-card]'));
   var registryEl = document.getElementById('registry-search-data');
   var registryCapabilities = registryEl ? JSON.parse(registryEl.textContent) : [];
-  var hits = document.getElementById('tech-hits');
+  var hits = document.getElementById('reg-hits');
   function hide(el, yes){ el.classList.toggle('search-hide', yes) }
   function apply(){
     var words = input.value.toLowerCase().split(/\\s+/).filter(Boolean);
@@ -1704,14 +1711,14 @@ _SEARCH_SCRIPT = """
     });
     // Registry capabilities don't have their own cards here (hundreds of them): a match links
     // straight to its family page instead of filtering a card in place.
-    var techHits = 0;
+    var regHits = 0;
     if(hits){
       hits.innerHTML = '';
       if(searching){
         registryCapabilities.forEach(function(t){
           var hay = [t.id, t.title, t.family].concat(t.aliases || []).join(' ').toLowerCase();
           if(!words.every(function(w){ return hay.indexOf(w) >= 0 })) return;
-          techHits++;
+          regHits++;
           var li = document.createElement('li');
           var a = document.createElement('a');
           a.href = '/capabilities/' + t.family + '#' + t.id;
@@ -1723,11 +1730,11 @@ _SEARCH_SCRIPT = """
           hits.appendChild(li);
         });
       }
-      hide(hits, !searching || techHits === 0);
+      hide(hits, !searching || regHits === 0);
     }
-    none.textContent = searching && !shown && !techHits ?
+    none.textContent = searching && !shown && !regHits ?
       'No capabilities match \\u201c' + input.value.trim() + '\\u201d.' : '';
-    hide(none, !searching || shown > 0 || techHits > 0);
+    hide(none, !searching || shown > 0 || regHits > 0);
   }
   input.addEventListener('input', apply);
   input.addEventListener('keydown', function(e){
@@ -2091,7 +2098,7 @@ def page_html(capabilities_dir, version, header='', header_style='', community=N
         registry_id = _registry_overlap(e['id'])
         if registry_id:
             t = registry.get(registry_id)
-            item['techOverlap'] = {'id': t.id, 'family': t.family, 'title': t.name}
+            item['regOverlap'] = {'id': t.id, 'family': t.family, 'title': t.name}
         data.append(item)
     registry_search_data = [{'id': t.id, 'title': t.name, 'family': t.family, 'aliases': list(t.aliases)}
                            for t in all_registry_capabilities]
@@ -2135,7 +2142,7 @@ def page_html(capabilities_dir, version, header='', header_style='', community=N
         '<input type="search" id="cap-search" class="cap-search" placeholder="Search capabilities…" '
         f'aria-label="Search capabilities" autocomplete="off" spellcheck="false">{add_button}</div>'
         f'{drafts_html}'
-        f'{body}<ul class="search-hide" id="tech-hits" aria-label="Matching capabilities"></ul>'
+        f'{body}<ul class="search-hide" id="reg-hits" aria-label="Matching capabilities"></ul>'
         '<p class="search-none search-hide" id="search-none" role="status"></p></main>'
         '<div id="modal" hidden role="dialog" aria-modal="true" aria-labelledby="modal-title">'
         '<div class="box">'
@@ -2147,7 +2154,7 @@ def page_html(capabilities_dir, version, header='', header_style='', community=N
         '<h3 id="modal-title"></h3><p class="cat" id="modal-cat"></p>'
         '<p class="desc" id="modal-desc"></p>'
         '<div class="prompts"><p>What to tell the builder</p><ul id="modal-prompts"></ul></div>'
-        '<p class="tech-overlap" id="modal-tech-overlap" hidden></p>'
+        '<p class="reg-overlap" id="modal-reg-overlap" hidden></p>'
         '</div></div></div>' + dialog_html +
         f'<script id="capabilities-data" type="application/json">{json.dumps(data)}</script>' +
         community_data_script + registry_search_script +

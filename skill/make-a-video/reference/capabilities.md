@@ -1,8 +1,8 @@
-<!-- GENERATED from videobuilder/capabilities.py by `sheet_markdown()`. Do not hand-edit;
+<!-- GENERATED from videobuilder/capabilities/__init__.py by `sheet_markdown()`. Do not hand-edit;
      regenerate with `python -m videobuilder capabilities sheet > skill/make-a-video/reference/capabilities.md` after changing the catalog. -->
 # Capabilities catalog
 
-What videobuilder can already do, with a worked example for each. Reach for one of these before inventing an effect. Adding a capability later means adding one entry to `CATALOG` in `videobuilder/capabilities.py` and one demo film beside the others in `examples/capabilities/`; this file and the `/capabilities` page are both generated from that single catalog.
+What videobuilder can already do, with a worked example for each. Reach for one of these before inventing an effect. Adding a capability later means adding one entry to `CATALOG` in `videobuilder/capabilities/__init__.py` and one demo film beside the others in `examples/capabilities/`; this file and the `/capabilities` page are both generated from that single catalog.
 
 ## Motion
 
@@ -676,7 +676,7 @@ Old ids, now part of these: `comic-halftone` is the **Pop-art filter**; `pixel-a
 
 ## Capability families
 
-Hundreds more capabilities (easing curves, transitions, text reveals and the like), too many to list here one by one: each lives in its own file under `videobuilder/techniques/<family>/<id with - as _>.py` and has a short demo of its own. List a family's with `python -m videobuilder techniques index --family <family>` (drop `--family` for every one; add `--json` for machine-readable output). The families:
+Hundreds more capabilities (easing curves, transitions, text reveals and the like), too many to list here one by one: each lives in its own file under `videobuilder/capabilities/<family>/<id with - as _>.py`, ending in a module-level `CAPABILITY = Capability(...)` (see `videobuilder/capabilities/schema.py`), with a short demo of its own. List a family's with `python -m videobuilder capabilities index --family <family>` (drop `--family` for every one; add `--json` for machine-readable output). Call what its `api` names to use one in a film -- some are videobuilder's own functions, the rest live in the module itself and are imported from there; its own `draw` is a worked demo of the capability alone, read before using it the first time. Add a new one the same way, one new file and nothing else edited, checked by `python3 -m unittest tests.test_capabilities_registry.EachCapability.test_<id with - as _>`. The families:
 
 - **Animation principles** (`principles`): The animator's classic toolkit: easing, timing and weight.
 - **Typography** (`typography`): Type-only moves: reveals, effects and kinetic lettering.

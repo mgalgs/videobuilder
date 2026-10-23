@@ -1,6 +1,26 @@
-"""Finding capabilities: walk each family's subpackage for modules, import one
-on demand, and check it sits where its record says it does. There is no list
-of capabilities anywhere; a new module is found by its file alone.
+"""The capability registry: named motion-design moves (an easing curve, a
+transition, a text reveal, a look), each with its own short demo.
+
+    python -m videobuilder capabilities index [--json] [--family F]
+    python -m videobuilder capabilities gallery --out DIR [--only ID]... [--family F]
+
+One registry capability is exactly one module, `<family>/<id with - as _>.py`,
+which defines a module-level `CAPABILITY = Capability(...)` (see `schema.py`).
+The families are the subpackages beside this file (`schema.FAMILIES`); this
+module finds them by walking the packages, so adding a capability means
+adding its file and nothing else. A module whose name starts with `_` is a
+helper, not a capability. The capability's own code lives in its module,
+above the record; when videobuilder already does the thing, the module only
+names and demos the existing API. `_demo.py` is the shared demo kit; the one
+test for every registry capability is `tests/test_capabilities_registry.py`.
+
+Worked examples to copy: `principles/ease_out_back.py` (a thin entry for an
+existing API), `principles/bounce_ease_out.py` (a new easing curve),
+`transitions/dip_to_black.py` (a transition) and
+`typography/scramble_decode.py` (a text reveal).
+
+This finds and checks every capability module; there is no list of them
+anywhere else -- a new module is found by its file alone.
 """
 import importlib
 import json

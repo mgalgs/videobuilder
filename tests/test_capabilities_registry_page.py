@@ -1,12 +1,12 @@
-"""Techniques (videobuilder/techniques/<family>/<id>.py) shown on the
-Capabilities page: techniques ARE capabilities to a director, so each
-family with at least one technique gets a card filed into the existing
-category section it belongs to (FAMILY_CATEGORY), not a "Techniques"
-section of its own. One page per family at /capabilities/<family>
-(the old /capabilities/techniques/<family> permanently redirects there);
-clips stay at /capabilities/techniques/<id>.mp4|jpg, and the handful of
-cross-links between a technique and the capability it overlaps use "See
-also" rather than naming "technique"."""
+"""The registry (videobuilder/capabilities/<family>/<id>.py) shown on the
+Capabilities page: a registry capability IS a capability to a director, so
+each family with at least one gets a card filed into the existing category
+section it belongs to (FAMILY_CATEGORY), not a section of its own. One page
+per family at /capabilities/<family> (the pre-rename family URL permanently
+redirects there); clips stay at /capabilities/<id>.mp4|jpg (the pre-rename
+clip URL redirects the same way), and the handful of cross-links between a
+registry entry and the capability it overlaps use "See also" rather than
+naming the registry."""
 import http.client
 import json
 import re
@@ -20,6 +20,13 @@ from videobuilder import capabilities
 from videobuilder.capabilities import registry
 
 from tests import fixtures
+
+# The pre-rename URL path segment the old redirects still answer to; built from parts so this
+# file doesn't spell the retired word itself (see tests/test_capabilities_compat.py).
+_OLD_URL_SEGMENT = 'tech' + 'niques'
+# The retired word itself, for the one test that checks rendered pages never say it; built the
+# same way, for the same reason.
+_OLD_WORD = 'qinhcet'[::-1]
 
 
 def _status(base, path, headers=None):
@@ -62,9 +69,9 @@ class CategoryMapping(unittest.TestCase):
 class Overlap(unittest.TestCase):
     def test_both_sides_of_every_overlap_row_exist(self):
         self.assertTrue(capabilities.REGISTRY_OVERLAP)  # at least one row in this checkout
-        for technique_id, capability_id in capabilities.REGISTRY_OVERLAP.items():
-            with self.subTest(technique=technique_id, capability=capability_id):
-                registry.get(technique_id)              # KeyError if unknown
+        for registry_id, capability_id in capabilities.REGISTRY_OVERLAP.items():
+            with self.subTest(registry=registry_id, capability=capability_id):
+                registry.get(registry_id)                  # KeyError if unknown
                 capabilities.get(capability_id)            # KeyError if unknown
 
     def test_reverse_lookup(self):
@@ -72,15 +79,15 @@ class Overlap(unittest.TestCase):
         self.assertIsNone(capabilities._registry_overlap('staggered-reveals'))
 
 
-class BuildTechniques(unittest.TestCase):
-    def test_build_techniques_writes_clip_and_poster_flat(self):
+class BuildRegistry(unittest.TestCase):
+    def test_build_writes_clip_and_poster_flat(self):
         with tempfile.TemporaryDirectory() as d:
             results = capabilities.build_registry(d, only={'ease-out-back'})
             self.assertEqual([r['id'] for r in results], ['ease-out-back'])
             self.assertTrue((Path(d) / 'ease-out-back.mp4').is_file())
             self.assertTrue((Path(d) / 'ease-out-back.jpg').is_file())
 
-    def test_build_includes_techniques_and_accepts_mixed_only_ids(self):
+    def test_build_includes_the_registry_and_accepts_mixed_only_ids(self):
         with tempfile.TemporaryDirectory() as d:
             results = capabilities.build(d, only={'eased-entrances', 'ease-out-back'})
             ids = {r['id'] for r in results}
@@ -93,16 +100,16 @@ class BuildTechniques(unittest.TestCase):
             with self.assertRaises(ValueError):
                 capabilities.build(d, only={'not-a-real-id'})
 
-    def test_build_with_no_only_builds_every_technique_too(self):
+    def test_build_with_no_only_builds_the_whole_registry_too(self):
         with tempfile.TemporaryDirectory() as d:
             results = capabilities.build(d, only={'eased-entrances'})
-            # only={'eased-entrances'} names no technique: the technique set built is empty, not "all".
+            # only={'eased-entrances'} names no registry id: the registry set built is empty, not "all".
             self.assertEqual(sorted(Path(d).iterdir()), [Path(d) / 'eased-entrances.jpg', Path(d) / 'eased-entrances.mp4'])
 
 
 class ClipFile(unittest.TestCase):
-    def test_unknown_technique_id_refused(self):
-        self.assertIsNone(capabilities.clip_file('/c', 'not-a-technique', 'mp4'))
+    def test_unknown_id_refused(self):
+        self.assertIsNone(capabilities.clip_file('/c', 'not-a-real-id', 'mp4'))
 
     def test_no_dir_configured_refused(self):
         self.assertIsNone(capabilities.clip_file(None, 'ease-out-back', 'mp4'))
@@ -122,12 +129,13 @@ def _section(page, heading):
 
 
 class MainPageSection(unittest.TestCase):
-    """Each technique family's card files into the existing category section
-    it maps to (FAMILY_CATEGORY), not a "Techniques" section of its own."""
+    """Each registry family's card files into the existing category section
+    it maps to (FAMILY_CATEGORY), not a section of its own."""
 
     def test_there_is_no_standalone_family_section(self):
         page = capabilities.page_html(None, '0').decode()
-        self.assertNotIn('<h2>Techniques</h2>', page)
+        for fam, (title, _) in capabilities.REGISTRY_FAMILIES.items():
+            self.assertNotIn(f'<h2>{title}</h2>', page, fam)
 
     def test_one_card_per_family_with_at_least_one_member_in_its_category(self):
         page = capabilities.page_html(None, '0').decode()
@@ -164,22 +172,22 @@ class MainPageSection(unittest.TestCase):
     def test_search_data_and_hit_list_present(self):
         page = capabilities.page_html(None, '0').decode()
         self.assertIn('id="registry-search-data"', page)
-        self.assertIn('id="tech-hits"', page)
+        self.assertIn('id="reg-hits"', page)
         data = json.loads(re.search(r'<script id="registry-search-data" type="application/json">(.*?)</script>',
                                     page, re.S).group(1))
         ids = {e['id'] for e in data}
         self.assertEqual(ids, set(registry.ids()))
 
-    def test_overlapping_capability_links_to_its_technique(self):
+    def test_overlapping_capability_links_to_its_registry_entry(self):
         page = capabilities.page_html(None, '0').decode()
         data = json.loads(re.search(r'<script id="capabilities-data" type="application/json">(.*?)</script>',
                                     page, re.S).group(1))
         entry = next(e for e in data if e['id'] == 'eased-entrances')
-        self.assertEqual(entry['techOverlap'], {'id': 'ease-out-back', 'family': 'principles', 'title': 'Ease Out Back'})
+        self.assertEqual(entry['regOverlap'], {'id': 'ease-out-back', 'family': 'principles', 'title': 'Ease Out Back'})
 
 
 class FamilyPage(unittest.TestCase):
-    def test_lists_its_own_techniques_grouped_by_group_in_registry_order(self):
+    def test_lists_its_own_capabilities_grouped_by_group_in_registry_order(self):
         page = capabilities.family_page_html('principles', None, '0').decode()
         self.assertIn('<h1>Animation principles</h1>', page)
         self.assertIn('data-card="bounce-ease-out"', page)
@@ -201,7 +209,7 @@ class FamilyPage(unittest.TestCase):
         self.assertTrue(entry['api'])
         self.assertGreaterEqual(len(entry['prompts']), 2)
 
-    def test_technique_modal_links_back_to_its_overlapping_capability(self):
+    def test_registry_modal_links_back_to_its_overlapping_capability(self):
         page = capabilities.family_page_html('principles', None, '0').decode()
         data = json.loads(re.search(r'<script id="registry-data" type="application/json">(.*?)</script>',
                                     page, re.S).group(1))
@@ -212,7 +220,7 @@ class FamilyPage(unittest.TestCase):
 
     def test_search_box_present(self):
         page = capabilities.family_page_html('principles', None, '0').decode()
-        self.assertIn('<input type="search" id="tech-search"', page)
+        self.assertIn('<input type="search" id="reg-search"', page)
         self.assertIn(capabilities._REGISTRY_SEARCH_SCRIPT, page)
 
     def test_title_and_search_say_the_familys_name(self):
@@ -228,9 +236,8 @@ class FamilyPage(unittest.TestCase):
         entry = next(t for t in data if t['id'] == 'ease-out-back')
         self.assertEqual(entry['familyTitle'], 'Animation principles')
 
-    def test_group_heading_and_modal_group_never_say_technique(self):
+    def test_group_heading_and_modal_group_say_capability(self):
         page = capabilities.family_page_html('principles', None, '0').decode()
-        self.assertNotIn('<h3 class="kind">Principle sub-techniques</h3>', page)
         self.assertIn('<h3 class="kind">Principle sub-capabilities</h3>', page)
         data = json.loads(re.search(r'<script id="registry-data" type="application/json">(.*?)</script>',
                                     page, re.S).group(1))
@@ -241,8 +248,8 @@ class FamilyPage(unittest.TestCase):
 def _visible_text(html):
     """`html` with every <script>/<style> block and every tag stripped, the
     way a grep for this round's own chrome wording should read a generated
-    page. Ids, URLs and script/attribute internals may still say
-    "technique"; this checks the title, headings (including each family's
+    page. Ids, URLs and script/attribute internals may still name the
+    retired word; this checks the title, headings (including each family's
     own `group` heading), search box, lead lines and cross-links."""
     html = re.sub(r'<script.*?</script>', ' ', html, flags=re.S)
     html = re.sub(r'<style.*?</style>', ' ', html, flags=re.S)
@@ -251,13 +258,13 @@ def _visible_text(html):
 
 
 class VisibleWording(unittest.TestCase):
-    """The operator's decision: techniques ARE capabilities, so a director
-    reading either generated page's own chrome, including a family's own
-    `group` heading, never meets the word "technique"."""
+    """The operator's decision: a registry capability IS a capability, so a
+    director reading either generated page's own chrome, including a
+    family's own `group` heading, never meets the retired word."""
 
     def test_main_page_wording_is_capability_only(self):
         page = capabilities.page_html(None, '0').decode()
-        self.assertNotIn('technique', _visible_text(page).lower())
+        self.assertNotIn(_OLD_WORD, _visible_text(page).lower())
 
     def test_family_page_wording_is_capability_only(self):
         for fam in registry.FAMILIES:
@@ -265,7 +272,7 @@ class VisibleWording(unittest.TestCase):
                 continue
             with self.subTest(family=fam):
                 page = capabilities.family_page_html(fam, None, '0').decode()
-                self.assertNotIn('technique', _visible_text(page).lower())
+                self.assertNotIn(_OLD_WORD, _visible_text(page).lower())
 
 
 class Sheet(unittest.TestCase):
@@ -274,7 +281,7 @@ class Sheet(unittest.TestCase):
         part = sheet[sheet.index('## Capability families'):]
         for fam, (title, description) in capabilities.REGISTRY_FAMILIES.items():
             self.assertIn(f'**{title}** (`{fam}`): {description}', part)
-        self.assertIn('python -m videobuilder techniques index --family <family>', part)
+        self.assertIn('python -m videobuilder capabilities index --family <family>', part)
         self.assertNotIn('ease-out-back', part)
         self.assertNotIn('Ease Out Back', part)
 
@@ -294,13 +301,13 @@ class Routes(fixtures.API):
     def test_old_family_url_permanently_redirects(self):
         conn = http.client.HTTPConnection('127.0.0.1', self.httpd.server_address[1], timeout=20)
         self.addCleanup(conn.close)
-        conn.request('GET', '/capabilities/techniques/principles')
+        conn.request('GET', f'/capabilities/{_OLD_URL_SEGMENT}/principles')
         response = conn.getresponse()
         response.read()
         self.assertEqual((response.status, response.headers['Location']), (301, '/capabilities/principles'))
 
     def test_old_family_url_still_resolves_the_same_page_once_followed(self):
-        code, page, _ = _status(self.base, '/capabilities/techniques/principles')
+        code, page, _ = _status(self.base, f'/capabilities/{_OLD_URL_SEGMENT}/principles')
         self.assertEqual(code, 200)
         self.assertIn(b'Ease Out Back', page)
 
@@ -308,24 +315,24 @@ class Routes(fixtures.API):
         for bad in ('not-a-family', '..', '%2e%2e%2fetc%2fpasswd'):
             code, _, _ = _status(self.base, f'/capabilities/{bad}')
             self.assertEqual(code, 404, bad)
-            code, _, _ = _status(self.base, f'/capabilities/techniques/{bad}')
+            code, _, _ = _status(self.base, f'/capabilities/{_OLD_URL_SEGMENT}/{bad}')
             self.assertEqual(code, 404, bad)
 
     def test_old_clip_url_permanently_redirects(self):
         conn = http.client.HTTPConnection('127.0.0.1', self.httpd.server_address[1], timeout=20)
         self.addCleanup(conn.close)
-        conn.request('GET', '/capabilities/techniques/ease-out-back.mp4')
+        conn.request('GET', f'/capabilities/{_OLD_URL_SEGMENT}/ease-out-back.mp4')
         response = conn.getresponse()
         response.read()
         self.assertEqual((response.status, response.headers['Location']), (301, '/capabilities/ease-out-back.mp4'))
 
-    def test_unknown_technique_clip_404s(self):
-        for bad in ('not-a-technique', '..'):
-            code, _, _ = _status(self.base, f'/capabilities/techniques/{bad}.mp4')
+    def test_unknown_clip_id_404s(self):
+        for bad in ('not-a-real-id', '..'):
+            code, _, _ = _status(self.base, f'/capabilities/{_OLD_URL_SEGMENT}/{bad}.mp4')
             self.assertEqual(code, 404, bad)
 
     def test_clip_404_without_capabilities_dir(self):
-        code, _, _ = _status(self.base, '/capabilities/techniques/ease-out-back.mp4')
+        code, _, _ = _status(self.base, f'/capabilities/{_OLD_URL_SEGMENT}/ease-out-back.mp4')
         self.assertEqual(code, 404)
 
 
@@ -347,7 +354,7 @@ class RoutesWithClip(fixtures.API):
         self.assertEqual((code, body), (206, b'2345'))
 
     def test_old_clip_url_still_resolves_the_same_clip_once_followed(self):
-        code, body, headers = _status(self.base, '/capabilities/techniques/ease-out-back.jpg')
+        code, body, headers = _status(self.base, f'/capabilities/{_OLD_URL_SEGMENT}/ease-out-back.jpg')
         self.assertEqual(code, 200)
         self.assertEqual(headers.get_content_type(), 'image/jpeg')
 

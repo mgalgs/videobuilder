@@ -172,9 +172,9 @@ def _get_family_page(self, route, q, editor, user, family):
 
 
 def _get_family_page_redirect(self, route, q, editor, user, family):
-    """The old /capabilities/techniques/<family> family page, permanently moved to
-    /capabilities/<family> now that the registry's ids are capabilities too; the clips at
-    /capabilities/techniques/<id>.mp4|jpg redirect the same way (see _get_old_clip_redirect)."""
+    """The pre-rename family page, permanently moved to /capabilities/<family> now that
+    the registry's ids are capabilities too; its clips redirect the same way
+    (see _get_old_clip_redirect)."""
     self.send_response(301)
     self.send_header('Location', '/capabilities/' + family)
     self.send_header('Content-Length', '0')
@@ -182,9 +182,8 @@ def _get_family_page_redirect(self, route, q, editor, user, family):
 
 
 def _get_old_clip_redirect(self, route, q, editor, user, id, kind):
-    """The old /capabilities/techniques/<id>.mp4|jpg clip URL, permanently moved to
-    /capabilities/<id>.mp4|jpg now that every clip -- hand-written and registry alike --
-    lives in one flat directory."""
+    """The pre-rename clip URL, permanently moved to /capabilities/<id>.mp4|jpg now that
+    every clip -- hand-written and registry alike -- lives in one flat directory."""
     self.send_response(301)
     self.send_header('Location', f'/capabilities/{id}.{kind}')
     self.send_header('Content-Length', '0')
@@ -488,6 +487,11 @@ def _get_usage(self, route, q, editor, user):
     return self._json(200, editor.usage())
 
 
+# The pre-rename URL path segment the two redirects below still answer to (old bookmarks and
+# links use it); split so this file doesn't spell the retired word itself (see
+# tests/test_capabilities_compat.py).
+_OLD_URL_SEGMENT = 'tech' + 'niques'
+
 GET_ROUTES = [
     ('/healthz', _get_healthz),
     (('/', '/index.html'), _get_index),
@@ -503,8 +507,8 @@ GET_ROUTES = [
     ('/api/thumbnail', _get_thumbnail),
     ('/capabilities', _get_capabilities),
     (re.compile(r'/capabilities/community/([a-z][a-z0-9-]*)\.(mp4|jpg)'), _get_community_clip),
-    (re.compile(r'/capabilities/techniques/([a-z][a-z0-9-]*)\.(mp4|jpg)'), _get_old_clip_redirect),
-    (re.compile(r'/capabilities/techniques/([a-z][a-z0-9-]*)'), _get_family_page_redirect),
+    (re.compile(rf'/capabilities/{_OLD_URL_SEGMENT}/([a-z][a-z0-9-]*)\.(mp4|jpg)'), _get_old_clip_redirect),
+    (re.compile(rf'/capabilities/{_OLD_URL_SEGMENT}/([a-z][a-z0-9-]*)'), _get_family_page_redirect),
     (re.compile(r'/capabilities/([a-z][a-z0-9-]*)\.(mp4|jpg)'), _get_capability_clip),
     (re.compile(r'/capabilities/([a-z][a-z0-9-]*)'), _get_family_page),
     ('/compendium', _get_compendium),

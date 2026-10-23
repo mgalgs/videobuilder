@@ -76,7 +76,7 @@ Read `reference/motion.md` when assigning motion numbers, checking a move with `
 
 While planning, read `reference/capabilities.md`: the catalog of what videobuilder can already do, each entry with a worked example film to read. Reach for one of these before inventing an effect.
 
-For a named motion-design move (an easing curve, a transition, a text reveal), read `reference/techniques.md`: `python -m videobuilder techniques index` prints every technique with what a film calls to use it.
+For a named motion-design move (an easing curve, a transition, a text reveal), see the "Capability families" section at the end of `reference/capabilities.md`: `python -m videobuilder capabilities index` prints every one of them with what a film calls to use it.
 
 ## 3. Scaffold the film
 
