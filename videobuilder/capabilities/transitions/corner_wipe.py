@@ -58,5 +58,6 @@ CAPABILITY = Capability(
                'a round wipe that starts in the corner'),
     related=('uncover', 'roll-up', 'zoom-out-reveal', 'slide-over-cover', 'paint-brush-wipe', 'tumble'),
     api=('videobuilder.capabilities.transitions.corner_wipe.corner_wipe',),
-    demo=lambda: demo.two_scenes(lambda cv, a, b, p: corner_wipe(cv, a, b, p, edge=demo.ACCENT)),
+    demo=lambda: demo.two_scenes(lambda cv, a, b, p: corner_wipe(cv, a, b, p, edge=demo.ACCENT),
+                                start=1.4, length=1.4),
 )
