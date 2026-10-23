@@ -9,10 +9,11 @@ from ..schema import Capability
 def rewind_time(p, turn=0.45, cut=0.7, speed=1.5):
     """The outgoing shot's own time (0 -> 1 is its forward run) at progress
     `p`: forward until `turn`, then playing backwards `speed` times as fast
-    until the `cut`, never earlier than 0."""
+    until the `cut`, where it holds the frame the edit lands on; never
+    earlier than 0."""
     if p < turn:
         return p / turn
-    return max(0.0, 1 - speed * (p - turn) / turn)
+    return max(0.0, 1 - speed * (min(p, cut) - turn) / turn)
 
 
 def _rewind_look(cv, strength, p):
@@ -71,7 +72,10 @@ def shot_b(cv, t):
 
 
 def draw(n, cv):
-    reverse_motion_cut(cv, shot_a, shot_b, demo.phase(n, 0.2, 2.7))
+    # Turn at 1.45 s, cut at 2.25 s while A is still rewinding (t ~ 0.04), so
+    # the gallery poster (2.1 s) lands mid-rewind with the tape cue up; B then
+    # has 0.45 s to settle and holds to the end.
+    reverse_motion_cut(cv, shot_a, shot_b, demo.phase(n, 0.2, 2.7), turn=0.5, cut=0.82)
 
 
 CAPABILITY = Capability(
