@@ -62,9 +62,12 @@ def logo(cv, x, y):
               weight=900)
 
 
+SWEEP = vb.bezier(0.45, 0, 0.55, 1)  # a soft in-out, so the wordmark gets most of the sweep's time
+
+
 def draw(n, cv):
     x, y = (demo.W - LOGO_W) / 2, (demo.H - LOGO_H) / 2
-    p = vb.ease_in_out_quart(demo.phase(n, 0.4, 2.2))
+    p = SWEEP(demo.phase(n, 0.7, 2.7))  # still crossing the wordmark at the 2.1 s poster
     mask_wipe(cv, lambda c: logo(c, x, y), x, y, LOGO_W, LOGO_H, p)
     cv.mark('logo', x, y, LOGO_W, LOGO_H)
 
