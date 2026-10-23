@@ -52,5 +52,6 @@ CAPABILITY = Capability(
     related=('circular-clip-reveal', 'wipe-reveal', 'paint-brush-wipe', 'fill-sweep-button',
              'shape-fill-sweep', 'tessellation-triangle-flip'),
     api=('videobuilder.capabilities.transitions.diamond_wipe.diamond_wipe',),
-    demo=lambda: demo.two_scenes(lambda cv, a, b, p: diamond_wipe(cv, a, b, p, edge=demo.ACCENT)),
+    demo=lambda: demo.two_scenes(lambda cv, a, b, p: diamond_wipe(cv, a, b, p, edge=demo.ACCENT),
+                                 start=1.3, length=1.6),
 )
