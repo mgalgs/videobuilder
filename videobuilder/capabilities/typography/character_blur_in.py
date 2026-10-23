@@ -41,7 +41,7 @@ def draw(n, cv):
     f = demo.font(150, 800)
     text = 'MOTION'
     w, h = vb.text.block_size([text], f)
-    box = draw_blur_in(cv, text, f, (demo.W - w) / 2, (demo.H - h) / 2, demo.phase(n, 0.3, 2.3),
+    box = draw_blur_in(cv, text, f, (demo.W - w) / 2, (demo.H - h) / 2, demo.phase(n, 0.3, 3.1),
                        demo.INK, alpha_from=0.15)
     cv.mark('text', *box)
 
