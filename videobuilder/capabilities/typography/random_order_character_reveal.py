@@ -42,7 +42,7 @@ def draw_random_reveal(cv, text, font, x, y, p, color, flash=None, seed=0, fade=
         if q <= 0 or ch.isspace():
             continue
         e = vb.ease_out_expo(q)
-        ink = type_kit.mix(flash, color, e) if flash else color
+        ink = type_kit.mix(flash, color, q * q) if flash else color  # holds the flash while it lands
         vb.text.draw(cv, [ch], font, x + cx, y - rise * h * (1 - e), ink, alpha=e)
     return vb.Box(x, y, width, h)
 
@@ -51,8 +51,8 @@ def draw(n, cv):
     f = demo.font(120, 800)
     text = 'SHUFFLED IN'
     w, h = vb.text.block_size([text], f)
-    box = draw_random_reveal(cv, text, f, (demo.W - w) / 2, (demo.H - h) / 2, demo.phase(n, 0.3, 2.3),
-                             demo.INK, flash=demo.ACCENT, seed=3, fade=0.12)
+    box = draw_random_reveal(cv, text, f, (demo.W - w) / 2, (demo.H - h) / 2, demo.phase(n, 0.5, 2.8),
+                             demo.INK, flash=demo.ACCENT, seed=3, fade=0.22)
     cv.mark('text', *box)
 
 
