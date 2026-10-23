@@ -277,6 +277,10 @@ class NoteStore:
         # film, when set, is a callable (video, note, state) -> (brief, grabs) for a film
         # made of clips, or None for a single film (see film_brief.brief); set by Editor.
         self.film = None
+        # video_refs, when set, is a callable (note, attach_dir) -> staged reference
+        # descriptors for a note's own `refs` (see video_refs.extract/stage, Editor.
+        # _stage_video_refs); set by Editor, None outside library mode.
+        self.video_refs = None
 
     def video_lock(self, video):
         with self.lock:
@@ -482,7 +486,7 @@ class NoteStore:
             if self.attachments:
                 self.attachments.expire()
                 payload['attach_dir'] = self.attachments.stage(
-                    note, image, force=any_ready or bool(community_entries) or bool(grabs))
+                    note, image, force=any_ready or bool(community_entries) or bool(grabs) or bool(note.get('refs')))
                 if image:
                     from .attachments import FRAME_NAME
                     image = '/attachments/' + FRAME_NAME
@@ -493,6 +497,8 @@ class NoteStore:
                         film[side]['frame'] = '/attachments/' + name
             staged_community = (_stage_community(payload['attach_dir'], community_entries)
                                if community_entries and payload.get('attach_dir') else [])
+            staged_refs = (self.video_refs(note, payload['attach_dir'])
+                          if self.video_refs and note.get('refs') and payload.get('attach_dir') else [])
             if sources and payload.get('attach_dir'):
                 attach_dir = Path(payload['attach_dir'])
                 used = sum(f.stat().st_size for f in attach_dir.rglob('*') if f.is_file())
@@ -502,7 +508,7 @@ class NoteStore:
             compendium = bool(compendium_source(payload)) if compendium_source else False
             votes = self.compendium_votes() if compendium and self.compendium_votes else None
             path.write_text(prompt.render(note, payload, image, compendium=compendium, votes=votes,
-                                          sources=sources, community=staged_community, film=film),
+                                          sources=sources, community=staged_community, film=film, refs=staged_refs),
                             encoding='utf-8')
             payload['note_file'] = str(path)
             note['handle'] = self.backend.submit(payload)

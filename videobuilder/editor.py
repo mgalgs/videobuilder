@@ -34,7 +34,17 @@ POST /api/notes {video,text,format?,time?,attachments?:[id...],clip?}
                                      `gathering` state while the editor reads
                                      just those pages (see gather.py), then
                                      queues with them attached; its `said` is
-                                     the creator's own text.
+                                     the creator's own text. A link to one of
+                                     this library's own videos (`/v/<name>`)
+                                     is never gathered: it is resolved and
+                                     staged locally instead (see
+                                     video_refs.py), so a note can say
+                                     something like "like <link to another of
+                                     your videos> but about squid" and the
+                                     builder gets that video's code and a
+                                     contact sheet to learn from. A note whose
+                                     links are only library ones never enters
+                                     `gathering` at all.
                                      429 {error} once the author's account has
                                      hit account_daily_note_cap or
                                      account_daily_cost_cap_usd, naming in plain
@@ -267,7 +277,13 @@ POST /v/<name>/api/videos/first-note {description?,attachments?:[id...],
                                      still queues with whatever was gathered
                                      and a line on what failed when
                                      gathering only partly succeeds; 429 as
-                                     POST /api/notes above. New video sends
+                                     POST /api/notes above. A link to one of
+                                     this library's own videos in the brief
+                                     is a reference, not a page to gather --
+                                     see POST /api/notes above and
+                                     video_refs.py -- so even the first note
+                                     for a brand new video can say "like
+                                     <link> but about squid". New video sends
                                      it, and so does the editor's composer
                                      for a video's first note while it is
                                      not built yet
@@ -490,7 +506,7 @@ from http.server import ThreadingHTTPServer
 from importlib import resources
 from pathlib import Path, PurePosixPath
 
-from . import assembly, capabilities, edits, film_setup
+from . import assembly, capabilities, edits, film_setup, video_refs
 from .notes import NoteStore
 from .agents import backend_from_config
 from .drafts import Drafts, git
@@ -599,6 +615,7 @@ class Editor:
                                compendium_for_builder=self.compendium_for_builder,
                                compendium_votes=self._compendium_votes_for_builder,
                                community=self._community_for_builder)
+        self.notes.video_refs = self._stage_video_refs
         self.attachments = Attachments(self, _positive(cfg, 'attachment_max_file', 25) * 1048576,
                                        _positive(cfg, 'attachment_max_files', 10),
                                        _positive(cfg, 'attachment_max_message', 100) * 1048576,
@@ -648,6 +665,10 @@ class Editor:
         # can see every project the account has used, not just this one (see
         # Library.account_notes). None in single-project mode, where this is the only one.
         self.library = None
+        # This repo's own name in the library (see Library.editor), for video_refs.extract
+        # to recognise -- and silently ignore -- a note that links to its own video. None
+        # outside library mode, where there is no other video to reference anyway.
+        self.library_name = None
         self.renders = Renders(self, _positive(cfg, 'render_jobs', min(4, default_jobs())),
                                _positive(cfg, 'render_keep', 20))
         self.notes.film = FilmBrief(self)
@@ -679,6 +700,16 @@ class Editor:
         (self.library is set by Library.editor(), never in single-project
         mode), where there is no community feature at all."""
         return self.library.community_for_builder() if self.library else []
+
+    def _stage_video_refs(self, note, attach_dir):
+        """This note's referenced videos (video_refs.extract, run at note creation)
+        resolved and staged read-only under attach_dir/refs/<name>/ for the builder's
+        prompt -- see video_refs.stage. [] with none named, or outside library mode,
+        where there is no other video to reference."""
+        refs = note.get('refs')
+        if not refs or not self.library:
+            return []
+        return video_refs.stage(self.library, note.get('author'), refs, attach_dir)
 
     def _before_submit(self, video, note, state):
         self.sources.sync(video)
@@ -867,7 +898,14 @@ class Editor:
                        capabilities=_note_capability_ids(body),
                        beat=frame / tl['frames_per_beat'] if tl and frame is not None else None)
         links, skipped = _note_links(text if isinstance(text, str) else '', body.get('links'))
-        if links and not (isinstance(text, str) and text.strip()):
+        # A link to one of this library's own videos is resolved locally (see
+        # video_refs.extract), not handed to the gatherer; a video may not reference
+        # itself, dropped here silently rather than treated as unresolved -- the
+        # builder already has its own video.
+        refs, links = video_refs.extract(links, self.library)
+        refs = [r for r in refs if r != self.library_name]
+        context['refs'] = refs
+        if (links or refs) and not (isinstance(text, str) and text.strip()):
             raise HTTPError(400, 'a note needs some text')
         if links:
             # Only the linked pages themselves, no crawl: a later note is usually
@@ -923,6 +961,8 @@ class Editor:
         if description is not None and not isinstance(description, str):
             raise HTTPError(400, 'description must be a string')
         links, skipped = _note_links(description or '', body.get('links'))
+        refs, links = video_refs.extract(links, self.library)
+        refs = [r for r in refs if r != self.library_name]
         attachment_ids = body.get('attachments', [])
         if not isinstance(attachment_ids, list):
             attachment_ids = [None]
@@ -947,7 +987,7 @@ class Editor:
             try:
                 return self.notes.add(vid, fmt, None, None, _first_brief(description, attachments, [], [], extra),
                                       None, author=author, attachments=attachments, capabilities=capability_ids,
-                                      **said)
+                                      refs=refs, **said)
             except ValueError as e:
                 raise HTTPError(400, str(e)) from None
 
@@ -956,7 +996,7 @@ class Editor:
                                           capabilities=capability_ids,
                                           gather={'description': description, 'links': links, 'extra': extra,
                                                   'skipped': skipped},
-                                          **said)
+                                          refs=refs, **said)
         self._start_gather(note)
         return note
 

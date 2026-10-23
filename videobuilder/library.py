@@ -17,6 +17,12 @@ from .git_bridge import git_route, serve_git, _copy_body
 from .pages import signin_page, signup_page
 
 
+# The name this editor's own `/v/<name>` dispatch (handler_library._handle) splits a
+# request path into: a video name, then optionally a known editor subroute. Kept here,
+# separate from that routing regex, for video_refs.extract to recognise a note's link to
+# this same editor as naming a video rather than deciding how to route it.
+_VIDEO_PATH = re.compile(r'/v/(.+?)(/api(?:/.*)?|/tuning\.html|/director\.(?:js|css)|'
+                         r'/suggest\.(?:js|css)|/)?')
 PART = re.compile(r'[a-z0-9][a-z0-9._-]{0,62}\Z')
 # versions.history also matches this subject, for blank videos made before
 # the commit carried a Version-kind trailer.
@@ -34,6 +40,19 @@ PURGE_EVERY = 60 * 60
 def valid_name(name):
     return (isinstance(name, str) and len(name.split('/')) in (1, 2) and
             all(PART.fullmatch(p) and not p.endswith('.git') and '..' not in p for p in name.split('/')))
+
+
+def video_name_in_path(path):
+    """The video name a path shaped like `/v/<name>` or `/v/<name>/...` names, split
+    the same way handler_library._handle's own dispatch regex does and, like it,
+    checked with valid_name straight off the raw path -- never unquoted first, the
+    same as the router: valid_name's own charset excludes '%', so a percent-encoded
+    name is simply not a valid one, there or here. None for a path that doesn't
+    start with `/v/`, or whose name isn't valid."""
+    m = _VIDEO_PATH.fullmatch(path)
+    if not m or not valid_name(m.group(1)):
+        return None
+    return m.group(1)
 
 
 class Library:
@@ -177,6 +196,7 @@ class Library:
                                             sync_remote='origin', trust_repo_config=False,
                                             **options)
                 self.editors[name].library = self
+                self.editors[name].library_name = name
             return self.editors[name]
 
     def account_notes(self):
