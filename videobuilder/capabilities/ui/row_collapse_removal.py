@@ -54,7 +54,8 @@ def draw_collapsing_list(cv, x, y, w, heights, removed, p, draw_row, gap=0, **kw
 ROW_H, GAP, PAD, LIST_W = 58, 10, 14, 440
 ROWS = 5
 GONE = 2
-SELECT_AT, START, END = 0.5, 1.0, 1.75
+SELECT_AT, START, END = 1.0, 1.6, 2.6  # the poster (0.7 of 3 s = 2.1 s) lands mid-collapse
+FADE = 1.0  # fade over the whole move, so mid-collapse the row is still plainly there
 WIDTHS = (0.42, 0.5, 0.46, 0.58, 0.38)
 
 
@@ -82,7 +83,7 @@ def draw(n, cv):
     p_select = demo.phase(n, SELECT_AT, SELECT_AT + 0.25)
     p = demo.phase(n, START, END)
     heights = [ROW_H] * ROWS
-    _, total = collapse_rows(heights, GONE, p, gap=GAP)
+    _, total = collapse_rows(heights, GONE, p, gap=GAP, fade=FADE)
     full = ROWS * ROW_H + (ROWS - 1) * GAP
     x = (demo.W - LIST_W) / 2
     y = (demo.H - full) / 2
@@ -90,7 +91,7 @@ def draw(n, cv):
     cv.shadow(x - PAD, y - PAD, pw, ph, radius=20, dy=10, blur=30, color=(0, 0, 0, 0.45))
     cv.rect(x - PAD, y - PAD, pw, ph, '#191a20', radius=20)
     box = draw_collapsing_list(cv, x, y, LIST_W, heights, GONE, p,
-                               lambda c, i, b: _row(c, i, b, p_select), gap=GAP)
+                               lambda c, i, b: _row(c, i, b, p_select), gap=GAP, fade=FADE)
     cv.mark('list', *box)
 
 
