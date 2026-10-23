@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "videobuilder"
-version = "0.1.118"
+version = "0.1.119"
 description = "A small, dependency-light framework for making videos in code (cairo + Pango + ffmpeg)"
 readme = "README.md"
 license = {file = "LICENSE"}
