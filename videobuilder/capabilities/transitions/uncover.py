@@ -42,5 +42,5 @@ CAPABILITY = Capability(
     related=('roll-up', 'corner-wipe', 'zoom-out-reveal', 'fade-up-scroll-reveal', 'zoom-through',
              'device-mockup-slide-in'),
     api=('videobuilder.capabilities.transitions.uncover.uncover',),
-    demo=lambda: demo.two_scenes(uncover),
+    demo=lambda: demo.two_scenes(uncover, start=1.4),  # poster (2.1 s) lands mid-slide
 )
