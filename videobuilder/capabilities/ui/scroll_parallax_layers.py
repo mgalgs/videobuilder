@@ -30,17 +30,19 @@ def draw_scroll_layers(cv, layers, scroll):
 
 
 SCROLL = 420  # px the demo page scrolls
+# The hills (from page y 440) and cards (from 655) start low enough that at the
+# full scroll they still sit below the headline (rate 0.3), which ends near y 164.
 RIDGE = parallax.ridge(demo.W, 120, seed=4) + [(demo.W, 900), (0, 900)]
 
 
 def _sky(cv):
     demo.dot(cv, demo.W * 0.72, 150, r=90, color=demo.TEAL, alpha=0.35)
-    for i, (x, y) in enumerate(((120, 90), (300, 200), (520, 70), (860, 260), (430, 330), (700, 420))):
+    for i, (x, y) in enumerate(((120, 90), (200, 250), (520, 70), (860, 260), (430, 330), (700, 420))):
         demo.dot(cv, x, y, r=3 + i % 2, color=demo.MUTED, alpha=0.7)
 
 
 def _hills(cv):
-    paths.draw(cv, [(x, 360 + y) for x, y in RIDGE], demo.LINE, fill=True)
+    paths.draw(cv, [(x, 440 + y) for x, y in RIDGE], demo.LINE, fill=True)
 
 
 def _headline(cv):
@@ -50,8 +52,8 @@ def _headline(cv):
 
 def _content(cv):
     for i, x in enumerate((demo.W / 2 - 290, demo.W / 2, demo.W / 2 + 290)):
-        demo.card(cv, x, 640 + 30 * (i % 2), w=240, h=150, color=(demo.ACCENT, demo.TEAL, demo.ACCENT)[i])
-    demo.card(cv, demo.W / 2, 850, w=820, h=150, color='#3b3f4a')
+        demo.card(cv, x, 730 + 30 * (i % 2), w=240, h=150, color=(demo.ACCENT, demo.TEAL, demo.ACCENT)[i])
+    demo.card(cv, demo.W / 2, 940, w=820, h=150, color='#3b3f4a')
 
 
 LAYERS = ((0.1, _sky), (0.3, _headline), (0.55, _hills), (1.0, _content))
