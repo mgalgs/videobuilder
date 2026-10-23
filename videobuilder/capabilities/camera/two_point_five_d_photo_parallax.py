@@ -8,6 +8,7 @@ slide further than the far ones, so the flat picture seems to have depth.
 import math
 from functools import lru_cache
 
+import numpy as np
 from PIL import Image, ImageChops, ImageDraw, ImageFilter
 
 import videobuilder as vb
@@ -35,6 +36,23 @@ def _fill_from(rgb, valid):
     return fill.convert('RGB')
 
 
+def _below_top_edge(band, d, lo):
+    """A mask of each column from the top edge of `band` down. Where that
+    edge shows (farther pixels, or the photo's top, just above it) it is the
+    band's topmost pixel; where something nearer hides it, it is drawn
+    straight across from the nearest columns where it shows."""
+    b, depth = np.asarray(band) > 0, np.asarray(d)
+    h, w = b.shape
+    cols = np.arange(w)
+    top = np.where(b.any(0), b.argmax(0), h)
+    above = depth[np.maximum(top - 1, 0), cols]
+    seen = (top < h) & ((top == 0) | (above < lo))
+    if not seen.any():
+        return Image.new('L', band.size, 255)
+    edge = np.minimum(np.interp(cols, cols[seen], top[seen]), top)
+    return Image.fromarray(np.where(np.arange(h)[:, None] >= np.floor(edge), 255, 0).astype(np.uint8))
+
+
 def depth_slices(photo, depth, layers=12, feather=1.0, reach=0.04):
     """Cut `photo` (a PIL image) into up to `layers` depth slices by `depth`
     (a PIL greyscale image the same size: white is near, black is far).
@@ -45,7 +63,11 @@ def depth_slices(photo, depth, layers=12, feather=1.0, reach=0.04):
     (a fraction of the photo's width; keep it at least the `travel` you
     draw with) of it, and that margin is painted in from the band's own
     colours. So when a near object slides aside it uncovers what is
-    plausibly behind it, not a hole or a copy of itself. The furthest slice
+    plausibly behind it, not a hole or a copy of itself. The margin never
+    rises above the band's own top edge: where something nearer hides that
+    edge, it is carried across from the columns either side where it shows,
+    so a ridge behind a tree keeps its ridge line instead of growing a
+    tree-shaped lobe that shows once the tree moves off. The furthest slice
     is painted in everywhere and stays opaque. `feather` softens each cut
     (px of blur). Cut once, outside `draw`: it is the slow part."""
     rgb = photo.convert('RGB')
@@ -59,6 +81,7 @@ def depth_slices(photo, depth, layers=12, feather=1.0, reach=0.04):
             continue
         near = band.filter(ImageFilter.BoxBlur(reach * rgb.width)).point(lambda v: 255 if v else 0)
         cover = ImageChops.multiply(near, d.point(lambda v, lo=lo: 255 if v >= lo else 0))
+        cover = ImageChops.multiply(cover, _below_top_edge(band, d, lo))
         if feather:
             cover = cover.filter(ImageFilter.GaussianBlur(feather))
         piece = _fill_from(rgb, band)
