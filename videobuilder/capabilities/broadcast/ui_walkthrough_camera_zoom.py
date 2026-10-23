@@ -35,6 +35,10 @@ U = demo.W / 1920   # the screen is laid out on a 1920 x 1080 grid, then scaled 
 APP = vb.Box(150, 90, 1620, 900)
 PANEL = vb.Box(APP.right - 360, APP.y + 76, 330, 520)
 SLIDERS = (('Exposure', 0.55), ('Contrast', 0.35), ('Warmth', 0.7))
+# The final framing: 16:9, so the region fills the frame edge to edge. The panel sits against the window's
+# right edge, so the view stops just inside it and reaches left over the canvas rather than past the window;
+# its top clears the title bar, so the Export button leaves the frame whole instead of being cut.
+VIEW = vb.Box(APP.right - 4 - 800, PANEL.y + 82, 800, 450)
 
 
 def app_screen(cv):
@@ -85,7 +89,7 @@ def _app(cv):
 
 def draw(n, cv):
     p = vb.ease_in_out_quart(demo.phase(n, 0.6, 2.0))
-    ui_camera_zoom(cv, app_screen, tuple(v * U for v in PANEL), p)
+    ui_camera_zoom(cv, app_screen, tuple(v * U for v in VIEW), p, margin=0)
 
 
 CAPABILITY = Capability(
