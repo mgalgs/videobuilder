@@ -61,12 +61,26 @@ def mirror_wedges(cv, draw, segments=8, turn=0.0, zoom=1.0, cx=None, cy=None, al
     c.restore()
 
 
-def kaleidoscope(cv, a, b, p, segments=12, turns=0.5, zoom=0.6, fold=0.3):
+def _shifted(draw, dx, dy):
+    """`draw` moved so its point (centre + (dx, dy)) sits at the centre."""
+    def shifted(cv):
+        cv.ctx.save()
+        cv.ctx.translate(-dx, -dy)
+        draw(cv)
+        cv.ctx.restore()
+    return shifted
+
+
+def kaleidoscope(cv, a, b, p, segments=12, turns=0.5, zoom=0.6, fold=0.3, offset=(-0.22, -0.075)):
     """Draw the kaleidoscope transition at progress `p` (0 -> 1): `a(cv)`
     folds into `segments` mirrored wedges over the first `fold` of the move,
     the pattern spins `turns` full turns and its wedge scales towards `zoom`
     (below 1 samples a wider slice, so more of the scene repeats), swaps to
     `b(cv)` mid-way, and unfolds into plain `b` over the last `fold`.
+    `offset` (fractions of the frame's width and height) is where the mirror
+    looks, away from the centre, while folded: a scene whose subject sits
+    dead centre would otherwise fold into one plain shape, so the slice takes
+    in the subject's edge and its ground, and eases back as the pattern opens.
 
     In a film, call it inside a two-shot overlap, e.g.
     `kaleidoscope(cv, lambda c: scene_a(c, old), lambda c: scene_b(c, new), new.f / overlap_frames)`."""
@@ -78,10 +92,11 @@ def kaleidoscope(cv, a, b, p, segments=12, turns=0.5, zoom=0.6, fold=0.3):
     (b if p >= 0.5 else a)(cv)                  # the plain scene under the fold
     if folded <= 0:
         return
+    dx, dy = offset[0] * cv.width * folded, offset[1] * cv.height * folded
     if swap < 1:
-        mirror_wedges(cv, a, segments, turn, z, alpha=folded)
+        mirror_wedges(cv, _shifted(a, dx, dy), segments, turn, z, alpha=folded)
     if swap > 0:
-        mirror_wedges(cv, b, segments, turn, z, alpha=folded * swap)
+        mirror_wedges(cv, _shifted(b, dx, dy), segments, turn, z, alpha=folded * swap)
 
 
 CAPABILITY = Capability(
@@ -99,5 +114,5 @@ CAPABILITY = Capability(
     related=('spin', 'rotoscope-look', 'lens-flare', 'tessellation-triangle-flip', 'flip', 'cube-rotate'),
     api=('videobuilder.capabilities.transitions.kaleidoscope.kaleidoscope',
          'videobuilder.capabilities.transitions.kaleidoscope.mirror_wedges'),
-    demo=lambda: demo.two_scenes(kaleidoscope, start=0.6, length=1.8),
+    demo=lambda: demo.two_scenes(kaleidoscope, start=1.0, length=1.6),
 )
