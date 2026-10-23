@@ -94,6 +94,18 @@ def ids(family=None):
     return tuple(t.id for t in catalog(family))
 
 
+def poster_frame(t, film, default):
+    """The frame `t`'s poster is taken from: for a transition, the middle of
+    its demo's move (a `film.keyframes` entry labelled 'mid-transition', see
+    `_demo.two_scenes`), when the demo marks one; else `default`, unchanged
+    for every other capability."""
+    if t.family == 'transitions':
+        for n, label in film.keyframes:
+            if label == 'mid-transition':
+                return n
+    return default
+
+
 def grouped(capabilities):
     """`[(family, [(group, [capability, ...]), ...]), ...]`: families in
     `FAMILIES` order, groups and capabilities within them by name."""

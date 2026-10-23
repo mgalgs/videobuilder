@@ -138,6 +138,40 @@ class Registry(unittest.TestCase):
             self.assertNotRegex(text, r'https?://|www\.', f'{fam}/{name}.py')
 
 
+class PosterFrame(unittest.TestCase):
+    """`registry.poster_frame` (used by both `capabilities.build_registry` and
+    `capabilities.gallery`): a transition's poster lands in the middle of its
+    demo's move, wherever that move actually falls, instead of a frame that
+    may land before it starts or after it has already finished."""
+
+    def test_lands_inside_the_move_whichever_default_would_have_missed_it(self):
+        # whip-pan's move (start=1.8s, length=0.6s -> frames 54..72) starts after
+        # the demo's middle frame (45): the old frames // 2 default landed before
+        # the whip even begins.
+        t = registry.get('whip-pan')
+        film = t.demo()
+        self.assertEqual(registry.poster_frame(t, film, film.frames // 2), 63)
+        self.assertTrue(54 < 63 < 72)
+
+        # punch-in's move (start=1.0s, length=0.8s -> frames 30..54) ends well
+        # before 70% of the demo (63): the old gallery default landed on the
+        # held close-up, after the punch had already settled.
+        t = registry.get('punch-in')
+        film = t.demo()
+        gallery_default = min(film.frames - 1, int(film.frames * 0.7))
+        self.assertEqual(gallery_default, 62)
+        self.assertEqual(registry.poster_frame(t, film, gallery_default), 42)
+        self.assertTrue(30 < 42 < 54)
+
+    def test_non_transition_keeps_its_old_default(self):
+        t = registry.get('ease-out-back')
+        self.assertNotEqual(t.family, 'transitions')
+        film = t.demo()
+        self.assertEqual(registry.poster_frame(t, film, film.frames // 2), film.frames // 2)
+        gallery_default = min(film.frames - 1, int(film.frames * 0.7))
+        self.assertEqual(registry.poster_frame(t, film, gallery_default), gallery_default)
+
+
 class Record(unittest.TestCase):
     def make(self, **kw):
         base = dict(id='a-thing', name='A Thing', family='principles', group='Easing',

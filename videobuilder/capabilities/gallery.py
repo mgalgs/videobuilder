@@ -11,14 +11,15 @@ import sys
 import time
 import traceback
 
-from .registry import catalog, grouped, ids
+from .registry import catalog, grouped, ids, poster_frame
 
 POSTER_AT = 0.7  # how far into a demo its poster is taken: most demos have done their move by then
 
 
-def _save_poster(film, path):
+def _save_poster(t, film, path):
     from PIL import Image
-    cv = film.frame(min(film.frames - 1, int(film.frames * POSTER_AT)))
+    default = min(film.frames - 1, int(film.frames * POSTER_AT))
+    cv = film.frame(poster_frame(t, film, default))
     s = cv.surface
     s.flush()
     im = Image.frombuffer('RGBA', (s.get_width(), s.get_height()), bytes(s.get_data()), 'raw', 'BGRA',
@@ -47,7 +48,7 @@ def build(out_dir, only=None, family=None, jobs=None, crf=30, log=None):
         try:
             film = t.demo()
             render(film, mp4, jobs=jobs, crf=crf, log=log)
-            _save_poster(film, os.path.join(out_dir, f'{t.id}.jpg'))
+            _save_poster(t, film, os.path.join(out_dir, f'{t.id}.jpg'))
         except Exception as e:  # noqa: BLE001 -- one bad demo must not stop a run over hundreds
             traceback.print_exc(file=log)
             failures.append((t.id, f'{type(e).__name__}: {e}'))

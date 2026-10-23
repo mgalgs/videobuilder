@@ -1166,7 +1166,8 @@ def build_registry(out_dir, only=None, jobs=None, crf=30, log=None):
         out_mp4 = os.path.join(out_dir, t.id + '.mp4')
         t0 = _time.time()
         _render(film, out_mp4, fmt, jobs=jobs, crf=crf, log=log)
-        _save_poster(film.frame(film.frames // 2, fmt), os.path.join(out_dir, t.id + '.jpg'))
+        poster_n = registry.poster_frame(t, film, film.frames // 2)
+        _save_poster(film.frame(poster_n, fmt), os.path.join(out_dir, t.id + '.jpg'))
         results.append({'id': t.id, 'seconds': _time.time() - t0, 'bytes': os.path.getsize(out_mp4)})
     return results
 

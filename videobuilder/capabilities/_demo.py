@@ -103,7 +103,10 @@ def _label(cv, letter, ink=INK):
 
 def two_scenes(transition, seconds=SECONDS, start=0.8, length=1.4, a=scene_a, b=scene_b):
     """A transition demo: `a` holds, `transition(cv, a, b, p)` runs from
-    `start` for `length` seconds, then `b` holds."""
+    `start` for `length` seconds, then `b` holds. The film carries a
+    `keyframes` entry labelled 'mid-transition' at the move's midpoint, for
+    callers (a poster, say) that want a frame from inside the move rather
+    than guessing at one."""
     def draw(n, cv):
         p = phase(n, start, start + length)
         if p <= 0:
@@ -112,4 +115,5 @@ def two_scenes(transition, seconds=SECONDS, start=0.8, length=1.4, a=scene_a, b=
             b(cv)
         else:
             transition(cv, a, b, p)
-    return film(draw, seconds)
+    mid = round((start + length / 2) * FPS)
+    return film(draw, seconds, keyframes=((mid, 'mid-transition'),))
