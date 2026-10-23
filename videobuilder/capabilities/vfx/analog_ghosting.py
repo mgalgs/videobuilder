@@ -3,34 +3,65 @@ it, as a reflected signal arrives late on an old aerial or cable, so every
 hard edge carries a pale double."""
 import math
 
+import cairo
+
 from .. import _demo as demo
 from ..schema import Capability
 
 
-def analog_ghosting(cv, scene, strength=0.35, offset=0.03, echoes=2, decay=0.5, dy=0.0):
-    """Draw `scene(cv)`, then redraw it `echoes` times on top as ghosts: the
-    first shifted right by `offset` of the frame width at `strength` opacity,
-    each further one shifted by another `offset` and `decay` times as strong.
-    `dy` (also a fraction of the frame width) tilts the ghosts off the
-    horizontal. `strength` 0 is the clean picture.
+def analog_ghosting(cv, scene, strength=0.35, offset=0.03, echoes=2, decay=0.5, dy=0.0, background=None):
+    """Draw `scene(cv)` with `echoes` ghosts of it: the first shifted right
+    by `offset` of the frame width at `strength` opacity, each further one
+    shifted by another `offset` and `decay` times as strong. `dy` (also a
+    fraction of the frame width) tilts the ghosts off the horizontal.
+    `strength` 0 is the clean picture.
+
+    The clean picture always stays at full strength; only the trailing
+    doubles are pale. With `background` (a colour, or a callable taking the
+    canvas) it is drawn once, the ghosts go on it, and `scene` -- then only
+    the foreground -- is drawn clean on top, so a ghost shows only where
+    nothing covers it. Without it, `scene` may paint its own full-frame fill,
+    and each ghost is laid over the clean picture with a lighten blend, so
+    its copy of that fill never veils what is beneath.
 
     In a film, wrap a shot's drawing: `analog_ghosting(cv, lambda c: shot(c, n), strength=s)`;
     animate `strength` and `offset` for a signal that drifts in and out."""
-    scene(cv)
+    ghosts = []
     alpha = strength
     for i in range(1, echoes + 1):
         if alpha <= 0.004:
             break
-        with cv.layer(opacity=min(1.0, alpha), dx=offset * cv.width * i, dy=dy * cv.width * i):
-            scene(cv)
+        ghosts.append((min(1.0, alpha), offset * cv.width * i, dy * cv.width * i))
         alpha *= decay
+    if background is not None:
+        if callable(background):
+            background(cv)
+        else:
+            cv.fill(background)
+        # Faintest first, so the stronger, nearer ghost sits over the further one.
+        for a, gx, gy in reversed(ghosts):
+            with cv.layer(opacity=a, dx=gx, dy=gy):
+                scene(cv)
+        scene(cv)
+        return
+    scene(cv)
+    c = cv.ctx
+    for a, gx, gy in ghosts:
+        c.save()
+        c.push_group()
+        c.translate(gx, gy)
+        scene(cv)
+        c.pop_group_to_source()
+        c.set_operator(cairo.OPERATOR_LIGHTEN)
+        c.paint_with_alpha(a)
+        c.restore()
 
 
 def _broadcast(cv):
     """The demo picture: a high-contrast still with hard edges for the ghost to double."""
     cv.fill(demo.BG)
     demo.dot(cv, demo.W * 0.74, demo.H * 0.34, r=120, color=demo.ACCENT)
-    demo.word(cv, 'CHANNEL 3', demo.W * 0.4, demo.H * 0.42, size=150, weight=900)
+    demo.word(cv, 'CHANNEL 3', demo.W * 0.46, demo.H * 0.42, size=120, weight=900)
     demo.card(cv, demo.W * 0.4, demo.H * 0.72, w=420, h=200, color=demo.TEAL)
 
 
