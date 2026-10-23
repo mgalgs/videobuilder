@@ -18,7 +18,7 @@ def freeze_frame(t, at, hold):
     return t - hold
 
 
-HOLD = 1.1                      # the freeze lasts 1.1 s of film time
+HOLD = 1.6                      # the freeze lasts 1.6 s of film time, so the gallery poster (70%) lands in it
 FLIGHT = demo.SECONDS - HOLD    # how long the throw itself takes, in scene time
 AT = FLIGHT / 2                 # it freezes at the top of the arc
 
