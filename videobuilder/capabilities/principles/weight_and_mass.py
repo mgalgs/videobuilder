@@ -11,11 +11,11 @@ def weight_ease(mass):
     """An easing curve for an object of `mass` in [0, 1] (0 light, 1 heavy).
 
     Light objects start quickly and stop crisply; heavier ones resist the
-    start (a long slow ramp) and resist the stop (a small overshoot past 1
-    that eases back). Pair with `weight_seconds` so heavy moves also take longer."""
+    start (a long slow ramp) and resist the stop (an overshoot of about 4%
+    past 1 that eases back). Pair with `weight_seconds` so heavy moves also take longer."""
     m = vb.clamp01(mass)
     lerp = lambda a, b: a + (b - a) * m  # noqa: E731
-    return vb.bezier(lerp(0.25, 0.8), 0.0, lerp(0.1, 0.3), lerp(1.0, 1.14))
+    return vb.bezier(lerp(0.25, 0.8), 0.0, lerp(0.1, 0.3), lerp(1.0, 1.3))
 
 
 def weight_seconds(seconds, mass, heavy=2.6):
@@ -36,11 +36,11 @@ def weight_squash(ease, p, amount=0.35, dp=0.02):
 
 
 LANES = ((0.0, 'light', demo.TEAL, 44, 44), (1.0, 'heavy', demo.ACCENT, 130, 104))
-START, BASE = 0.4, 0.75
+START, BASE = 0.25, 0.6
 
 
 def draw(n, cv):
-    x0, x1 = 170, demo.W - 170
+    x0, x1 = 240, demo.W - 170  # leading-edge travel; the heavy block starts on the floor
     label = demo.mono(18)
     for i, (mass, name, color, w, h) in enumerate(LANES):
         ground = 200 + i * 240
@@ -50,10 +50,11 @@ def draw(n, cv):
         ease = weight_ease(mass)
         p = demo.phase(n, START, START + weight_seconds(BASE, mass))
         sx, sy = weight_squash(ease, p, amount=0.35 * mass)  # only the heavy one strains
-        cx, bw, bh = x0 + (x1 - x0) * ease(p), w * sx, h * sy
-        cv.shadow(cx - bw / 2, ground - bh, bw, bh, radius=12, dy=6, blur=18, color=(0, 0, 0, 0.45))
-        cv.rect(cx - bw / 2, ground - bh, bw, bh, color, radius=12)
-        cv.mark(name, cx - bw / 2, ground - bh, bw, bh)
+        bw, bh = w * sx, h * sy
+        left = x0 + (x1 - x0) * ease(p) - bw  # the leading edge lands on the mark, so any carry shows
+        cv.shadow(left, ground - bh, bw, bh, radius=12, dy=6, blur=18, color=(0, 0, 0, 0.45))
+        cv.rect(left, ground - bh, bw, bh, color, radius=12)
+        cv.mark(name, left, ground - bh, bw, bh)
 
 
 CAPABILITY = Capability(
