@@ -77,5 +77,5 @@ CAPABILITY = Capability(
              'title-card-reveal', 'modal-scale-fade-enter'),
     api=('videobuilder.capabilities.transitions.container_transform.container_transform',),
     demo=lambda: demo.two_scenes(lambda cv, a, b, p: container_transform(cv, a, b, p, face=_face),
-                                 start=0.8, length=1.2, a=_list),
+                                 start=1.3, length=1.5, a=_list),
 )
