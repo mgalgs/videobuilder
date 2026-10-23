@@ -113,7 +113,10 @@ def draw(n, cv):
     _hill(cv, demo.H * 0.66, 70, 1.3, 0.4, '#5d6596')
     _hill(cv, demo.H * 0.76, 55, 2.1, 2.0, '#3e4470')
     _hill(cv, demo.H * 0.88, 40, 1.7, 4.1, '#262a45')
-    lens_dirt(cv, sun, intensity=math.sin(math.pi * p) ** 0.5, seed=7, count=80, base=0.06)
+    # a tight reach and no base glow keep the dirt hidden away from the sun; few, big spots read as
+    # grime on the glass rather than snow, and a light brighter than 1 makes the lit ones glow clearly
+    lens_dirt(cv, sun, intensity=1.8 * math.sin(math.pi * p) ** 0.5, seed=33, count=30, reach=290,
+              sizes=(36, 140))
     cv.mark('dirt', 0, 0, demo.W, demo.H)
 
 
