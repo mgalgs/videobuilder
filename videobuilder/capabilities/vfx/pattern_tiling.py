@@ -4,6 +4,8 @@ so it reads as a single seamless repeating pattern, like wallpaper or a
 textile print."""
 import math
 
+import cairo
+
 import videobuilder as vb
 from videobuilder.canvas import rgba
 
@@ -27,6 +29,49 @@ def _cell_transform(c, size, i, j, symmetry):
         c.translate(-h, -h)
 
 
+def _fill_repeat(cv, motif, size, symmetry, offset, m, cells):
+    """Paint the pattern from one repeat period drawn offscreen in device pixels:
+    1 cell, 1x2 for brick (rows alternate), 2x2 for mirror and rotate. Cell edges
+    inside the period land on whole pixels and the period repeats as one image
+    (resampled for a sub-pixel `offset`), so shapes meeting across cell edges join
+    with no seam. `cells`, if given, limits the
+    fill to those cells' squares (the rest are still being revealed)."""
+    nx, ny = {'translate': (1, 1), 'brick': (1, 2)}.get(symmetry, (2, 2))
+    px, py = max(1, round(size * m.xx)), max(1, round(size * m.yy))
+    if symmetry == 'brick':
+        px += px % 2  # so the half-cell row shift is a whole pixel too
+    dx, dy = m.transform_point(*offset)
+    sub = vb.Canvas(nx * px, ny * py)
+    period, t = sub.surface, sub.ctx
+    t.scale(px / size, py / size)
+    for j in range(-1, ny + 1):
+        shift = size / 2 if symmetry == 'brick' and j % 2 else 0.0
+        for i in range(-1, nx + 1):
+            t.save()
+            t.translate(shift + i * size, j * size)
+            _cell_transform(t, size, i, j, symmetry)
+            motif(sub, size)
+            t.restore()
+    period.flush()
+    c = cv.ctx
+    if cells is not None:
+        c.new_path()
+        for cx, cy in cells:
+            c.rectangle(cx, cy, size, size)
+        c.clip()
+    c.save()
+    c.identity_matrix()
+    pat = cairo.SurfacePattern(period)
+    pat.set_extend(cairo.EXTEND_REPEAT)
+    # Device px -> period px: the offset, then the rounding of the cell to whole pixels.
+    k = cairo.Matrix(px / (size * m.xx), 0, 0, py / (size * m.yy))
+    pat.set_matrix(cairo.Matrix(x0=-dx, y0=-dy).multiply(k))
+    pat.set_filter(cairo.FILTER_BILINEAR)
+    c.set_source(pat)
+    c.paint()
+    c.restore()
+
+
 def pattern_tile(cv, motif, size=120, symmetry='mirror', box=None, offset=(0.0, 0.0), reveal=None):
     """Fill `box` (default the whole canvas) with `motif` repeated on a grid of
     `size`-px square cells. `motif(cv, size)` draws one cell in local
@@ -43,9 +88,15 @@ def pattern_tile(cv, motif, size=120, symmetry='mirror', box=None, offset=(0.0, 
     x, y, w, h = box if box is not None else (0, 0, cv.width, cv.height)
     ox, oy = offset
     c = cv.ctx
+    m = c.get_matrix()
+    # The finished pattern is painted from one offscreen repeat period, so no cell
+    # edge is antialiased on its own; only a sideways or turned frame falls back
+    # to stamping every cell.
+    tiled = m.xy == 0 and m.yx == 0 and m.xx > 0 and m.yy > 0
     c.save()
     c.rectangle(x, y, w, h)
     c.clip()
+    full = []  # (i, j, cell x) of cells fully shown, for the repeat fill
     j0, j1 = math.floor((y - oy) / size) - 1, math.ceil((y + h - oy) / size) + 1
     for j in range(j0, j1):
         shift = size / 2 if symmetry == 'brick' and j % 2 else 0.0
@@ -54,8 +105,12 @@ def pattern_tile(cv, motif, size=120, symmetry='mirror', box=None, offset=(0.0, 
             k = 1.0 if reveal is None else vb.clamp01(reveal(i, j))
             if k <= 0:
                 continue
+            cx, cy = ox + shift + i * size, oy + j * size
+            if k >= 1 and tiled:
+                full.append((cx, cy))
+                continue
             c.save()
-            c.translate(ox + shift + i * size, oy + j * size)
+            c.translate(cx, cy)
             if k < 1:
                 c.translate(size / 2, size / 2)
                 c.scale(k, k)
@@ -64,6 +119,8 @@ def pattern_tile(cv, motif, size=120, symmetry='mirror', box=None, offset=(0.0, 
             with cv.layer(opacity=k):
                 motif(cv, size)
             c.restore()
+    if full:
+        _fill_repeat(cv, motif, size, symmetry, (ox, oy), m, None if reveal is None else full)
     c.restore()
     return size
 
@@ -106,7 +163,7 @@ def draw(n, cv):
 
     pattern_tile(cv, leaf_motif, SIZE, 'mirror', offset=(ox, oy), reveal=reveal)
     # Outline the original cell until the copies have filled the frame.
-    edge = 1 - demo.phase(n, 1.6, 2.1)
+    edge = 1 - demo.phase(n, 1.5, 1.9)  # gone before the drift, and the poster
     if edge > 0:
         cv.outline(ox, oy, SIZE, SIZE, demo.INK, width=5, alpha=edge)
 
