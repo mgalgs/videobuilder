@@ -48,14 +48,15 @@ def draw_focus_ring(cv, x, y, w, h, p, color=demo.TEAL, width=4, radius=12, gap=
 
 # ---- demo: a small form, Tab moving focus from a field to a button ----
 
-CARD = (demo.W / 2 - 330, demo.H / 2 - 230, 660, 360)
-FIELD = (CARD[0] + 60, CARD[1] + 130, 540, 72)
-BUTTON = (CARD[0] + 60, CARD[1] + 250, 200, 64)
+CARD = (demo.W / 2 - 330, demo.H / 2 - 220, 660, 330)
+FIELD = (CARD[0] + 60, CARD[1] + 120, 540, 72)
+BUTTON = (CARD[0] + 60, CARD[1] + 226, 200, 64)
+KEY = (demo.W / 2, CARD[1] + CARD[3] + 62, 96, 64)  # centre and size: face + shadow end ~60px above the frame's foot
 TABS = (0.45, 1.65)  # when Tab is pressed
 
 
 def _key(cv, n):
-    cx, cy, w, h = demo.W / 2, CARD[1] + CARD[3] + 110, 96, 64
+    cx, cy, w, h = KEY
     press = max(math.exp(-((n / demo.FPS - t) / 0.08) ** 2) for t in TABS)
     dy = 4 * press
     cv.rect(cx - w / 2, cy - h / 2 + 6, w, h, '#0b0d10', radius=12)
