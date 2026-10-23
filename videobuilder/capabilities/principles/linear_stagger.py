@@ -21,14 +21,18 @@ COUNT, SIZE, GAP = 8, 60, 26
 
 
 def draw(n, cv):
+    # Up in order, a short hold, then back down reversed (last square first), so
+    # the loop shows both directions and ends where it began. The gallery's
+    # poster (70%, 2.1 s) lands mid-way through the reversed pass.
     x0 = (demo.W - COUNT * SIZE - (COUNT - 1) * GAP) / 2
     low, high = demo.H / 2 + 50, demo.H / 2 - 100
-    p = demo.phase(n, 0.3, 2.6)
+    rise, drop = demo.phase(n, 0.15, 1.35), demo.phase(n, 1.55, 2.85)
     for i in range(COUNT):
         x = x0 + i * (SIZE + GAP)
         cv.line(x + 6, low + SIZE + 14, x + SIZE - 6, low + SIZE + 14, demo.LINE, width=3)
-        q = vb.ease_out_back(linear_stagger(p, i, COUNT, spread=0.65))
-        y = low + (high - low) * q
+        up = vb.ease_out_back(linear_stagger(rise, i, COUNT, spread=0.65))
+        down = vb.ease_in_out_quart(linear_stagger(drop, i, COUNT, spread=0.6, reverse=True))
+        y = low + (high - low) * (up - down)
         cv.rect(x, y, SIZE, SIZE, demo.ACCENT, radius=12)
         cv.mark(f'item{i}', x, y, SIZE, SIZE)
 
