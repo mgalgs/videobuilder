@@ -61,9 +61,18 @@ def _coupling(t):
     return 7.0 * vb.clamp01((t - 0.5) / 0.6)
 
 
+def _phases(t):
+    return kuramoto(t, count=COLS * ROWS, coupling=_coupling, seed=11, seconds=demo.SECONDS + 0.1)
+
+
+# the gallery's poster is the frame at 70%; turn every clock by the same amount so
+# the locked crowd's flash lands exactly there
+POSTER_T = 0.7 * demo.SECONDS
+
+
 def draw(n, cv):
-    t = n / demo.FPS
-    phases = kuramoto(t, count=COLS * ROWS, coupling=_coupling, seed=11, seconds=demo.SECONDS + 0.1)
+    shift = -order(_phases(POSTER_T))[1]
+    phases = [p + shift for p in _phases(n / demo.FPS)]
     # the swarm: a field of dots, each blinking on its own clock
     x0, y0, gap = 90, 130, 56
     for i, p in enumerate(phases):
@@ -100,8 +109,8 @@ CAPABILITY = Capability(
     family='particles',
     group='Swarms & agents',
     aliases=('Kuramoto model', 'coupled oscillators', 'firefly sync', 'spontaneous synchronization'),
-    definition='A crowd of blinking dots, each on its own slightly different rhythm, gradually nudge '
-               'each other into time until they all pulse together.',
+    definition='A crowd of blinking dots, each on its own slightly different rhythm, gradually nudges '
+               'itself into time until they all pulse together.',
     phrasings=('fireflies that start blinking randomly and end up flashing in unison',
                'lots of dots pulsing out of step that slowly lock into the same beat',
                'show a swarm falling into sync on its own'),
