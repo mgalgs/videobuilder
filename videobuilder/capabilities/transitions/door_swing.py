@@ -89,12 +89,12 @@ CAPABILITY = Capability(
     family='transitions',
     group='Rotation and 3D',
     aliases=('door open', 'hinge transition', 'swing door', 'door wipe'),
-    definition='The current shot pivots on one side edge and swings out towards the camera in 3D, '
-               'like a door being pulled open, revealing the next shot behind it.',
+    definition='The current shot pivots on one side edge and swings away from the camera in 3D, '
+               'like a door being pushed open, revealing the next shot behind it.',
     phrasings=('open the first scene like a door to get to the next one',
                'swing the old shot away on a hinge at the left edge',
                'make the slide turn on its side like a door opening'),
     related=('pendulum-swing', 'uncover', 'push', 'roll-up', 'zoom-out-reveal', 'curtain-reveal'),
     api=('videobuilder.capabilities.transitions.door_swing.door_swing',),
-    demo=lambda: demo.two_scenes(door_swing, start=0.7, length=1.6),
+    demo=lambda: demo.two_scenes(door_swing, start=1.4, length=1.4),
 )
