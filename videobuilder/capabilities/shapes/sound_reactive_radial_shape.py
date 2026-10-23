@@ -2,7 +2,6 @@
 following the loudness of one frequency band, so the circle throbs and
 bristles with the music."""
 import math
-import random
 
 import videobuilder as vb
 from videobuilder.canvas import rgba
@@ -111,43 +110,76 @@ def _mid(p, q):
     return (p[0] + q[0]) / 2, (p[1] + q[1]) / 2
 
 
-# ---- the demo: a made-up beat, so it needs no sound file ----
-BANDS = 32
-BEAT = 0.5  # seconds between kicks
-
-
-def _fake_levels(t):
-    """A plausible spectrum at `t`: bass that punches on every beat, mids
-    that wander, treble that flickers."""
-    since = t % BEAT
-    kick = math.exp(-since * 9)
-    rng = random.Random(int(t * demo.FPS / 2))  # new jitter every other frame
-    out = []
-    for b in range(BANDS):
-        x = b / (BANDS - 1)
-        bass = kick * max(0.0, 1 - x * 2.2)
-        mid = 0.35 * (0.5 + 0.5 * math.sin(t * 5 + b * 0.7)) * (1 - abs(x - 0.45) * 1.6)
-        hiss = 0.25 * rng.random() * x
-        out.append(vb.clamp01(0.08 + bass + max(0.0, mid) + hiss))
+def sounds_mix(sounds, frames, fps=30, rate=None):
+    """The mono samples of `sounds` (`vb.Sound`s or `vb.sfx` hits, each
+    placed on its film frame with its gain and fade-out) mixed over `frames`
+    film frames at `rate` (default `vb.sfx.RATE`): the same hits the film
+    plays, as a buffer `band_levels` can read the picture's levels from."""
+    rate = rate or vb.sfx.RATE
+    out = [0.0] * round(frames / fps * rate)
+    for s in sounds:
+        src = vb.sfx.decode_cached(s.path)
+        gain = 10 ** (s.gain_db / 20)
+        a = round(s.at / fps * rate)                       # the span's first sample
+        lead = round(-s.start * rate)                      # file sample 0 plays this long after it
+        span = round(s.frames / fps * rate)
+        fade = max(1, round(s.fade_out_frames / fps * rate))
+        for i in range(max(0, lead), min(span, lead + len(src))):
+            j = a + i
+            if 0 <= j < len(out):
+                out[j] += gain * src[i - lead] * min(1.0, (span - i) / fade)
     return out
 
 
-def _levels_at(n):
-    lv = None
-    for k in range(max(0, n - 12), n + 1):  # replay a few frames so `smooth` has history
-        lv = smooth(lv, _fake_levels(k / demo.FPS))
-    return lv
+# ---- the demo: a beat of kicks, clicks and dings, heard and drawn from the same samples ----
+BANDS = 32
+BEAT = 15        # frames between kicks: 120 BPM
+FIRST = 6        # the first kick's peak; the sub hit swells for 0.18 s before it
+FRAMES = round(demo.SECONDS * demo.FPS)
+DINGS = (None, 'G5', 'A5')
 
 
-def draw(n, cv):
-    cx, cy = demo.W / 2, demo.H / 2
-    grow = vb.ease_out_back(demo.phase(n, 0.0, 0.5))
-    lv = [v * grow for v in mirrored(_levels_at(n))]
-    kick = math.exp(-((n / demo.FPS) % BEAT) * 9) * grow
-    radial_shape(cv, cx, cy, lv, 70, 34, demo.TEAL, alpha=0.18)
-    radial_bars(cv, cx, cy, lv, 92, 110, demo.ACCENT, width=6)
-    demo.dot(cv, cx, cy, r=(54 + 9 * kick) * grow, color=demo.INK)
-    demo.dot(cv, cx, cy, r=(20 + 5 * kick) * grow, color=demo.BG)
+def _sounds():
+    """A kick on every beat, a click on every off-beat with a tick just before
+    it, and a ding stepping up on every other kick."""
+    kick, click, tick, ding = (vb.sfx.get(i) for i in ('pro_impact/short', 'fit/click/floss_lid',
+                                                        'hover_tick/detent', 'pro_notify/ding_2045'))
+    beats = range(FIRST, FRAMES, BEAT)
+    return (tuple(kick.sound(at=f, dur=0.32, gain_db=-4) for f in beats)
+            + tuple(click.sound(at=f + BEAT // 2, gain_db=-3) for f in beats if f + BEAT // 2 < FRAMES)
+            + tuple(tick.sound(at=f + 4, gain_db=-8) for f in beats if f + 4 < FRAMES)
+            + tuple(ding.sound(at=f, note=DINGS[i % len(DINGS)], gain_db=-10, align='onset')
+                    for i, f in enumerate(beats[::2])))
+
+
+def _levels(sounds):
+    """Each frame's smoothed band levels, read off the mix of `sounds`."""
+    mix, rate = sounds_mix(sounds, FRAMES, demo.FPS), vb.sfx.RATE
+    out, lv = [], None
+    for n in range(FRAMES):
+        lv = smooth(lv, band_levels(mix, rate, n / demo.FPS, bands=BANDS))
+        out.append(lv)
+    return out
+
+
+def _draw(levels):
+    def draw(n, cv):
+        cx, cy = demo.W / 2, demo.H / 2
+        grow = vb.ease_out_back(demo.phase(n, 0.0, 0.5))
+        lv = [v * grow for v in mirrored(levels[n])]
+        bass = vb.clamp01(sum(levels[n][:4]) / 4 - 0.25) / 0.75 * grow
+        radial_shape(cv, cx, cy, lv, 70, 34, demo.TEAL, alpha=0.18)
+        radial_bars(cv, cx, cy, lv, 92, 110, demo.ACCENT, width=6)
+        demo.dot(cv, cx, cy, r=(54 + 9 * bass) * grow, color=demo.INK)
+        demo.dot(cv, cx, cy, r=(20 + 5 * bass) * grow, color=demo.BG)
+    return draw
+
+
+def demo_film():
+    """The beat plays under the picture, and the ring is drawn from that
+    same beat through `band_levels` and `smooth`, so every punch is heard."""
+    sounds = _sounds()
+    return demo.film(_draw(_levels(sounds)), sounds=sounds)
 
 
 CAPABILITY = Capability(
@@ -168,6 +200,7 @@ CAPABILITY = Capability(
          'videobuilder.capabilities.shapes.sound_reactive_radial_shape.radial_shape',
          'videobuilder.capabilities.shapes.sound_reactive_radial_shape.band_levels',
          'videobuilder.capabilities.shapes.sound_reactive_radial_shape.smooth',
-         'videobuilder.capabilities.shapes.sound_reactive_radial_shape.mirrored'),
-    demo=lambda: demo.film(draw),
+         'videobuilder.capabilities.shapes.sound_reactive_radial_shape.mirrored',
+         'videobuilder.capabilities.shapes.sound_reactive_radial_shape.sounds_mix'),
+    demo=demo_film,
 )
