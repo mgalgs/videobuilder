@@ -9,7 +9,7 @@ import struct
 import wave
 
 from videobuilder import Audio, Film, Grid, Segment, Sound, Timeline
-from videobuilder.render import audio_filters, check_chunk, loudness_gain, measure, normalise, render
+from videobuilder.render import audio_filters, check_chunk, duck_envelope_expr, loudness_gain, measure, normalise, render
 
 
 def sine_wav(path, freq, duration, sr=48000, amplitude=10000):
@@ -360,6 +360,65 @@ class SoundMix(unittest.TestCase):
         self.assertAlmostEqual(full_level / partial_level, 1, delta=0.05)
 
 
+def eval_envelope(expr, t):
+    """The ffmpeg eval expression `duck_envelope_expr` builds uses `clip`,
+    `min`, `max` and `t` with plain call/operator syntax, so it is also valid
+    Python: evaluate it directly rather than re-implementing the shape."""
+    def clip(x, lo, hi):
+        return min(max(x, lo), hi)
+    return eval(expr, {'__builtins__': {}}, {'clip': clip, 'min': min, 'max': max, 't': t})
+
+
+class DuckEnvelopeExpr(unittest.TestCase):
+    """The duck envelope's own ramp: independent of a sound's click-fades,
+    attack finishing at a span's start, release starting at its end, short
+    gaps bridged, everything clipped rather than erroring."""
+    fps = 30
+
+    def test_one_isolated_span(self):
+        # frames 30..60 at 30fps: speech spans 1.0-2.0s. Default fade frames
+        # (3, 0.1s) are shorter than the 0.2s/0.6s duck ramps, so those win.
+        sound = Sound('x', at=30, start=0.0, frames=30)
+        expr = duck_envelope_expr([sound], self.fps, 0)
+        self.assertEqual(eval_envelope(expr, 0.5), 0)                    # well before
+        self.assertAlmostEqual(eval_envelope(expr, 0.9), 0.5)            # mid 0.2s attack
+        self.assertEqual(eval_envelope(expr, 1.5), 1)                    # during
+        self.assertAlmostEqual(eval_envelope(expr, 2.3), 0.5)            # mid 0.6s release
+        self.assertEqual(eval_envelope(expr, 3.0), 0)                    # well after
+
+    def test_two_spans_a_second_apart_bridge_the_gap(self):
+        a = Sound('x', at=0, start=0.0, frames=30)     # 0-1.0s
+        b = Sound('x', at=60, start=0.0, frames=30)    # 2.0-3.0s, 1.0s gap
+        expr = duck_envelope_expr([a, b], self.fps, 0)
+        self.assertEqual(eval_envelope(expr, 1.5), 1)                     # stays down across the gap
+
+    def test_two_spans_three_seconds_apart_release_between(self):
+        a = Sound('x', at=0, start=0.0, frames=30)      # 0-1.0s
+        b = Sound('x', at=120, start=0.0, frames=30)    # 4.0-5.0s, 3.0s gap
+        expr = duck_envelope_expr([a, b], self.fps, 0)
+        self.assertEqual(eval_envelope(expr, 2.5), 0)                     # back to 0 between them
+
+    def test_a_span_at_the_films_start_clips_without_error(self):
+        sound = Sound('x', at=0, start=0.0, frames=30)  # attack window starts before frame 0
+        expr = duck_envelope_expr([sound], self.fps, 0)
+        self.assertEqual(eval_envelope(expr, 0.0), 1)
+
+    def test_nonzero_offset(self):
+        # Frame `offset` is subtracted first, so the same span shifted by it
+        # (and the film frame it starts on shifted to match) reads the same.
+        sound = Sound('x', at=45, start=0.0, frames=30)
+        expr = duck_envelope_expr([sound], self.fps, 15)
+        self.assertAlmostEqual(eval_envelope(expr, 0.9), 0.5)
+        self.assertEqual(eval_envelope(expr, 1.5), 1)
+
+    def test_a_sounds_own_longer_fade_wins_over_the_default_ramp(self):
+        sound = Sound('x', at=30, start=0.0, frames=30, fade_out_frames=90)  # 3s own fade_out
+        expr = duck_envelope_expr([sound], self.fps, 0)
+        self.assertEqual(eval_envelope(expr, 2.0), 1)                      # right at the span's end
+        self.assertAlmostEqual(eval_envelope(expr, 3.5), 0.5)              # mid the 3s release
+        self.assertEqual(eval_envelope(expr, 5.1), 0)                     # past it
+
+
 @unittest.skipUnless(shutil.which('ffmpeg') and shutil.which('ffprobe'), 'needs ffmpeg')
 class Ducking(unittest.TestCase):
     fps = 30
@@ -367,10 +426,13 @@ class Ducking(unittest.TestCase):
     def test_duck_db_quiets_the_music_during_a_sounds_span(self):
         with tempfile.TemporaryDirectory() as tmp:
             music = os.path.join(tmp, 'music.wav')
-            sine_wav(music, 220, 2.0, amplitude=10000)
-            frames = 60
+            sine_wav(music, 220, 3.0, amplitude=10000)
+            frames = 90
             # Same file as the "sound", but all but silent: it only triggers ducking,
             # so the mix during its span is still (ducked) music, directly comparable.
+            # The sound's span is 0.667-1.333s; the duck envelope's own ramp (not the
+            # sound's fades) runs 0.2s before that start and 0.6s after that end, so
+            # "before"/"after" sample clear of both ramps (0.467-0.667 and 1.333-1.933).
             film = Film(draw=lambda n, cv: None, fps=self.fps, frames=frames, formats=['1x1'],
                         audio=Audio(music, loudness=None, duck_db=-12),
                         sounds=(Sound(music, at=20, start=0.0, frames=20, gain_db=-90),))
@@ -378,8 +440,8 @@ class Ducking(unittest.TestCase):
             with open(os.devnull, 'w') as quiet:
                 render(film, out, jobs=1, chunk=15, log=quiet)
             pcm = decode_pcm(out)
-        before = peak_level(pcm, 0.1, 0.5)
-        during = peak_level(pcm, 0.9, 1.1)  # inside the span, clear of its fade ramps
-        after = peak_level(pcm, 1.5, 1.9)
+        before = peak_level(pcm, 0.1, 0.4)
+        during = peak_level(pcm, 0.9, 1.1)  # inside the span, clear of its ramps
+        after = peak_level(pcm, 2.3, 2.7)
         self.assertAlmostEqual(before / during, 10 ** (12 / 20), delta=0.4)
         self.assertAlmostEqual(after / during, 10 ** (12 / 20), delta=0.4)

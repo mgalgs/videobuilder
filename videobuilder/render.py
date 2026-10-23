@@ -29,6 +29,15 @@ MAX_LIMITING_DB = 1.0
 # with sound effects coming out quieter by as much as they are peakier.
 SFX_LIMITING_DB = 4.0
 
+# The duck envelope's own ramp, independent of a sound's click-fades (used
+# when longer): music is already down by the time speech starts, and takes
+# its time coming back up so it doesn't pump in short gaps between lines.
+DUCK_ATTACK_SECONDS = 0.2
+DUCK_RELEASE_SECONDS = 0.6
+# A gap between one ducking span and the next shorter than this keeps the
+# music down across it, rather than releasing and re-attacking.
+DUCK_BRIDGE_SECONDS = 1.5
+
 
 def default_jobs(cpu_max='/sys/fs/cgroup/cpu.max'):
     """Worker processes for this machine or container. Not os.cpu_count(): that
@@ -146,17 +155,36 @@ def ensure_has_audio(paths):
 
 
 def duck_envelope_expr(sounds, fps, offset):
-    """An ffmpeg eval expression, 0..1, that is 1 while any sound plays (ramping
-    over its fade frames) and 0 elsewhere: a deterministic function of the
-    sounds' spans, evaluated at `t` seconds from film frame `offset`."""
-    terms = []
+    """An ffmpeg eval expression, 0..1, that is 1 while any sound plays and 0
+    elsewhere: a deterministic function of the sounds' spans, evaluated at
+    `t` seconds from film frame `offset`.
+
+    The rise finishes exactly at a span's start (so the dip is already in
+    place when it begins) and the fall starts exactly at its end, each over
+    `DUCK_ATTACK_SECONDS`/`DUCK_RELEASE_SECONDS`, or the sound's own
+    `fade_in_frames`/`fade_out_frames` when longer. Spans whose gap is under
+    `DUCK_BRIDGE_SECONDS` are merged first, so the envelope stays at 1 across
+    a short gap instead of releasing and re-attacking."""
+    spans = []
     for s in sounds:
         t0 = (s.at - offset) / fps
         t1 = (s.at + s.frames - offset) / fps
-        fade_in = max(s.fade_in_frames / fps, 1e-6)
-        fade_out = max(s.fade_out_frames / fps, 1e-6)
-        rise = f'clip((t-{t0:.6f})/{fade_in:.6f},0,1)'
-        fall = f'clip(({t1:.6f}-t)/{fade_out:.6f},0,1)'
+        attack = max(DUCK_ATTACK_SECONDS, s.fade_in_frames / fps)
+        release = max(DUCK_RELEASE_SECONDS, s.fade_out_frames / fps)
+        spans.append((t0, t1, attack, release))
+    spans.sort(key=lambda sp: sp[0])
+    merged = []
+    for t0, t1, attack, release in spans:
+        if merged and t0 - merged[-1][1] < DUCK_BRIDGE_SECONDS:
+            pt0, pt1, pattack, _ = merged[-1]
+            if t1 > pt1:
+                merged[-1] = (pt0, t1, pattack, release)
+        else:
+            merged.append((t0, t1, attack, release))
+    terms = []
+    for t0, t1, attack, release in merged:
+        rise = f'clip((t-{t0 - attack:.6f})/{attack:.6f},0,1)'
+        fall = f'clip(({t1 + release:.6f}-t)/{release:.6f},0,1)'
         terms.append(f'min({rise},{fall})')
     expr = terms[0]
     for t in terms[1:]:

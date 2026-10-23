@@ -387,8 +387,9 @@ class Mix(unittest.TestCase):
         self.assertIn('volume=eval=frame', chains[3])
         self.assertIn('pow(10,(-10.0*', chains[3])
         # Only b is speech: one span in the envelope, from b's sound (1 s to its end).
+        # The duck's own 0.2 s attack finishes at that start, so it begins 0.2 s earlier.
         self.assertEqual(chains[3].count('clip((t-'), 1)
-        self.assertIn(f'clip((t-{30 / 30:.6f})', chains[3])
+        self.assertIn(f'clip((t-{30 / 30 - 0.2:.6f})', chains[3])
         self.assertNotIn('volume=eval', chains[4])
         self.assertTrue(all('volume=eval' not in c for c in chains[:3]))
 
@@ -405,8 +406,9 @@ class Mix(unittest.TestCase):
         bed = Sound('bed.wav', at=0, start=0.0, frames=self.total)
         _, graph, _ = assembly.mix_graph([(c_sound, c)], [(lane, [bed])], self.total, 30)
         ducked = graph.split(';')[1]
-        self.assertEqual(ducked.count('clip((t-'), 2)
-        self.assertIn(f'clip((t-{(start + 10) / 30:.6f})', ducked)
+        # The two spans are 0.3 s apart, under the 1.5 s bridge: one merged span, not two.
+        self.assertEqual(ducked.count('clip((t-'), 1)
+        self.assertIn(f'clip((t-{(start + 10) / 30 - 0.2:.6f})', ducked)
 
     def test_where_a_clip_speaks(self):
         t = tf.parse({'version': 1, 'clips': [
