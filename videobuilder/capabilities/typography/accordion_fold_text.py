@@ -92,7 +92,9 @@ def draw_accordion_text(cv, text, font, cx, cy, p, color, plate=None, padding=(2
 
 
 def draw(n, cv):
-    p = vb.ease_in_out_quart(demo.phase(n, 0.4, 2.3))
+    # A gentle sine ease over most of the clip, so the strip is still visibly
+    # pleated at the 70% poster and only lies flat in the last few frames.
+    p = (1 - math.cos(math.pi * demo.phase(n, 0.5, 2.9))) / 2
     box = draw_accordion_text(cv, 'UNFOLD', demo.font(150, 900), demo.W / 2, demo.H / 2, p, demo.INK,
                               plate=demo.LINE, pleats=10)
     cv.mark('text', *box)
