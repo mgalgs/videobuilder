@@ -41,11 +41,14 @@ def draw_fill_rise(cv, lines, font, x, y, p, color, empty=None, empty_alpha=0.25
     return box
 
 
+RISE = vb.ease.bezier(0.25, 0.1, 0.75, 0.9)  # a near-steady level, softened only at the ends
+
+
 def draw(n, cv):
     f = demo.font(260, 900)
     text = ['FILL']
     w, h = vb.text.block_size(text, f)
-    p = vb.ease_in_out_quart(demo.phase(n, 0.4, 2.4))
+    p = RISE(demo.phase(n, 0.3, 2.9))  # ~70% risen at the 2.1s poster, full by 2.9s
     box = draw_fill_rise(cv, text, f, (demo.W - w) / 2, (demo.H - h) / 2, p, demo.ACCENT, empty=demo.INK)
     cv.mark('text', *box)
 
