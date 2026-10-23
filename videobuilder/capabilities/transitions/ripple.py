@@ -116,5 +116,5 @@ CAPABILITY = Capability(
     related=('refraction-ripple', 'ripple-displacement', 'height-field-ripples', 'ripple-rings',
              'ridgeline-ripple', 'wave-deformer'),
     api=('videobuilder.capabilities.transitions.ripple.ripple',),
-    demo=lambda: demo.two_scenes(ripple, start=0.5, length=2.0),
+    demo=lambda: demo.two_scenes(ripple, seconds=3.5, start=1.85, length=1.4),  # poster (70%) at p ~0.42
 )
