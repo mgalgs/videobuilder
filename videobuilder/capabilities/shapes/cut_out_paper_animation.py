@@ -15,14 +15,15 @@ from ..schema import Capability
 def held(n, every=2, seed=None, boil=0.0, moving=1.0):
     """Stop-motion timing for frame `n`: `(frame, dx, dy, turn)`. `frame` is
     `n` held for `every` frames (on twos by default), so sample all motion at
-    it. With a `seed`, `dx, dy` (px, up to `boil`) and `turn` (radians) are
-    an offset to add to a piece's own placement; otherwise they are 0.
+    it. With a `seed`, `dx, dy` (px) and `turn` (radians) are an offset to
+    add to a piece's own placement; otherwise they are 0.
 
     `moving` (0..1) says how much the piece is moving. At 1 the offset is a
-    hand-placement wobble, re-drawn every held frame (a turn up to 0.8
-    degrees per px of `boil`). At 0 it is a slow drift over a few seconds
-    instead: a piece at rest isn't re-placed, and a wobble on one reads as
-    shaking. In between, the two blend; ease `moving` as the piece stops."""
+    hand-placement wobble, re-drawn every held frame: up to `boil` px and
+    0.8 degrees per px of `boil`. At 0 it is a slow sway over 2.5-4 s
+    instead, up to 4 px and 0.6 degrees per px of `boil`: a piece at rest
+    isn't re-placed, and a wobble on one reads as shaking. In between, the
+    two blend; ease `moving` as the piece stops."""
     f = n - n % every
     if seed is None or not boil:
         return f, 0.0, 0.0, 0.0
@@ -33,8 +34,8 @@ def held(n, every=2, seed=None, boil=0.0, moving=1.0):
         return (f, *shake)
     p = random.Random(f'{seed}:drift')
     a, b, c = (p.uniform(0, 2 * math.pi) for _ in range(3))
-    drift = (boil * math.sin(2 * math.pi * f / 120 + a), boil * math.sin(2 * math.pi * f / 150 + b),
-             math.radians(0.4 * boil * math.sin(2 * math.pi * f / 180 + c)))
+    drift = (4 * boil * math.sin(2 * math.pi * f / 75 + a), 4 * boil * math.sin(2 * math.pi * f / 95 + b),
+             math.radians(0.6 * boil * math.sin(2 * math.pi * f / 115 + c)))
     return (f, *(m * s + (1 - m) * d for s, d in zip(shake, drift)))
 
 
@@ -158,5 +159,5 @@ CAPABILITY = Capability(
     related=('crumple', 'morph-cut', 'cut-on-action', 'smash-cut', 'origami-fold', 'strobe-cut'),
     api=('videobuilder.capabilities.shapes.cut_out_paper_animation.paper_piece',
          'videobuilder.capabilities.shapes.cut_out_paper_animation.held'),
-    demo=lambda: demo.film(draw, seconds=4.5),
+    demo=lambda: demo.film(draw, seconds=6.0),
 )
