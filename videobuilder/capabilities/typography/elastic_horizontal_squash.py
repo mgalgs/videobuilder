@@ -25,12 +25,15 @@ def squash_scale(s):
     return sx, 1 / sx
 
 
-def draw_squash(cv, text, font, x, y, t, color, stagger=0.07, alpha=1.0, **kw):
+def draw_squash(cv, text, font, x, y, t, color, stagger=0.07, alpha=1.0, tracking=0.0, **kw):
     """Draw `text` from its top-left (x, y) with every letter squashing in
     turn: letter i is kicked `i * stagger` s after `t` = 0 and scales about
-    the foot of its own place on the line, so the line never shifts. `kw`
-    goes to `squash`. Returns the Box of the line at rest."""
+    the foot of its own place on the line, so the line never shifts.
+    `tracking` px is added between letters so neighbours that bulge wide
+    together stay apart. `kw` goes to `squash`. Returns the Box of the line
+    at rest."""
     w, h = vb.text.block_size([text], font)
+    w += tracking * max(0, len(text) - 1)
     foot = y + h * 0.82  # about where the letters stand
     left = x
     for i, ch in enumerate(text):
@@ -43,17 +46,25 @@ def draw_squash(cv, text, font, x, y, t, color, stagger=0.07, alpha=1.0, **kw):
             cv.ctx.scale(sx, sy)
             vb.text.draw(cv, [ch], font, -adv / 2, y - foot, color, alpha=alpha)
             cv.ctx.restore()
-        left += adv
+        left += adv + tracking
     return vb.Box(x, y, w, h)
+
+
+KICK_EVERY = 1.3  # s between kicks, so the word is mid-wobble at the poster
 
 
 def draw(n, cv):
     f = demo.font(150, 900)
     text = 'ELASTIC'
+    tracking = 16
     w, h = vb.text.block_size([text], f)
+    w += tracking * (len(text) - 1)
     x, y = (demo.W - w) / 2, (demo.H - h) / 2
     demo.floor(cv, y + h * 0.82 + 6)
-    box = draw_squash(cv, text, f, x, y, n / demo.FPS - 0.4, demo.INK)
+    t = n / demo.FPS - 0.4
+    if t > 0:
+        t %= KICK_EVERY  # kick again each time the wave has nearly settled
+    box = draw_squash(cv, text, f, x, y, t, demo.INK, tracking=tracking, amp=0.32, decay=1.8)
     cv.mark('text', *box)
 
 
