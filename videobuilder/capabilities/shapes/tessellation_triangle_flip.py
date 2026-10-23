@@ -86,7 +86,7 @@ def _front(cx, cy):
 
 
 def draw(n, cv):
-    tessellation_flip(cv, demo.phase(n, 0.35, 2.65), _front, _back, side=150, gap=3)
+    tessellation_flip(cv, demo.phase(n, 0.0, 3.4), _front, _back, side=150, spread=0.75, gap=3)
 
 
 CAPABILITY = Capability(
