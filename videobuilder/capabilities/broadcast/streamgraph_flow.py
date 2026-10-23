@@ -96,6 +96,40 @@ def _value(i, t):
             + 0.35 * math.sin(1.4 * t + 2.9 * i) ** 2)
 
 
+def _smoothstep(e0, e1, x):
+    t = vb.clamp01((x - e0) / (e1 - e0))
+    return t * t * (3 - 2 * t)
+
+
+def _peaks(fn, u0, u1, step=0.05):
+    """Local maxima of `fn` over [u0, u1], found on a grid fixed in data time
+    (so a peak's place does not shift as the window moves) and refined with
+    a parabola through each maximum and its two neighbours."""
+    k0, k1 = math.floor(u0 / step), math.ceil(u1 / step)
+    vs = [fn(k * step) for k in range(k0 - 1, k1 + 2)]
+    out = []
+    for m in range(1, len(vs) - 1):
+        a, b, c = vs[m - 1], vs[m], vs[m + 1]
+        if b > a and b >= c:
+            d = a - 2 * b + c
+            out.append((k0 - 1 + m + (0.5 * (a - c) / d if d else 0.0)) * step)
+    return out
+
+
+def _band_at(band, bx):
+    """A band's (top, bottom) at x = `bx`, read off the same Catmull-Rom
+    curve streamgraph() draws (its x is linear in the curve parameter)."""
+    j = min(max(int((bx - band[0][0]) / (band[1][0] - band[0][0])), 0), len(band) - 2)
+    s = vb.clamp01((bx - band[j][0]) / (band[j + 1][0] - band[j][0]))
+    q0, q1, q2, q3 = band[max(j - 1, 0)], band[j], band[j + 1], band[min(j + 2, len(band) - 1)]
+    out = []
+    for c in (1, 2):
+        p1, p2 = q1[c] + (q2[c] - q0[c]) / 6, q2[c] - (q3[c] - q1[c]) / 6
+        r = 1 - s
+        out.append(r ** 3 * q1[c] + 3 * r * r * s * p1 + 3 * r * s * s * p2 + s ** 3 * q2[c])
+    return out
+
+
 def draw(n, cv):
     t = n / demo.FPS
     samples, window = 40, 9.0
@@ -107,11 +141,18 @@ def draw(n, cv):
     bands = streamgraph(cv, series, box, PALETTE, scale=62, reveal=reveal)
     f = demo.font(15, 700)
     a = demo.phase(n, 1.0, 1.5)
+    x0, w = box[0], box[2]
     for i, band in enumerate(bands):
-        j = max(range(len(band) // 3, len(band) * 2 // 3), key=lambda j: band[j][2] - band[j][1])
-        bx, top, bot = band[j]
-        if bot - top > 34:
-            demo.word(cv, NAMES[i], bx, (top + bot) / 2, font=f, color=demo.BG, alpha=a * 0.85)
+        # Each label sits on a peak of its series in data time, so it rides
+        # the ribbon as it scrolls, fading near the frame's edges and where
+        # the band is too thin to hold it.
+        for u in _peaks(lambda u: _value(i, u), drift - 1, drift + window + 1):
+            bx = x0 + w * (u - drift) / window
+            top, bot = _band_at(band, bx)
+            edge = min(_smoothstep(60, 200, bx - x0), _smoothstep(60, 200, x0 + w - bx))
+            k = a * edge * _smoothstep(28, 44, bot - top)
+            if k > 0:
+                demo.word(cv, NAMES[i], bx, (top + bot) / 2, font=f, color=demo.BG, alpha=k * 0.85)
     cv.mark('stream', *box)
 
 
