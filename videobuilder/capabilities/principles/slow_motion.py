@@ -53,24 +53,28 @@ def slow_motion(t, start, end, rate=0.25, ramp=0.2):
     return t - (1 - rate) * lost
 
 
-# the demo: a ball bounces across the floor and the bounce plays in slow motion
-WINDOW = dict(start=0.85, end=2.15, rate=0.15, ramp=0.35)
+# the demo: a ball bounces across the floor and one bounce plays in slow motion.
+# The gallery's poster is taken 70% in (2.1 s), so the window is centred there:
+# the poster shows the ball squashed on the floor at 0.15x with the label up.
+WINDOW = dict(start=1.4, end=2.8, rate=0.15, ramp=0.3)
+HIT_AT = 2.08  # film time of the slowed bounce's contact
+HOP = 0.5  # action seconds from contact to the top of the arc
 R, GROUND = 34, demo.H - 110
-X0, X1, TOP = 150, demo.W - 150, 110
+X0, X1, TOP = 120, demo.W - 180, 130
 TRAIL, GAP = 7, 2  # ghosts left every GAP film frames: wide apart at full speed, bunched in slow motion
 
 
 def _ball_at(film_t):
-    """The ball's (x, y, squash) at film time `film_t`."""
+    """The ball's (x, y, squash) at film time `film_t`: a ballistic bounce,
+    fastest at contact and slowest at the top, repeating every 2 * HOP action seconds."""
     total = slow_motion(demo.SECONDS, **WINDOW)
-    hit = slow_motion((WINDOW['start'] + WINDOW['end']) / 2, **WINDOW)
+    hit = slow_motion(HIT_AT, **WINDOW)
     s = slow_motion(max(0.0, film_t), **WINDOW)
     x = X0 + (X1 - X0) * s / total
     rest = GROUND - R
-    reach = max(hit, total - hit)
-    k = (s - hit) / reach
-    y = rest - (rest - TOP) * k * k
-    squash = max(0.0, 1 - abs(s - hit) / 0.06)  # flattens for a moment on contact
+    k = ((s - hit) / HOP + 1) % 2 - 1  # -1..1 over one bounce, 0 at contact
+    y = rest - (rest - TOP) * (2 * abs(k) - k * k)
+    squash = max(0.0, 1 - abs(k) * HOP / 0.03)  # flattens for a moment on contact
     return x, y, squash
 
 
