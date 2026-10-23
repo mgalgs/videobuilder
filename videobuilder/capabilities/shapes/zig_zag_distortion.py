@@ -67,7 +67,9 @@ def zigzag(points, amplitude, ridges, closed=False, phase=0.0):
     out = []
     for s in stops:
         (x, y), (tx, ty) = at(s)
-        push = amplitude * _wave(s / span + phase)
+        # an open path's two end stops stay on the path, whatever ridges and phase leave the wave at there
+        pinned = not closed and (s == 0.0 or s == total)
+        push = 0.0 if pinned else amplitude * _wave(s / span + phase)
         out.append((x - ty * push, y + tx * push))
     return out
 
