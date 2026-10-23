@@ -40,7 +40,7 @@ def hop_pose(p, amount=1.0):
 
 def draw(n, cv):
     ground, r, rise = demo.H - 90, 36, 160
-    p = demo.phase(n, 0.35, 2.55)
+    p = demo.phase(n, 0.6, 2.95)
     demo.floor(cv, ground)
     lanes = ((demo.W * 0.3, 1.0, demo.MUTED, 'plain'), (demo.W * 0.7, 3.5, demo.ACCENT, 'exaggerated'))
     for cx, amount, color, label in lanes:
