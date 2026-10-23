@@ -53,5 +53,5 @@ CAPABILITY = Capability(
     related=('split-screen-transition', 'curtain-reveal', 'split-screen-comparison', 'paint-brush-wipe',
              'cut-out-paper-animation', 'wipe-reveal'),
     api=('videobuilder.capabilities.transitions.barn_door_wipe.barn_door_wipe',),
-    demo=lambda: demo.two_scenes(barn_door_wipe),
+    demo=lambda: demo.two_scenes(barn_door_wipe, start=1.5, length=1.2),
 )
