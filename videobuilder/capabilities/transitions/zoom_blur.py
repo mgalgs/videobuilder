@@ -75,5 +75,5 @@ CAPABILITY = Capability(
              'blur-up-image-load'),
     api=('videobuilder.capabilities.transitions.zoom_blur.zoom_blur',
          'videobuilder.capabilities.transitions.zoom_blur.radial_blur'),
-    demo=lambda: demo.two_scenes(zoom_blur, start=0.8, length=1.2),
+    demo=lambda: demo.two_scenes(zoom_blur, start=1.3, length=1.2),
 )
