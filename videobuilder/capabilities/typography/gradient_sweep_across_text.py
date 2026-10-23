@@ -38,7 +38,9 @@ def draw(n, cv):
     f = demo.font(132, 900)
     text = 'SPECTRUM'
     w, h = vb.text.block_size([text], f)
-    p = vb.ease_in_out_quart(demo.phase(n, 0.3, 2.7))
+    # a gentle ease-in over nearly the whole clip: colour is on the letters from
+    # ~0.7s to ~2.8s and the band sits mid-word (p ~ 0.55) at the 70% poster frame
+    p = demo.phase(n, 0.2, 2.9) ** 1.7
     box = draw_gradient_sweep(cv, text, f, (demo.W - w) / 2, (demo.H - h) / 2, p, demo.INK)
     cv.mark('text', *box)
 
