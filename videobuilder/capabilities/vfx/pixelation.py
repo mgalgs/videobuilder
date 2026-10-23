@@ -44,7 +44,9 @@ def pixelate(cv, scene, block, x=0.0, y=0.0, w=None, h=None):
     inv.invert()
     c.transform(inv)                        # ... read from the sharp render's device px
     c.set_source_surface(sharp.surface, 0, 0)
-    c.get_source().set_filter(cairo.FILTER_BEST)   # averages every source px a cell covers
+    pat = c.get_source()
+    pat.set_filter(cairo.FILTER_BEST)       # averages every source px a cell covers ...
+    pat.set_extend(cairo.EXTEND_PAD)        # ... and a cell past the frame edge repeats the edge, not transparent black
     c.paint()
     cells.flush()
     out = cv.ctx
