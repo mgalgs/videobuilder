@@ -59,5 +59,5 @@ CAPABILITY = Capability(
                'flick sideways with motion blur into the next part'),
     related=('pan', 'ken-burns-effect', 'motion-blur', 'smear-frame', 'zoom-blur', 'morph-cut'),
     api=('videobuilder.capabilities.transitions.whip_pan.whip_pan', 'videobuilder.bezier'),
-    demo=lambda: demo.two_scenes(whip_pan, start=1.0, length=0.6),
+    demo=lambda: demo.two_scenes(whip_pan, start=1.8, length=0.6),
 )
