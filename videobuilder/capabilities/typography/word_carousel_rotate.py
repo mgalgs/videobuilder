@@ -43,22 +43,28 @@ def draw_carousel(cv, words, font, x, y, t, color, hold=0.6, swap=0.35, ease=vb.
     return vb.Box(x, y, w0 + (w1 - w0) * p, lh)
 
 
-WORDS = ('MOTION', 'RHYTHM', 'ENERGY', 'COLOUR')
+# An odd number of words, so the clip's middle frame (the gallery poster) lands half a period after its
+# first: the clip opens on a word holding and the poster catches a swap.
+WORDS = ('MOTION', 'RHYTHM', 'ENERGY', 'COLOUR', 'LIGHT')
+HOLD, SWAP = 0.55, 0.35
+# Exactly one trip round the list, so the clip's last frame runs straight on into its first.
+SECONDS = len(WORDS) * (HOLD + SWAP)
+START = 0.28  # seconds into the carousel the clip begins, part-way through MOTION's hold
 
 
 def draw(n, cv):
     f = demo.font(84, 800)
     lead = 'MADE OF '
-    t = n / demo.FPS - 0.3
+    t = n / demo.FPS + START
     h = vb.text.line_height(f)
     lw = vb.text.measure(lead, f)
     # Centre the whole phrase on the slot's current width, so the line re-centres smoothly at each swap.
-    out, into, p = carousel(WORDS, t)
+    out, into, p = carousel(WORDS, t, HOLD, SWAP)
     ww = vb.text.measure(WORDS[out], f) * (1 - p) + vb.text.measure(WORDS[into], f) * p
     x = (demo.W - lw - ww) / 2
     y = (demo.H - h) / 2
     vb.text.draw(cv, [lead], f, x, y, demo.INK)
-    box = draw_carousel(cv, WORDS, f, x + lw, y, t, demo.ACCENT)
+    box = draw_carousel(cv, WORDS, f, x + lw, y, t, demo.ACCENT, HOLD, SWAP)
     cv.mark('word', *box)
 
 
@@ -77,5 +83,5 @@ CAPABILITY = Capability(
              'character-slide-in'),
     api=('videobuilder.capabilities.typography.word_carousel_rotate.draw_carousel',
          'videobuilder.capabilities.typography.word_carousel_rotate.carousel'),
-    demo=lambda: demo.film(draw),
+    demo=lambda: demo.film(draw, SECONDS),
 )
