@@ -37,7 +37,7 @@ def _scene_b(cv):
     cv.fill(demo.BG)
     demo.dot(cv, demo.W / 2, demo.H / 2, r=300, color=demo.TEAL, alpha=0.35)
     demo.card(cv, demo.W / 2, demo.H / 2, w=420, h=260, color=demo.TEAL)
-    demo.word(cv, 'Scene B', 40 + 90, 32 + 17, size=28, color=demo.INK)
+    demo._label(cv, 'B')
 
 
 CAPABILITY = Capability(
@@ -54,5 +54,6 @@ CAPABILITY = Capability(
     related=('screen-blend', 'multiply-blend', 'difference-blend', 'pixelate-transition', 'noise-dissolve',
              'unsharp-mask'),
     api=('videobuilder.capabilities.transitions.additive_dissolve.additive_dissolve',),
-    demo=lambda: demo.two_scenes(additive_dissolve, b=_scene_b),
+    # Centred on 2.1 s, so the gallery's poster frame (70% in) lands on the flare.
+    demo=lambda: demo.two_scenes(additive_dissolve, b=_scene_b, start=1.4, length=1.4),
 )
