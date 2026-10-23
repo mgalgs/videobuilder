@@ -63,9 +63,9 @@ def draw(n, cv):
     w, h = 300, 76
     x, y = (demo.W - w) / 2, (demo.H - h) / 2
     box = draw_fill_sweep_button(cv, 'Continue  →', demo.font(30, 800), x, y, w, h,
-                                 vb.ease_in_out_quart(demo.phase(n, 1.0, 1.9)))
+                                 vb.ease_in_out_quart(demo.phase(n, 1.5, 2.7)))
     cv.mark('button', *box)
-    glide = vb.ease_in_out_quart(demo.phase(n, 0.2, 0.95))
+    glide = vb.ease_in_out_quart(demo.phase(n, 0.6, 1.4))
     _pointer(cv, 770 + (x + w * 0.84 - 770) * glide, 430 + (y + h * 0.62 - 430) * glide, s=0.9)
 
 
