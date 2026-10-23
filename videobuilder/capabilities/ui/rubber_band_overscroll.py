@@ -32,7 +32,7 @@ def overscroll_release(offset, t, hz=2.2, ratio=0.85):
 PANEL_W, PANEL_H = 300, 380
 ROW_H, GAP, PAD = 52, 10, 14
 PULL = 230                      # how far the finger travels past the top
-GRAB, LET_GO = (0.4, 1.6), 1.85  # seconds: drag, then release
+GRAB, LET_GO = (0.4, 1.8), 2.3   # seconds: drag, hold stretched past the poster frame, release
 
 
 def _list(cv, x, y, offset):
