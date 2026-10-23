@@ -109,8 +109,8 @@ class NoModel(Server):
         by_id = {c['id']: c for c in catalog['capabilities']}
         self.assertIn('ease-out-back', by_id)  # a registry id
         entry = by_id['ease-out-back']
-        self.assertEqual(entry['poster'], '/capabilities/techniques/ease-out-back.jpg')
-        self.assertEqual(entry['clip'], '/capabilities/techniques/ease-out-back.mp4')
+        self.assertEqual(entry['poster'], '/capabilities/ease-out-back.jpg')
+        self.assertEqual(entry['clip'], '/capabilities/ease-out-back.mp4')
         self.assertEqual(entry['category'], 'Animation principles')
         self.assertEqual(entry['group'], 'Easing')
         self.assertIn('back out', entry['aliases'])

@@ -73,12 +73,12 @@ class Overlap(unittest.TestCase):
 
 
 class BuildTechniques(unittest.TestCase):
-    def test_build_techniques_writes_clip_and_poster_under_a_techniques_subdir(self):
+    def test_build_techniques_writes_clip_and_poster_flat(self):
         with tempfile.TemporaryDirectory() as d:
             results = capabilities.build_registry(d, only={'ease-out-back'})
             self.assertEqual([r['id'] for r in results], ['ease-out-back'])
-            self.assertTrue((Path(d) / 'techniques' / 'ease-out-back.mp4').is_file())
-            self.assertTrue((Path(d) / 'techniques' / 'ease-out-back.jpg').is_file())
+            self.assertTrue((Path(d) / 'ease-out-back.mp4').is_file())
+            self.assertTrue((Path(d) / 'ease-out-back.jpg').is_file())
 
     def test_build_includes_techniques_and_accepts_mixed_only_ids(self):
         with tempfile.TemporaryDirectory() as d:
@@ -86,7 +86,7 @@ class BuildTechniques(unittest.TestCase):
             ids = {r['id'] for r in results}
             self.assertEqual(ids, {'eased-entrances', 'ease-out-back'})
             self.assertTrue((Path(d) / 'eased-entrances.mp4').is_file())
-            self.assertTrue((Path(d) / 'techniques' / 'ease-out-back.mp4').is_file())
+            self.assertTrue((Path(d) / 'ease-out-back.mp4').is_file())
 
     def test_build_rejects_an_unknown_only_id(self):
         with tempfile.TemporaryDirectory() as d:
@@ -97,22 +97,21 @@ class BuildTechniques(unittest.TestCase):
         with tempfile.TemporaryDirectory() as d:
             results = capabilities.build(d, only={'eased-entrances'})
             # only={'eased-entrances'} names no technique: the technique set built is empty, not "all".
-            self.assertFalse((Path(d) / 'techniques').exists() and
-                             any((Path(d) / 'techniques').iterdir()))
+            self.assertEqual(sorted(Path(d).iterdir()), [Path(d) / 'eased-entrances.jpg', Path(d) / 'eased-entrances.mp4'])
 
 
 class ClipFile(unittest.TestCase):
     def test_unknown_technique_id_refused(self):
-        self.assertIsNone(capabilities.registry_clip_file('/c', 'not-a-technique', 'mp4'))
+        self.assertIsNone(capabilities.clip_file('/c', 'not-a-technique', 'mp4'))
 
     def test_no_dir_configured_refused(self):
-        self.assertIsNone(capabilities.registry_clip_file(None, 'ease-out-back', 'mp4'))
+        self.assertIsNone(capabilities.clip_file(None, 'ease-out-back', 'mp4'))
 
-    def test_known_id_builds_a_techniques_subdir_path(self):
-        self.assertEqual(capabilities.registry_clip_file('/c', 'ease-out-back', 'mp4'),
-                         '/c/techniques/ease-out-back.mp4')
-        self.assertEqual(capabilities.registry_clip_file('/c', 'ease-out-back', 'jpg'),
-                         '/c/techniques/ease-out-back.jpg')
+    def test_known_id_builds_a_flat_path(self):
+        self.assertEqual(capabilities.clip_file('/c', 'ease-out-back', 'mp4'),
+                         '/c/ease-out-back.mp4')
+        self.assertEqual(capabilities.clip_file('/c', 'ease-out-back', 'jpg'),
+                         '/c/ease-out-back.jpg')
 
 
 def _section(page, heading):
@@ -156,12 +155,11 @@ class MainPageSection(unittest.TestCase):
 
     def test_poster_shown_once_built(self):
         with tempfile.TemporaryDirectory() as d:
-            Path(d, 'techniques').mkdir()
             first = registry.catalog('principles')[0]
-            Path(d, 'techniques', f'{first.id}.mp4').write_bytes(b'mp4')
+            Path(d, f'{first.id}.mp4').write_bytes(b'mp4')
             page = capabilities.page_html(d, '0').decode()
         section = _section(page, capabilities.FAMILY_CATEGORY['principles'])
-        self.assertIn(f'/capabilities/techniques/{first.id}.jpg', section)
+        self.assertIn(f'/capabilities/{first.id}.jpg', section)
 
     def test_search_data_and_hit_list_present(self):
         page = capabilities.page_html(None, '0').decode()
@@ -313,6 +311,14 @@ class Routes(fixtures.API):
             code, _, _ = _status(self.base, f'/capabilities/techniques/{bad}')
             self.assertEqual(code, 404, bad)
 
+    def test_old_clip_url_permanently_redirects(self):
+        conn = http.client.HTTPConnection('127.0.0.1', self.httpd.server_address[1], timeout=20)
+        self.addCleanup(conn.close)
+        conn.request('GET', '/capabilities/techniques/ease-out-back.mp4')
+        response = conn.getresponse()
+        response.read()
+        self.assertEqual((response.status, response.headers['Location']), (301, '/capabilities/ease-out-back.mp4'))
+
     def test_unknown_technique_clip_404s(self):
         for bad in ('not-a-technique', '..'):
             code, _, _ = _status(self.base, f'/capabilities/techniques/{bad}.mp4')
@@ -328,18 +334,22 @@ class RoutesWithClip(fixtures.API):
         super(fixtures.API, self).setUp()
         self.cap_tmp = tempfile.TemporaryDirectory()
         self.addCleanup(self.cap_tmp.cleanup)
-        Path(self.cap_tmp.name, 'techniques').mkdir()
-        Path(self.cap_tmp.name, 'techniques', 'ease-out-back.mp4').write_bytes(b'0123456789')
-        Path(self.cap_tmp.name, 'techniques', 'ease-out-back.jpg').write_bytes(b'\xff\xd8\xffposter\xff\xd9')
+        Path(self.cap_tmp.name, 'ease-out-back.mp4').write_bytes(b'0123456789')
+        Path(self.cap_tmp.name, 'ease-out-back.jpg').write_bytes(b'\xff\xd8\xffposter\xff\xd9')
         self.start(capabilities_dir=self.cap_tmp.name)
 
     def test_poster_and_clip_served(self):
+        code, body, headers = _status(self.base, '/capabilities/ease-out-back.jpg')
+        self.assertEqual(code, 200)
+        self.assertEqual(headers.get_content_type(), 'image/jpeg')
+        code, body, headers = _status(self.base, '/capabilities/ease-out-back.mp4',
+                                      {'Range': 'bytes=2-5'})
+        self.assertEqual((code, body), (206, b'2345'))
+
+    def test_old_clip_url_still_resolves_the_same_clip_once_followed(self):
         code, body, headers = _status(self.base, '/capabilities/techniques/ease-out-back.jpg')
         self.assertEqual(code, 200)
         self.assertEqual(headers.get_content_type(), 'image/jpeg')
-        code, body, headers = _status(self.base, '/capabilities/techniques/ease-out-back.mp4',
-                                      {'Range': 'bytes=2-5'})
-        self.assertEqual((code, body), (206, b'2345'))
 
     def test_family_page_reflects_the_built_clip(self):
         code, page, _ = _status(self.base, '/capabilities/principles')

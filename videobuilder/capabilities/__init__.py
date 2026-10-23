@@ -17,6 +17,7 @@ list shown beside this fixed CATALOG -- never added to it.
 """
 import json
 import os
+from functools import lru_cache
 
 REPO_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -969,10 +970,10 @@ def build(out_dir, only=None, jobs=None, crf=30, log=None):
     convention, see examples/capabilities/STYLE.md). With no `only`, or with
     'showcase' in it, the showcase reel is built too (`build_showcase`).
     Every registry capability (`videobuilder.capabilities.registry`) is also
-    built, to `<out_dir>/techniques/<id>.mp4`/`.jpg` (`build_registry`); `only`
-    may name registry ids too. Returns a list of {id, seconds, bytes} for the
-    ones built, in catalog order, the showcase then the registry capabilities
-    last."""
+    built, into the same flat `<out_dir>/<id>.mp4`/`.jpg` (`build_registry`);
+    `only` may name registry ids too. Returns a list of {id, seconds, bytes}
+    for the ones built, in catalog order, the showcase then the registry
+    capabilities last."""
     import sys as _sys
     import time as _time
     from .. import film as _film
@@ -1007,21 +1008,36 @@ def build(out_dir, only=None, jobs=None, crf=30, log=None):
 
 # ---- serving: /capabilities, /capabilities/<id>.mp4, /capabilities/<id>.jpg ----
 
+@lru_cache(maxsize=None)
+def _registry_ids():
+    """The registry's ids, cached: `registry.catalog()` is itself cached, but
+    walking it to check one id is still O(ids), and `clip_file` and
+    `available_ids` do that per id on every request."""
+    from . import registry
+    return frozenset(registry.ids())
+
+
 def clip_file(capabilities_dir, id, kind):
-    """The clip ('mp4') or poster ('jpg') path for a catalog id or a showcase
-    file, or None for an unknown id (checked by membership in the fixed
-    catalog and SHOWCASE_FILES, never built from the request string directly)
-    or a dir that isn't configured. An old id (ALIASES) gets the clip of the
-    entry it was merged into."""
-    if capabilities_dir is None or (id not in _BY_ID and id not in ALIASES and id not in SHOWCASE_FILES):
+    """The clip ('mp4') or poster ('jpg') path for a catalog id, a registry
+    capability id, or a showcase file, or None for an unknown id (checked by
+    membership in the fixed catalog, the registry, and SHOWCASE_FILES, never
+    built from the request string directly) or a dir that isn't configured.
+    An old id (ALIASES) gets the clip of the entry it was merged into. Every
+    clip lives flat in `capabilities_dir`, hand-written and registry alike."""
+    if capabilities_dir is None:
         return None
-    return os.path.join(capabilities_dir, f'{ALIASES.get(id, id)}.{kind}')   # an old id serves its new clip
+    id = ALIASES.get(id, id)   # an old id serves its new clip
+    if id in _BY_ID or id in SHOWCASE_FILES or id in _registry_ids():
+        return os.path.join(capabilities_dir, f'{id}.{kind}')
+    return None
 
 
 def available_ids(capabilities_dir):
     if capabilities_dir is None:
         return frozenset()
-    return frozenset(e['id'] for e in entries() if os.path.exists(clip_file(capabilities_dir, e['id'], 'mp4')))
+    from . import registry
+    ids_ = [e['id'] for e in entries()] + [t.id for t in registry.catalog()]
+    return frozenset(i for i in ids_ if os.path.exists(clip_file(capabilities_dir, i, 'mp4')))
 
 
 def showcase_available(capabilities_dir):
@@ -1108,11 +1124,11 @@ def _registry_groups(members):
 
 
 def build_registry(out_dir, only=None, jobs=None, crf=30, log=None):
-    """Render every registry capability's demo (or just `only`'s ids) to
-    `<out_dir>/techniques/<id>.mp4` and `<out_dir>/techniques/<id>.jpg` (a
-    poster from the demo's middle frame, built the same way as every other
-    clip here: `_render`, `_save_poster`). Returns [{id, seconds, bytes},
-    ...], registry order."""
+    """Render every registry capability's demo (or just `only`'s ids) to the
+    same flat `<out_dir>/<id>.mp4` and `<out_dir>/<id>.jpg` every other
+    capability's clip and poster land in (a poster from the demo's middle
+    frame, built the same way as every other clip here: `_render`,
+    `_save_poster`). Returns [{id, seconds, bytes}, ...], registry order."""
     import sys as _sys
     import time as _time
     from . import registry
@@ -1121,43 +1137,17 @@ def build_registry(out_dir, only=None, jobs=None, crf=30, log=None):
     chosen = registry.catalog()
     if only is not None:
         chosen = tuple(t for t in chosen if t.id in only)
-    registry_dir = os.path.join(out_dir, 'techniques')
-    os.makedirs(registry_dir, exist_ok=True)
+    os.makedirs(out_dir, exist_ok=True)
     results = []
     for t in chosen:
         film = t.demo()
         fmt = film.formats[0]
-        out_mp4 = os.path.join(registry_dir, t.id + '.mp4')
+        out_mp4 = os.path.join(out_dir, t.id + '.mp4')
         t0 = _time.time()
         _render(film, out_mp4, fmt, jobs=jobs, crf=crf, log=log)
-        _save_poster(film.frame(film.frames // 2, fmt), os.path.join(registry_dir, t.id + '.jpg'))
+        _save_poster(film.frame(film.frames // 2, fmt), os.path.join(out_dir, t.id + '.jpg'))
         results.append({'id': t.id, 'seconds': _time.time() - t0, 'bytes': os.path.getsize(out_mp4)})
     return results
-
-
-def registry_clip_file(capabilities_dir, id, kind):
-    """The clip ('mp4') or poster ('jpg') path for a registry capability id, or
-    None for an unknown id (checked by looking it up in the registry itself,
-    never built from the request string directly) or a dir that isn't
-    configured."""
-    from . import registry
-    if capabilities_dir is None:
-        return None
-    try:
-        registry.get(id)
-    except KeyError:
-        return None
-    return os.path.join(capabilities_dir, 'techniques', f'{id}.{kind}')
-
-
-def registry_available(capabilities_dir, id):
-    path = registry_clip_file(capabilities_dir, id, 'mp4')
-    return bool(path and os.path.exists(path))
-
-
-def _registry_thumb(capabilities_dir, id):
-    return (f'<img src="/capabilities/techniques/{id}.jpg" alt="" loading="lazy">'
-            if registry_available(capabilities_dir, id) else '<span>clip not built</span>')
 
 
 def family_page_html(family, capabilities_dir, version, header='', header_style=''):
@@ -1174,18 +1164,19 @@ def family_page_html(family, capabilities_dir, version, header='', header_style=
     members = tuple(t for t in registry.catalog() if t.family == family)
     title, description = REGISTRY_FAMILIES[family]
     search_label = title[0].lower() + title[1:]
+    built = available_ids(capabilities_dir)
     body = []
     for group, group_members in _registry_groups(members):
         body.append(f'<h3 class="kind">{_esc(group)}</h3><div class="grid">')
         for t in group_members:
-            body.append(_card_html(t.id, t.name, t.definition, _registry_thumb(capabilities_dir, t.id)))
+            body.append(_card_html(t.id, t.name, t.definition, _thumb_html(t.id, built)))
         body.append('</div>')
     data = []
     for t in members:
         item = {'id': t.id, 'title': t.name, 'family': t.family, 'familyTitle': title,
                 'group': t.group,
                 'description': t.definition, 'prompts': list(t.phrasings), 'aliases': list(t.aliases),
-                'api': list(t.api), 'available': registry_available(capabilities_dir, t.id)}
+                'api': list(t.api), 'available': t.id in built}
         overlap = REGISTRY_OVERLAP.get(t.id)
         if overlap:
             cap = get(overlap)
@@ -1534,8 +1525,8 @@ _REGISTRY_PAGE_SCRIPT = """
       overlapEl.hidden = false;
     } else overlapEl.hidden = true;
     if(t.available){
-      video.src = '/capabilities/techniques/' + id + '.mp4';
-      video.poster = '/capabilities/techniques/' + id + '.jpg';
+      video.src = '/capabilities/' + id + '.mp4';
+      video.poster = '/capabilities/' + id + '.jpg';
       video.muted = true;
       video.hidden = false;
       placeholder.hidden = true;
@@ -2053,7 +2044,7 @@ def page_html(capabilities_dir, version, header='', header_style='', community=N
         line = f"{description} ({n} capabilit{'ies' if n != 1 else 'y'})"
         ids_ = {t.id for t in members}
         poster = REGISTRY_FAMILY_POSTER.get(fam)
-        thumb = _registry_thumb(capabilities_dir, poster if poster in ids_ else members[0].id)
+        thumb = _thumb_html(poster if poster in ids_ else members[0].id, built)
         card = (f'<a class="card" href="/capabilities/{fam}">'
                 f'<span class="thumb">{thumb}</span>'
                 f'<span class="meta"><strong>{_esc(title)}</strong><span>{_esc(line)}</span></span></a>')

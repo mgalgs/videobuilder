@@ -91,6 +91,14 @@ class Registry(unittest.TestCase):
         from videobuilder import capabilities
         self.assertFalse(set(techniques.ids()) & set(capabilities.ids()))
 
+    def test_no_technique_id_collides_with_an_alias_or_a_showcase_file(self):
+        # clip_file() rewrites ALIASES keys, and shares its directory with SHOWCASE_FILES,
+        # before it ever looks at the registry -- a collision there would silently shadow
+        # or overwrite a registry capability's clip.
+        from videobuilder import capabilities
+        self.assertFalse(set(techniques.ids()) & set(capabilities.ALIASES))
+        self.assertFalse(set(techniques.ids()) & set(capabilities.SHOWCASE_FILES))
+
     def test_one_test_per_module(self):
         tests = {n for n in dir(EachTechnique) if n.startswith('test_')}
         self.assertEqual(tests, {f'test_{name}' for _, name in techniques.modules()})

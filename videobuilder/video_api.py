@@ -174,22 +174,21 @@ def _get_family_page(self, route, q, editor, user, family):
 def _get_family_page_redirect(self, route, q, editor, user, family):
     """The old /capabilities/techniques/<family> family page, permanently moved to
     /capabilities/<family> now that the registry's ids are capabilities too; the clips at
-    /capabilities/techniques/<id>.mp4|jpg are unaffected (see _get_registry_clip)."""
+    /capabilities/techniques/<id>.mp4|jpg redirect the same way (see _get_old_clip_redirect)."""
     self.send_response(301)
     self.send_header('Location', '/capabilities/' + family)
     self.send_header('Content-Length', '0')
     self.end_headers()
 
 
-def _get_registry_clip(self, route, q, editor, user, tech_id, kind):
-    from . import capabilities
-    path = capabilities.registry_clip_file(editor.capabilities_dir, tech_id, kind)
-    if path is None or not os.path.isfile(path):
-        raise HTTPError(404, 'capability clip not built')
-    data = open(path, 'rb').read()
-    if kind == 'mp4':
-        return self._send_ranged(data, 'video/mp4', {'Accept-Ranges': 'bytes'})
-    return self._send(200, data, 'image/jpeg')
+def _get_old_clip_redirect(self, route, q, editor, user, id, kind):
+    """The old /capabilities/techniques/<id>.mp4|jpg clip URL, permanently moved to
+    /capabilities/<id>.mp4|jpg now that every clip -- hand-written and registry alike --
+    lives in one flat directory."""
+    self.send_response(301)
+    self.send_header('Location', f'/capabilities/{id}.{kind}')
+    self.send_header('Content-Length', '0')
+    self.end_headers()
 
 
 def _get_compendium(self, route, q, editor, user):
@@ -338,7 +337,7 @@ def _get_suggest_catalog(self, route, q, editor, user):
         caps.append({'id': t.id, 'title': t.name, 'card': t.definition, 'category': title,
                      'group': t.group,
                      'aliases': list(t.aliases), 'phrasings': list(t.phrasings),
-                     'poster': f'/capabilities/techniques/{t.id}.jpg', 'clip': f'/capabilities/techniques/{t.id}.mp4'})
+                     'poster': f'/capabilities/{t.id}.jpg', 'clip': f'/capabilities/{t.id}.mp4'})
     from . import sfx as sfx_module
     sfx_list = []
     try:
@@ -504,7 +503,7 @@ GET_ROUTES = [
     ('/api/thumbnail', _get_thumbnail),
     ('/capabilities', _get_capabilities),
     (re.compile(r'/capabilities/community/([a-z][a-z0-9-]*)\.(mp4|jpg)'), _get_community_clip),
-    (re.compile(r'/capabilities/techniques/([a-z][a-z0-9-]*)\.(mp4|jpg)'), _get_registry_clip),
+    (re.compile(r'/capabilities/techniques/([a-z][a-z0-9-]*)\.(mp4|jpg)'), _get_old_clip_redirect),
     (re.compile(r'/capabilities/techniques/([a-z][a-z0-9-]*)'), _get_family_page_redirect),
     (re.compile(r'/capabilities/([a-z][a-z0-9-]*)\.(mp4|jpg)'), _get_capability_clip),
     (re.compile(r'/capabilities/([a-z][a-z0-9-]*)'), _get_family_page),
