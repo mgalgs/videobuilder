@@ -20,22 +20,24 @@ def refresh_bar(t, h, roll=1.2, bar=0.38):
 
 
 def screen_refresh_flicker(cv, draw, t, amount=1.0, x=0, y=0, w=None, h=None, roll=1.2, bar=0.38,
-                           dark=0.45, edge=0.35, pulse=0.12, lines=4, line_alpha=0.18, seed=0, steps=24):
+                           dark=0.45, edge=0.35, pulse=0.12, lines=4, line_alpha=0.18, seed=0, steps=24,
+                           flicker=12):
     """Draw `draw(cv)`, then the refresh flicker over (x, y, w, h) (default the
     whole frame) at time `t` seconds and strength `amount` (0 -> 1; at 0 it
     is `draw(cv)` untouched). The band from `refresh_bar(t, h, roll, bar)`
     darkens by up to `dark`, fading in from its top and ending in a bright
     line of strength `edge`; `pulse` is how far the whole picture dips in
-    brightness from frame to frame (the same `seed` and `t` give the same
-    dip); a dark scan line every `lines` px at `line_alpha`. `steps` is how
-    many strips draw the band's soft gradient."""
+    brightness, picking a new random dip `flicker` times a second and holding
+    it in between, so it wobbles rather than strobes (the same `seed` and `t`
+    give the same dip); a dark scan line every `lines` px at `line_alpha`.
+    `steps` is how many strips draw the band's soft gradient."""
     w = cv.width if w is None else w
     h = cv.height if h is None else h
     draw(cv)
     if amount <= 0:
         return
     with cv.clip(x, y, w, h):
-        dip = pulse * random.Random(f'{seed}:{round(t * 60)}').random()
+        dip = pulse * random.Random(f'{seed}:{int(t * flicker + 1e-6)}').random()
         if dip > 0:
             cv.rect(x, y, w, h, '#000000', alpha=amount * dip)
         top, bh = refresh_bar(t, h, roll, bar)
@@ -68,7 +70,7 @@ def draw(n, cv):
 
     with cv.clip(bx, by, bw, bh, radius=14):
         screen_refresh_flicker(cv, screen, t, amount=demo.phase(n, 0.0, 0.4), x=bx, y=by, w=bw, h=bh,
-                               roll=1.1, dark=0.6, edge=0.45, pulse=0.18, lines=3, seed=4)
+                               roll=1.4, dark=0.6, edge=0.45, pulse=0.1, lines=3, seed=4, flicker=10)
     cv.mark('screen', bx, by, bw, bh)
 
 
