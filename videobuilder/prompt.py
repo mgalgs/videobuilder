@@ -307,9 +307,22 @@ def render(note, payload, image, compendium=False, votes=None, sources=None, com
         lines += [f'At {int(t // 60)}:{int(t % 60):02d} (frame {note["frame"]}, segment {json.dumps(note.get("segment"))})', '']
     if note.get('attachments'):
         lines += ['Attachments (read-only reference files):']
+        any_credit = False
         for item in note['attachments']:
-            lines.append(f'- /attachments/{item["name"]} ({item["type"]}, {item["size"]} bytes)')
-        lines += ['Use them as reference. To include one in the video, copy it into the video assets directory and commit it there. Never write into /attachments.', '']
+            line = f'- /attachments/{item["name"]} ({item["type"]}, {item["size"]} bytes)'
+            credit = item.get('credit')
+            if credit:
+                any_credit = True
+                credit_bits = [credit.get('title'), f"by {credit['creator']}" if credit.get('creator') else None,
+                               str(credit['year']) if credit.get('year') else None, credit.get('license'),
+                               credit.get('item_url')]
+                line += f" -- credit: {', '.join(b for b in credit_bits if b)}"
+            lines.append(line)
+        instructions = ('Use them as reference. To include one in the video, copy it into the video assets '
+                        'directory and commit it there. Never write into /attachments.')
+        if any_credit:
+            instructions += ' When an attachment carries a credit, and the video ends with a credits roll, add it there.'
+        lines += [instructions, '']
     if sources:
         lines += _sources_lines(sources, payload.get('directory', payload.get('video')))
     for key in ('video', 'film', 'format', 'frame', 'segment', 'beat', 'time', 'image', 'draft'):

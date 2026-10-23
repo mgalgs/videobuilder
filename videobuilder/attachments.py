@@ -87,7 +87,12 @@ class Attachments:
         self.root = Path(editor.state_dir) / 'attachments'
         self.root.mkdir(parents=True, exist_ok=True)
 
-    def upload(self, video, name, ctype, data, allow_oversize=False):
+    def upload(self, video, name, ctype, data, allow_oversize=False, extra=None):
+        """`extra`, when given, is extra fields (e.g. `{'credit': {...}}`) merged
+        into the stored record and included in the returned one -- used only by
+        the music-attach route, to carry a music track's own credit onto
+        its attachment; an ordinary upload never passes it, so its record is
+        unchanged."""
         self.editor.project.video(video)
         self.expire()
         if not allow_oversize and len(data) > self.max_file:
@@ -97,7 +102,7 @@ class Attachments:
         if ext not in MAGIC:
             raise ValueError('unsupported attachment type')
         _validate_content(ctype, data, ext)
-        return self._write(video, name, ext, data)
+        return self._write(video, name, ext, data, extra)
 
     def upload_zip(self, video, name, data):
         """Unpacks a zip into ordinary attachments, one per supported member,
@@ -171,14 +176,17 @@ class Attachments:
             raise ValueError(f'{basename} is corrupt or its size is wrong') from exc
         return bytes(buf)
 
-    def _write(self, video, name, ext, data):
+    def _write(self, video, name, ext, data, extra=None):
         ident = secrets.token_hex(16)
         record = dict(id=ident, video=video, name=name, type=TYPES[ext], size=len(data), created=time.time())
+        if extra:
+            record.update(extra)
         path = self.root / ident
         path.mkdir()
         (path / name).write_bytes(data)
         (path / 'meta.json').write_text(json.dumps(record))
-        return {k: record[k] for k in ('id', 'name', 'type', 'size')}
+        fields = ('id', 'name', 'type', 'size') + tuple(extra) if extra else ('id', 'name', 'type', 'size')
+        return {k: record[k] for k in fields}
 
     def get(self, ident, video=None):
         if not re.fullmatch('[0-9a-f]{32}', ident):
@@ -202,6 +210,8 @@ class Attachments:
         out, names = [], set()
         for x in records:
             item = {k: x[k] for k in ('id', 'name', 'type', 'size')}
+            if x.get('credit'):
+                item['credit'] = x['credit']
             if item['name'] in names:
                 stem, dot, ext = item['name'].rpartition('.')
                 item['name'] = (stem or ext) + '-' + item['id'][:8] + (dot + ext if dot else '')

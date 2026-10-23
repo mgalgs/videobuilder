@@ -121,11 +121,19 @@ GET  /api/sources/<name>?video=V     stored bytes, ranged, for the picker's
 POST /api/sources/<name>/delete {video}  200 {deleted:name}; 404 unknown
 GET  /api/music/sources              [{id,name,license}]; [] with none configured
 GET  /api/music/tracks?source=S      {source:{id,name,license},tracks:[...]};
+                                     each track may carry its own license,
+                                     creator, year, item_url and disputed
+                                     (true for a track whose rights are
+                                     unresolved), overriding
+                                     or supplementing the source's own license;
                                      404 unknown source, 502 on an upstream fetch
                                      failure with no cache to fall back on
 POST /api/music/attach {video,source,track}
-                                     201 {id,name,type,size}, the same shape an
-                                     upload returns; 404 unknown source/track
+                                     201 {id,name,type,size,credit?}, the same
+                                     shape an upload returns, plus credit
+                                     (title,creator,year,license,item_url) when
+                                     the track carried any of those; 404 unknown
+                                     source/track
 GET  /api/pictures?video=V           {jobs:[{id,prompt,n,cutout,status,message,
                                      created,waited,pictures:[{index,cutout,
                                      posable}],poseOf?|likeOf?:{id,index,

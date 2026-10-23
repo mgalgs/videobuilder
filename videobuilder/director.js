@@ -1192,7 +1192,14 @@ function renderMusicList() {
       for(const tag of track.tags)tags.append(node('span','music-tag',tag.replace(/^music\//,'')));
       info.append(tags)
     }
-    // The licence is shown once, in the dialog's header, not on every row.
+    // A track with no licence of its own, and not disputed, shows nothing extra here --
+    // the dialog's header already names the source's own licence for that case.
+    if(track.license||track.disputed) {
+      const bits=[];
+      if(track.disputed)bits.push('Rights disputed');
+      if(track.license)bits.push(track.license);
+      info.append(node('div','music-row-license',bits.join(' · ')))
+    }
     const useWrap=node('div','music-use'),use=node('button',null,'Use');
     use.onclick=()=>useMusicTrack(track,use);
     useWrap.append(use);

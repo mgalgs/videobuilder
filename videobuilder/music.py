@@ -30,11 +30,19 @@ already-normalised tracks:
 
 `list_tracks(source_config)` receives this source's own table (including its
 `id`/`name`/`license`/`entry_point`) and returns an iterable of dicts with
-`id`, `title`, `audio_url` and, optionally, `tags` and `duration` (seconds).
+`id`, `title`, `audio_url` and, optionally, `tags`, `duration` (seconds),
+and its own `license` (a free-text label, overriding the source's own for
+this one track), `creator`, `year`, `item_url` and `disputed` (true for a
+track whose rights aren't settled) --
+credit fields a mapping source has no way to offer, since they aren't part
+of its fixed field list.
 
 A normalised track is `{id, title, tags: [str], duration: seconds|None,
-audio_url}`; one missing `id`, `title` or `audio_url`, or whose `audio_url`
-is not http(s), is skipped rather than raising. The track list is fetched
+audio_url}`, plus `license`, `creator`, `year`, `item_url` and `disputed`
+whenever the source actually supplied one -- never present at all
+otherwise, so an ordinary source's tracks are unchanged. One missing `id`,
+`title` or `audio_url`, or whose `audio_url` is not http(s), is skipped
+rather than raising. The track list is fetched
 with a timeout and a size cap, and cached per source for `CACHE_TTL`
 seconds; a refetch failure serves the stale cache instead of raising, when
 there is one to serve.
@@ -124,7 +132,22 @@ def finalize_track(raw):
     tags = [str(t) for t in tags] if isinstance(tags, list) else []
     duration = raw.get('duration')
     duration = float(duration) if isinstance(duration, (int, float)) and not isinstance(duration, bool) else None
-    return {'id': id_, 'title': title, 'tags': tags, 'duration': duration, 'audio_url': audio_url}
+    track = {'id': id_, 'title': title, 'tags': tags, 'duration': duration, 'audio_url': audio_url}
+    license_ = _coerce_str(raw.get('license'))
+    if license_ is not None:
+        track['license'] = license_
+    creator = _coerce_str(raw.get('creator'))
+    if creator is not None:
+        track['creator'] = creator
+    year = _coerce_str(raw.get('year'))
+    if year is not None:
+        track['year'] = year
+    item_url = raw.get('item_url')
+    if isinstance(item_url, str) and urlparse(item_url).scheme in ('http', 'https'):
+        track['item_url'] = item_url
+    if raw.get('disputed'):
+        track['disputed'] = True
+    return track
 
 
 def _mapping_tracks(doc, fields):

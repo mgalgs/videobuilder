@@ -357,7 +357,8 @@ def _get_suggest_catalog(self, route, q, editor, user):
             for t in tracks:
                 music_list.append({'id': t['id'], 'title': t['title'], 'tags': t['tags'], 'duration': t['duration'],
                                    'audio_url': t['audio_url'], 'source': source['name'],
-                                   'license': source['license']})
+                                   'license': t.get('license') or source['license'],
+                                   'disputed': t.get('disputed', False)})
     return self._json(200, {'looks': looks, 'type': type_, 'capabilities': caps, 'fonts': fonts.public(),
                             'sfx': sfx_list, 'music': music_list})
 
@@ -608,8 +609,12 @@ def _post_music_attach(self, route, body, identity, editor, user):
     ext = extension_for(content_type, track['audio_url'])
     if ext is None:
         raise HTTPError(400, 'unsupported audio type for this track')
+    extra = None
+    if track.get('license') or track.get('creator') or track.get('year') or track.get('item_url'):
+        extra = {'credit': {'title': track['title'], 'creator': track.get('creator'), 'year': track.get('year'),
+                            'license': track.get('license') or source.license, 'item_url': track.get('item_url')}}
     try:
-        record = editor.attachments.upload(video, f"{track['title']}.{ext}", TYPES[ext], data)
+        record = editor.attachments.upload(video, f"{track['title']}.{ext}", TYPES[ext], data, extra=extra)
     except ValueError as exc:
         raise HTTPError(400, str(exc)) from None
     return self._json(201, record)

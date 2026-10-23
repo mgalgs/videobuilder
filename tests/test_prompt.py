@@ -55,6 +55,32 @@ class CompendiumSection(unittest.TestCase):
         self.assertIn('No more questions', md)
 
 
+class AttachmentsSection(unittest.TestCase):
+    def render(self, attachments):
+        note = dict(NOTE, attachments=attachments)
+        return prompt.render(note, PAYLOAD, None)
+
+    def test_plain_attachment_has_no_credit_sentence(self):
+        md = self.render([{'name': 'ref.png', 'type': 'image/png', 'size': 100}])
+        self.assertIn('Attachments (read-only reference files):', md)
+        self.assertNotIn('-- credit:', md)
+        self.assertNotIn('carries a credit', md)
+
+    def test_attachment_with_credit_gets_the_credit_line_and_sentence(self):
+        credit = {'title': 'Farm Safety', 'creator': 'A. Studio', 'year': '1955',
+                  'license': 'Public domain', 'item_url': 'https://archive.org/details/farm-safety-1955'}
+        md = self.render([{'name': 'farm-safety.mp4', 'type': 'video/mp4', 'size': 100, 'credit': credit}])
+        self.assertIn('-- credit: Farm Safety, by A. Studio, 1955, Public domain, '
+                     'https://archive.org/details/farm-safety-1955', md)
+        self.assertIn('carries a credit', md)
+
+    def test_credit_sentence_only_added_when_some_attachment_has_one(self):
+        credit = {'title': 'Farm Safety'}
+        md = self.render([{'name': 'ref.png', 'type': 'image/png', 'size': 100},
+                          {'name': 'farm-safety.mp4', 'type': 'video/mp4', 'size': 100, 'credit': credit}])
+        self.assertIn('carries a credit', md)
+
+
 class SourcesSection(unittest.TestCase):
     SOURCE = {'name': 'interview', 'ext': 'mp4', 'size': 123, 'duration': 95.4, 'width': 1920,
              'height': 1080, 'has_audio': True, 'caption': None, 'created': 0}

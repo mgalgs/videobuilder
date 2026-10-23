@@ -506,7 +506,11 @@ when there is one. There is no upstream search, so the picker filters the
 cached list itself. Attaching a track fetches its `audio_url` server-side and
 stores it through the same attachment store as an upload — the picker never
 tells the server a URL to fetch, only a source and track id it already has
-cached.
+cached. A track an entry-point source returns may also carry its own
+`license` (overriding the source's for that one track), `creator`, `year`,
+`item_url` and `disputed`; the picker shows a track's own licence when it has
+one, the source's otherwise, and marks a `disputed` track plainly instead of
+implying a settled licence.
 
 **Pictures.** Pass `--artbox-url URL` (both modes) to add a Pictures button
 beside the composer's attach and music buttons. It opens a sheet where the

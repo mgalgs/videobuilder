@@ -279,5 +279,37 @@ class EntryPointSource(unittest.TestCase):
         self.assertEqual(second, first)
 
 
+class OptionalCreditFields(unittest.TestCase):
+    """finalize_track's optional license/creator/year/item_url/disputed --
+    present only when a source actually supplies them (an entry-point source
+    may; an ordinary source doesn't)."""
+
+    def test_absent_by_default(self):
+        track = music.finalize_track({'id': '1', 'title': 'One', 'audio_url': 'http://example.com/1.mp3'})
+        self.assertEqual(set(track), {'id', 'title', 'tags', 'duration', 'audio_url'})
+
+    def test_present_when_supplied(self):
+        track = music.finalize_track({
+            'id': '1', 'title': 'One', 'audio_url': 'http://example.com/1.mp3',
+            'license': 'rights disputed', 'creator': 'Some Band', 'year': '1931',
+            'item_url': 'https://archive.org/details/disc-1', 'disputed': True,
+        })
+        self.assertEqual(track['license'], 'rights disputed')
+        self.assertEqual(track['creator'], 'Some Band')
+        self.assertEqual(track['year'], '1931')
+        self.assertEqual(track['item_url'], 'https://archive.org/details/disc-1')
+        self.assertTrue(track['disputed'])
+
+    def test_non_http_item_url_is_dropped(self):
+        track = music.finalize_track({'id': '1', 'title': 'One', 'audio_url': 'http://example.com/1.mp3',
+                                      'item_url': 'not-a-url'})
+        self.assertNotIn('item_url', track)
+
+    def test_falsy_disputed_is_omitted(self):
+        track = music.finalize_track({'id': '1', 'title': 'One', 'audio_url': 'http://example.com/1.mp3',
+                                      'disputed': False})
+        self.assertNotIn('disputed', track)
+
+
 if __name__ == '__main__':
     unittest.main()
