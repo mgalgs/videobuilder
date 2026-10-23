@@ -37,22 +37,32 @@ def spring_return(home, offset, t, kick=0.12, ratio=0.3, hz=1.6):
 
 
 COLS, ROWS, GAP = 23, 13, 38
-HIT, SPEED = 0.4, 700.0  # the shock leaves the centre at HIT seconds and travels SPEED px/s
+SPEED = 700.0  # each shock ring travels SPEED px/s from its centre
+# (seconds, centre offset from the middle, strength): a hit in the middle, then a
+# second one right of centre while the field is at rest, so the wobble is still
+# going at the poster frame and has settled again before the clip ends
+HITS = ((0.35, (0, 0), 70), (1.5, (220, -40), 60))
 
 
 def draw(n, cv):
     t = n / demo.FPS
     cx, cy = demo.W / 2, demo.H / 2
     x0, y0 = cx - (COLS - 1) * GAP / 2, cy - (ROWS - 1) * GAP / 2
-    ring = (t - HIT) * SPEED
-    if 0 < ring < demo.W:
-        cv.arc(cx, cy, ring, 0, 2 * math.pi, demo.ACCENT, width=4, alpha=max(0.0, 0.6 * (1 - ring / 450)))
+    centres = [(cx + ox, cy + oy) for _, (ox, oy), _ in HITS]
+    for (hit, _, _), (hx, hy) in zip(HITS, centres):
+        ring = (t - hit) * SPEED
+        if 0 < ring < 450:
+            cv.arc(hx, hy, ring, 0, 2 * math.pi, demo.ACCENT, width=4, alpha=0.6 * (1 - ring / 450))
     for j in range(ROWS):
         for i in range(COLS):
             home = (x0 + i * GAP, y0 + j * GAP)
-            off = push(home, (cx, cy), strength=70, radius=230)
-            age = t - HIT - math.hypot(home[0] - cx, home[1] - cy) / SPEED
-            x, y = spring_return(home, off, age, hz=1.2)
+            x, y = home
+            # springs are linear, so the two hits' displacements simply add
+            for (hit, _, strength), c in zip(HITS, centres):
+                off = push(home, c, strength=strength, radius=230)
+                age = t - hit - math.hypot(home[0] - c[0], home[1] - c[1]) / SPEED
+                px, py = spring_return(home, off, age, ratio=0.35, hz=1.4)
+                x, y = x + px - home[0], y + py - home[1]
             far = vb.clamp01(math.hypot(x - home[0], y - home[1]) / 30)
             demo.dot(cv, *home, r=2, color=demo.LINE)
             demo.dot(cv, x, y, r=5 + 2 * far, color=demo.ACCENT if far > 0.25 else demo.TEAL)
