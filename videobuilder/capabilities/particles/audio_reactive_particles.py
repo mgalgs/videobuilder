@@ -95,6 +95,16 @@ def _demo_db():
     return out
 
 
+def _demo_sounds(id='pro_impact/short', gain_db=-5.0, soft_db=-3.0):
+    """A drum hit from the sound pack at each time in HITS, landing on the
+    first frame `_demo_db` lights for it, `soft_db` quieter on the softer
+    hits, so the viewer hears what the particles burst on."""
+    frames = [next(n for n in range(round(demo.SECONDS * demo.FPS)) if n / demo.FPS >= h) for h in HITS]
+    return tuple(vb.sfx.sound(id, at=f, fps=demo.FPS, align='onset', dur=0.18,
+                              gain_db=gain_db + (0.0 if i in (0, 3, 4) else soft_db))
+                 for i, f in enumerate(frames))
+
+
 LEVEL = drive(_demo_db(), floor_db=-30)
 TRAVEL = accumulate(LEVEL)
 
@@ -136,5 +146,5 @@ CAPABILITY = Capability(
          'videobuilder.capabilities.particles.audio_reactive_particles.drive',
          'videobuilder.capabilities.particles.audio_reactive_particles.accumulate',
          'videobuilder.speech.levels'),
-    demo=lambda: demo.film(draw),
+    demo=lambda: demo.film(draw, sounds=_demo_sounds()),
 )
