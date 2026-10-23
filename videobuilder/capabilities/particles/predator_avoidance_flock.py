@@ -105,11 +105,14 @@ PREDATOR_R = 46
 
 
 def _predator(t):
-    """The hunter sweeps in from the left, straight through the school, and out the right."""
-    p = (t - 0.35) / 1.45
-    if not -0.05 < p < 1.05:
+    """The hunter sweeps in from the left, slows as it ploughs through the
+    school (so it is still among the parted members at the poster frame, 2.1 s),
+    then darts out the right by about 2.5 s, leaving the rest for the regroup."""
+    p = (t - 0.8) / 1.75
+    if not 0 <= p <= 1:
         return None
-    return -120 + (demo.W + 240) * p, demo.H * 0.5 + 60 * math.sin(p * math.pi * 1.2)
+    s = p + 0.8 * math.sin(2 * math.pi * p) / (2 * math.pi)   # fast at the edges, slow in the middle
+    return -120 + (demo.W + 240) * s, demo.H * 0.5 + 30 * math.sin(p * math.pi * 1.2)
 
 
 _RUN = []
@@ -117,7 +120,8 @@ _RUN = []
 
 def _run():
     if not _RUN:
-        _RUN.append(simulate(_predator, FRAMES, lambda t: HOME, count=110, seed=4, fear=300))
+        _RUN.append(simulate(_predator, FRAMES, lambda t: HOME, count=110, seed=4, fear=220, panic=3500,
+                             home_pull=7.0))
     return _RUN[0]
 
 
