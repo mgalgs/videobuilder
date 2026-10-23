@@ -23,6 +23,7 @@ _OLD_CLASS_NAME = 'euqinhceT'[::-1]
 
 
 class NoLeftoverName(unittest.TestCase):
+    @unittest.skipUnless((ROOT / '.git').exists(), 'needs a git checkout (the image has none)')
     def test_no_tracked_file_names_the_old_word(self):
         files = subprocess.run(['git', 'ls-files'], cwd=ROOT, capture_output=True, text=True,
                                check=True).stdout.splitlines()
