@@ -12,19 +12,30 @@ from .. import _demo as demo
 from ..schema import Capability
 
 
-def held(n, every=2, seed=None, boil=0.0):
+def held(n, every=2, seed=None, boil=0.0, moving=1.0):
     """Stop-motion timing for frame `n`: `(frame, dx, dy, turn)`. `frame` is
     `n` held for `every` frames (on twos by default), so sample all motion at
-    it. With a `seed`, `dx, dy` (px, up to `boil`) and `turn` (radians, up to
-    0.2 degrees per px of `boil`) are a small hand-placement wobble, re-drawn
-    once per held frame, to add to a piece's own placement; otherwise they
-    are 0. Keep `boil` near 1: the turn moves a big figure's edges by its
-    size times the angle, so a larger one reads as shaking, not handmade."""
+    it. With a `seed`, `dx, dy` (px, up to `boil`) and `turn` (radians) are
+    an offset to add to a piece's own placement; otherwise they are 0.
+
+    `moving` (0..1) says how much the piece is moving. At 1 the offset is a
+    hand-placement wobble, re-drawn every held frame (a turn up to 0.8
+    degrees per px of `boil`). At 0 it is a slow drift over a few seconds
+    instead: a piece at rest isn't re-placed, and a wobble on one reads as
+    shaking. In between, the two blend; ease `moving` as the piece stops."""
     f = n - n % every
     if seed is None or not boil:
         return f, 0.0, 0.0, 0.0
     r = random.Random(f'{seed}:{f}')
-    return f, r.uniform(-boil, boil), r.uniform(-boil, boil), math.radians(r.uniform(-0.2, 0.2) * boil)
+    shake = (r.uniform(-boil, boil), r.uniform(-boil, boil), math.radians(r.uniform(-0.8, 0.8) * boil))
+    m = min(1.0, max(0.0, moving))
+    if m == 1.0:
+        return (f, *shake)
+    p = random.Random(f'{seed}:drift')
+    a, b, c = (p.uniform(0, 2 * math.pi) for _ in range(3))
+    drift = (boil * math.sin(2 * math.pi * f / 120 + a), boil * math.sin(2 * math.pi * f / 150 + b),
+             math.radians(0.4 * boil * math.sin(2 * math.pi * f / 180 + c)))
+    return (f, *(m * s + (1 - m) * d for s, d in zip(shake, drift)))
 
 
 def paper_piece(cv, points, color, x=0.0, y=0.0, angle=0.0, lift=6.0, grain=0.45, seed=0,
@@ -88,6 +99,7 @@ def ellipse(rx, ry, k=24):
 
 
 SPOT = ellipse(120, 18)
+HOP = 2.5   # seconds of hopping in the demo; 1.6 hops a second lands on 4 hops
 
 
 def bird(cv, x, y, wing, tilt, lift):
@@ -116,12 +128,15 @@ def draw(n, cv):
     cv.ctx.set_operator(cairo.OPERATOR_SOFT_LIGHT)
     cv.ctx.paint_with_alpha(0.25)
     cv.ctx.set_operator(cairo.OPERATOR_OVER)
-    f, jx, jy, jr = held(n, 2, seed='bird', boil=1.0)
-    t = f / demo.FPS
-    x = demo.W * 0.27 + (demo.W * 0.5) * t / demo.SECONDS
+    f = held(n)[0]
+    # Hops across for HOP seconds (a whole number of hops, so it lands), then sits.
+    t = min(f / demo.FPS, HOP)
+    moving = 1 - vb.clamp01((f / demo.FPS - HOP) / 0.3)
+    _, jx, jy, jr = held(n, 2, seed='bird', boil=2.0, moving=moving)
+    x = demo.W * 0.27 + (demo.W * 0.5) * t / HOP
     hop = abs(math.sin(math.pi * t * 1.6))
     y = demo.H * 0.5 - 60 * hop
-    wing = FLAP[(f // 4) % len(FLAP)]
+    wing = FLAP[(f // 4) % len(FLAP)] if t < HOP else FLAP[2]
     floor = demo.H * 0.78
     cv.shape_shadow([(x + px, floor + py) for px, py in SPOT], blur=30, color=(0, 0, 0, 0.55 - 0.2 * hop))
     bird(cv, x + jx, y + jy, wing, jr - 0.06 + 0.1 * math.cos(math.pi * t * 1.6), 8 + 4 * hop)
@@ -135,12 +150,13 @@ CAPABILITY = Capability(
     group='Cut-out & paper',
     aliases=('paper cutout', 'cut paper', 'paper collage', 'layered paper', 'silhouette cut animation'),
     definition='A figure built from flat, hinged pieces of coloured paper, each casting a thin shadow, '
-               'is re-posed in small jerky steps like a hand-moved model shot frame by frame.',
+               'is re-posed in small jerky steps like a hand-moved model shot frame by frame; '
+               'at rest it drifts slowly instead of jittering.',
     phrasings=('animate it like paper cut-outs being moved around on a table',
                'make the character out of construction paper pieces that move in stop-motion',
                'a handmade, papercraft look where flat shapes jerk from pose to pose'),
     related=('crumple', 'morph-cut', 'cut-on-action', 'smash-cut', 'origami-fold', 'strobe-cut'),
     api=('videobuilder.capabilities.shapes.cut_out_paper_animation.paper_piece',
          'videobuilder.capabilities.shapes.cut_out_paper_animation.held'),
-    demo=lambda: demo.film(draw),
+    demo=lambda: demo.film(draw, seconds=4.5),
 )
