@@ -40,13 +40,16 @@ def geometric_loop(cv, cx, cy, t, radius=300, rings=((6, 4), (12, 3), (18, 4)), 
             vb.paths.draw(cv, polygon(cx, cy, r, core, -TAU * t / core - math.pi / 2), colors[0], width=4,
                           closed=True)
         for k, (count, sides) in enumerate(rings):
-            turn = (1 if k % 2 == 0 else -1) * TAU * t / count
+            way = 1 if k % 2 == 0 else -1
+            turn = way * TAU * t / count
             ring_r = step * (k + 1) * (0.94 + 0.06 * breathe)
             color = colors[k % len(colors)]
             for i in range(count):
                 a = TAU * i / count + turn
-                wave = 0.5 - 0.5 * math.cos(TAU * (t - i / count) * (1 if k % 2 == 0 else -1) - k * 0.9)
-                spin = a + (1 if k % 2 == 0 else -1) * TAU * t / sides
+                # the pulse follows where a slot is, not which polygon fills it: each loop every
+                # polygon moves on one slot, so a per-polygon pulse would sit a slot off at the seam
+                wave = 0.5 - 0.5 * math.cos(way * TAU * t - a - k * 0.9)
+                spin = a + way * TAU * t / sides
                 pts = polygon(cx + ring_r * math.cos(a), cy + ring_r * math.sin(a), size * (0.35 + 0.65 * wave),
                               sides, spin)
                 vb.paths.draw(cv, pts, color, fill=True, alpha=0.55 + 0.45 * wave)
