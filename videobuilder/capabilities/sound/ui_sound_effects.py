@@ -75,7 +75,7 @@ def draw_sound_ring(cv, cx, cy, age, r=60, color=demo.TEAL, life=0.5, rings=2):
 
 # The demo: a pointer hovers a button, presses it, flips a switch, and a
 # notification drops in -- four sounds, each marked on a strip below.
-HOVER, PRESS, TOGGLE, NOTIFY = 0.6, 0.95, 1.7, 2.3
+HOVER, PRESS, TOGGLE, NOTIFY = 0.45, 0.8, 1.4, 1.85
 EVENTS = (('hover', HOVER), ('press', PRESS), ('toggle', TOGGLE), ('notify', NOTIFY))
 LABELS = {'hover': 'tick', 'press': 'click', 'toggle': 'snap', 'notify': 'ding'}
 BX, BY, BW, BH = demo.W * 0.34, demo.H * 0.52, 340, 110
@@ -131,7 +131,7 @@ def draw(n, cv):
     _strip(cv, t)
     # The pointer: in from the corner onto the button, then across to the switch.
     a = vb.interpolate(t, [0.0, HOVER], [0, 1], ease=vb.ease_out_quint)
-    b = vb.interpolate(t, [1.25, TOGGLE - 0.05], [0, 1], ease=vb.ease_in_out_quart)
+    b = vb.interpolate(t, [1.0, TOGGLE - 0.05], [0, 1], ease=vb.ease_in_out_quart)
     tx, ty = BX + 60, BY + 20
     px = demo.W * 0.86 + (tx - demo.W * 0.86) * a + (SX + 50 - tx) * b
     py = demo.H * 0.72 + (ty - demo.H * 0.72) * a - 10 * b + 18 * (depth if b == 0 else 0)
