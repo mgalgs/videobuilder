@@ -119,5 +119,5 @@ CAPABILITY = Capability(
     related=('word-flip-in', 'flip', 'layout-animation-flip', 'tile-flip', 'character-3d-flip',
              'logo-3d-spin-reveal'),
     api=('videobuilder.capabilities.transitions.page_turn.page_turn',),
-    demo=lambda: demo.two_scenes(page_turn, start=0.6, length=1.8),
+    demo=lambda: demo.two_scenes(page_turn, seconds=4, start=2.2, length=1.5),
 )
