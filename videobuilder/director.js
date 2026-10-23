@@ -1199,7 +1199,8 @@ function renderMusicList() {
     if(track.license||track.disputed) {
       const bits=[];
       if(track.disputed)bits.push('Rights disputed');
-      if(track.license)bits.push(track.license);
+      // archive_org.py's fallback licence for a 78rpm track already says "rights disputed".
+      if(track.license&&!(track.disputed&&/^rights disputed/i.test(track.license)))bits.push(track.license);
       info.append(node('div','music-row-license',bits.join(' · ')))
     }
     const useWrap=node('div','music-use'),use=node('button',null,'Use');
