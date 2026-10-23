@@ -27,7 +27,7 @@ def follow_through(path, t, hz=1.6, ratio=0.22, step=1 / 240):
     return x
 
 
-X0, X1, START, STOP = 300, demo.W - 300, 0.3, 1.4
+X0, X1, START, STOP = 300, demo.W - 300, 0.5, 1.7
 R, STALK = 46, 190
 
 
@@ -39,7 +39,7 @@ def draw(n, cv):
     t = n / demo.FPS
     ground = demo.H / 2 + 160
     bx, by = body_x(t), ground - R
-    lag = follow_through(body_x, t) - bx                       # < 0 trailing, > 0 overshooting
+    lag = follow_through(body_x, t, hz=1.2, ratio=0.12) - bx  #  0 trailing, > 0 overshooting
     a = max(-1.2, min(1.2, math.atan2(lag, STALK) * 1.6))      # lean of the stalk from upright
     base = (bx, by - R + 4)
     tip = (bx + STALK * math.sin(a), base[1] - STALK * math.cos(a))
