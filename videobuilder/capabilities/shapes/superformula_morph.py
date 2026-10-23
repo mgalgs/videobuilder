@@ -50,19 +50,21 @@ def superformula_morph(shapes, p, ease=vb.ease_in_out_quart):
     return (m0 + (m1 - m0) * t, *(vb.log_lerp(x0, x1, t) for x0, x1 in zip(e0, e1)))
 
 
-# A pinched hexagon, a six-armed star, a three-lobed bloom and a starfish.
-SHAPES = ((6, 1.0, 1.0, 1.0), (6, 1.5, 6.0, 6.0), (3, 4.5, 10.0, 10.0), (5, 2.0, 7.0, 7.0))
+# A pinched hexagon, a six-armed star, a five-petal flower (a tiny n1 over n2 = n3 just above 2 pinches
+# the outline to the centre between wide rounded lobes), a starfish, then the hexagon again so the clip loops.
+SHAPES = ((6, 1.0, 1.0, 1.0), (6, 1.5, 6.0, 6.0), (5, 0.05, 2.2, 2.2), (5, 2.0, 7.0, 7.0), (6, 1.0, 1.0, 1.0))
 
 
 def draw(n, cv):
     cx, cy, r = demo.W / 2, demo.H / 2 - 22, 190
-    # Each shape holds a beat, then the next leg morphs: hold, move, hold, move ...
+    # Each shape holds a beat centred on its keyframe, then the next leg morphs: hold, move, hold ...
+    # The middle frame (the gallery's poster) sits at u = 2, mid-hold on the flower.
     beats = len(SHAPES) - 1
     u = demo.phase(n, 0.2, 2.8) * beats
     i = min(int(u), beats - 1)
-    leg = vb.clamp01(((u - i) - 0.2) / 0.8)
+    leg = vb.clamp01(((u - i) - 0.1) / 0.8)
     params = superformula_morph(SHAPES, (i + leg) / beats)
-    pts = superformula_points(cx, cy, r, *params, rotation=0.25 * demo.phase(n, 0.0, 3.0))
+    pts = superformula_points(cx, cy, r, *params, rotation=0.25 * math.sin(math.pi * demo.phase(n, 0.0, 3.0)))
     vb.paths.draw(cv, pts, demo.ACCENT, fill=True)
     xs, ys = [x for x, _ in pts], [y for _, y in pts]
     cv.mark('shape', min(xs), min(ys), max(xs) - min(xs), max(ys) - min(ys))
