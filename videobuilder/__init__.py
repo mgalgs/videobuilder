@@ -1,5 +1,5 @@
 """videobuilder: a small framework for code-made films (cairo + Pango + ffmpeg)."""
-__version__ = '0.1.114'
+__version__ = '0.1.115'
 from .canvas import Canvas, Image, View, halftone_pattern, paper_grain, rgba
 from .clip import Clip, Footage, footage
 from .puppet import Puppet
