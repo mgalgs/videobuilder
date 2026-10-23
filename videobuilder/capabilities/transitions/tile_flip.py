@@ -9,6 +9,9 @@ from .. import _demo as demo
 from ..schema import Capability
 
 
+REST = 0.02  # how near face-on (as a share of full width) a tile counts as resting
+
+
 def tile_flip(cv, a, b, p, cols=8, rows=4, spread=0.55, axis='y', behind='#000000', shade=0.45):
     """Draw the flip at progress `p` (0 -> 1): the frame cut into `cols` x
     `rows` tiles, each turning half a revolution about its own `axis` ('y'
@@ -21,34 +24,40 @@ def tile_flip(cv, a, b, p, cols=8, rows=4, spread=0.55, axis='y', behind='#00000
     In a film, call it while two shots are live in an overlap, e.g.
     `tile_flip(cv, lambda c: scene_a(c, old), lambda c: scene_b(c, new), new.f / overlap_frames)`."""
     W, H = cv.width, cv.height
-    tw, th = W / cols, H / rows
     cv.fill(behind)
     c = cv.ctx
     span = max(1, cols + rows - 2)
+    xs = [round(W * k / cols) for k in range(cols + 1)]  # whole-pixel edges, so resting tiles butt with no seam
+    ys = [round(H * r / rows) for r in range(rows + 1)]
     for r in range(rows):
         for k in range(cols):
             delay = spread * (k + r) / span
             q = vb.ease_in_out_quart(vb.clamp01((p - delay) / (1 - spread)))
-            angle = math.pi * q
-            squash = math.cos(angle)
+            squash = math.cos(math.pi * q)
             front = squash >= 0
-            s = abs(squash)
+            # within REST of face-on a tile is drawn flat; the turn is rescaled
+            # from there so it leaves rest without a pop or a hairline gap
+            s = min(1.0, abs(squash) / (1 - REST))
             if s < 1e-3:
                 continue
-            x, y = k * tw, r * th
-            cx, cy = x + tw / 2, y + th / 2
-            lift = 1 + 0.12 * math.sin(angle)  # the turning tile swells a little, as if nearer
-            sx, sy = (s, lift) if axis == 'y' else (lift, s)
-            c.save()
-            c.translate(cx, cy)
-            c.scale(sx, sy)
-            c.translate(-cx, -cy)
-            with cv.clip(x, y, tw, th):
+            x, y, tw, th = xs[k], ys[r], xs[k + 1] - xs[k], ys[r + 1] - ys[r]
+            if s < 1:
+                cx, cy = x + tw / 2, y + th / 2
+                lift = 1 + 0.12 * math.sqrt(1 - s * s)  # the turning tile swells a little, as if nearer
+                sx, sy = (s, lift) if axis == 'y' else (lift, s)
+                c.save()
+                c.translate(cx, cy)
+                c.scale(sx, sy)
+                c.translate(-cx, -cy)
+            # a turning tile reaches a pixel past its cell on the turning axis, so
+            # the sub-pixel gap it opens as it leaves rest doesn't show as a seam
+            pad = (1 if axis == 'y' else 0, 0 if axis == 'y' else 1) if s < 1 else (0, 0)
+            with cv.clip(x - pad[0], y - pad[1], tw + 2 * pad[0], th + 2 * pad[1]):
                 (a if front else b)(cv)
-                if shade:
+                if shade and s < 1:
                     cv.fill('#000000', alpha=shade * (1 - s))
-            c.restore()
-
+            if s < 1:
+                c.restore()
 
 CAPABILITY = Capability(
     id='tile-flip',
@@ -64,5 +73,5 @@ CAPABILITY = Capability(
     related=('flip', 'mograph-grid-flip', 'layout-animation-flip', 'tile-grid-title-reveal', 'word-flip-in',
              'tessellation-triangle-flip'),
     api=('videobuilder.capabilities.transitions.tile_flip.tile_flip',),
-    demo=lambda: demo.two_scenes(tile_flip, start=0.7, length=1.6),
+    demo=lambda: demo.two_scenes(tile_flip, start=1.2, length=1.6),
 )
