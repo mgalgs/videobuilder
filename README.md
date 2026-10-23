@@ -529,6 +529,27 @@ cached. A track an entry-point source returns may also carry its own
 one, the source's otherwise, and marks a `disputed` track plainly instead of
 implying a settled licence.
 
+One such entry-point source ships with videobuilder but is never enabled by
+default: archive.org's 78rpm collections (`georgeblood` and friends), whose
+rights are unresolved -- major record labels sued the Internet Archive over
+them in 2023. A self-hoster who still wants period music from them turns it
+on explicitly:
+
+```toml
+[[sources]]
+id = "archive-78rpm"
+name = "78rpm (archive.org)"
+license = "Rights disputed -- see each item"
+entry_point = "videobuilder.archive_org:list_78rpm_tracks"
+rows = 20   # optional: how many archive.org items to check per listing
+```
+
+Every track from it carries `disputed = true` and its own item's licence
+(when archive.org states one) or a "rights disputed" note otherwise, plus a
+link to that item's archive.org page -- never silently presented as settled,
+and never wired into any default config, compose file or k8s manifest in
+this repo.
+
 **Pictures.** Pass `--artbox-url URL` (both modes) to add a Pictures button
 beside the composer's attach and music buttons. It opens a sheet where the
 creator describes a picture, picks how many (1-4) and whether to cut out the

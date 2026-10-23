@@ -1,7 +1,9 @@
 """The Internet Archive's free, keyless API (https://archive.org/developers/)
-as a footage source: Prelinger, mostly public-domain ephemeral films,
-searched and imported into a video's own Sources (see sources.py's
-`Sources.import_archive_item`).
+as two things: a footage source (Prelinger, mostly public-domain ephemeral
+films, searched and imported into a video's own Sources, see sources.py's
+`Sources.import_archive_item`) and an optional music source (the 78rpm
+collections, wired in as an entry-point source for music.py, see
+`list_78rpm_tracks`).
 
 Every network call here goes through `_fetch`, which refuses before any
 network call unless the URL is https on an archive.org host (`archive.org`
@@ -41,7 +43,9 @@ MAX_REDIRECTS = 3
 CHUNK = 1 << 16
 
 SEARCH_ROWS = 24
+RPM78_ROWS = 20
 PRELINGER_COLLECTION = 'prelinger'
+RPM78_COLLECTION = 'georgeblood'
 
 SEARCH_URL = 'https://archive.org/advancedsearch.php'
 METADATA_URL = 'https://archive.org/metadata/{}'
@@ -406,3 +410,50 @@ def open_download(identifier, filename, timeout=FETCH_TIMEOUT):
         response.close()
         raise ArchiveError('archive.org did not report a usable file size') from None
     return response, content_length, response.headers.get('Content-Type') or 'video/mp4'
+
+
+def _pick_audio_file(files):
+    for f in files:
+        name = f.get('name')
+        if isinstance(name, str) and name.lower().endswith('.mp3'):
+            return name
+    return None
+
+
+def list_78rpm_tracks(source_config):
+    """An entry-point for music.py (`entry_point =
+    "videobuilder.archive_org:list_78rpm_tracks"`): a page of the archive.org
+    78rpm collections (collection `georgeblood`, mediatype `audio`), each
+    track carrying its own licence/credit and `disputed: True` -- these
+    collections' rights are unresolved (major labels sued the Archive over
+    them in 2023), which is exactly why this is opt-in, not a default source
+    (see the README's music-sources section). `source_config` is this
+    source's own TOML table; `rows` in it (default RPM78_ROWS) controls how
+    many items are checked, since each one needs its own metadata lookup to
+    find a playable file."""
+    rows = source_config.get('rows', RPM78_ROWS) if isinstance(source_config, dict) else RPM78_ROWS
+    try:
+        rows = int(rows)
+    except (TypeError, ValueError):
+        rows = RPM78_ROWS
+    out = []
+    for doc in _search(RPM78_COLLECTION, 'audio', '', rows, FETCH_TIMEOUT):
+        identifier = doc['identifier']
+        try:
+            item = get_metadata(identifier)
+        except ArchiveError:
+            continue
+        filename = _pick_audio_file(item['files'])
+        if filename is None:
+            continue
+        out.append({
+            'id': identifier,
+            'title': item['title'],
+            'audio_url': DOWNLOAD_URL.format(quote(identifier, safe=''), quote(filename, safe='')),
+            'creator': item['creator'],
+            'year': item['year'],
+            'license': item['license'] or item['rights'] or 'rights disputed (see item page)',
+            'item_url': item['details_url'],
+            'disputed': True,
+        })
+    return out

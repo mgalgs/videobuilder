@@ -273,6 +273,43 @@ class Download(unittest.TestCase):
             archive_org.open_download('farm-safety-1955', 'farm-safety-1955.mp4')
 
 
+class Rpm78EntryPoint(unittest.TestCase):
+    def setUp(self):
+        archive_org._cache._entries.clear()
+
+    @mock.patch('videobuilder.archive_org._open')
+    def test_lists_tracks_with_disputed_flag_and_credit(self, opened):
+        search_body = {'response': {'docs': [{'identifier': 'disc-1'}]}}
+        meta_body = {
+            'metadata': {'identifier': 'disc-1', 'title': 'Some Tune', 'creator': 'Some Band', 'year': '1931'},
+            'files': [{'name': 'disc-1.mp3', 'size': '1000'}],
+        }
+        opened.side_effect = [
+            _FakeResponse(json.dumps(search_body).encode(), archive_org.SEARCH_URL),
+            _FakeResponse(json.dumps(meta_body).encode(), archive_org.SEARCH_URL),
+        ]
+        tracks = archive_org.list_78rpm_tracks({'id': 'rpm78', 'rows': 5})
+        self.assertEqual(len(tracks), 1)
+        track = tracks[0]
+        self.assertEqual(track['id'], 'disc-1')
+        self.assertEqual(track['title'], 'Some Tune')
+        self.assertEqual(track['creator'], 'Some Band')
+        self.assertEqual(track['year'], '1931')
+        self.assertTrue(track['disputed'])
+        self.assertEqual(track['audio_url'], 'https://archive.org/download/disc-1/disc-1.mp3')
+        self.assertIn('rights disputed', track['license'])
+
+    @mock.patch('videobuilder.archive_org._open')
+    def test_item_with_no_mp3_is_skipped(self, opened):
+        search_body = {'response': {'docs': [{'identifier': 'disc-2'}]}}
+        meta_body = {'metadata': {'identifier': 'disc-2', 'title': 'No Audio'}, 'files': [{'name': 'disc-2.flac'}]}
+        opened.side_effect = [
+            _FakeResponse(json.dumps(search_body).encode(), archive_org.SEARCH_URL),
+            _FakeResponse(json.dumps(meta_body).encode(), archive_org.SEARCH_URL),
+        ]
+        self.assertEqual(archive_org.list_78rpm_tracks({}), [])
+
+
 class RuntimeParsing(unittest.TestCase):
     def test_parses_seconds_and_clock_formats(self):
         self.assertEqual(archive_org._parse_runtime(90), 90.0)

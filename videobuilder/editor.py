@@ -152,8 +152,8 @@ GET  /api/music/sources              [{id,name,license}]; [] with none configure
 GET  /api/music/tracks?source=S      {source:{id,name,license},tracks:[...]};
                                      each track may carry its own license,
                                      creator, year, item_url and disputed
-                                     (true for a track whose rights are
-                                     unresolved), overriding
+                                     (true for a source like the 78rpm one
+                                     whose rights are unresolved), overriding
                                      or supplementing the source's own license;
                                      404 unknown source, 502 on an upstream fetch
                                      failure with no cache to fall back on

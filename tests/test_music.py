@@ -5,6 +5,7 @@ import threading
 import unittest
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
+from unittest import mock
 
 from videobuilder import music
 from videobuilder.music import MusicLibrary
@@ -281,8 +282,8 @@ class EntryPointSource(unittest.TestCase):
 
 class OptionalCreditFields(unittest.TestCase):
     """finalize_track's optional license/creator/year/item_url/disputed --
-    present only when a source actually supplies them (an entry-point source
-    may; an ordinary source doesn't)."""
+    present only when a source actually supplies them (archive_org's 78rpm
+    entry point does; an ordinary source doesn't)."""
 
     def test_absent_by_default(self):
         track = music.finalize_track({'id': '1', 'title': 'One', 'audio_url': 'http://example.com/1.mp3'})
@@ -309,6 +310,41 @@ class OptionalCreditFields(unittest.TestCase):
         track = music.finalize_track({'id': '1', 'title': 'One', 'audio_url': 'http://example.com/1.mp3',
                                       'disputed': False})
         self.assertNotIn('disputed', track)
+
+
+class Archive78RpmEntryPoint(unittest.TestCase):
+    """The built-in archive_org.list_78rpm_tracks wired up as a real
+    --music-sources entry-point source, the way a self-hoster who opts into
+    the 78rpm collection would configure it."""
+
+    def test_wired_up_through_a_toml_source(self):
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        path = Path(tmp.name, 'music.toml')
+        path.write_text('''
+            [[sources]]
+            id = "rpm78"
+            name = "78rpm (archive.org)"
+            license = "Rights disputed -- see each item"
+            entry_point = "videobuilder.archive_org:list_78rpm_tracks"
+            rows = 5
+        ''')
+        fake_track = {'id': 'disc-1', 'title': 'Some Tune', 'audio_url': 'https://archive.org/download/disc-1/x.mp3',
+                     'creator': 'Some Band', 'year': '1931', 'license': 'rights disputed (see item page)',
+                     'item_url': 'https://archive.org/details/disc-1', 'disputed': True}
+        # Patched before from_file: _build_source resolves and binds the entry-point
+        # function right away, so the mock must already be in place for that lookup.
+        with mock.patch('videobuilder.archive_org.list_78rpm_tracks', return_value=[fake_track]) as listed:
+            lib = MusicLibrary.from_file(path)
+            source, tracks = lib.list_tracks('rpm78')
+        listed.assert_called_once()
+        self.assertEqual(source.license, 'Rights disputed -- see each item')
+        self.assertEqual(len(tracks), 1)
+        track = tracks[0]
+        self.assertEqual(track['id'], 'disc-1')
+        self.assertTrue(track['disputed'])
+        self.assertEqual(track['creator'], 'Some Band')
+        self.assertEqual(track['item_url'], 'https://archive.org/details/disc-1')
 
 
 if __name__ == '__main__':

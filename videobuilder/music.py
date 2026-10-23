@@ -33,7 +33,7 @@ already-normalised tracks:
 `id`, `title`, `audio_url` and, optionally, `tags`, `duration` (seconds),
 and its own `license` (a free-text label, overriding the source's own for
 this one track), `creator`, `year`, `item_url` and `disputed` (true for a
-track whose rights aren't settled) --
+track whose rights aren't settled, e.g. archive_org.list_78rpm_tracks) --
 credit fields a mapping source has no way to offer, since they aren't part
 of its fixed field list.
 

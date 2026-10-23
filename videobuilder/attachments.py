@@ -90,7 +90,7 @@ class Attachments:
     def upload(self, video, name, ctype, data, allow_oversize=False, extra=None):
         """`extra`, when given, is extra fields (e.g. `{'credit': {...}}`) merged
         into the stored record and included in the returned one -- used only by
-        the music-attach route, to carry a music track's own credit onto
+        the music-attach route, to carry an archive.org track's own credit onto
         its attachment; an ordinary upload never passes it, so its record is
         unchanged."""
         self.editor.project.video(video)
