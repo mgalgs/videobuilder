@@ -1,6 +1,7 @@
-"""examples/showcase.py: every catalog capability is named in some shot's tag,
-sections meet on transitions, and every shot draws in both formats;
-`capabilities build` renders it and the /capabilities page shows it."""
+"""examples/showcase.py: every catalog capability is named in some shot's tag
+(the registry's, where a family beat shows them), sections meet on
+transitions, and every shot draws in both formats; `capabilities build`
+renders it and the /capabilities page shows it."""
 import os
 import tempfile
 import unittest
@@ -27,13 +28,35 @@ class Showcase(unittest.TestCase):
                 self.assertIn(e['id'], tagged, f"no shot in examples/showcase.py names {e['id']} in its tag")
 
     def test_every_shot_has_a_tag_of_known_capabilities(self):
-        ids = set(capabilities.ids())
+        from videobuilder.capabilities import registry
+        ids = set(capabilities.ids()) | set(registry.ids())
         for seg in self.timeline.leaves():
             with self.subTest(segment=seg.name):
                 caps = self.mod.SHOTS[seg.name]
                 self.assertTrue(caps)
                 self.assertLessEqual(set(caps), ids)
                 self.assertEqual(len(self.mod.TAGS[seg.name]), len(caps))
+
+    def test_the_counts_families_and_wall_come_from_the_capabilities_api(self):
+        from videobuilder.capabilities import registry
+        everything = self.mod.everything
+        every = [e['id'] for e in capabilities.entries()] + list(registry.ids())
+        self.assertEqual(everything.TOTAL, len(every))
+        families = [f for f in registry.FAMILIES if registry.catalog(f)]
+        self.assertEqual(sorted(b.family.slug for b in everything.BEATS), sorted(families))
+        for b in everything.BEATS:
+            with self.subTest(family=b.family.slug):
+                self.assertEqual(len(b.family.members), len(registry.catalog(b.family.slug)))
+                self.assertTrue(b.clips)
+                self.assertLessEqual({t.id for t in b.clips}, set(self.mod.SHOTS[b.name]))
+                self.assertIn(b.name, [s.name for s in self.timeline.leaves()])
+        for fmt in ('16x9', '9x16'):
+            with self.subTest(wall=fmt):
+                cells = [c for c in everything.wall(fmt)['cells'] if c is not None]
+                self.assertEqual(sorted(cells), sorted(every))
+
+    def test_at_most_ninety_seconds(self):
+        self.assertLessEqual(self.film.frames / self.timeline.grid.fps, 90)
 
     def test_sections_meet_on_at_least_three_transitions(self):
         overlapping = [s.name for s, _ in self.timeline.walk() if s.overlap]

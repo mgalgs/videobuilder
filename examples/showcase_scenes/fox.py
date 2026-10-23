@@ -27,7 +27,7 @@ def _layout(st):
     c = st.content
     if st.wide:
         return c.cx - 220, c.bottom - 30, 1.25, (c.cx + 190, c.bottom - 300, 90)
-    return c.cx - 90, c.bottom - 120, 1.3, (c.cx + 220, c.bottom - 410, 80)
+    return c.cx - 90, c.bottom - 120, 1.3, (c.right - 92, c.bottom - 410, 70)
 
 
 def fox(cv, s, st):

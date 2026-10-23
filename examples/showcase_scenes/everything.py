@@ -157,7 +157,7 @@ WIPES = _wipes()
 
 
 # ---- the beats: one per family, then the ask ----
-FAMILY_BEATS = 4   # one of them under the wipe in; a family whose clips sound gets one more, a beat per sound
+FAMILY_BEATS = 3   # at least, one of them under the wipe in; long enough to read the name; a beat more where the clips sound, one each
 
 
 @dataclass(frozen=True)
@@ -169,10 +169,6 @@ class Beat:
     clips: tuple
     wipe: tuple
     sounding: bool
-
-    @property
-    def beats(self):
-        return FAMILY_BEATS + (1 if self.sounding else 0)
 
     @property
     def tag(self):
@@ -524,14 +520,17 @@ def _family_layout(st, n):
     """(head box, tile boxes) for `n` 16:9 tiles."""
     c = st.content
     g = 22
+    cols = 2 if n > 1 else 1
+    rows = math.ceil(n / cols)
     if st.wide:
         head = Box(c.x, c.y, 400, c.h)
         area = Box(head.right + 40, c.y, c.right - head.right - 40, c.h)
-    else:
-        head = Box(c.x, c.y, c.w, 330)
-        area = Box(c.x, head.bottom + 30, c.w, c.bottom - head.bottom - 30)
-    cols = 2 if n > 1 else 1
-    rows = math.ceil(n / cols)
+    else:   # the head and the tiles under it, together in the middle
+        head_h = 300
+        grid_h = rows * (c.w - g) / 2 * 9 / 16 + (rows - 1) * g
+        top = c.y + max(0, (c.h - head_h - 40 - grid_h) / 2)
+        head = Box(c.x, top, c.w, head_h)
+        area = Box(c.x, head.bottom + 40, c.w, grid_h)
     tw = min((area.w - g * (cols - 1)) / cols, ((area.h - g * (rows - 1)) / rows) * 16 / 9)
     th = tw * 9 / 16
     x0 = area.x + (area.w - cols * tw - (cols - 1) * g) / 2
@@ -650,7 +649,7 @@ def ask(cv, s, st):
         stage = Box(c.x, col.bottom + 20, c.w, c.bottom - col.bottom - 20)
     hf = kit.font(kit.pick(st, 64, 62), 850, tracking=-0.025, line_height=1.04)
     lines = text.wrap(ASK, hf, col.w, balance=True)
-    q = appear(f, 0)
+    q = appear(f, -4)
     with cv.layer(opacity=vb.clamp01(q), dy=(1 - min(1, q)) * 30):
         box = text.draw(cv, lines, hf, col.x, col.y, INK)
     cv.mark('headline', *box)
@@ -701,7 +700,7 @@ def _note(cv, f, stage):
         name_f = fit(t.name, 800, 34, 24, room)
         text.draw(cv, t.name, name_f, tx, cb.y + 22, INK)
         df = kit.font(22, 500, line_height=1.25)
-        dl = text.wrap(t.definition, df, room)
+        dl = list(text.wrap(t.definition, df, room))
         fits = max(1, int((cb.bottom - 20 - (cb.y + 30 + text.line_height(name_f))) / text.line_height(df)))
         if len(dl) > fits:
             dl = dl[:fits]

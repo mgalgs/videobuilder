@@ -8,9 +8,13 @@ reads capability text directly.
 
     python -m videobuilder capabilities build --out DIR [--only ID]
 
-The full build also renders the showcase reel (examples/showcase.py, every
-capability in one quick-cut film) as showcase-16x9.mp4 and showcase-9x16.mp4
-with posters, served beside the clips and shown at the top of the page.
+The full build also renders the showcase (examples/showcase.py), the
+product film: every capability counted and on one wall, a beat for each
+registry family with its demos playing, and a launch film cut from the
+catalog's capabilities, all read from this module and the registry at render
+time. It is built last, as showcase-16x9.mp4 and showcase-9x16.mp4 with
+posters, so its wall is tiled with the posters just built; it is served
+beside the clips and shown at the top of the page.
 
 Community-submitted capabilities (community.py) are a separate, runtime-loaded
 list shown beside this fixed CATALOG -- never added to it.
@@ -946,8 +950,11 @@ SHOWCASE_FILES = ('showcase-16x9', 'showcase-9x16')   # one per format, each wit
 
 def build_showcase(out_dir, jobs=None, crf=30, log=None):
     """Render the showcase in each of its formats (its own 1280x720 and 720x1280)
-    to `<out_dir>/showcase-<format>.mp4`, with a poster from its title shot.
-    Returns {id, seconds, bytes} per format."""
+    to `<out_dir>/showcase-<format>.mp4`, with a poster (the film's `POSTER`
+    frame). The film tiles its wall of every capability with the posters
+    already in `out_dir` (its `use_clips`), so `build` renders it last; a
+    capability with no poster there gets a plain tile. Returns {id, seconds,
+    bytes} per format."""
     import sys as _sys
     import time as _time
     from .. import film as _film
@@ -955,7 +962,11 @@ def build_showcase(out_dir, jobs=None, crf=30, log=None):
     log = log or _sys.stderr
     mod = _film.load_module(os.path.join(REPO_ROOT, SHOWCASE))
     film = mod.FILM
-    poster_n = mod.TIMELINE.start('title') + 3 * mod.GRID.frames_per_beat   # the title, landed
+    if hasattr(mod, 'use_clips'):
+        mod.use_clips(out_dir)
+    poster_n = getattr(mod, 'POSTER', None)
+    if poster_n is None:
+        poster_n = mod.TIMELINE.start('title') + 3 * mod.GRID.frames_per_beat   # the title, landed
     os.makedirs(out_dir, exist_ok=True)
     results = []
     for fmt in film.formats:
@@ -978,9 +989,11 @@ def build(out_dir, only=None, jobs=None, crf=30, log=None):
     'showcase' in it, the showcase reel is built too (`build_showcase`).
     Every registry capability (`videobuilder.capabilities.registry`) is also
     built, into the same flat `<out_dir>/<id>.mp4`/`.jpg` (`build_registry`);
-    `only` may name registry ids too. Returns a list of {id, seconds, bytes}
-    for the ones built, in catalog order, the showcase then the registry
-    capabilities last."""
+    `only` may name registry ids too. The showcase comes last: its wall is
+    tiled with the posters built before it. Returns a list of {id, seconds,
+    bytes} for the ones built, in catalog order, then the registry
+    capabilities, then the showcase.
+    """
     import sys as _sys
     import time as _time
     from .. import film as _film
@@ -1006,10 +1019,10 @@ def build(out_dir, only=None, jobs=None, crf=30, log=None):
         poster_cv = film.frame(poster_n, fmt)
         _save_poster(poster_cv, os.path.join(out_dir, entry['id'] + '.jpg'))
         results.append({'id': entry['id'], 'seconds': _time.time() - t0, 'bytes': os.path.getsize(out_mp4)})
-    if only is None or SHOWCASE_ID in only:
-        results += build_showcase(out_dir, jobs=jobs, crf=crf, log=log)
     results += build_registry(out_dir, only=(only & registry_ids) if only is not None else None,
                               jobs=jobs, crf=crf, log=log)
+    if only is None or SHOWCASE_ID in only:
+        results += build_showcase(out_dir, jobs=jobs, crf=crf, log=log)
     return results
 
 

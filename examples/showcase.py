@@ -61,7 +61,7 @@ def _read_beats(words):
 
 
 def _family_beats(beat):
-    return max(everything.FAMILY_BEATS - 1, _read_beats(len(beat.family.title.split()))) + (1 if beat.sounding else 0)
+    return max(everything.FAMILY_BEATS, _read_beats(len(beat.family.title.split()))) + (1 if beat.sounding else 0)
 
 
 # ---- the timeline: beats at 120 bpm, 15 frames each ----

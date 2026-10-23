@@ -40,8 +40,8 @@ STAMP_AT = 135
 RIP = (0, 13)        # frames into the next section, which the shards uncover
 # How each cut frames the wall: zoom, and the point (in wall px) it centres on.
 FRAMING = {
-    True: ((1.6, (390, 155)), (1.3, (315, 440)), (1.0, (640, 360))),
-    False: ((1.12, (360, 213)), (1.38, (360, 595)), (1.0, (360, 640))),
+    True: ((1.6, (390, 181)), (1.3, (315, 440)), (1.0, (640, 360))),
+    False: ((1.12, (360, 231)), (1.38, (360, 595)), (1.0, (360, 640))),
 }
 
 
@@ -98,7 +98,7 @@ class Layout:
         W, H = (1280, 720) if wide else (720, 1280)
         self.W, self.H = W, H
         self.centre = (W / 2, H / 2) if wide else (W / 2, H * 0.46)
-        self.scrap = (110, 92, 560, 126) if wide else (90, 150, 540, 126)
+        self.scrap = (110, 118, 560, 126) if wide else (90, 168, 540, 126)   # clear of the tag at full frame
         self.pad = (150, 262, 330, 340) if wide else (150, 380, 420, 430)
         self.stamp = (930, 420) if wide else (440, 1000)
         x, y, w, h = self.scrap
