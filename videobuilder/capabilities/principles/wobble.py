@@ -41,7 +41,7 @@ def wobbling(cv, ax, ay, k, tilt=0.05, shear=0.45, squash=0.08):
         c.restore()
 
 
-KNOCK = 0.75  # when the dot reaches the card, in seconds
+KNOCK = 1.62  # when the dot reaches the card, in seconds: late enough that the poster (2.1 s) lands on a full swing
 
 
 def draw(n, cv):
@@ -52,7 +52,7 @@ def draw(n, cv):
     # A dot rolls in, taps the card's side and rebounds a little.
     r = 22
     hit = cx - w / 2 - r
-    go, back = demo.phase(n, 0.15, KNOCK), demo.phase(n, KNOCK, KNOCK + 0.6)
+    go, back = demo.phase(n, KNOCK - 0.8, KNOCK), demo.phase(n, KNOCK, KNOCK + 0.6)
     x = hit - 300 * (1 - go * go) - 60 * vb.ease_out_expo(back)
     demo.dot(cv, x, ground - r, r, color=demo.TEAL)
     k = wobble(n / demo.FPS - KNOCK, hz=2.6, decay=2.2)
@@ -65,7 +65,7 @@ CAPABILITY = Capability(
     name='Wobble',
     family='principles',
     group='Physics',
-    aliases=('jelly wobble', 'wiggle', 'jiggle', 'sine wave warp', 'wave warp'),
+    aliases=('jelly wobble', 'wiggle', 'jiggle', 'rock and settle'),
     definition='After a knock, a shape sways and jiggles back and forth about its base, each swing '
                'smaller than the last, until it settles where it started.',
     phrasings=('give it a jelly jiggle when it gets hit',
