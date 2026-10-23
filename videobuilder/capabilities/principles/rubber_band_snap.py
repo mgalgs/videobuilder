@@ -32,7 +32,9 @@ def draw(n, cv):
     ax, ay = demo.W / 2, 120                       # the anchor pin
     rx, ry = demo.W / 2, 280                       # where the ball hangs at rest
     dx, dy = 230, 180                              # how far it is dragged
-    s = rubber_band_snap(n / demo.FPS - 0.3, pull=1.0, hold=0.2)
+    # a slow 1.8 s draw, held to 2.85 s so the gallery's poster (70% in, 2.8 s)
+    # catches the band at full stretch; the snap and wobble fill the last 1.15 s
+    s = rubber_band_snap(n / demo.FPS - 0.5, pull=1.8, hold=0.55)
     bx, by = rx + dx * s, ry + dy * s
     cv.outline(rx - 30, ry - 30, 60, 60, demo.MUTED, width=2, radius=30, alpha=0.45)  # its resting place
     length = math.hypot(bx - ax, by - ay)
@@ -60,5 +62,5 @@ CAPABILITY = Capability(
              'elastic-ease-in', 'elastic-horizontal-squash'),
     api=('videobuilder.capabilities.principles.rubber_band_snap.rubber_band_snap', 'videobuilder.spring',
          'videobuilder.damped'),
-    demo=lambda: demo.film(draw),
+    demo=lambda: demo.film(draw, seconds=4.0),
 )
