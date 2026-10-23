@@ -69,14 +69,20 @@ def draw_typed_rotator(cv, lead, words, font, x, y, t, color, word_color=None, c
 
 LEAD = 'We make '
 WORDS = ('films', 'apps', 'brands')
+# With this hold the three words take the clip's full 3 s, so looping them
+# makes the gallery clip seamless; starting 0.4 s in puts 'films' on screen
+# at frame 0 and lands the 70% poster frame on 'brands' being held.
+HOLD = 0.425
+START = 0.4
 
 
 def draw(n, cv):
     f = demo.font(104, 800)
     w = vb.text.measure(LEAD, f) + max(vb.text.measure(wd, f) for wd in WORDS)
     h = vb.text.line_height(f)
-    box = draw_typed_rotator(cv, LEAD, WORDS, f, (demo.W - w) / 2, (demo.H - h) / 2, n / demo.FPS - 0.2,
-                             demo.INK, word_color=demo.ACCENT, caret_color=demo.TEAL)
+    box = draw_typed_rotator(cv, LEAD, WORDS, f, (demo.W - w) / 2, (demo.H - h) / 2, n / demo.FPS + START,
+                             demo.INK, word_color=demo.ACCENT, caret_color=demo.TEAL,
+                             blink=0.75, hold=HOLD, loop=True)
     cv.mark('text', *box)
 
 
