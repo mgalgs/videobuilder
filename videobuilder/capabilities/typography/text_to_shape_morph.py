@@ -110,11 +110,14 @@ def draw_text_to_shape(cv, line, font, cx, cy, shape, p, color, to_color=None, a
 
 
 def heart(size, n=240):
-    """A heart outline `size` px wide, about its own centre: a closed point list."""
+    """A heart outline `size` px wide, about its own centre: a closed point list.
+    The classic sin^3 heart, with the power easing to 2 towards the bottom so
+    the tip closes in a clean V rather than a hairline needle."""
     pts = []
     for k in range(n):
         a = 2 * math.pi * k / n
-        x = 16 * math.sin(a) ** 3
+        s = math.sin(a)
+        x = 16 * s * abs(s) ** (1.5 + 0.5 * math.cos(a))
         y = 13 * math.cos(a) - 5 * math.cos(2 * a) - 2 * math.cos(3 * a) - math.cos(4 * a)
         pts.append((x * size / 32, -(y + 2.5) * size / 32))
     return pts
@@ -124,9 +127,11 @@ SHAPE = heart(420)
 
 
 def draw(n, cv):
-    p = demo.phase(n, 0.6, 2.2)
+    # Late enough that the gallery poster (2.1 s) lands mid-morph: L and O
+    # already a heart, V and E still legible.
+    p = demo.phase(n, 1.2, 2.75)
     box = draw_text_to_shape(cv, 'LOVE', demo.font(220, 900), demo.W / 2, demo.H / 2, SHAPE, p,
-                             demo.INK, to_color=demo.ACCENT)
+                             demo.INK, to_color=demo.ACCENT, stagger=0.45)
     cv.mark('morph', *box)
 
 
