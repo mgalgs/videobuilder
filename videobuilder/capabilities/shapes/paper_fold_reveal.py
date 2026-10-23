@@ -111,8 +111,12 @@ def paper_fold_reveal(cv, content, x, y, w, h, p, panels=3, direction='right', b
     if moving is not None:
         angle = turns[moving]
         pts = outline(moving, angle)
+        carrying = moving + 1 < panels and turns[moving + 1] == math.pi
         if angle < math.pi / 2:
-            face(moving, angle)
+            if carrying:  # the next panel is still folded onto this one's face and rides along
+                fill(pts, back)
+            else:
+                face(moving, angle)
             fill(pts, '#000000', shade * angle / (math.pi / 2))
         else:
             fill(pts, back)
