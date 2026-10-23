@@ -115,5 +115,5 @@ CAPABILITY = Capability(
     related=('smoke-overlay', 'smoke-puffs', 'noise-dissolve', 'layered-fog-bands', 'heat-haze', 'drip-wipe'),
     api=('videobuilder.capabilities.transitions.smoke_dissolve.smoke_dissolve',
          'videobuilder.capabilities.transitions.smoke_dissolve.smoke_masks'),
-    demo=lambda: demo.two_scenes(smoke_dissolve, start=0.6, length=1.9),
+    demo=lambda: demo.two_scenes(smoke_dissolve, start=1.1, length=1.75),
 )
