@@ -7,6 +7,7 @@ bands: each band of the screen shows one slice of the flat page, at the
 width and height that slice has at its depth. With bands a pixel or two
 tall the seams don't show, and the result is a true perspective.
 """
+import math
 from functools import lru_cache
 
 import videobuilder as vb
@@ -41,7 +42,8 @@ def draw_crawl(cv, page, scroll, horizon=None, near=None, depth=None, cx=None,
     px -- smaller tilts it harder (default the frame width). `cx`: the
     vanishing point's x (default the centre). The text fades out between
     the scales in `fade` (as fractions of full size). `step` is the band
-    height in output pixels."""
+    height in output pixels, rounded to a whole number so every band edge
+    falls on a pixel boundary (a fractional edge shows as a faint seam)."""
     W = cv.width
     horizon = cv.height * 0.18 if horizon is None else horizon
     near = cv.height if near is None else near
@@ -49,14 +51,15 @@ def draw_crawl(cv, page, scroll, horizon=None, near=None, depth=None, cx=None,
     cx = W / 2 if cx is None else cx
     f0, f1 = fade
     ps = page.scale
-    band = step / max(cv.scale_factor(), 1e-6)
+    px = 1 / max(cv.scale_factor(), 1e-6)  # one output pixel, in canvas units
+    band = max(1, round(step)) * px
 
     def row(y):  # (page row, scale) at screen y
         s = (y - horizon) / (near - horizon)
         return scroll - (depth / s - depth), s
 
     c = cv.ctx
-    y = horizon + f0 * (near - horizon)  # nothing shows above the fully-faded scale
+    y = math.floor((horizon + f0 * (near - horizon)) / px) * px  # nothing shows above the fully-faded scale
     while y < near:
         yb = min(near, y + band)
         va, sa = row(y)
@@ -80,12 +83,14 @@ def draw_crawl(cv, page, scroll, horizon=None, near=None, depth=None, cx=None,
 TEXT = ('CHAPTER ONE', '', 'THE LONG RENDER', '',
         'Far across the timeline,', 'a lone renderer works', 'through the night to',
         'finish every frame of', 'the cut before the', 'deadline arrives. Each', 'scene it completes',
-        'drifts off into the', 'distance, never to be', 'seen again....')
+        'drifts off into the', 'distance, never to be', 'seen again. Only the', 'closing titles remain,',
+        'and the dawn is already', 'breaking over the edit', 'suite as the last shot',
+        'lands in the timeline', 'and the export bar', 'begins, at long last,', 'to fill....')
 
 
 @lru_cache(maxsize=4)
 def _page(scale):
-    return crawl_page(TEXT, demo.font(46, 700), 760, '#f2c94c', scale=max(scale, 0.25))
+    return crawl_page(TEXT, demo.font(38, 700), 760, '#f2c94c', scale=max(scale, 0.25))
 
 
 def _stars(cv):
@@ -97,8 +102,14 @@ def _stars(cv):
 def draw(n, cv):
     _stars(cv)
     page = _page(round(cv.scale_factor(), 3))
-    draw_crawl(cv, page, 420 + 300 * n / demo.FPS, depth=560)
-    cv.mark('text', demo.W / 2 - 380, demo.H * 0.25, 760, demo.H * 0.75)
+    # Fast enough that by the last frame the opening lines have crawled up into the fade
+    # and gone, while the end of the page is still filling the near edge.
+    scroll = 380 + 245 * n / demo.FPS
+    depth, fade, horizon = 260, (0.2, 0.45), demo.H * 0.18
+    draw_crawl(cv, page, scroll, horizon=horizon, depth=depth, fade=fade)
+    s_top = max(fade[0], depth / (depth + scroll))  # the page's top edge, or where it fades out
+    top = horizon + s_top * (demo.H - horizon)
+    cv.mark('text', demo.W / 2 - 380, top, 760, demo.H - top)
 
 
 CAPABILITY = Capability(
