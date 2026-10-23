@@ -83,7 +83,7 @@ def _scene(cv, t, k):
         return
     a = 2.4 * t
     r = 330 * vb.clamp01(t / 0.6)
-    demo.dot(cv, demo.W / 2 + r * math.cos(a), demo.H / 2 + 0.6 * r * math.sin(a), r=46,
+    demo.dot(cv, demo.W / 2 + r * math.cos(a), demo.H / 2 + 0.45 * r * math.sin(a), r=46,
              color=shift_hue(demo.ACCENT, 0.05 * k))
 
 
