@@ -16,5 +16,14 @@ for _name in _SUBMODULES:
 from .schema import FAMILIES, Capability as Technique
 from .registry import catalog, get, grouped, ids, index_data, index_json, index_markdown, load, modules
 
+# Alias every leaf capability module too, not just the family packages above: without this,
+# `import videobuilder.techniques.principles.follow_through` would find the real file through
+# the aliased package's __path__ and execute it a second time under a new module name, giving
+# a film that mixes old and new dotted paths two different (non-identical, non-isinstance-equal)
+# copies of the same classes and CAPABILITY records.
+for _family, _module in modules():
+    sys.modules[f'{__name__}.{_family}.{_module}'] = importlib.import_module(
+        f'videobuilder.capabilities.{_family}.{_module}')
+
 __all__ = ['FAMILIES', 'Technique', 'catalog', 'get', 'grouped', 'ids', 'index_data', 'index_json',
            'index_markdown', 'load', 'modules']

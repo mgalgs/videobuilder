@@ -49,6 +49,8 @@ class Compatibility(unittest.TestCase):
     def test_old_dotted_module_path_still_imports_and_resolves(self):
         mod = importlib.import_module(f'{_SHIM_MODULE}.principles.follow_through')
         self.assertTrue(callable(mod.follow_through))
+        new_mod = importlib.import_module('videobuilder.capabilities.principles.follow_through')
+        self.assertIs(mod, new_mod)  # the alias, not a second copy of the module
 
     def test_old_class_name_aliases_the_new_one(self):
         shim = importlib.import_module(_SHIM_MODULE)
