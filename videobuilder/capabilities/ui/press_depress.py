@@ -35,7 +35,7 @@ def draw_press_button(cv, cx, cy, w, h, depth, color=demo.ACCENT, base=None, lab
     x, y = cx - w / 2, cy - h / 2
     fy = y - rise
     up = max(0.0, 1 - depth)
-    cv.shadow(x, y, w, h, radius=radius, dy=4 + 14 * up, blur=6 + 26 * up, color=(0, 0, 0, 0.25 + 0.3 * up))
+    cv.shadow(x, y, w, h, radius=radius, dy=4 + 22 * up, blur=6 + 30 * up, color=(0, 0, 0, 0.3 + 0.4 * up))
     cv.rect(x, y, w, h, base, radius=radius)
     cv.rect(x, fy, w, h, color, radius=radius)
     if dim and depth > 0:
@@ -48,8 +48,8 @@ def draw_press_button(cv, cx, cy, w, h, depth, color=demo.ACCENT, base=None, lab
 
 
 def _darker(color, k=0.62):
-    r, g, b, a = vb.rgba(color)
-    return (r * k, g * k, b * k, a)
+    r, g, b, a = vb.rgba(color)  # 0-1 floats; a tuple colour wants 0-255 channels back
+    return (round(255 * r * k), round(255 * g * k), round(255 * b * k), a)
 
 
 def _cursor(cv, x, y, s=1.6):
@@ -71,6 +71,8 @@ def draw(n, cv):
     t = n / demo.FPS
     cx, cy, w, h = demo.W / 2, demo.H / 2 + 20, 420, 130
     depth = press_depth(t, 1.0, 1.7)
+    # A lighter panel under the button, so its shadow has something to darken.
+    cv.rect(cx - w / 2 - 150, cy - h / 2 - 120, w + 300, h + 220, demo.LINE, radius=36)
     face = draw_press_button(cv, cx, cy, w, h, depth, label='Press')
     cv.mark('button', *face)
     # The pointer glides onto the button, rides down with it, and drifts off after release.
