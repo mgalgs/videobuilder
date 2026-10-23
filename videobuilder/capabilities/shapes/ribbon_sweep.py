@@ -81,5 +81,5 @@ CAPABILITY = Capability(
                'ribbons fly across the screen and reveal the next shot'),
     related=('diagonal-wipe', 'spiral-wipe', 'linear-wipe', 'paint-brush-wipe', 'zigzag-wipe', 'pinwheel-wipe'),
     api=('videobuilder.capabilities.shapes.ribbon_sweep.ribbon_sweep',),
-    demo=lambda: demo.two_scenes(ribbon_sweep),
+    demo=lambda: demo.two_scenes(ribbon_sweep, start=1.0, length=1.5),
 )
