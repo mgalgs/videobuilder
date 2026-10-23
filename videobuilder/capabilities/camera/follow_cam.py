@@ -31,7 +31,9 @@ def follow_cam(target, t, lag=0.2, fps=30, start=0.0):
 
 # ---- demo: a top-down chase along a winding road ----
 
-TRAVEL = 2600  # world px the subject covers
+SECONDS = 5.0
+TRAVEL = 1800  # world px the subject covers
+LAG = 0.14  # trails ~100 px at cruise, settles well before the end
 
 
 def _road_y(x):
@@ -39,7 +41,7 @@ def _road_y(x):
 
 
 def _subject(t):
-    p = vb.clamp01((t - 0.25) / 2.3)
+    p = vb.clamp01((t - 0.4) / 3.6)
     x = TRAVEL * p * p * (3 - 2 * p)  # rolls off, cruises, pulls up
     return x, _road_y(x)
 
@@ -68,12 +70,15 @@ def _world(cv, sx, sy):
 
 
 def _minimap(cv, cam, subj):
-    x0, y0, mw, mh = demo.W - 380, demo.H - 230, 340, 190
-    s = mw / (TRAVEL + 1500)
+    # top-left, well clear of the subject, which never strays far from the centre
+    x0, y0, mw, mh, pad = 40, 40, 240, 130, 12
+    left = -demo.W / 2 - 60  # the span the camera's frame sweeps, so it fits too
+    s = (mw - 2 * pad) / (TRAVEL + demo.W + 120)
     cv.rect(x0, y0, mw, mh, demo.BG, radius=12, alpha=0.85)
     cv.outline(x0, y0, mw, mh, demo.MUTED, width=2, radius=12, alpha=0.6)
-    to = lambda x, y: (x0 + (x + 750) * s, y0 + mh / 2 + y * s)  # noqa: E731
-    vb.paths.draw(cv, [to(x, y) for x, y in _ROAD[::4]], demo.MUTED, width=3, alpha=0.6)
+    to = lambda x, y: (x0 + pad + (x - left) * s, y0 + mh / 2 + y * s)  # noqa: E731
+    road = [to(x, y) for x, y in _ROAD if left <= x <= left + (mw - 2 * pad) / s]
+    vb.paths.draw(cv, road, demo.MUTED, width=3, alpha=0.6)
     fx, fy = to(cam[0] - demo.W / 2, cam[1] - demo.H / 2)
     cv.outline(fx, fy, demo.W * s, demo.H * s, demo.INK, width=2)
     demo.dot(cv, *to(*subj), r=6)
@@ -90,7 +95,7 @@ def _reticle(cv):
 def draw(n, cv):
     t = n / demo.FPS
     sx, sy = _subject(t)
-    cam = follow_cam(_subject, t, lag=0.18)
+    cam = follow_cam(_subject, t, lag=LAG)
     with cv.layer(dx=demo.W / 2 - cam[0], dy=demo.H / 2 - cam[1]):
         _world(cv, sx, sy)
     cv.mark('subject', sx - cam[0] + demo.W / 2 - 40, sy - cam[1] + demo.H / 2 - 40, 80, 80)
@@ -112,5 +117,5 @@ CAPABILITY = Capability(
     related=('zoom-through', 'player-movement-trail', 'video-feedback-loop', 'reverse-motion-cut',
              'follow-through', 'motion-blur'),
     api=('videobuilder.capabilities.camera.follow_cam.follow_cam',),
-    demo=lambda: demo.film(draw),
+    demo=lambda: demo.film(draw, SECONDS),
 )
