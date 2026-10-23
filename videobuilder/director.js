@@ -415,7 +415,7 @@ function stampLabel() {
   const b=$('timestamp');
   b.replaceChildren();
   if (state.stamp) b.append(icon('clock'), `at ${timeLabel(player.currentTime)}`, icon('close'));
-  else b.append(`+ Attach the time (${timeLabel(player.currentTime)})`);
+  else b.append(icon('clock'), `+ ${timeLabel(player.currentTime)}`);
   b.classList.toggle('off',!state.stamp);
   b.setAttribute('aria-label', state.stamp
     ? 'Remove the timestamp from this message'

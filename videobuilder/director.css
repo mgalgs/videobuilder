@@ -1120,21 +1120,26 @@ button.danger:disabled {
   flex-wrap: wrap;
 }
 
-.composer-extras #timestamp {
-  min-height: 44px;
+/* Sits inside the note field's own box, at its right edge; see .note-wrap below. */
+.note-wrap #timestamp {
+  position: absolute;
+  right: 6px;
+  bottom: 6px;
+  min-height: 32px;
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 5px;
   border: 0;
-  border-radius: 15px;
+  border-radius: 14px;
   background: var(--accent);
   color: #fff;
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 700;
-  padding: 0 12px;
+  padding: 0 10px;
+  line-height: 1;
 }
 
-.composer-extras #timestamp.off {
+.note-wrap #timestamp.off {
   background: transparent;
   border: 1.5px dashed #5a5a63;
   color: #c9c9d1;
@@ -1170,9 +1175,10 @@ button.danger:disabled {
   flex-wrap: wrap;
 }
 
-#composer > .composer-row textarea {
+#composer > .composer-row .note-wrap {
   order: -1;
   flex: 1 0 100%;
+  position: relative;
 }
 
 #composer > .composer-row #add-note {
@@ -1187,6 +1193,13 @@ button.danger:disabled {
   max-height: 152px;
   resize: none;
   overflow-y: hidden;
+}
+
+/* The textarea fills its wrapper; #timestamp floats over its right edge, so
+   typed text gets a reserved strip wide enough for the chip's widest (on) state. */
+.note-wrap textarea {
+  width: 100%;
+  padding-right: 118px;
 }
 
 .accent {

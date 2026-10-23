@@ -271,8 +271,6 @@
             <button id="send-all" class="accent">Send to the builder</button>
           </section>
           <div class="composer-extras">
-<button id="timestamp" aria-label="Remove the timestamp from this message">
-</button>
 <span class="drop-hint desktop-only">Drop screenshots, images, clips or audio here</span>
 <div id="attachments">
 </div>
@@ -307,8 +305,12 @@
 </span>
 </button>
 <input id="file-picker" type="file" multiple accept=".png,.jpg,.jpeg,.webp,.gif,.svg,.mp4,.mov,.webm,.mp3,.wav,.m4a,.aac,.ogg,.pdf,.txt,.md" hidden>
+<div class="note-wrap">
 <label class="sr-only" for="message">Message to the builder</label>
 <textarea id="message" rows="1" placeholder="Note for the builder…" title="Enter adds it to the list · Shift+Enter starts a new line · Ctrl+Enter sends it now"></textarea>
+<button id="timestamp" aria-label="Remove the timestamp from this message">
+</button>
+</div>
 <button id="add-note" class="round accent" aria-label="Add to the list">
 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
 <path d="M12 5v14M5 12h14">

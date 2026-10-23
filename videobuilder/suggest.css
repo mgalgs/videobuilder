@@ -56,7 +56,6 @@
 #composer .sg-cards{margin:-2px 0 0}
 #composer .composer-extras.sg-on{flex-wrap:nowrap}
 #composer .composer-extras.sg-on .drop-hint{display:none}
-#composer .composer-extras #timestamp{flex:none}
 
 /* the brief highlight on the words a pick wrote */
 .sg-mirror{position:absolute;pointer-events:none;overflow:hidden;white-space:pre-wrap;overflow-wrap:break-word;
