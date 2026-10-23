@@ -21,19 +21,30 @@ def venetian_blinds_wipe(cv, a, b, p, slats=10, vertical=False, stagger=0.0, eas
     span = cv.height if not vertical else cv.width
     step = span / slats
     move = 1 - stagger
+    c = cv.ctx
+    c.save()
+    c.new_path()
     for i in range(slats):
         delay = stagger * i / max(1, slats - 1)
         q = ease(vb.clamp01((p - delay) / move)) if move > 0 else float(p >= delay)
         if q <= 0:
             continue
         size = step * q
-        start = i * step + (step - size) / 2
-        # Overlap neighbours by a hair so no seam of `a` shows once they close.
-        lo, hi = start - 0.5, size + 1
-        box = (0, lo, cv.width, hi) if not vertical else (lo, 0, hi, cv.height)
-        with cv.clip(*box):
-            b(cv)
-
+        # Pad by half a pixel each side so neighbours overlap as they close,
+        # leaving no hairline of `a` between them.
+        lo, hi = i * step + (step - size) / 2 - 0.5, size + 1
+        if not vertical:
+            c.rectangle(0, lo, cv.width, hi)
+        else:
+            c.rectangle(lo, 0, hi, cv.height)
+    # One clip for every band, and `b` drawn once through it: clipping each
+    # band on its own redraws `b` over the shared edge pixels, which darkens
+    # them wherever `b` stacks a translucent layer (a shadow) under its fill.
+    c.clip()
+    try:
+        b(cv)
+    finally:
+        c.restore()
 
 CAPABILITY = Capability(
     id='venetian-blinds-wipe',
@@ -49,5 +60,5 @@ CAPABILITY = Capability(
     related=('shutter-slat-reveal', 'paint-brush-wipe', 'wipe-reveal', 'ribbon-sweep',
              'tile-grid-title-reveal', 'curtain-reveal'),
     api=('videobuilder.capabilities.transitions.venetian_blinds_wipe.venetian_blinds_wipe',),
-    demo=lambda: demo.two_scenes(venetian_blinds_wipe),
+    demo=lambda: demo.two_scenes(venetian_blinds_wipe, start=1.3, length=1.5),
 )
