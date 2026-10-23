@@ -73,7 +73,7 @@ def _scene(cv):
             if abs(x - demo.W / 2) < demo.W * 0.2 and abs(y - demo.H / 2) < demo.H * 0.2:
                 continue
             cv.arc(x, y, 46, 0, 2 * math.pi, demo.INK, width=12)
-    demo.word(cv, 'PRISM', demo.W / 2, demo.H / 2, size=150)
+    demo.word(cv, 'PRISM', demo.W / 2, demo.H / 2, size=110)
 
 
 def _draw(n, cv):
