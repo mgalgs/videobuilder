@@ -172,6 +172,25 @@ def _community_lines(community):
     return lines
 
 
+def _refs_lines(refs):
+    lines = ['## Referenced videos', '',
+             'The note above links to another of your own videos. Each one named below is reference '
+             'material to learn from -- its style, structure and code -- not something to copy wholesale: '
+             'build only this video, and never write into /attachments.', '']
+    for item in refs:
+        if not item.get('staged'):
+            lines.append(f"- {item['name']}: this reference could not be resolved right now "
+                         "(missing or not accessible); continue without it.")
+            continue
+        line = (f"- {item['name']}: its code and assets as of commit {item['commit'][:12]}, read-only, at "
+               f"/attachments/refs/{item['name']}/tree/, and a contact sheet of its current render at "
+               f"/attachments/refs/{item['name']}/sheet.png")
+        if item.get('manifest'):
+            line += f" (see /attachments/refs/{item['name']}/manifest.md for what was left out)"
+        lines.append(line + '.')
+    return lines
+
+
 FILMS_DOC = 'skill/make-a-video/reference/films.md'
 
 
@@ -300,7 +319,7 @@ def _film_scope(film, directory):
             f"clip and say what else it needs."]
 
 
-def render(note, payload, image, compendium=False, votes=None, sources=None, community=None, film=None):
+def render(note, payload, image, compendium=False, votes=None, sources=None, community=None, film=None, refs=None):
     """The exact text written to `<state>/sessions/<slug>/<note-id>.md`, the file
     the submitted payload's `note_file` points the builder at. `payload` is the
     note merged with its context and session fields (see NoteStore._submit);
@@ -327,6 +346,9 @@ def render(note, payload, image, compendium=False, votes=None, sources=None, com
     resolve_requested); empty or missing leaves the section out entirely, so
     a note with no chips renders byte-identical to one from before chips
     existed.
+    `refs` is this note's referenced videos, already resolved and staged (see
+    video_refs.stage, Editor._stage_video_refs); falsy for none, leaving the
+    section out entirely the same way `sources` does.
     """
     lines = ['# Review request', '', *([note['rejection']] if note.get('rejection') else []), note['text'], '']
     if note.get('time') is not None:
@@ -352,6 +374,8 @@ def render(note, payload, image, compendium=False, votes=None, sources=None, com
         lines += [instructions, '']
     if sources:
         lines += _sources_lines(sources, payload.get('directory', payload.get('video')))
+    if refs:
+        lines += _refs_lines(refs)
     for key in ('video', 'film', 'format', 'frame', 'segment', 'beat', 'time', 'image', 'draft'):
         lines.append(f"{key}: {image if key == 'image' else payload.get(key)}")
     if film:

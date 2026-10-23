@@ -130,6 +130,45 @@ class SourcesSection(unittest.TestCase):
         self.assertIn('not in your sandbox', md)
 
 
+class RefsSection(unittest.TestCase):
+    STAGED = {'name': 'acme/launch', 'staged': True, 'commit': '0123456789abcdef0123456789abcdef01234567'}
+
+    def test_omitted_with_no_refs(self):
+        with_none = prompt.render(NOTE, PAYLOAD, None)
+        with_empty = prompt.render(NOTE, PAYLOAD, None, refs=[])
+        self.assertEqual(with_none, with_empty)
+        self.assertNotIn('Referenced videos', with_none)
+
+    def test_a_staged_reference_names_its_commit_and_paths(self):
+        md = prompt.render(NOTE, PAYLOAD, None, refs=[self.STAGED])
+        self.assertIn('## Referenced videos', md)
+        self.assertIn('acme/launch: its code and assets as of commit 0123456789ab', md)
+        self.assertIn('/attachments/refs/acme/launch/tree/', md)
+        self.assertIn('/attachments/refs/acme/launch/sheet.png', md)
+        self.assertNotIn('manifest.md', md)
+        self.assertIn('never write into /attachments', md)
+
+    def test_a_manifest_is_pointed_to_when_something_was_left_out(self):
+        md = prompt.render(NOTE, PAYLOAD, None, refs=[{**self.STAGED, 'manifest': True}])
+        self.assertIn('/attachments/refs/acme/launch/manifest.md', md)
+
+    def test_an_unresolved_reference_says_so_without_saying_why(self):
+        md = prompt.render(NOTE, PAYLOAD, None, refs=[{'name': 'acme/secret', 'staged': False}])
+        # Missing and inaccessible say exactly the same thing, naming both possibilities
+        # together rather than which one it actually was.
+        self.assertIn('acme/secret: this reference could not be resolved right now '
+                      '(missing or not accessible); continue without it.', md)
+        self.assertNotIn('does not exist', md)
+
+    def test_placement_is_near_the_other_reference_material(self):
+        md = prompt.render(NOTE, PAYLOAD, None, sources=[SourcesSection.SOURCE], refs=[self.STAGED])
+        sources_at = md.index('## Source videos')
+        refs_at = md.index('## Referenced videos')
+        key_lines_at = md.index('video: promo/film')
+        self.assertLess(sources_at, refs_at)
+        self.assertLess(refs_at, key_lines_at)
+
+
 class CommunitySection(unittest.TestCase):
     ENTRY = {'slug': 'c-20260101-abc123', 'title': 'Zoom logo reveal', 'card': 'A snappy zoom on the logo.'}
 
