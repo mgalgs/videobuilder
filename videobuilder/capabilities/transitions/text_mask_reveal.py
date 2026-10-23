@@ -83,6 +83,22 @@ def text_mask_reveal(cv, a, b, p, word='OPEN', font=None, fill=0.8, ease=None):
     c.restore()
 
 
+def _demo_ease(t, hold=0.8, k=0.04):
+    """The demo's zoom: a gentle push (to `k` of the log-scale zoom, about
+    1.1x) for the first `hold` of the move, so OPEN stays whole and readable
+    with the next scene in its letters, then a rush through one letter. The
+    two parts meet at the same speed."""
+    if t < hold:
+        return k * t / hold
+    x = (t - hold) / (1 - hold)
+    lead = k * (1 - hold) / (hold * (1 - k))
+    return k + (1 - k) * (lead * x + (1 - lead) * x * x)
+
+
+def _demo_reveal(cv, a, b, p):
+    text_mask_reveal(cv, a, b, p, ease=_demo_ease)
+
+
 def scene_a(cv):
     demo.scene_a(cv)
     cv.fill(demo.BG, alpha=0.35)   # dim the photo a touch so the bright cut-out letters read
@@ -102,5 +118,5 @@ CAPABILITY = Capability(
     related=('text-reveal-through-shape-mask', 'character-rise', 'wipe-reveal', 'pixelation-reveal',
              'video-clipped-inside-letterforms', 'handwriting-reveal'),
     api=('videobuilder.capabilities.transitions.text_mask_reveal.text_mask_reveal',),
-    demo=lambda: demo.two_scenes(text_mask_reveal, seconds=3.2, start=0.4, length=2.2, a=scene_a),
+    demo=lambda: demo.two_scenes(_demo_reveal, seconds=3.2, start=0.3, length=2.5, a=scene_a),
 )
