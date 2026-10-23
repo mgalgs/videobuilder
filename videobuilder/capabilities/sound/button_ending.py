@@ -35,7 +35,7 @@ FIRST = 6
 MELODY = ('D6', 'B5', 'G5', 'B5', 'E6', 'D6')
 NOTES = tuple(FIRST + i * BEAT for i in range(len(MELODY)))
 BUTTON = FIRST + len(MELODY) * BEAT        # the next downbeat after the phrase
-SECONDS = 3.4
+SECONDS = 4.0                              # long enough that the gallery poster (70%) lands after the button
 LANE_Y, LANE_X0, LANE_X1 = 220, 110, demo.W - 110
 
 
@@ -98,8 +98,7 @@ CAPABILITY = Capability(
     phrasings=('end the music on a hard hit, no fade',
                'give the track a punchy stop right on the last frame',
                'finish with a final stab and then dead silence'),
-    related=('border-draw-button', 'magnetic-button', 'glow-button', 'keystroke-overlay', 'liquid-button',
-             'fill-sweep-button'),
+    related=('stinger', 'silence-drop', 'impact-hit', 'cut-to-the-beat', 'music-swell'),
     api=('videobuilder.capabilities.sound.button_ending.button_ending', 'videobuilder.sfx.sound'),
     demo=lambda: demo.film(draw, SECONDS, sounds=sounds()),
 )
