@@ -21,7 +21,7 @@ from videobuilder.editor import Editor
 from videobuilder.notes import NoteStore, AgentStatus
 from videobuilder import sources
 from videobuilder.transcript import read_feed
-from videobuilder.workers import child_environment
+from videobuilder.workers import ASSET_DIRS, child_environment
 
 
 class Queue(TempProject):
@@ -641,8 +641,8 @@ class DraftLoop(TempProject):
             self.assertIsNone(info['error'])
             png = self.editor.drafts.preview('promo/film', 'frame', dict(frame=0, scale=0.1))
         self.assertEqual(png[:8], b'\x89PNG\r\n\x1a\n')
-        self.assertEqual(set(child_environment('/tmp/home')),
-                         {'PATH', 'HOME', 'LANG', 'LC_ALL', 'VIDEOBUILDER_SFX_DIR'})
+        expected = {'PATH', 'HOME', 'LANG', 'LC_ALL'} | {name for name in ASSET_DIRS if os.environ.get(name)}
+        self.assertEqual(set(child_environment('/tmp/home')), expected)
 
     def test_preview_without_bwrap_refused_unless_opted_in(self):
         self.draft()
