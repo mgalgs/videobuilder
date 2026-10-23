@@ -113,7 +113,13 @@ def _stage_one(library, name, dest_dir, used):
         if used + size > TREE_BUDGET:
             left_out.append((path, size, 'the reference size cap was reached'))
             continue
-        data = git(None, 'cat-file', 'blob', blob_id, git_dir=repo, hooks=False, binary=True)
+        # check=False, raw .stdout: git()'s own check=True strips leading/trailing
+        # whitespace off stdout (fine for a rev-parse sha, not for a file's exact bytes --
+        # see community.load's `read` for the same pattern).
+        result = git(None, 'cat-file', 'blob', blob_id, git_dir=repo, hooks=False, check=False, binary=True)
+        if result.returncode:
+            continue
+        data = result.stdout
         target = tree_dir / path
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_bytes(data)

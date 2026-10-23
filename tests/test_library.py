@@ -1192,5 +1192,164 @@ class AdminLimits(AccountMixin, KeyMixin, LibraryFixture, unittest.TestCase):
         self.assertEqual((code, data), (200, {'defaults': {'notes': None, 'cost_usd': None}, 'accounts': []}))
 
 
+class References(LibraryFixture, unittest.TestCase):
+    """A note linking to another of the library's own videos (video_refs.py):
+    resolved locally and staged under the note's own /attachments/refs/<name>/,
+    never handed to the link gatherer."""
+
+    def setUp(self):
+        super().setUp()
+        from videobuilder.agents import FakeBackend
+        self.other_work = self.seed('acme/other', film=True)
+        self.request('/api/videos/new', {'name': 'acme/launch', 'start': 'blank'})
+        self.library.editor('acme/launch').notes.backend = FakeBackend(delay=0)
+
+    def _other_sha(self):
+        return self.git('rev-parse', 'refs/heads/main', cwd=self.library.path('acme/other')).stdout.strip()
+
+    def _note(self, text, video='film'):
+        code, note = self.request('/v/acme/launch/api/notes', {'video': video, 'text': text})
+        self.assertEqual(code, 200, note)
+        return note
+
+    def _attach_dir(self, note):
+        return self.library.editor('acme/launch').notes.session_dir('film') / ('attachments-' + note['id'])
+
+    def _prompt(self, note):
+        return (self.library.editor('acme/launch').notes.session_dir('film') /
+               (note['id'] + '.md')).read_text()
+
+    def wait_for_note(self, nid, timeout=10):
+        deadline = time.monotonic() + timeout
+        note = None
+        while time.monotonic() < deadline:
+            _, notes = self.request('/v/acme/launch/api/notes?video=film')
+            note = next((n for n in notes['notes'] if n['id'] == nid), None)
+            if note is not None and note['state'] != 'gathering':
+                return note
+            time.sleep(0.05)
+        self.fail(f'note {nid} never left gathering: {note}')
+
+    def test_an_ordinary_note_stages_a_library_link_reference(self):
+        link = self.base + '/v/acme/other'
+        note = self._note(f'Make something like {link} but about squid.')
+        self.assertNotEqual(note['state'], 'gathering')  # a library-only link never gathers
+        self.assertNotIn('gather', note)
+        tree = self._attach_dir(note) / 'refs' / 'acme' / 'other' / 'tree'
+        self.assertEqual((tree / 'README.md').read_text(), 'first\n')
+        self.assertEqual((tree / 'promo' / 'film.py').read_text(), FILM)
+        self.assertFalse((tree / 'promo' / 'film.py').is_symlink())
+        sheet = self._attach_dir(note) / 'refs' / 'acme' / 'other' / 'sheet.png'
+        self.assertTrue(sheet.is_file())
+        self.assertGreater(sheet.stat().st_size, 0)
+        self.assertFalse((self._attach_dir(note) / 'refs' / 'acme' / 'other' / 'manifest.md').exists())
+        md = self._prompt(note)
+        self.assertIn('## Referenced videos', md)
+        self.assertIn(f'commit {self._other_sha()[:12]}', md)
+        self.assertIn('/attachments/refs/acme/other/tree/', md)
+        self.assertIn('/attachments/refs/acme/other/sheet.png', md)
+
+    def test_the_first_note_stages_a_library_link_reference_too(self):
+        from videobuilder.agents import FakeBackend
+        self.request('/api/videos/new', {'name': 'acme/newcomer', 'start': 'blank'})
+        self.library.editor('acme/newcomer').notes.backend = FakeBackend(delay=0)
+        link = self.base + '/v/acme/other'
+        code, note = self.request('/v/acme/newcomer/api/videos/first-note',
+                                  {'description': f'Like {link} but about squid.'})
+        self.assertEqual(code, 200, note)
+        self.assertNotEqual(note['state'], 'gathering')
+        md = (self.library.editor('acme/newcomer').notes.session_dir('film') /
+             (note['id'] + '.md')).read_text()
+        self.assertIn('## Referenced videos', md)
+        self.assertIn('/attachments/refs/acme/other/tree/', md)
+
+    def test_mixing_a_library_link_and_a_public_link_stages_one_and_gathers_the_other(self):
+        link = self.base + '/v/acme/other'
+        with mock.patch('videobuilder.gather.crawl', return_value=([], [])) as crawl:
+            note = self._note(f'Like {link} and also see https://site.example/mood for the mood.')
+        self.assertEqual(note['state'], 'gathering')  # the public link still gathers
+        crawl.assert_called_once_with(['https://site.example/mood'], max_pages=1, follow=False)
+        note = self.wait_for_note(note['id'])
+        md = self._prompt(note)
+        self.assertIn('## Referenced videos', md)
+        self.assertIn('/attachments/refs/acme/other/tree/', md)
+
+    def test_a_video_may_not_reference_itself(self):
+        link = self.base + '/v/acme/launch'
+        note = self._note(f'Make it punchier, see {link} for style.')
+        self.assertNotEqual(note['state'], 'gathering')
+        self.assertEqual(note.get('refs'), [])
+        self.assertNotIn('Referenced videos', self._prompt(note))
+        self.assertFalse((self._attach_dir(note) / 'refs').exists())
+
+    def test_a_missing_reference_is_unresolved_and_the_note_still_runs(self):
+        link = self.base + '/v/acme/ghost'
+        note = self._note(f'Like {link} but about squid.')
+        self.assertNotEqual(note['state'], 'gathering')
+        md = self._prompt(note)
+        self.assertIn('acme/ghost: this reference could not be resolved', md)
+        self.assertFalse((self._attach_dir(note) / 'refs' / 'acme' / 'ghost').exists())
+
+    def test_a_large_media_file_is_left_out_of_the_tree_copy_with_a_manifest(self):
+        work = self.other_work
+        (work / 'promo' / 'big.mp4').write_bytes(b'x' * 1000)
+        self.git('add', '-A', cwd=work)
+        self.git('commit', '-m', 'add media', cwd=work)
+        self.git('push', cwd=work)
+        link = self.base + '/v/acme/other'
+        with mock.patch('videobuilder.video_refs.PER_FILE_MEDIA_MAX', 10):
+            note = self._note(f'Like {link} but about squid.')
+        ref_dir = self._attach_dir(note) / 'refs' / 'acme' / 'other'
+        self.assertFalse((ref_dir / 'tree' / 'promo' / 'big.mp4').exists())
+        self.assertTrue((ref_dir / 'tree' / 'promo' / 'film.py').exists())
+        manifest = (ref_dir / 'manifest.md').read_text()
+        self.assertIn('promo/big.mp4', manifest)
+        self.assertIn('per-file size cap', manifest)
+        self.assertIn('/attachments/refs/acme/other/manifest.md', self._prompt(note))
+
+    def test_the_total_tree_budget_leaves_the_rest_out_with_a_manifest(self):
+        link = self.base + '/v/acme/other'
+        with mock.patch('videobuilder.video_refs.TREE_BUDGET', 1):
+            note = self._note(f'Like {link} but about squid.')
+        ref_dir = self._attach_dir(note) / 'refs' / 'acme' / 'other'
+        manifest = (ref_dir / 'manifest.md').read_text()
+        self.assertIn('reference size cap was reached', manifest)
+
+    def test_no_reference_prompt_and_staging_are_unchanged(self):
+        note = self._note('Make the title bigger.')
+        self.assertNotIn('Referenced videos', self._prompt(note))
+        self.assertFalse((self._attach_dir(note)).exists())
+
+
+class ReferencesAccess(AccountMixin, LibraryFixture, unittest.TestCase):
+    """A reference the note's author cannot open is treated exactly like a
+    missing one -- same wording, nothing staged -- and the note still runs."""
+
+    def setUp(self):
+        super().setUp()
+        from videobuilder.agents import FakeBackend
+        self.admin_login()
+        self.seed('acme/other', film=True)  # pushed as admin, no owner recorded
+        _, _, self.dana = self.signup('dana', 'longenoughpassword')
+        self.request('/api/videos/new', {'name': 'acme/launch', 'start': 'blank'},
+                    headers={'Content-Type': 'application/json', 'Cookie': self.dana})
+        self.library.editor('acme/launch').notes.backend = FakeBackend(delay=0)
+
+    def test_inaccessible_reference_is_unresolved_and_leaks_nothing(self):
+        link = self.base + '/v/acme/other'
+        code, note = self.request('/v/acme/launch/api/notes',
+                                  {'video': 'film', 'text': f'Like {link} but about squid.'},
+                                  headers={'Content-Type': 'application/json', 'Cookie': self.dana})
+        self.assertEqual(code, 200, note)
+        self.assertNotEqual(note['state'], 'gathering')
+        attach_dir = self.library.editor('acme/launch').notes.session_dir('film') / ('attachments-' + note['id'])
+        md = (self.library.editor('acme/launch').notes.session_dir('film') / (note['id'] + '.md')).read_text()
+        self.assertIn('acme/other: this reference could not be resolved right now '
+                      '(missing or not accessible); continue without it.', md)
+        self.assertFalse((attach_dir / 'refs' / 'acme' / 'other').exists())
+        # The exact same wording as a name nobody ever created -- see
+        # References.test_a_missing_reference_is_unresolved_and_the_note_still_runs.
+
+
 if __name__ == '__main__':
     unittest.main()
