@@ -54,7 +54,7 @@ def draw(n, cv):
         vb.text.draw(cv, [text[:typed]], f, x + vb.text.measure(prompt, f), y, demo.INK)
     cx = x + vb.text.measure(prompt + text[:typed], f)
     draw_cursor(cv, cx + 4, y, h, t, demo.INK, width=vb.text.measure('M', f) * 0.8,
-                since=start + len(text) * rate, period=0.8)
+                since=start + len(text) * rate, period=1.0)   # on at the 2.1 s poster
     cv.mark('text', x, y, w, h)
 
 
