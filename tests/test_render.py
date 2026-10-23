@@ -435,6 +435,15 @@ class DuckEnvelopeExpr(unittest.TestCase):
         expr = duck_envelope_expr([c, d], self.fps, 0)
         self.assertAlmostEqual(eval_envelope(expr, 5.5), 0.5)
 
+    def test_a_merged_spans_rise_keeps_the_earlier_members_attack(self):
+        # A: 10-12s, no fades. B: 11-13s with a 3s own fade_in, close enough
+        # to A to merge. The merged span's rise must still start at B's
+        # 3s-earlier point (8s), not snap to A's shorter attack once merged.
+        a = Sound('x', at=300, start=0.0, frames=60)
+        b = Sound('x', at=330, start=0.0, frames=60, fade_in_frames=90)
+        expr = duck_envelope_expr([a, b], self.fps, 0)
+        self.assertAlmostEqual(eval_envelope(expr, 9.0), 0.5)
+
 
 @unittest.skipUnless(shutil.which('ffmpeg') and shutil.which('ffprobe'), 'needs ffmpeg')
 class Ducking(unittest.TestCase):
