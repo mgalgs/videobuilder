@@ -18,6 +18,10 @@ def _soft(cv, scene, radius, alpha):
     grow = 1 + 2 * pad / min(box.w, box.h)
 
     def paint(c):
+        # `blurred` paints into a sub-canvas padded by the blur on every side;
+        # make it report `cv`'s frame, so a scene that lays itself out from
+        # `vb.Box.of(c)` lands where it does unblurred instead of drifting.
+        c.width, c.height, c.format = cv.width, cv.height, cv.format
         with c.layer(dx=box.cx * (1 - grow), dy=box.cy * (1 - grow), scale=grow):
             scene(c)
         with c.clip(box.x, box.y, box.w, box.h):
