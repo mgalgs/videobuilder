@@ -1120,7 +1120,20 @@ button.danger:disabled {
   flex-wrap: wrap;
 }
 
-/* Sits inside the note field's own box, at its right edge; see .note-wrap below. */
+/* On a phone, the drop hint is hidden and the timestamp chip now lives inside
+   the note field, so this row can be genuinely empty (just suggest.js's chips/
+   tail, or an attached file, when there is something to show). An empty flex
+   item still costs .composer's own `gap`, so collapse it entirely rather than
+   just emptying its content. */
+@media (max-width: 700px) {
+  .composer-extras:not(.sg-on):not(:has(#attachments .file-chip)) {
+    display: none;
+  }
+}
+
+/* Sits inside the note field's own box, at its right edge; see .note-wrap below.
+   z-index above .sg-lit (suggest.css) so suggest.js's flash() highlight, which
+   paints over the textarea right where the chip sits, never covers it. */
 .note-wrap #timestamp {
   position: absolute;
   right: 6px;
@@ -1137,6 +1150,7 @@ button.danger:disabled {
   font-weight: 700;
   padding: 0 10px;
   line-height: 1;
+  z-index: 2;
 }
 
 .note-wrap #timestamp.off {
@@ -1196,8 +1210,11 @@ button.danger:disabled {
 }
 
 /* The textarea fills its wrapper; #timestamp floats over its right edge, so
-   typed text gets a reserved strip wide enough for the chip's widest (on) state. */
+   typed text gets a reserved strip wide enough for the chip's widest (on) state.
+   display:block drops the inline-block's baseline descender gap, which otherwise
+   makes .note-wrap taller than the textarea and off-centres the chip. */
 .note-wrap textarea {
+  display: block;
   width: 100%;
   padding-right: 118px;
 }

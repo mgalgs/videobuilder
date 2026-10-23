@@ -2466,6 +2466,9 @@ window.addEventListener('message',async e=> {
   renderFormats();
   loadVersions();
 });
+// preventDefault on pointerdown keeps focus (and the phone's keyboard) on #message;
+// otherwise tapping the chip mid-typing blurs the note field first.
+$('timestamp').addEventListener('pointerdown',e=>e.preventDefault());
 $('timestamp').onclick=()=> {
   state.stamp=!state.stamp;
   stampLabel()

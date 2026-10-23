@@ -69,6 +69,7 @@ function mount() {
   xbtn.type = 'button'; xbtn.setAttribute('aria-label', 'Hide suggestions for this note');
   xbtn.title = 'Hide suggestions for this note (Esc)';
   xbtn.onclick = dismiss;
+  xbtn.classList.add('sg-hidden'); tail.classList.add('sg-hidden'); // until the first render() decides otherwise
   tail.append(think, xbtn);
   const composer = $('composer'), extras = composer.querySelector('.composer-extras');
   composer.insertBefore(cards, extras);
