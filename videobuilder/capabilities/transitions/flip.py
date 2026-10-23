@@ -81,8 +81,9 @@ def flip(cv, a, b, p, axis='y', direction=1, depth=0.16, focal=None, strips=96, 
     half a revolution about its centre line, `axis` 'y' (a vertical line, it
     turns sideways) or 'x' (a horizontal one, it tumbles), `direction` +1 or
     -1 choosing which way; past edge-on its back shows `b(cv)` turning into
-    place. The card backs off by `depth` of its size mid-turn so its corners
-    stay in frame, it darkens by up to `shade` as it turns edge-on, and
+    place. The card backs off by `depth` of its size mid-turn, and further
+    if its near edge would grow past the frame, so its corners stay in
+    frame; it darkens by up to `shade` as it turns edge-on, and
     `backdrop` fills the frame behind it. `focal` (default twice the frame's
     width) sets how strong the perspective is; `ease` shapes the turn.
 
@@ -94,8 +95,12 @@ def flip(cv, a, b, p, axis='y', direction=1, depth=0.16, focal=None, strips=96, 
     if p >= 1:
         return b(cv)
     theta = math.pi * ease(p)
-    shrink = 1 - depth * math.sin(math.pi * p)
     focal = focal or 2.0 * cv.width
+    length = cv.width if axis == 'y' else cv.height
+    # the near edge is magnified focal / (focal - length/2 * |sin|): shrink at least by its inverse,
+    # less a sliver more as it turns, so that edge never reaches the frame's (nor the far side, smaller)
+    near = 1 - (length / 2 / focal + 0.06) * abs(math.sin(theta))
+    shrink = min(1 - depth * math.sin(math.pi * p), near)
     cv.fill(backdrop)
     if theta < math.pi / 2:
         face, angle = _face(cv, a), theta
@@ -118,5 +123,5 @@ CAPABILITY = Capability(
     related=('character-3d-flip', 'tile-flip', 'word-flip-in', 'logo-3d-spin-reveal',
              'layout-animation-flip', 'coin-flip'),
     api=('videobuilder.capabilities.transitions.flip.flip',),
-    demo=lambda: demo.two_scenes(flip, start=0.7, length=1.6),
+    demo=lambda: demo.two_scenes(flip, start=1.2, length=1.5),
 )
