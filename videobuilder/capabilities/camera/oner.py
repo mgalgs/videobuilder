@@ -45,6 +45,17 @@ def oner(cv, world, progress, stops, ease=None):
 
 STOPS = ((640, 380, 1.0), (1260, 760, 1.2), (1900, 420, 1.05), (2560, 780, 1.25))
 WORLD_W, WORLD_H = 3200, 1160
+# The take's pace (progress -> share of the route): a beat on each subject,
+# a glide between, and the last stop reached by ~65% so the take ends at rest.
+LEGS = ((0.05, 0.25), (0.29, 0.47), (0.51, 0.66))
+_glide = vb.bezier(0.45, 0, 0.55, 1)
+
+
+def _take_ease(p):
+    for i, (a, b) in enumerate(LEGS):
+        if p < b:
+            return (i + _glide(vb.clamp01((p - a) / (b - a)))) / len(LEGS)
+    return 1.0
 
 
 def _world(cv):
@@ -53,7 +64,8 @@ def _world(cv):
         cv.line(gx, 0, gx, WORLD_H, demo.LINE, width=2, alpha=0.5)
     for gy in range(0, WORLD_H + 1, 150):
         cv.line(0, gy, WORLD_W, gy, demo.LINE, width=2, alpha=0.5)
-    route = [oner_camera(i / 120, STOPS, ease=vb.linear)[:2] for i in range(121)]
+    # The route line stops short of the last subject so it never runs through the word.
+    route = [oner_camera(i / 120, STOPS, ease=vb.linear)[:2] for i in range(111)]
     vb.paths.draw(cv, route, demo.MUTED, width=4, alpha=0.6)
     demo.card(cv, *STOPS[0][:2], w=340, h=210)
     x, y = STOPS[1][:2]
@@ -65,6 +77,7 @@ def _world(cv):
 
 def _hud(cv, n):
     f = demo.mono(30, 600)
+    cv.rect(0, 0, demo.W, 84, '#000000', alpha=0.5)
     on = (n // 15) % 2 == 0
     demo.dot(cv, 60, 56, r=12, color='#e5484d', alpha=1.0 if on else 0.35)
     secs = n / demo.FPS
@@ -76,13 +89,14 @@ def _hud(cv, n):
     route = [(mx + px * k, my + py * k) for px, py in
              (oner_camera(i / 60, STOPS, ease=vb.linear)[:2] for i in range(61))]
     vb.paths.draw(cv, route, demo.MUTED, width=2)
-    x, y, z = oner_camera(n / (demo.SECONDS * demo.FPS - 1), STOPS)
+    x, y, z = oner_camera(n / (demo.SECONDS * demo.FPS - 1), STOPS, _take_ease)
     vw, vh = demo.W / z * k, demo.H / z * k
-    cv.outline(mx + x * k - vw / 2, my + y * k - vh / 2, vw, vh, demo.ACCENT, width=2)
+    with cv.clip(mx, my, mw, WORLD_H * k, radius=6):
+        cv.outline(mx + x * k - vw / 2, my + y * k - vh / 2, vw, vh, demo.ACCENT, width=2)
 
 
 def draw(n, cv):
-    oner(cv, _world, n / (demo.SECONDS * demo.FPS - 1), STOPS)
+    oner(cv, _world, n / (demo.SECONDS * demo.FPS - 1), STOPS, _take_ease)
     _hud(cv, n)
 
 
