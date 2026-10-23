@@ -30,7 +30,11 @@ def inertia_velocity(t, moves, start=0.0, ratio=1.0, hz=0.9, dt=1e-3):
 
 
 LEFT, RIGHT = demo.W / 2 - 300, demo.W / 2 + 300
-MOVES = ((0.3, RIGHT), (1.1, LEFT))
+# the handle turns back while the object is mid-rail and at full speed, so the
+# coast past that moment is long and is still going at the poster frame (2.1 s)
+MOVES = ((0.3, RIGHT), (1.75, LEFT))
+TURN = MOVES[1][0]
+HEAVY = dict(ratio=0.3, hz=0.18)  # heavy and loosely damped: slow to start, slow to stop
 RAIL, LANE = 130, 320
 
 
@@ -49,8 +53,8 @@ def _label(cv, text, x, y, color=demo.MUTED):
 def draw(n, cv):
     t = n / demo.FPS
     target = _input_at(t)
-    x = inertia(t, MOVES, start=LEFT)
-    v = inertia_velocity(t, MOVES, start=LEFT)
+    x = inertia(t, MOVES, start=LEFT, **HEAVY)
+    v = inertia_velocity(t, MOVES, start=LEFT, **HEAVY)
     # the input: a handle that snaps between the ends of its rail
     cv.line(LEFT - 40, RAIL, RIGHT + 40, RAIL, demo.LINE, width=3)
     cv.line(target, RAIL, target, LANE + 52, demo.TEAL, width=2, alpha=0.55)
@@ -59,11 +63,16 @@ def draw(n, cv):
     _label(cv, 'input', LEFT - 40, RAIL - 40)
     # the object: lags the handle, and coasts on when the handle turns back
     cv.line(LEFT - 40, LANE + 52, RIGHT + 40, LANE + 52, demo.LINE, width=3)
+    if t >= TURN:
+        # where the object was when the handle turned back: it coasts on past this
+        turned = inertia(TURN, MOVES, start=LEFT, **HEAVY)
+        cv.line(turned, LANE - 70, turned, LANE + 52, demo.MUTED, width=2, alpha=0.6)
+        _label(cv, 'handle turned', turned - 60, LANE - 96)
     demo.dot(cv, x, LANE, 46)
     cv.mark('object', x - 46, LANE - 46, 92, 92)
     _label(cv, 'object', LEFT - 40, LANE - 96)
     # its velocity, as an arrow under it
-    length = v * 0.16
+    length = v * 0.3
     if abs(length) > 4:
         y, tip = LANE + 90, x + length
         head = 13 if length > 0 else -13
