@@ -117,7 +117,7 @@ def draw_letter_morph(cv, a, b, font, cx, cy, p, color, alpha=1.0, n=160):
 
 
 LETTERS = 'ABC'
-MORPHS = ((0.35, 1.15), (1.75, 2.55))  # seconds each A -> B, B -> C runs
+MORPHS = ((0.2, 1.0), (1.65, 2.45))  # seconds each A -> B, B -> C runs; B -> C centred on the poster (frame 62)
 
 
 def draw(n, cv):
@@ -135,7 +135,7 @@ CAPABILITY = Capability(
     name='Letter morph',
     family='typography',
     group='Morphing',
-    aliases=('glyph morph', 'character shape morph', 'word morph', 'ligature morph'),
+    aliases=('glyph morph', 'character shape morph', 'word morph'),
     definition="A letter's outline bends and slides continuously until it has become the shape "
                'of a different letter.',
     phrasings=('have the A melt into a B',
