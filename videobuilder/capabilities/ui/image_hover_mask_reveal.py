@@ -75,16 +75,28 @@ def _dusk(cv):
     cv.rect(CARD_X, CARD_Y, CARD_W, CARD_H, '#1c2340', alpha=0.72)
 
 
+_EASE_OUT_CUBIC = vb.bezier(0.33, 1, 0.68, 1)
+_EASE_IN_OUT_CUBIC = vb.bezier(0.65, 0, 0.35, 1)
+
+
 def draw(n, cv):
     # The pointer glides in from the lower right and settles on the image, the
-    # circle opens from it and the pointer drifts a little while it does.
+    # circle opens from it to about half way, lingers there so both versions
+    # read side by side, then swells to fill the card; the pointer drifts a
+    # little throughout.
     rest = (CARD_X + CARD_W * 0.42, CARD_Y + CARD_H * 0.45)
     start = (demo.W - 150, demo.H - 50)
     m = vb.ease_out_quint(demo.phase(n, 0.15, 0.95))
-    drift = vb.ease_in_out_quart(demo.phase(n, 1.0, 2.4))
+    drift = _EASE_IN_OUT_CUBIC(demo.phase(n, 1.0, 2.9))
     px = start[0] + (rest[0] - start[0]) * m + 40 * drift
     py = start[1] + (rest[1] - start[1]) * m - 14 * drift
-    p = vb.ease_in_out_quart(demo.phase(n, 1.0, 2.4))
+    t = n / demo.FPS
+    if t < 1.9:
+        p = vb.interpolate(t, (1.0, 1.9), (0.0, 0.42), ease=_EASE_OUT_CUBIC)
+    elif t < 2.35:
+        p = vb.interpolate(t, (1.9, 2.35), (0.42, 0.5))
+    else:
+        p = vb.interpolate(t, (2.35, 2.9), (0.5, 1.0), ease=_EASE_IN_OUT_CUBIC)
     cv.shadow(CARD_X, CARD_Y, CARD_W, CARD_H, radius=18, dy=10, blur=28, color=(0, 0, 0, 0.5))
     hover_mask_reveal(cv, _dusk, _photo, CARD_X, CARD_Y, CARD_W, CARD_H, px, py, p, radius=18,
                       edge='#ffffff')
