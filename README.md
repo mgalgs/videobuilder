@@ -576,8 +576,17 @@ With no `--artbox-url`, there is no button and the routes answer 404.
 type styles, fonts, sound effects and music while a director types a note:
 about 600 ms after they stop, a strong match shows as a card (a chip on a
 phone) above the composer, related ones as chips the director can open into a
-full picker; picking one rewrites the note's own words with the thing's
-unique name (`Ctrl+Z` undoes it, same as any typing). `URL` is any
+full picker. Picking a look, type style or other capability never touches the
+note's own words: it adds a `#id` chip below the input instead, the same chip
+that appears, live, the moment the director types a real capability's own
+`#id` anywhere in the note (anything else after a `#` is just text -- no chip,
+no error); a picked chip has its own remove button, a typed one goes away
+with its text. The builder's prompt lists every chip's capability by name,
+definition and api, so a note that asks for one by its `#id` is never left to
+prose alone. Picking a font, a sound effect or a music track still rewrites
+the note with the thing's unique name (`Ctrl+Z` undoes it, same as any
+typing) -- those are assets, not named capabilities, so chips don't apply.
+`URL` is any
 OpenAI-compatible chat endpoint -- OpenRouter, Anthropic's own compatible
 endpoint, a local vLLM or llama.cpp -- asked with `--suggest-model` (default
 `anthropic/claude-haiku-5.5`) and the key, never a flag, only the
