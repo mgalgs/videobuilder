@@ -122,8 +122,12 @@ def _scene(cv):
 
 
 def draw(n, cv):
-    p = demo.phase(n, 0.35, 2.75)
-    refraction_ripple(cv, _scene, p, center=(demo.W * 0.5, demo.H * 0.5))
+    # Two drops: one in the middle, then one by the moon whose rings are
+    # still crossing the frame when the gallery takes its poster (~2.1 s).
+    first = demo.phase(n, 0.15, 1.85)
+    second = demo.phase(n, 1.55, 3.0)
+    refraction_ripple(cv, lambda c: refraction_ripple(c, _scene, first, center=(demo.W * 0.5, demo.H * 0.55)),
+                      second, center=(demo.W * 0.7, demo.H * 0.3), amplitude=30)
 
 
 CAPABILITY = Capability(
