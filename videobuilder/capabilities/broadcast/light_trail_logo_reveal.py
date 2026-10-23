@@ -84,8 +84,8 @@ def light_trail_reveal(cv, draw_logo, box, p, x0=None, x1=None, color=LIGHT, hei
     c.clip()
     grad = cairo.LinearGradient(hx - hot, 0, hx, 0)
     grad.add_color_stop_rgba(0, r, g, b, 0)
-    grad.add_color_stop_rgba(0.6, r, g, b, 0.55)
-    grad.add_color_stop_rgba(1, 1, 1, 1, 0.95)
+    grad.add_color_stop_rgba(0.6, r, g, b, 0.55 * strength)
+    grad.add_color_stop_rgba(1, 1, 1, 1, 0.95 * strength)
     c.set_source(grad)
     c.mask(shape)
     c.restore()
@@ -94,9 +94,8 @@ def light_trail_reveal(cv, draw_logo, box, p, x0=None, x1=None, color=LIGHT, hei
     # The beam and its haze, faded out towards the beam's ends.
     c.save()
     c.push_group()
-    c.new_path()
-    _poly(c, edge)
-    _poly(c, [(x - tail, y) for x, y in reversed(edge)])
+    c.new_path()  # one closed band: down the beam, back up its copy `tail` px behind
+    _poly(c, edge + [(x - tail, y) for x, y in reversed(edge)])
     c.close_path()
     haze = cairo.LinearGradient(hx - tail, 0, hx, 0)
     haze.add_color_stop_rgba(0, r, g, b, 0)
