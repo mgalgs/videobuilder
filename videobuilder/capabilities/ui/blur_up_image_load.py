@@ -52,12 +52,12 @@ def draw(n, cv):
     h = w * img.h / img.w
     x, y = (demo.W - w) / 2, (demo.H - h) / 2 - 16
     cv.shadow(x, y, w, h, radius=16, dy=10, blur=30, color=(0, 0, 0, 0.5))
-    blur_up(cv, img, x, y, w, h, vb.ease_in_out_quart(demo.phase(n, 0.9, 2.5)), radius=16)
-    loading = 1 - demo.phase(n, 0.8, 1.1)
+    blur_up(cv, img, x, y, w, h, vb.ease_in_out_quart(demo.phase(n, 1.4, 2.8)), radius=16)
+    loading = 1 - demo.phase(n, 1.2, 1.5)
     if loading > 0:  # a small loading bar under the placeholder, gone once the image lands
         bx, by, bw = demo.W / 2 - 90, y + h + 28, 180
         cv.rect(bx, by, bw, 4, demo.LINE, radius=2, alpha=loading)
-        cv.rect(bx, by, bw * demo.phase(n, 0.0, 0.85), 4, demo.ACCENT, radius=2, alpha=loading)
+        cv.rect(bx, by, bw * demo.phase(n, 0.0, 1.3), 4, demo.ACCENT, radius=2, alpha=loading)
     cv.mark('image', x, y, w, h)
 
 
