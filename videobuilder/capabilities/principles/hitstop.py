@@ -26,7 +26,7 @@ def frozen(n, at, hold=6):
     return at <= n < at + hold
 
 
-HIT, HOLD = 34, 10       # the ball meets the post on frame 34 and the world stops for 10 frames (1/3 s)
+HIT, HOLD = 56, 10       # the ball meets the post on frame 56 and the world stops for 10 frames (1/3 s)
 GROUND = demo.H - 110
 R = 30
 POST_W, POST_H = 36, 180
@@ -43,7 +43,8 @@ def _scene(cv, s):
     else:
         k = (s - HIT) / demo.FPS
         x = contact - 150 * vb.ease_out_expo(vb.clamp01(k / 0.9))
-        kick = 40 * vb.ease_out_expo(vb.clamp01(k / 0.6))
+        # knocked back fast, then rocks upright again
+        kick = 36 * vb.ease_out_expo(vb.clamp01(k / 0.12)) * (1 - vb.ease_in_out_quart(vb.clamp01((k - 0.12) / 0.5)))
     demo.floor(cv, GROUND)
     cv.rect(POST_X + kick, GROUND - POST_H, POST_W, POST_H, demo.TEAL, radius=8)
     demo.dot(cv, x, GROUND - R, R)
