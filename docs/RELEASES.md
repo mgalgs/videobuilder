@@ -78,3 +78,32 @@ Each instance's server downloads the videos from
 someone opens What's new, saves them in its state directory and serves them
 itself. Until then, and on instances that turn remote videos off, the entry
 shows its text only.
+
+## Every release: the showcase and the gallery
+
+The showcase (`examples/showcase.py`) is the product film: every capability
+in one film, in 16:9 and 9:16. It is not made by hand. `python -m
+videobuilder capabilities build` renders it last, after every capability's
+clip, so its wall of clips uses the fresh posters. The ship image runs that
+build, so each release's image carries an up-to-date showcase next to the
+clips in `/opt/videobuilder-capabilities/`, and the `/capabilities` page
+plays it.
+
+The public gallery at https://mgalgs.io/videobuilder/ is the `gh-pages`
+branch: one tile per capability, with the showcase at the top. After a
+release, republish it from that release's ship image rather than rendering
+again:
+
+1. Copy `<id>.mp4` and `<id>.jpg` for every registry capability, and
+   `showcase-16x9.mp4` and `showcase-9x16.mp4`, out of the image's
+   `/opt/videobuilder-capabilities/`.
+2. Write `index.html` with `videobuilder.capabilities.gallery.gallery_html`
+   over the registry's capabilities, and add an empty `.nojekyll`.
+3. Put the 16:9 showcase above the tiles, with a link to the release's tag
+   and to the 9:16 cut. Start it on click only; the page autoplays the tiles.
+4. Commit the directory as a new orphan history and force-push it to
+   `gh-pages`. The branch keeps no history: every publish replaces it.
+
+`python -m videobuilder capabilities gallery --out <dir>` builds the same
+tiles from source, rendering each clip; use it when there is no ship image
+at hand.
