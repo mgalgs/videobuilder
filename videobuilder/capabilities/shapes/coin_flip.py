@@ -53,9 +53,9 @@ BACK = _face(demo.TEAL, demo.BG, '★')
 
 
 def draw(n, cv):
-    p = demo.phase(n, 0.3, 2.4)
-    spin = 1 - (1 - p) ** 3                      # fast off the toss, slowing to land
-    angle = 2 * math.pi * 4 * spin               # four whole turns: ends on the front
+    p = demo.phase(n, 0.3, 2.7)                  # lands just before the clip loops
+    spin = 1 - (1 - p) ** 2                      # fast off the toss, still turning near the top
+    angle = 2 * math.pi * 3 * spin               # three whole turns: ends on the front
     hop = 4 * p * (1 - p)                        # up and back down while it spins
     r, ground = 90, demo.H - 70
     cy = ground - r - 20 - 170 * hop
