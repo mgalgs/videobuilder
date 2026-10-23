@@ -40,9 +40,16 @@ def iris_wipe(cv, a, b, p, cx=None, cy=None, close=False, rim=None, rim_width=6,
 
 
 def _demo():
-    def opening(cv, a, b, p):
-        iris_wipe(cv, a, b, p, rim=demo.ACCENT)
-    return demo.two_scenes(opening, start=0.7, length=1.5)
+    # Iris in from A to B, hold, then iris out back to A, so both forms show
+    # and the clip loops. The closing iris is mid-way at the poster frame
+    # (70% = 2.1 s): Scene B sits in a red-rimmed circle with A around it.
+    def draw(n, cv):
+        p_in, p_out = demo.phase(n, 0.1, 1.1), demo.phase(n, 1.4, 2.8)
+        if p_out > 0:
+            iris_wipe(cv, demo.scene_b, demo.scene_a, p_out, close=True, rim=demo.ACCENT)
+        else:
+            iris_wipe(cv, demo.scene_a, demo.scene_b, p_in, rim=demo.ACCENT)
+    return demo.film(draw)
 
 
 CAPABILITY = Capability(
