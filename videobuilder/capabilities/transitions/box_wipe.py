@@ -40,10 +40,11 @@ CAPABILITY = Capability(
     aliases=('box in', 'box out', 'iris box', 'rectangle wipe'),
     definition='A rectangle opens out from the middle of the picture and keeps growing to the edges, '
                'with the next scene inside it replacing the old one.',
-    phrasings=('open the next shot as a growing square from the centre',
+    phrasings=('open the next shot as a growing box from the centre',
                'a rectangle expands out of the middle to bring in the new scene',
                'box out from the centre into the next clip'),
     related=('paint-brush-wipe', 'wipe-reveal', 'letterbox', 'uncover', 'scroll-linked-clip-reveal', 'roll-up'),
     api=('videobuilder.capabilities.transitions.box_wipe.box_wipe',),
-    demo=lambda: demo.two_scenes(lambda cv, a, b, p: box_wipe(cv, a, b, p, edge=demo.INK)),
+    demo=lambda: demo.two_scenes(lambda cv, a, b, p: box_wipe(cv, a, b, p, edge=demo.INK),
+                                   start=1.3, length=1.4),
 )
