@@ -35,15 +35,76 @@ def _contact(b, px, py, nx, ny, e, mu):
     b['w'] += (rx * iy - ry * ix) / b['I']
 
 
+def _overlap(b, o, pad):
+    """Separating-axis test between two letter boxes. Returns `None` if they
+    are apart, else `(depth, nx, ny, owner)`: the shallowest way out, with the
+    normal pointing from `b` to `o`, and `owner` the box whose face it is.
+    Each box is grown by `pad` all round."""
+    best = None
+    for owner in (b, o):
+        c, s = math.cos(owner['a']), math.sin(owner['a'])
+        for ax, ay in ((c, s), (-s, c)):
+            pb = [px * ax + py * ay for px, py in _corners(b['x'], b['y'], b['a'], b['hw'] + pad, b['hh'] + pad)]
+            po = [px * ax + py * ay for px, py in _corners(o['x'], o['y'], o['a'], o['hw'] + pad, o['hh'] + pad)]
+            depth = min(max(pb), max(po)) - max(min(pb), min(po))
+            if depth <= 0:
+                return None
+            if best is None or depth < best[0]:
+                if (o['x'] - b['x']) * ax + (o['y'] - b['y']) * ay < 0:
+                    ax, ay = -ax, -ay
+                best = (depth, ax, ay, owner)
+    return best
+
+
+def _collide(b, o, e, mu, pad):
+    """Push two overlapping letter boxes apart along their shallowest axis
+    and trade an impulse, with friction and spin, at the corners that dug in."""
+    hit = _overlap(b, o, pad)
+    if hit is None:
+        return
+    depth, nx, ny, owner = hit
+    total = b['m'] + o['m']
+    b['x'] -= nx * depth * o['m'] / total
+    b['y'] -= ny * depth * o['m'] / total
+    o['x'] += nx * depth * b['m'] / total
+    o['y'] += ny * depth * b['m'] / total
+    # the contact is at the other box's corners that reach furthest past the owner's face
+    other, sign = (o, -1) if owner is b else (b, 1)
+    cs = _corners(other['x'], other['y'], other['a'], other['hw'] + pad, other['hh'] + pad)
+    reach = [sign * (px * nx + py * ny) for px, py in cs]
+    top = max(reach)
+    pts = [p for p, r in zip(cs, reach) if r > top - 0.25 * depth - 0.5]
+    for px, py in pts:
+        rbx, rby, rox, roy = px - b['x'], py - b['y'], px - o['x'], py - o['y']
+        vx = (o['vx'] - o['w'] * roy) - (b['vx'] - b['w'] * rby)
+        vy = (o['vy'] + o['w'] * rox) - (b['vy'] + b['w'] * rbx)
+        vn = vx * nx + vy * ny
+        if vn >= 0:
+            continue
+        def kick(tx, ty):
+            rb, ro = rbx * ty - rby * tx, rox * ty - roy * tx
+            return 1 / b['m'] + 1 / o['m'] + rb * rb / b['I'] + ro * ro / o['I']
+        j = -(1 + e) * vn / kick(nx, ny) / len(pts)
+        tx, ty = -ny, nx
+        jt = max(-mu * j, min(mu * j, -(vx * tx + vy * ty) / kick(tx, ty) / len(pts)))
+        ix, iy = j * nx + jt * tx, j * ny + jt * ty
+        for body, rx, ry, s in ((b, rbx, rby, -1), (o, rox, roy, 1)):
+            body['vx'] += s * ix / body['m']
+            body['vy'] += s * iy / body['m']
+            body['w'] += s * (rx * iy - ry * ix) / body['I']
+
+
 @lru_cache(maxsize=16)
 def simulate(sizes, frames, fps=30, floor=500.0, left=0.0, right=960.0, drops=(), spawn_y=-60.0,
-             gravity=2600.0, bounce=0.3, friction=0.6, seed=0, substeps=12):
+             gravity=2600.0, bounce=0.3, friction=0.6, seed=0, substeps=12, gap=4.0):
     """Rigid-body poses for a row of letters dropped into a box.
 
     `sizes`: one `(half_width, half_height)` per letter; `drops`: one
     `(start_seconds, x)` per letter, where it is released above the frame
     with a little spin. Letters are boxes against the floor and the side
-    walls and discs against each other. Returns, per frame, a tuple of
+    walls and against each other, so
+    they stack without passing through one another (`gap` pixels apart, so
+    two heavy letters never read as one). Returns, per frame, a tuple of
     `(x, y, angle)` for each letter (`None` before it is released). The same
     arguments give the same result, so it is computed once and cached."""
     rnd = random.Random(seed)
@@ -52,7 +113,7 @@ def simulate(sizes, frames, fps=30, floor=500.0, left=0.0, right=960.0, drops=()
         m = 4 * hw * hh
         bodies.append(dict(x=x, y=spawn_y - hh, vx=rnd.uniform(-60, 60), vy=rnd.uniform(0, 150),
                            a=rnd.uniform(-0.4, 0.4), w=rnd.uniform(-3, 3), hw=hw, hh=hh, m=m,
-                           I=m * (hw * hw + hh * hh) / 3, r=0.92 * max(hw, hh), t0=t0))
+                           I=m * (hw * hw + hh * hh) / 3, t0=t0))
     dt = 1 / fps / substeps
     out = []
     for n in range(frames):
@@ -64,28 +125,9 @@ def simulate(sizes, frames, fps=30, floor=500.0, left=0.0, right=960.0, drops=()
                 b['x'] += b['vx'] * dt
                 b['y'] += b['vy'] * dt
                 b['a'] += b['w'] * dt
-            for i, b in enumerate(live):          # letter against letter, as discs
+            for i, b in enumerate(live):          # letter against letter, as boxes
                 for o in live[i + 1:]:
-                    dx, dy = o['x'] - b['x'], o['y'] - b['y']
-                    d, rr = math.hypot(dx, dy) or 1e-6, b['r'] + o['r']
-                    if d >= rr:
-                        continue
-                    nx, ny = dx / d, dy / d
-                    share = (rr - d) / (b['m'] + o['m'])
-                    b['x'] -= nx * share * o['m']
-                    b['y'] -= ny * share * o['m']
-                    o['x'] += nx * share * b['m']
-                    o['y'] += ny * share * b['m']
-                    rv = (o['vx'] - b['vx']) * nx + (o['vy'] - b['vy']) * ny
-                    if rv < 0:
-                        j = -(1 + bounce) * rv / (1 / b['m'] + 1 / o['m'])
-                        tv = ((o['vx'] - o['w'] * o['r'] * -ny) - (b['vx'] + b['w'] * b['r'] * -ny)) * -ny \
-                            + ((o['vy'] - o['w'] * o['r'] * nx) - (b['vy'] + b['w'] * b['r'] * nx)) * nx
-                        jt = max(-friction * j, min(friction * j, -tv / (1 / b['m'] + 1 / o['m'])))
-                        for body, s in ((b, -1), (o, 1)):
-                            body['vx'] += s * (j * nx - jt * ny) / body['m']
-                            body['vy'] += s * (j * ny + jt * nx) / body['m']
-                            body['w'] -= jt * body['r'] / body['I']
+                    _collide(b, o, bounce, friction, gap / 2)
             for b in live:                        # box against floor and walls
                 cs = _corners(b['x'], b['y'], b['a'], b['hw'], b['hh'])
                 for wall, nx, ny, depth in ((floor, 0, -1, lambda p: p[1] - floor),
@@ -152,8 +194,10 @@ def _poses():
     f = _font()
     sizes = letter_boxes(TEXT, f)
     rnd = random.Random(3)
-    drops = tuple((0.1 + 0.16 * i, demo.W / 2 + rnd.uniform(-150, 150)) for i in range(len(sizes)))
-    return simulate(sizes, round(demo.SECONDS * demo.FPS), demo.FPS, FLOOR, BIN[0], BIN[1], drops, seed=5)
+    drops = tuple((0.15 * i, demo.W / 2 + rnd.uniform(-150, 150)) for i in range(len(sizes)))
+    # released just above the top edge, so the first letter is already falling into view on frame 0
+    return simulate(sizes, round(demo.SECONDS * demo.FPS), demo.FPS, FLOOR, BIN[0], BIN[1], drops, spawn_y=0.0,
+                    seed=5)
 
 
 def draw(n, cv):
