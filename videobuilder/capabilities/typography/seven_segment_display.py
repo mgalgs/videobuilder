@@ -93,11 +93,12 @@ def display_width(text, h, spacing=None):
 
 STEP = 3  # frames per displayed value in the demo
 FADE = 2  # frames a bar takes to switch
+STEPS = 18  # values in the count; it lands at frame 12 + STEP * STEPS and holds
 
 
 def _value(k):
     """The demo counter after `k` steps: races up, then slows to land on 2048."""
-    q = vb.clamp01(k / 26)
+    q = vb.clamp01(k / STEPS)
     return round(2048 * (1 - (1 - q) ** 3))
 
 
