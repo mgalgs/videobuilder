@@ -46,24 +46,32 @@ def draw_walkthrough(cv, targets, captions, t, start=0.2, step=0.9, caption_at=N
                alpha=0.18 * grow)
     cv.mark('ring', x - pad, y - pad, w + 2 * pad, h + 2 * pad)
 
-    # The caption: in only once the ring has landed.
-    c = vb.ease_out_back(vb.clamp01((p - move) / (1 - move) * 2.5))
-    if c > 0:
-        text = captions[i]
+    # The caption: in only once the ring has landed. The last step's caption
+    # sinks back out while the ring travels on, so it never just cuts off.
+    def pill(j, c, opacity):
+        text = captions[j]
         tw, th = vb.text.block_size([text], font)
         bh = th + 24
         bw = tw + bh + 30
         bx, by = cx - bw / 2, cy - bh / 2 + 20 * (1 - c)
-        with cv.layer(opacity=vb.clamp01(c)):
+        with cv.layer(opacity=vb.clamp01(opacity)):
             cv.shadow(bx, by, bw, bh, radius=bh / 2, dy=6, blur=16, color=(0, 0, 0, 0.4))
             cv.rect(bx, by, bw, bh, panel, radius=bh / 2)
             r = bh / 2 - 7
             demo.dot(cv, bx + bh / 2, by + bh / 2, r, color)
             nf = demo.font(int(r * 1.1), 800)
-            nw, nh = vb.text.block_size([str(i + 1)], nf)
-            vb.text.draw(cv, [str(i + 1)], nf, bx + bh / 2 - nw / 2, by + bh / 2 - nh / 2, demo.BG)
+            nw, nh = vb.text.block_size([str(j + 1)], nf)
+            vb.text.draw(cv, [str(j + 1)], nf, bx + bh / 2 - nw / 2, by + bh / 2 - nh / 2, demo.BG)
             vb.text.draw(cv, [text], font, bx + bh + 6, by + (bh - th) / 2, ink)
         cv.mark('caption', bx, by, bw, bh)
+
+    c = vb.ease_out_back(vb.clamp01((p - move) / (1 - move) * 2.5))
+    if c > 0:
+        pill(i, c, c)
+    elif i > 0:
+        out = vb.clamp01(p / move * 1.6)
+        if out < 1:
+            pill(i - 1, 1 - vb.ease_in_out_quart(out), 1 - out)
 
     # Progress dots: one per step, lit up to the current one.
     gap = 18
@@ -97,7 +105,7 @@ def ui(cv):
 def draw(n, cv):
     targets = ui(cv)
     draw_walkthrough(cv, targets, ['Name your workspace', 'Add your first idea', 'Share it with the team'],
-                     n / demo.FPS, start=0.2, step=0.9, caption_at=(demo.W / 2, 400))
+                     n / demo.FPS, start=0.2, step=1.1, move=0.3, caption_at=(demo.W / 2, 400))
 
 
 CAPABILITY = Capability(
@@ -115,5 +123,5 @@ CAPABILITY = Capability(
              'walk-cycle', 'run-cycle'),
     api=('videobuilder.capabilities.ui.staged_onboarding_walkthrough.draw_walkthrough',
          'videobuilder.capabilities.ui.staged_onboarding_walkthrough.tour_step'),
-    demo=lambda: demo.film(draw),
+    demo=lambda: demo.film(draw, seconds=4.5),
 )
