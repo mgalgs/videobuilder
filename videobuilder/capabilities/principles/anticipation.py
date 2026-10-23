@@ -55,7 +55,7 @@ CAPABILITY = Capability(
     id='anticipation',
     name='Anticipation',
     family='principles',
-    group='Disney principles',
+    group='Classic principles',
     aliases=('wind-up', 'windup', 'pre-action'),
     definition='Just before a big move, the object eases a little the opposite way, as if gathering itself, '
                'then springs off fast in the real direction.',

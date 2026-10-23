@@ -121,7 +121,7 @@ CAPABILITY = Capability(
     name='Multiplane camera',
     family='camera',
     group='Depth',
-    aliases=('multiplane parallax', 'Disney multiplane', 'multiplane shot'),
+    aliases=('multiplane parallax', 'multiplane shot'),
     definition='Flat layers of artwork are stacked at different distances from the lens, so when the '
                'camera moves past or into them the near layers shift and grow more than the far ones.',
     phrasings=('split the illustration into foreground, middle and background sheets and fly the camera through them',

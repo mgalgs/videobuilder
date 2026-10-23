@@ -95,7 +95,7 @@ CAPABILITY = Capability(
     id='appeal',
     name='Appeal',
     family='principles',
-    group='Disney principles',
+    group='Classic principles',
     aliases=('charm', 'personality motion'),
     definition='Motion given enough character, through clear shapes, lively timing and a hint of emotion, '
                'that the viewer enjoys watching it and warms to whatever is moving.',

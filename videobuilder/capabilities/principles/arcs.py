@@ -76,7 +76,7 @@ CAPABILITY = Capability(
     id='arcs',
     name='Arcs',
     family='principles',
-    group='Disney principles',
+    group='Classic principles',
     aliases=('arc motion', 'motion arcs', 'follow an arc'),
     definition='Movement from one point to another follows a gentle curve instead of a straight line, '
                'which makes it feel natural and alive rather than mechanical.',

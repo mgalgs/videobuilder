@@ -119,7 +119,7 @@ CAPABILITY = Capability(
     id='squash-and-stretch',
     name='Squash and Stretch',
     family='principles',
-    group='Disney principles',
+    group='Classic principles',
     aliases=('squash & stretch', 'volume squash'),
     definition='A moving body grows long and thin along its path while it travels fast and goes short and '
                'wide when it lands, trading width for height so it seems to hold the same amount of stuff.',

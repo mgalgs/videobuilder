@@ -59,7 +59,7 @@ CAPABILITY = Capability(
     id='exaggeration',
     name='Exaggeration',
     family='principles',
-    group='Disney principles',
+    group='Classic principles',
     aliases=('push the pose', 'cartoony motion', 'overacting'),
     definition='Every part of a move is pushed well past what is realistic, a deeper crouch, a bigger leap, '
                'a harder squash, so the action reads instantly and with more energy.',

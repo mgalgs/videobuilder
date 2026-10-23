@@ -41,7 +41,7 @@ CAPABILITY = Capability(
     id='overlapping-action',
     name='Overlapping Action',
     family='principles',
-    group='Disney principles',
+    group='Classic principles',
     aliases=('follow through and overlapping action', 'drag', 'follow-through', 'secondary lag'),
     definition='The parts of one moving thing travel out of step: the main body stops cleanly while the '
                'looser parts attached to it trail behind, swing past and settle a moment later.',

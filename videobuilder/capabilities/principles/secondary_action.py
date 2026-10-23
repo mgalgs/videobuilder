@@ -48,7 +48,7 @@ CAPABILITY = Capability(
     id='secondary-action',
     name='Secondary Action',
     family='principles',
-    group='Disney principles',
+    group='Classic principles',
     aliases=('secondary gesture', 'supporting action'),
     definition='A smaller movement layered over the main one, such as a wave while walking, '
                'that adds personality without stopping or competing with the main movement.',

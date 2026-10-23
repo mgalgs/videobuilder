@@ -113,7 +113,7 @@ CAPABILITY = Capability(
     id='solid-drawing',
     name='Solid Drawing',
     family='principles',
-    group='Disney principles',
+    group='Classic principles',
     aliases=('3D form consistency', 'volumetric consistency', 'solid form'),
     definition='An object keeps the same size, proportions and perspective as it turns and travels, '
                'so every angle shows one solid thing with real weight and depth.',

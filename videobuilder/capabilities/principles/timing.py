@@ -42,7 +42,7 @@ CAPABILITY = Capability(
     id='timing',
     name='Timing',
     family='principles',
-    group='Disney principles',
+    group='Classic principles',
     aliases=('spacing and timing', 'duration', 'pacing'),
     definition='Choosing how many frames a move lasts so its speed tells the viewer how heavy, '
                'light, urgent or relaxed the thing moving is.',

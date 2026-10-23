@@ -75,7 +75,7 @@ CAPABILITY = Capability(
     id='staging',
     name='Staging',
     family='principles',
-    group='Disney principles',
+    group='Classic principles',
     aliases=('composition for motion', 'readability of action'),
     definition='The frame is arranged so one subject clearly owns it, with everything else pushed back '
                'in brightness, size and placement, so the eye goes straight to the action that matters.',

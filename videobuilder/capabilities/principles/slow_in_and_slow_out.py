@@ -29,7 +29,7 @@ CAPABILITY = Capability(
     id='slow-in-and-slow-out',
     name='Slow In and Slow Out',
     family='principles',
-    group='Disney principles',
+    group='Classic principles',
     aliases=('slow-in slow-out', 'ease in ease out principle', 'spacing principle'),
     definition='A move that gathers speed gently from rest and gently sheds it again before stopping, '
                'so most of its frames sit near the two ends and few in the fast middle.',
