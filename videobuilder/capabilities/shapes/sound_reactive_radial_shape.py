@@ -139,11 +139,22 @@ FRAMES = round(demo.SECONDS * demo.FPS)
 DINGS = (None, 'G5', 'A5')
 
 
+def _first(*ids):
+    """The first of `ids` the sound pack has: the shipped pack and the test
+    fixture pack name some sounds differently."""
+    for i in ids[:-1]:
+        try:
+            return vb.sfx.get(i)
+        except ValueError:
+            pass
+    return vb.sfx.get(ids[-1])
+
+
 def _sounds():
     """A kick on every beat, a click on every off-beat with a tick just before
     it, and a ding stepping up on every other kick."""
-    kick, click, tick, ding = (vb.sfx.get(i) for i in ('pro_impact/short', 'fit/click/floss_lid',
-                                                        'hover_tick/detent', 'pro_notify/ding_2045'))
+    kick, click, ding = (vb.sfx.get(i) for i in ('pro_impact/short', 'fit/click/floss_lid', 'pro_notify/ding_2045'))
+    tick = _first('pro_hover_tick/detent', 'hover_tick/detent')
     beats = range(FIRST, FRAMES, BEAT)
     return (tuple(kick.sound(at=f, dur=0.32, gain_db=-4) for f in beats)
             + tuple(click.sound(at=f + BEAT // 2, gain_db=-3) for f in beats if f + BEAT // 2 < FRAMES)
