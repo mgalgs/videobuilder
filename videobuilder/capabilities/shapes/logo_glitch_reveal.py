@@ -77,7 +77,8 @@ def draw(n, cv):
     f = demo.font(150, 900)
     w = MARK + GAP + vb.text.block_size(['NOVA'], f)[0]
     box = vb.Box((demo.W - w) / 2, (demo.H - MARK) / 2, w, MARK)
-    glitch_reveal(cv, lambda c, tint: _logo(c, tint, box.x, box.y, f), box, demo.phase(n, 0.3, 2.2), seed=3)
+    glitch_reveal(cv, lambda c, tint: _logo(c, tint, box.x, box.y, f), box, demo.phase(n, 0.3, 2.7), seed=7,
+                  settle=0.9)  # still tearing at the poster frame (2.1s), clean from ~2.46s
     cv.mark('logo', *box)
 
 
