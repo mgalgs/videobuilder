@@ -71,9 +71,13 @@ def draw_twirl(cv, text, font, cx, cy, angle, color, radius=None, center=None, a
 
 
 def draw(n, cv):
-    p = demo.phase(n, 0.3, 2.3)
-    angle = 3.5 * math.pi * (1 - p) ** 3  # ease out: fast spin first, settling flat
-    box = draw_twirl(cv, 'WHIRLPOOL', demo.font(112, 900), demo.W / 2, demo.H / 2, angle, demo.INK)
+    p = demo.phase(n, 0.5, 2.8)
+    angle = 3.5 * math.pi * (1 - p * p * (3 - 2 * p))  # smoothstep: hold the spiral, linger mid-twist, settle flat
+    text, font = 'WHIRLPOOL', demo.font(84, 900)
+    # a turn never changes a point's distance from the centre, so a radius
+    # under half the frame height keeps every arm of the spiral in frame
+    radius = min(0.6 * vbtext.block_size([text], font)[0], demo.H / 2 - 24)
+    box = draw_twirl(cv, text, font, demo.W / 2, demo.H / 2, angle, demo.INK, radius=radius)
     cv.mark('text', *box)
 
 
