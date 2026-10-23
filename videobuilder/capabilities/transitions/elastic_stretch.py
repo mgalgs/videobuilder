@@ -83,9 +83,9 @@ def elastic_stretch(cv, a, b, p, direction='left', stretch=0.7, release=0.5, str
         s = stretch * (1 - q) ** 2
         shift = L * 2.2 * q * q                        # the pinned edge lets go and races out
     wob = 0.0
-    if p > release:  # b recoils as the band lets go, three damped swings
-        q = (p - release) / (1 - release)
-        wob = 0.035 * math.exp(-4 * q) * math.sin(q * 3 * 2 * math.pi)
+    if p > release:  # b recoils once the band is mostly out of its way, two damped swings
+        r = vb.clamp01(((p - release) / (1 - release) - 0.5) / 0.5)
+        wob = 0.06 * math.exp(-2 * r) * math.sin(r * 2 * 2 * math.pi)
     c = cv.ctx
     c.save()
     if axis == 0:
@@ -111,5 +111,5 @@ CAPABILITY = Capability(
     related=('rubber-band-snap', 'rubber-band-overscroll', 'elastic-ease-out', 'elastic-ease-in',
              'squash-on-tap', 'crumple'),
     api=('videobuilder.capabilities.transitions.elastic_stretch.elastic_stretch',),
-    demo=lambda: demo.two_scenes(elastic_stretch, start=0.6, length=1.8),
+    demo=lambda: demo.two_scenes(elastic_stretch, start=1.0, length=1.8),
 )
