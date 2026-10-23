@@ -113,7 +113,7 @@ def _app(cv):
         cv.rect(x, 70, 76, 12, demo.LINE, radius=6)
     cv.rect(*SHARE, demo.ACCENT, radius=19)
     demo.word(cv, 'Share', SHARE.cx, SHARE.cy, size=18, weight=800)
-    demo.word(cv, 'Your projects', 180, 170, size=22, weight=700, color=demo.MUTED)
+    demo.word(cv, 'Your projects', 180, 138, size=22, weight=700, color=demo.MUTED)
     demo.card(cv, DRAFTS.cx, DRAFTS.cy, w=DRAFTS.w, h=DRAFTS.h, color=demo.TEAL)
     demo.card(cv, 520, DRAFTS.cy, w=200, h=170, color='#3a3e4a')
     demo.card(cv, 760, DRAFTS.cy, w=200, h=170, color='#3a3e4a')
@@ -121,7 +121,7 @@ def _app(cv):
 
 def draw(n, cv):
     _app(cv)
-    p = demo.phase(n, 0.3, 2.9)
+    p = demo.phase(n, 0.2, 2.4)
     if p <= 0:
         return
     hole, step, settle = tour_hole([t[0] for t in TIPS], p, pad=8)
