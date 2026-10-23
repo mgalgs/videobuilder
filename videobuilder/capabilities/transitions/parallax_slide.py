@@ -93,5 +93,5 @@ CAPABILITY = Capability(
     related=('scroll-parallax-layers', 'parallax-layers', 'pointer-parallax-layers', 'parallax-letter-layers',
              'two-point-five-d-photo-parallax', 'layered-fog-bands'),
     api=('videobuilder.capabilities.transitions.parallax_slide.parallax_slide',),
-    demo=lambda: demo.two_scenes(_demo_slide, a=_scene_a, b=_scene_b),
+    demo=lambda: demo.two_scenes(_demo_slide, a=_scene_a, b=_scene_b, start=1.3, length=1.4),
 )
