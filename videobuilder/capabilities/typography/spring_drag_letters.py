@@ -73,7 +73,7 @@ REACH = 120
 
 def _pointer(t):
     """The demo's pointer: up from below-left, sweeping along the word, then down and away to rest."""
-    q = vb.ease_in_out_quart(vb.clamp01((t - 0.2) / 1.8)) * 0.4 + vb.clamp01((t - 0.2) / 1.8) * 0.6
+    q = vb.ease_in_out_quart(vb.clamp01((t - 0.75) / 1.85)) * 0.4 + vb.clamp01((t - 0.75) / 1.85) * 0.6
     x = demo.W * (0.1 + 0.78 * q)
     y = demo.H / 2 + 8 + demo.H * 0.3 * (1 - math.sin(math.pi * q)) ** 1.5
     return x, y
@@ -105,7 +105,7 @@ def draw(n, cv):
     p = _pointer(t)
     demo.dot(cv, *p, r=REACH, color=demo.ACCENT, alpha=0.12)   # the pointer's reach
     box = draw_spring_letters(cv, text, f, (demo.W - w) / 2, (demo.H - h) / 2, _pointer, t, demo.INK,
-                              fps=demo.FPS, radius=REACH, push=50)
+                              fps=demo.FPS, radius=REACH, push=50, ratio=0.22)
     cv.mark('text', *box)
     _arrow(cv, *p, s=1.0)
 
