@@ -502,6 +502,7 @@ from .attachments import Attachments
 from .music import MusicLibrary
 from .sources import Sources
 from .versions import Versions
+from .voice_samples import VoiceSamples
 from .workers import Environments, Pool
 from .project import Project, read_config
 from .sync import ForgeSync
@@ -559,7 +560,8 @@ class Editor:
                  auto_land=None, capabilities_dir=None, compendium_dir=None, music_sources=None, music=None,
                  account_daily_note_cap=None, account_daily_cost_cap_usd=None, compendium_for_builder=None,
                  source_max_mb=None, source_max_total_mb=None, trust_repo_config=True, artbox_url=None, artbox=None,
-                 account_daily_picture_cap=None, suggest_url=None, suggest_model=None, suggest=None):
+                 account_daily_picture_cap=None, suggest_url=None, suggest_model=None, suggest=None,
+                 voice_samples=None):
         self.capabilities_dir = capabilities_dir
         self.compendium_dir = compendium_dir
         # `music`, a pre-parsed MusicLibrary, is how library mode shares one cache and one
@@ -609,6 +611,7 @@ class Editor:
         self.sources = Sources(self, _resolved_positive(source_max_mb, cfg, 'source_max_mb', 2048) * 1048576,
                                _resolved_positive(source_max_total_mb, cfg, 'source_max_total_mb', 8192) * 1048576)
         self.notes.sources = self.sources
+        self.voice_samples = voice_samples if voice_samples is not None else VoiceSamples(self.state_dir)
         # `artbox`, a shared client, is library mode's; `artbox_url` is single-project mode's (see `music`).
         if artbox is None and artbox_url:
             from .pictures import Artbox

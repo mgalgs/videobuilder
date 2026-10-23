@@ -9,7 +9,7 @@ import threading
 from importlib import resources
 from urllib.parse import unquote
 
-from . import archive_org
+from . import archive_org, speech
 from .attachments import TYPES
 from .editor import HTTPError, _field, _need, _page
 from .gitutil import git
@@ -20,6 +20,7 @@ from .sources import TooLarge as SourceTooLarge
 from .timeline_api import get_footage, get_thumb, get_timeline, post_timeline
 from .transcript import feed_source, read_feed
 from .versions import Refused
+from .voice_samples import UnknownVoice
 
 
 def _match(route, pattern):
@@ -295,6 +296,24 @@ def _get_music_tracks(self, route, q, editor, user):
                             'tracks': tracks})
 
 
+def _get_narration_voice_sample(self, route, q, editor, user):
+    voice = _need(q, 'voice')
+    try:
+        speed = float(q.get('speed', 1.0))
+    except ValueError:
+        raise HTTPError(400, 'speed must be a number') from None
+    if not 0.5 <= speed <= 2.0:
+        raise HTTPError(400, 'speed must be between 0.5 and 2.0') from None
+    try:
+        path = editor.voice_samples.path(voice, speed)
+    except UnknownVoice:
+        raise HTTPError(404, 'unknown voice') from None
+    except speech.SpeechUnavailable as exc:
+        raise HTTPError(503, str(exc)) from None
+    return self._send(200, path.read_bytes(), 'audio/wav',
+                      {'Cache-Control': 'private, max-age=31536000, immutable'})
+
+
 def _pictures(editor):
     if not editor.pictures:
         raise HTTPError(404, 'not found')
@@ -341,6 +360,7 @@ def _get_suggest_config(self, route, q, editor, user):
 def _get_suggest_catalog(self, route, q, editor, user):
     from . import capabilities, fonts
     from .capabilities import registry
+    from .capabilities.settings import as_json as settings_json
     looks, type_, caps = [], [], []
     for e in capabilities.entries():
         family = e.get('family')
@@ -356,16 +376,21 @@ def _get_suggest_catalog(self, route, q, editor, user):
             type_.append(item)
         elif family is None:
             item['phrasings'] = list(e.get('prompts', ()))
+            if e.get('settings'):
+                item['settings'] = settings_json(e['settings'])
             caps.append(item)
     # The registry's capabilities (videobuilder.capabilities.registry) are capabilities too (just too
     # many to hand-write): merged into the same list, same shape plus group/aliases/phrasings, so the
     # picker can group and search them alike.
     for t in registry.catalog():
         title, _ = capabilities.REGISTRY_FAMILIES[t.family]
-        caps.append({'id': t.id, 'title': t.name, 'card': t.definition, 'category': title,
-                     'group': t.group,
-                     'aliases': list(t.aliases), 'phrasings': list(t.phrasings),
-                     'poster': f'/capabilities/{t.id}.jpg', 'clip': f'/capabilities/{t.id}.mp4'})
+        item = {'id': t.id, 'title': t.name, 'card': t.definition, 'category': title,
+                'group': t.group,
+                'aliases': list(t.aliases), 'phrasings': list(t.phrasings),
+                'poster': f'/capabilities/{t.id}.jpg', 'clip': f'/capabilities/{t.id}.mp4'}
+        if t.settings:
+            item['settings'] = settings_json(t.settings)
+        caps.append(item)
     from . import sfx as sfx_module
     sfx_list = []
     try:
@@ -549,6 +574,7 @@ GET_ROUTES = [
     (re.compile(r'/api/sources/([^/]+)'), _get_source_file),
     ('/api/music/sources', _get_music_sources),
     ('/api/music/tracks', _get_music_tracks),
+    ('/api/narration/voice-sample', _get_narration_voice_sample),
     ('/api/archive/search', _get_archive_search),
     ('/api/pictures', _get_pictures),
     ('/api/pictures/gpu', _get_pictures_gpu),
