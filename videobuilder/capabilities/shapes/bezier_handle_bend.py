@@ -54,12 +54,14 @@ def draw_bend(cv, a, b, bend_a, bend_b, color, width=8, handles=True, handle_col
 
 
 def draw(n, cv):
-    a, b = (360, demo.H / 2), (demo.W - 360, demo.H / 2)
-    # straight -> bowed arc -> S-curve -> straight, each move eased with a little overshoot
-    keys = ((0.3, 0, 0), (1.0, -230, -230), (1.7, -230, 230), (2.5, 0, 0))
+    a, b = (200, demo.H / 2), (demo.W - 200, demo.H / 2)
+    # straight -> bowed arc -> S-curve -> straight, each move eased with a little overshoot,
+    # sized so the handle knobs stay well inside the frame even at the peak of the overshoot
+    keys = ((0.3, 0, 0), (1.0, -150, -150), (1.7, -150, 150), (2.5, 0, 0))
+    ease = vb.bezier(0.34, 1.3, 0.64, 1)
     bend_a = bend_b = 0.0
     for (t0, a0, b0), (t1, a1, b1) in zip(keys, keys[1:]):
-        p = vb.ease_out_back(demo.phase(n, t0, t1 - 0.1))
+        p = ease(demo.phase(n, t0, t1 - 0.1))
         if n / demo.FPS >= t0:
             bend_a, bend_b = a0 + (a1 - a0) * p, b0 + (b1 - b0) * p
     c1, c2 = draw_bend(cv, a, b, bend_a, bend_b, demo.ACCENT, width=10, handle_color=demo.TEAL)
