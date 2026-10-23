@@ -43,9 +43,8 @@ def _particles():
     global _PARTICLES
     if _PARTICLES is None:
         img = demo.photo()
-        w = 900
-        h = w * img.h / img.w
-        _PARTICLES = sample_particles(img, (demo.W - w) / 2, (demo.H - h) / 2, w, h, step=STEP)
+        box = vb.Box(0, 0, demo.W, demo.H).pad(30).contain(img.w, img.h)  # whole picture, even margins
+        _PARTICLES = sample_particles(img, box.x, box.y, box.w, box.h, step=STEP)
     return _PARTICLES
 
 
