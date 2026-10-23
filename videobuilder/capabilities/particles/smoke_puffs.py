@@ -38,12 +38,13 @@ def puffs(t, rate=9.0, life=2.2, rise=420, spread=40, drift=0.0, size=(22, 120),
 
 
 def draw_puff(cv, x, y, r, color, alpha=1.0):
-    """One soft smoke blob centred at (x, y): a radial fade from `color` at
-    `alpha` in the middle to clear at radius `r`."""
+    """One smoke blob centred at (x, y): a near-even body of `color` at
+    `alpha` out to about 0.6 `r`, then a soft fall to clear at radius `r`, so
+    each blob keeps a readable edge where it overlaps others."""
     red, green, blue, a = vb.rgba(color, alpha)
     g = cairo.RadialGradient(x, y, 0, x, y, r)
     g.add_color_stop_rgba(0.0, red, green, blue, a)
-    g.add_color_stop_rgba(0.45, red, green, blue, a * 0.6)
+    g.add_color_stop_rgba(0.6, red, green, blue, a * 0.85)
     g.add_color_stop_rgba(1.0, red, green, blue, 0)
     ctx = cv.ctx
     ctx.save()
@@ -71,10 +72,10 @@ def smoke_puffs(cv, x, y, t, color='#c9ccd6', strength=0.45, **kw):
 
 
 def draw(n, cv):
-    x, y = demo.W / 2, demo.H - 120
+    x, y = demo.W / 2, demo.H - 80
     t = n / demo.FPS
-    box = smoke_puffs(cv, x, y, t, rate=4.5, life=2.6, rise=400, spread=90, drift=20, size=(34, 190),
-                      strength=0.55, seed=3)
+    box = smoke_puffs(cv, x, y, t, rate=2.75, life=2.6, rise=300, spread=80, drift=16, size=(24, 110),
+                      strength=0.7, seed=3)
     cv.rect(x - 46, y, 92, 18, demo.MUTED, radius=6)  # the vent the smoke leaves from
     cv.mark('plume', *box)
 
