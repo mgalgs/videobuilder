@@ -48,6 +48,7 @@ RAIL_Y = 110
 GLIDE = vb.bezier(0.45, 0, 0.55, 1)
 STOPS = (demo.W / 2, demo.W / 2 - 150, demo.W / 2 + 150, demo.W / 2)
 MOVES = ((0.15, 0.85), (1.05, 1.95), (2.05, 2.5))   # the anchor slides between STOPS, then holds
+SECONDS = 4.8   # 2.3 s of hold after the last stop: the chain swings past and settles before the loop
 
 
 def anchor(t):
@@ -58,7 +59,7 @@ def anchor(t):
 
 
 def draw(n, cv):
-    pts = chain_follow_through(anchor, n / demo.FPS, links=8, length=38)
+    pts = chain_follow_through(anchor, n / demo.FPS, links=8, length=38, drag=2.5)
     cv.line(STOPS[1] - 80, RAIL_Y, STOPS[2] + 80, RAIL_Y, demo.LINE, width=3)
     for x in STOPS[:3]:
         cv.line(x, RAIL_Y - 8, x, RAIL_Y + 8, demo.LINE, width=3)
@@ -97,5 +98,5 @@ CAPABILITY = Capability(
     related=('verlet-rope', 'follow-through', 'path-follow-motion', 'player-movement-trail',
              'force-directed-network-settle', 'cycle-diagram-rotation'),
     api=('videobuilder.capabilities.principles.chain_follow_through.chain_follow_through',),
-    demo=lambda: demo.film(draw),
+    demo=lambda: demo.film(draw, seconds=SECONDS),
 )
