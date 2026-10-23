@@ -30,6 +30,8 @@ def _face(cv, surface, density, project, shade, strips=STRIPS):
     c = cv.ctx
     pad = 1 / cv.scale_factor()
     cols = [project(W * i / strips) for i in range(strips + 1)]
+    if cols[-1][0] - cols[0][0] <= 0:
+        return  # a flat face projects with one orientation: this one is edge-on or facing away, so hidden
     for i in range(strips):
         (x0, s0), (x1, s1) = cols[i], cols[i + 1]
         if x1 <= x0:
@@ -97,10 +99,10 @@ def cube_rotate(cv, a, b, p, direction='left', ease=vb.ease_in_out_quart, depth=
     sa, da = _render(cv, a)
     sb, db = _render(cv, b)
     cv.fill(backdrop)
-    faces = [(sa, da, front, shading * (1 - ct)), (sb, db, side, shading * (1 - st))]
-    if theta > math.pi / 4:
-        faces.reverse()                         # paint the nearer face last
-    for surface, density, project, shade in faces:
+    # Each face's centre depth after the turn: front -h*cos, side -h*sin (smaller is nearer the camera).
+    faces = [(-h * ct, sa, da, front, shading * (1 - ct)), (-h * st, sb, db, side, shading * (1 - st))]
+    faces.sort(key=lambda face: -face[0])       # paint the farther face first, the nearer one last
+    for _, surface, density, project, shade in faces:
         _face(cv, surface, density, project, shade)
 
 
@@ -118,5 +120,5 @@ CAPABILITY = Capability(
     related=('three-d-word-cube', 'turntable-rotation', 'tesseract-rotation', 'globe-spin', 'word-flip-in',
              'swirl'),
     api=('videobuilder.capabilities.transitions.cube_rotate.cube_rotate',),
-    demo=lambda: demo.two_scenes(cube_rotate),
+    demo=lambda: demo.two_scenes(cube_rotate, start=1.3, length=1.5),  # poster (2.1 s) lands mid-turn
 )
