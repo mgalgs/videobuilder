@@ -81,5 +81,6 @@ CAPABILITY = Capability(
     related=('pixelate-transition', 'fire-overlay', 'smoke-dissolve', 'ken-burns-effect', 'screen-blend',
              'glitch-transition'),
     api=('videobuilder.capabilities.transitions.film_burn.film_burn',),
-    demo=lambda: demo.two_scenes(film_burn),
+    # A slower burn, so the gallery poster (70% in, 2.1 s) lands in its heat rather than its tail.
+    demo=lambda: demo.two_scenes(film_burn, start=0.6, length=2.0),
 )
