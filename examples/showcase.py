@@ -170,7 +170,7 @@ LOOP = True  # the end card comes to rest on the opening's first frame
 
 # ---- music: the skill's make_track.py bed, retuned to the sections ----
 # A thin opening building into the wall; the full bed under the families;
-# thin again under the ask, building into Lumen's title hit; the full bed
+# thin again under the ask, building into Lumen's title hit (its sound effect); the full bed
 # through the product and the numbers, then a build into the looks, which go
 # half-time to breathe; a hit on the paper rip into the closing block; a
 # crash on the end card.
@@ -183,7 +183,7 @@ def _beat(name):
 
 def _music():
     marks = {k: _beat(k) for k in ('wall', 'ask', 'title', 'styles', 'closing', 'end')}
-    args = dict(bpm=GRID.bpm, beats=END, v=5, **marks)
+    args = dict(bpm=GRID.bpm, beats=END, v=6, **marks)
     key = hashlib.sha1(repr(sorted(args.items())).encode()).hexdigest()[:12]
     path = os.path.join(tempfile.gettempdir(), f'videobuilder-showcase-{key}.wav')
     if os.path.exists(path):
@@ -243,8 +243,7 @@ def _music():
         in_styles = styles <= k < closing
         if (in_styles and (k - styles) % 4 == 2) or (not in_styles and (k - wall_) % 2 == 1):
             add(k * spb, 0.2, snare(0.42))
-    build(title_, 3, 0.8)
-    boom(title_, crash=0.38)
+    build(title_, 3, 0.8)   # into the title's own hit (a sound effect), so no boom of the bed's here
     build(styles, 4, 0.9)
     boom(styles, crash=0.36)
     # The rip: a tearing noise sweep into a hit on the downbeat of the closing block.
