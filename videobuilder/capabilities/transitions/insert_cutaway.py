@@ -50,9 +50,11 @@ def draw(n, cv):
     t = n / demo.FPS
     main = lambda c: (_main(c, t), _tag(c, 'Main'))  # noqa: E731
     lead = BAR_X + BAR_W * min(1.0, 0.1 + 0.3 * t)
-    insert = lambda c: (close_up(lambda c2: _main(c2, t), lead, BAR_Y + BAR_H / 2, zoom=4.0)(c),  # noqa: E731
+    # Centred a little above the bar, so the magnified pale pill above it clears the 'Insert' tag.
+    insert = lambda c: (close_up(lambda c2: _main(c2, t), lead, BAR_Y + BAR_H / 2 - 30, zoom=4.0)(c),  # noqa: E731
                         _tag(c, 'Insert', ink=demo.BG))
-    insert_cutaway(cv, main, insert, demo.phase(n, 0.2, 2.8), start=0.3, end=0.62)
+    # The insert runs about 1.5-2.3 s, so it covers the gallery's poster frame (70% in).
+    insert_cutaway(cv, main, insert, demo.phase(n, 0.2, 2.8), start=0.5, end=0.8)
 
 
 CAPABILITY = Capability(
