@@ -52,5 +52,5 @@ CAPABILITY = Capability(
     related=('pixelation', 'pixelation-reveal', 'pixel-sorting', 'pixel-build', 'glitch-transition', 'liquify'),
     api=('videobuilder.capabilities.transitions.pixelate_transition.pixelate_transition',
          'videobuilder.Canvas.pixelated'),
-    demo=lambda: demo.two_scenes(pixelate_transition, start=0.7, length=1.6),
+    demo=lambda: demo.two_scenes(pixelate_transition, start=1.0, length=1.6),
 )
