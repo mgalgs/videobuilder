@@ -33,6 +33,10 @@ def shutter_wipe(cv, a, b, p, slats=8, vertical=True, stagger=0.6, reverse=False
         k = slats - 1 - i if reverse else i
         start = stagger * k / max(1, slats - 1)
         open_ = size * ease(vb.clamp01((p - start) / own))
+        if size - open_ < 0.5:                  # snap sub-pixel gaps shut, or they show as hairlines
+            open_ = size
+        elif open_ < 0.5:
+            open_ = 0
         lo = i * size + (size - open_) / 2
         if open_ > 0:
             ctx.rectangle(*((lo, 0, open_, H) if vertical else (0, lo, W, open_)))
@@ -55,5 +59,5 @@ CAPABILITY = Capability(
     related=('pan', 'paint-brush-wipe', 'uncover', 'split-screen-comparison', 'shutter-slat-reveal',
              'split-screen-transition'),
     api=('videobuilder.capabilities.transitions.shutter_wipe.shutter_wipe',),
-    demo=lambda: demo.two_scenes(shutter_wipe),
+    demo=lambda: demo.two_scenes(shutter_wipe, start=1.2, length=1.6),
 )
