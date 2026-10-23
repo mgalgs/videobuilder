@@ -18,7 +18,7 @@ def _scaled(cv, s, opacity=1.0):
     return cv.layer(opacity=opacity, dx=cx - cx * s, dy=cy - cy * s, scale=s)
 
 
-def zoom_through(cv, a, b, p, zoom=9.0, out_end=0.7, in_start=0.45, start_scale=0.8, echoes=5,
+def zoom_through(cv, a, b, p, zoom=9.0, out_end=0.75, in_start=0.4, start_scale=0.6, echoes=5,
                  background='#000000'):
     """Draw the zoom through at progress `p` (0 -> 1).
 
@@ -33,7 +33,7 @@ def zoom_through(cv, a, b, p, zoom=9.0, out_end=0.7, in_start=0.45, start_scale=
     t = vb.clamp01((p - in_start) / (1 - in_start))
     if t > 0:
         s = start_scale + (1 - start_scale) * vb.ease_out_quint(t)
-        with _scaled(cv, s, opacity=vb.clamp01(t * 4)):
+        with _scaled(cv, s, opacity=vb.clamp01(t * 3)):
             with cv.clip(0, 0, cv.width, cv.height):
                 b(cv)
     q = vb.clamp01(p / out_end)
@@ -42,13 +42,15 @@ def zoom_through(cv, a, b, p, zoom=9.0, out_end=0.7, in_start=0.45, start_scale=
     k = RUSH(q)
     z = math.exp(math.log(zoom) * k)
     speed = vb.clamp01(math.log(zoom) * (RUSH(min(1.0, q + 0.04)) - k) / 0.04 / 6)   # how fast the zoom moves
-    fade = 1 - vb.clamp01((q - 0.6) / 0.4)
-    for e in range(echoes, 0, -1):
-        zs = z * math.exp(-0.21 * e * speed)
-        with _scaled(cv, zs, opacity=fade * 0.32 * speed * (1 - e / (echoes + 1))):
-            a(cv)
+    fade = 1 - vb.clamp01((q - 0.65) / 0.35)
     with _scaled(cv, z, opacity=fade):
         a(cv)
+    # the blur: lagging, smaller copies laid over the scene (under it, an
+    # opaque full-frame scene would hide them), stronger the faster it zooms
+    for e in range(1, echoes + 1):
+        zs = z * math.exp(-0.3 * e * speed)
+        with _scaled(cv, zs, opacity=fade * 0.5 * speed * (1 - e / (echoes + 1))):
+            a(cv)
 
 
 CAPABILITY = Capability(
@@ -66,5 +68,5 @@ CAPABILITY = Capability(
              'object-pass-through'),
     api=('videobuilder.capabilities.transitions.zoom_through.zoom_through',
          'videobuilder.compendium.components.transition_zoom_through.COMPONENT'),
-    demo=lambda: demo.two_scenes(zoom_through, start=0.7, length=1.6),
+    demo=lambda: demo.two_scenes(zoom_through, start=1.2, length=1.6),
 )
