@@ -117,8 +117,10 @@ def draw(n, cv):
     p = n / (demo.FPS * demo.SECONDS)
     w, h = demo.H * 1.2, demo.H
     x = (demo.W - w) / 2
-    box = draw_mandelbulb(cv, x, 0, w, h, quality=0.15, yaw=0.3 + 1.6 * p, pitch=0.5 - 0.3 * p,
-                          distance=2.7 - 0.45 * p, colors=(demo.TEAL, demo.ACCENT))
+    # A gentle push-in that stops well short of the frame: at 3.0 the bulb's
+    # bounding sphere still spans under nine-tenths of the height.
+    box = draw_mandelbulb(cv, x, 0, w, h, quality=0.4, yaw=0.3 + 1.6 * p, pitch=0.5 - 0.3 * p,
+                          distance=3.3 - 0.3 * p, colors=(demo.TEAL, demo.ACCENT))
     cv.mark('bulb', *box)
 
 
