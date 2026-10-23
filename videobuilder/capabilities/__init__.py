@@ -712,7 +712,8 @@ CATALOG = (
         ('vb.Sound(path, at=, start=, frames=, fade_in_frames=, fade_out_frames=)',
          "ft = vb.footage(TIMELINE, 'segment', start=seconds)  # picture and sound in sync",
          'clip.frame(clip.frame_at(ft.seconds_at(n)))', 'ft.sound(path) -> Film(sounds=(...))',
-         'vb.Audio(music, duck_db=-12)  # the music ducks while a sound plays'),
+         'vb.Audio(music, duck_db=-8)  # the music ducks while a sound plays; -8 for a voice-over, '
+         'ramps and short-gap bridging are automatic'),
         'skill/make-a-video/reference/footage.md', 'footage-with-sound'),
     _entry(
         'narration', 'Timing, sound and formats', 'Narration',
