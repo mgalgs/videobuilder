@@ -34,12 +34,15 @@ def draw_long_shadow(cv, lines, font, x, y, color, shadow, length, angle=45, fad
 
 
 def draw(n, cv):
-    f = demo.font(150, 900)
+    f = demo.font(120, 900)
     lines = ['SHADOW']
     w, h = vb.text.block_size(lines, f)
-    x, y = (demo.W - w) / 2 - 120, (demo.H - h) / 2 - 120
+    # Centre the word together with its fully grown shadow, so the tip stays in frame.
+    length = 300
+    reach = length * math.cos(math.radians(45))
+    x, y = (demo.W - (w + reach)) / 2, (demo.H - (h + reach)) / 2
     grow = vb.ease_in_out_quart(demo.phase(n, 0.4, 2.4))
-    box = draw_long_shadow(cv, lines, f, x, y, demo.INK, '#b8402f', 380 * grow, fade=demo.BG)
+    box = draw_long_shadow(cv, lines, f, x, y, demo.INK, '#b8402f', length * grow, fade=demo.BG)
     cv.mark('text', *box)
 
 
