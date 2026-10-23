@@ -88,6 +88,124 @@ console.log(JSON.stringify(out));
                                    '(Example Library) as the music')
 
 
+@unittest.skipUnless(shutil.which('node'), 'node is not available in this environment')
+class HashtagCapIds(unittest.TestCase):
+    """hashtagCapIds: the #id -> chip parser (see suggest-notes.md's "Rewrites"
+    design call, and the chips call that replaced rewriting a capability pick
+    into the note)."""
+
+    def run_js(self, text, caps):
+        js = (PKG / 'suggest.js').read_text()
+        hashtag_re = re.search(r'\nconst HASHTAG_RE = .*?;', js).group(0)
+        fn = re.search(r'\nfunction hashtagCapIds\(text, caps\) \{.*?\n\}', js, re.S).group(0)
+        script = hashtag_re + fn + f"""
+console.log(JSON.stringify(hashtagCapIds({json.dumps(text)}, {json.dumps(caps)})));
+"""
+        result = subprocess.run(['node', '-'], input=script.encode(), capture_output=True)
+        self.assertEqual(result.returncode, 0, result.stderr.decode())
+        return json.loads(result.stdout)
+
+    def test_a_real_id_typed_as_a_hashtag_is_found(self):
+        self.assertEqual(self.run_js('try #map-route-draw on the intro', {'map-route-draw': 1}),
+                         ['map-route-draw'])
+
+    def test_matching_is_case_insensitive_but_the_id_comes_back_lowercase(self):
+        self.assertEqual(self.run_js('#Map-Route-Draw', {'map-route-draw': 1}), ['map-route-draw'])
+
+    def test_an_unknown_hashtag_is_ordinary_text_no_chip_no_error(self):
+        self.assertEqual(self.run_js('#notacap and #also-not-one', {'map-route-draw': 1}), [])
+
+    def test_repeats_are_deduplicated(self):
+        self.assertEqual(self.run_js('#a #b #a', {'a': 1, 'b': 1}), ['a', 'b'])
+
+    def test_a_hashtag_cannot_start_with_a_digit(self):
+        self.assertEqual(self.run_js('chapter #1', {'1': 1}), [])
+
+    def test_no_hashtags_in_the_text_is_an_empty_list(self):
+        self.assertEqual(self.run_js('just an ordinary note', {'a': 1}), [])
+
+
+@unittest.skipUnless(shutil.which('node'), 'node is not available in this environment')
+class CapabilityPickNeverRewrites(unittest.TestCase):
+    """pick(): a capability-family suggestion (CAP_FAMILIES) adds a chip and
+    leaves the textarea untouched; any other family still rewrites the note
+    exactly as before (see Rewrite, above)."""
+
+    def run_js(self, prelude, calls):
+        js = (PKG / 'suggest.js').read_text()
+        cap_families = re.search(r'\nconst CAP_FAMILIES = .*?;', js, re.S).group(0)
+        key_of = re.search(r'\nconst keyOf = .*?;', js).group(0)
+        pick = re.search(r'\nfunction pick\(i, \{user\} = \{\}\) \{.*?\n\}', js, re.S).group(0)
+        script = cap_families + key_of + pick + prelude + calls
+        result = subprocess.run(['node', '-'], input=script.encode(), capture_output=True)
+        self.assertEqual(result.returncode, 0, result.stderr.decode())
+        return json.loads(result.stdout)
+
+    def test_a_capability_pick_adds_a_chip_and_leaves_the_note_untouched(self):
+        prelude = """
+let pickedCapIds = [];
+let renderCapChipsCalls = 0;
+function renderCapChips() { renderCapChipsCalls++ }
+let shown = [{family: 'looks', id: 'look-melt'}, {family: 'fonts', id: 'cantarell'}];
+let renderCalls = 0;
+function render() { renderCalls++ }
+const ta = {value: 'make it look like a dream'};
+"""
+        calls = """
+pick({family: 'looks', id: 'look-melt'}, {user: true});
+console.log(JSON.stringify({value: ta.value, pickedCapIds, renderCapChipsCalls, renderCalls,
+  shownFamilies: shown.map(i => i.family)}));
+"""
+        out = self.run_js(prelude, calls)
+        self.assertEqual(out['value'], 'make it look like a dream')
+        self.assertEqual(out['pickedCapIds'], ['look-melt'])
+        self.assertEqual(out['renderCapChipsCalls'], 1)
+        self.assertEqual(out['renderCalls'], 1)
+        self.assertEqual(out['shownFamilies'], ['fonts'])
+
+    def test_picking_the_same_capability_twice_does_not_duplicate_the_chip(self):
+        prelude = """
+let pickedCapIds = ['look-melt'];
+function renderCapChips() {}
+let shown = [];
+function render() {}
+const ta = {value: 'a note'};
+"""
+        calls = """
+pick({family: 'looks', id: 'look-melt'}, {user: true});
+console.log(JSON.stringify({pickedCapIds}));
+"""
+        self.assertEqual(self.run_js(prelude, calls)['pickedCapIds'], ['look-melt'])
+
+    def test_a_non_capability_pick_still_rewrites_the_note(self):
+        prelude = """
+let pickedCapIds = [];
+function renderCapChips() {}
+let shown = [{family: 'fonts', id: 'cantarell'}];
+function render() {}
+let programmatic = false;
+const ta = {
+  value: 'Use a friendlier font for the title',
+  focus() {}, setSelectionRange() {},
+  setRangeText(text, a, b) { this.value = this.value.slice(0, a) + text + this.value.slice(b) },
+  dispatchEvent() {},
+};
+const document = {execCommand: () => false};
+function rewrite(text, i) {
+  const m = / font\\b/.exec(text);
+  return [m.index, m.index + m[0].length, ' font (Cantarell)'];
+}
+function flash() {}
+"""
+        calls = """
+pick({family: 'fonts', id: 'cantarell'}, {user: true});
+console.log(JSON.stringify({value: ta.value, pickedCapIds}));
+"""
+        out = self.run_js(prelude, calls)
+        self.assertEqual(out['value'], 'Use a friendlier font (Cantarell) for the title')
+        self.assertEqual(out['pickedCapIds'], [])
+
+
 class PageWiring(unittest.TestCase):
     """The composer loads the suggest layer."""
 

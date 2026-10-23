@@ -144,6 +144,21 @@ def _type_lines(community_styles):
     return lines
 
 
+def _requested_capabilities_lines(items):
+    """The capabilities a note's #id chips named (see capabilities.
+    resolve_requested): listed structurally, not left for the builder to
+    infer from prose."""
+    lines = ['## Capabilities the creator asked for', '',
+             'The creator tagged these in the note (shown as a chip below the note box, '
+             'from typing #id or picking a suggestion): use each one.', '']
+    for c in items:
+        lines.append(f"- `{c['id']}`: **{c['name']}**. {c['definition']}")
+        api = ', '.join(f'`{a}`' for a in c['api'])
+        if api:
+            lines.append(f"  - api: {api}")
+    return lines
+
+
 def _community_lines(community):
     lines = ['## Community capabilities', '',
              'Other creators submitted these from a post they saw showing a capability; each ships '
@@ -307,6 +322,11 @@ def render(note, payload, image, compendium=False, votes=None, sources=None, com
     'type') under the Type section. `film` is film_brief.brief's brief for a film
     made of clips (the note's clip and its neighbours, or the whole film; the
     bible), or None for a single film, whose prompt it leaves untouched.
+    `note['capabilities']` is the ids its #hashtag chips named (already
+    re-checked by editor.add_note/start_video -- see capabilities.
+    resolve_requested); empty or missing leaves the section out entirely, so
+    a note with no chips renders byte-identical to one from before chips
+    existed.
     """
     lines = ['# Review request', '', *([note['rejection']] if note.get('rejection') else []), note['text'], '']
     if note.get('time') is not None:
@@ -397,6 +417,10 @@ def render(note, payload, image, compendium=False, votes=None, sources=None, com
     capabilities_only = [c for c in community if c.get('family') not in ('looks', 'type')]
     if capabilities_only:
         lines += ['', *_community_lines(capabilities_only)]
+    from .capabilities import resolve_requested
+    requested = resolve_requested(note.get('capabilities'))
+    if requested:
+        lines += ['', *_requested_capabilities_lines(requested)]
     lines += ['', '## Look at your work', '',
               'Before each distinct step of your work, write one line in your own message '
               'that starts with "Step: " and says what you are about to do and why, in plain '

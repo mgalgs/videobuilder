@@ -52,6 +52,20 @@
 .sg-x:hover{background:#1d1d22;color:#fff}
 .sg-hidden{display:none!important}
 
+/* capability references: #id chips below the note box (see suggest.js's
+   CAP_FAMILIES) -- a dashed border is one found live in the typed #id,
+   a solid one was picked from a suggestion and so has a remove button */
+.sg-capchips{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.sg-capchips:empty{display:none}
+.sg-capchip{display:inline-flex;align-items:center;gap:6px;height:28px;padding:0 10px;border-radius:14px;
+  border:1px solid #6a3430;background:#2a1a19;color:#e6e6ea;font-size:12.5px;font-weight:600;white-space:nowrap;
+  animation:sg-in .2s ease both;font-family:inherit}
+.sg-capchip.sg-capchip-typed{border-style:dashed}
+.sg-capchip-id{color:#ff8f7f;font-weight:700}
+.sg-capchip-x{flex:none;width:18px;height:18px;border-radius:9px;border:0;background:#ffffff1a;color:#e6e6ea;
+  display:grid;place-items:center;padding:0;cursor:pointer;margin:0 -4px 0 2px}
+.sg-capchip-x:hover{background:#ffffff33;color:#fff}
+
 /* editor placement */
 #composer .sg-cards{margin:-2px 0 0}
 #composer .composer-extras.sg-on{flex-wrap:nowrap}

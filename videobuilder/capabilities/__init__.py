@@ -835,6 +835,35 @@ def ids():
     return tuple(e['id'] for e in entries())
 
 
+def resolve_requested(requested_ids):
+    """Of `requested_ids` (candidate capability ids, e.g. from a note's
+    #hashtag chips), the ones that actually exist -- this catalog's or the
+    registry's -- each as {id, name, definition, api}, in the order first
+    seen; an unknown or repeated id is silently dropped, so a client's own
+    list is never trusted blind. See prompt._requested_capabilities_lines,
+    which lists the result for the builder."""
+    from . import registry
+    out, seen = [], set()
+    for cid in requested_ids or ():
+        if not isinstance(cid, str) or cid in seen:
+            continue
+        seen.add(cid)
+        try:
+            e = get(cid)
+        except KeyError:
+            pass
+        else:
+            out.append({'id': e['id'], 'name': e['title'], 'definition': e.get('description') or e['card'],
+                       'api': list(e.get('apis', ()))})
+            continue
+        try:
+            t = registry.get(cid)
+        except KeyError:
+            continue
+        out.append({'id': t.id, 'name': t.name, 'definition': t.definition, 'api': list(t.api)})
+    return out
+
+
 def categories():
     seen = []
     for e in CATALOG:
@@ -1280,6 +1309,11 @@ h2{font-size:15px;text-transform:uppercase;letter-spacing:.04em;color:#a9a9b2;ma
 #modal .body{padding:20px 22px 26px}
 #modal h3{margin:0 0 6px;font-size:20px}
 #modal .cat{color:#a9a9b2;font-size:13px;margin:0 0 14px}
+#modal .cap-id{display:flex;align-items:center;gap:8px;margin:-8px 0 14px}
+#modal .cap-id code{color:#e5483b;font-family:monospace;font-size:13px}
+#modal .copy-id{min-height:28px;padding:2px 10px;border-radius:7px;border:1px solid #34343c;background:#1d1d22;
+  color:#dcdcdc;font:inherit;font-size:12px;cursor:pointer}
+#modal .copy-id:hover{border-color:#e5483b;color:#fff}
 #modal .desc{margin:0 0 18px;color:#dcdcdc}
 #modal .prompts{background:#1b1e24;border-radius:10px;padding:14px 16px;margin:0}
 #modal .prompts p{margin:0 0 8px;font-weight:600;font-size:13px;color:#a9a9b2;text-transform:uppercase;
@@ -1362,6 +1396,10 @@ _PAGE_SCRIPT = """
   var placeholder = document.getElementById('modal-placeholder');
   var unmuteBtn = document.getElementById('modal-unmute');
   var regOverlapEl = document.getElementById('modal-reg-overlap');
+  var idEl = document.getElementById('modal-id');
+  var idCode = document.getElementById('modal-id-code');
+  var copyBtn = document.getElementById('modal-copy');
+  var copyId = null;
   var opener = null;
   var box = modal.querySelector('.box');
   function openCard(id){
@@ -1371,6 +1409,11 @@ _PAGE_SCRIPT = """
     document.getElementById('modal-title').textContent = e.title;
     document.getElementById('modal-cat').textContent = e.members ?
       e.category + ' \u00b7 ' + e.members + ' ' + e.plural : (e.family ? e.category + ' \u00b7 ' + e.kindTitle : e.category);
+    // A family's own lead card (e.members set) is a navigation card, not one #id
+    // chips can name: no slug to copy there, only on an actual capability's card.
+    copyId = e.members ? null : id;
+    idEl.hidden = !copyId;
+    if(copyId){ idCode.textContent = '#' + copyId; copyBtn.textContent = 'Copy' }
     document.getElementById('modal-desc').textContent = e.description;
     var ul = document.getElementById('modal-prompts');
     ul.innerHTML = '';
@@ -1421,6 +1464,20 @@ _PAGE_SCRIPT = """
   });
   document.getElementById('modal-close').addEventListener('click', closeModal);
   modal.addEventListener('click', function(e){if(e.target === modal) closeModal()});
+  copyBtn.addEventListener('click', function(){
+    if(!copyId) return;
+    var text = '#' + copyId;
+    var done = function(){ copyBtn.textContent = 'Copied!'; setTimeout(function(){ copyBtn.textContent = 'Copy' }, 1200) };
+    if(navigator.clipboard) navigator.clipboard.writeText(text).then(done, done);
+    else {
+      var ta = document.createElement('textarea');
+      ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+      document.body.appendChild(ta); ta.select();
+      try { document.execCommand('copy') } catch(e){}
+      document.body.removeChild(ta);
+      done();
+    }
+  });
   unmuteBtn.addEventListener('click', function(){
     video.muted = !video.muted;
     unmuteBtn.textContent = video.muted ? 'Unmute' : 'Mute';
@@ -1488,6 +1545,8 @@ _REGISTRY_MODAL_HTML = (
     '<button class="unmute" id="modal-unmute" hidden>Unmute</button>'
     '<div class="body">'
     '<h3 id="modal-title"></h3><p class="cat" id="modal-cat"></p>'
+    '<p class="cap-id" id="modal-id" hidden><code id="modal-id-code"></code>'
+    '<button type="button" class="copy-id" id="modal-copy">Copy</button></p>'
     '<p class="desc" id="modal-desc"></p>'
     '<div class="prompts"><p>What to tell the builder</p><ul id="modal-prompts"></ul></div>'
     '<p class="reg-aliases" id="modal-aliases" hidden></p>'
@@ -1509,6 +1568,10 @@ _REGISTRY_PAGE_SCRIPT = """
   var apiWrap = document.getElementById('modal-api-wrap');
   var apiList = document.getElementById('modal-api');
   var overlapEl = document.getElementById('modal-overlap');
+  var idEl = document.getElementById('modal-id');
+  var idCode = document.getElementById('modal-id-code');
+  var copyBtn = document.getElementById('modal-copy');
+  var copyId = null;
   var opener = null;
   var box = modal.querySelector('.box');
   function openCard(id){
@@ -1517,6 +1580,10 @@ _REGISTRY_PAGE_SCRIPT = """
     opener = document.querySelector('[data-card="' + id + '"]');
     document.getElementById('modal-title').textContent = t.title;
     document.getElementById('modal-cat').textContent = t.familyTitle + ' \\u00b7 ' + t.group;
+    copyId = id;
+    idCode.textContent = '#' + id;
+    idEl.hidden = false;
+    copyBtn.textContent = 'Copy';
     document.getElementById('modal-desc').textContent = t.description;
     var ul = document.getElementById('modal-prompts');
     ul.innerHTML = '';
@@ -1580,6 +1647,20 @@ _REGISTRY_PAGE_SCRIPT = """
   });
   document.getElementById('modal-close').addEventListener('click', closeModal);
   modal.addEventListener('click', function(e){if(e.target === modal) closeModal()});
+  copyBtn.addEventListener('click', function(){
+    if(!copyId) return;
+    var text = '#' + copyId;
+    var done = function(){ copyBtn.textContent = 'Copied!'; setTimeout(function(){ copyBtn.textContent = 'Copy' }, 1200) };
+    if(navigator.clipboard) navigator.clipboard.writeText(text).then(done, done);
+    else {
+      var ta = document.createElement('textarea');
+      ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+      document.body.appendChild(ta); ta.select();
+      try { document.execCommand('copy') } catch(e){}
+      document.body.removeChild(ta);
+      done();
+    }
+  });
   unmuteBtn.addEventListener('click', function(){
     video.muted = !video.muted;
     unmuteBtn.textContent = video.muted ? 'Unmute' : 'Mute';
@@ -2167,6 +2248,8 @@ def page_html(capabilities_dir, version, header='', header_style='', community=N
         '<button class="unmute" id="modal-unmute" hidden>Unmute</button>'
         '<div class="body">'
         '<h3 id="modal-title"></h3><p class="cat" id="modal-cat"></p>'
+        '<p class="cap-id" id="modal-id" hidden><code id="modal-id-code"></code>'
+        '<button type="button" class="copy-id" id="modal-copy">Copy</button></p>'
         '<p class="desc" id="modal-desc"></p>'
         '<div class="prompts"><p>What to tell the builder</p><ul id="modal-prompts"></ul></div>'
         '<p class="reg-overlap" id="modal-reg-overlap" hidden></p>'

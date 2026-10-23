@@ -90,6 +90,10 @@ h3 { font-size: 13px; text-transform: uppercase; letter-spacing: .08em; color: v
 .tile .name { font-weight: 650; font-size: 16px; }
 .tile .meta { color: var(--muted); font-size: 12.5px; margin: 1px 0 6px; }
 .tile code { font: 12px ui-monospace, SFMono-Regular, Menlo, monospace; color: var(--accent); }
+.tile .copy-id { font: 11px ui-monospace, SFMono-Regular, Menlo, monospace; color: var(--muted);
+  background: var(--chip); border: 1px solid var(--line); border-radius: 6px; padding: 1px 7px;
+  margin-left: 6px; cursor: pointer; }
+.tile .copy-id:hover { border-color: var(--accent); color: var(--ink); }
 .tile p { margin: 0; font-size: 14px; }
 .hidden { display: none !important; }
 """
@@ -115,6 +119,22 @@ function filter() {
 }
 q.addEventListener('input', filter);
 filter();
+// Copy a tile's #id (ready to paste into the editor's note box) with a brief confirmation.
+document.addEventListener('click', e => {
+  const btn = e.target.closest('.copy-id');
+  if (!btn) return;
+  const text = btn.dataset.copy, label = btn.textContent;
+  const done = () => { btn.textContent = 'Copied!'; setTimeout(() => { btn.textContent = label }, 1200); };
+  if (navigator.clipboard) navigator.clipboard.writeText(text).then(done, done);
+  else {
+    const ta = document.createElement('textarea');
+    ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+    document.body.append(ta); ta.select();
+    try { document.execCommand('copy'); } catch (err) {}
+    ta.remove();
+    done();
+  }
+});
 """
 
 
@@ -132,7 +152,8 @@ def _tile(t):
             f'<video src="{e(t.id)}.mp4" poster="{e(t.id)}.jpg" {media}></video>'
             f'<div class="text"><div class="name">{e(t.name)}</div>'
             f'<div class="meta">{e(_family_title(t.family))} / {e(t.group)} &middot; '
-            f'<code>{e(t.id)}</code></div>'
+            f'<code>{e(t.id)}</code>'
+            f'<button type="button" class="copy-id" data-copy="#{e(t.id)}">Copy</button></div>'
             f'<p>{e(t.definition)}</p></div></article>')
 
 

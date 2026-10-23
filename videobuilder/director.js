@@ -2172,7 +2172,9 @@ async function addPending() {
   const time=state.stamp?player.currentTime||0:null;
   try {
     const attachments=await uploadFiles([...state.files]);
-    state.pending.push({text,time,attachments});
+    // The capabilities the note's #id chips named (suggest.js); [] where suggest.js never mounted.
+    const capabilities=typeof noteCapabilityIds==='function'?noteCapabilityIds():[];
+    state.pending.push({text,time,attachments,capabilities});
     savePending();
     renderPending();
     $('message').value='';
@@ -2196,22 +2198,24 @@ async function addPending() {
 // out as one numbered note: the builder handles them in one turn, one version.
 function batchBody(items) {
   const ids=items.flatMap(item=>item.attachments.map(a=>a.id));
+  const capabilities=[...new Set(items.flatMap(item=>item.capabilities||[]))];
   if(items.length===1) {
     const [item]=items;
-    return {text:item.text,attachments:ids,...(item.time!=null?{time:item.time}:{})}
+    return {text:item.text,attachments:ids,capabilities,...(item.time!=null?{time:item.time}:{})}
   }
   const lines=items.map((item,i)=> {
     const at=item.time!=null?`At ${timeLabel(item.time)}: `:'';
     const names=item.attachments.map(a=>a.name).join(', ');
     return `${i+1}. ${at}${item.text}${names?` (attached: ${names})`:''}`
   });
-  return {text:lines.join('\n'),attachments:ids}
+  return {text:lines.join('\n'),attachments:ids,capabilities}
 }
 // A video's first note, while it is not built yet, starts it the way New video does
 // (videos/first-note): the builder is also told what Film details set.
 function postNote(body) {
   if(notBuilt(currentVersion())&&!state.notes.length&&!body.clip)
-    return json('videos/first-note',null,{description:body.text,attachments:body.attachments});
+    return json('videos/first-note',null,
+      {description:body.text,attachments:body.attachments,capabilities:body.capabilities});
   return json('notes',null,body)
 }
 async function sendPending() {

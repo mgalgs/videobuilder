@@ -490,7 +490,7 @@ from http.server import ThreadingHTTPServer
 from importlib import resources
 from pathlib import Path, PurePosixPath
 
-from . import assembly, edits, film_setup
+from . import assembly, capabilities, edits, film_setup
 from .notes import NoteStore
 from .agents import backend_from_config
 from .drafts import Drafts, git
@@ -861,6 +861,7 @@ class Editor:
             png = s.request('frame', frame=frame, format=fmt, scale=NOTE_SCALE) if frame is not None else None
         text = body.get('text')
         context = dict(time=timestamp, attachments=attachments, clip=clip,
+                       capabilities=_note_capability_ids(body),
                        beat=frame / tl['frames_per_beat'] if tl and frame is not None else None)
         links, skipped = _note_links(text if isinstance(text, str) else '', body.get('links'))
         if links and not (isinstance(text, str) and text.strip()):
@@ -930,6 +931,7 @@ class Editor:
             raise HTTPError(400, str(exc) if not isinstance(exc, TypeError) else 'attachments must be ids') from None
         # What Film details already set, so the first build follows it (see film_setup).
         extra = film_setup.note_lines(film_setup.read_details(Path(self.project.video(vid).path).parent))
+        capability_ids = _note_capability_ids(body)
         s = self.session(vid)
         info = s.request('info')
         if 'frames' not in info:
@@ -941,12 +943,14 @@ class Editor:
         if not links:
             try:
                 return self.notes.add(vid, fmt, None, None, _first_brief(description, attachments, [], [], extra),
-                                      None, author=author, attachments=attachments, **said)
+                                      None, author=author, attachments=attachments, capabilities=capability_ids,
+                                      **said)
             except ValueError as e:
                 raise HTTPError(400, str(e)) from None
 
         # `gather` is what _resume_gathering needs to crawl again after a restart.
         note = self.notes.start_gathering(vid, fmt, text=description, author=author, attachments=attachments,
+                                          capabilities=capability_ids,
                                           gather={'description': description, 'links': links, 'extra': extra,
                                                   'skipped': skipped},
                                           **said)
@@ -1083,6 +1087,16 @@ class Editor:
             return self.notes.add(vid, fmt, None, None, text, None, author=author, attachments=attachments)
         except ValueError as e:
             raise HTTPError(400, str(e)) from None
+
+
+def _note_capability_ids(body):
+    """A note's `capabilities` field (ids the editor's #hashtag chips picked
+    out of the note's own text), re-checked against the catalog and the
+    registry: unknown ids dropped, the client's list never trusted blind."""
+    ids = body.get('capabilities', [])
+    if not isinstance(ids, list) or not all(isinstance(c, str) for c in ids):
+        raise HTTPError(400, 'capabilities must be a list of strings')
+    return [c['id'] for c in capabilities.resolve_requested(ids)]
 
 
 def _note_links(text, explicit):

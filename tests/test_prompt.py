@@ -194,6 +194,50 @@ class LooksSection(unittest.TestCase):
         self.assertNotIn('## Community capabilities', md)
 
 
+class RequestedCapabilitiesSection(unittest.TestCase):
+    """A note's #id chips (suggest.js): listed structurally for the builder,
+    by id looked up fresh against the catalog/registry at render time (see
+    capabilities.resolve_requested), never trusting the note's own list."""
+
+    def test_render_with_no_capabilities_is_byte_identical(self):
+        with_none = prompt.render(NOTE, PAYLOAD, None)
+        with_missing_key = prompt.render({**NOTE}, PAYLOAD, None)
+        with_empty = prompt.render({**NOTE, 'capabilities': []}, PAYLOAD, None)
+        self.assertEqual(with_none, with_missing_key)
+        self.assertEqual(with_none, with_empty)
+        self.assertNotIn('Capabilities the creator asked for', with_none)
+
+    def test_a_registry_capability_is_named_with_its_definition_and_api(self):
+        note = {**NOTE, 'capabilities': ['map-route-draw']}
+        md = prompt.render(note, PAYLOAD, None)
+        self.assertIn('## Capabilities the creator asked for', md)
+        self.assertIn('`map-route-draw`: **Map route draw**. A line traces a journey', md)
+        self.assertIn('videobuilder.capabilities.shapes.map_route_draw.draw_route', md)
+
+    def test_a_curated_catalog_capability_is_named_too(self):
+        note = {**NOTE, 'capabilities': ['look-melt']}
+        md = prompt.render(note, PAYLOAD, None)
+        self.assertIn('`look-melt`: **Surrealist melt**.', md)
+
+    def test_an_unknown_id_is_dropped_silently(self):
+        md = prompt.render({**NOTE, 'capabilities': ['not-a-real-capability']}, PAYLOAD, None)
+        self.assertNotIn('Capabilities the creator asked for', md)
+        self.assertNotIn('not-a-real-capability', md)
+
+    def test_duplicate_ids_are_listed_once(self):
+        md = prompt.render({**NOTE, 'capabilities': ['map-route-draw', 'map-route-draw']}, PAYLOAD, None)
+        self.assertEqual(md.count('map-route-draw'), 1)
+
+    def test_section_placed_after_community_before_look_at_your_work(self):
+        md = prompt.render({**NOTE, 'capabilities': ['look-melt']}, PAYLOAD, None,
+                           community=[{'slug': 'c-1', 'title': 'Zoom logo reveal', 'card': 'A zoom.'}])
+        community_at = md.index('## Community capabilities')
+        requested_at = md.index('## Capabilities the creator asked for')
+        look_at = md.index('## Look at your work')
+        self.assertLess(community_at, requested_at)
+        self.assertLess(requested_at, look_at)
+
+
 class PinGuidance(unittest.TestCase):
     def test_looks_and_type_tell_the_builder_to_raise_only_the_version(self):
         # drafts.inspect() only keeps a pin change that raises just the version on the
