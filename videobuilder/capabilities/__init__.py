@@ -23,10 +23,14 @@ import json
 import os
 from functools import lru_cache
 
+from .. import speech
+from .settings import check as check_settings
+
 REPO_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 
-def _entry(id, category, title, card, description, prompts, apis, doc, demo, poster=None, family=None):
+def _entry(id, category, title, card, description, prompts, apis, doc, demo, poster=None, family=None,
+          settings=()):
     return {'id': id, 'category': category, 'title': title, 'card': card, 'description': description,
             'prompts': tuple(prompts), 'apis': tuple(apis), 'doc': doc,
             'demo': f'examples/capabilities/{demo}.py',
@@ -35,7 +39,10 @@ def _entry(id, category, title, card, description, prompts, apis, doc, demo, pos
             # here only where that default lands somewhere less telling than another frame.
             'poster': poster,
             # The family this entry belongs to (see _family), or None for a top-level capability.
-            'family': family}
+            'family': family,
+            # Choice/Number the editor shows as a card beside this capability's chip (settings.py);
+            # empty for every capability but narration.
+            'settings': check_settings(id, settings)}
 
 
 def _family(id, category, title, card, description, prompts, apis, doc, demo, members, noun, lead, poster=None,
@@ -734,7 +741,10 @@ CATALOG = (
          "VOICE = vb.speech.load('assets/voice.wav'); Film(sounds=(VOICE.sound(at=frame),))",
          'vb.captions.draw(cv, VOICE.track_at(frame, fps), n / fps)  # a cue per phrase',
          "mouth = VOICE.mouth(fps, at=frame, frames=TOTAL); pose = 'talk' if mouth[n] else 'idle'"),
-        'skill/make-a-video/reference/narration.md', 'narration'),
+        'skill/make-a-video/reference/narration.md', 'narration',
+        # Shared with the registry's `voiceover` (capabilities/sound/voiceover.py), so the two
+        # can't drift: see speech.narration_settings.
+        settings=speech.narration_settings()),
     _entry(
         'sound-effects', 'Timing, sound and formats', 'Sound effects',
         'A whoosh, a click, a ding and a hit, each on its frame.',

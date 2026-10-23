@@ -123,9 +123,13 @@ def grouped(capabilities):
 # ---- the index: the builder-facing sheet, markdown or JSON ----
 
 def _data(t):
-    return {'id': t.id, 'name': t.name, 'family': t.family, 'group': t.group, 'aliases': list(t.aliases),
-            'definition': t.definition, 'phrasings': list(t.phrasings), 'related': list(t.related),
-            'api': list(t.api)}
+    d = {'id': t.id, 'name': t.name, 'family': t.family, 'group': t.group, 'aliases': list(t.aliases),
+         'definition': t.definition, 'phrasings': list(t.phrasings), 'related': list(t.related),
+         'api': list(t.api)}
+    if t.settings:
+        from .settings import as_json
+        d['settings'] = as_json(t.settings)
+    return d
 
 
 def index_data(family=None):

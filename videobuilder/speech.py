@@ -30,6 +30,7 @@ import subprocess
 import sys
 import wave
 from dataclasses import dataclass
+from functools import lru_cache
 from pathlib import Path
 
 RATE = 24000
@@ -187,6 +188,38 @@ class Kokoro:
         if rate != RATE:
             raise ValueError(f'Kokoro returned {rate} Hz, expected {RATE}')
         return array.array('h', (np.clip(samples, -1, 1) * 32767).round().astype('<i2').tobytes())
+
+
+def voice_options(engine=None):
+    """Every voice `engine` (default a fresh `Kokoro()`) actually has, as
+    settings.Option (see `say --list-voices`, which lists the same thing) --
+    never a hardcoded list. Falls back to one option for `DEFAULT_VOICE`
+    when there's no engine at all (no model files installed), so this never
+    needs Kokoro to be present."""
+    from .capabilities.settings import Option
+    try:
+        voices = (engine or Kokoro()).voices()
+    except SpeechUnavailable:
+        return (Option(DEFAULT_VOICE, DEFAULT_VOICE),)
+    out = []
+    for v in voices:
+        lang = LANGS.get(v[:1], '?')
+        sex = 'female' if v[1:2] == 'f' else 'male' if v[1:2] == 'm' else ''
+        out.append(Option(f"{v}  ({lang}{', ' + sex if sex else ''})", v))
+    return tuple(out)
+
+
+@lru_cache(maxsize=None)
+def narration_settings():
+    """The settings narration shares everywhere it's offered (the
+    hand-written `narration` catalog entry and the registry's `voiceover`,
+    see capabilities/__init__.py and capabilities/sound/voiceover.py) --
+    one definition, so the two can't drift: voice (this installation's own
+    Kokoro voices) and speed (`say`'s own 0.5 to 2.0 range). Cached: called
+    from more than one place, and real voices never change mid-process."""
+    from .capabilities.settings import Choice, Number
+    return (Choice('voice', 'Voice', options=voice_options(), default=DEFAULT_VOICE),
+            Number('speed', 'Speed', min=0.5, max=2.0, step=0.1, default=1.0))
 
 
 def phonemes_for(engine, parts, lang):

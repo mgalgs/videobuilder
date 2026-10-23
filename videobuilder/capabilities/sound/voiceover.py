@@ -19,6 +19,7 @@ import math
 
 import videobuilder as vb
 
+from ... import speech
 from .. import _demo as demo
 from ..schema import Capability
 
@@ -194,4 +195,7 @@ CAPABILITY = Capability(
     api=('videobuilder.speech.load', 'videobuilder.speech.Narration.sound', 'videobuilder.speech.Narration.track_at',
          'videobuilder.Audio'),
     demo=film,
+    # Shared with the hand-written `narration` catalog entry (capabilities/__init__.py), so the two
+    # can't drift: see speech.narration_settings.
+    settings=speech.narration_settings(),
 )

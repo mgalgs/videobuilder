@@ -10,6 +10,8 @@ import importlib
 import re
 from dataclasses import dataclass
 
+from .settings import check as check_settings
+
 FAMILIES = ('principles', 'typography', 'transitions', 'ui', 'shapes', 'particles', 'camera', 'vfx',
             'broadcast', 'sound')
 
@@ -69,6 +71,8 @@ class Capability:
     capabilities, which need not exist yet. `api`: dotted names of what a film
     calls to use it. `demo`: a no-argument callable returning a short 16:9
     `videobuilder.Film` showing the capability alone (see `_demo.py`).
+    `settings`: optional `Choice`/`Number` entries (settings.py) the editor
+    shows as a card beside this capability's chip, e.g. voiceover's voice.
     """
     id: str
     name: str
@@ -80,6 +84,7 @@ class Capability:
     demo: object  # demo() -> videobuilder.Film
     aliases: tuple = ()
     related: tuple = ()
+    settings: tuple = ()  # Choice/Number the editor shows as a card beside this capability's chip (see settings.py)
 
     def __post_init__(self):
         if not isinstance(self.id, str) or not ID_RE.match(self.id):
@@ -100,6 +105,7 @@ class Capability:
         set_('phrasings', _strings(who, 'phrasings', self.phrasings, at_least=2))
         set_('related', _strings(who, 'related', self.related))
         set_('api', _strings(who, 'api', self.api, at_least=1))
+        set_('settings', check_settings(who, self.settings))
         for r in self.related:
             if not ID_RE.match(r):
                 raise ValueError(f'{who}: related id {r!r} is not kebab-case')
