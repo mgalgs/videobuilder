@@ -19,7 +19,7 @@ def _blots(box, p, seeds, seed, wobble):
     rnd = random.Random(f'ink:{seed}')
     diag = math.hypot(box.w, box.h)
     reach = max(box.w / seeds * 0.5, box.h * 0.3)  # a blot's own size before the final soak
-    finish = vb.ease_in_out_quart(vb.clamp01((p - 0.6) / 0.4)) * diag * 0.6
+    finish = vb.ease_in_out_quart(vb.clamp01((p - 0.7) / 0.3)) * diag * 0.35
     out = []
     for i in range(seeds):
         # spread the seeds along the line, jittered, so every part gets a source
@@ -93,7 +93,7 @@ def draw(n, cv):
     f = demo.font(190, 900)
     text = 'INKWELL'
     w, h = vb.text.block_size([text], f)
-    box = draw_ink_spread(cv, text, f, (demo.W - w) / 2, (demo.H - h) / 2, demo.phase(n, 0.3, 2.5),
+    box = draw_ink_spread(cv, text, f, (demo.W - w) / 2, (demo.H - h) / 2, demo.phase(n, 0.2, 2.9),
                           demo.INK, seeds=7, seed=3)
     cv.mark('text', *box)
 
