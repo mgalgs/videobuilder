@@ -48,5 +48,5 @@ CAPABILITY = Capability(
     related=('wipe-reveal', 'paint-brush-wipe', 'area-fill-sweep', 'roll-up', 'ribbon-sweep',
              'fill-sweep-button'),
     api=('videobuilder.capabilities.transitions.linear_wipe.linear_wipe',),
-    demo=lambda: demo.two_scenes(linear_wipe),
+    demo=lambda: demo.two_scenes(linear_wipe, start=1.3, length=1.5),  # mid-wipe at the 2.1 s poster
 )
