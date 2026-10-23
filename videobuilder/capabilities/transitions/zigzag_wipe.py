@@ -73,5 +73,6 @@ CAPABILITY = Capability(
     related=('zig-zag-distortion', 'paint-brush-wipe', 'wipe-reveal', 'ribbon-sweep', 'accordion-fold',
              'smoke-dissolve'),
     api=('videobuilder.capabilities.transitions.zigzag_wipe.zigzag_wipe',),
-    demo=lambda: demo.two_scenes(lambda cv, a, b, p: zigzag_wipe(cv, a, b, p, edge_color=demo.ACCENT)),
+    demo=lambda: demo.two_scenes(lambda cv, a, b, p: zigzag_wipe(cv, a, b, p, edge_color=demo.ACCENT),
+                                 start=1.4, length=1.4),  # mid-wipe at the 70% poster frame
 )
