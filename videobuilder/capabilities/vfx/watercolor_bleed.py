@@ -66,6 +66,13 @@ def _warp(im, amount, cell, p, seed):
     return im.transform((w, h), Image.MESH, mesh, Image.BILINEAR)
 
 
+def _band(im, width):
+    """An L mask of the colour borders in `im`, thickened to about `width` px."""
+    e = im.filter(ImageFilter.FIND_EDGES).convert('L').point(lambda v: 255 if v > 6 else 0)
+    size = min(15, max(3, 2 * round(width / 2) + 1))
+    return e.filter(ImageFilter.MaxFilter(size))
+
+
 def bleed_image(im, p, reach=36.0, pool=0.55, seed=0):
     """`im` (a PIL RGB image) with its colours bled at progress `p` (0 -> 1).
     Edges spread by up to about `reach` px (in `im`'s pixels), fastest at
@@ -77,23 +84,31 @@ def bleed_image(im, p, reach=36.0, pool=0.55, seed=0):
     if p <= 0:
         return im.copy()
     w, h = im.size
-    soak = p ** 0.7  # like paint soaking into paper: quicker at first, slowing as it goes
+    soak = p ** 0.8  # like paint soaking into paper: quicker at first, still creeping at the end
     r = reach * soak
-    # Ragged fronts: the picture is pushed about at two scales before it softens.
-    out = _warp(im, r * 0.45, max(4.0, reach * 1.6), p, seed)
-    out = _warp(out, r * 0.18, max(3.0, reach * 0.45), p, seed + 1)
-    # Soft spread, further where the paper is wetter.
-    near = out.filter(ImageFilter.GaussianBlur(r * 0.25))
-    far = out.filter(ImageFilter.GaussianBlur(r * 0.65))
-    out = Image.composite(far, near, _damp(w, h, seed))
-    # Pigment pools at the fronts: where the picture differs from a wide blur
-    # of itself, its colour deepens (multiplied by itself, so bare paper stays pale).
+    damp = _damp(w, h, seed)
+
+    def fronts(layer):
+        # Ragged fronts: pushed about at three scales, so borders wander and fray.
+        layer = _warp(layer, r * 0.5, max(4.0, reach * 1.1), p, seed)
+        layer = _warp(layer, r * 0.25, max(3.0, reach * 0.5), p, seed + 1)
+        return _warp(layer, r * 0.12, max(3.0, reach * 0.2), p, seed + 2)
+
+    out = fronts(im)
+    # A little soft spread, a lot more where the paper is wetter: blotchy, not evenly blurred.
+    near = out.filter(ImageFilter.GaussianBlur(r * 0.15))
+    far = out.filter(ImageFilter.GaussianBlur(r * 0.4))
+    out = Image.composite(far, near, damp.point(lambda v: min(255, max(0, round((v - 70) * 1.6)))))
+    # Pigment pools along every border of the original picture, carried by the
+    # same fronts, thicker and darker in wet patches; it keeps gathering as the
+    # paint dries. Multiplied by itself, so the colour deepens rather than greys.
     if pool > 0:
-        wide = out.filter(ImageFilter.GaussianBlur(r * 1.2 + 1))
-        edge = ImageChops.difference(out, wide).convert('L')
-        k = pool * min(1.0, p * 3)
+        band = fronts(_band(im, max(2.0, r * 0.18)).convert('RGB')).convert('L')
+        band = band.filter(ImageFilter.GaussianBlur(max(0.8, r * 0.09)))
+        band = ImageChops.multiply(band, damp.point(lambda v: 90 + round(v * 165 / 255)))
+        k = min(1.0, pool * 1.6) * soak
         out = Image.composite(ImageChops.multiply(out, out), out,
-                              edge.point([min(255, round(v * 4 * k)) for v in range(256)]))
+                              band.point([min(255, round(v * k)) for v in range(256)]))
     return out
 
 
@@ -166,7 +181,7 @@ def _painting(cv):
 
 def draw(n, cv):
     cv.shadow(*SHEET, dy=10, blur=30, color=(0, 0, 0, 0.5))
-    watercolor_bleed(cv, _painting, demo.phase(n, 0.4, 2.7), box=SHEET, reach=30, seed=3)
+    watercolor_bleed(cv, _painting, demo.phase(n, 0.3, 2.8), box=SHEET, reach=30, seed=3)
     cv.mark('painting', *SHEET)
 
 
