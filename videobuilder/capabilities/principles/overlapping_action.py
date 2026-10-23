@@ -19,10 +19,13 @@ def overlapping_action(t, i, parts, lag=0.06, hz=1.6, lead=1.0, tail=0.3):
 
 
 def draw(n, cv):
-    parts, start = 5, 0.35
+    # Across and back: the return lands at ~2.1 s, so the poster frame catches the card
+    # stopped with the tassel still swinging past it, and the clip loops back to its start.
+    parts, out, back = 5, 0.3, 1.6
     x0, x1, top = demo.W / 2 - 230, demo.W / 2 + 230, 130
-    t = n / demo.FPS - start
-    xs = [x0 + (x1 - x0) * overlapping_action(t, i, parts) for i in range(parts)]
+    s = n / demo.FPS
+    a, b, t = (x0, x1, s - out) if s < back else (x1, x0, s - back)
+    xs = [a + (b - a) * overlapping_action(t, i, parts) for i in range(parts)]
     # Part 0 is the card; parts 1.. hang below it as a tassel, each bob a step further down the chain.
     pts = [(xs[0], top + 55)] + [(xs[i], top + 55 + 62 * i) for i in range(1, parts)]
     for (ax, ay), (bx, by) in zip(pts, pts[1:]):
