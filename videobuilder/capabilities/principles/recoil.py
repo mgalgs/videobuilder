@@ -22,7 +22,8 @@ def recoil(t, kick=0.08, ratio=0.55, hz=2.2):
     return 1 - vb.spring(t - kick, **vb.damped(ratio, hz))
 
 
-SHOTS = (0.6, 1.8)            # seconds the gun fires
+SHOTS = (0.6, 1.95)           # seconds the gun fires
+FLASH = 0.22                  # s the muzzle flash lasts
 BACK = 110                    # px it is pushed back at the furthest
 REST_X, Y, GROUND = demo.W / 2 - 260, demo.H / 2, demo.H / 2 + 95
 
@@ -45,12 +46,13 @@ def draw(n, cv):
     muzzle = REST_X + 170
     for s in SHOTS:
         k = t - s
-        if 0 <= k < 0.12:                       # muzzle flash: short rays off the barrel
-            a = 1 - k / 0.12
-            for ang in (-0.6, 0, 0.6):
-                r0, r1 = 26, 26 + 60 * a
+        if 0 <= k < FLASH:                      # muzzle flash: bold rays bursting off the barrel
+            a = 1 - k / FLASH
+            demo.dot(cv, muzzle + 14, Y, 22 + 14 * a, color=demo.TEAL, alpha=a)
+            for ang in (-0.9, -0.45, 0, 0.45, 0.9):
+                r0, r1 = 30, 30 + (90 if ang == 0 else 65) * (0.4 + 0.6 * a)
                 cv.line(muzzle + r0 * math.cos(ang), Y + r0 * math.sin(ang),
-                        muzzle + r1 * math.cos(ang), Y + r1 * math.sin(ang), demo.INK, width=5, alpha=a)
+                        muzzle + r1 * math.cos(ang), Y + r1 * math.sin(ang), demo.TEAL, width=10, alpha=a)
         if 0 <= k < 1.0:                        # the round, flying off to the right
             px = muzzle + 30 + 2200 * k
             if px < demo.W + 40:
