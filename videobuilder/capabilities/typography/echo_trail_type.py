@@ -39,16 +39,19 @@ def draw_echo_trail(cv, text, font, at, t, color, echo=None, **kw):
 
 
 def _path(t):
-    # A swoop in from the left on a dying wave, coming to rest at centre by 2.2 s.
-    p = vb.ease_in_out_quart(vb.clamp01((t - 0.3) / 1.9))
-    x = demo.W * (0.26 + 0.24 * p)
+    # A swoop in from the left on a dying wave, coming to rest at centre by 2.9 s.
+    # Smoothstep, not a steep ease, so the word is still travelling briskly at
+    # 2.1 s and its echoes are spread out along the path rather than stacked.
+    u = vb.clamp01((t - 0.5) / 2.4)
+    p = u * u * (3 - 2 * u)
+    x = demo.W * (0.22 + 0.28 * p)
     y = demo.H / 2 - 260 * math.sin(p * 2 * math.pi) * (1 - p)
     return x, y
 
 
 def draw(n, cv):
     box = draw_echo_trail(cv, 'ECHO', demo.font(150, 900), _path, n / demo.FPS, demo.INK, echo=demo.ACCENT,
-                          copies=6, lag=0.08)
+                          copies=6, lag=0.1)
     cv.mark('text', *box)
 
 
