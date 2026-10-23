@@ -30,7 +30,7 @@ def envelope(n, start, length, ramp=8):
 
 
 FIG = vb.Stick(height=250, ink=demo.INK, fill=demo.ACCENT, fps=demo.FPS)
-GAIT = dict(period=0.75, stride=1.5)
+GAIT = dict(period=0.7, stride=1.5)   # 21-frame steps: the poster frame (63) lands on a full stride
 
 
 def draw(n, cv):
@@ -38,8 +38,8 @@ def draw(n, cv):
     demo.floor(cv, ground)
     travel = FIG.speed('walk', **GAIT) * (demo.SECONDS * demo.FPS - 1)
     step = FIG.gait(n, 'walk', **GAIT)                                        # the primary action: a walk
-    wave = envelope(n, 0.9 * demo.FPS, 1.3 * demo.FPS)                        # the secondary: a wave, mid-walk
-    hello = vb.stick.Pose(front_arm=100, front_elbow=32 + 24 * math.sin(2 * math.pi * n / 12))   # hand up, waggling
+    wave = envelope(n, 0.8 * demo.FPS, 1.9 * demo.FPS)                        # the secondary: a wave, mid-walk
+    hello = vb.stick.Pose(front_arm=72, front_elbow=60 + 15 * math.cos(2 * math.pi * n / 12))    # forearm up, waggling clear of the head
     pose = secondary_action(step.pose, hello, wave)
     FIG.draw(cv, pose, (demo.W - travel) / 2 + step.x, ground - step.lift, face='happy', mark='figure')
 
@@ -49,7 +49,7 @@ CAPABILITY = Capability(
     name='Secondary Action',
     family='principles',
     group='Disney principles',
-    aliases=('secondary motion', 'supporting action'),
+    aliases=('secondary gesture', 'supporting action'),
     definition='A smaller movement layered over the main one, such as a wave while walking, '
                'that adds personality without stopping or competing with the main movement.',
     phrasings=('have the character wave while it keeps walking',
