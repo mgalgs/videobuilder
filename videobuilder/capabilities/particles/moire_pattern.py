@@ -59,12 +59,18 @@ def moire_pattern(cv, x, y, w, h, shift=(0.0, 0.0), twist=0.0, kind='rings', pit
     return vb.Box(x, y, w, h)
 
 
+def _sine(x):
+    return 0.5 - 0.5 * math.cos(math.pi * x)
+
+
 def draw(n, cv):
     # The second ring set slides out from dead centre, then circles round: the fringes open
-    # from nothing into a fan of bands and then wheel about the frame.
-    out = vb.ease_in_out_quart(demo.phase(n, 0.2, 1.4))
-    turn = vb.ease_in_out_quart(demo.phase(n, 1.4, 3.0)) * math.pi
-    d = 70 * out
+    # from nothing into a fan of bands and then wheel about the frame. Gentle eases, a short
+    # reach and a half-turn keep the moving set under ~3 px a frame (a quarter of the pitch),
+    # so the bands glide instead of strobing.
+    out = _sine(demo.phase(n, 0.1, 1.4))
+    turn = _sine(demo.phase(n, 0.6, 2.9)) * math.pi
+    d = 40 * out
     shift = (d * math.cos(turn), d * math.sin(turn) * 0.8)
     moire_pattern(cv, 0, 0, demo.W, demo.H, shift=shift, kind='rings', pitch=13, width=5.5)
     cv.mark('pattern', 0, 0, demo.W, demo.H)
