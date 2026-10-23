@@ -62,15 +62,16 @@ def draw(n, cv):
     w, h = vb.text.block_size([text], f)
     x, y = (demo.W - w) / 2, (demo.H - h) / 2
     t = n / demo.FPS
-    if t < 1.9:  # hovered: roll into the accent
-        box = draw_roll(cv, text, f, x, y, demo.phase(n, 0.75, 1.55), demo.INK, demo.ACCENT)
-    else:        # left: roll back to ink
-        box = draw_roll(cv, text, f, x, y, demo.phase(n, 1.95, 2.75), demo.ACCENT, demo.INK)
+    # timed so the gallery poster (2.1 s) lands mid roll-back, letters caught in their slots
+    if t < 1.65:  # hovered: roll into the accent
+        box = draw_roll(cv, text, f, x, y, demo.phase(n, 0.6, 1.35), demo.INK, demo.ACCENT)
+    else:         # left: roll back to ink
+        box = draw_roll(cv, text, f, x, y, demo.phase(n, 1.7, 2.5), demo.ACCENT, demo.INK)
     cv.mark('text', *box)
     # the pointer glides onto the word's end, rests, then drifts away
     rest = (x + w - 40, y + h * 0.6)
-    arrive = vb.ease_out_expo(demo.phase(n, 0.1, 0.75))
-    leave = vb.ease_in_expo(demo.phase(n, 1.7, 2.1))
+    arrive = vb.ease_out_expo(demo.phase(n, 0.1, 0.6))
+    leave = vb.ease_in_expo(demo.phase(n, 1.35, 1.7))
     cx = rest[0] + 260 * (1 - arrive) + 220 * leave
     cy = rest[1] + 180 * (1 - arrive) + 200 * leave
     _cursor(cv, cx, cy)
