@@ -177,13 +177,19 @@ def draw_pile(cv, sizes, poses, colors, radius=6, alpha=1.0):
 
 COLORS = (demo.ACCENT, demo.TEAL, '#f2b632', '#7c83f2')
 FLOOR = demo.H - 110
-COUNT = 16
+COUNT = 10
+LANES, LANE_GAP = 4, 130
 
 
 def _setup():
+    """Ten boxes dropped 0.06 s apart, hopping between four lanes so no box
+    waits on the one before it: the last lands by about 1.2 s and the heap is
+    still from about 1.75 s, holding for the rest of the clip."""
     rnd = random.Random(7)
     sizes = tuple((s, s) for s in (rnd.uniform(36, 52) for _ in range(COUNT)))
-    drops = tuple((0.05 + 0.12 * i, demo.W / 2 + rnd.uniform(-110, 110)) for i in range(COUNT))
+    lanes = [(i * (LANES // 2 + 1)) % LANES for i in range(COUNT)]
+    drops = tuple((0.05 + 0.06 * i, demo.W / 2 + (lane - (LANES - 1) / 2) * LANE_GAP + rnd.uniform(-25, 25))
+                  for i, lane in enumerate(lanes))
     return sizes, drops
 
 
