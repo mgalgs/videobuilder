@@ -15,14 +15,16 @@ from ..schema import Capability
 def held(n, every=2, seed=None, boil=0.0):
     """Stop-motion timing for frame `n`: `(frame, dx, dy, turn)`. `frame` is
     `n` held for `every` frames (on twos by default), so sample all motion at
-    it. With a `seed`, `dx, dy` (px, up to `boil`) and `turn` (radians) are a
-    small hand-placement wobble, re-drawn once per held frame, to add to a
-    piece's own placement; otherwise they are 0."""
+    it. With a `seed`, `dx, dy` (px, up to `boil`) and `turn` (radians, up to
+    0.2 degrees per px of `boil`) are a small hand-placement wobble, re-drawn
+    once per held frame, to add to a piece's own placement; otherwise they
+    are 0. Keep `boil` near 1: the turn moves a big figure's edges by its
+    size times the angle, so a larger one reads as shaking, not handmade."""
     f = n - n % every
     if seed is None or not boil:
         return f, 0.0, 0.0, 0.0
     r = random.Random(f'{seed}:{f}')
-    return f, r.uniform(-boil, boil), r.uniform(-boil, boil), math.radians(r.uniform(-0.8, 0.8) * boil)
+    return f, r.uniform(-boil, boil), r.uniform(-boil, boil), math.radians(r.uniform(-0.2, 0.2) * boil)
 
 
 def paper_piece(cv, points, color, x=0.0, y=0.0, angle=0.0, lift=6.0, grain=0.45, seed=0,
@@ -114,7 +116,7 @@ def draw(n, cv):
     cv.ctx.set_operator(cairo.OPERATOR_SOFT_LIGHT)
     cv.ctx.paint_with_alpha(0.25)
     cv.ctx.set_operator(cairo.OPERATOR_OVER)
-    f, jx, jy, jr = held(n, 2, seed='bird', boil=2.0)
+    f, jx, jy, jr = held(n, 2, seed='bird', boil=1.0)
     t = f / demo.FPS
     x = demo.W * 0.27 + (demo.W * 0.5) * t / demo.SECONDS
     hop = abs(math.sin(math.pi * t * 1.6))
