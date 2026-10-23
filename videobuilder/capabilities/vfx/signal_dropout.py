@@ -53,9 +53,11 @@ def signal_dropout(cv, draw, amount, x=0, y=0, w=None, h=None, tail=0.35, **kw):
 
 
 def _envelope(t):
-    """Two brief flickers, a heavier burst, then a clean hold."""
-    bursts = ((0.45, 0.10, 0.35), (1.0, 0.13, 0.5), (1.4, 0.65, 1.0))
-    return max((peak if start <= t < start + length else 0.0) for start, length, peak in bursts)
+    """Two light flicks, then a cluster of heavier ones, each a few frames
+    long, the last one held over the gallery poster at 2.1 s; then clean."""
+    n = round(t * demo.FPS)
+    bursts = ((13, 2, 0.35), (30, 3, 0.5), (43, 2, 0.75), (52, 3, 0.6), (61, 4, 1.0))
+    return max((peak if start <= n < start + length else 0.0) for start, length, peak in bursts)
 
 
 def draw(n, cv):
@@ -64,7 +66,7 @@ def draw(n, cv):
     def picture(c):
         c.image(img, *vb.Box.of(c).cover(img.w, img.h))
 
-    signal_dropout(cv, picture, _envelope(n / demo.FPS), seed=7, step=n)
+    signal_dropout(cv, picture, _envelope(n / demo.FPS), seed=7, step=n // 2)
 
 
 CAPABILITY = Capability(
