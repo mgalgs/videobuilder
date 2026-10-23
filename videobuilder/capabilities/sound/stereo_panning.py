@@ -3,8 +3,9 @@ the thing making it across the screen. `stereo_pan(sound, position)` turns one
 placed sound (a `vb.sfx` sound, or any `vb.Sound`) into a few overlapping
 pieces, each held at its own left/right balance and crossfaded into the next,
 so the balance glides with `position(frame)`: -1 hard left, 0 centre, 1 hard
-right. The demo sends a dot across the frame on a long whoosh, the two
-speakers' meters trading level as it passes.
+right. The demo sends a dot across the frame on a steady rush of air that
+sounds for the whole crossing, the two speakers' meters trading level as it
+passes and going dark when it stops.
 
 The mixer has no pan control of its own: it writes each sound's gain into the
 sound's ffmpeg chain as `volume=<gain_db>dB`, so a piece's gain here is a
@@ -17,6 +18,7 @@ import math
 
 import videobuilder as vb
 
+from ...render import PREMIX_OVER
 from .. import _demo as demo
 from ..schema import Capability
 
@@ -74,11 +76,52 @@ def stereo_pan(sound, position, fps=30, pieces=12):
     return tuple(out)
 
 
-# ---- the demo: a dot crosses the frame, its whoosh following it speaker to speaker ----
+# ---- the demo: a dot crosses the frame, its rush of air following it speaker to speaker ----
 START, END = 0.6, 2.6            # seconds: the dot's crossing
 EDGE = 200                       # how far in from each side it starts and stops
 TRACK_Y = 215
 SPEAKER_Y = 370
+# the sound: full from START to END, a short ramp either side (frames)
+FADE_IN, FADE_OUT = 5, 7
+FIRST = round(START * demo.FPS) - FADE_IN
+LAST = round(END * demo.FPS) + FADE_OUT
+JOIN = 5                         # crossfade between loops of the stretch; no longer than a pan step
+# (sound, take, from s, to s): a stretch of the pack that holds its level, here the steady air at
+# the start of a long riser, before it builds
+AIR = ('riser/air', '4s', 0.0, 1.6)
+
+
+def _stretch():
+    """The level stretch to loop: `AIR`, else (a cut-down pack) the longest
+    whoosh take from its onset to its end."""
+    if AIR[0] in vb.sfx.bank().effects:
+        id, variant, a, b = AIR
+        take = vb.sfx.get(id).take(variant)
+        return take, a, min(b, take.dur_s)
+    take = max((t for e in vb.sfx.find('whoosh') for t in e.lengths), key=lambda t: t.end_s - t.onset_s)
+    return take, take.onset_s, take.end_s
+
+
+def crossing_sound(first=FIRST, last=LAST, fps=demo.FPS, gain_db=-4.0):
+    """`vb.Sound`s sounding from film frame `first` to `last` without a gap:
+    the stretch from `_stretch` played from its start, looped with `JOIN`
+    frame crossfades when the crossing is longer than it."""
+    take, a, b = _stretch()
+    span = max(JOIN + 1, math.floor((b - a) * fps))
+    out, at = [], first
+    while at < last:
+        frames = min(span, last - at)
+        out.append(vb.Sound(take.path, at=at, start=a, frames=frames, gain_db=gain_db,
+                            fade_in_frames=FADE_IN if at == first else JOIN,
+                            fade_out_frames=FADE_OUT if at + frames >= last else JOIN, ducks=False))
+        at += frames - JOIN if at + frames < last else frames
+    return tuple(out)
+
+
+def loudness(frame):
+    """How loud the demo's sound is on `frame`, 0..1: nothing before `FIRST`
+    or after `LAST`, ramping in and out with the sound's own fades."""
+    return vb.clamp01(min((frame - FIRST) / FADE_IN, (LAST - frame) / FADE_OUT))
 
 
 def dot_x(frame):
@@ -109,14 +152,15 @@ def speaker(cv, cx, cy, side, level):
     demo.word(cv, side, cx, cy + 72, size=30, color=demo.INK)
     x0, w, y = cx - 55, 110, cy + 100
     cv.rect(x0, y, w, 10, demo.LINE, radius=5)
-    cv.rect(x0, y, max(10, w * level), 10, demo.ACCENT, radius=5)
+    if level > 0:   # dark while nothing plays
+        cv.rect(x0, y, max(10, w * level), 10, demo.ACCENT, radius=5)
     cv.mark(f'speaker {side}', cx - 55, cy - 45, 110, 155)
 
 
 def draw(n, cv):
     x = dot_x(n)
     left, right = pan_gains(balance(n))
-    loud = 0.4 + 0.6 * math.sin(math.pi * demo.phase(n, START - 0.1, END + 0.1))   # the whoosh swells and fades
+    loud = loudness(n)   # lit only while the sound plays
     cv.line(EDGE, TRACK_Y, demo.W - EDGE, TRACK_Y, demo.LINE, width=3)
     for i in range(1, 7):   # a short trail behind the dot
         demo.dot(cv, dot_x(n - 2 * i), TRACK_Y, 30 - 3 * i, alpha=0.18 - 0.025 * i)
@@ -129,9 +173,12 @@ def draw(n, cv):
 
 
 def film():
-    # a long pass-by whoosh, loudest as the dot crosses the middle, where it moves fastest
-    whoosh = vb.sfx.sound('whoosh_fast/tight', at=round((START + END) / 2 * demo.FPS), dur=2.0, gain_db=-4)
-    return demo.film(draw, sounds=stereo_pan(whoosh, balance, demo.FPS))
+    # a steady rush of air for the whole crossing, starting as the dot leaves the left stop; each
+    # loop of it split into as many pan steps as keep the film under PREMIX_OVER, which loses the balance
+    air = crossing_sound()
+    pieces = max(1, PREMIX_OVER // len(air) - 1)
+    sounds = tuple(p for piece in air for p in stereo_pan(piece, balance, demo.FPS, pieces=pieces))
+    return demo.film(draw, sounds=sounds)
 
 
 CAPABILITY = Capability(
@@ -148,6 +195,6 @@ CAPABILITY = Capability(
     related=('pan', 'turntable-rotation', 'spin', 'tilt', 'reverse-playback', 'look-around'),
     api=('videobuilder.capabilities.sound.stereo_panning.stereo_pan',
          'videobuilder.capabilities.sound.stereo_panning.pan_gains',
-         'videobuilder.sfx.sound'),
+         'videobuilder.sfx.get'),
     demo=film,
 )
