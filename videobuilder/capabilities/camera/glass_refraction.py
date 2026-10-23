@@ -21,12 +21,15 @@ def _offscreen(cv, scene):
     return surface_image(sub.surface)
 
 
-def _lens(im, cx, cy, r, strength, step):
+def _lens(im, cx, cy, r, strength, step, kmin=0.3):
     """The square of `im` around (cx, cy), side 2r, seen through a ball of
     radius `r`: an output point at offset d from the centre reads from
-    centre + d * (1 - strength * z), z the ball's surface height there
+    centre + d * k, k = 1 - strength * z, z the ball's surface height there
     (1 in the middle, 0 at the rim), so the rim joins the picture outside
-    seamlessly. `strength` above 1 flips the middle, like a ball lens."""
+    seamlessly. `strength` above 1 flips the middle, like a ball lens.
+    Where k nears 0 (the fold between the flipped core and the upright rim)
+    the magnification would run off to infinity and smear one pixel over a
+    wide band, so |k| is held at `kmin` or more there."""
     w, h = im.size
     side = max(2, math.ceil(2 * r))
     x0, y0 = cx - side / 2, cy - side / 2
@@ -35,6 +38,8 @@ def _lens(im, cx, cy, r, strength, step):
         dx, dy = x0 + u - cx, y0 + v - cy
         rho2 = (dx * dx + dy * dy) / (r * r)
         k = 1 - strength * math.sqrt(1 - rho2) if rho2 < 1 else 1.0
+        if abs(k) < kmin:
+            k = math.copysign(kmin, k)
         return min(max(cx + dx * k, 0), w - 1), min(max(cy + dy * k, 0), h - 1)
 
     cuts = list(range(0, side, step)) + [side]
@@ -46,7 +51,7 @@ def _lens(im, cx, cy, r, strength, step):
     return im.transform((side, side), Image.Transform.MESH, mesh, resample=Image.Resampling.BILINEAR), x0, y0
 
 
-def glass_refraction(cv, scene, cx, cy, radius, strength=1.7, tint=(0.82, 0.9, 1.0), gloss=True):
+def glass_refraction(cv, scene, cx, cy, radius, strength=2.0, tint=(0.82, 0.9, 1.0), gloss=True):
     """Draw `scene(cv)` with a glass ball of `radius` centred at (cx, cy)
     in front of it, refracting it.
 
@@ -76,6 +81,18 @@ def glass_refraction(cv, scene, cx, cy, radius, strength=1.7, tint=(0.82, 0.9, 1
     c.paint()
     c.set_source_rgba(*tint, 0.08)
     c.paint()
+    if strength > 1:
+        # the fold, where the flipped core meets the upright rim, jumps between
+        # mesh cells; a soft dark band hides that seam, as a real ball shows one
+        fold = r * math.sqrt(1 - 1 / (strength * strength))
+        w = max(2.5 * step, 0.05 * r) / r
+        f = fold / r
+        band = cairo.RadialGradient(dcx, dcy, 0, dcx, dcy, r)
+        band.add_color_stop_rgba(max(f - w, 0), 0, 0, 0, 0)
+        band.add_color_stop_rgba(f, 0, 0, 0, 0.6)
+        band.add_color_stop_rgba(min(f + w, 1), 0, 0, 0, 0)
+        c.set_source(band)
+        c.paint()
     if gloss:
         edge = cairo.RadialGradient(dcx, dcy, 0.55 * r, dcx, dcy, r)     # glass darkens toward its edge
         edge.add_color_stop_rgba(0, 0, 0, 0, 0)
@@ -110,7 +127,7 @@ BLUE, GOLD = '#7f86ff', '#f2b21b'
 
 def _backdrop(cv):
     """A dark grid with straight, bold things to bend: a vertical bar, a
-    floor line and a ring."""
+    floor line and a ring standing on the line."""
     cv.fill(demo.BG)
     for x in range(0, demo.W + 1, 60):
         cv.line(x, 0, x, demo.H, demo.LINE, width=1.5)
@@ -118,14 +135,14 @@ def _backdrop(cv):
         cv.line(0, y, demo.W, y, demo.LINE, width=1.5)
     cv.rect(300, 0, 34, demo.H, BLUE)
     cv.rect(0, 372, demo.W, 14, demo.INK)
-    cv.arc(600, 250, 92, 0, 2 * math.pi, GOLD, width=34)
+    cv.arc(560, 290, 92, 0, 2 * math.pi, GOLD, width=34)
 
 
 def _draw(n, cv):
     p = demo.phase(n, 0.2, 2.8)
     p = p * p * (3 - 2 * p)
-    x = 210 + 560 * p
-    y = 270 - 40 * math.sin(math.pi * p)
+    x = 317 + 463 * p                       # from the bar, through the ring's foot,
+    y = 379 - 24 * math.sin(math.pi * p)    # riding the floor line all the way
     glass_refraction(cv, _backdrop, x, y, 130)
 
 
