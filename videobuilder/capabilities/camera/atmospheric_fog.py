@@ -17,7 +17,9 @@ def fog_amount(depth, density, start=0.0):
     -> 1 (lost in the fog): exponential fog, `1 - exp(-density * d)` for the
     distance `d` past `start`. Double `density` and the same fog sits at half
     the distance."""
-    return 1 - math.exp(-max(0.0, density) * max(0.0, depth - start))
+    if density <= 0:
+        return 0.0
+    return 1 - math.exp(-density * max(0.0, depth - start))
 
 
 def fogged(color, fog_color, amount):
@@ -31,14 +33,23 @@ def fogged(color, fog_color, amount):
 
 
 def fog_gradient(x0, y0, x1, y1, color, fog_color, near, far, density, start=0.0, stops=6):
-    """A cairo linear gradient from (x0, y0) to (x1, y1) for a surface whose
-    depth runs from `near` to `far` along it, fogged at each of `stops`
-    points. Set it as the source to fill a receding face (a wall, the
-    ground) so its far end fades properly instead of in one flat tint."""
+    """A cairo linear gradient from (x0, y0) to (x1, y1) for a flat face whose
+    depth runs from `near` at (x0, y0) to `far` at (x1, y1), fogged at each of
+    `stops` points. Set it as the source to fill a receding face (a wall, the
+    ground) so its far end fades properly instead of in one flat tint.
+
+    The gradient is perspective-correct: on screen, a receding face's depth
+    goes as 1/z, not z, so it is 1/depth that runs evenly from end to end and
+    most of the length sits close to the camera. `far` may be `math.inf` for
+    a face that runs out to the horizon. Fog climbs steeply near the far end,
+    so give a long face (the ground) a dozen or more stops."""
     g = cairo.LinearGradient(x0, y0, x1, y1)
+    inv_near, inv_far = 1 / max(near, 1e-6), 1 / max(far, 1e-6)
     for i in range(stops):
         t = i / (stops - 1)
-        r, gr, b, a = fogged(color, fog_color, fog_amount(near + (far - near) * t, density, start))
+        inv = inv_near + (inv_far - inv_near) * t
+        depth = 1 / inv if inv > 0 else math.inf
+        r, gr, b, a = fogged(color, fog_color, fog_amount(depth, density, start))
         g.add_color_stop_rgba(t, r / 255, gr / 255, b / 255, a)
     return g
 
@@ -89,9 +100,10 @@ def draw(n, cv):
     c.rectangle(0, 0, demo.W, horizon)
     c.set_source(sky)
     c.fill()
-    # the ground recedes from the bottom edge (near) up to the horizon (far)
+    # the ground recedes from the bottom edge (near) up to the horizon (infinitely far): a row
+    # `y` below the horizon lies at depth FLOOR * FOCAL / (y - horizon)
     near = FLOOR * FOCAL / (demo.H - horizon)
-    ground = fog_gradient(0, demo.H, 0, horizon + 1, GROUND, FOG, near, 60, density, FOG_START, stops=12)
+    ground = fog_gradient(0, demo.H, 0, horizon, GROUND, FOG, near, math.inf, density, FOG_START, stops=32)
     c.rectangle(0, horizon, demo.W, demo.H - horizon)
     c.set_source(ground)
     c.fill()
