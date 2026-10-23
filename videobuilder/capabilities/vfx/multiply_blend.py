@@ -11,6 +11,8 @@ from ..schema import Capability
 
 PAPER = '#efece4'
 INKS = ('#29b6e8', '#e8409a', '#f5d327')   # cyan, magenta, yellow
+PANEL = (60, 120, 380, 300)                 # the photo: x, y, w, h, off to the left
+CX, CY, R = 560, 290, 120                   # where the trefoil settles, and each disc's radius
 
 
 def multiply_blend(cv, under, over, amount=1.0):
@@ -36,13 +38,11 @@ def multiply_blend(cv, under, over, amount=1.0):
 
 
 def _plate(cv):
-    """Light paper with the sample photo in a panel, so the ink shows both on
-    white (its own colour) and over the picture (the picture, darkened)."""
+    """Light paper with the sample photo in a panel to one side, so the ink
+    shows on white (its own colour, and the overlaps stacking) and, where one
+    disc crosses the panel, over the picture (the picture, darkened)."""
     cv.fill(PAPER)
-    img = demo.photo()
-    pw, ph = 520, 340
-    x, y = (demo.W - pw) / 2, (demo.H - ph) / 2
-    cv.image(img, x, y, pw, ph)
+    cv.image(demo.photo(), *PANEL)
 
 
 def _inks(t):
@@ -50,14 +50,14 @@ def _inks(t):
     gathering from the edges toward an overlapping trefoil at time `t` (s)."""
     gather = demo.phase(round(t * demo.FPS), 0.2, 2.2)
     gather = 1 - (1 - gather) ** 3
-    spread = 380 - 270 * gather
+    spread = 360 - 280 * gather
 
     def draw(cv):
         for i, color in enumerate(INKS):
             ang = -math.pi / 2 + i * 2 * math.pi / 3 + 0.6 * (1 - gather)
-            cx = demo.W / 2 + spread * 1.25 * math.cos(ang)
-            cy = demo.H / 2 + spread * math.sin(ang)
-            layer = lambda c, cx=cx, cy=cy, color=color: demo.dot(c, cx, cy, r=170, color=color)  # noqa: E731
+            cx = CX + spread * 1.25 * math.cos(ang)
+            cy = CY + spread * math.sin(ang)
+            layer = lambda c, cx=cx, cy=cy, color=color: demo.dot(c, cx, cy, r=R, color=color)  # noqa: E731
             # Each disc multiplies into the discs before it, so the overlaps go red, green, blue, then near black.
             multiply_blend(cv, lambda c: None, layer)
     return draw
