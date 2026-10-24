@@ -93,6 +93,7 @@ CAPABILITY = Capability(
              'bouncing-dots', 'letter-roll'),
     api=('videobuilder.capabilities.typography.hover_letter_displacement.draw_hover_letters',
          'videobuilder.capabilities.typography.hover_letter_displacement.influence',
-         'videobuilder.capabilities.typography.hover_letter_displacement.draw_pointer'),
+         'videobuilder.capabilities.typography.hover_letter_displacement.draw_pointer',
+         'videobuilder.capabilities.typography.spring_drag_letters.draw_spring_letters'),
     demo=lambda: demo.film(draw),
 )

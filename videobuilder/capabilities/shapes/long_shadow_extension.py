@@ -105,6 +105,7 @@ CAPABILITY = Capability(
              'extrusion'),
     api=('videobuilder.capabilities.shapes.long_shadow_extension.draw_long_shadow',
          'videobuilder.capabilities.shapes.long_shadow_extension.long_shadow_pieces',
-         'videobuilder.capabilities.shapes.long_shadow_extension.circle_points'),
+         'videobuilder.capabilities.shapes.long_shadow_extension.circle_points',
+         'videobuilder.capabilities.typography.long_shadow_growth.draw_long_shadow'),
     demo=lambda: demo.film(draw),
 )

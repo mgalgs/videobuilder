@@ -101,6 +101,7 @@ CAPABILITY = Capability(
     related=('displacement-map', 'slopegraph-reveal', 'wireframe-reveal', 'scrollytelling-step-sequence',
              'isolines-contour-animation', 'scroll-parallax-layers'),
     api=('videobuilder.capabilities.particles.wireframe_terrain.wireframe_terrain',
-         'videobuilder.capabilities.particles.wireframe_terrain.terrain_height'),
+         'videobuilder.capabilities.particles.wireframe_terrain.terrain_height',
+         'videobuilder.capabilities.particles.noise_terrain_flyover.draw_terrain'),
     demo=lambda: demo.film(draw),
 )

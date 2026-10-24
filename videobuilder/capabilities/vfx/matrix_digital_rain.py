@@ -92,6 +92,7 @@ CAPABILITY = Capability(
     related=('falling-glyph-rain-reveal', 'falling-letter-rain', 'rainfall', 'dot-matrix-text',
              'rain-on-glass', 'character-drop'),
     api=('videobuilder.capabilities.vfx.matrix_digital_rain.draw_digital_rain',
-         'videobuilder.capabilities.vfx.matrix_digital_rain.digital_rain'),
+         'videobuilder.capabilities.vfx.matrix_digital_rain.digital_rain',
+         'videobuilder.capabilities.typography.falling_glyph_rain_reveal.draw_glyph_rain'),
     demo=lambda: demo.film(draw),
 )

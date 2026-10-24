@@ -79,6 +79,8 @@ CAPABILITY = Capability(
     related=('rgb-channel-split', 'chromatic-dispersion', 'channel-shuffle', 'palette-shift-transition',
              'cross-processing', 'split-screen-transition'),
     api=('videobuilder.capabilities.transitions.rgb_split.rgb_split',
-         'videobuilder.capabilities.transitions.rgb_split.channel_split'),
+         'videobuilder.capabilities.transitions.rgb_split.channel_split',
+         'videobuilder.capabilities.typography.rgb_channel_split.draw_split_text',
+         'videobuilder.capabilities.typography.rgb_channel_split.glitch_offset'),
     demo=lambda: demo.two_scenes(rgb_split),
 )

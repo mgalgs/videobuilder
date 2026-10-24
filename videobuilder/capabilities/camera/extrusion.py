@@ -114,6 +114,7 @@ CAPABILITY = Capability(
              'isometric-bar-rise', 'polygon-subdivision'),
     api=('videobuilder.capabilities.camera.extrusion.draw_extrusion',
          'videobuilder.capabilities.camera.extrusion.project',
-         'videobuilder.capabilities.camera.extrusion.polygon'),
+         'videobuilder.capabilities.camera.extrusion.polygon',
+         'videobuilder.capabilities.typography.extrusion_depth_reveal.draw_extruded'),
     demo=lambda: demo.film(draw),
 )

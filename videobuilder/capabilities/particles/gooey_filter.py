@@ -49,6 +49,7 @@ CAPABILITY = Capability(
                'circles that pool together into one goopy blob and pull apart again',
                'that sticky lava-lamp look where bubbles fuse as they drift past each other'),
     related=('zoom-blur', 'gaussian-blur', 'spin-blur', 'ripple', 'refraction-ripple', 'blur-dissolve'),
-    api=('videobuilder.capabilities.typography.metaball_goo_text.goo',),
+    api=('videobuilder.capabilities.typography.metaball_goo_text.goo',
+         'videobuilder.capabilities.typography.metaball_goo_text.goo_text'),
     demo=lambda: demo.film(draw),
 )

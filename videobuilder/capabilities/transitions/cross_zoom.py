@@ -60,6 +60,8 @@ CAPABILITY = Capability(
                'punch in on this shot and pull back out on the new one'),
     related=('cross-dissolve', 'infinite-zoom-tunnel', 'image-crossfade-slideshow', 'canvas-pan-and-zoom',
              'scale-zoom-through', 'zoom-through-shape'),
-    api=('videobuilder.capabilities.transitions.cross_zoom.cross_zoom',),
+    api=('videobuilder.capabilities.transitions.cross_zoom.cross_zoom',
+         'videobuilder.capabilities.transitions.zoom_blur.zoom_blur',
+         'videobuilder.capabilities.transitions.zoom_through.zoom_through'),
     demo=lambda: demo.two_scenes(cross_zoom, start=1.4, length=1.0),
 )

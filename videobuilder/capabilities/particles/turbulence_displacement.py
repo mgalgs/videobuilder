@@ -116,6 +116,7 @@ CAPABILITY = Capability(
              'swirl'),
     api=('videobuilder.capabilities.particles.turbulence_displacement.displace',
          'videobuilder.capabilities.particles.turbulence_displacement.turbulence',
-         'videobuilder.capabilities.particles.turbulence_displacement.value_noise'),
+         'videobuilder.capabilities.particles.turbulence_displacement.value_noise',
+         'videobuilder.capabilities.typography.noise_field_warp.noise_warp'),
     demo=lambda: demo.film(draw),
 )

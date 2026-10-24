@@ -42,6 +42,8 @@ CAPABILITY = Capability(
                'a gentle swelling loop on something that is just sitting there'),
     related=('empty-state-idle-loop', 'moving-hold', 'interruptible-motion', 'focus-breathing', 'scale-pulse',
              'delay'),
-    api=('videobuilder.capabilities.principles.breathing_idle.breathing_idle', 'videobuilder.Puppet.breath'),
+    api=('videobuilder.capabilities.principles.breathing_idle.breathing_idle', 'videobuilder.Puppet.breath',
+         'videobuilder.capabilities.typography.scale_pulse.pulse_scale',
+         'videobuilder.capabilities.typography.scale_pulse.draw_scale_pulse'),
     demo=lambda: demo.film(draw),
 )

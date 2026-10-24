@@ -121,6 +121,7 @@ CAPABILITY = Capability(
     related=('pixel-sort-text', 'pixelation', 'pixelate-transition', 'nearest-neighbor-upscale',
              'pixelation-reveal', 'pixel-build'),
     api=('videobuilder.capabilities.vfx.pixel_sorting.pixel_sorted',
-         'videobuilder.capabilities.vfx.pixel_sorting.pixel_sort'),
+         'videobuilder.capabilities.vfx.pixel_sorting.pixel_sort',
+         'videobuilder.capabilities.typography.pixel_sort_text.draw_pixel_sort_text'),
     demo=lambda: demo.film(draw),
 )

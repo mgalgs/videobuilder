@@ -123,6 +123,7 @@ CAPABILITY = Capability(
     related=('twirl-warp-text', 'spin', 'animated-gradient-sweep', 'spiral-wipe', 'rotoscope-look',
              'globe-spin'),
     api=('videobuilder.capabilities.transitions.swirl.swirl',
-         'videobuilder.capabilities.transitions.swirl.twirl'),
+         'videobuilder.capabilities.transitions.swirl.twirl',
+         'videobuilder.capabilities.typography.twirl_warp_text.draw_twirl'),
     demo=lambda: demo.two_scenes(swirl, start=0.6, length=1.8),
 )

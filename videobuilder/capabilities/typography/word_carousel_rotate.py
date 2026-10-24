@@ -82,6 +82,7 @@ CAPABILITY = Capability(
     related=('word-flip-in', 'typed-word-rotator', 'carousel-slide', 'headline-rotator', 'twirl-warp-text',
              'character-slide-in'),
     api=('videobuilder.capabilities.typography.word_carousel_rotate.draw_carousel',
-         'videobuilder.capabilities.typography.word_carousel_rotate.carousel'),
+         'videobuilder.capabilities.typography.word_carousel_rotate.carousel',
+         'videobuilder.capabilities.broadcast.headline_rotator.draw_headline_rotator'),
     demo=lambda: demo.film(draw, SECONDS),
 )

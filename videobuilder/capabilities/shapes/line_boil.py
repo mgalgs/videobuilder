@@ -82,6 +82,7 @@ CAPABILITY = Capability(
     related=('jitter-and-boil-text', 'streamlines', 'stroke-draw-on', 'curl-noise-flow', 'line-weave',
              'ink-bleed'),
     api=('videobuilder.capabilities.shapes.line_boil.boil',
-         'videobuilder.capabilities.shapes.line_boil.draw_boil'),
+         'videobuilder.capabilities.shapes.line_boil.draw_boil',
+         'videobuilder.capabilities.typography.jitter_and_boil_text.draw_boil_text'),
     demo=lambda: demo.film(draw),
 )

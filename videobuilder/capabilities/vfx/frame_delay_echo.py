@@ -75,6 +75,7 @@ CAPABILITY = Capability(
     related=('echo-trail-type', 'delay', 'scatter-time-playback', 'linear-repeater-stagger', 'multiples',
              'smear-frame'),
     api=('videobuilder.capabilities.vfx.frame_delay_echo.frame_delay_echo',
-         'videobuilder.capabilities.typography.echo_trail_type.echo_trail'),
+         'videobuilder.capabilities.typography.echo_trail_type.echo_trail',
+         'videobuilder.capabilities.typography.echo_trail_type.draw_echo_trail'),
     demo=lambda: demo.film(draw),
 )

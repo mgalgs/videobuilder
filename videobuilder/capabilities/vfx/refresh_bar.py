@@ -97,6 +97,7 @@ CAPABILITY = Capability(
                'give the footage a hum bar that rolls vertically'),
     related=('vhs-tracking-bar', 'copper-bars', 'audio-waveform-bars', 'striped-progress-bar',
              'lower-third-slide-in-bar', 'indeterminate-bar'),
-    api=('videobuilder.capabilities.vfx.refresh_bar.refresh_bar',),
+    api=('videobuilder.capabilities.vfx.refresh_bar.refresh_bar',
+         'videobuilder.capabilities.vfx.screen_refresh_flicker.screen_refresh_flicker'),
     demo=lambda: demo.film(draw),
 )

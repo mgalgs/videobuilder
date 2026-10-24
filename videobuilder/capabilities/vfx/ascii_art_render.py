@@ -112,6 +112,8 @@ CAPABILITY = Capability(
     api=('videobuilder.capabilities.vfx.ascii_art_render.ascii_render',
          'videobuilder.capabilities.vfx.ascii_art_render.draw_ascii',
          'videobuilder.capabilities.vfx.ascii_art_render.luminance_grid',
-         'videobuilder.capabilities.typography.ascii_glyph_density_reveal.draw_density'),
+         'videobuilder.capabilities.typography.ascii_glyph_density_reveal.draw_density',
+         'videobuilder.capabilities.typography.ascii_glyph_density_reveal.density_frame',
+         'videobuilder.capabilities.typography.ascii_glyph_density_reveal.coverage_grid'),
     demo=lambda: demo.film(draw),
 )

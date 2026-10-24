@@ -85,6 +85,9 @@ CAPABILITY = Capability(
                'put a spotlight on that one item and dim the background'),
     related=('spotlight-hover', 'spotlight-follow', 'vignette', 'rim-light',
              'coachmark-spotlight-cutout', 'shine-glint-sweep'),
-    api=('videobuilder.capabilities.broadcast.spotlight_dim.spotlight_dim',),
+    api=('videobuilder.capabilities.broadcast.spotlight_dim.spotlight_dim',
+         'videobuilder.capabilities.shapes.callout_highlight.callout_highlight',
+         'videobuilder.capabilities.ui.coachmark_spotlight_cutout.tour_hole',
+         'videobuilder.capabilities.ui.coachmark_spotlight_cutout.coachmark_tip'),
     demo=lambda: demo.film(draw),
 )

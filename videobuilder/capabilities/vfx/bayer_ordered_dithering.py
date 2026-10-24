@@ -100,6 +100,7 @@ CAPABILITY = Capability(
              'nearest-neighbor-upscale'),
     api=('videobuilder.capabilities.vfx.bayer_ordered_dithering.bayer_dither',
          'videobuilder.capabilities.vfx.bayer_ordered_dithering.bayer_dither_image',
-         'videobuilder.capabilities.typography.dither_reveal.bayer'),
+         'videobuilder.capabilities.typography.dither_reveal.bayer',
+         'videobuilder.capabilities.typography.dither_reveal.dither_reveal'),
     demo=lambda: demo.film(draw),
 )
