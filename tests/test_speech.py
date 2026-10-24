@@ -80,6 +80,28 @@ class Script(unittest.TestCase):
         for s in ('1,863 eels', '1863.5 m', 'the 1860s', '$1863', '2024', '1099', '18630', '50%', '1863%'):
             self.assertEqual(speech.spoken_years(s), s)
 
+    def test_espeak_two_part_sounds_reach_the_voice_as_single_symbols(self):
+        for two, one in [('eɪ', 'A'), ('aɪ', 'I'), ('aʊ', 'W'), ('ɔɪ', 'Y'), ('oʊ', 'O'), ('əʊ', 'Q'),
+                         ('tʃ', 'ʧ'), ('dʒ', 'ʤ')]:
+            with self.subTest(two=two):
+                self.assertEqual(speech.phonemes_for(FakeEngine(), [('text', f'k{two}n')], 'en-us'), f'k{one}n')
+
+    def test_typed_phonemes_get_single_symbols_too(self):
+        self.assertEqual(speech.phonemes_for(FakeEngine(), [('phonemes', 'fɹˈɔɪd')], 'en-us'), 'fɹˈYd')
+        lexicon = speech.spoken_parts('Freud.', {'Freud': '/fɹˈɔɪd/'})
+        self.assertEqual(speech.phonemes_for(FakeEngine(), lexicon, 'en-us'), 'fɹˈYd.')
+
+    def test_single_symbols_and_plain_phonemes_are_left_alone(self):
+        for ph in ('fɹˈYd', 'lˈuːmən', 'ðə vˈɔːɹtɛks'):
+            with self.subTest(ph=ph):
+                self.assertEqual(speech.phonemes_for(FakeEngine(), [('phonemes', ph)], 'en-us'), ph)
+
+    def test_phonemes_mode_prints_what_the_voice_gets(self):
+        out = io.StringIO()
+        with mock.patch.object(speech, 'Kokoro', lambda *a: FakeEngine()), contextlib.redirect_stdout(out):
+            cli.main(['say', '--text', '[Freud](/fɹˈɔɪd/) and boy.', '--phonemes'])
+        self.assertEqual(out.getvalue(), '[Freud](/fɹˈɔɪd/) and boy.\n    /fɹˈYd and boy./\n')
+
     def test_years_only_in_english_text_not_phonemes(self):
         parts = [('text', 'In 1863 '), ('phonemes', '1863')]
         self.assertEqual(speech.phonemes_for(FakeEngine(), parts, 'en-gb'), 'in eighteen sixty-three 1863')

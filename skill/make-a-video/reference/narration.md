@@ -56,14 +56,16 @@ remakes it anyway.
 - **Give the phonemes**, copied from `--phonemes` and edited: in the
   script, `[Lumen](/lˈuːmən/)` (Kokoro's own syntax: the word in brackets
   is captioned, the phonemes between the slashes are spoken), or
-  `--say Lumen=/lˈuːmən/`.
+  `--say Lumen=/lˈuːmən/`. IPA typed by hand or copied from a dictionary
+  is fine: the voice gets two-part sounds as Kokoro's single symbols
+  (`ɔɪ` as `Y`, `aɪ` as `I`, `tʃ` as `ʧ`...), as `--phonemes` shows.
 
 Put the flags you used in a comment at the top of the script, so the next
 run makes the same voice.
 
 A fix only counts if `--phonemes` shows it changed something: a respelling
 that prints the same phonemes as the word itself (Freud and Froyd both give
-`fɹˈɔɪd`) changes nothing in the audio. Years from 1100 to 1999 already read
+`fɹˈYd`) changes nothing in the audio. Years from 1100 to 1999 already read
 as years ("eighteen sixty-three"); write later ones as you want them said.
 
 ## Using it in the film

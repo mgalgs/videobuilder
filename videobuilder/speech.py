@@ -19,7 +19,8 @@ Pronunciation: `[Kokoro](/kəkˈɔːɹəʊ/)` in the script speaks the phonemes
 between the slashes and captions the word in brackets (Kokoro's own syntax);
 `--say Galgs=Gahlgz` or `--lexicon names.json` respell a word everywhere
 (a value in slashes is phonemes). `say --phonemes` prints how each phrase
-will be read, to copy from. In English, 1100-1999 is read as a year.
+will be read, to copy from. Two-part sounds reach the voice as Kokoro's
+single symbols (`ɔɪ` as `Y`, see `single_symbols`), typed or not. In English, 1100-1999 is read as a year.
 """
 import array
 import hashlib
@@ -255,13 +256,29 @@ def spoken_years(text):
     return _YEAR.sub(lambda m: year_words(int(m.group(1))), text)
 
 
+# Kokoro v1.0 was trained on one symbol for each of these two-part sounds,
+# but espeak (and IPA copied from a dictionary) writes them as two, which the
+# voice reads apart: "Freud" as "fried". A stress mark always comes before
+# the vowel, never between the parts, so a plain replace is enough.
+SINGLE_SYMBOLS = (('eɪ', 'A'), ('aɪ', 'I'), ('aʊ', 'W'), ('ɔɪ', 'Y'), ('oʊ', 'O'), ('əʊ', 'Q'),
+                  ('tʃ', 'ʧ'), ('dʒ', 'ʤ'))
+
+
+def single_symbols(phonemes):
+    """`phonemes` with each two-part sound as Kokoro's single symbol."""
+    for two, one in SINGLE_SYMBOLS:
+        phonemes = phonemes.replace(two, one)
+    return phonemes
+
+
 def phonemes_for(engine, parts, lang):
-    """One phoneme string for a phrase's spoken parts."""
+    """One phoneme string for a phrase's spoken parts, espeak's and the
+    writer's alike, with Kokoro's single symbols (see `single_symbols`)."""
     out = ''
     for kind, s in parts:
         if kind == 'text' and lang.startswith('en'):
             s = spoken_years(s)
-        p = s.strip() if kind == 'phonemes' else engine.phonemize(s, lang).strip()
+        p = single_symbols(s.strip() if kind == 'phonemes' else engine.phonemize(s, lang).strip())
         if p:
             out += p if not out or p[0] in '.,!?;:…' else ' ' + p
     return out
