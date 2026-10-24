@@ -318,6 +318,7 @@ async function loadPlayer(retry=false) {
   $('poster').src=poster;
   const v=currentVersion();
   $('building').hidden=true;
+  $('blank-cta').hidden=true;
   $('blank-details').hidden=true;
   $('render-status').classList.remove('calm');
   if(notBuilt(v)) {
@@ -394,9 +395,15 @@ function showBlank() {
   $('render-status').hidden=false;
   $('render-text').textContent=building
     ? 'The builder is making your first version. It plays here when it\'s ready.'
-    : 'Nothing built yet. Say what you want below and the builder makes the first version.';
+    : 'Nothing built yet.';
+  $('blank-cta').hidden=building;
   $('blank-details').hidden=building
 }
+$('blank-chat').onclick=()=> {
+  if(window.innerWidth<=700)openSheet('chat');
+  else setView('chat');
+  $('message').focus()
+};
 function playVersion(v,deliberate) {
   state.commit=v.commit;
   state.deliberate=deliberate;

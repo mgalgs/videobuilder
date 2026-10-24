@@ -591,6 +591,15 @@ button.danger:disabled {
   padding: 8px 16px;
 }
 
+.blank-cta {
+  margin: 10px 0 0;
+}
+
+.render-status .blank-cta button {
+  margin: 0 6px 0 0;
+  font-weight: 600;
+}
+
 .watch-controls {
   width: min(480px,100%);
   display: flex;
