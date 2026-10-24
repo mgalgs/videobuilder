@@ -6,7 +6,11 @@ The light here is traced, not painted: a grid of rays falls through a water
 surface made of a few travelling waves, each ray is tipped by the slope where
 it crosses, and where the rays land is counted. Where the surface focuses them
 the count spikes, and those spikes are the caustic lines. The waves tile the
-patch, so the pattern wraps at its edges without dark seams."""
+patch, so the pattern wraps at its edges without dark seams.
+
+The tracing itself runs on numpy (imported when a frame is drawn, so the
+registry loads without it): every ray is stepped together instead of one at
+a time."""
 import math
 from functools import lru_cache
 
@@ -24,43 +28,44 @@ WAVES = ((4, 1, 0.8, 1.6, 0.0), (-2, 3, 0.75, -1.3, 1.3), (3, -3, 0.65, 2.0, 2.1
          (-3, -4, 0.35, 1.9, 3.3))
 
 
+def _np():
+    import numpy
+    return numpy
+
+
 def caustic_light(t, gw, gh, strength=1.0, waves=WAVES, rays=2):
     """The caustic light on a `gw` x `gh` patch at time `t` seconds, as a flat
     row-major list of brightness (1 is the light's even level; the lines peak
     well above it). `strength` is how hard the surface bends the light: around
     1 gives a crisp net, lower a soft dapple, 0 an even glow. `rays` x `rays`
     rays are traced per cell; more is smoother and slower."""
+    np = _np()
     tau = 2 * math.pi
     nx, ny = gw * rays, gh * rays
-    terms = []
+    x, y = np.meshgrid(np.arange(nx, dtype=np.float64), np.arange(ny, dtype=np.float64))
+    dx = np.zeros((ny, nx))
+    dy = np.zeros((ny, nx))
     for m, n, a, w, ph in waves:
         kx, ky = tau * m / nx, tau * n / ny  # radians per ray
         k = math.hypot(kx, ky)
         reach = 0.8 * strength * a / (k * k * rays)  # landing offset in cells per unit slope: folds at a ~ 0.7
-        cols = [kx * x for x in range(nx)]
-        rows = [ky * y - w * t + ph for y in range(ny)]
-        terms.append(([math.cos(c) for c in cols], [math.sin(c) for c in cols],
-                      [math.cos(r) for r in rows], [math.sin(r) for r in rows], reach * kx, reach * ky))
-    acc = [0.0] * (gw * gh)
+        c = np.cos(kx * x + ky * y - w * t + ph)      # cos of the wave's phase here: its slope
+        dx += reach * kx * c
+        dy += reach * ky * c
+    px, py = (x + 0.5) / rays - 0.5 + dx, (y + 0.5) / rays - 0.5 + dy
+    ix, iy = np.floor(px), np.floor(py)
+    fx, fy = px - ix, py - iy
+    x0 = ix.astype(np.int64) % gw
+    x1 = (x0 + 1) % gw
+    y0 = iy.astype(np.int64) % gh
+    y1 = (y0 + 1) % gh
     share = 1 / (rays * rays)
-    for y in range(ny):
-        row_terms = [(cc, sc, cr[y], sr[y], ax, ay) for cc, sc, cr, sr, ax, ay in terms]
-        for x in range(nx):
-            dx = dy = 0.0
-            for cc, sc, cy, sy, ax, ay in row_terms:
-                c = cc[x] * cy - sc[x] * sy  # cos of the wave's phase here: its slope
-                dx += ax * c
-                dy += ay * c
-            px, py = (x + 0.5) / rays - 0.5 + dx, (y + 0.5) / rays - 0.5 + dy
-            ix, iy = math.floor(px), math.floor(py)
-            fx, fy = px - ix, py - iy
-            x0, x1 = ix % gw, (ix + 1) % gw
-            r0, r1 = (iy % gh) * gw, ((iy + 1) % gh) * gw
-            acc[r0 + x0] += (1 - fx) * (1 - fy) * share
-            acc[r0 + x1] += fx * (1 - fy) * share
-            acc[r1 + x0] += (1 - fx) * fy * share
-            acc[r1 + x1] += fx * fy * share
-    return acc
+    bins = gw * gh
+    acc = (np.bincount((y0 * gw + x0).ravel(), ((1 - fx) * (1 - fy) * share).ravel(), bins) +
+           np.bincount((y0 * gw + x1).ravel(), (fx * (1 - fy) * share).ravel(), bins) +
+           np.bincount((y1 * gw + x0).ravel(), ((1 - fx) * fy * share).ravel(), bins) +
+           np.bincount((y1 * gw + x1).ravel(), (fx * fy * share).ravel(), bins))
+    return acc.tolist()
 
 
 def caustic_image(t, gw=240, gh=135, strength=1.0, color=(220, 236, 255), floor=1.0, gain=0.4,
