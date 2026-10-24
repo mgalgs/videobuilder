@@ -9,6 +9,9 @@
    CAP_FAMILIES) is never written into the note: it becomes a chip instead,
    the same as typing #its-id would. */
 let noteCapabilityIds = () => [];
+// Restores picked (non-typed) chips after editPending puts a pending note's text back
+// into the box; its own #id chips reappear from the text once 'input' fires.
+let restorePickedCapIds = () => {};
 (() => {
 'use strict';
 if (!document.getElementById('message')) return;
@@ -550,6 +553,7 @@ async function openPicker(fam) {
 async function start() {
   if (!mount()) return;
   noteCapabilityIds = capChipIds;
+  restorePickedCapIds = ids => { pickedCapIds = [...new Set(ids || [])] };
   // Loaded eagerly (not only once the model/debounce asks for it): a typed #id becomes
   // a chip as soon as the catalog is in, whether or not the AI suggest model is on.
   loadCatalog().then(() => { indexCatalog(); renderCapChips() });

@@ -1409,9 +1409,10 @@ _PAGE_SCRIPT = """
     document.getElementById('modal-title').textContent = e.title;
     document.getElementById('modal-cat').textContent = e.members ?
       e.category + ' \u00b7 ' + e.members + ' ' + e.plural : (e.family ? e.category + ' \u00b7 ' + e.kindTitle : e.category);
-    // A family's own lead card (e.members set) is a navigation card, not one #id
-    // chips can name: no slug to copy there, only on an actual capability's card.
-    copyId = e.members ? null : id;
+    // A family's own lead card (e.members set) is a navigation card, and a community
+    // card's id (the registry doesn't know "community:<slug>") isn't one #id chips
+    // can name either: no slug to copy there, only on an actual registry capability's card.
+    copyId = (e.members || id.indexOf('community:') === 0) ? null : id;
     idEl.hidden = !copyId;
     if(copyId){ idCode.textContent = '#' + copyId; copyBtn.textContent = 'Copy' }
     document.getElementById('modal-desc').textContent = e.description;

@@ -2114,6 +2114,9 @@ function editPending(i) {
   renderPending();
   $('message').value=item.text;
   fitMessage();
+  if(typeof restorePickedCapIds==='function')restorePickedCapIds(item.capabilities);
+  // A suggestion layer (suggest.js) listens for 'input' to redraw chips for the restored text.
+  $('message').dispatchEvent(new Event('input',{bubbles:true}));
   state.files=item.attachments;
   renderFiles();
   state.stamp=item.time!=null;
@@ -2611,11 +2614,14 @@ async function sendNow() {
   const time=state.stamp?player.currentTime||0:null;
   try {
     const attachments=await uploadFiles([...state.files]);
+    const capabilities=typeof noteCapabilityIds==='function'?noteCapabilityIds():[];
     await postNote({
-      video:state.video,format:state.format,...noteScope(),...batchBody([{text,time,attachments}])
+      video:state.video,format:state.format,...noteScope(),...batchBody([{text,time,attachments,capabilities}])
     });
     $('message').value='';
     fitMessage();
+    // A suggestion layer (suggest.js) listens for 'input' to know the note was cleared.
+    $('message').dispatchEvent(new Event('input',{bubbles:true}));
     state.files=[];
     renderFiles();
     showError('');
