@@ -628,6 +628,7 @@ class Editor:
         self.sources = Sources(self, _resolved_positive(source_max_mb, cfg, 'source_max_mb', 2048) * 1048576,
                                _resolved_positive(source_max_total_mb, cfg, 'source_max_total_mb', 8192) * 1048576)
         self.notes.sources = self.sources
+        self.notes.music = self.music
         self.voice_samples = voice_samples if voice_samples is not None else VoiceSamples(self.state_dir)
         # `artbox`, a shared client, is library mode's; `artbox_url` is single-project mode's (see `music`).
         if artbox is None and artbox_url:
@@ -895,7 +896,7 @@ class Editor:
             png = s.request('frame', frame=frame, format=fmt, scale=NOTE_SCALE) if frame is not None else None
         text = body.get('text')
         context = dict(time=timestamp, attachments=attachments, clip=clip,
-                       capabilities=_note_capabilities(body),
+                       capabilities=_note_capabilities(body), **_note_assets(body, self.music),
                        beat=frame / tl['frames_per_beat'] if tl and frame is not None else None)
         links, skipped = _note_links(text if isinstance(text, str) else '', body.get('links'))
         # A link to one of this library's own videos is resolved locally (see
@@ -976,6 +977,7 @@ class Editor:
         # What Film details already set, so the first build follows it (see film_setup).
         extra = film_setup.note_lines(film_setup.read_details(Path(self.project.video(vid).path).parent))
         note_capabilities = _note_capabilities(body)
+        note_assets = _note_assets(body, self.music)
         s = self.session(vid)
         info = s.request('info')
         if 'frames' not in info:
@@ -988,7 +990,7 @@ class Editor:
             try:
                 return self.notes.add(vid, fmt, None, None, _first_brief(description, attachments, [], [], extra),
                                       None, author=author, attachments=attachments, capabilities=note_capabilities,
-                                      refs=refs, **said)
+                                      refs=refs, **note_assets, **said)
             except ValueError as e:
                 raise HTTPError(400, str(e)) from None
 
@@ -997,7 +999,7 @@ class Editor:
                                           capabilities=note_capabilities,
                                           gather={'description': description, 'links': links, 'extra': extra,
                                                   'skipped': skipped},
-                                          refs=refs, **said)
+                                          refs=refs, **note_assets, **said)
         self._start_gather(note)
         return note
 
@@ -1148,6 +1150,39 @@ def _note_capabilities(body):
         raise HTTPError(400, 'capabilities must be a list of strings or {id, settings} objects')
     return [{'id': c['id'], 'settings': c['values']} if c['values'] else c['id']
             for c in capabilities.resolve_requested(raw)]
+
+
+def _note_assets(body, music):
+    """A note's `fonts`/`sfx`/`music` fields -- ids a font, sound-effect or
+    music chip named (suggest.js: picked only, these are never typed) --
+    re-checked against the real catalog (fonts.ids(), the sfx pack, `music`'s
+    configured sources), the same way `_note_capabilities` re-checks a
+    capability: an unknown or repeated id is dropped silently, the client's
+    list never trusted blind. Each field must be a list of strings, else 400."""
+    from . import fonts as fonts_module
+    from . import sfx as sfx_module
+    out = {}
+    for key in ('fonts', 'sfx', 'music'):
+        raw = body.get(key, [])
+        if not isinstance(raw, list) or not all(isinstance(x, str) for x in raw):
+            raise HTTPError(400, f'{key} must be a list of string ids')
+        out[key] = list(dict.fromkeys(raw))
+    out['fonts'] = [i for i in out['fonts'] if i in fonts_module.ids()]
+    try:
+        sfx_ids = {e.id for e in sfx_module.bank().find()}
+    except sfx_module.SfxUnavailable:
+        sfx_ids = set()
+    out['sfx'] = [i for i in out['sfx'] if i in sfx_ids]
+    music_ids = set()
+    if music:
+        for source in music.list_sources():
+            try:
+                _, tracks = music.list_tracks(source['id'])
+            except Exception:
+                continue
+            music_ids.update(t['id'] for t in tracks)
+    out['music'] = [i for i in out['music'] if i in music_ids]
+    return out
 
 
 def _note_links(text, explicit):

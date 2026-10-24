@@ -266,6 +266,7 @@ class NoteStore:
         self.context = context or (lambda video: {})
         self.before_submit, self.on_reply, self.attachments = before_submit, on_reply, attachments
         self.sources = None  # set by Editor.__init__ once editor.sources exists
+        self.music = None  # set by Editor.__init__ once editor.music exists; a MusicLibrary or None
         # compendium_for_builder is the [editor] kill switch for the bake-off (see
         # prompt._compendium_lines); compendium_votes, when set, is a zero-arg callable
         # returning {id: "up"|"down"} (see CompendiumVotes.current).
@@ -508,7 +509,8 @@ class NoteStore:
             compendium = bool(compendium_source(payload)) if compendium_source else False
             votes = self.compendium_votes() if compendium and self.compendium_votes else None
             path.write_text(prompt.render(note, payload, image, compendium=compendium, votes=votes,
-                                          sources=sources, community=staged_community, film=film, refs=staged_refs),
+                                          sources=sources, community=staged_community, film=film, refs=staged_refs,
+                                          music=self.music),
                             encoding='utf-8')
             payload['note_file'] = str(path)
             note['handle'] = self.backend.submit(payload)
@@ -593,7 +595,7 @@ class NoteStore:
             self.save_session(video, state)
             png = self.image(nid) if note.get('frame') is not None else None
             context = {k: note[k] for k in ('time', 'beat', 'attachments', 'no_questions', 'clip', 'said',
-                                            'capabilities', 'refs') if k in note}
+                                            'capabilities', 'refs', 'fonts', 'sfx', 'music') if k in note}
             new = self.add(video, note['format'], note['frame'], note['segment'], note['text'], png,
                            author=author or note.get('author'), retried_from=nid, **context)
             note['retried'] = new['id']
@@ -628,7 +630,8 @@ class NoteStore:
                 if note.get('said'):
                     said = {'said': '\n\n'.join([note['said'], *qa])}
             png = self.image(nid) if note.get('frame') is not None else None
-            context = {k: note[k] for k in ('time', 'beat', 'attachments', 'clip', 'capabilities', 'refs') if k in note}
+            context = {k: note[k] for k in ('time', 'beat', 'attachments', 'clip', 'capabilities', 'refs',
+                                            'fonts', 'sfx', 'music') if k in note}
             new = self.add(video, note['format'], note['frame'], note['segment'], text, png,
                            author=author or note.get('author'), answered_from=nid, no_questions=True, **context,
                            **said)
