@@ -1,0 +1,40 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Settings card: narration</title>
+<link rel="stylesheet" href="/settings_card.css">
+<style>
+  body { background: #0e0e12; color: #e8e8ec; font: 14px/1.4 -apple-system, sans-serif; padding: 24px; max-width: 480px; }
+  h1 { font-size: 16px; }
+  #card { margin: 16px 0; }
+  pre { background: #1c1c22; padding: 10px; border-radius: 8px; overflow: auto; }
+</style>
+</head>
+<body>
+<h1 id="title">Narration settings</h1>
+<p>Fetched live from <code>/api/suggest/catalog</code>: this is the real declaration narration carries, rendered by
+  <code>settings_card.js</code>. Picking a voice or dragging speed updates the values below.</p>
+<div id="card"></div>
+<pre id="values">loading…</pre>
+<script src="/settings_card.js"></script>
+<script>
+(async () => {
+  const r = await fetch('api/suggest/catalog');
+  const data = await r.json();
+  const narration = data.capabilities.find(c => c.id === 'narration' || c.id === 'voiceover');
+  const out = document.getElementById('values');
+  if (!narration || !narration.settings) {
+    out.textContent = 'no narration settings found in the catalog';
+    return;
+  }
+  document.getElementById('title').textContent = narration.title + ' settings';
+  let values = {};
+  for (const s of narration.settings) values[s.id] = s.default;
+  const show = () => { out.textContent = JSON.stringify(values, null, 2) };
+  show();
+  window.SettingsCard.render(document.getElementById('card'), narration.settings, values, v => { values = v; show() });
+})();
+</script>
+</body>
+</html>

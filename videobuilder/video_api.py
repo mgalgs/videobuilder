@@ -550,7 +550,8 @@ _OLD_URL_SEGMENT = 'tech' + 'niques'
 GET_ROUTES = [
     ('/healthz', _get_healthz),
     (('/', '/index.html'), _get_index),
-    (('/tuning.html', '/director.js', '/director.css', '/suggest.js', '/suggest.css'), _get_static),
+    (('/tuning.html', '/director.js', '/director.css', '/suggest.js', '/suggest.css',
+     '/settings_card.js', '/settings_card.css', '/settings_card_test.html'), _get_static),
     ('/api/versions', _get_versions),
     ('/api/video', _get_video),
     ('/api/clip', _get_clip),
