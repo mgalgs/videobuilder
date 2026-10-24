@@ -1,12 +1,18 @@
-"""Elastic Horizontal Squash: each letter of a word goes wide and flat, then
-narrow and tall, its width and height always trading against each other like
-a rubber block, in a wave along the word that wobbles out and settles."""
+"""Elastic Horizontal Squash: letters trading height for width on springs,
+the same as Rubber letters (`type_rubber.py`, which keeps the capability
+-- its own alias "rubber letters" is that Type style's own title): each
+letter of a word goes wide and flat, then narrow and tall, its width and
+height always trading against each other like a rubber block, in a wave
+along the word that wobbles out and settles. This module's own code stays
+(a film may still import it), but it is no longer a capability of its
+own."""
 import math
 
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Capability
+
+MERGED_INTO = 'type-rubber'
 
 
 def squash(t, amp=0.45, hz=2.2, decay=2.6):
@@ -66,23 +72,3 @@ def draw(n, cv):
         t %= KICK_EVERY  # kick again each time the wave has nearly settled
     box = draw_squash(cv, text, f, x, y, t, demo.INK, tracking=tracking, amp=0.32, decay=1.8)
     cv.mark('text', *box)
-
-
-CAPABILITY = Capability(
-    id='elastic-horizontal-squash',
-    name='Elastic horizontal squash',
-    family='typography',
-    group='Stretch and squash',
-    aliases=('letter squash and stretch', 'elastic type', 'rubber letters'),
-    definition='Letters bulge wide and flat, then pull narrow and tall, height always trading against '
-               'width, in a springy wave that wobbles along the word and settles.',
-    phrasings=('make the letters squish sideways and spring back like rubber',
-               'the word stretches wide and snaps back with a jiggle',
-               'each letter wobbles fat then thin, like jelly'),
-    related=('squash-and-stretch', 'squash-on-tap', 'elastic-stretch', 'rubber-band-overscroll',
-             'rubber-band-snap', 'elastic-ease-out'),
-    api=('videobuilder.capabilities.typography.elastic_horizontal_squash.draw_squash',
-         'videobuilder.capabilities.typography.elastic_horizontal_squash.squash',
-         'videobuilder.capabilities.typography.elastic_horizontal_squash.squash_scale'),
-    demo=lambda: demo.film(draw),
-)

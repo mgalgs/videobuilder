@@ -1,6 +1,10 @@
-"""Collage assembly: paper cut-outs -- a sheet, a scrap of colour, a photo, a
-strip of tape -- arrive one after another, each sliding in lifted off the
-page and pressing down onto the pile until the collage is complete."""
+"""Collage assembly: the slide-in-and-press build order Paper collage
+(`../vfx/paper_collage.py`, which keeps the capability) uses: paper
+cut-outs -- a sheet, a scrap of colour, a photo, a strip of tape -- arrive
+one after another, each sliding in lifted off the page and pressing down
+onto the pile until the collage is complete. This module's own code stays
+(a film may still import it), but it is no longer a capability of its
+own."""
 import math
 import random
 from dataclasses import dataclass
@@ -10,7 +14,8 @@ import cairo
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Capability
+
+MERGED_INTO = 'paper-collage'
 
 
 @dataclass(frozen=True)
@@ -155,25 +160,3 @@ PIECES = (
 def draw(n, cv):
     draw_collage(cv, PIECES, demo.phase(n, 0.2, 2.5))
     cv.mark('collage', CX - 260, CY - 230, 520, 460)
-
-
-CAPABILITY = Capability(
-    id='collage-assembly',
-    name='Collage assembly',
-    family='shapes',
-    group='Cut-out & paper',
-    aliases=('cut-and-paste collage', 'scrapbook layering', 'layered cut-outs'),
-    definition='Paper cut-outs of shapes, colour and pictures slide in one after another and press down '
-               'on top of each other until they make a finished collage.',
-    phrasings=('build the picture up out of paper scraps one at a time',
-               'pieces fly in and stack up like a scrapbook page',
-               'make it look like a cut-and-paste collage putting itself together'),
-    related=('shape-assemble-from-fragments', 'shape-stacking-drop', 'crumple', 'particle-text-formation',
-             'voxel-build', 'isometric-assembly'),
-    api=('videobuilder.capabilities.shapes.collage_assembly.draw_collage',
-         'videobuilder.capabilities.shapes.collage_assembly.Piece',
-         'videobuilder.capabilities.shapes.collage_assembly.draw_piece',
-         'videobuilder.capabilities.shapes.collage_assembly.arrival',
-         'videobuilder.capabilities.shapes.collage_assembly.cut'),
-    demo=lambda: demo.film(draw),
-)

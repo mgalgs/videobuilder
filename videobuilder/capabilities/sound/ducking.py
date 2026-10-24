@@ -1,15 +1,20 @@
-"""Ducking: videobuilder already has it as `vb.Audio(..., duck_db=-12)`, the
-music dipping by that much while any `vb.Sound` that ducks it plays (speech,
-a voice-over) and coming back up after, with its sound effects dipping along
-with it. So this entry only names it and demos it: a steady bed of chimes and
-a voice-like chatter of clicks over the middle second, and the bed's level
-line sinking under it and rising again."""
+"""Ducking: the point of Footage with its own sound (`footage_with_sound.py`,
+which keeps the capability) is that the music dips under the clip's
+speech, which is ducking: videobuilder already has it as `vb.Audio(...,
+duck_db=-12)`, the music dipping by that much while any `vb.Sound` that
+ducks it plays (speech, a voice-over) and coming back up after, with its
+sound effects dipping along with it. So this entry only names it and
+demos it: a steady bed of chimes and a voice-like chatter of clicks over
+the middle second, and the bed's level line sinking under it and rising
+again. This module's own code stays (a film may still import it), but it
+is no longer a capability of its own."""
 import math
 
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Capability
+
+MERGED_INTO = 'footage-with-sound'
 
 DUCK_DB = -16
 FG_START, FG_FRAMES = 27, 42                 # the foreground: frames 27..69 (0.9 s to 2.3 s)
@@ -92,20 +97,3 @@ def film():
     voice = tuple(vb.Sound(click, at=FG_START + k, start=0.0, frames=end - FG_START - k, gain_db=0,
                            fade_in_frames=0, fade_out_frames=RELEASE) for k in CHATTER)
     return demo.film(draw, audio=bed, sounds=dings + voice)
-
-
-CAPABILITY = Capability(
-    id='ducking',
-    name='Ducking',
-    family='sound',
-    group='Mixing & editing',
-    aliases=('audio ducking', 'sidechain ducking', 'music ducking', 'dip the music', 'auto-duck'),
-    definition='The background music drops to a lower level whenever a voice or other foreground sound plays, '
-               'then swells back up as soon as it stops.',
-    phrasings=('turn the music down while the narrator talks',
-               'make the music dip under the voice-over',
-               'lower the soundtrack when someone speaks and bring it back after'),
-    related=('reverse-playback', 'silence-drop', 'music-bed', 'tape-wobble', 'mickey-mousing', 'reverse-cymbal'),
-    api=('videobuilder.Audio', 'videobuilder.Sound'),
-    demo=film,
-)

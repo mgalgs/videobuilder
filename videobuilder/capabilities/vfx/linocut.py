@@ -1,8 +1,12 @@
-"""Linocut: the picture cut to two inks -- solid black and bare paper --
-with the mid-tones carved out of the black as rough horizontal gouge
-strokes (more of them where the picture is lighter), the outline of every
-shape cut as a line in the opposite ink, and ragged edges everywhere. The
-gouges boil on twos, so a held picture still reads as a hand-pulled print.
+"""Linocut: the same idea as Woodblock filter (`look_filter_woodblock.py`),
+which keeps the capability -- both restyle any picture as a carved
+black-and-paper block print: the picture cut to two inks -- solid black
+and bare paper -- with the mid-tones carved out of the black as rough
+horizontal gouge strokes (more of them where the picture is lighter), the
+outline of every shape cut as a line in the opposite ink, and ragged
+edges everywhere. The gouges boil on twos, so a held picture still reads
+as a hand-pulled print. This module's own code stays (a film may still
+import it), but it is no longer a capability of its own.
 
 `LINOCUT` is a filter look (see `looks/fx`), applied with `linocut(cv, t)`
 around whatever the film draws; the demo reveals the cut frame across the
@@ -16,7 +20,8 @@ import videobuilder as vb
 
 from ...looks.fx import Filter, apply, boil, edges, grow, luma, noise, shrink, threshold, work_factor
 from .. import _demo as demo
-from ..schema import Capability
+
+MERGED_INTO = 'look-filter-woodblock'
 
 INK = '#16141a'
 PAPER = '#efe9dc'
@@ -86,23 +91,3 @@ def draw(n, cv):
             pass
     if 0 < edge < demo.W:
         cv.rect(edge - 3, 0, 6, demo.H, demo.ACCENT)
-
-
-CAPABILITY = Capability(
-    id='linocut',
-    name='Linocut',
-    family='vfx',
-    group='Painterly & sketch',
-    aliases=('woodcut', 'block print', 'relief print'),
-    definition='The picture is turned into a stark black-and-paper print whose shapes look gouged out by hand, '
-               'with rough carved strokes standing in for the in-between tones.',
-    phrasings=('make the footage look like a carved lino print',
-               'turn the photo into a black and white woodcut',
-               'give it that hand-cut block print look with rough gouge marks'),
-    related=('hard-cut', 'cut-out-paper-animation', 'emboss', 'unsharp-mask', 'underline-swash-draw',
-             'gooch-shading'),
-    api=('videobuilder.capabilities.vfx.linocut.linocut',
-         'videobuilder.capabilities.vfx.linocut.treat',
-         'videobuilder.capabilities.vfx.linocut.LINOCUT'),
-    demo=lambda: demo.film(draw),
-)

@@ -1,6 +1,9 @@
-"""Cut-out paper animation: a figure made of flat paper pieces, each with a
-thin cast shadow, hinged at its joints and moved in held steps, as if
-re-posed by hand between exposures on a table."""
+"""Cut-out paper animation: the jerky hand-moved stepping Paper collage
+(`../vfx/paper_collage.py`, which keeps the capability) uses: a figure
+made of flat paper pieces, each with a thin cast shadow, hinged at its
+joints and moved in held steps, as if re-posed by hand between exposures
+on a table. This module's own code stays (a film may still import it),
+but it is no longer a capability of its own."""
 import math
 import random
 
@@ -9,7 +12,8 @@ import cairo
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Capability
+
+MERGED_INTO = 'paper-collage'
 
 
 def held(n, every=2, seed=None, boil=0.0, moving=1.0):
@@ -142,22 +146,3 @@ def draw(n, cv):
     cv.shape_shadow([(x + px, floor + py) for px, py in SPOT], blur=30, color=(0, 0, 0, 0.55 - 0.2 * hop))
     bird(cv, x + jx, y + jy, wing, jr - 0.06 + 0.1 * math.cos(math.pi * t * 1.6), 8 + 4 * hop)
     cv.mark('bird', x - 210, y - 200, 330, 270)
-
-
-CAPABILITY = Capability(
-    id='cut-out-paper-animation',
-    name='Cut-out paper animation',
-    family='shapes',
-    group='Cut-out & paper',
-    aliases=('paper cutout', 'cut paper', 'paper collage', 'layered paper', 'silhouette cut animation'),
-    definition='A figure built from flat, hinged pieces of coloured paper, each casting a thin shadow, '
-               'is re-posed in small jerky steps like a hand-moved model shot frame by frame; '
-               'at rest it drifts slowly instead of jittering.',
-    phrasings=('animate it like paper cut-outs being moved around on a table',
-               'make the character out of construction paper pieces that move in stop-motion',
-               'a handmade, papercraft look where flat shapes jerk from pose to pose'),
-    related=('crumple', 'morph-cut', 'cut-on-action', 'smash-cut', 'origami-fold', 'strobe-cut'),
-    api=('videobuilder.capabilities.shapes.cut_out_paper_animation.paper_piece',
-         'videobuilder.capabilities.shapes.cut_out_paper_animation.held'),
-    demo=lambda: demo.film(draw, seconds=5.0),
-)

@@ -9,6 +9,7 @@ CAPABILITY = Capability(
     group='Characters & rigs',
     category='Motion',
     order=7,
+    aliases=('lip sync shapes', 'mouth chart'),
     definition='A character snaps between drawn poses on the beat, old-cartoon style.',
     description=('The limited-animation trick from old cartoons and anime: a character holds a drawn pose, '
                  'snaps to the next on a beat with a quick two- or three-frame pop and a few speed lines, '
@@ -28,7 +29,11 @@ CAPABILITY = Capability(
          "pose, age = FOX.pose_at(n, [(0, 'idle'), (15, 'talk'), (19, 'idle'), (45, 'point')])  # holds",
          'age 0-2: a squash, overshoot, settle pop on the snap',
          'FOX.draw(cv, pose, x, ground_y, sx=, sy=)',
-         'FOX.breath(n, period)  # under every hold'),
+         'FOX.breath(n, period)  # under every hold',
+         'videobuilder.capabilities.shapes.blink_and_mouth_shape_swap.draw_face(cv, cx, cy, r)'
+         '  # a code-drawn face, for when there are no uploaded poses',
+         'videobuilder.capabilities.shapes.blink_and_mouth_shape_swap.blinking(t, at=)',
+         'videobuilder.capabilities.shapes.blink_and_mouth_shape_swap.mouth_at(t, shapes)'),
     doc='skill/make-a-video/reference/api.md',
     demo=Example('examples/capabilities/pose-swaps.py'),
 )

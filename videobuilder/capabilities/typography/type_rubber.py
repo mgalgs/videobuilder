@@ -8,6 +8,7 @@ CAPABILITY = Capability(
     name='Rubber letters',
     family='typography',
     group='Type styles',
+    aliases=('letter squash and stretch', 'elastic type'),
     definition='Bouncy letters that squash, stretch and settle on springs.',
     description=('Each letter drops onto its line and its spring carries it on: where the spring '
                  'overshoots, the letter squashes flat and wide against the line; where it swings back, it '
@@ -17,7 +18,9 @@ CAPABILITY = Capability(
     phrasings=('Make the slogan bounce in, letters on springs',
                'Give the title a squishy, jelly bounce',
                'Have the letters drop in and wobble'),
-    api=("vb.type.draw(cv, 'rubber', props, t)",),
+    api=("vb.type.draw(cv, 'rubber', props, t)",
+         'videobuilder.capabilities.typography.elastic_horizontal_squash.squash(t)',
+         'videobuilder.capabilities.typography.elastic_horizontal_squash.squash_scale(s)'),
     doc='skill/make-a-video/reference/type.md',
     demo=Example('examples/capabilities/type-rubber.py'),
     source=Source('https://x.com/Mike_Andreuzza/status/2112064951925854535', '@Mike_Andreuzza'),

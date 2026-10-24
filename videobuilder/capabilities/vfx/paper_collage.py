@@ -23,7 +23,12 @@ CAPABILITY = Capability(
     api=('paths.torn(outline, seed, amount=5)  # a torn edge, baked once at import',
          'cv.shape_shadow(points, dx=.., dy=.., blur=..)  # a lift shadow that follows the shape',
          'vb.paper_grain(w, h, seed)  # with cairo.OPERATOR_SOFT_LIGHT',
-         'stepped_n = n - n % 2  # paper held on twos'),
+         'stepped_n = n - n % 2  # paper held on twos',
+         'videobuilder.capabilities.shapes.collage_assembly.draw_collage(cv, pieces, p)'
+         '  # the slide-in-and-press build order',
+         'videobuilder.capabilities.shapes.cut_out_paper_animation.paper_piece(cv, points, color)'
+         '  # the jerky hand-moved stepping',
+         'videobuilder.capabilities.shapes.cut_out_paper_animation.held(n)'),
     doc='skill/make-a-video/reference/api.md',
     demo=Example('examples/capabilities/paper-collage.py'),
     poster=78,  # mid-rip, flaps curling back

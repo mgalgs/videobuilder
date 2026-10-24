@@ -1,13 +1,18 @@
-"""Blink and mouth shape swap: a simple face comes alive by replacing whole
-drawings outright -- open eyes for shut ones for a few frames, and one mouth
-shape for the next -- with no in-between, the way cut-out and limited
-animation fakes blinking and talking."""
+"""Blink and mouth shape swap: the same limited-animation trick as Pose
+swaps (`pose_swaps.py`, which keeps the capability) -- cutting between
+held mouth and eye drawings to talk and blink, with no tweening. A simple
+face comes alive by replacing whole drawings outright -- open eyes for
+shut ones for a few frames, and one mouth shape for the next -- with no
+in-between, the way cut-out and limited animation fakes blinking and
+talking. This module's own code stays (a film may still import it), but
+it is no longer a capability of its own."""
 import math
 
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Capability
+
+MERGED_INTO = 'pose-swaps'
 
 MOUTHS = ('rest', 'smile', 'o', 'open', 'wide')
 
@@ -78,23 +83,3 @@ def draw(n, cv):
     cv.mark('face', *box)
     demo.word(cv, f'eyes {"shut" if shut else "open"}  ·  mouth {mouth}', demo.W / 2, demo.H / 2 + 175,
               size=22, color=demo.MUTED, font=demo.mono(22, 500))
-
-
-CAPABILITY = Capability(
-    id='blink-and-mouth-shape-swap',
-    name='Blink and mouth shape swap',
-    family='shapes',
-    group='Characters & rigs',
-    aliases=('facial expression swap', 'lip sync shapes', 'eye blink cycle', 'mouth chart'),
-    definition='A character face blinks and talks by cutting straight between separate drawings of its eyes '
-               'and mouth, with no tweening between them.',
-    phrasings=('make the cartoon face blink and look like it is talking',
-               'swap the mouth shapes so the character lip-syncs',
-               'a simple face whose eyes close now and then while its mouth flaps'),
-    related=('icon-state-morph', 'glyph-cycling', 'letter-morph', 'julia-set-morph', 'emoji-substitution',
-             'text-to-shape-morph'),
-    api=('videobuilder.capabilities.shapes.blink_and_mouth_shape_swap.draw_face',
-         'videobuilder.capabilities.shapes.blink_and_mouth_shape_swap.blinking',
-         'videobuilder.capabilities.shapes.blink_and_mouth_shape_swap.mouth_at'),
-    demo=lambda: demo.film(draw),
-)

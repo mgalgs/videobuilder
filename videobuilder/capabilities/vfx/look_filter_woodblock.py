@@ -8,6 +8,7 @@ CAPABILITY = Capability(
     name='Woodblock filter',
     family='vfx',
     group='Filter looks',
+    aliases=('woodcut', 'block print', 'relief print'),
     definition='Any picture as a woodblock print, its paper boiling on twos.',
     description=('Restyles whatever the video draws into a few flat inks -- indigo, Prussian blue, '
                  'vermilion, ochre, sage -- on cream paper, every strong edge inked in a thick line. The '
@@ -16,7 +17,9 @@ CAPABILITY = Capability(
     phrasings=('Make this photo look like an old Japanese woodblock print',
                'Flat colours and thick ink lines on paper, for the whole video',
                'Make the screen recording look hand-printed'),
-    api=("with looks.filter(cv, 'woodblock', t): draw_as_usual(n, cv)",),
+    api=("with looks.filter(cv, 'woodblock', t): draw_as_usual(n, cv)",
+         'videobuilder.capabilities.vfx.linocut.linocut(cv, t)  # the LINOCUT treat helper',
+         'videobuilder.capabilities.vfx.linocut.treat(im, t, age, u)'),
     doc='skill/make-a-video/reference/looks.md',
     demo=Example('examples/capabilities/look-filter-woodblock.py'),
 )

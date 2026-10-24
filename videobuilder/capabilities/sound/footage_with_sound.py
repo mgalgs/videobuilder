@@ -10,6 +10,7 @@ CAPABILITY = Capability(
     group='Mixing & editing',
     category='Timing, sound and formats',
     order=2,
+    aliases=('audio ducking', 'sidechain ducking', 'dip the music'),
     definition='A clip plays with its sound while the music dips under it.',
     description=('A speaker clip cuts in and plays with its own sound, mixed with the music bed: the music '
                  'dips under the speech while the clip plays and comes back up when it ends, and the whole '
