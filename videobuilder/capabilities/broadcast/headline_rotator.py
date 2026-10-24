@@ -1,9 +1,14 @@
-"""Headline rotator: one fixed headline slot on a banner steps through a list
-of headlines, the current one sliding out of the slot as the next slides in."""
+"""Headline rotator: the same slot swap as Word carousel rotate
+(`../typography/word_carousel_rotate.py`, which keeps the capability) -- a
+banner preset of it: one fixed headline slot on a banner steps through a
+list of headlines, the current one sliding out of the slot as the next
+slides in. This module's own code stays (a film may still import it), but
+it is no longer a capability of its own."""
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Capability
+
+MERGED_INTO = 'word-carousel-rotate'
 
 DIRECTIONS = {'up': (0, -1), 'down': (0, 1), 'left': (-1, 0), 'right': (1, 0)}
 
@@ -60,22 +65,3 @@ def draw(n, cv):
     cv.mark('slot', *slot)
     for i in range(len(HEADLINES)):  # which headline of the set is up
         cv.rect(bx + 40 + i * 34, by + bh - 22, 26, 4, demo.ACCENT if i == showing else demo.LINE, radius=2)
-
-
-CAPABILITY = Capability(
-    id='headline-rotator',
-    name='Headline rotator',
-    family='broadcast',
-    group='Tickers & banners',
-    aliases=('chyron rotation', 'headline cycle', 'rotating headlines'),
-    definition='A banner keeps one headline slot and swaps its text in turn, each headline sliding '
-               'out of the slot while the next slides in behind it.',
-    phrasings=('a news banner that flips between a few headlines',
-               'cycle the top stories through one lower-third line',
-               'make the breaking news bar rotate through several headlines'),
-    related=('word-carousel-rotate', 'typed-word-rotator', 'turntable-rotation', 'character-rotate-in',
-             'word-flip-in', 'spin'),
-    api=('videobuilder.capabilities.broadcast.headline_rotator.draw_headline_rotator',
-         'videobuilder.capabilities.broadcast.headline_rotator.rotation'),
-    demo=lambda: demo.film(draw),
-)

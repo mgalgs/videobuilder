@@ -112,7 +112,7 @@ CAPABILITY = Capability(
     name='Map route draw',
     family='shapes',
     group='Explainer & infographic',
-    aliases=('route animation', 'travel path animation', 'journey line', 'flight path map'),
+    aliases=('route animation', 'travel path animation', 'journey line', 'flight path map', 'route arc'),
     definition='A line traces a journey across a map, growing from one stop to the next with a marker '
                'at its tip while each place is pinned as the line arrives.',
     phrasings=('show our trip being drawn on the map city by city',

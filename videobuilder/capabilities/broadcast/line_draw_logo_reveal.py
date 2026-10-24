@@ -1,6 +1,11 @@
-"""Line-draw logo reveal: a thin line traces every contour of a logo mark,
-pen tip leading, and once the outlines have closed the mark floods with its
-solid colour -- holes left open -- and the wordmark traces in beside it."""
+"""Line-draw logo reveal: the same pen tracing round each outline then
+filling solid as Stroke draw-on (`../typography/stroke_draw_on.py`, which
+keeps the capability) -- its own alias "logo stroke reveal" is this logo
+preset's own title: a thin line traces every contour of a logo mark, pen tip
+leading, and once the outlines have closed the mark floods with its solid
+colour -- holes left open -- and the wordmark traces in beside it. This
+module's own code stays (a film may still import it), but it is no longer a
+capability of its own."""
 import math
 
 import cairo
@@ -9,8 +14,9 @@ import videobuilder as vb
 from videobuilder import paths
 
 from .. import _demo as demo
-from ..schema import Capability
 from ..typography.stroke_draw_on import draw_stroke_on
+
+MERGED_INTO = 'stroke-draw-on'
 
 
 def draw_line_logo(cv, contours, p, color, fill=None, width=4, stagger=0.35, fill_from=0.65, head=True,
@@ -80,24 +86,3 @@ def draw(n, cv):
                          demo.INK, width=2, stagger=0.25)
     cv.mark('logo', cx - r, cy - r, 2 * r, 2 * r)
     cv.mark('wordmark', *box)
-
-
-CAPABILITY = Capability(
-    id='line-draw-logo-reveal',
-    name='Line-draw logo reveal',
-    family='broadcast',
-    group='Bumpers & idents',
-    aliases=('stroke draw-on logo', 'outline logo draw', 'logo stroke reveal', 'line-drawn logo',
-             'signature draw', 'icon stroke draw-on'),
-    definition='A logo appears as a single thin line tracing round its outlines, and once every '
-               'shape has closed the mark fills in solid.',
-    phrasings=('have our logo draw itself on as an outline and then colour in',
-               'the brand mark gets sketched by a moving line before it turns solid',
-               'open the video with the logo being traced like a pen drawing it'),
-    related=('stroke-draw-on', 'stroke-draw-logo-loader', 'icon-line-to-fill', 'logo-build-on-reveal',
-             'line-chart-draw-on', 'ink-outline'),
-    api=('videobuilder.capabilities.broadcast.line_draw_logo_reveal.draw_line_logo',
-         'videobuilder.capabilities.typography.stroke_draw_on.draw_stroke_on',
-         'videobuilder.paths.reveal'),
-    demo=lambda: demo.film(draw),
-)

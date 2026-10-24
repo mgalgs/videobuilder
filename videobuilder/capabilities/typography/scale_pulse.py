@@ -1,11 +1,17 @@
-"""Scale Pulse: a word swells a little larger and settles back to its
-resting size over and over, in time, scaled about its own centre."""
+"""Scale Pulse: the same slow even swell and shrink about the centre while
+waiting as Breathing idle (`../principles/breathing_idle.py`, which keeps
+the capability) -- its own alias "breathing type" is that principle's own
+idea, applied to a word: a word swells a little larger and settles back to
+its resting size over and over, in time, scaled about its own centre. This
+module's own code stays (a film may still import it), but it is no longer a
+capability of its own."""
 import math
 
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Capability
+
+MERGED_INTO = 'breathing-idle'
 
 
 def pulse_scale(t, period=1.0, amount=0.15, attack=0.3):
@@ -35,22 +41,3 @@ def draw(n, cv):
     box = draw_scale_pulse(cv, 'PULSE', demo.font(150, 800), demo.W / 2, demo.H / 2, n / demo.FPS,
                            demo.INK, period=1.0, amount=0.18)
     cv.mark('text', *box)
-
-
-CAPABILITY = Capability(
-    id='scale-pulse',
-    name='Scale pulse',
-    family='typography',
-    group='Stretch and squash',
-    aliases=('heartbeat text', 'breathing type', 'text pulse'),
-    definition='A word repeatedly swells slightly bigger and shrinks back to its normal size about its centre, '
-               'like a steady heartbeat.',
-    phrasings=('make the title throb in and out',
-               'have the word beat like a heart',
-               'the text gently grows and shrinks on a loop to draw the eye'),
-    related=('stroke-width-pulse', 'pulse-loader', 'scale-tile-wave', 'like-heart-burst', 'live-indicator-pulse',
-             'character-scale-in'),
-    api=('videobuilder.capabilities.typography.scale_pulse.draw_scale_pulse',
-         'videobuilder.capabilities.typography.scale_pulse.pulse_scale'),
-    demo=lambda: demo.film(draw),
-)

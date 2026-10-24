@@ -1,9 +1,15 @@
-"""Curtain Reveal: two panels cover a line of text, meet in the middle, and
-slide apart to the sides, uncovering the words from the centre outward."""
+"""Curtain Reveal: the same two edges sliding apart from the centre as Barn
+door wipe (`../transitions/barn_door_wipe.py`, which keeps the capability)
+-- its own alias "barn door text reveal" is that transition's own title:
+two panels cover a line of text, meet in the middle, and slide apart to the
+sides, uncovering the words from the centre outward. This module's own code
+stays (a film may still import it), but it is no longer a capability of its
+own."""
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Capability
+
+MERGED_INTO = 'barn-door-wipe'
 
 
 def draw_curtain(cv, x, y, w, h, p, color, edge=None, edge_width=4, ease=vb.ease_in_out_quart):
@@ -38,21 +44,3 @@ def draw(n, cv):
     cv.mark('text', *box)
     draw_curtain(cv, bx, by, bw, bh, demo.phase(n, 1.1, 2.85), '#3a3f4b',
                  edge=(demo.ACCENT, demo.TEAL), edge_width=5)
-
-
-CAPABILITY = Capability(
-    id='curtain-reveal',
-    name='Curtain reveal',
-    family='typography',
-    group='Per-unit reveals',
-    aliases=('split curtain text', 'two-panel reveal', 'barn door text reveal'),
-    definition='Two solid panels sitting edge to edge over a line of type slide apart sideways, '
-               'uncovering the words from the middle out to the ends.',
-    phrasings=('have the title appear as two blocks pull apart like stage curtains',
-               'two panels part in the middle to show the text underneath',
-               'open the headline like a pair of sliding doors'),
-    related=('split-screen-comparison', 'shutter-slat-reveal', 'text-mask-reveal', 'split-screen-transition',
-             'zoom-out-reveal', 'accordion-fold-text'),
-    api=('videobuilder.capabilities.typography.curtain_reveal.draw_curtain',),
-    demo=lambda: demo.film(draw),
-)

@@ -77,7 +77,7 @@ CAPABILITY = Capability(
     name='Spotlight dim',
     family='broadcast',
     group='Annotation',
-    aliases=('dim the rest', 'focus dim', 'spotlight overlay', 'highlight cutout'),
+    aliases=('dim the rest', 'focus dim', 'spotlight overlay', 'highlight cutout', 'coachmark', 'spotlight callout'),
     definition='The whole frame darkens except for one area, which stays bright as if a spotlight '
                'were on it, pulling attention there.',
     phrasings=('darken everything except the card we are talking about',

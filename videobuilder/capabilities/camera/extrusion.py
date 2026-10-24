@@ -104,7 +104,7 @@ CAPABILITY = Capability(
     name='Extrusion',
     family='camera',
     group='3D motion',
-    aliases=('extruded depth', 'depth extrude', 'extrude'),
+    aliases=('extruded depth', 'depth extrude', 'extrude', 'extrude in'),
     definition='A flat outline is pushed back into space so solid side walls sweep out behind it, '
                'and the thickness keeps growing until the shape reads as a solid slab.',
     phrasings=('make the flat logo shape grow thickness so it turns into a 3D block',

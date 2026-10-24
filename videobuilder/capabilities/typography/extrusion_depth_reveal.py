@@ -1,11 +1,16 @@
-"""Extrusion Depth Reveal: flat type grows a solid side, the depth pushing
-out from behind each letter until the word stands as a block."""
+"""Extrusion Depth Reveal: the same flat-outline-pushed-back-into-a-growing-
+solid move as Extrusion (`../camera/extrusion.py`, which keeps the
+capability), on type rather than shapes: flat type grows a solid side, the
+depth pushing out from behind each letter until the word stands as a block.
+This module's own code stays (a film may still import it), but it is no
+longer a capability of its own."""
 import math
 
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Capability
+
+MERGED_INTO = 'extrusion'
 
 
 def _shade(color, k):
@@ -48,22 +53,3 @@ def draw(n, cv):
     d = depth_at(demo.phase(n, 0.4, 2.4), DEPTH, ease=vb.ease_in_out_quart)
     box = draw_extruded(cv, text, f, x, y, d, demo.INK, demo.TEAL, angle=ANGLE)
     cv.mark('text', *box)
-
-
-CAPABILITY = Capability(
-    id='extrusion-depth-reveal',
-    name='Extrusion depth reveal',
-    family='typography',
-    group='Depth and 3D',
-    aliases=('3D extruded type', 'extrude in', 'growing extrusion'),
-    definition='Flat lettering sprouts a solid side that pushes out behind each glyph until the word '
-               'reads as a thick three-dimensional block.',
-    phrasings=('make the title go from flat to chunky 3D letters',
-               'the words grow a thick side so they look like solid blocks',
-               'extrude the headline out so it gains depth over a couple of seconds'),
-    related=('extrusion', 'x-ray-view', 'text-mask-reveal', 'character-rise', 'typewriter-reveal',
-             'long-shadow-growth'),
-    api=('videobuilder.capabilities.typography.extrusion_depth_reveal.draw_extruded',
-         'videobuilder.capabilities.typography.extrusion_depth_reveal.depth_at'),
-    demo=lambda: demo.film(draw),
-)

@@ -83,7 +83,7 @@ CAPABILITY = Capability(
     name='Hover letter displacement',
     family='typography',
     group='Web and scroll',
-    aliases=('interactive letter hover', 'letter lift on hover'),
+    aliases=('interactive letter hover', 'letter lift on hover', 'cursor-reactive letters'),
     definition='As a pointer moves along a word, the letter nearest it rises and swells while '
                'the letters beside it lift a little less, so a soft wave follows the pointer.',
     phrasings=('letters pop up as the mouse moves over the word',

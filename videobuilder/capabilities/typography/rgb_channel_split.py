@@ -1,5 +1,9 @@
-"""RGB Channel Split: the red, green and blue parts of a word slide apart
-sideways, so each letter grows coloured fringes, then snap back to white."""
+"""RGB Channel Split: the same red, green and blue copies drifting apart and
+snapping back as RGB split (`../transitions/rgb_split.py`, which keeps the
+capability), applied to a word: the red, green and blue parts of a word
+slide apart sideways, so each letter grows coloured fringes, then snap back
+to white. This module's own code stays (a film may still import it), but it
+is no longer a capability of its own."""
 import math
 import random
 
@@ -8,7 +12,8 @@ import cairo
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Capability
+
+MERGED_INTO = 'rgb-split'
 
 CHANNELS = ((1, 0, 0), (0, 1, 0), (0, 0, 1))
 
@@ -59,23 +64,3 @@ def draw(n, cv):
     t = n / demo.FPS
     box = draw_split_text(cv, 'MOTION', demo.font(150, 800), demo.W / 2, demo.H / 2, glitch_offset(t, seed=3))
     cv.mark('text', *box)
-
-
-CAPABILITY = Capability(
-    id='rgb-channel-split',
-    name='RGB channel split',
-    family='typography',
-    group='Glitch and distortion',
-    aliases=('chromatic split text', 'color fringe text', 'RGB split text'),
-    definition='A word is pulled apart into its red, green and blue copies, which drift sideways '
-               'so the letters show rainbow edges before lining back up into white.',
-    phrasings=('make the title glitch into red and blue edges',
-               'the colours of the text slide apart like a broken screen',
-               'give the letters a chromatic aberration wobble'),
-    related=('rgb-split', 'chromatic-dispersion', 'channel-shuffle', 'hue-cycle-fill',
-             'infrared-false-color', 'sepia-tone'),
-    api=('videobuilder.capabilities.typography.rgb_channel_split.channel_split',
-         'videobuilder.capabilities.typography.rgb_channel_split.draw_split_text',
-         'videobuilder.capabilities.typography.rgb_channel_split.glitch_offset'),
-    demo=lambda: demo.film(draw),
-)

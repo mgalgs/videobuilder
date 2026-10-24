@@ -34,7 +34,7 @@ CAPABILITY = Capability(
     name='Breathing Idle',
     family='principles',
     group='Cycles & loops',
-    aliases=('breathing animation', 'idle breathing', 'idle pulse', 'breathe'),
+    aliases=('breathing animation', 'idle breathing', 'idle pulse', 'breathe', 'heartbeat text'),
     definition='An element waiting on screen gently grows and shrinks back in a slow, even rhythm, '
                'as if quietly breathing while nothing else happens.',
     phrasings=('make the button softly breathe while it waits',

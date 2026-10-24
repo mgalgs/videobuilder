@@ -1,12 +1,16 @@
-"""Flight arc: a curved route line that lifts off one map point and draws
+"""Flight arc: the same line drawing itself across a map from one place to
+another as Map route draw (`../shapes/map_route_draw.py`, which keeps the
+capability) -- a curved route line that lifts off one map point and draws
 itself across to another, the way news and travel graphics show a flight or
-a long-distance link."""
+a long-distance link. This module's own code stays (a film may still import
+it), but it is no longer a capability of its own."""
 import math
 
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Capability
+
+MERGED_INTO = 'map-route-draw'
 
 
 def flight_arc(a, b, lift=0.3, n=64):
@@ -98,21 +102,3 @@ def draw(n, cv):
     if 0 < land < 1:
         cv.arc(*b, 7 + 26 * land, 0, 2 * math.pi, demo.ACCENT, width=2, alpha=1 - land)
     demo.dot(cv, *b, r=7, color=demo.ACCENT if land > 0 else demo.INK)
-
-
-CAPABILITY = Capability(
-    id='flight-arc',
-    name='Flight arc',
-    family='broadcast',
-    group='Maps',
-    aliases=('great-circle arc', 'curved route arc', 'route arc'),
-    definition='A bowed line climbs out of one point on a map and draws itself over to another, '
-               'tracing a flight path or long-distance link between the two places.',
-    phrasings=('draw a curved flight path between two cities on the map',
-               'show a plane route arcing from New York to Tokyo',
-               'animate a connection line that arches across the world map'),
-    related=('projectile-arc', 'arcs', 'arc-bend-morph', 'bend-deformer', 'electric-arc', 'chord-diagram-draw'),
-    api=('videobuilder.capabilities.broadcast.flight_arc.flight_arc',
-         'videobuilder.capabilities.broadcast.flight_arc.draw_flight_arc'),
-    demo=lambda: demo.film(draw),
-)

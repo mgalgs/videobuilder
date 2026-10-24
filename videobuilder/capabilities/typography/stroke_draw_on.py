@@ -86,7 +86,7 @@ CAPABILITY = Capability(
     family='typography',
     group='Stroke and outline',
     aliases=('outline trace', 'line draw-on', 'trim path reveal', 'stroke reveal', 'stroke-dashoffset text',
-             'line-draw lettering'),
+             'line-draw lettering', 'logo stroke reveal', 'path draw loading'),
     definition='A pen line travels around the edges of every letter until each outline is closed, '
                'and only then does the solid colour fill in.',
     phrasings=('draw the outline of the title on first, then fill it in',
@@ -96,6 +96,8 @@ CAPABILITY = Capability(
              'map-route-draw', 'icon-line-to-fill'),
     api=('videobuilder.capabilities.typography.stroke_draw_on.draw_stroke_on',
          'videobuilder.capabilities.typography.stroke_draw_on.letter_contours',
-         'videobuilder.paths.reveal'),
+         'videobuilder.paths.reveal',
+         'videobuilder.capabilities.broadcast.line_draw_logo_reveal.draw_line_logo',
+         'videobuilder.capabilities.ui.stroke_draw_logo_loader.logo_loader'),
     demo=lambda: demo.film(draw),
 )

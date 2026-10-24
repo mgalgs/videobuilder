@@ -1,12 +1,17 @@
-"""Stroke draw logo loader: a one-line mark traces itself over a faint guide,
-floods with colour once the line closes, then clears and starts again for as
-long as something is loading."""
+"""Stroke draw logo loader: the same pen tracing round each outline then
+filling solid as Stroke draw-on (`../typography/stroke_draw_on.py`, which
+keeps the capability) -- its own alias "path draw loading" is this loader
+preset's own title, looping the trace: a one-line mark traces itself over a
+faint guide, floods with colour once the line closes, then clears and starts
+again for as long as something is loading. This module's own code stays (a
+film may still import it), but it is no longer a capability of its own."""
 import math
 
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Capability
+
+MERGED_INTO = 'stroke-draw-on'
 
 
 def logo_loader(cv, points, t, color, track=demo.LINE, width=6, closed=True, draw=0.55, fill=0.2,
@@ -52,23 +57,3 @@ def draw(n, cv):
     demo.word(cv, 'Loading' + dots.ljust(3, '\u2007'), cx, cy + r + demo.H * 0.09,  # figure space: no jitter
               size=28, color=demo.MUTED, weight=600)
     cv.mark('logo', cx - r, cy - r, 2 * r, 2 * r)
-
-
-CAPABILITY = Capability(
-    id='stroke-draw-logo-loader',
-    name='Stroke draw logo loader',
-    family='ui',
-    group='Loaders',
-    aliases=('path draw loading', 'line logo loader', 'logo trace loader'),
-    definition='While something loads, a brand mark is traced out as a single moving line, '
-               'fills in solid once the line meets itself, then clears and traces again.',
-    phrasings=('the logo draws itself in outline as the loading animation',
-               'a loading screen where our icon gets traced and then colours in',
-               'loop the logo being sketched by a line until the page is ready'),
-    related=('line-draw-logo-reveal', 'stroke-draw-on', 'icon-line-to-fill', 'scroll-drawn-svg-path',
-             'line-chart-draw-on', 'pencil-sketch'),
-    api=('videobuilder.capabilities.ui.stroke_draw_logo_loader.logo_loader',
-         'videobuilder.paths.reveal',
-         'videobuilder.paths.draw'),
-    demo=lambda: demo.film(draw),
-)

@@ -1,6 +1,10 @@
-"""Coachmark Spotlight Cutout: the whole screen dims except a rounded hole
-around one control, and a tooltip beside the hole explains it; the hole then
-glides on to the next control, as in an onboarding tour."""
+"""Coachmark Spotlight Cutout: the same darken-but-one-area move as Spotlight
+dim (`../broadcast/spotlight_dim.py`, which keeps the capability), as a
+moving onboarding window: the whole screen dims except a rounded hole around
+one control, and a tooltip beside the hole explains it; the hole then glides
+on to the next control, as in an onboarding tour. This module's own code
+stays (a film may still import it), but it is no longer a capability of its
+own."""
 import math
 
 import cairo
@@ -8,7 +12,8 @@ import cairo
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Capability
+
+MERGED_INTO = 'spotlight-dim'
 
 
 def _lerp_box(a, b, t):
@@ -133,23 +138,3 @@ def draw(n, cv):
         box = coachmark_tip(cv, hole, lines, demo.font(18, 700), alpha=tip_in, below=below,
                             gap=14, pad=(10, 14), arrow=8)
         cv.mark('tooltip', *box)
-
-
-CAPABILITY = Capability(
-    id='coachmark-spotlight-cutout',
-    name='Coachmark spotlight cutout',
-    family='ui',
-    group='Overlays & menus',
-    aliases=('coachmark', 'onboarding spotlight', 'product tour highlight', 'feature walkthrough overlay'),
-    definition='A dark veil covers the interface except for a clear rounded window around one control, '
-               'with a pointer bubble explaining it, and the window then slides on to the next control.',
-    phrasings=('dim the app and punch a hole around the button we are explaining',
-               'an onboarding tour that highlights one feature at a time with a tip',
-               'darken everything except the share button and add a little tooltip'),
-    related=('spotlight-hover', 'spotlight-follow', 'spotlight-dim', 'highlighter-swipe',
-             'drop-target-highlight', 'player-movement-trail'),
-    api=('videobuilder.capabilities.ui.coachmark_spotlight_cutout.spotlight_cutout',
-         'videobuilder.capabilities.ui.coachmark_spotlight_cutout.coachmark_tip',
-         'videobuilder.capabilities.ui.coachmark_spotlight_cutout.tour_hole'),
-    demo=lambda: demo.film(draw),
-)

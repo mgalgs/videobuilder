@@ -73,7 +73,7 @@ CAPABILITY = Capability(
     name='Word carousel rotate',
     family='typography',
     group='Looping and marquee',
-    aliases=('text rotator', 'swap word carousel', 'rotating word', 'word roller'),
+    aliases=('text rotator', 'swap word carousel', 'rotating word', 'word roller', 'chyron rotation'),
     definition='One word in a fixed line keeps changing: it rolls up out of view while the next word '
                'rises into its place from below, looping through a list.',
     phrasings=('the last word of the headline keeps swapping between a few options',

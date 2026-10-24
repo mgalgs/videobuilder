@@ -44,7 +44,7 @@ CAPABILITY = Capability(
     name='Barn door wipe',
     family='transitions',
     group='Wipes',
-    aliases=('split wipe', 'door wipe', 'curtain wipe', 'curtain transition'),
+    aliases=('split wipe', 'door wipe', 'curtain wipe', 'curtain transition', 'split curtain text'),
     definition='A gap opens along the centre line of the old shot and its two edges sweep out to the sides '
                'of the frame, uncovering the new shot as it widens.',
     phrasings=('open the scene like a pair of doors',

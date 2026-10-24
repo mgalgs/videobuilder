@@ -1,12 +1,17 @@
-"""Spring-drag letters: each letter of a word hangs on its own spring. When a
+"""Spring-drag letters: the same pointer effect as Hover letter displacement
+(`hover_letter_displacement.py`, which keeps the capability), with a spring
+overshoot of its own: each letter of a word hangs on its own spring. When a
 pointer passes close it shoves the letters aside (or tugs them in), and they
-lag, overshoot and wobble back to their places once it has gone."""
+lag, overshoot and wobble back to their places once it has gone. This
+module's own code stays (a film may still import it), but it is no longer a
+capability of its own."""
 import math
 
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Capability
+
+MERGED_INTO = 'hover-letter-displacement'
 
 
 def spring_drag(rest, pointer, t, fps=30, radius=120.0, push=50.0, hz=2.4, ratio=0.32, tilt=0.003, steps=4):
@@ -108,22 +113,3 @@ def draw(n, cv):
                               fps=demo.FPS, radius=REACH, push=50, ratio=0.22)
     cv.mark('text', *box)
     _arrow(cv, *p, s=1.0)
-
-
-CAPABILITY = Capability(
-    id='spring-drag-letters',
-    name='Spring-drag letters',
-    family='typography',
-    group='Physics and particles',
-    aliases=('cursor-reactive letters', 'magnetic letter follow', 'springy hover text'),
-    definition='Letters on springs get shoved aside as a pointer sweeps past, then wobble and '
-               'overshoot their way back into the word once it moves on.',
-    phrasings=('the letters scatter away from the mouse and bounce back into place',
-               'when the cursor passes over the title the letters jiggle out of its way',
-               'springy text that reacts to the pointer and settles again'),
-    related=('hover-letter-displacement', 'magnetic-button', 'cursor-follower-dot-and-ring',
-             'cursor-particle-trail', 'spring-return', 'particle-field-repel'),
-    api=('videobuilder.capabilities.typography.spring_drag_letters.draw_spring_letters',
-         'videobuilder.capabilities.typography.spring_drag_letters.spring_drag'),
-    demo=lambda: demo.film(draw),
-)

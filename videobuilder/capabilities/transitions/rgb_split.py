@@ -70,7 +70,7 @@ CAPABILITY = Capability(
     family='transitions',
     group='Glitch',
     aliases=('chromatic aberration transition', 'colour split', 'channel split', 'chromatic aberration',
-             'colour fringing'),
+             'colour fringing', 'chromatic split text'),
     definition='The red, green and blue layers of the picture drift apart sideways into coloured ghosts, '
                'the shot changes under them, and they snap back together on the new scene.',
     phrasings=('glitch to the next shot with the colours separating',

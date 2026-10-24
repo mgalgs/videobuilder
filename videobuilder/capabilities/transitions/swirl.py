@@ -114,7 +114,7 @@ CAPABILITY = Capability(
     name='Swirl',
     family='transitions',
     group='Organic and Fluid',
-    aliases=('twirl', 'vortex', 'whirl', 'whirlpool', 'spiral warp', 'twirl transition'),
+    aliases=('twirl', 'vortex', 'whirl', 'whirlpool', 'spiral warp', 'twirl transition', 'rotational warp'),
     definition='The first scene twists around its centre like water going down a drain, hardest in the middle, '
                'and the second scene unwinds out of the same whirl.',
     phrasings=('swirl from this shot into the next one',

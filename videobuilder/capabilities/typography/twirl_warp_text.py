@@ -1,5 +1,9 @@
-"""Twirl Warp Text: the word's outlines are spun about a centre, more near
-the middle than at the edge, so it reads as a whirlpool, then unwinds flat."""
+"""Twirl Warp Text: the same twist as Swirl (`swirl.py`, which keeps the
+capability) -- both spiral warp something about its centre, hardest in the
+middle and easing off toward the edge, and both unwind flat: here a word's
+outlines are spun that way, there a whole scene. This module's own code
+stays (a film may still import it), but it is no longer a capability of its
+own."""
 import math
 
 import videobuilder as vb
@@ -7,7 +11,8 @@ from gi.repository import PangoCairo
 
 from ... import text as vbtext
 from .. import _demo as demo
-from ..schema import Capability
+
+MERGED_INTO = 'swirl'
 
 
 def twirl(x, y, cx, cy, angle, radius):
@@ -79,22 +84,3 @@ def draw(n, cv):
     radius = min(0.6 * vbtext.block_size([text], font)[0], demo.H / 2 - 24)
     box = draw_twirl(cv, text, font, demo.W / 2, demo.H / 2, angle, demo.INK, radius=radius)
     cv.mark('text', *box)
-
-
-CAPABILITY = Capability(
-    id='twirl-warp-text',
-    name='Twirl warp text',
-    family='typography',
-    group='Liquid and organic',
-    aliases=('swirl distortion', 'spiral warp', 'twirl distortion', 'rotational warp', 'path twist'),
-    definition='A word starts wound into a spiral, its middle turned further than its edges, '
-               'and untwists until the letters sit straight and readable.',
-    phrasings=('the title spins out of a whirlpool and straightens into the word',
-               'twist the text into a swirl and then let it unwind',
-               'letters swirled like water going down a drain, settling back to normal'),
-    related=('swirl', 'arc-bend-morph', 'text-on-a-path', 'word-carousel-rotate', 'type-explosion',
-             'gradient-sweep-across-text'),
-    api=('videobuilder.capabilities.typography.twirl_warp_text.draw_twirl',
-         'videobuilder.capabilities.typography.twirl_warp_text.twirl'),
-    demo=lambda: demo.film(draw),
-)

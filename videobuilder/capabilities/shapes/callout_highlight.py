@@ -1,13 +1,17 @@
-"""Callout highlight: the frame dims around one region, a bright frame closes
-in on that region, and a small label tag pops up beside it to say why it
-matters."""
+"""Callout highlight: the same darken-but-one-area move as Spotlight dim
+(`../broadcast/spotlight_dim.py`, which keeps the capability), with a label
+tag of its own: the frame dims around one region, a bright frame closes in
+on that region, and a small label tag pops up beside it to say why it
+matters. This module's own code stays (a film may still import it), but it
+is no longer a capability of its own."""
 import cairo
 
 import videobuilder as vb
 from videobuilder.canvas import _rounded
 
 from .. import _demo as demo
-from ..schema import Capability
+
+MERGED_INTO = 'spotlight-dim'
 
 
 def callout_highlight(cv, box, p, label=None, color=demo.ACCENT, dim=0.62, pad=14, radius=16,
@@ -64,21 +68,3 @@ def draw(n, cv):
     for x in xs:
         demo.card(cv, x, cy, w=280, h=180, color=demo.TEAL)
     callout_highlight(cv, (xs[1] - 140, cy - 90, 280, 180), demo.phase(n, 0.5, 2.1), label='New this week')
-
-
-CAPABILITY = Capability(
-    id='callout-highlight',
-    name='Callout highlight',
-    family='shapes',
-    group='Explainer & infographic',
-    aliases=('spotlight callout', 'focus highlight', 'highlight box'),
-    definition='Everything but one area darkens, a bright frame closes in around that area, '
-               'and a small tag appears beside it naming what to look at.',
-    phrasings=('dim the rest of the screen and box the part I want people to notice',
-               'spotlight one card with an outline and a little label',
-               'draw attention to this section with a highlight and a note'),
-    related=('callout-line-with-label', 'highlight-circle-draw', 'highlighter-swipe',
-             'dimension-line-annotation', 'word-by-word-emphasis', 'focus-ring-draw'),
-    api=('videobuilder.capabilities.shapes.callout_highlight.callout_highlight',),
-    demo=lambda: demo.film(draw),
-)
