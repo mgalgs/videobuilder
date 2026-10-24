@@ -4,9 +4,7 @@ each family with at least one gets a card filed into the existing category
 section it belongs to (FAMILY_CATEGORY), not a section of its own. One page
 per family at /capabilities/<family> (the pre-rename family URL permanently
 redirects there); clips stay at /capabilities/<id>.mp4|jpg (the pre-rename
-clip URL redirects the same way), and the handful of cross-links between a
-registry entry and the capability it overlaps use "See also" rather than
-naming the registry."""
+clip URL redirects the same way)."""
 import http.client
 import json
 import re
@@ -64,19 +62,6 @@ class CategoryMapping(unittest.TestCase):
         # equal to a capability id (or an old id) would make the routes ambiguous.
         self.assertFalse(set(registry.FAMILIES) & set(capabilities.ids()))
         self.assertFalse(set(registry.FAMILIES) & set(capabilities.old_ids()))
-
-
-class Overlap(unittest.TestCase):
-    def test_both_sides_of_every_overlap_row_exist(self):
-        self.assertTrue(capabilities.REGISTRY_OVERLAP)  # at least one row in this checkout
-        for registry_id, capability_id in capabilities.REGISTRY_OVERLAP.items():
-            with self.subTest(registry=registry_id, capability=capability_id):
-                registry.get(registry_id)                  # KeyError if unknown
-                capabilities.get(capability_id)            # KeyError if unknown
-
-    def test_reverse_lookup(self):
-        self.assertEqual(capabilities._registry_overlap('eased-entrances'), 'ease-out-back')
-        self.assertIsNone(capabilities._registry_overlap('staggered-reveals'))
 
 
 class BuildRegistry(unittest.TestCase):
@@ -178,22 +163,15 @@ class MainPageSection(unittest.TestCase):
         ids = {e['id'] for e in data}
         self.assertEqual(ids, {t.id for t in registry.catalog() if not capabilities.has_card(t)})
 
-    def test_overlapping_capability_links_to_its_registry_entry(self):
-        page = capabilities.page_html(None, '0').decode()
-        data = json.loads(re.search(r'<script id="capabilities-data" type="application/json">(.*?)</script>',
-                                    page, re.S).group(1))
-        entry = next(e for e in data if e['id'] == 'eased-entrances')
-        self.assertEqual(entry['regOverlap'], {'id': 'ease-out-back', 'family': 'principles', 'title': 'Ease Out Back'})
-
 
 class FamilyPage(unittest.TestCase):
     def test_lists_its_own_capabilities_grouped_by_group_in_registry_order(self):
         page = capabilities.family_page_html('principles', None, '0').decode()
         self.assertIn('<h1>Animation principles</h1>', page)
-        self.assertIn('data-card="bounce-ease-out"', page)
-        self.assertIn('data-card="ease-out-back"', page)
-        # registry order (module filename): bounce_ease_out.py sorts before ease_out_back.py
-        self.assertLess(page.index('data-card="bounce-ease-out"'), page.index('data-card="ease-out-back"'))
+        self.assertIn('data-card="air-drag"', page)
+        self.assertIn('data-card="appeal"', page)
+        # registry order (module filename): air_drag.py sorts before appeal.py
+        self.assertLess(page.index('data-card="air-drag"'), page.index('data-card="appeal"'))
 
     def test_unknown_family_raises_key_error(self):
         with self.assertRaises(KeyError):
@@ -208,15 +186,6 @@ class FamilyPage(unittest.TestCase):
         self.assertIn('fade through black', entry['aliases'])
         self.assertTrue(entry['api'])
         self.assertGreaterEqual(len(entry['prompts']), 2)
-
-    def test_registry_modal_links_back_to_its_overlapping_capability(self):
-        page = capabilities.family_page_html('principles', None, '0').decode()
-        data = json.loads(re.search(r'<script id="registry-data" type="application/json">(.*?)</script>',
-                                    page, re.S).group(1))
-        entry = next(t for t in data if t['id'] == 'ease-out-back')
-        self.assertEqual(entry['overlap'], {'id': 'eased-entrances', 'title': 'Eased entrances'})
-        other = next(t for t in data if t['id'] == 'bounce-ease-out')
-        self.assertNotIn('overlap', other)
 
     def test_search_box_present(self):
         page = capabilities.family_page_html('principles', None, '0').decode()

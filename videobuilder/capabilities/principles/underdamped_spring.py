@@ -1,13 +1,15 @@
-"""Underdamped Spring: videobuilder already has it as `vb.spring` with a
-damping ratio below 1 (`vb.damped(ratio, hz)` builds the params), so this
-entry only names it and demos it: a weight on a coil, let go, swinging past
-its rest point and back in ever smaller swings, beside a plot of the curve."""
+"""Underdamped Spring: the same idea as Spring Motion (`spring-motion.py`),
+which keeps the capability -- both only name `vb.spring` at a damping ratio
+below 1 and demo the same overshoot and ring-down. This module's own code
+stays (a film may still import it), but it is no longer a capability of its
+own."""
 import math
 
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Capability
+
+MERGED_INTO = 'spring-motion'
 
 PARAMS = vb.damped(0.14, hz=1.5)  # well under 1: several visible swings before it settles
 RELEASE = 0.35  # seconds
@@ -53,21 +55,3 @@ def draw(n, cv):
         prev = pt
     demo.dot(cv, prev[0], prev[1], 6, color=demo.INK)
     cv.line(x + r + 8, y, prev[0] - 10, prev[1], demo.MUTED, width=1, alpha=0.35)  # ties weight to trace
-
-
-CAPABILITY = Capability(
-    id='underdamped-spring',
-    name='Underdamped Spring',
-    family='principles',
-    group='Physics',
-    aliases=('spring ease', 'damped oscillation', 'wobbly spring', 'spring physics'),
-    definition='A move driven by a loosely damped spring, so it shoots past its target and swings back and '
-               'forth around it in shrinking wobbles until it comes to rest.',
-    phrasings=('make it boing into place and wobble before it stops',
-               'springy, like a weight bouncing on a coil',
-               'overshoot and jiggle a few times before settling'),
-    related=('overshoot-bounce-in', 'spring-return', 'springs-network', 'bounce-ease-out', 'elastic-ease-out',
-             'underline-swash-draw'),
-    api=('videobuilder.spring', 'videobuilder.damped', 'videobuilder.spring_at'),
-    demo=lambda: demo.film(draw),
-)

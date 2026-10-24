@@ -1,7 +1,7 @@
 """Springs with character: built from videobuilder's own API, so this record only names it and demos it
 with its worked example film, `examples/capabilities/springs-with-character.py` (an `Example` demo:
 see schema.py)."""
-from ..schema import Capability, Example, Source
+from ..schema import Capability, Example, Members, Source
 
 CAPABILITY = Capability(
     id='springs-with-character',
@@ -21,5 +21,8 @@ CAPABILITY = Capability(
          'vb.critical(stiffness)'),
     doc='skill/make-a-video/reference/motion.md',
     demo=Example('examples/capabilities/springs-with-character.py'),
+    members=Members(
+        ids=('spring-motion', 'critically-damped-spring', 'overdamped-spring'),
+        noun=('damping setting', 'damping settings')),
     source=Source('https://x.com/flxrnc/status/2105311836190978392', '@flxrnc'),
 )

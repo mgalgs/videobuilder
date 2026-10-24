@@ -23,6 +23,7 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 import videobuilder as vb
 from videobuilder.capabilities import registry
@@ -38,6 +39,13 @@ WORKED = ('ease-out-back', 'bounce-ease-out', 'dip-to-black', 'scramble-decode')
 
 
 def check(case, family, name):
+    id_ = name.replace('_', '-')
+    merged = registry.merged_into(id_)
+    if merged is not None:   # gave up CAPABILITY for MERGED_INTO: check the chain lands somewhere real
+        case.assertIsNone(registry.load(family, name))
+        case.assertIn(merged, registry.ids())
+        case.assertIn(id_, registry.get(merged).old_ids)
+        return
     t = registry.load(family, name)   # validates the record, the id/file and family/package, and `api`
     case.assertIsInstance(t, Capability)
     case.assertEqual(module_name(t.id), name)
@@ -155,6 +163,39 @@ class Registry(unittest.TestCase):
             text = (PKG / fam / f'{name}.py').read_text()
             text = re.sub(r'\n    source=Source\((?:[^()]|\([^()]*\))*\),', '', text)
             self.assertNotRegex(text, r'https?://|www\.', f'{fam}/{name}.py')
+
+
+class MergedModules(unittest.TestCase):
+    """A module trades CAPABILITY for MERGED_INTO when it was folded into
+    another capability (see registry.py's module docstring); the chain it
+    names must land on a real capability."""
+
+    def tearDown(self):
+        registry._all.cache_clear()   # undo any corruption from a mocked _merge_targets below
+
+    def test_a_target_naming_nothing_real_is_an_error(self):
+        with mock.patch.object(registry, '_merge_targets', lambda: {'ease-out-back': 'no-such-id'}):
+            registry._all.cache_clear()
+            with self.assertRaisesRegex(ValueError, 'no-such-id'):
+                registry._all()
+
+    def test_a_cycle_is_an_error(self):
+        with mock.patch.object(registry, '_merge_targets', lambda: {'a': 'b', 'b': 'a'}):
+            with self.assertRaisesRegex(ValueError, 'cycle'):
+                registry._resolve_merge('a')
+
+    def test_a_chain_resolves_to_its_final_capability(self):
+        self.assertEqual(registry.merged_into('multiplane-camera'), 'parallax-scene')
+        self.assertEqual(registry.merged_into('parallax-layers'), 'parallax-scene')
+        self.assertIsNone(registry.merged_into('parallax-scene'))
+
+    def test_a_merged_id_is_an_old_id_of_its_survivor_and_still_resolves(self):
+        from videobuilder import capabilities
+        self.assertIn('shape-morph', registry.get('outline-morph').old_ids)
+        self.assertEqual(capabilities.resolve('shape-morph'), 'outline-morph')
+        self.assertEqual(capabilities.get('shape-morph').id, 'outline-morph')
+        with self.assertRaises(KeyError):
+            registry.get('shape-morph')
 
 
 class PosterFrame(unittest.TestCase):

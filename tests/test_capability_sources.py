@@ -93,7 +93,7 @@ def _index_sources():
 # The rows of the owner's sources list, written into these records' `source` (and nothing else has one).
 FLXRNC = ('eased-entrances', 'springs-with-character', 'character-motion', 'staggered-reveals', 'pop-on-the-beat',
           'seamless-loops')
-UPSTREAM = ('shape-morph', 'line-chart-callout', 'hard-light-sweep', 'drawn-on-diagram', 'look-filter-pop-art',
+UPSTREAM = ('outline-morph', 'line-chart-callout', 'hard-light-sweep', 'drawn-on-diagram', 'look-filter-pop-art',
             'look-filter-pixel', 'looks', 'sound-effects')
 SOURCED = FLXRNC + UPSTREAM + (
     'look-swirl', 'look-melt', 'look-pointillism', 'look-bauhaus', 'look-pop-art', 'look-pixel',
@@ -110,7 +110,7 @@ class Backfilled(unittest.TestCase):
                              Source('https://x.com/flxrnc/status/2105311836190978392', '@flxrnc'))
         for i in UPSTREAM:
             self.assertTrue(registry.get(i).source.upstream, i)
-        self.assertEqual(registry.get('shape-morph').source.upstream_credit, '@alchaincyf (huashu-art-motion, MIT)')
+        self.assertEqual(registry.get('outline-morph').source.upstream_credit, '@alchaincyf (huashu-art-motion, MIT)')
 
     def test_the_index_json_carries_every_source(self):
         self.assertEqual(_index_sources(), {t.id: t.source.as_json() for t in registry.catalog() if t.source})

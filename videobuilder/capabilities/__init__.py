@@ -489,24 +489,6 @@ REGISTRY_FAMILY_POSTER = {
     'transitions': 'iris-wipe',
 }
 
-# Capabilities on a family's page that are the same move as one with a card of its own: both keep
-# their own card, but each links to the other (see _registry_overlap and the modals in
-# page_html/family_page_html). Found by reading the records' `api` and `name`. May name only ids
-# present in this checkout -- a test checks both sides of every row exist.
-REGISTRY_OVERLAP = {
-    'ease-out-back': 'eased-entrances',   # both demo vb.ease_out_back
-    'shape-morph': 'outline-morph',       # both demo vb.paths.morph; the registry kept the old capability id
-}
-
-
-def _registry_overlap(capability_id):
-    """The registry id REGISTRY_OVERLAP maps to `capability_id`, or None."""
-    for registry_id, mapped in REGISTRY_OVERLAP.items():
-        if mapped == capability_id:
-            return registry_id
-    return None
-
-
 def _family_members(family):
     """The capabilities on `family`'s own page, registry order: every one of
     the family's but those with cards of their own (`has_card`)."""
@@ -559,10 +541,9 @@ def family_page_html(family, capabilities_dir, version, header='', header_style=
     """The /capabilities/<family> page: that family's capabilities, grouped
     under their own `group` heading, in registry order. Clicking a card opens
     the same kind of modal /capabilities uses, with the clip, the definition,
-    the phrasings as example prompts, the aliases and the api names, plus a
-    link back to the overlapping capability (REGISTRY_OVERLAP), if there is
-    one. Raises KeyError for a family that isn't one of registry.FAMILIES
-    (the route checks this, never builds a path from the request string)."""
+    the phrasings as example prompts, the aliases and the api names. Raises
+    KeyError for a family that isn't one of registry.FAMILIES (the route
+    checks this, never builds a path from the request string)."""
     from . import registry
     if family not in registry.FAMILIES:
         raise KeyError(family)
@@ -582,10 +563,6 @@ def family_page_html(family, capabilities_dir, version, header='', header_style=
                 'group': t.group,
                 'description': t.definition, 'prompts': list(t.phrasings), 'aliases': list(t.aliases),
                 'api': list(t.api), 'available': t.id in built}
-        overlap = REGISTRY_OVERLAP.get(t.id)
-        if overlap:
-            cap = get(overlap)
-            item['overlap'] = {'id': cap.id, 'title': cap.name}
         data.append(item)
     style = _PAGE_STYLE + header_style + _REGISTRY_MODAL_STYLE
     html = (
@@ -685,8 +662,6 @@ h2{font-size:15px;text-transform:uppercase;letter-spacing:.04em;color:#a9a9b2;ma
   color:#dcdcdc;font-size:12px;font-weight:700}
 h3.kind{font-size:14px;margin:22px 0 10px;color:#eee}
 h3.kind span{display:block;font-weight:400;font-size:13px;color:#8b8b94;margin-top:2px}
-.reg-overlap{margin:0 0 14px;font-size:13px;color:#a9a9b2}
-.reg-overlap a{color:#ef5b4c}
 #reg-hits{list-style:none;margin:8px 2px 0;padding:0}
 #reg-hits li{margin:4px 0}
 #reg-hits a{color:#eee;text-decoration:none;display:block;padding:8px 10px;border-radius:8px;background:#141417;
@@ -751,7 +726,6 @@ _PAGE_SCRIPT = """
   var video = document.getElementById('modal-video');
   var placeholder = document.getElementById('modal-placeholder');
   var unmuteBtn = document.getElementById('modal-unmute');
-  var regOverlapEl = document.getElementById('modal-reg-overlap');
   var idEl = document.getElementById('modal-id');
   var idCode = document.getElementById('modal-id-code');
   var copyBtn = document.getElementById('modal-copy');
@@ -779,16 +753,6 @@ _PAGE_SCRIPT = """
       li.textContent = p;
       ul.appendChild(li);
     });
-    if(e.regOverlap){
-      regOverlapEl.innerHTML = '';
-      regOverlapEl.appendChild(document.createTextNode('See also: '));
-      var a = document.createElement('a');
-      a.href = '/capabilities/' + e.regOverlap.family + '#' + e.regOverlap.id;
-      a.textContent = e.regOverlap.title;
-      regOverlapEl.appendChild(a);
-      regOverlapEl.appendChild(document.createTextNode('.'));
-      regOverlapEl.hidden = false;
-    } else regOverlapEl.hidden = true;
     if(e.available){
       video.src = e.clip || ('/capabilities/' + id + '.mp4');
       video.poster = e.poster || ('/capabilities/' + id + '.jpg');
@@ -891,8 +855,7 @@ _REGISTRY_MODAL_STYLE = """
 """
 
 # The registry family page's modal: like /capabilities' own (clip, title, category line,
-# description, phrasings as "What to tell the builder"), plus aliases, api names and -- only when
-# REGISTRY_OVERLAP names this id -- a link back to the capability it overlaps.
+# description, phrasings as "What to tell the builder"), plus aliases and api names.
 _REGISTRY_MODAL_HTML = (
     '<div id="modal" hidden role="dialog" aria-modal="true" aria-labelledby="modal-title">'
     '<div class="box">'
@@ -908,7 +871,6 @@ _REGISTRY_MODAL_HTML = (
     '<div class="prompts"><p>What to tell the builder</p><ul id="modal-prompts"></ul></div>'
     '<p class="reg-aliases" id="modal-aliases" hidden></p>'
     '<div class="reg-api" id="modal-api-wrap" hidden><p>Build it</p><ul id="modal-api"></ul></div>'
-    '<p class="reg-overlap" id="modal-overlap" hidden></p>'
     '</div></div></div>'
 )
 
@@ -924,7 +886,6 @@ _REGISTRY_PAGE_SCRIPT = """
   var aliasesEl = document.getElementById('modal-aliases');
   var apiWrap = document.getElementById('modal-api-wrap');
   var apiList = document.getElementById('modal-api');
-  var overlapEl = document.getElementById('modal-overlap');
   var idEl = document.getElementById('modal-id');
   var idCode = document.getElementById('modal-id-code');
   var copyBtn = document.getElementById('modal-copy');
@@ -960,16 +921,6 @@ _REGISTRY_PAGE_SCRIPT = """
       apiList.appendChild(li);
     });
     apiWrap.hidden = false;
-    if(t.overlap){
-      overlapEl.innerHTML = '';
-      overlapEl.appendChild(document.createTextNode('Also on the Capabilities page as '));
-      var a = document.createElement('a');
-      a.href = '/capabilities#' + t.overlap.id;
-      a.textContent = t.overlap.title;
-      overlapEl.appendChild(a);
-      overlapEl.appendChild(document.createTextNode('.'));
-      overlapEl.hidden = false;
-    } else overlapEl.hidden = true;
     if(t.available){
       video.src = '/capabilities/' + id + '.mp4';
       video.poster = '/capabilities/' + id + '.jpg';
@@ -1569,10 +1520,6 @@ def page_html(capabilities_dir, version, header='', header_style='', community=N
         p = parent(e)
         if p:
             item.update(family=p.id, kindTitle=_kind_title(e))
-        registry_id = _registry_overlap(e.id)
-        if registry_id:
-            t = registry.get(registry_id)
-            item['regOverlap'] = {'id': t.id, 'family': t.family, 'title': t.name}
         data.append(item)
     registry_search_data = [{'id': t.id, 'title': t.name, 'family': t.family, 'aliases': list(t.aliases)}
                            for t in registry.catalog() if not has_card(t)]
@@ -1630,7 +1577,6 @@ def page_html(capabilities_dir, version, header='', header_style='', community=N
         '<button type="button" class="copy-id" id="modal-copy">Copy</button></p>'
         '<p class="desc" id="modal-desc"></p>'
         '<div class="prompts"><p>What to tell the builder</p><ul id="modal-prompts"></ul></div>'
-        '<p class="reg-overlap" id="modal-reg-overlap" hidden></p>'
         '</div></div></div>' + dialog_html +
         f'<script id="capabilities-data" type="application/json">{json.dumps(data)}</script>' +
         community_data_script + registry_search_script +

@@ -1,13 +1,15 @@
-"""Shape morph: videobuilder already has it as `paths.morph` (two outlines
-resampled to match point for point, then interpolated) drawn with
-`paths.draw`, so this entry only names it and demos it."""
+"""Shape morph: the same idea as Outline morph (`../shapes/outline_morph.py`),
+which keeps the capability -- both demo `paths.morph`/`paths.draw`. This
+module's own code stays (a film may still import it), but it is no longer a
+capability of its own."""
 import math
 
 import videobuilder as vb
 from videobuilder import paths
 
 from .. import _demo as demo
-from ..schema import Capability, Source
+
+MERGED_INTO = 'outline-morph'
 
 CX, CY, R = demo.W / 2, demo.H / 2, 150
 
@@ -47,25 +49,3 @@ def draw(n, cv):
     paths.draw(cv, shape, color, fill=True)
     xs, ys = [x for x, _ in shape], [y for _, y in shape]
     cv.mark('shape', min(xs), min(ys), max(xs) - min(xs), max(ys) - min(ys))
-
-
-CAPABILITY = Capability(
-    id='shape-morph',
-    name='Shape morph',
-    family='transitions',
-    group='Organic and Fluid',
-    aliases=('morph', 'shape tween', 'path morph', 'shape interpolation'),
-    definition='One outline flows continuously into a different outline, its edges sliding into the new '
-               'shape rather than cutting or fading between the two.',
-    phrasings=('turn the circle into a star smoothly instead of swapping them',
-               'have one shape melt into the next',
-               'blend this icon into that one without a cut'),
-    related=('particle-morph', 'text-to-shape-morph', 'letter-morph', 'morphing-shape-ident',
-             'chart-type-morph', 'shape-morph-loader'),
-    api=('videobuilder.paths.morph', 'videobuilder.paths.draw'),
-    demo=lambda: demo.film(draw),
-    source=Source('https://x.com/voxyz_ai/status/2109690569563746755',
-                  '@Voxyz_ai',
-                  upstream='https://github.com/alchaincyf/huashu-art-motion',
-                  upstream_credit='@alchaincyf (huashu-art-motion, MIT)'),
-)

@@ -19,11 +19,15 @@ ENV = {**os.environ, 'PYTHONPATH': str(ROOT) + os.pathsep + os.environ.get('PYTH
 
 class Catalog(unittest.TestCase):
     def test_every_card_has_a_demo_and_every_demo_has_a_card(self):
+        # A card with no `category` of its own is a grouping capability's member, shown on the page
+        # right after it (capabilities.cards): most keep the registry's short in-module demo, not a
+        # worked example film, so this only checks the ones that give an Example.
         demo_files = {p.name for p in DEMOS.glob('*.py') if not p.name.startswith('_')}
-        catalog_files = {os.path.basename(e.demo.path) for e in capabilities.cards()}
+        catalog_files = {os.path.basename(e.demo.path) for e in capabilities.cards() if e.is_example}
         self.assertEqual(catalog_files, demo_files)
         for e in capabilities.cards():
-            self.assertTrue((ROOT / e.demo.path).is_file(), e.demo.path)
+            if e.is_example:
+                self.assertTrue((ROOT / e.demo.path).is_file(), e.demo.path)
 
     def test_ids_are_unique_kebab_case(self):
         seen = set()
@@ -52,6 +56,8 @@ class Catalog(unittest.TestCase):
 
     def test_every_demo_passes_check(self):
         for e in capabilities.cards():
+            if not e.is_example:   # a member with the registry's own short demo, not a worked example film
+                continue
             with self.subTest(id=e.id):
                 result = subprocess.run([sys.executable, str(CHECK), str(ROOT / e.demo.path)],
                                         capture_output=True, text=True, env=ENV)
@@ -66,7 +72,9 @@ def _top():
 class Families(unittest.TestCase):
     def test_looks_is_a_family_with_a_category_of_its_own(self):
         from videobuilder import looks
-        self.assertEqual([f.id for f in capabilities.with_members()], ['looks', 'type'])
+        groupers = [f.id for f in capabilities.with_members()]
+        self.assertIn('looks', groupers)
+        self.assertIn('type', groupers)
         family = capabilities.get('looks')
         self.assertIn(family, _top())
         self.assertEqual(family.category, 'Looks')
@@ -180,21 +188,25 @@ class OldIds(unittest.TestCase):
             capabilities.resolve('never-was')
 
     def test_an_old_id_is_not_a_capability_of_its_own(self):
-        self.assertEqual(capabilities.old_ids(), {'comic-halftone': 'look-filter-pop-art',
-                                                  'pixel-art-layer': 'look-filter-pixel'})
-        for old in capabilities.old_ids():
-            self.assertNotIn(old, capabilities.ids())
-            self.assertFalse((ROOT / 'examples' / 'capabilities' / f'{old}.py').exists())
+        old = capabilities.old_ids()
+        self.assertEqual(old['comic-halftone'], 'look-filter-pop-art')
+        self.assertEqual(old['pixel-art-layer'], 'look-filter-pixel')
+        for o in old:
+            self.assertNotIn(o, capabilities.ids())
+            self.assertFalse((ROOT / 'examples' / 'capabilities' / f'{o}.py').exists())
 
     def test_every_id_from_before_the_one_record_format_still_resolves_to_itself(self):
         # Films, notes and suggestion history name these: the hand-written capabilities became
-        # one-file records under the same ids (and the registry's own kept theirs).
+        # one-file records under the same ids (and the registry's own kept theirs). Some since
+        # picked up `members` (a grouping capability's members get cards of their own too, right
+        # after it: see capabilities.cards), so this only checks every one of these still has a
+        # card -- not that no other id does.
         for i in BEFORE_RECORDS:
             with self.subTest(id=i):
                 self.assertEqual(capabilities.resolve(i), i)
                 self.assertEqual(capabilities.get(i).id, i)
                 self.assertEqual(capabilities.resolve_requested([i])[0]['id'], i)
-        self.assertEqual({t.id for t in capabilities.cards()}, set(BEFORE_RECORDS))
+        self.assertLessEqual(set(BEFORE_RECORDS), {t.id for t in capabilities.cards()})
 
     def test_an_old_ids_clip_is_the_new_entrys(self):
         self.assertEqual(capabilities.clip_file('/c', 'comic-halftone', 'mp4'), '/c/look-filter-pop-art.mp4')

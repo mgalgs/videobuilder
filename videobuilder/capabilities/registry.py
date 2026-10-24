@@ -14,6 +14,20 @@ above the record; when videobuilder already does the thing, the module only
 names and demos the existing API. `_demo.py` is the shared demo kit; the one
 test for every registry capability is `tests/test_capabilities_registry.py`.
 
+Two capabilities that turned out to be the same idea are merged by deleting
+the loser's `CAPABILITY` and replacing it with a module-level
+`MERGED_INTO = '<id>'` naming the survivor: its file and whatever code in it
+a film might still import both stay, but it is no longer a capability of its
+own -- not in `ids()`/`catalog()`, not built, not shown as its own card. The
+survivor picks up the merged module's id as one of its own `old_ids` (see
+`schema.Capability.old_ids`) automatically, so the old id keeps resolving
+(`get`, and `capabilities.resolve`/`resolve_requested`) without the survivor's
+record naming it by hand. `MERGED_INTO` may itself name another merged
+module -- the chain is followed to wherever it finally lands (see
+`_merge_targets`) -- but it must land somewhere real: a module naming an id
+that resolves to nothing is an error `tests/test_capabilities_registry.py`
+catches. A module may give `MERGED_INTO` or `CAPABILITY`, never both.
+
 Worked examples to copy: `principles/ease_out_back.py` (a thin entry for an
 existing API), `principles/bounce_ease_out.py` (a new easing curve),
 `transitions/dip_to_black.py` (a transition) and
@@ -37,12 +51,13 @@ them for the page and the sheet.
 This finds and checks every capability module; there is no list of them
 anywhere else -- a new module is found by its file alone.
 """
+import dataclasses
 import importlib
 import json
 import pkgutil
 from functools import lru_cache
 
-from .schema import FAMILIES, Capability, Example, module_name
+from .schema import FAMILIES, ID_RE, Capability, Example, module_name
 
 PACKAGE = __name__.rpartition('.')[0]
 
@@ -69,12 +84,22 @@ def modules(family=None):
 def load(family, name):
     """The `CAPABILITY` of `videobuilder.capabilities.<family>.<name>`, checked
     against where it lives: its id must be the module name with `_` as `-`,
-    its family the subpackage, and every `api` name must resolve."""
+    its family the subpackage, and every `api` name must resolve. None for a
+    module that gave up its own record with `MERGED_INTO` instead (see the
+    module docstring)."""
     where = f'{PACKAGE}.{family}.{name}'
     mod = importlib.import_module(where)
+    merged_into = getattr(mod, 'MERGED_INTO', None)
     t = getattr(mod, 'CAPABILITY', None)
+    if merged_into is not None:
+        if t is not None:
+            raise ValueError(f'{where}: defines both CAPABILITY and MERGED_INTO; a module merged into '
+                             'another capability keeps its code but gives up its own record')
+        if not isinstance(merged_into, str) or not ID_RE.match(merged_into):
+            raise ValueError(f'{where}: MERGED_INTO must be a capability id, not {merged_into!r}')
+        return None
     if not isinstance(t, Capability):
-        raise TypeError(f'{where} must define CAPABILITY = Capability(...)')
+        raise TypeError(f'{where} must define CAPABILITY = Capability(...) or MERGED_INTO = "<id>"')
     if module_name(t.id) != name:
         raise ValueError(f'{where}: id {t.id!r} does not match its file; '
                          f'call it {name.replace("_", "-")!r} or rename the file to {module_name(t.id)}.py')
@@ -85,8 +110,53 @@ def load(family, name):
 
 
 @lru_cache(maxsize=None)
+def _merge_targets():
+    """{old id: the id its module's MERGED_INTO names}, straight from every
+    module that gives one, in `modules` order -- one hop of the chain, not yet
+    followed to where it finally lands (see `_resolve_merge`)."""
+    out = {}
+    for fam, name in modules():
+        where = f'{PACKAGE}.{fam}.{name}'
+        mod = importlib.import_module(where)
+        target = getattr(mod, 'MERGED_INTO', None)
+        if target is not None:
+            out[name.replace('_', '-')] = target
+    return out
+
+
+def _resolve_merge(id, _chain=()):
+    """Where `id`'s MERGED_INTO chain finally lands: `id` itself if it names
+    no module, or isn't merged; otherwise the final id, following through as
+    many hops as the chain has (parallax-layers into parallax-scene, by way
+    of multiplane-camera into parallax-layers). Raises ValueError for a cycle."""
+    targets = _merge_targets()
+    if id not in targets:
+        return id
+    if id in _chain:
+        raise ValueError(f'MERGED_INTO cycle: {" -> ".join(_chain + (id,))}')
+    return _resolve_merge(targets[id], _chain + (id,))
+
+
+def merged_into(id):
+    """The id `id`'s own module was merged into, finally resolved through any
+    chain -- None if `id` isn't itself a module that gave up its record this
+    way (it may still be a capability's `old_ids` entry some other way)."""
+    if id not in _merge_targets():
+        return None
+    return _resolve_merge(id)
+
+
+@lru_cache(maxsize=None)
 def _all():
-    return tuple(load(fam, name) for fam, name in modules())
+    loaded = {t.id: t for t in (load(fam, name) for fam, name in modules()) if t is not None}
+    picked_up = {}
+    for old in _merge_targets():
+        final = _resolve_merge(old)
+        if final not in loaded:
+            raise ValueError(f'{old}: MERGED_INTO names {final!r}, which is not a capability')
+        picked_up.setdefault(final, []).append(old)
+    return tuple(dataclasses.replace(t, old_ids=t.old_ids + tuple(picked_up[t.id]))
+                if t.id in picked_up else t for t in loaded.values())
 
 
 def catalog(family=None):
@@ -97,19 +167,22 @@ def catalog(family=None):
 
 
 def get(id):
-    """The capability called `id`, importing only its own module. Raises
-    `KeyError` for an unknown id."""
-    for fam, name in modules():
-        if name == module_name(id):
-            return load(fam, name)
+    """The capability called `id`: one of `catalog`'s loaded records (so its
+    `old_ids` carries any id merged into it, MERGED_INTO included). Raises
+    `KeyError` for an unknown id, or one that is itself merged away -- its
+    own module no longer has a record; see `capabilities.get`, which
+    resolves an old id to its survivor first."""
+    for t in _all():
+        if t.id == id:
+            return t
     raise KeyError(f'no capability {id!r}')
 
 
 def ids(family=None):
-    """Every capability's id (or one family's), in `modules` order: read
-    from the file names alone, so no module is imported (`load` checks each
-    id matches its file)."""
-    return tuple(name.replace('_', '-') for _, name in modules(family))
+    """Every capability's id (or one family's), in `modules` order: `catalog`'s
+    own ids. A module that gave up its record with `MERGED_INTO` contributes
+    none of its own."""
+    return tuple(t.id for t in catalog(family))
 
 
 def poster_frame(t, film, default):

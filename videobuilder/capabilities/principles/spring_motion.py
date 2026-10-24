@@ -48,7 +48,8 @@ CAPABILITY = Capability(
     name='Spring Motion',
     family='principles',
     group='Physics',
-    aliases=('spring animation', 'spring physics', 'physics-based easing', 'damped spring'),
+    aliases=('spring animation', 'spring physics', 'physics-based easing', 'damped spring',
+             'spring ease', 'wobbly spring', 'damped oscillation', 'wobble to rest'),
     definition='Movement driven by a simulated spring, so a thing shoots toward its target, '
                'runs past it and wobbles back and forth in shrinking swings until it settles.',
     phrasings=('make it move like it is on a spring',

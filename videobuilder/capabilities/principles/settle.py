@@ -1,9 +1,12 @@
-"""Settle: videobuilder already has it as an under-damped `vb.spring` (params
-from `vb.damped`), so this entry only names it and demos it."""
+"""Settle: the same idea as Spring Motion (`spring-motion.py`), which keeps
+the capability -- both only name an under-damped `vb.spring` and demo the
+same overshoot and ring-down. This module's own code stays (a film may
+still import it), but it is no longer a capability of its own."""
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Capability
+
+MERGED_INTO = 'spring-motion'
 
 START = 0.4
 SPRING = vb.damped(0.18, hz=1.4)  # light damping: a few swings either side, each smaller than the last
@@ -18,21 +21,3 @@ def draw(n, cv):
     for (ax, ay), (bx, by) in zip(pts, pts[1:]):
         cv.line(ax, ay, bx, by, demo.TEAL, width=3, alpha=0.6)
     demo.card(cv, x0 + (x1 - x0) * p, y)
-
-
-CAPABILITY = Capability(
-    id='settle',
-    name='Settle',
-    family='principles',
-    group='Physics',
-    aliases=('spring settle', 'damped oscillation', 'wobble to rest'),
-    definition='After arriving, an object swings past its resting spot and back a few times, '
-               'each swing smaller than the last, until it comes to a stop.',
-    phrasings=('let it wobble a bit before it comes to rest',
-               'springs into place and jiggles to a stop',
-               'make it overshoot and rock back and forth before settling'),
-    related=('bounce-ease-in', 'moving-hold', 'bounce-ease-out', 'ease-out-back', 'slow-in-and-slow-out',
-             'ease-out-circ'),
-    api=('videobuilder.spring', 'videobuilder.damped'),
-    demo=lambda: demo.film(draw),
-)
