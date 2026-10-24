@@ -1065,9 +1065,9 @@ _ADD_CAPABILITY_STYLE = """
 #capability-error{color:#ff8a80;margin:0;font-size:.9rem}#capability-error:empty{display:none}
 """
 
-# The search field: every word typed must appear in a card's title, line, category, description or
-# example phrasings. Grids, kind headings and sections left empty hide with it, as do the reel and
-# the drafts while a search is on.
+# The search field: every word typed must appear in a card's title, line, category, description,
+# aliases or example phrasings. Grids, kind headings and sections left empty hide with it, as do
+# the reel and the drafts while a search is on.
 _SEARCH_SCRIPT = """
 (function(){
   var input = document.getElementById('cap-search');
@@ -1079,7 +1079,7 @@ _SEARCH_SCRIPT = """
     var el = document.getElementById(id);
     if(!el) return;
     JSON.parse(el.textContent).forEach(function(e){
-      text[e.id] = [e.title, e.category, e.description, e.kindTitle || ''].concat(e.prompts || [])
+      text[e.id] = [e.title, e.category, e.description, e.kindTitle || ''].concat(e.prompts || [], e.aliases || [])
         .join(' ').toLowerCase();
     });
   });
@@ -1511,7 +1511,8 @@ def page_html(capabilities_dir, version, header='', header_style='', community=N
     data = []
     for e in carded:
         item = {'id': e.id, 'title': e.name, 'category': category(e), 'description': e.description,
-                'prompts': list(e.phrasings), 'available': e.id in built, 'unmute': e.id == 'beat-lock'}
+                'prompts': list(e.phrasings), 'aliases': list(e.aliases),
+                'available': e.id in built, 'unmute': e.id == 'beat-lock'}
         if e.members:
             item.update(members=len(e.members.ids) + len(published_by_family.get(e.id, [])),
                         plural=e.members.noun[1])

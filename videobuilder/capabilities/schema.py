@@ -229,7 +229,7 @@ class Capability:
     calls to use it. `demo`: a no-argument callable returning a short 16:9
     `videobuilder.Film` showing the capability alone (see `_demo.py`).
     `settings`: optional `Choice`/`Number` entries (settings.py) the editor
-    shows as a card beside this capability's chip, e.g. voiceover's voice.
+    shows as a card beside this capability's chip, e.g. narration's voice.
 
     The rest are optional, defaulting so most records never name them:
     `description`, a longer text for its modal on the /capabilities page;

@@ -35,8 +35,7 @@ existing API), `principles/bounce_ease_out.py` (a new easing curve),
 
 A capability the editor should let the creator tune (a voice, a speed) can
 carry `settings` -- see schema.py's `Capability.settings` and settings.py;
-`sound/voiceover.py` is the worked example (shared with `sound/narration.py`,
-so both offer the same controls). `index_data` includes a capability's
+`sound/narration.py` is the worked example. `index_data` includes a capability's
 `settings` (as JSON) and its `source` (the post it came from) only when it
 has them, so every other capability's index output is unchanged.
 

@@ -139,9 +139,9 @@ def _capability_docs():
     """Every capability's retrieval text (apart from the Looks and Type
     members, which stay in the static block, and the capabilities that
     group them), all answering with family "capabilities": one with a card
-    of its own by its name, card line, description, phrasings and page
-    section; every other one by its name, aliases, phrasings, definition,
-    group and family."""
+    of its own by its name, aliases, card line, description, phrasings and
+    page section; every other one by its name, aliases, phrasings,
+    definition, group and family."""
     from . import capabilities
     from .capabilities import registry
     looks, type_ = _looks_and_type_ids()
@@ -150,7 +150,7 @@ def _capability_docs():
     for t in capabilities.cards():
         if t.id in static:
             continue  # a look/type member (stays in the static block), or the capability grouping them
-        docs.append((t.id, ' '.join((t.name, t.definition, t.description, *t.phrasings, t.category))))
+        docs.append((t.id, ' '.join((t.name, *t.aliases, t.definition, t.description, *t.phrasings, t.category))))
     for t in registry.catalog():
         if not capabilities.has_card(t):
             docs.append((t.id, ' '.join((t.name, *t.aliases, *t.phrasings, t.definition, t.group, t.family))))
