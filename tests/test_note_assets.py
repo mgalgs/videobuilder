@@ -13,8 +13,12 @@ from tests.test_project import TempProject
 TRACK = {'id': 'track-1', 'title': 'Theme', 'audio_url': 'https://example.com/t.mp3', 'tags': ['calm']}
 
 
-def _music_library():
-    source = Source('test-source', 'Test Music', 'CC0', 'entry_point', func=lambda cfg: [TRACK], config=None)
+def _music_library(on_fetch=None):
+    def func(cfg):
+        if on_fetch:
+            on_fetch()
+        return [TRACK]
+    source = Source('test-source', 'Test Music', 'CC0', 'entry_point', func=func, config=None)
     return MusicLibrary([source])
 
 
@@ -87,6 +91,17 @@ class NoteAssets(TempProject):
         self.addCleanup(editor.renders.close)
         note = editor.add_note(dict(video='promo/film', frame=0, text='x', music=['track-1']), 'reviewer')
         self.assertEqual(note['music'], [])
+
+    def test_a_note_with_no_music_pick_never_fetches_the_catalog(self):
+        fetches = []
+        backend = FakeAgent()
+        editor = Editor(self.root, backend=backend, unsandboxed_previews=True, auto_land=False,
+                        music=_music_library(on_fetch=lambda: fetches.append(1)))
+        self.addCleanup(editor.pool.close)
+        self.addCleanup(editor.renders.close)
+        note = editor.add_note(dict(video='promo/film', frame=0, text='Just text'), 'reviewer')
+        self.assertEqual(note['music'], [])
+        self.assertEqual(fetches, [])
 
 
 if __name__ == '__main__':

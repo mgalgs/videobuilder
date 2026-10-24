@@ -197,7 +197,8 @@ def _resolved_assets(note, music):
         except (ValueError, sfx_module.SfxUnavailable):
             continue
     music_out = []
-    if music:
+    note_music = note.get('music') or ()
+    if music and note_music:
         by_id = {}
         for source in music.list_sources():
             try:
@@ -206,7 +207,7 @@ def _resolved_assets(note, music):
                 continue
             for t in tracks:
                 by_id.setdefault(t['id'], (source, t))
-        for id_ in note.get('music') or ():
+        for id_ in note_music:
             if id_ in by_id:
                 music_out.append(by_id[id_])
     return fonts_out, sfx_out, music_out

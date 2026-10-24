@@ -320,11 +320,13 @@ class RequestedAssetsSection(unittest.TestCase):
     music sources) -- see prompt._resolved_assets. A note with none of them
     renders byte-identical to one from before these chips existed."""
 
-    def music_library(self):
-        source = Source('test-source', 'Test Music', 'CC0', 'entry_point',
-                        func=lambda cfg: [{'id': 'track-1', 'title': 'Theme',
-                                           'audio_url': 'https://example.com/t.mp3', 'tags': ['calm']}],
-                        config=None)
+    def music_library(self, on_fetch=None):
+        def func(cfg):
+            if on_fetch:
+                on_fetch()
+            return [{'id': 'track-1', 'title': 'Theme', 'audio_url': 'https://example.com/t.mp3',
+                    'tags': ['calm']}]
+        source = Source('test-source', 'Test Music', 'CC0', 'entry_point', func=func, config=None)
         return MusicLibrary([source])
 
     def test_render_with_none_of_them_is_byte_identical(self):
@@ -373,6 +375,11 @@ class RequestedAssetsSection(unittest.TestCase):
         look_at = md.index('## Look at your work')
         self.assertLess(requested_at, assets_at)
         self.assertLess(assets_at, look_at)
+
+    def test_a_note_with_no_music_pick_never_fetches_the_catalog(self):
+        fetches = []
+        prompt.render(NOTE, PAYLOAD, None, music=self.music_library(on_fetch=lambda: fetches.append(1)))
+        self.assertEqual(fetches, [])
 
     def test_all_three_kinds_at_once(self):
         md = prompt.render({**NOTE, 'fonts': ['inter'], 'sfx': ['whoosh_fast/tight'], 'music': ['track-1']},

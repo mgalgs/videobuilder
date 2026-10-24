@@ -1174,7 +1174,7 @@ def _note_assets(body, music):
         sfx_ids = set()
     out['sfx'] = [i for i in out['sfx'] if i in sfx_ids]
     music_ids = set()
-    if music:
+    if music and out['music']:
         for source in music.list_sources():
             try:
                 _, tracks = music.list_tracks(source['id'])
