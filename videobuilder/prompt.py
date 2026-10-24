@@ -172,6 +172,71 @@ def _requested_capabilities_lines(items):
     return lines
 
 
+def _resolved_assets(note, music):
+    """(fonts, sfx, music) for `_requested_assets_lines`: `note['fonts']`/
+    `['sfx']`/`['music']` (already validated ids, see editor._note_assets)
+    resolved against the real catalog -- fonts.get, the sfx pack, `music`'s
+    configured sources -- so render() never trusts a stored id blind either.
+    An id that no longer resolves (a changed catalog) is dropped silently,
+    the same way `resolve_requested` drops one for a capability. `sfx` items
+    are `sfx.Effect`s; `music` items are (source, track) pairs, `source` one
+    of `music.list_sources()`'s own {id, name, license} dicts; `fonts` items
+    are fonts.get's plain dicts."""
+    from . import fonts as fonts_module
+    from . import sfx as sfx_module
+    fonts_out = []
+    for id_ in note.get('fonts') or ():
+        try:
+            fonts_out.append(fonts_module.get(id_))
+        except KeyError:
+            continue
+    sfx_out = []
+    for id_ in note.get('sfx') or ():
+        try:
+            sfx_out.append(sfx_module.bank().get(id_))
+        except (ValueError, sfx_module.SfxUnavailable):
+            continue
+    music_out = []
+    if music:
+        by_id = {}
+        for source in music.list_sources():
+            try:
+                _, tracks = music.list_tracks(source['id'])
+            except Exception:
+                continue
+            for t in tracks:
+                by_id.setdefault(t['id'], (source, t))
+        for id_ in note.get('music') or ():
+            if id_ in by_id:
+                music_out.append(by_id[id_])
+    return fonts_out, sfx_out, music_out
+
+
+def _requested_assets_lines(fonts_items, sfx_items, music_items):
+    """The fonts, sound effects and music tracks the creator picked from a
+    suggestion while writing the note (suggest.js: picked only, never
+    typed, and never written into the note's own text -- see
+    `_resolved_assets`). Listed next to '## Capabilities the creator asked
+    for', by kind, each with the id the builder actually uses it by: a
+    font's family name, a sound effect's own id (sfx.sound(id, ...)), a
+    music track's id and source."""
+    lines = ['## Fonts, sound effects and music the creator picked', '',
+             "These are the creator's own picks, chosen from a suggestion while writing the note (shown as "
+             "a chip below it): use each one as given, not as a suggestion to second-guess."]
+    if fonts_items:
+        lines += ['', 'Fonts:']
+        lines += [f"- `{f['family']}`: {f['about']} ({f['source']})" for f in fonts_items]
+    if sfx_items:
+        lines += ['', 'Sound effects:']
+        lines += [f"- `{e.id}`: {e.role} ({e.family}). {e.about}" for e in sfx_items]
+    if music_items:
+        lines += ['', 'Music:']
+        for source, t in music_items:
+            tags = ', '.join(t.get('tags', ()))
+            lines.append(f"- `{t['id']}`: \"{t['title']}\" ({source['name']}" + (f"; {tags}" if tags else '') + ')')
+    return lines
+
+
 def _community_lines(community):
     lines = ['## Community capabilities', '',
              'Other creators submitted these from a post they saw showing a capability; each ships '
@@ -332,7 +397,8 @@ def _film_scope(film, directory):
             f"clip and say what else it needs."]
 
 
-def render(note, payload, image, compendium=False, votes=None, sources=None, community=None, film=None, refs=None):
+def render(note, payload, image, compendium=False, votes=None, sources=None, community=None, film=None, refs=None,
+          music=None):
     """The exact text written to `<state>/sessions/<slug>/<note-id>.md`, the file
     the submitted payload's `note_file` points the builder at. `payload` is the
     note merged with its context and session fields (see NoteStore._submit);
@@ -362,6 +428,12 @@ def render(note, payload, image, compendium=False, votes=None, sources=None, com
     `refs` is this note's referenced videos, already resolved and staged (see
     video_refs.stage, Editor._stage_video_refs); falsy for none, leaving the
     section out entirely the same way `sources` does.
+    `note['fonts']`/`['sfx']`/`['music']` are ids a font, sound-effect or
+    music chip named (already re-checked by editor.add_note/start_video --
+    see editor._note_assets); `music` here is the MusicLibrary to resolve a
+    music id's title/source against (NoteStore.music); empty or missing
+    fields leave the section out entirely, so a note with none of them
+    renders byte-identical to one from before these chips existed.
     """
     lines = ['# Review request', '', *([note['rejection']] if note.get('rejection') else []), note['text'], '']
     if note.get('time') is not None:
@@ -458,6 +530,9 @@ def render(note, payload, image, compendium=False, votes=None, sources=None, com
     requested = resolve_requested(note.get('capabilities'))
     if requested:
         lines += ['', *_requested_capabilities_lines(requested)]
+    fonts_items, sfx_items, music_items = _resolved_assets(note, music)
+    if fonts_items or sfx_items or music_items:
+        lines += ['', *_requested_assets_lines(fonts_items, sfx_items, music_items)]
     lines += ['', '## Look at your work', '',
               'Before each distinct step of your work, write one line in your own message '
               'that starts with "Step: " and says what you are about to do and why, in plain '

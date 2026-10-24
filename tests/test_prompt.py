@@ -4,6 +4,7 @@ import unittest
 
 from videobuilder import __version__, prompt
 from videobuilder.capabilities.settings import Choice, Option
+from videobuilder.music import MusicLibrary, Source
 
 NOTE = {'id': 'n1', 'text': 'Make it punchier'}
 PAYLOAD = {'video': 'promo/film', 'film': 'promo/film.py', 'format': '16x9', 'frame': None, 'segment': None,
@@ -309,6 +310,76 @@ class RequestedCapabilitiesSettingsLines(unittest.TestCase):
                  'settings': (Choice('voice', 'Voice', options=(Option('A', 'a'), Option('B', 'b')), default='a'),),
                  'values': {'voice': 'b'}}]
         self.assertIn('  - voice: b (B)', prompt._requested_capabilities_lines(items))
+
+
+class RequestedAssetsSection(unittest.TestCase):
+    """A note's picked font/sfx/music chips (suggest.js: picked only, never
+    typed, never written into the note's own text): listed next to
+    '## Capabilities the creator asked for', by kind, resolved fresh against
+    the real catalog at render time (fonts.get, the sfx pack, the configured
+    music sources) -- see prompt._resolved_assets. A note with none of them
+    renders byte-identical to one from before these chips existed."""
+
+    def music_library(self):
+        source = Source('test-source', 'Test Music', 'CC0', 'entry_point',
+                        func=lambda cfg: [{'id': 'track-1', 'title': 'Theme',
+                                           'audio_url': 'https://example.com/t.mp3', 'tags': ['calm']}],
+                        config=None)
+        return MusicLibrary([source])
+
+    def test_render_with_none_of_them_is_byte_identical(self):
+        with_none = prompt.render(NOTE, PAYLOAD, None)
+        with_missing_keys = prompt.render({**NOTE}, PAYLOAD, None)
+        with_empty = prompt.render({**NOTE, 'fonts': [], 'sfx': [], 'music': []}, PAYLOAD, None)
+        self.assertEqual(with_none, with_missing_keys)
+        self.assertEqual(with_none, with_empty)
+        self.assertNotIn('the creator picked', with_none)
+
+    def test_a_font_pick_is_named_by_its_family_with_its_source(self):
+        md = prompt.render({**NOTE, 'fonts': ['inter']}, PAYLOAD, None)
+        self.assertIn('## Fonts, sound effects and music the creator picked', md)
+        self.assertIn('Fonts:', md)
+        self.assertIn('`Inter`: The clean default sans; variable weight. '
+                      '(examples/assets (Inter-Variable.ttf))', md)
+        self.assertNotIn('Sound effects:', md)
+        self.assertNotIn('Music:', md)
+
+    def test_an_sfx_pick_is_named_by_its_own_id(self):
+        md = prompt.render({**NOTE, 'sfx': ['whoosh_fast/tight']}, PAYLOAD, None)
+        self.assertIn('Sound effects:', md)
+        self.assertIn('`whoosh_fast/tight`: whoosh (classic). a fast pass', md)
+
+    def test_a_music_pick_is_named_by_its_title_and_source(self):
+        md = prompt.render({**NOTE, 'music': ['track-1']}, PAYLOAD, None, music=self.music_library())
+        self.assertIn('Music:', md)
+        self.assertIn('`track-1`: "Theme" (Test Music; calm)', md)
+
+    def test_an_unknown_font_id_is_dropped_silently(self):
+        md = prompt.render({**NOTE, 'fonts': ['not-a-real-font']}, PAYLOAD, None)
+        self.assertNotIn('the creator picked', md)
+        self.assertNotIn('not-a-real-font', md)
+
+    def test_a_music_id_with_no_music_library_given_is_dropped_silently(self):
+        # Render never trusts the note's own stored id either, the same as editor._note_assets
+        # at creation time -- here, resolved against whatever `music` render() is given.
+        md = prompt.render({**NOTE, 'music': ['track-1']}, PAYLOAD, None)
+        self.assertNotIn('the creator picked', md)
+        self.assertNotIn('track-1', md)
+
+    def test_section_placed_after_capabilities_before_look_at_your_work(self):
+        md = prompt.render({**NOTE, 'capabilities': ['look-melt'], 'fonts': ['inter']}, PAYLOAD, None)
+        requested_at = md.index('## Capabilities the creator asked for')
+        assets_at = md.index('## Fonts, sound effects and music the creator picked')
+        look_at = md.index('## Look at your work')
+        self.assertLess(requested_at, assets_at)
+        self.assertLess(assets_at, look_at)
+
+    def test_all_three_kinds_at_once(self):
+        md = prompt.render({**NOTE, 'fonts': ['inter'], 'sfx': ['whoosh_fast/tight'], 'music': ['track-1']},
+                           PAYLOAD, None, music=self.music_library())
+        self.assertIn('Fonts:', md)
+        self.assertIn('Sound effects:', md)
+        self.assertIn('Music:', md)
 
 
 class PinGuidance(unittest.TestCase):
