@@ -244,6 +244,7 @@ function makeEl() {
   };
 }
 const document = {createElement: () => makeEl()};
+let capCardsKey = null;
 const window = {SettingsCard: {calls: [], render(container, settings, values, onChange) {
   window.SettingsCard.calls.push({container, settings, values});
   window.SettingsCard.lastOnChange = onChange;
@@ -329,6 +330,27 @@ console.log(JSON.stringify({pickedCapIds, capValues, cardCount: capCards.childre
         self.assertEqual(out['pickedCapIds'], [])
         self.assertEqual(out['capValues'], {})
         self.assertEqual(out['cardCount'], 0)
+
+    def test_typing_does_not_rebuild_an_unchanged_card(self):
+        # A rebuild on every keystroke would cut off a voice sample mid-play.
+        prelude = f"""
+const CAPS = {{narration: {{id: 'narration', family: 'capabilities', title: 'Narration',
+  settings: {json.dumps(self.NARRATION_SETTINGS)}}}}};
+let pickedCapIds = ['narration'];
+let capValues = {{}};
+const ta = {{value: ''}};
+const capChips = makeEl(), capCards = makeEl();
+"""
+        calls = """
+renderCapChips();
+const card = capCards.children[0];
+ta.value = 'more words';
+renderCapChips();
+console.log(JSON.stringify({renderCalls: window.SettingsCard.calls.length, same: capCards.children[0] === card}));
+"""
+        out = self.run_js(prelude, calls)
+        self.assertEqual(out['renderCalls'], 1)
+        self.assertTrue(out['same'])
 
 
 @unittest.skipUnless(shutil.which('node'), 'node is not available in this environment')
