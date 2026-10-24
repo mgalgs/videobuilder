@@ -856,6 +856,22 @@ class Music(API):
         self.assertEqual(code, 201, record)
         self.assertEqual(self.get('/api/attachments/' + record['id']), self.TRACK_MP3)
 
+    def test_attach_puts_a_disputed_tracks_dispute_in_its_credit_whatever_its_licence(self):
+        from videobuilder.music import MusicLibrary, Source
+        self._configure()
+        track = {'id': 'disc-1', 'title': 'Old Disc', 'audio_url': self.server.base + '/track.mp3',
+                 'license': 'https://creativecommons.org/publicdomain/mark/1.0/', 'disputed': True}
+        self.editor.music = MusicLibrary([Source('78s', '78s', 'Rights disputed', 'entry_point',
+                                                 func=lambda cfg: [track], config=None)])
+        code, record = self.post('/api/music/attach', {'video': 'promo/film', 'source': '78s', 'track': 'disc-1'})
+        self.assertEqual(code, 201, record)
+        [stored] = self.editor.attachments.validate('promo/film', [record['id']])
+        self.assertTrue(stored['credit']['disputed'])
+        from videobuilder import prompt
+        from tests.test_prompt import NOTE, PAYLOAD
+        md = prompt.render(dict(NOTE, attachments=[stored]), PAYLOAD, None)
+        self.assertIn('-- credit: Old Disc, rights disputed, https://creativecommons.org/publicdomain/mark/1.0/', md)
+
     def test_attach_over_size_limit_is_refused(self):
         self._configure()
         self.editor.attachments.max_file = len(self.TRACK_MP3) - 1

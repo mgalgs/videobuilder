@@ -144,6 +144,17 @@ class MusicAttach(TempProject):
         stored = editor.attachments.get(record['id'], 'promo/film')[1].read_bytes()
         self.assertEqual(stored, self.TRACK_MP3)
 
+    def test_a_picked_disputed_tracks_credit_names_the_dispute(self):
+        track = {'id': 'track-1', 'title': 'Old Disc', 'audio_url': self.server.base + '/track.mp3',
+                 'tags': [], 'license': 'Public domain', 'disputed': True}
+        editor = self._editor([track])
+        note = editor.add_note(dict(video='promo/film', frame=0, text='Add music', music=['track-1']), 'reviewer')
+        [record] = [a for a in note['attachments'] if a.get('music_track') == 'track-1']
+        self.assertTrue(record['credit']['disputed'])
+        from videobuilder import prompt
+        md = prompt.render(note, note, None, music=editor.music)
+        self.assertIn('-- credit: Old Disc, rights disputed, Public domain', md)
+
     def test_the_prompt_names_the_attachment(self):
         track = {'id': 'track-1', 'title': 'Theme', 'audio_url': self.server.base + '/track.mp3', 'tags': ['calm']}
         editor = self._editor([track])

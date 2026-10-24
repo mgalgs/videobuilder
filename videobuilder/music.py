@@ -111,7 +111,9 @@ def attach_track(attachments, video, source_license, track, extra_fields=None):
     attachment, with its credit -- exactly what /api/music/attach does for a
     manually "used" track, and what a note's picked music chip gets too.
     `source_license` is the configured source's own license, a plain string,
-    used only when the track carries none of its own. `extra_fields`, when
+    used only when the track carries none of its own. A `disputed` track's
+    credit always carries `disputed: True`, whatever its licence text (see
+    prompt's credit line). `extra_fields`, when
     given, is merged into the stored record alongside any credit -- used only
     by a note's pick, to tag the attachment with which pick it came from.
     Raises UnsupportedAudio, TooLarge, FetchError, or ValueError (the upload
@@ -122,9 +124,13 @@ def attach_track(attachments, video, source_license, track, extra_fields=None):
         raise UnsupportedAudio('unsupported audio type for this track')
     from .attachments import TYPES
     extra = {}
-    if track.get('license') or track.get('creator') or track.get('year') or track.get('item_url'):
+    disputed = bool(track.get('disputed'))
+    if track.get('license') or track.get('creator') or track.get('year') or track.get('item_url') or disputed:
         extra['credit'] = {'title': track['title'], 'creator': track.get('creator'), 'year': track.get('year'),
                            'license': track.get('license') or source_license, 'item_url': track.get('item_url')}
+        if disputed:
+            # Whatever its licence text says (a licence URL, say), so the credit never hides the dispute.
+            extra['credit']['disputed'] = True
     if extra_fields:
         extra.update(extra_fields)
     return attachments.upload(video, f"{track['title']}.{ext}", TYPES[ext], data, extra=extra or None)

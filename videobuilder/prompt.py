@@ -211,6 +211,17 @@ def _resolved_assets(note, music):
     return fonts_out, sfx_out, music_out
 
 
+def _licence_bits(credit):
+    """An attachment credit's licence, led by "rights disputed" when the
+    credit is flagged `disputed` (see music.attach_track) and its licence
+    text doesn't already say so -- the same rule director.js's Music panel
+    shows a track by."""
+    licence = credit.get('license')
+    if credit.get('disputed') and not (licence and licence.lower().startswith('rights disputed')):
+        return ['rights disputed', licence]
+    return [licence]
+
+
 def _requested_assets_lines(fonts_items, sfx_items, music_items):
     """The fonts, sound effects and music tracks the creator picked from a
     suggestion while writing the note (suggest.js: picked only, never
@@ -452,7 +463,7 @@ def render(note, payload, image, compendium=False, votes=None, sources=None, com
             if credit:
                 any_credit = True
                 credit_bits = [credit.get('title'), f"by {credit['creator']}" if credit.get('creator') else None,
-                               str(credit['year']) if credit.get('year') else None, credit.get('license'),
+                               str(credit['year']) if credit.get('year') else None, *_licence_bits(credit),
                                credit.get('item_url')]
                 line += f" -- credit: {', '.join(b for b in credit_bits if b)}"
             lines.append(line)

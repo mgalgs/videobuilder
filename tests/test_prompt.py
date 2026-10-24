@@ -76,6 +76,14 @@ class AttachmentsSection(unittest.TestCase):
                      'https://archive.org/details/farm-safety-1955', md)
         self.assertIn('carries a credit', md)
 
+    def test_a_disputed_credit_says_so_once_whatever_its_licence(self):
+        for licence, line in (('Public domain', '-- credit: Disc, rights disputed, Public domain'),
+                              (None, '-- credit: Disc, rights disputed'),
+                              ('rights disputed (see item page)', '-- credit: Disc, rights disputed (see item page)')):
+            md = self.render([{'name': 'disc.mp3', 'type': 'audio/mpeg', 'size': 100,
+                               'credit': {'title': 'Disc', 'license': licence, 'disputed': True}}])
+            self.assertIn(line + '\n', md)
+
     def test_credit_sentence_only_added_when_some_attachment_has_one(self):
         credit = {'title': 'Farm Safety'}
         md = self.render([{'name': 'ref.png', 'type': 'image/png', 'size': 100},
