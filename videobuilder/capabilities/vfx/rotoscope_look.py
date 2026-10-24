@@ -29,7 +29,7 @@ def rotoscope(im, t, age, u, levels=8, ink=INK, thick=3.0, wobble=True):
     fill border inked `thick` px wide (at 1080) in `ink`. With `wobble` the
     line shifts a pixel on twos, like a fresh tracing every other frame.
     A `looks.fx` treat function: `t`, `age` and `u` as there."""
-    k = work_factor(u)
+    k = max(work_factor(u), 3)   # the flattening filters are cheap only well under full res
     small = shrink(im, k).filter(ImageFilter.MedianFilter(5))
     q = small.quantize(colors=levels, method=Image.Quantize.MAXCOVERAGE, kmeans=3, dither=Image.Dither.NONE)
     flat = q.convert('RGB').filter(ImageFilter.ModeFilter(5))    # flat areas, no specks
@@ -37,7 +37,8 @@ def rotoscope(im, t, age, u, levels=8, ink=INK, thick=3.0, wobble=True):
     w, h = lines.size
     lines.paste(0, (0, 0, w, h), _rim(w, h))    # FIND_EDGES leaves the outermost pixels unfiltered
     size = int(round(max(1.0, thick * u / k))) | 1
-    lines = grow(lines.filter(ImageFilter.MaxFilter(size)) if size > 1 else lines, im.size)
+    lines = lines.filter(ImageFilter.MaxFilter(size)) if size > 1 else lines
+    lines = grow(lines, im.size, Image.BILINEAR)   # smooth the line mask back up, not blocky NEAREST
     if wobble:
         rnd = random.Random(boil(t))
         lines = ImageChops.offset(lines, rnd.choice((-1, 0, 1)) * k, rnd.choice((-1, 0, 1)) * k)
