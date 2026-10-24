@@ -1,6 +1,6 @@
 """Stick figure: built from videobuilder's own API, so this record only names it and demos it with its
 worked example film, `examples/capabilities/stick-figure.py` (an `Example` demo: see schema.py)."""
-from ..schema import Capability, Example
+from ..schema import Capability, Example, Source
 
 CAPABILITY = Capability(
     id='stick-figure',
@@ -33,4 +33,5 @@ CAPABILITY = Capability(
     doc='skill/make-a-video/reference/stick.md',
     demo=Example('examples/capabilities/stick-figure.py'),
     poster=130,
+    source=Source('https://x.com/Jason23818126/status/2112030757724340314', '@Jason23818126'),
 )

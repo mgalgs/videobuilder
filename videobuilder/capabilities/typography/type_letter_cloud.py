@@ -1,7 +1,7 @@
 """Letter cloud: one type style of the Type capability, built from videobuilder's own API, so this
 record only names it and demos it with its worked example film, `examples/capabilities/type-letter-
 cloud.py` (an `Example` demo: see schema.py)."""
-from ..schema import Capability, Example
+from ..schema import Capability, Example, Source
 
 CAPABILITY = Capability(
     id='type-letter-cloud',
@@ -20,4 +20,5 @@ CAPABILITY = Capability(
     api=("vb.type.draw(cv, 'letter-cloud', props, t)",),
     doc='skill/make-a-video/reference/type.md',
     demo=Example('examples/capabilities/type-letter-cloud.py'),
+    source=Source('https://x.com/Mike_Andreuzza/status/2112064951925854535', '@Mike_Andreuzza'),
 )

@@ -1,7 +1,7 @@
 """Rubber letters: one type style of the Type capability, built from videobuilder's own API, so this
 record only names it and demos it with its worked example film, `examples/capabilities/type-
 rubber.py` (an `Example` demo: see schema.py)."""
-from ..schema import Capability, Example
+from ..schema import Capability, Example, Source
 
 CAPABILITY = Capability(
     id='type-rubber',
@@ -20,4 +20,5 @@ CAPABILITY = Capability(
     api=("vb.type.draw(cv, 'rubber', props, t)",),
     doc='skill/make-a-video/reference/type.md',
     demo=Example('examples/capabilities/type-rubber.py'),
+    source=Source('https://x.com/Mike_Andreuzza/status/2112064951925854535', '@Mike_Andreuzza'),
 )

@@ -57,7 +57,7 @@ class Shown(unittest.TestCase):
         self.assertTrue(card.startswith('<div class="sourced-card"><button class="card" type="button" '
                                         'data-card="eased-entrances">'))
         self.assertIn(f'href="{POST}"', card[:card.index('</div>')])
-        self.assertEqual(page.count('class="sourced-card"'), 1)
+        self.assertEqual(page.count('>@someone</a>'), 1)
         self.assertEqual(registry._data(sourced)['source'], {'url': POST, 'credit': '@someone'})
         self.assertNotIn('source', registry._data(real('ease-out-back')))
 
@@ -88,6 +88,42 @@ class Community(unittest.TestCase):
 def _index_sources():
     return {t['id']: t['source'] for f in registry.index_data()['families'] for g in f['groups']
             for t in g['capabilities'] if 'source' in t}
+
+
+# The rows of the owner's sources list, written into these records' `source` (and nothing else has one).
+FLXRNC = ('eased-entrances', 'springs-with-character', 'character-motion', 'staggered-reveals', 'pop-on-the-beat',
+          'seamless-loops')
+UPSTREAM = ('shape-morph', 'line-chart-callout', 'hard-light-sweep', 'drawn-on-diagram', 'look-filter-pop-art',
+            'look-filter-pixel', 'looks', 'sound-effects')
+SOURCED = FLXRNC + UPSTREAM + (
+    'look-swirl', 'look-melt', 'look-pointillism', 'look-bauhaus', 'look-pop-art', 'look-pixel',
+    'look-filter-pointillism', 'paper-collage', 'footage-with-sound', 'word-timed-captions', 'type',
+    'type-split-flap', 'type-rubber', 'type-rack-focus', 'type-letter-cloud', 'stick-figure')
+
+
+class Backfilled(unittest.TestCase):
+    def test_exactly_the_listed_capabilities_have_a_source(self):
+        self.assertEqual(len(SOURCED), 30)
+        self.assertEqual({t.id for t in registry.catalog() if t.source}, set(SOURCED))
+        for i in FLXRNC:
+            self.assertEqual(registry.get(i).source,
+                             Source('https://x.com/flxrnc/status/2105311836190978392', '@flxrnc'))
+        for i in UPSTREAM:
+            self.assertTrue(registry.get(i).source.upstream, i)
+        self.assertEqual(registry.get('shape-morph').source.upstream_credit, '@alchaincyf (huashu-art-motion, MIT)')
+
+    def test_the_index_json_carries_every_source(self):
+        self.assertEqual(_index_sources(), {t.id: t.source.as_json() for t in registry.catalog() if t.source})
+
+    def test_every_sourced_card_shows_its_link(self):
+        page = capabilities.page_html(None, '0').decode()
+        pages = page + ''.join(capabilities.family_page_html(f, None, '0').decode() for f in registry.FAMILIES)
+        for i in SOURCED:
+            with self.subTest(id=i):
+                t = registry.get(i)
+                at = pages.index(f'<div class="sourced-card"><button class="card" type="button" data-card="{i}">')
+                self.assertIn(capabilities.source_html(t.source), pages[at:at + 2000])
+        self.assertEqual(pages.count('class="sourced-card"'), len(SOURCED))
 
 
 if __name__ == '__main__':

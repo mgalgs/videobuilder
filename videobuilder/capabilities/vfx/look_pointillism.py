@@ -1,7 +1,7 @@
 """Pointillism: one look of the Looks capability, built from videobuilder's own API, so this record
 only names it and demos it with its worked example film, `examples/capabilities/look-pointillism.py`
 (an `Example` demo: see schema.py)."""
-from ..schema import Capability, Example
+from ..schema import Capability, Example, Source
 
 CAPABILITY = Capability(
     id='look-pointillism',
@@ -19,4 +19,5 @@ CAPABILITY = Capability(
          'scene.role_at(x, y) colours each dot by its region'),
     doc='skill/make-a-video/reference/looks.md',
     demo=Example('examples/capabilities/look-pointillism.py'),
+    source=Source('https://x.com/voxyz_ai/status/2109690569563746755', '@Voxyz_ai'),
 )

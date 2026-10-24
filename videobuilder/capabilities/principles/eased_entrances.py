@@ -1,7 +1,7 @@
 """Eased entrances: built from videobuilder's own API, so this record only names it and demos it with
 its worked example film, `examples/capabilities/eased-entrances.py` (an `Example` demo: see
 schema.py)."""
-from ..schema import Capability, Example
+from ..schema import Capability, Example, Source
 
 CAPABILITY = Capability(
     id='eased-entrances',
@@ -25,4 +25,5 @@ CAPABILITY = Capability(
          'vb.interpolate(f, keys, values, ease=...)'),
     doc='skill/make-a-video/reference/motion.md',
     demo=Example('examples/capabilities/eased-entrances.py'),
+    source=Source('https://x.com/flxrnc/status/2105311836190978392', '@flxrnc'),
 )

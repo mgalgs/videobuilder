@@ -1,7 +1,7 @@
 """Pop on the beat: built from videobuilder's own API, so this record only names it and demos it with
 its worked example film, `examples/capabilities/pop-on-the-beat.py` (an `Example` demo: see
 schema.py)."""
-from ..schema import Capability, Example
+from ..schema import Capability, Example, Source
 
 CAPABILITY = Capability(
     id='pop-on-the-beat',
@@ -21,4 +21,5 @@ CAPABILITY = Capability(
          'GRID.frames_per_beat'),
     doc='skill/make-a-video/reference/motion.md',
     demo=Example('examples/capabilities/pop-on-the-beat.py'),
+    source=Source('https://x.com/flxrnc/status/2105311836190978392', '@flxrnc'),
 )

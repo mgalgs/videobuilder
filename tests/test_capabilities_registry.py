@@ -17,6 +17,7 @@ not all the same (a `sound` capability must carry audio instead).
 """
 import json
 import os
+import re
 import subprocess
 import sys
 import tempfile
@@ -148,9 +149,11 @@ class Registry(unittest.TestCase):
         self.assertEqual([f['family'] for f in only['families']], ['transitions'])
 
     def test_no_outside_sources_named(self):
-        # Definitions and phrasings are our own words; nothing links or credits a catalogue.
+        # Definitions and phrasings are our own words; nothing links or credits a catalogue. The one
+        # place a link may sit is the record's own `source=Source(...)`: the post it came from.
         for fam, name in registry.modules():
             text = (PKG / fam / f'{name}.py').read_text()
+            text = re.sub(r'\n    source=Source\((?:[^()]|\([^()]*\))*\),', '', text)
             self.assertNotRegex(text, r'https?://|www\.', f'{fam}/{name}.py')
 
 

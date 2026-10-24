@@ -1,7 +1,7 @@
 """Footage with its own sound: built from videobuilder's own API, so this record only names it and
 demos it with its worked example film, `examples/capabilities/footage-with-sound.py` (an `Example`
 demo: see schema.py)."""
-from ..schema import Capability, Example
+from ..schema import Capability, Example, Source
 
 CAPABILITY = Capability(
     id='footage-with-sound',
@@ -26,4 +26,5 @@ CAPABILITY = Capability(
           'and short-gap bridging are automatic')),
     doc='skill/make-a-video/reference/footage.md',
     demo=Example('examples/capabilities/footage-with-sound.py'),
+    source=Source('https://www.youtube.com/watch?v=JOSJE6hQbdE', 'The Anomaly Archive'),
 )

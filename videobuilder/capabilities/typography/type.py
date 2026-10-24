@@ -1,6 +1,6 @@
 """Type: built from videobuilder's own API, so this record only names it and demos it with its worked
 example film, `examples/capabilities/type.py` (an `Example` demo: see schema.py)."""
-from ..schema import Capability, Example, MemberBrief, Members
+from ..schema import Capability, Example, MemberBrief, Members, Source
 
 # What a creator's new member ships, and how its builder is briefed (community.brief).
 TYPE_MEMBER = MemberBrief(
@@ -79,4 +79,5 @@ CAPABILITY = Capability(
                'type-letter-cloud': 'letter-cloud',
                'type-editorial': 'editorial'},
         brief=TYPE_MEMBER),
+    source=Source('https://x.com/Mike_Andreuzza/status/2112064951925854535', '@Mike_Andreuzza'),
 )

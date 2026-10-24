@@ -1,7 +1,7 @@
 """Word-timed captions: built from videobuilder's own API, so this record only names it and demos it
 with its worked example film, `examples/capabilities/word-timed-captions.py` (an `Example` demo: see
 schema.py)."""
-from ..schema import Capability, Example
+from ..schema import Capability, Example, Source
 
 CAPABILITY = Capability(
     id='word-timed-captions',
@@ -23,4 +23,5 @@ CAPABILITY = Capability(
          'vb.captions.draw(cv, track, t, keywords={...}, font=..., safe=...)'),
     doc='skill/make-a-video/reference/captions.md',
     demo=Example('examples/capabilities/word-timed-captions.py'),
+    source=Source('https://www.youtube.com/watch?v=JOSJE6hQbdE', 'The Anomaly Archive'),
 )

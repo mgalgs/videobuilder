@@ -7,7 +7,7 @@ import videobuilder as vb
 from videobuilder import paths
 
 from .. import _demo as demo
-from ..schema import Capability
+from ..schema import Capability, Source
 
 CX, CY, R = demo.W / 2, demo.H / 2, 150
 
@@ -64,4 +64,8 @@ CAPABILITY = Capability(
              'chart-type-morph', 'shape-morph-loader'),
     api=('videobuilder.paths.morph', 'videobuilder.paths.draw'),
     demo=lambda: demo.film(draw),
+    source=Source('https://x.com/voxyz_ai/status/2109690569563746755',
+                  '@Voxyz_ai',
+                  upstream='https://github.com/alchaincyf/huashu-art-motion',
+                  upstream_credit='@alchaincyf (huashu-art-motion, MIT)'),
 )

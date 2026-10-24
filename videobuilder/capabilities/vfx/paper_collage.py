@@ -1,7 +1,7 @@
 """Paper collage: one look of the Looks capability, built from videobuilder's own API, so this record
 only names it and demos it with its worked example film, `examples/capabilities/paper-collage.py`
 (an `Example` demo: see schema.py)."""
-from ..schema import Capability, Example
+from ..schema import Capability, Example, Source
 
 CAPABILITY = Capability(
     id='paper-collage',
@@ -27,4 +27,5 @@ CAPABILITY = Capability(
     doc='skill/make-a-video/reference/api.md',
     demo=Example('examples/capabilities/paper-collage.py'),
     poster=78,  # mid-rip, flaps curling back
+    source=Source('https://x.com/OriSilver/status/2074089635177746707', '@OriSilver'),
 )

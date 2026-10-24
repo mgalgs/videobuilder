@@ -1,7 +1,7 @@
 """Staggered reveals: built from videobuilder's own API, so this record only names it and demos it with
 its worked example film, `examples/capabilities/staggered-reveals.py` (an `Example` demo: see
 schema.py)."""
-from ..schema import Capability, Example
+from ..schema import Capability, Example, Source
 
 CAPABILITY = Capability(
     id='staggered-reveals',
@@ -21,4 +21,5 @@ CAPABILITY = Capability(
          'per-item frame delay (40-80ms list items)'),
     doc='skill/make-a-video/reference/motion.md',
     demo=Example('examples/capabilities/staggered-reveals.py'),
+    source=Source('https://x.com/flxrnc/status/2105311836190978392', '@flxrnc'),
 )

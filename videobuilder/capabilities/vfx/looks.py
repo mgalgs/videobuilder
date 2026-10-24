@@ -1,6 +1,6 @@
 """Looks: built from videobuilder's own API, so this record only names it and demos it with its worked
 example film, `examples/capabilities/looks.py` (an `Example` demo: see schema.py)."""
-from ..schema import Capability, Example, MemberBrief, Members
+from ..schema import Capability, Example, MemberBrief, Members, Source
 
 # What a creator's new member ships, and how its builder is briefed (community.brief).
 LOOKS_MEMBER = MemberBrief(
@@ -89,4 +89,8 @@ CAPABILITY = Capability(
                'look-filter-blueprint': 'blueprint',
                'look-filter-pointillism': 'pointillism'},
         brief=LOOKS_MEMBER),
+    source=Source('https://x.com/voxyz_ai/status/2109690569563746755',
+                  '@Voxyz_ai',
+                  upstream='https://github.com/alchaincyf/huashu-art-motion',
+                  upstream_credit='@alchaincyf (huashu-art-motion, MIT)'),
 )

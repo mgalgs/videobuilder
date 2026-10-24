@@ -1,7 +1,7 @@
 """Pop-art filter: one look of the Looks capability, built from videobuilder's own API, so this record
 only names it and demos it with its worked example film, `examples/capabilities/look-filter-pop-
 art.py` (an `Example` demo: see schema.py)."""
-from ..schema import Capability, Example
+from ..schema import Capability, Example, Source
 
 CAPABILITY = Capability(
     id='look-filter-pop-art',
@@ -26,4 +26,8 @@ CAPABILITY = Capability(
     doc='skill/make-a-video/reference/looks.md',
     demo=Example('examples/capabilities/look-filter-pop-art.py'),
     old_ids=('comic-halftone',),
+    source=Source('https://x.com/voxyz_ai/status/2109690569563746755',
+                  '@Voxyz_ai',
+                  upstream='https://github.com/alchaincyf/huashu-art-motion',
+                  upstream_credit='@alchaincyf (huashu-art-motion, MIT)'),
 )
