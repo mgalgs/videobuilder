@@ -853,32 +853,49 @@ def ids():
     return tuple(e['id'] for e in entries())
 
 
-def resolve_requested(requested_ids):
-    """Of `requested_ids` (candidate capability ids, e.g. from a note's
-    #hashtag chips), the ones that actually exist -- this catalog's or the
-    registry's -- each as {id, name, definition, api}, in the order first
-    seen; an unknown or repeated id is silently dropped, so a client's own
-    list is never trusted blind. See prompt._requested_capabilities_lines,
-    which lists the result for the builder."""
+def resolve_requested(requested):
+    """Of `requested` (candidate capability chips from a note -- each a
+    plain id string, or an {id, settings} dict carrying the non-default
+    values its settings card picked), the ones that actually exist -- this
+    catalog's or the registry's -- each as {id, name, definition, api,
+    settings, values}, in the order first seen; an unknown or repeated id is
+    silently dropped, so a client's own list and its settings are never
+    trusted blind. `settings` is the capability's own declared Choice/Number
+    tuple (empty if it declares none); `values` is the requested settings
+    re-validated against it (settings.non_default), so it only ever holds
+    entries that actually differ from their setting's default. See
+    prompt._requested_capabilities_lines, which lists the result for the
+    builder, and editor._note_capabilities, which stores it back onto the
+    note."""
     from . import registry
+    from .settings import non_default
     out, seen = [], set()
-    for cid in requested_ids or ():
-        if not isinstance(cid, str) or cid in seen:
+    for item in requested or ():
+        if isinstance(item, str):
+            cid, raw_values = item, None
+        elif isinstance(item, dict) and isinstance(item.get('id'), str):
+            cid, raw_values = item['id'], item.get('settings')
+        else:
+            continue
+        if cid in seen:
             continue
         seen.add(cid)
         try:
             e = get(cid)
         except KeyError:
-            pass
+            e = None
+        if e is not None:
+            entry = {'id': e['id'], 'name': e['title'], 'definition': e.get('description') or e['card'],
+                    'api': list(e.get('apis', ())), 'settings': e.get('settings') or ()}
         else:
-            out.append({'id': e['id'], 'name': e['title'], 'definition': e.get('description') or e['card'],
-                       'api': list(e.get('apis', ()))})
-            continue
-        try:
-            t = registry.get(cid)
-        except KeyError:
-            continue
-        out.append({'id': t.id, 'name': t.name, 'definition': t.definition, 'api': list(t.api)})
+            try:
+                t = registry.get(cid)
+            except KeyError:
+                continue
+            entry = {'id': t.id, 'name': t.name, 'definition': t.definition, 'api': list(t.api),
+                    'settings': t.settings or ()}
+        entry['values'] = non_default(entry['settings'], raw_values) if entry['settings'] else {}
+        out.append(entry)
     return out
 
 

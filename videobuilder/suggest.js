@@ -3,14 +3,17 @@
    module, so it shares director.js's top-level `const`/`let` bindings (`state`,
    `player`, `tlNoteClip`); `noteCapabilityIds`, declared here at top level for
    the same reason, is how director.js reads the capabilities a note's chips
-   named when it sends the note (see addPending in director.js). A look, type
-   style or font/sfx/music pick is still just ordinary typing (execCommand
-   ('insertText'), so Ctrl+Z undoes it) -- only a capability pick (one of
-   CAP_FAMILIES) is never written into the note: it becomes a chip instead,
-   the same as typing #its-id would. */
+   named when it sends the note (see addPending in director.js) -- each entry
+   an {id, settings}, `settings` the non-default values that chip's settings
+   card picked (capValues), empty for a chip with nothing changed or no card
+   at all. A look, type style or font/sfx/music pick is still just ordinary
+   typing (execCommand('insertText'), so Ctrl+Z undoes it) -- only a
+   capability pick (one of CAP_FAMILIES) is never written into the note: it
+   becomes a chip instead, the same as typing #its-id would. */
 let noteCapabilityIds = () => [];
-// Restores picked (non-typed) chips after editPending puts a pending note's text back
-// into the box; its own #id chips reappear from the text once 'input' fires.
+// Restores picked (non-typed) chips, and the values their cards held, after
+// editPending puts a pending note's text back into the box; its own #id
+// chips reappear from the text once 'input' fires.
 let restorePickedCapIds = () => {};
 (() => {
 'use strict';
@@ -268,6 +271,11 @@ function capChipIds() {
   const ids = hashtagCapIds(ta.value, CAPS);
   for (const id of pickedCapIds) if (!ids.includes(id)) ids.push(id);
   return ids;
+}
+// What a note actually sends for its chips: one {id, settings} per id, `settings`
+// whatever capValues holds for it (already the diff from default -- see renderCapChips).
+function capChipEntries() {
+  return capChipIds().map(id => ({id, settings: capValues[id] || {}}));
 }
 // `values` as the settings card's onChange hands it (every declared id) narrowed
 // to the ones that actually differ from that setting's own default -- what a note
@@ -575,8 +583,12 @@ async function openPicker(fam) {
 /* ---- start ---- */
 async function start() {
   if (!mount()) return;
-  noteCapabilityIds = capChipIds;
-  restorePickedCapIds = ids => { pickedCapIds = [...new Set(ids || [])] };
+  noteCapabilityIds = capChipEntries;
+  restorePickedCapIds = entries => {
+    pickedCapIds = [...new Set((entries || []).map(e => typeof e === 'string' ? e : e.id))];
+    capValues = {};
+    for (const e of entries || []) if (e && typeof e === 'object' && e.settings) capValues[e.id] = {...e.settings};
+  };
   // Loaded eagerly (not only once the model/debounce asks for it): a typed #id becomes
   // a chip as soon as the catalog is in, whether or not the AI suggest model is on.
   loadCatalog().then(() => { indexCatalog(); renderCapChips() });

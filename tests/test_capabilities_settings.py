@@ -5,7 +5,7 @@ import unittest
 
 from videobuilder.capabilities import registry
 from videobuilder.capabilities.schema import Capability
-from videobuilder.capabilities.settings import Choice, Number, Option, as_json, check, validate
+from videobuilder.capabilities.settings import Choice, Number, Option, as_json, check, non_default, validate
 
 
 def choice(id='voice', default='a', extra_options=()):
@@ -103,6 +103,26 @@ class Validate(unittest.TestCase):
     def test_a_non_dict_values_is_treated_as_empty(self):
         self.assertEqual(validate(self.SETTINGS, None), {'voice': 'a', 'speed': 1.0})
         self.assertEqual(validate(self.SETTINGS, 'nonsense'), {'voice': 'a', 'speed': 1.0})
+
+
+class NonDefault(unittest.TestCase):
+    SETTINGS = (choice(), number())
+
+    def test_a_changed_value_is_kept(self):
+        self.assertEqual(non_default(self.SETTINGS, {'voice': 'b'}), {'voice': 'b'})
+
+    def test_a_value_equal_to_the_default_is_dropped(self):
+        self.assertEqual(non_default(self.SETTINGS, {'voice': 'a', 'speed': 1.0}), {})
+
+    def test_an_empty_or_missing_values_is_empty(self):
+        self.assertEqual(non_default(self.SETTINGS, {}), {})
+        self.assertEqual(non_default(self.SETTINGS, None), {})
+
+    def test_an_out_of_range_number_is_clamped_then_compared_to_default(self):
+        self.assertEqual(non_default(self.SETTINGS, {'speed': 99}), {'speed': 2.0})
+
+    def test_an_unknown_choice_value_falls_back_to_default_and_is_dropped(self):
+        self.assertEqual(non_default(self.SETTINGS, {'voice': 'nope'}), {})
 
 
 class AsJson(unittest.TestCase):

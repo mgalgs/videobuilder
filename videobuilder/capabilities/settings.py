@@ -103,6 +103,15 @@ def validate(settings, values):
     return {s.id: s.clamp(values[s.id]) if s.id in values else s.default for s in settings}
 
 
+def non_default(settings, values):
+    """`values` validated against `settings` (validate), narrowed to the
+    entries that actually differ from their own setting's default -- what a
+    note should store, so a chip nobody touched looks exactly like one with
+    no settings at all."""
+    validated = validate(settings, values)
+    return {s.id: validated[s.id] for s in settings if validated[s.id] != s.default}
+
+
 def as_json(settings):
     """`settings` as JSON-safe dicts, in declaration order, for an API
     response (see video_api.py's suggest catalog and the registry index)."""

@@ -331,6 +331,92 @@ console.log(JSON.stringify({pickedCapIds, capValues, cardCount: capCards.childre
         self.assertEqual(out['cardCount'], 0)
 
 
+@unittest.skipUnless(shutil.which('node'), 'node is not available in this environment')
+class CapabilityEntriesForTheNote(unittest.TestCase):
+    """capChipEntries (wired as noteCapabilityIds, see director.js's addPending/
+    sendNow/batchBody) and the restorePickedCapIds assignment inside start()
+    (see director.js's editPending): the {id, settings} shape a note actually
+    carries, and how a pending note's own chips and values come back."""
+
+    def run_js(self, prelude, calls):
+        js = (PKG / 'suggest.js').read_text()
+        hashtag_re = re.search(r'\nconst HASHTAG_RE = .*?;', js).group(0)
+        hashtag_fn = re.search(r'\nfunction hashtagCapIds\(text, caps\) \{.*?\n\}', js, re.S).group(0)
+        cap_chip_ids = re.search(r'\nfunction capChipIds\(\) \{.*?\n\}', js, re.S).group(0)
+        cap_chip_entries = re.search(r'\nfunction capChipEntries\(\) \{.*?\n\}', js, re.S).group(0)
+        restore = re.search(r'\n  restorePickedCapIds = entries => \{.*?\n  \};', js, re.S).group(0)
+        script = f"""
+const CAPS = {{}};
+let pickedCapIds = [];
+let capValues = {{}};
+let restorePickedCapIds;
+{hashtag_re}{hashtag_fn}{cap_chip_ids}{cap_chip_entries}
+{restore}
+{prelude}
+{calls}
+"""
+        result = subprocess.run(['node', '-'], input=script.encode(), capture_output=True)
+        self.assertEqual(result.returncode, 0, result.stderr.decode())
+        return json.loads(result.stdout)
+
+    def test_a_picked_ids_entry_carries_its_non_default_settings(self):
+        prelude = "const ta = {value: ''}; pickedCapIds = ['narration']; capValues = {narration: {voice: 'af_heart'}};"
+        calls = "console.log(JSON.stringify(capChipEntries()));"
+        self.assertEqual(self.run_js(prelude, calls), [{'id': 'narration', 'settings': {'voice': 'af_heart'}}])
+
+    def test_a_chip_with_no_values_sends_an_empty_settings_object(self):
+        prelude = "const ta = {value: ''}; pickedCapIds = ['look-melt']; capValues = {};"
+        calls = "console.log(JSON.stringify(capChipEntries()));"
+        self.assertEqual(self.run_js(prelude, calls), [{'id': 'look-melt', 'settings': {}}])
+
+    def test_restore_recovers_ids_and_values_from_entries(self):
+        calls = """
+restorePickedCapIds([{id: 'narration', settings: {voice: 'af_heart'}}, 'look-melt']);
+console.log(JSON.stringify({pickedCapIds, capValues}));
+"""
+        out = self.run_js('', calls)
+        self.assertEqual(out['pickedCapIds'], ['narration', 'look-melt'])
+        self.assertEqual(out['capValues'], {'narration': {'voice': 'af_heart'}})
+
+    def test_restore_with_nothing_clears_picked_ids_and_values(self):
+        prelude = "pickedCapIds = ['narration']; capValues = {narration: {voice: 'af_heart'}};"
+        calls = "restorePickedCapIds([]); console.log(JSON.stringify({pickedCapIds, capValues}));"
+        out = self.run_js(prelude, calls)
+        self.assertEqual(out['pickedCapIds'], [])
+        self.assertEqual(out['capValues'], {})
+
+
+@unittest.skipUnless(shutil.which('node'), 'node is not available in this environment')
+class BatchBodyCapabilities(unittest.TestCase):
+    """director.js's batchBody: each pending item's capabilities is now a list of
+    {id, settings} (suggest.js's noteCapabilityIds), so the merge across items
+    dedups by id, not by the whole object, keeping the first occurrence's
+    settings."""
+
+    def run_js(self, items):
+        js = (PKG / 'director.js').read_text()
+        batch_body = re.search(r'\nfunction batchBody\(items\) \{.*?\n\}', js, re.S).group(0)
+        script = f"""
+function timeLabel() {{ return '0:00' }}
+{batch_body}
+console.log(JSON.stringify(batchBody({json.dumps(items)}).capabilities));
+"""
+        result = subprocess.run(['node', '-'], input=script.encode(), capture_output=True)
+        self.assertEqual(result.returncode, 0, result.stderr.decode())
+        return json.loads(result.stdout)
+
+    def test_a_single_items_capabilities_pass_through(self):
+        items = [{'text': 'a', 'attachments': [], 'capabilities': [{'id': 'narration', 'settings': {'speed': 1.2}}]}]
+        self.assertEqual(self.run_js(items), [{'id': 'narration', 'settings': {'speed': 1.2}}])
+
+    def test_the_same_id_across_items_is_kept_once_first_occurrence_wins(self):
+        items = [{'text': 'a', 'attachments': [], 'capabilities': [{'id': 'narration', 'settings': {'speed': 1.2}}]},
+                 {'text': 'b', 'attachments': [], 'capabilities': [{'id': 'narration', 'settings': {'speed': 0.5}},
+                                                                   {'id': 'look-melt', 'settings': {}}]}]
+        self.assertEqual(self.run_js(items), [{'id': 'narration', 'settings': {'speed': 1.2}},
+                                              {'id': 'look-melt', 'settings': {}}])
+
+
 class PageWiring(unittest.TestCase):
     """The composer loads the suggest layer."""
 

@@ -2201,7 +2201,11 @@ async function addPending() {
 // out as one numbered note: the builder handles them in one turn, one version.
 function batchBody(items) {
   const ids=items.flatMap(item=>item.attachments.map(a=>a.id));
-  const capabilities=[...new Set(items.flatMap(item=>item.capabilities||[]))];
+  // Each item's capabilities is a list of {id, settings} (suggest.js's noteCapabilityIds);
+  // dedup by id, first occurrence wins, same as the plain-id Set this replaced.
+  const capById=new Map();
+  for(const item of items)for(const c of item.capabilities||[])if(!capById.has(c.id))capById.set(c.id,c);
+  const capabilities=[...capById.values()];
   if(items.length===1) {
     const [item]=items;
     return {text:item.text,attachments:ids,capabilities,...(item.time!=null?{time:item.time}:{})}
