@@ -1,5 +1,7 @@
-"""Cut to the beat: the picture changes shot exactly on the music's beats,
-so every cut lands with a kick and the edit feels played rather than placed.
+"""Cut to the beat: the same idea as Cuts locked to the music
+(`beat_lock.py`), which keeps the capability -- both place each cut on a
+beat of the music grid. This module's own code stays (a film may still
+import it), but it is no longer a capability of its own.
 
 The beats come from `videobuilder.beats.BeatGrid` (fit one to a real track
 with `python -m videobuilder beats song.mp3`); `cut_to_the_beat` picks the
@@ -9,7 +11,8 @@ import videobuilder as vb
 from videobuilder.beats import BeatGrid
 
 from .. import _demo as demo
-from ..schema import Capability
+
+MERGED_INTO = 'beat-lock'
 
 
 def beat_shot(n, grid, every=1):
@@ -125,23 +128,3 @@ def demo_film():
     kicks = beat_sounds(GRID, 'pro_impact/short', LAST, dur=0.4, gain_db=-6)
     hats = beat_sounds(GRID, 'fit/click/floss_lid', LAST, offset=0.5, gain_db=-10)
     return demo.film(draw, sounds=kicks + hats)
-
-
-CAPABILITY = Capability(
-    id='cut-to-the-beat',
-    name='Cut to the beat',
-    family='sound',
-    group='Music',
-    aliases=('beat sync', 'edit to the beat', 'cutting on the beat', 'synced to the beat', 'on the beat'),
-    definition='Each change of shot, and each big move, is placed on a beat of the music so the edit '
-               'pulses in time with the track.',
-    phrasings=('make the shots change in time with the music',
-               'sync the edits to the drum hits',
-               'cut on every beat of the song'),
-    related=('cut-on-action', 'jump-cut', 'reverse-motion-cut', 'match-cut', 'timing', 'follow-through'),
-    api=('videobuilder.capabilities.sound.cut_to_the_beat.cut_to_the_beat',
-         'videobuilder.capabilities.sound.cut_to_the_beat.beat_pulse',
-         'videobuilder.capabilities.sound.cut_to_the_beat.beat_sounds',
-         'videobuilder.beats.BeatGrid'),
-    demo=demo_film,
-)

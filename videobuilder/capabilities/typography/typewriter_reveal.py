@@ -1,5 +1,8 @@
-"""Typewriter Reveal: a line appears one character at a time, left to right,
-with a caret riding just after the last letter in.
+"""Typewriter Reveal: the same idea as Typewriter (`type_typewriter.py`),
+which keeps the capability -- its api already names `vb.type.draw`: a line
+appears one character at a time, left to right, with a caret riding just
+after the last letter in. This module's own code stays (a film may still
+import it), but it is no longer a capability of its own.
 
 `vb.type`'s 'typewriter' style is the full-frame film of this (paper, struck
 letters, a sheet feeding out); `draw_typed` is the bare move for any line of
@@ -9,8 +12,9 @@ uneven human cadence (`type.typewriter.schedule`) instead of a steady one.
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Capability
 from ...type.typewriter import schedule
+
+MERGED_INTO = 'type-typewriter'
 
 
 def typed(text, p, seed=None):
@@ -54,23 +58,3 @@ def draw(n, cv):
     box = draw_typed(cv, text, f, (demo.W - w) / 2, (demo.H - h) / 2, p, demo.INK, caret=demo.ACCENT,
                      caret_on=blink)
     cv.mark('text', *box)
-
-
-CAPABILITY = Capability(
-    id='typewriter-reveal',
-    name='Typewriter reveal',
-    family='typography',
-    group='Typewriter and terminal',
-    aliases=('typing effect', 'type-on text', 'typewriter text', 'character typing', 'typed line'),
-    definition='A line of text fills in a single letter at a time from left to right at an even rhythm, '
-               'a caret leading the way as if someone were keying it live.',
-    phrasings=('the words type themselves out on screen',
-               'have the title appear letter by letter like someone is typing it',
-               'a typing animation with a blinking cursor'),
-    related=('scroll-driven-text-reveal', 'handwriting-reveal', 'text-mask-reveal', 'wipe-reveal',
-             'random-order-character-reveal', 'character-blur-in'),
-    api=('videobuilder.capabilities.typography.typewriter_reveal.draw_typed',
-         'videobuilder.capabilities.typography.typewriter_reveal.typed',
-         'videobuilder.type.draw'),
-    demo=lambda: demo.film(draw),
-)

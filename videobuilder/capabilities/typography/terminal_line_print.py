@@ -1,10 +1,13 @@
-"""Terminal Line Print: videobuilder already has it as `vb.TerminalLog`, a
-log whose kinds that aren't `typed` print each line whole at its time and
-scroll once the box is full, so this entry only names it and demos it."""
+"""Terminal Line Print: the same idea as Terminal log (`terminal_log.py`),
+which keeps the capability -- both are `vb.TerminalLog` with
+`vb.terminal.Kind`, paced console lines printing and scrolling. This
+module's own code stays (a film may still import it), but it is no longer
+a capability of its own."""
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Capability
+
+MERGED_INTO = 'terminal-log'
 
 KINDS = {'cmd': vb.terminal.Kind(demo.mono(22, 700), demo.INK, prefix='$ ', prefix_color=demo.ACCENT),
          'out': vb.terminal.Kind(demo.mono(22, 500), demo.MUTED),
@@ -24,21 +27,3 @@ def draw(n, cv):
     box = PANEL.pad(32)
     LOG.draw(cv, n / demo.FPS, (box.x, box.y, box.w, box.h))
     cv.mark('log', *box)
-
-
-CAPABILITY = Capability(
-    id='terminal-line-print',
-    name='Terminal line print',
-    family='typography',
-    group='Typewriter and terminal',
-    aliases=('terminal output', 'console log reveal', 'line-by-line print', 'scrolling log'),
-    definition='Monospace lines show up one whole line at a time, like output printing in a console, '
-               'and the column scrolls upward once it fills.',
-    phrasings=('make it look like a command printing its output line by line',
-               'lines of log text pop in one after another and scroll up like a terminal',
-               'show the text as console output that keeps coming in'),
-    related=('wipe-reveal', 'per-line-fade-in', 'scroll-driven-text-reveal', 'per-character-fade-in',
-             'ink-spread-reveal', 'scanline-wipe'),
-    api=('videobuilder.TerminalLog', 'videobuilder.terminal.Kind', 'videobuilder.terminal.paced'),
-    demo=lambda: demo.film(draw),
-)

@@ -9,6 +9,7 @@ CAPABILITY = Capability(
     group='Typewriter and terminal',
     category='Type and data',
     order=3,
+    aliases=('terminal output', 'console log reveal', 'scrolling log'),
     definition='A terminal or chat log that types, prints and scrolls.',
     description=('A running log in a window, like an agent at work in a terminal: its thinking in one '
                  'style, its commands typed at a prompt key by key with an uneven human rhythm, their '

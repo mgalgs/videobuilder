@@ -1,11 +1,12 @@
-"""Voiceover: an unseen narrator speaks over the picture. videobuilder already
-has it as `vb.speech`: a script voiced once with `python -m videobuilder say`,
-loaded with `vb.speech.load`, placed on the film with `Narration.sound(at=)`
-(it ducks the music, `vb.Audio(duck_db=)`), its captions from
-`Narration.track_at`. So this entry only names it and demos it:
+"""Voiceover: the same idea as Narration (`narration.py`), which keeps the
+capability -- both are an unseen speaker over the picture, built on the
+same `vb.speech` Narration api:
 
     VOICE = vb.speech.load('assets/narration.wav')
     FILM = vb.Film(..., audio=vb.Audio('assets/music.wav', duck_db=-12), sounds=(VOICE.sound(at=15),))
+
+This module's own code stays (a film may still import it), but it is no
+longer a capability of its own.
 
 The demo can't ship a voice (a capability's demo takes its sound from the
 bundled effects pack), so its narrator is a stand-in: two lines of
@@ -19,9 +20,9 @@ import math
 
 import videobuilder as vb
 
-from ... import speech
 from .. import _demo as demo
-from ..schema import Capability
+
+MERGED_INTO = 'narration'
 
 # the narrator's two lines: (first frame, words as syllables)
 LINES = ((10, (('Ev', 'ery'), ('place',), ('has',), ('a',), ('sto', 'ry.'))),
@@ -177,25 +178,3 @@ def film():
     notes = tuple(bed.sound(at=f, note=tune[i % len(tune)], gain_db=-15, align='onset')
                   for i, f in enumerate(range(0, TOTAL, BED_EVERY)) if i)
     return demo.film(draw, seconds=SECONDS, audio=music, sounds=sounds + keys + notes)
-
-
-CAPABILITY = Capability(
-    id='voiceover',
-    name='Voiceover',
-    family='sound',
-    group='Mixing & editing',
-    aliases=('VO', 'narration', 'voice-over', 'off-screen narrator', 'commentary track'),
-    definition='A speaker who is never seen talks over the footage, telling the story while the picture '
-               'plays and the music sinks underneath the words.',
-    phrasings=('have a narrator read this script over the video',
-               'add a spoken explanation on top of the footage',
-               'put a voice talking us through the shots, with the music dipping under it'),
-    related=('pop-on-captions', 'drone-flyover', 'video-clipped-inside-letterforms', 'analog-ghosting',
-             'noise-terrain-flyover', 'slide-over-cover'),
-    api=('videobuilder.speech.load', 'videobuilder.speech.Narration.sound', 'videobuilder.speech.Narration.track_at',
-         'videobuilder.Audio'),
-    demo=film,
-    # Shared with the `narration` capability (sound/narration.py), so the two
-    # can't drift: see speech.narration_settings.
-    settings=speech.narration_settings(),
-)

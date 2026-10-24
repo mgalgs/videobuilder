@@ -1,10 +1,13 @@
-"""Seamless Loop: every moving thing is driven by a phase that wraps, and the
-clip's length is a whole number of its cycles, so the frame after the last is
-frame 0 again and the clip repeats forever with no jump."""
+"""Seamless Loop: the same idea as Seamless loops (`seamless_loops.py`),
+which keeps the capability -- a clip whose last frame flows into its
+first by driving motion from a wrapped phase. This module's own code
+stays (a film may still import it), but it is no longer a capability of
+its own."""
 import math
 
 from .. import _demo as demo
-from ..schema import Capability
+
+MERGED_INTO = 'seamless-loops'
 
 
 def loop_phase(n, frames, cycles=1, offset=0.0):
@@ -53,22 +56,3 @@ def draw(n, cv):
     cv.rect(x0, by - 2, px - x0, 4, demo.MUTED)
     demo.dot(cv, px, by, 7, color=demo.INK)
     demo.word(cv, '\u21bb', x1 + 30, by, size=30, color=demo.MUTED, weight=700)
-
-
-CAPABILITY = Capability(
-    id='seamless-loop',
-    name='Seamless Loop',
-    family='principles',
-    group='Cycles & loops',
-    aliases=('perfect loop', 'cyclic loop', 'looping animation'),
-    definition='A clip whose motion runs in whole cycles so its last frame flows straight back into its first, '
-               'letting it play on repeat with no visible jump.',
-    phrasings=('make it loop forever without a hitch where it restarts',
-               'an animation that can play on repeat with no jump at the end',
-               'a GIF-style loop where you cannot tell where it starts'),
-    related=('geometric-loop', 'interruptible-motion', 'empty-state-idle-loop', 'delay',
-             'frame-by-frame-hand-drawn-animation', 'scroll-scrubbed-frame-sequence'),
-    api=('videobuilder.capabilities.principles.seamless_loop.loop_phase',
-         'videobuilder.capabilities.principles.seamless_loop.loop_wave'),
-    demo=lambda: demo.film(draw),
-)

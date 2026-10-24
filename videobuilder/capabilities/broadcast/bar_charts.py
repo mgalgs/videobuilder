@@ -9,6 +9,7 @@ CAPABILITY = Capability(
     group='Charts',
     category='Type and data',
     order=5,
+    aliases=('bar chart build', 'column grow', 'growing bars'),
     definition='Bars grow on the beat, each with a direct label.',
     description=('A bar chart grows its bars on their own beats, with the value labelled directly at the '
                  'end of each bar (not a legend) so it reads correctly even without colour.'),
@@ -17,7 +18,9 @@ CAPABILITY = Capability(
                'Grow the hero bar last so it lands on the verdict'),
     api=('cv.rect(..., radius=..., alpha=...)',
          'vb.spring_at for bar growth',
-         'text.draw for direct labels'),
+         'text.draw for direct labels',
+         'videobuilder.capabilities.broadcast.bar_grow.draw_bar_grow(cv, box, values, p)',
+         'videobuilder.capabilities.broadcast.bar_grow.bar_grow(count, p)'),
     doc='skill/make-a-video/reference/api.md',
     demo=Example('examples/capabilities/bar-charts.py'),
 )

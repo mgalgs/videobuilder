@@ -1,11 +1,15 @@
-"""Number Count-up: a figure runs up from a starting value to its final one,
-fast at first and slowing as it lands, then holds. (The `stat-counter`
+"""Number Count-up: the same stat counting up as Numbers that count up
+(`counting_numbers.py`), which keeps the capability -- a figure runs up
+from a starting value to its final one, fast at first and slowing as it
+lands, then holds. This module's own code stays (a film may still import
+it), but it is no longer a capability of its own. (The `stat-counter`
 compendium component is a whole slide built on the same idea; this is the
 move on its own, for any number in any layout.)"""
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Capability
+
+MERGED_INTO = 'counting-numbers'
 
 
 def _decimals(*values):
@@ -55,22 +59,3 @@ def draw(n, cv):
     cv.rect(bx, y + h + 36, bar_w, 6, demo.LINE, radius=3)
     cv.rect(bx, y + h + 36, bar_w * vb.ease_out_expo(p), 6, demo.ACCENT, radius=3)
     demo.word(cv, 'people signed up', demo.W / 2, y + h + 96, size=40, color=demo.MUTED, weight=600)
-
-
-CAPABILITY = Capability(
-    id='number-count-up',
-    name='Number count-up',
-    family='typography',
-    group='Counting',
-    aliases=('counting numbers', 'number ticker', 'animated counter', 'rolling number', 'stat counter'),
-    definition='A number climbs quickly from zero through every value in between, slowing as it nears '
-               'its final figure and then holding there.',
-    phrasings=('make the stat tick up from zero instead of just appearing',
-               'have the total count up to 48,250',
-               'animate the number rising to its final value'),
-    related=('odometer-roll', 'stopwatch-count-up', 'badge-count-bump', 'timecode-counter', 'steps-easing',
-             'timeline-scroll'),
-    api=('videobuilder.capabilities.typography.number_count_up.count_up',
-         'videobuilder.capabilities.typography.number_count_up.draw_count_up'),
-    demo=lambda: demo.film(draw),
-)

@@ -8,6 +8,7 @@ CAPABILITY = Capability(
     name='Typewriter',
     family='typography',
     group='Type styles',
+    aliases=('typing effect', 'type-on text', 'typed line'),
     definition='Letters strike in one at a time, a little uneven, the caret riding the line.',
     description=('The lines typed onto the paper one key at a time with a human, uneven cadence: each '
                  'letter lands a touch off its line and a touch light or heavy, the way a typebar strikes, '
@@ -17,7 +18,10 @@ CAPABILITY = Capability(
     phrasings=('Type the quote out like an old typewriter',
                'Have the title type itself on, letter by letter',
                'Make it look typed, with the key sounds'),
-    api=("vb.type.draw(cv, 'typewriter', props, t)",),
+    api=("vb.type.draw(cv, 'typewriter', props, t)",
+         'videobuilder.capabilities.typography.typewriter_reveal.draw_typed(cv, text, font, x, y, p, color)'
+         '  # plain one-line typing, any font',
+         'videobuilder.capabilities.typography.typewriter_reveal.typed(text, p)'),
     doc='skill/make-a-video/reference/type.md',
     demo=Example('examples/capabilities/type-typewriter.py'),
 )

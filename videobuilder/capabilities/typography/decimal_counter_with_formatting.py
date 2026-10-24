@@ -1,10 +1,15 @@
-"""Decimal Counter with Formatting: a number counts toward its target while
-always showing the same decimal places and comma groups, each digit in an
-equal-width cell so the figure never shuffles sideways as it changes."""
+"""Decimal Counter with Formatting: a count-up with fixed decimals and comma
+groups, the same move as Numbers that count up (`counting_numbers.py`,
+which keeps the capability) does by hand: a number counts toward its
+target while always showing the same decimal places and comma groups,
+each digit in an equal-width cell so the figure never shuffles sideways as
+it changes. This module's own code stays (a film may still import it),
+but it is no longer a capability of its own."""
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Capability
+
+MERGED_INTO = 'counting-numbers'
 
 DIGITS = '0123456789'
 
@@ -51,23 +56,3 @@ def draw(n, cv):
     demo.word(cv, '$', demo.W / 2 - 375, demo.H / 2 + 4, size=64, color=demo.ACCENT)
     cv.line(demo.W / 2 - 410, top + box.h + 18, right + 10, top + box.h + 18, demo.LINE, width=2)
     demo.word(cv, 'TOTAL RAISED', demo.W / 2, top - 40, size=26, color=demo.MUTED, weight=700)
-
-
-CAPABILITY = Capability(
-    id='decimal-counter-with-formatting',
-    name='Decimal counter with formatting',
-    family='typography',
-    group='Counting',
-    aliases=('currency counter', 'comma-grouped count', 'formatted number count-up'),
-    definition='A number ticks up to its total while holding a fixed number of decimals and comma groups, '
-               'its digits set in equal-width slots so the figure stays steady as it climbs.',
-    phrasings=('count the dollar amount up with commas and two decimals',
-               'animate the revenue figure rising without the digits wobbling',
-               'a money total that rolls up to the final number, cents and all'),
-    related=('odometer-roll', 'timecode-counter', 'seven-segment-display', 'stopwatch-count-up',
-             'axis-rescale', 'floating-label'),
-    api=('videobuilder.capabilities.typography.decimal_counter_with_formatting.draw_counter',
-         'videobuilder.capabilities.typography.decimal_counter_with_formatting.format_count',
-         'videobuilder.capabilities.typography.decimal_counter_with_formatting.count_value'),
-    demo=lambda: demo.film(draw),
-)

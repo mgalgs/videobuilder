@@ -10,6 +10,7 @@ CAPABILITY = Capability(
     group='Cycles & loops',
     category='Timing, sound and formats',
     order=6,
+    aliases=('perfect loop', 'cyclic loop'),
     definition='A clip built to play forever with no visible seam.',
     description=('A continuously looping shot, its motion driven by a repeating cycle, so the state at the '
                  'last frame and the state at frame 0 are mathematically the same point in the cycle, not '
@@ -19,7 +20,9 @@ CAPABILITY = Capability(
                'Drive the motion in a cycle that wraps around cleanly, with no jump at the seam'),
     api=('phase = (n % length) / length',
          'vb.linear for phase/rotation',
-         'LOOP = True  # tells check.py to grade the seam'),
+         'LOOP = True  # tells check.py to grade the seam',
+         'videobuilder.capabilities.principles.seamless_loop.loop_phase(n, frames, cycles, offset)',
+         'videobuilder.capabilities.principles.seamless_loop.loop_wave(n, frames, cycles, offset)'),
     doc='skill/make-a-video/reference/motion.md',
     demo=Example('examples/capabilities/seamless-loops.py'),
     source=Source('https://x.com/flxrnc/status/2105311836190978392', '@flxrnc'),

@@ -10,6 +10,7 @@ CAPABILITY = Capability(
     group='Music',
     category='Timing, sound and formats',
     order=1,
+    aliases=('beat sync', 'edit to the beat', 'on the beat'),
     definition='Hard cuts land exactly on the beat, with a music bed.',
     description=('A music bed drives the cut points directly: every segment starts on a beat of the grid, '
                  'so the hard cuts land on the music instead of merely sitting near it.'),
@@ -18,7 +19,10 @@ CAPABILITY = Capability(
                'Add a placeholder music bed and cut to it'),
     api=('vb.Audio(path, gain_db=..., fade_out_frames=...)',
          "skill's make_track.py synth(bpm, beats, ...)",
-         'Segment starts are beats, so cuts are on-grid by construction'),
+         'Segment starts are beats, so cuts are on-grid by construction',
+         'videobuilder.capabilities.sound.cut_to_the_beat.cut_to_the_beat(cv, n, grid, shots)',
+         'videobuilder.capabilities.sound.cut_to_the_beat.beat_pulse(n, grid)',
+         'videobuilder.capabilities.sound.cut_to_the_beat.beat_sounds(grid, id, hi)'),
     doc='skill/make-a-video/reference/music.md',
     demo=Example('examples/capabilities/beat-lock.py'),
 )

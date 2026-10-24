@@ -8,6 +8,7 @@ CAPABILITY = Capability(
     name='Split-flap board',
     family='typography',
     group='Type styles',
+    aliases=('departures board', 'flap display', 'solari board'),
     definition='A departures board: every letter flips through the alphabet and settles.',
     description=("The lines set on a split-flap board, one cell per letter: each cell's flap falls through "
                  'a run of characters before it lands on its own, the cells starting left to right and row '
@@ -17,7 +18,10 @@ CAPABILITY = Capability(
                  'copy. With sound on, the flaps click.'),
     phrasings=('Make the title a split-flap departures board',
                'Flip the quote in letter by letter like an airport board',
-               'Show the times on a flip board, with the clicking'),
+               'Show the times on a flip board, with the clicking',
+               'make the title flip in like an old airport arrivals board',
+               'letters that flap through the alphabet and land on the words',
+               'a train station board where the text clicks into place'),
     api=("vb.type.draw(cv, 'split-flap', props, t)",),
     doc='skill/make-a-video/reference/type.md',
     demo=Example('examples/capabilities/type-split-flap.py'),

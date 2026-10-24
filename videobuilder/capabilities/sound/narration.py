@@ -10,6 +10,7 @@ CAPABILITY = Capability(
     group='Mixing & editing',
     category='Timing, sound and formats',
     order=3,
+    aliases=('VO', 'voice-over', 'off-screen narrator', 'commentary track'),
     definition='A generated voiceover, captioned, with a character that talks.',
     description=('A voiceover read from a short script by a text-to-speech voice (Kokoro, open weights), '
                  'made once and kept with the video like any other sound file: the captions follow it '

@@ -1,10 +1,13 @@
-"""Bar grow: the bars of a chart rise out of a shared baseline to their
-values, one after another from left to right. (The compendium's `bar-chart`
-component is a whole titled shot; this is the move on its own, for any box.)"""
+"""Bar grow: the same idea as Bar charts (`bar_charts.py`), which keeps the
+capability -- bars growing from a baseline each a beat after the last.
+This module's own code stays (a film may still import it), but it is no
+longer a capability of its own. (The compendium's `bar-chart` component is
+a whole titled shot; this is the move on its own, for any box.)"""
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Capability
+
+MERGED_INTO = 'bar-charts'
 
 
 def bar_grow(count, p, stagger=0.6, ease=vb.ease_out_quint):
@@ -63,22 +66,3 @@ def draw(n, cv):
         lbl = 'ABCDEFGH'[i]
         lw, _ = vb.text.block_size([lbl], f)
         vb.text.draw(cv, [lbl], f, box.x + col * (i + 0.5) - lw / 2, box.bottom + 14, demo.MUTED)
-
-
-CAPABILITY = Capability(
-    id='bar-grow',
-    name='Bar grow',
-    family='broadcast',
-    group='Charts',
-    aliases=('bar chart build', 'column grow', 'growing bars'),
-    definition='The bars of a chart shoot up from a common baseline to their values, '
-               'each starting a beat after the one to its left.',
-    phrasings=('make the bar chart animate up from zero',
-               'have the columns rise one by one to their numbers',
-               'grow the bars in from the bottom'),
-    related=('isometric-bar-rise', 'org-chart-grow', 'decision-tree-branch-growth', 'audio-waveform-bars',
-             'shape-stacking-drop', 'percentage-fill-bar'),
-    api=('videobuilder.capabilities.broadcast.bar_grow.draw_bar_grow',
-         'videobuilder.capabilities.broadcast.bar_grow.bar_grow'),
-    demo=lambda: demo.film(draw),
-)
