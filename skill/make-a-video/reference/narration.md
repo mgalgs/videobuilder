@@ -61,6 +61,11 @@ remakes it anyway.
 Put the flags you used in a comment at the top of the script, so the next
 run makes the same voice.
 
+A fix only counts if `--phonemes` shows it changed something: a respelling
+that prints the same phonemes as the word itself (Freud and Froyd both give
+`fɹˈɔɪd`) changes nothing in the audio. Years from 1100 to 1999 already read
+as years ("eighteen sixty-three"); write later ones as you want them said.
+
 ## Using it in the film
 
 ```python

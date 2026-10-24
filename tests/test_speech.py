@@ -71,6 +71,20 @@ class Script(unittest.TestCase):
         got = speech.phonemes_for(FakeEngine(), [('text', 'Hi '), ('phonemes', 'kˈo'), ('text', ', you.')], 'en-us')
         self.assertEqual(got, 'hi kˈo, you.')
 
+    def test_years_are_read_as_years(self):
+        self.assertEqual(speech.spoken_years('Caught in 1863, freed in 1900, born 1805; 1500 eels.'),
+                         'Caught in eighteen sixty-three, freed in nineteen hundred, born eighteen oh five; '
+                         'fifteen hundred eels.')
+
+    def test_other_numbers_are_left_alone(self):
+        for s in ('1,863 eels', '1863.5 m', 'the 1860s', '$1863', '2024', '1099', '18630', '50%', '1863%'):
+            self.assertEqual(speech.spoken_years(s), s)
+
+    def test_years_only_in_english_text_not_phonemes(self):
+        parts = [('text', 'In 1863 '), ('phonemes', '1863')]
+        self.assertEqual(speech.phonemes_for(FakeEngine(), parts, 'en-gb'), 'in eighteen sixty-three 1863')
+        self.assertEqual(speech.phonemes_for(FakeEngine(), [('text', 'En 1863')], 'fr-fr'), 'en 1863')
+
 
 class Assemble(unittest.TestCase):
     def test_trims_each_phrase_to_its_sound_and_gaps_them(self):

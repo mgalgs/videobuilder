@@ -19,7 +19,7 @@ Pronunciation: `[Kokoro](/kəkˈɔːɹəʊ/)` in the script speaks the phonemes
 between the slashes and captions the word in brackets (Kokoro's own syntax);
 `--say Galgs=Gahlgz` or `--lexicon names.json` respell a word everywhere
 (a value in slashes is phonemes). `say --phonemes` prints how each phrase
-will be read, to copy from.
+will be read, to copy from. In English, 1100-1999 is read as a year.
 """
 import array
 import hashlib
@@ -229,10 +229,38 @@ def narration_settings():
             Number('speed', 'Speed', min=0.5, max=2.0, step=0.1, default=1.0))
 
 
+_ONES = ('zero one two three four five six seven eight nine ten eleven twelve thirteen fourteen fifteen '
+         'sixteen seventeen eighteen nineteen').split()
+_TENS = ('', '', 'twenty', 'thirty', 'forty', 'fifty', 'sixty', 'seventy', 'eighty', 'ninety')
+# 1100-1999 standing alone: not inside a longer number ("1,863", "1863.5"), a word ("1860s") or money.
+_YEAR = re.compile(r'(?<![\w$£€.,])(1[1-9]\d\d)(?![\w%]|[.,]\d)')
+
+
+def _two_digits(n):
+    return _ONES[n] if n < 20 else _TENS[n // 10] + (f'-{_ONES[n % 10]}' if n % 10 else '')
+
+
+def year_words(year):
+    """A year the way it is said in English: 1863 "eighteen sixty-three",
+    1805 "eighteen oh five", 1900 "nineteen hundred"."""
+    hi, lo = divmod(year, 100)
+    return _two_digits(hi) + (' hundred' if lo == 0 else f' oh {_ONES[lo]}' if lo < 10 else ' ' + _two_digits(lo))
+
+
+def spoken_years(text):
+    """`text` with each standalone 1100-1999 read as a year, not a cardinal
+    ("one thousand eight hundred..."). Read as a count it is still natural:
+    "1500 eels" becomes "fifteen hundred eels". Later years stay as written,
+    since "2024 eels" is not "twenty twenty-four eels"."""
+    return _YEAR.sub(lambda m: year_words(int(m.group(1))), text)
+
+
 def phonemes_for(engine, parts, lang):
     """One phoneme string for a phrase's spoken parts."""
     out = ''
     for kind, s in parts:
+        if kind == 'text' and lang.startswith('en'):
+            s = spoken_years(s)
         p = s.strip() if kind == 'phonemes' else engine.phonemize(s, lang).strip()
         if p:
             out += p if not out or p[0] in '.,!?;:…' else ' ' + p
