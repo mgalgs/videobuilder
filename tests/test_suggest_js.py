@@ -356,6 +356,9 @@ let pickedCapIds = [];
 let capCardsKey = null, capCards = null;
 let playCalls = [];
 function play(i) { playCalls.push(i) }
+let playing = null;
+let stopAllCalls = 0;
+function stopAll() { stopAllCalls++; playing = null }
 """
         script = (dom + hashtag_re + hashtag_fn + key_of + name_of + esc + svg + icons + el + asset_families +
                   asset_label + cap_chip_ids + render_cap_chips + prelude + calls)
@@ -436,6 +439,71 @@ console.log(JSON.stringify({pickedAssetIds, chipCountAfter: capChips.children.le
         out = self.run_js(prelude, calls)
         self.assertEqual(out['pickedAssetIds'], {'fonts': [], 'sfx': [], 'music': []})
         self.assertEqual(out['chipCountAfter'], 0)
+
+    def test_removing_a_playing_chip_stops_the_audio_first(self):
+        prelude = """
+const BY = {'sfx:fit/tick/domino': {id: 'fit/tick/domino', role: 'tick'}};
+let pickedAssetIds = {fonts: [], sfx: ['fit/tick/domino'], music: []};
+const ta = {value: ''};
+const capChips = makeEl();
+"""
+        calls = """
+renderCapChips();
+playing = {key: 'sfx:fit/tick/domino'};
+const chip = capChips.children[0];
+const removeButton = chip.children[chip.children.length - 1];
+removeButton.onclick();
+console.log(JSON.stringify({stopAllCalls, playing}));
+"""
+        out = self.run_js(prelude, calls)
+        self.assertEqual(out['stopAllCalls'], 1)
+        self.assertIsNone(out['playing'])
+
+    def test_removing_a_different_chip_does_not_stop_the_audio(self):
+        prelude = """
+const BY = {'sfx:fit/tick/domino': {id: 'fit/tick/domino', role: 'tick'},
+            'fonts:cantarell': {id: 'cantarell', family: 'Cantarell'}};
+let pickedAssetIds = {fonts: ['cantarell'], sfx: ['fit/tick/domino'], music: []};
+const ta = {value: ''};
+const capChips = makeEl();
+"""
+        calls = """
+renderCapChips();
+playing = {key: 'sfx:fit/tick/domino'};
+const fontChip = capChips.children.find(c => c.children.some(x => x.innerHTML.includes('Cantarell')));
+const removeButton = fontChip.children[fontChip.children.length - 1];
+removeButton.onclick();
+console.log(JSON.stringify({stopAllCalls, playing}));
+"""
+        out = self.run_js(prelude, calls)
+        self.assertEqual(out['stopAllCalls'], 0)
+        self.assertEqual(out['playing'], {'key': 'sfx:fit/tick/domino'})
+
+    def test_a_chip_playing_audio_survives_an_unrelated_rerender(self):
+        # A keystroke (or picking/removing an unrelated chip) calls renderCapChips again;
+        # a chip mid-playback must keep the exact button node play() is tracking, or its
+        # stop icon reverts to a play icon and the next click just stops the track.
+        prelude = """
+const BY = {'sfx:fit/tick/domino': {id: 'fit/tick/domino', role: 'tick'}};
+let pickedAssetIds = {fonts: [], sfx: ['fit/tick/domino'], music: []};
+const ta = {value: ''};
+const capChips = makeEl();
+"""
+        calls = """
+renderCapChips();
+const chip1 = capChips.children[0];
+const playButton1 = chip1.children.find(c => c.className === 'sg-assetchip-play');
+playButton1.innerHTML = 'stop-icon-marker';
+renderCapChips();
+const chip2 = capChips.children[0];
+const playButton2 = chip2.children.find(c => c.className === 'sg-assetchip-play');
+console.log(JSON.stringify({sameNode: chip1 === chip2, samePlayButton: playButton1 === playButton2,
+  markerSurvived: playButton2.innerHTML === 'stop-icon-marker'}));
+"""
+        out = self.run_js(prelude, calls)
+        self.assertTrue(out['sameNode'])
+        self.assertTrue(out['samePlayButton'])
+        self.assertTrue(out['markerSurvived'])
 
     def test_a_capability_chip_and_an_asset_chip_share_the_same_row(self):
         prelude = """
@@ -661,6 +729,61 @@ class PageWiring(unittest.TestCase):
         add_pending = re.search(r'async function addPending\(\) \{.*?\n\}', js, re.S).group(0)
         self.assertLess(add_pending.index("$('message').value=''"),
                         add_pending.index("dispatchEvent(new Event('input'"))
+
+
+@unittest.skipUnless(shutil.which('node'), 'node is not available in this environment')
+class OnInputStopsAudio(unittest.TestCase):
+    """onInput: clearing the note (an empty textarea, which is also what
+    director.js leaves behind after sending a note -- see
+    test_director_js_clears_suggestions_after_sending_a_note) resets every
+    picked chip. A sound or music chip held the only play button for its
+    track, so clearing the chips without stopping the audio would leave it
+    playing with no way to stop it."""
+
+    def run_js(self, prelude, calls):
+        js = (PKG / 'suggest.js').read_text()
+        on_input = re.search(r'\nfunction onInput\(\) \{.*?\n\}', js, re.S).group(0)
+        script = prelude + on_input + calls
+        result = subprocess.run(['node', '-'], input=script.encode(), capture_output=True)
+        self.assertEqual(result.returncode, 0, result.stderr.decode())
+        return json.loads(result.stdout)
+
+    def test_clearing_the_note_stops_any_playing_audio(self):
+        prelude = """
+let dismissed = true, shown = [{x: 1}], staticChips = true, sentText = 'x';
+let pickedCapIds = ['a'], capValues = {a: {}};
+let pickedAssetIds = {fonts: [], sfx: ['fit/tick/domino'], music: []};
+let stopAllCalls = 0;
+function stopAll() { stopAllCalls++ }
+function render() {}
+function renderCapChips() {}
+function cancel() {}
+let modelOn = null;
+const ta = {value: ''};
+"""
+        calls = "onInput(); console.log(JSON.stringify({stopAllCalls, pickedAssetIds}));"
+        out = self.run_js(prelude, calls)
+        self.assertEqual(out['stopAllCalls'], 1)
+        self.assertEqual(out['pickedAssetIds'], {'fonts': [], 'sfx': [], 'music': []})
+
+    def test_typing_non_empty_text_does_not_stop_audio(self):
+        prelude = """
+let dismissed = false, shown = [], staticChips = false, sentText = null;
+let pickedCapIds = [], capValues = {};
+let pickedAssetIds = {fonts: [], sfx: ['fit/tick/domino'], music: []};
+let stopAllCalls = 0;
+function stopAll() { stopAllCalls++ }
+function render() {}
+function renderCapChips() {}
+function cancel() {}
+let modelOn = null, timer = 0;
+function ask() {}
+const DEBOUNCE_MS = 1;
+const ta = {value: 'still writing'};
+"""
+        calls = "onInput(); console.log(JSON.stringify({stopAllCalls}));"
+        out = self.run_js(prelude, calls)
+        self.assertEqual(out['stopAllCalls'], 0)
 
 
 if __name__ == '__main__':

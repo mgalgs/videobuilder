@@ -592,9 +592,12 @@ the note, re-validated server-side before they ever reach the builder. The
 builder's prompt lists every chip's capability by name, definition and api,
 plus one line per chosen setting, so a note that asks for one by its `#id`
 is never left to prose alone. Picking a font, a sound effect or a music
-track still rewrites the note with the thing's unique name (`Ctrl+Z` undoes
-it, same as any typing) -- those are assets, not named capabilities, so
-chips don't apply.
+track also adds a chip in the same row and leaves the note's words
+untouched -- there is no `#font` hashtag, so these are picked only, each
+marked with an icon and a plain kind label ("Font"/"Sound"/"Music", never
+colour alone) and its own remove button; a sound or music chip can play its
+preview too. The builder's prompt lists them next to the capabilities
+section, by kind, with whatever id it needs to use the pick.
 `URL` is any
 OpenAI-compatible chat endpoint -- OpenRouter, Anthropic's own compatible
 endpoint, a local vLLM or llama.cpp -- asked with `--suggest-model` (default

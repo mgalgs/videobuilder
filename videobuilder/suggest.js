@@ -134,6 +134,7 @@ function onInput() {
   if (!ta.value.trim()) {
     dismissed = false; shown = []; staticChips = false; sentText = null; pickedCapIds = []; capValues = {};
     pickedAssetIds = {fonts: [], sfx: [], music: []};
+    stopAll();
     render(); renderCapChips(); cancel(); return
   }
   renderCapChips();
@@ -310,12 +311,12 @@ function settingsValuesDiff(settings, values) {
 function renderCapChips() {
   if (!capChips) return;
   const ids = capChipIds();
-  capChips.replaceChildren();
   // Rebuilding a card on every keystroke would cut off a voice sample mid-play
   // and reset the card's scroll, so cards are rebuilt only when the chips change.
   const cardKey = ids.map(id => id + (CAPS[id] ? '' : '?')).join(' ');
   const rebuildCards = capCards && cardKey !== capCardsKey;
   if (rebuildCards) { capCards.replaceChildren(); capCardsKey = cardKey }
+  const capChipEls = [];
   for (const id of ids) {
     const cap = CAPS[id];
     const typedOnly = !pickedCapIds.includes(id);
@@ -328,7 +329,7 @@ function renderCapChips() {
       rm.onclick = () => { pickedCapIds = pickedCapIds.filter(x => x !== id); delete capValues[id]; renderCapChips() };
       c.append(rm);
     }
-    capChips.append(c);
+    capChipEls.push(c);
     // A chip whose capability declares settings (narration's voice/speed, say) gets
     // its own card, stacked below the chip row in the same order as the chips.
     if (rebuildCards && cap && cap.settings && cap.settings.length && window.SettingsCard) {
@@ -339,25 +340,46 @@ function renderCapChips() {
       capCards.append(card);
     }
   }
+  // Asset chips (font/sfx/music) are picked only -- typing never adds or removes one --
+  // and a sound or music chip's play button may be mid-playback (play()'s own `btns`
+  // lookup holds these exact nodes): each chip is built once and reused by (family, id)
+  // across renders, so a chip playing a track survives every other chip changing too,
+  // not just a keystroke.
+  renderCapChips.assetChipByKey = renderCapChips.assetChipByKey || new Map();
+  const assetChipEls = [], liveKeys = [];
   for (const fam of ASSET_FAMILIES) for (const id of pickedAssetIds[fam]) {
-    const c = el('span', 'sg-capchip sg-assetchip');
-    c.append(el('span', 'sg-assetchip-kind', svg(I[fam], 13) + ASSET_LABEL[fam]),
-             el('span', 'sg-capchip-name', esc(nameOf(fam, id))));
-    if (fam === 'sfx' || fam === 'music') {
-      const p = el('button', 'sg-assetchip-play', svg(I.play, 12));
-      p.type = 'button';
-      p.setAttribute('data-play', fam + ':' + id);
-      p.setAttribute('aria-label', `Play ${esc(nameOf(fam, id))}`);
-      p.onclick = () => play({family: fam, id});
-      c.append(p);
+    const k = fam + ':' + id;
+    liveKeys.push(k);
+    let c = renderCapChips.assetChipByKey.get(k);
+    if (!c) {
+      c = el('span', 'sg-capchip sg-assetchip');
+      c.append(el('span', 'sg-assetchip-kind', svg(I[fam], 13) + ASSET_LABEL[fam]),
+               el('span', 'sg-capchip-name', esc(nameOf(fam, id))));
+      if (fam === 'sfx' || fam === 'music') {
+        const p = el('button', 'sg-assetchip-play', svg(I.play, 12));
+        p.type = 'button';
+        p.setAttribute('data-play', fam + ':' + id);
+        p.setAttribute('aria-label', `Play ${nameOf(fam, id)}`);
+        p.onclick = () => play({family: fam, id});
+        c.append(p);
+      }
+      const rm = el('button', 'sg-capchip-x', svg(I.x, 12, 2.4));
+      rm.type = 'button';
+      rm.setAttribute('aria-label', `Remove ${nameOf(fam, id)}`);
+      rm.onclick = () => {
+        if (playing && playing.key === k) stopAll();
+        pickedAssetIds[fam] = pickedAssetIds[fam].filter(x => x !== id);
+        renderCapChips();
+      };
+      c.append(rm);
+      renderCapChips.assetChipByKey.set(k, c);
     }
-    const rm = el('button', 'sg-capchip-x', svg(I.x, 12, 2.4));
-    rm.type = 'button';
-    rm.setAttribute('aria-label', `Remove ${esc(nameOf(fam, id))}`);
-    rm.onclick = () => { pickedAssetIds[fam] = pickedAssetIds[fam].filter(x => x !== id); renderCapChips() };
-    c.append(rm);
-    capChips.append(c);
+    assetChipEls.push(c);
   }
+  for (const k of [...renderCapChips.assetChipByKey.keys()]) {
+    if (!liveKeys.includes(k)) renderCapChips.assetChipByKey.delete(k);
+  }
+  capChips.replaceChildren(...capChipEls, ...assetChipEls);
 }
 
 /* ---- picking: every pick becomes a chip; none of them ever touch the note's
