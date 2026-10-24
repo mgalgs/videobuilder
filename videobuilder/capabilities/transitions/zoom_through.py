@@ -1,13 +1,13 @@
-"""Zoom through: the camera punches into the outgoing scene, which swells
-past the lens faster and faster, smeared by a trail of fading copies (a zoom
-blur drawn in code), and the incoming scene arrives out of the rush from
-slightly small, settling to full frame."""
+"""Zoom Through: the same rush as Cross Zoom (`cross_zoom.py`, which keeps
+the capability) -- the camera punches into the outgoing scene, smeared by a
+trail of fading copies, and swaps at the peak for the incoming scene, which
+settles out of the rush into full frame. This module's own code stays (a
+film may still import it), but it is no longer a capability of its own."""
 import math
 
 import videobuilder as vb
 
-from .. import _demo as demo
-from ..schema import Capability
+MERGED_INTO = 'cross-zoom'
 
 RUSH = vb.bezier(0.45, 0.0, 0.9, 0.7)   # accelerating into the lens
 
@@ -51,22 +51,3 @@ def zoom_through(cv, a, b, p, zoom=9.0, out_end=0.75, in_start=0.4, start_scale=
         zs = z * math.exp(-0.3 * e * speed)
         with _scaled(cv, zs, opacity=fade * 0.5 * speed * (1 - e / (echoes + 1))):
             a(cv)
-
-
-CAPABILITY = Capability(
-    id='zoom-through',
-    name='Zoom through',
-    family='transitions',
-    group='Zoom',
-    aliases=('zoom transition', 'punch-through zoom', 'zoom-in transition', 'lens punch'),
-    definition='The camera rushes into the first scene until it blows past the lens in a blur, '
-               'and the next scene comes up out of that rush and settles into place.',
-    phrasings=('zoom right into the first shot and come out on the next one',
-               'punch through the screen into the next scene',
-               'a fast zoom-in that carries us to the next shot'),
-    related=('push-in', 'scale-zoom-through', 'ui-walkthrough-camera-zoom', 'fly-through', 'infinite-zoom-tunnel',
-             'object-pass-through'),
-    api=('videobuilder.capabilities.transitions.zoom_through.zoom_through',
-         'videobuilder.compendium.components.transition_zoom_through.COMPONENT'),
-    demo=lambda: demo.two_scenes(zoom_through, start=1.2, length=1.6),
-)

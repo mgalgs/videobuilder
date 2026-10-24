@@ -1,15 +1,16 @@
-"""Gradient wipe: a grayscale map decides where the incoming scene shows up
-first -- its darkest areas, then lighter and lighter ones -- with a feathered
-edge between the two scenes. The map's shape is the wipe's shape: a ramp
-gives a straight soft wipe, a radial map an iris, a wavy ramp a liquid edge."""
+"""Gradient Wipe: the same idea as Luma Wipe (`luma_wipe.py`, which keeps the
+capability) -- both reveal the incoming scene through a greyscale map,
+darkest areas first and lightest last, with a feathered edge between the two
+scenes. This module's own code stays (a film may still import it), but it is
+no longer a capability of its own."""
 import math
 from functools import lru_cache
 
 from PIL import Image as PILImage
 
 from ...canvas import _a8
-from .. import _demo as demo
-from ..schema import Capability
+
+MERGED_INTO = 'luma-wipe'
 
 _MAP = (192, 108)  # maps are built small and smooth, then stretched to the frame
 
@@ -80,24 +81,3 @@ def gradient_wipe(cv, a, b, p, softness=0.2, map=None):
 def _demo_wipe(cv, a, b, p):
     # a gentle sine ease keeps the soft front on screen for most of the wipe
     gradient_wipe(cv, a, b, 0.5 - 0.5 * math.cos(math.pi * p))
-
-
-CAPABILITY = Capability(
-    id='gradient-wipe',
-    name='Gradient wipe',
-    family='transitions',
-    group='Wipes',
-    aliases=('soft wipe', 'feathered wipe', 'soft-edge wipe', 'luma wipe', 'gradient map transition'),
-    definition='The next scene washes in across the frame along a blurred, curving front, '
-               'its shape set by a black-to-white map that is revealed darkest parts first.',
-    phrasings=('wipe to the next shot with a soft, feathered edge',
-               'reveal the new scene following a gradient instead of a hard line',
-               'a wavy, blurry-edged wipe between the two scenes'),
-    related=('gradient-sweep-across-text', 'gaussian-blur', 'pixelate-transition', 'pixel-sorting', 'liquify',
-             'gooch-shading'),
-    api=('videobuilder.capabilities.transitions.gradient_wipe.gradient_wipe',
-         'videobuilder.capabilities.transitions.gradient_wipe.wave_map',
-         'videobuilder.capabilities.transitions.gradient_wipe.linear_map',
-         'videobuilder.capabilities.transitions.gradient_wipe.radial_map'),
-    demo=lambda: demo.two_scenes(_demo_wipe, start=1.3, length=1.6),
-)

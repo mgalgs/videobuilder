@@ -1,13 +1,16 @@
-"""Cursor Particle Trail: a pointer gliding across the screen sheds small
-sparks behind it, each drifting off, shrinking and fading, so the cursor's
-recent route hangs in the air for a moment."""
+"""Cursor Particle Trail: the same idea as Particle Trail
+(`../particles/particle_trail.py`, which keeps the capability) -- a moving
+point shedding particles that drift, shrink and fade, here just naming the
+moving point a cursor. This module's own code stays (a film may still
+import it), but it is no longer a capability of its own."""
 import math
 import random
 
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Capability
+
+MERGED_INTO = 'particle-trail'
 
 # The classic arrow pointer, tip at (0, 0), in px at scale 1.
 ARROW = ((0, 0), (0, 27), (7, 21), (12, 32), (17.5, 29.5), (12.5, 19), (21, 19))
@@ -78,23 +81,3 @@ def draw(n, cv):
     t = n / demo.FPS
     draw_particle_trail(cv, _route, t, colors=(demo.ACCENT, demo.TEAL, demo.INK), start=0.2, seed=3)
     draw_cursor(cv, *_route(t))
-
-
-CAPABILITY = Capability(
-    id='cursor-particle-trail',
-    name='Cursor particle trail',
-    family='ui',
-    group='Cursor & hover',
-    aliases=('mouse trail', 'cursor trail', 'sparkle cursor', 'pointer particles'),
-    definition='A moving mouse pointer leaves a stream of small dots behind it that drift apart, '
-               'shrink and fade out, tracing where it has just been.',
-    phrasings=('the mouse leaves sparkles behind it as it moves',
-               'a cursor with a glittery trail following it',
-               'little particles spray out behind the pointer and fade'),
-    related=('cursor-path-animation', 'player-movement-trail', 'particle-trail', 'path-emitter',
-             'magnetic-button', 'blinking-cursor'),
-    api=('videobuilder.capabilities.ui.cursor_particle_trail.draw_particle_trail',
-         'videobuilder.capabilities.ui.cursor_particle_trail.trail_particles',
-         'videobuilder.capabilities.ui.cursor_particle_trail.draw_cursor'),
-    demo=lambda: demo.film(draw),
-)

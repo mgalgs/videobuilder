@@ -176,7 +176,7 @@ CAPABILITY = Capability(
     name='Bar chart race',
     family='broadcast',
     group='Charts',
-    aliases=('racing bar chart', 'ranked bar race', 'bar race'),
+    aliases=('racing bar chart', 'ranked bar race', 'bar race', 'animated ranking bars'),
     definition='Horizontal bars for several items grow with their changing values over time and slide '
                'past one another, so the chart stays sorted with the biggest always on top.',
     phrasings=('animate the rankings over the years with bars overtaking each other',

@@ -97,7 +97,8 @@ CAPABILITY = Capability(
     name='Radial menu fan-out',
     family='ui',
     group='Overlays & menus',
-    aliases=('radial menu', 'pie menu', 'circular menu', 'floating action menu', 'speed dial'),
+    aliases=('radial menu', 'pie menu', 'circular menu', 'floating action menu', 'speed dial', 'fab menu',
+             'expanding action button'),
     definition='Tapping a round button sends a set of smaller option buttons springing out around it '
                'in an arc, one after another, while its plus icon turns into a close cross.',
     phrasings=('the button opens and little icons pop out around it in a semicircle',

@@ -1,9 +1,13 @@
-"""Graphic Match: a hard cut between two different scenes that share a shape
-in the same place and size, so the eye carries over the cut on the shape."""
+"""Graphic Match: the same idea as Match Cut (`match_cut.py`, which keeps the
+capability) -- a hard cut between two scenes that share a shape in the same
+place and size, so the eye carries the shape over the cut. This module's own
+code stays (a film may still import it), but it is no longer a capability of
+its own."""
 import math
 
 from .. import _demo as demo
-from ..schema import Capability
+
+MERGED_INTO = 'match-cut'
 
 
 def graphic_match(cv, a, b, p, at=None, zoom=1.35, cut=0.5):
@@ -58,21 +62,3 @@ def clock_scene(cv):
 def demo_film():
     return demo.two_scenes(lambda cv, a, b, p: graphic_match(cv, a, b, p, at=(CX, CY)),
                            start=0.5, length=2.0, a=moon_scene, b=clock_scene)
-
-
-CAPABILITY = Capability(
-    id='graphic-match',
-    name='Graphic match',
-    family='transitions',
-    group='Cuts',
-    aliases=('match cut', 'graphic match cut', 'shape match'),
-    definition='A straight cut joins two unrelated scenes through a shape they share, '
-               'sitting in the same spot and size, so one object seems to turn into the other.',
-    phrasings=('cut from the moon to a clock face lined up in the same place',
-               'line up a round thing in one shot with a round thing in the next and cut between them',
-               'a match cut where the shape carries over from scene to scene'),
-    related=('shape-boolean-merge', 'strike-through-draw', 'shape-morph', 'shape-assemble-from-fragments',
-             'difference-highlight', 'morphing-shape-ident'),
-    api=('videobuilder.capabilities.transitions.graphic_match.graphic_match',),
-    demo=demo_film,
-)

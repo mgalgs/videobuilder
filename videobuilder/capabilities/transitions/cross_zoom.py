@@ -51,7 +51,8 @@ CAPABILITY = Capability(
     name='Cross zoom',
     family='transitions',
     group='Zoom',
-    aliases=('zoom transition', 'zoom blur transition', 'cross zoom blur'),
+    aliases=('zoom transition', 'zoom blur transition', 'cross zoom blur', 'zoom burst', 'punch-through zoom',
+             'lens punch'),
     definition='The view lunges into the first shot in a streaking blur, and right at the fastest point '
                'it swaps to the second shot, which pulls back out of the same blur into place.',
     phrasings=('zoom into the first clip and come out of the zoom on the next one',

@@ -79,7 +79,7 @@ CAPABILITY = Capability(
     name='Particle trail',
     family='particles',
     group='Emitters',
-    aliases=('particle wake', 'sparkle trail', 'comet trail', 'emitter trail'),
+    aliases=('particle wake', 'sparkle trail', 'comet trail', 'emitter trail', 'mouse trail', 'sparkle cursor'),
     definition='A moving point leaves a stream of tiny dots behind it that scatter, shrink and fade away, '
                'tracing where it has been.',
     phrasings=('the dot leaves a trail of sparkles as it moves',

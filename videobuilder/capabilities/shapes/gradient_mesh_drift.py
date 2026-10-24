@@ -63,7 +63,8 @@ CAPABILITY = Capability(
     name='Gradient mesh drift',
     family='shapes',
     group='Gradients & color',
-    aliases=('mesh gradient', 'animated mesh gradient', 'fluid gradient', 'blob gradient'),
+    aliases=('mesh gradient', 'animated mesh gradient', 'fluid gradient', 'blob gradient', 'aurora gradient',
+             'northern lights bands', 'ambient color field'),
     definition='Several soft pools of colour blend into one smooth gradient and slowly wander about, '
                'so the colours keep flowing into new shapes.',
     phrasings=('a colourful blurry gradient background that slowly moves around',

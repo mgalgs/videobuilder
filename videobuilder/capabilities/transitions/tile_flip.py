@@ -64,7 +64,8 @@ CAPABILITY = Capability(
     name='Tile flip',
     family='transitions',
     group='Shatter and Break',
-    aliases=('grid flip', 'tile flip transition', 'mosaic flip', 'checkerboard flip'),
+    aliases=('grid flip', 'tile flip transition', 'mosaic flip', 'checkerboard flip', 'cloner flip',
+             'flipping tiles'),
     definition='The picture breaks into a grid of squares that each turn over like cards in a rippling '
                'wave, and the backs of the squares together make up the next scene.',
     phrasings=('split the screen into tiles that flip over to show the next shot',

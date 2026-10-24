@@ -74,7 +74,8 @@ CAPABILITY = Capability(
     name='Luma wipe',
     family='transitions',
     group='Wipes',
-    aliases=('gradient wipe', 'luminance wipe', 'matte wipe', 'luma fade'),
+    aliases=('gradient wipe', 'luminance wipe', 'matte wipe', 'luma fade', 'soft wipe', 'feathered wipe',
+             'gradient map transition'),
     definition='The next scene seeps in through a greyscale pattern, darkest areas first and lightest last, '
                'so the changeover takes on the pattern\'s shapes.',
     phrasings=('reveal the next shot through a cloudy texture instead of a straight line',

@@ -1,14 +1,15 @@
-"""Zoom blur: the outgoing scene rushes toward the viewer, smearing into
-streaks that fly out from the centre; under the heaviest smear it becomes the
-incoming scene, which settles back into focus as the streaks die away."""
+"""Zoom Blur: the same rush as Cross Zoom (`cross_zoom.py`, which keeps the
+capability) -- the outgoing scene rushes toward the viewer in a zoom blur and
+swaps for the incoming scene at the peak, the incoming scene settling out of
+the same blur. This module's own code stays (a film may still import it),
+but it is no longer a capability of its own."""
 import math
 
 import cairo
 
 import videobuilder as vb
 
-from .. import _demo as demo
-from ..schema import Capability
+MERGED_INTO = 'cross-zoom'
 
 
 def radial_blur(cv, draw, zoom=1.0, amount=0.3, samples=24, cx=None, cy=None):
@@ -58,22 +59,3 @@ def zoom_blur(cv, a, b, p, zoom=2.2, blur=0.45, cut=0.5, mix=0.12, samples=24):
         with cv.layer(opacity=w):
             radial_blur(cv, b, vb.log_lerp(zoom, 1, 1 - (1 - qb) ** 2), blur * math.cos(qb * math.pi / 2) ** 2,
                         samples)
-
-
-CAPABILITY = Capability(
-    id='zoom-blur',
-    name='Zoom blur',
-    family='transitions',
-    group='Zoom',
-    aliases=('radial zoom blur', 'speed zoom', 'zoom streak', 'push blur', 'zoom burst'),
-    definition='The first shot lunges toward the camera and smears into streaks radiating from the centre, '
-               'and the next shot pulls out of that smear back into sharp focus.',
-    phrasings=('zoom into the shot with a motion blur and land on the next one',
-               'a fast blurry punch-in that cuts to the next scene',
-               'whoosh into the middle of the frame and come out on the new clip'),
-    related=('spin-blur', 'gaussian-blur', 'motion-blur', 'gooey-filter', 'tilt-shift-miniature',
-             'blur-up-image-load'),
-    api=('videobuilder.capabilities.transitions.zoom_blur.zoom_blur',
-         'videobuilder.capabilities.transitions.zoom_blur.radial_blur'),
-    demo=lambda: demo.two_scenes(zoom_blur, start=1.3, length=1.2),
-)

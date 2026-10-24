@@ -90,7 +90,7 @@ CAPABILITY = Capability(
     name='Paint brush wipe',
     family='transitions',
     group='Organic and Fluid',
-    aliases=('brush stroke wipe', 'paint reveal', 'brush reveal'),
+    aliases=('brush stroke wipe', 'paint reveal', 'brush reveal', 'brush mask reveal', 'paint stroke wipe'),
     definition='A wide brush drags across the picture in rows, and each rough-edged stroke it leaves '
                'is a window onto the next scene until the whole frame is painted over.',
     phrasings=('paint the next shot on with big brush strokes',

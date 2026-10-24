@@ -79,7 +79,7 @@ CAPABILITY = Capability(
     family='shapes',
     group='Bursts & particles',
     aliases=('particles form shape', 'particle logo build', 'particle logo reveal', 'scattered dots converge',
-             'dot matrix form'),
+             'dot matrix form', 'particles form text', 'dots assemble word'),
     definition='Many tiny dots spread across the frame drift together, each arriving in its own time, '
                'until they settle along the outline of a shape or logo.',
     phrasings=('scattered dots fly in and gather into the logo',

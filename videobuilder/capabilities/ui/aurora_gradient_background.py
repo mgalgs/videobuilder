@@ -1,6 +1,9 @@
-"""Aurora gradient background: a few large, very soft coloured glows wander
-slowly behind the content, their edges melting into each other so the
-backdrop reads as one shifting field of light."""
+"""Aurora Gradient Background: the same idea as Gradient Mesh Drift
+(`../shapes/gradient_mesh_drift.py`, which keeps the capability) -- soft
+pools of colour wandering and blending into one shifting gradient, here
+drawn as a few large glows behind the content. This module's own code
+stays (a film may still import it), but it is no longer a capability of
+its own."""
 import math
 import random
 
@@ -9,7 +12,8 @@ import cairo
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Capability
+
+MERGED_INTO = 'gradient-mesh-drift'
 
 COLORS = ('#6d6cf0', '#c9a227', '#4fc3b0', '#8a4fd8')
 
@@ -77,22 +81,3 @@ def draw(n, cv):
     cv.rect(x + 40, y + 116, 330, 12, demo.MUTED, radius=6, alpha=0.7)
     cv.rect(x + 40, y + 196, 150, 60, COLORS[0], radius=14)
     cv.mark('card', x, y, w, h)
-
-
-CAPABILITY = Capability(
-    id='aurora-gradient-background',
-    name='Aurora gradient background',
-    family='ui',
-    group='Cards & media',
-    aliases=('aurora gradient', 'mesh gradient drift', 'ambient color field', 'northern lights bands',
-             'soft ribbon gradient'),
-    definition='Large, blurry patches of colour drift and blend into one another behind the content, '
-               'giving the background a slow, living glow.',
-    phrasings=('put some slowly moving colourful glow behind the card',
-               'a dreamy background where soft colours float around',
-               'make the backdrop shimmer like the northern lights'),
-    related=('gradient-mesh-drift', 'animated-gradient-sweep', 'gradient-sweep-across-text',
-             'gradient-shift-button', 'layered-fog-bands', 'bloom'),
-    api=('videobuilder.capabilities.ui.aurora_gradient_background.aurora',),
-    demo=lambda: demo.film(draw),
-)

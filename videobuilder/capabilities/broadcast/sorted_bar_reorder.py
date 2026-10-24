@@ -1,10 +1,14 @@
-"""Sorted Bar Reorder: a horizontal bar chart kept sorted biggest-first while
-its values change; bars grow and shrink, and whenever one overtakes another
-the two slide past each other into their new ranks (the "bar chart race")."""
+"""Sorted Bar Reorder: the same idea as Bar Chart Race (`bar_chart_race.py`,
+which keeps the capability) -- a ranked horizontal bar chart that re-sorts
+itself as values change, bars sliding past each other into their new ranks,
+with a simpler demo that skips the rescaling axis. This module's own code
+stays (a film may still import it), but it is no longer a capability of its
+own."""
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Capability
+
+MERGED_INTO = 'bar-chart-race'
 
 COLORS = (demo.ACCENT, demo.TEAL, '#8b8ff7', '#f2b84b', '#6fa8dc')
 
@@ -101,23 +105,3 @@ def draw(n, cv):
     vb.text.draw(cv, [year], f, x + w - vb.text.measure(year, f), y - 62, demo.MUTED)
     vb.text.draw(cv, ['Points scored'], demo.font(26, 800), x, y - 62, demo.INK)
     draw_bar_race(cv, LABELS, KEYS, t, x, y, w, row_h, spacing=spacing)
-
-
-CAPABILITY = Capability(
-    id='sorted-bar-reorder',
-    name='Sorted bar reorder',
-    family='broadcast',
-    group='Charts',
-    aliases=('bar chart race', 'racing bar chart', 'animated ranking bars'),
-    definition='Horizontal bars grow as their numbers climb, and the chart keeps itself ranked by sliding '
-               'any bar that overtakes another up past it into its new place.',
-    phrasings=('a bar chart race where the bars swap places as the numbers change',
-               'animate the ranking over time with bars that overtake each other',
-               'bars that keep re-sorting themselves so the biggest is always on top'),
-    related=('leaderboard-row-swap', 'reorder-list-shuffle', 'letter-sort-animation', 'layout-animation-flip',
-             'refresh-bar', 'pull-to-refresh'),
-    api=('videobuilder.capabilities.broadcast.sorted_bar_reorder.draw_bar_race',
-         'videobuilder.capabilities.broadcast.sorted_bar_reorder.race_state',
-         'videobuilder.capabilities.broadcast.sorted_bar_reorder.race_slots'),
-    demo=lambda: demo.film(draw),
-)

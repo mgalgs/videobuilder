@@ -1,12 +1,15 @@
-"""Brush Stroke Paint Reveal: a wide brush sweeps back and forth across a
-region in a few overlapping passes, and wherever it has painted the content
-underneath shows through, its edges ragged with bristle marks."""
+"""Brush Stroke Paint Reveal: the same idea as Paint Brush Wipe
+(`../transitions/paint_brush_wipe.py`, which keeps the capability) -- a
+wide, rough brush dragged across in passes, the next picture showing
+through wherever it has painted. This module's own code stays (a film may
+still import it), but it is no longer a capability of its own."""
 import random
 
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Capability
+
+MERGED_INTO = 'paint-brush-wipe'
 
 _STROKE = vb.bezier(0.4, 0.0, 0.6, 1.0)  # each pass starts and ends a little slower, like a hand
 
@@ -82,21 +85,3 @@ def draw(n, cv):
     x, y = (demo.W - w) / 2, (demo.H - h) / 2
     brush_reveal(cv, lambda c: _scene(c, x, y, w, h), x, y, w, h, demo.phase(n, 0.3, 2.5), seed=3)
     cv.mark('painted', x, y, w, h)
-
-
-CAPABILITY = Capability(
-    id='brush-stroke-paint-reveal',
-    name='Brush stroke paint reveal',
-    family='shapes',
-    group='Liquid & organic',
-    aliases=('paint wipe', 'brush-on reveal', 'paint stroke wipe', 'brush stroke reveal', 'brush mask reveal'),
-    definition='A broad brush drags across the area in a few back-and-forth passes, and the picture '
-               'appears only where its rough, bristly stroke has been laid down.',
-    phrasings=('paint the image onto the screen with big brush strokes',
-               'reveal the picture as if someone is brushing it on',
-               'the content shows up underneath a sweeping paint stroke'),
-    related=('paint-brush-wipe', 'handwriting-reveal', 'text-mask-reveal', 'logo-mask-wipe-reveal',
-             'image-hover-mask-reveal', 'uncover'),
-    api=('videobuilder.capabilities.shapes.brush_stroke_paint_reveal.brush_reveal',),
-    demo=lambda: demo.film(draw),
-)

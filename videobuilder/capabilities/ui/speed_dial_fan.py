@@ -1,12 +1,15 @@
-"""Speed dial fan: a round floating action button turns its plus into a cross
-while a handful of smaller action buttons pop out of it one after another,
-spreading along an arc."""
+"""Speed Dial Fan: the same move as Radial Menu Fan-out (`radial_menu_fan_out.py`,
+which keeps the capability) -- a round button turns its plus into a cross
+while smaller buttons pop out behind it along an arc, one after another.
+This module's own code stays (a film may still import it), but it is no
+longer a capability of its own."""
 import math
 
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Capability
+
+MERGED_INTO = 'radial-menu-fan-out'
 
 
 def fan_layout(n, p, distance=130, start=math.pi, end=1.5 * math.pi, stagger=0.18):
@@ -88,22 +91,3 @@ def draw(n, cv):
     demo.card(cv, demo.W * 0.34, demo.H * 0.34, w=340, h=190, color=demo.LINE)
     p = demo.phase(n, 0.4, 1.3) - demo.phase(n, 2.1, 2.8)
     draw_speed_dial(cv, demo.W - 170, demo.H - 110, p)
-
-
-CAPABILITY = Capability(
-    id='speed-dial-fan',
-    name='Speed dial fan',
-    family='ui',
-    group='Overlays & menus',
-    aliases=('fab menu', 'expanding action button', 'speed dial'),
-    definition='A round floating button spins its plus into a cross as a few smaller action buttons '
-               'pop out of it in turn and spread along an arc.',
-    phrasings=('tap the round plus button and little option buttons fan out around it',
-               'a floating action button that opens into a ring of mini buttons',
-               'the plus turns into an x and the extra actions pop out one by one'),
-    related=('plus-to-close-rotate', 'hover-lift', 'liquid-button', 'magnetic-button', 'turntable-rotation',
-             'spin'),
-    api=('videobuilder.capabilities.ui.speed_dial_fan.draw_speed_dial',
-         'videobuilder.capabilities.ui.speed_dial_fan.fan_layout'),
-    demo=lambda: demo.film(draw),
-)

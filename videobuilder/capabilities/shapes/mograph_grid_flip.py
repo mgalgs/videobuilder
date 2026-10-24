@@ -1,12 +1,14 @@
-"""Mograph grid flip: a picture cut into a grid of tiles, each tile turning
-over on its own axis in a wave across the grid, so the picture on the tiles'
-backs takes over tile by tile."""
+"""Mograph Grid Flip: the same idea as Tile Flip (`../transitions/tile_flip.py`,
+which keeps the capability) -- a grid of tiles turning over in a wave to
+show a new picture on their backs. This module's own code stays (a film
+may still import it), but it is no longer a capability of its own."""
 import math
 
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Capability
+
+MERGED_INTO = 'tile-flip'
 
 TURN = vb.bezier(0.6, 0.0, 0.3, 1.0)
 
@@ -66,21 +68,3 @@ def draw(n, cv):
     box = (pad, pad * 0.8, demo.W - 2 * pad, demo.H - 1.6 * pad)
     grid_flip(cv, demo.scene_a, demo.scene_b, demo.phase(n, 0.35, 2.55), box=box, cols=8, rows=4, gap=10)
     cv.mark('grid', *box)
-
-
-CAPABILITY = Capability(
-    id='mograph-grid-flip',
-    name='Mograph grid flip',
-    family='shapes',
-    group='Repeaters & patterns',
-    aliases=('tile flip wave', 'cloner flip', 'flipping tiles', 'grid card flip'),
-    definition='An image split into a grid of tiles turns over one tile at a time in a sweeping wave, '
-               'each tile showing a new picture on its back.',
-    phrasings=('break the picture into squares that flip over one after another to show the next one',
-               'a wall of tiles turning over in a wave across the screen',
-               'flip the grid of cards diagonally to reveal the new image'),
-    related=('tile-flip', 'flip', 'cloner-grid', 'layout-animation-flip', 'logo-3d-spin-reveal',
-             'character-3d-flip'),
-    api=('videobuilder.capabilities.shapes.mograph_grid_flip.grid_flip',),
-    demo=lambda: demo.film(draw),
-)

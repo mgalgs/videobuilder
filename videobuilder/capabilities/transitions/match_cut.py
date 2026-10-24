@@ -102,7 +102,7 @@ CAPABILITY = Capability(
     name='Match cut',
     family='transitions',
     group='Cuts',
-    aliases=('matched cut', 'graphic match', 'match on action'),
+    aliases=('matched cut', 'graphic match', 'match on action', 'shape match'),
     definition='A hard cut where something in the new shot sits in the same spot, with the same shape or '
                'movement, as something in the old one, so the change feels seamless.',
     phrasings=('cut from the sun straight to a clock in the same place',
