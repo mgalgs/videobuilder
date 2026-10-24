@@ -147,15 +147,26 @@ def _type_lines(community_styles):
 def _requested_capabilities_lines(items):
     """The capabilities a note's #id chips named (see capabilities.
     resolve_requested): listed structurally, not left for the builder to
-    infer from prose."""
-    lines = ['## Capabilities the creator asked for', '',
-             'The creator tagged these in the note (shown as a chip below the note box, '
-             'from typing #id or picking a suggestion): use each one.', '']
+    infer from prose. An item whose chip carried a settings card value
+    (resolve_requested's `values`, already narrowed to what differs from
+    that setting's own default) gets one extra line per value -- the
+    creator's own pick, not a default to second-guess."""
+    from .capabilities.settings import Choice
+    intro = ('The creator tagged these in the note (shown as a chip below the note box, '
+            'from typing #id or picking a suggestion): use each one.')
+    if any(c['values'] for c in items):
+        intro += (' Where one lists a value below it, that value is the creator\'s own pick from '
+                  'that chip\'s settings card -- use it as given, not a default.')
+    lines = ['## Capabilities the creator asked for', '', intro, '']
     for c in items:
         lines.append(f"- `{c['id']}`: **{c['name']}**. {c['definition']}")
         api = ', '.join(f'`{a}`' for a in c['api'])
         if api:
             lines.append(f"  - api: {api}")
+        for s in c['settings']:
+            if s.id in c['values']:
+                suffix = f' ({s.label})' if isinstance(s, Choice) else ''
+                lines.append(f"  - {s.id}: {c['values'][s.id]}{suffix}")
     return lines
 
 

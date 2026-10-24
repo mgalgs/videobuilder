@@ -3,6 +3,7 @@ tests/test_notes.py for the whole note file, pinned verbatim)."""
 import unittest
 
 from videobuilder import __version__, prompt
+from videobuilder.capabilities.settings import Choice, Option
 
 NOTE = {'id': 'n1', 'text': 'Make it punchier'}
 PAYLOAD = {'video': 'promo/film', 'film': 'promo/film.py', 'format': '16x9', 'frame': None, 'segment': None,
@@ -275,6 +276,39 @@ class RequestedCapabilitiesSection(unittest.TestCase):
         look_at = md.index('## Look at your work')
         self.assertLess(community_at, requested_at)
         self.assertLess(requested_at, look_at)
+
+
+class RequestedCapabilitiesSettingsLines(unittest.TestCase):
+    """A capability whose chip settings card picked a non-default value
+    (resolve_requested's `values`, from the note's {id, settings} entry) gets
+    one plain line per value under its capability line -- a Number's value
+    as-is, a Choice's suffixed with its own label so an opaque value (a
+    voice id, say) still reads plainly. A note with nothing but defaults
+    renders exactly as if its chip carried no settings at all."""
+
+    def test_a_number_settings_value_is_listed_and_the_sentence_appears(self):
+        note = {**NOTE, 'capabilities': [{'id': 'narration', 'settings': {'speed': 1.4}}]}
+        md = prompt.render(note, PAYLOAD, None)
+        self.assertIn('- speed: 1.4', md)
+        self.assertIn("chip's settings card", md)
+
+    def test_a_default_settings_value_adds_no_line_and_no_sentence(self):
+        note = {**NOTE, 'capabilities': [{'id': 'narration', 'settings': {'speed': 1.0}}]}
+        md = prompt.render(note, PAYLOAD, None)
+        self.assertNotIn('- speed:', md)
+        self.assertNotIn("settings card", md)
+
+    def test_the_old_plain_string_format_renders_byte_identically(self):
+        with_string = prompt.render({**NOTE, 'capabilities': ['narration']}, PAYLOAD, None)
+        with_object = prompt.render({**NOTE, 'capabilities': [{'id': 'narration', 'settings': {}}]}, PAYLOAD, None)
+        self.assertEqual(with_string, with_object)
+        self.assertNotIn('settings card', with_string)
+
+    def test_a_choice_value_line_is_suffixed_with_the_settings_label(self):
+        items = [{'id': 'x', 'name': 'X', 'definition': 'A thing.', 'api': [],
+                 'settings': (Choice('voice', 'Voice', options=(Option('A', 'a'), Option('B', 'b')), default='a'),),
+                 'values': {'voice': 'b'}}]
+        self.assertIn('  - voice: b (Voice)', prompt._requested_capabilities_lines(items))
 
 
 class PinGuidance(unittest.TestCase):
