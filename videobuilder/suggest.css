@@ -66,6 +66,11 @@
   display:grid;place-items:center;padding:0;cursor:pointer;margin:0 -4px 0 2px}
 .sg-capchip-x:hover{background:#ffffff33;color:#fff}
 
+/* one settings card per chip whose capability declares settings (settings_card.css's
+   .sc-card), stacked below the whole chip row in chip order */
+.sg-capcards{display:flex;flex-direction:column;gap:8px;margin-top:8px}
+.sg-capcards:empty{display:none}
+
 /* editor placement */
 #composer .sg-cards{margin:-2px 0 0}
 #composer .composer-extras.sg-on{flex-wrap:nowrap}

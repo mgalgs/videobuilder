@@ -56,12 +56,12 @@ function loadCatalog() {
   return catPromise;
 }
 const BY = {};
-const CAPS = {}; // capability id -> {id, family, title}: every #id a hashtag can name
+const CAPS = {}; // capability id -> {id, family, title, settings}: every #id a hashtag can name
 function indexCatalog() {
   if (!CAT) return;
   for (const fam of CAP_FAMILIES) for (const c of CAT[fam]) {
     BY[fam + ':' + c.id] = c;
-    if (!(c.id in CAPS)) CAPS[c.id] = {id: c.id, family: fam, title: c.title};
+    if (!(c.id in CAPS)) CAPS[c.id] = {id: c.id, family: fam, title: c.title, settings: c.settings || null};
   }
   for (const f of CAT.fonts) BY['fonts:' + f.id] = f;
   for (const s of CAT.sfx) BY['sfx:' + s.id] = s;
@@ -73,7 +73,7 @@ const nameOf = (f, id) => { const x = BY[f + ':' + id]; if (!x) return id;
 const fmtTime = t => Math.floor(t / 60) + ':' + String(Math.round(t % 60)).padStart(2, '0');
 
 /* ---- where it lives on this page ---- */
-let ta, cards, chips, tail, think, xbtn, capChips;
+let ta, cards, chips, tail, think, xbtn, capChips, capCards;
 function mount() {
   ta = $('message');
   if (!ta) return false;
@@ -81,6 +81,7 @@ function mount() {
   chips = el('div', 'sg-chips'); chips.setAttribute('aria-label', 'More you can ask for');
   tail = el('div', 'sg-tail');
   capChips = el('div', 'sg-capchips'); capChips.setAttribute('aria-label', 'Capabilities this note references');
+  capCards = el('div', 'sg-capcards'); capCards.setAttribute('aria-label', 'Settings for the capabilities this note references');
   think = el('span', 'sg-think', '<span class="sg-dots"><i></i><i></i><i></i></span><span class="sg-slowtext">Still thinking…</span>');
   think.title = 'Looking for capabilities that fit this note';
   xbtn = el('button', 'sg-x', svg(I.x, 16, 2.4));
@@ -93,6 +94,7 @@ function mount() {
   composer.insertBefore(cards, extras);
   extras.append(chips, tail);
   composer.querySelector('.composer-row').insertAdjacentElement('afterend', capChips);
+  capChips.insertAdjacentElement('afterend', capCards);
   ta.addEventListener('input', onInput);
   ta.addEventListener('keydown', e => { if (e.key === 'Escape' && shown.length) { e.preventDefault(); dismiss() } });
   return true;
@@ -102,6 +104,7 @@ function mount() {
 let shown = [], dismissed = false, timer = 0, inflight = null, programmatic = false, staticChips = false;
 let hiddenNote = 0, seqCounter = 0, lastSeq = 0, modelOn = null, sentText = null;
 let pickedCapIds = []; // ids picked from a suggestion, in pick order (a chip the creator can remove)
+let capValues = {}; // id -> {settingId: value}, only entries that differ from that setting's own default
 
 function currentVideo() { return typeof state !== 'undefined' ? state.video : null }
 function currentClip() { return typeof tlNoteClip === 'function' ? tlNoteClip() : null }
@@ -113,7 +116,7 @@ function currentAt() {
 function onInput() {
   if (programmatic) return;
   if (!ta.value.trim()) {
-    dismissed = false; shown = []; staticChips = false; sentText = null; pickedCapIds = [];
+    dismissed = false; shown = []; staticChips = false; sentText = null; pickedCapIds = []; capValues = {};
     render(); renderCapChips(); cancel(); return
   }
   renderCapChips();
@@ -266,10 +269,21 @@ function capChipIds() {
   for (const id of pickedCapIds) if (!ids.includes(id)) ids.push(id);
   return ids;
 }
+// `values` as the settings card's onChange hands it (every declared id) narrowed
+// to the ones that actually differ from that setting's own default -- what a note
+// should carry, since a card nobody touched should look exactly like no card at all.
+function settingsValuesDiff(settings, values) {
+  const out = {};
+  for (const s of settings || []) {
+    if (values && Object.prototype.hasOwnProperty.call(values, s.id) && values[s.id] !== s.default) out[s.id] = values[s.id];
+  }
+  return out;
+}
 function renderCapChips() {
   if (!capChips) return;
   const ids = capChipIds();
   capChips.replaceChildren();
+  if (capCards) capCards.replaceChildren();
   for (const id of ids) {
     const cap = CAPS[id];
     const typedOnly = !pickedCapIds.includes(id);
@@ -279,10 +293,19 @@ function renderCapChips() {
       const rm = el('button', 'sg-capchip-x', svg(I.x, 12, 2.4));
       rm.type = 'button';
       rm.setAttribute('aria-label', `Remove #${id}`);
-      rm.onclick = () => { pickedCapIds = pickedCapIds.filter(x => x !== id); renderCapChips() };
+      rm.onclick = () => { pickedCapIds = pickedCapIds.filter(x => x !== id); delete capValues[id]; renderCapChips() };
       c.append(rm);
     }
     capChips.append(c);
+    // A chip whose capability declares settings (narration's voice/speed, say) gets
+    // its own card, stacked below the chip row in the same order as the chips.
+    if (cap && cap.settings && cap.settings.length && capCards && window.SettingsCard) {
+      const card = el('div', 'sg-capcard');
+      window.SettingsCard.render(card, cap.settings, capValues[id] || {}, values => {
+        capValues[id] = settingsValuesDiff(cap.settings, values);
+      });
+      capCards.append(card);
+    }
   }
 }
 

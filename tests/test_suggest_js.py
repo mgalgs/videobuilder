@@ -206,6 +206,131 @@ console.log(JSON.stringify({value: ta.value, pickedCapIds}));
         self.assertEqual(out['pickedCapIds'], [])
 
 
+@unittest.skipUnless(shutil.which('node'), 'node is not available in this environment')
+class CapabilitySettingsCards(unittest.TestCase):
+    """renderCapChips: a chip whose capability declares `settings` (see
+    capabilities/settings.py's as_json, which is what CAPS[id].settings holds
+    here) gets its own settings card, stacked below the chip row in chip
+    order; removing the chip drops its card and any values it picked."""
+
+    NARRATION_SETTINGS = [
+        {'type': 'choice', 'id': 'voice', 'label': 'Voice', 'default': 'bf_isabella',
+         'options': [{'label': 'Isabella', 'value': 'bf_isabella'}, {'label': 'Heart', 'value': 'af_heart'}]},
+        {'type': 'number', 'id': 'speed', 'label': 'Speed', 'default': 1.0, 'min': 0.5, 'max': 2.0, 'step': 0.1},
+    ]
+
+    def run_js(self, prelude, calls):
+        js = (PKG / 'suggest.js').read_text()
+        hashtag_re = re.search(r'\nconst HASHTAG_RE = .*?;', js).group(0)
+        hashtag_fn = re.search(r'\nfunction hashtagCapIds\(text, caps\) \{.*?\n\}', js, re.S).group(0)
+        # Not `.*?;`: esc's own replacement map holds entities like '&amp;' that carry a
+        # literal semicolon, which would end the match early.
+        esc = re.search(r'\nconst esc = [^\n]*', js).group(0)
+        svg = re.search(r'\nconst svg = [^\n]*', js).group(0)
+        icons = re.search(r'\nconst I = \{.*?\n\};', js, re.S).group(0)
+        cap_chip_ids = re.search(r'\nfunction capChipIds\(\) \{.*?\n\}', js, re.S).group(0)
+        diff = re.search(r'\nfunction settingsValuesDiff\(settings, values\) \{.*?\n\}', js, re.S).group(0)
+        render_cap_chips = re.search(r'\nfunction renderCapChips\(\) \{.*?\n\}', js, re.S).group(0)
+        # Not `.*?;`: el's own body has a semicolon after each of its own statements.
+        el = re.search(r'\nconst el = [^\n]*', js).group(0)
+        dom = """
+function makeEl() {
+  return {
+    className: '', innerHTML: '', children: [], attrs: {},
+    append(...xs) { this.children.push(...xs) },
+    replaceChildren(...xs) { this.children = xs },
+    setAttribute(k, v) { this.attrs[k] = v },
+    getAttribute(k) { return this.attrs[k] },
+  };
+}
+const document = {createElement: () => makeEl()};
+const window = {SettingsCard: {calls: [], render(container, settings, values, onChange) {
+  window.SettingsCard.calls.push({container, settings, values});
+  window.SettingsCard.lastOnChange = onChange;
+}}};
+"""
+        script = (dom + hashtag_re + hashtag_fn + esc + svg + icons + el + cap_chip_ids + diff + render_cap_chips +
+                  prelude + calls)
+        result = subprocess.run(['node', '-'], input=script.encode(), capture_output=True)
+        self.assertEqual(result.returncode, 0, result.stderr.decode())
+        return json.loads(result.stdout)
+
+    def test_a_chip_with_settings_mounts_a_card_below_the_chip_row(self):
+        prelude = f"""
+const CAPS = {{narration: {{id: 'narration', family: 'capabilities', title: 'Narration',
+  settings: {json.dumps(self.NARRATION_SETTINGS)}}}}};
+let pickedCapIds = ['narration'];
+let capValues = {{}};
+const ta = {{value: ''}};
+const capChips = makeEl(), capCards = makeEl();
+"""
+        calls = """
+renderCapChips();
+console.log(JSON.stringify({chipCount: capChips.children.length, cardCount: capCards.children.length,
+  renderCalls: window.SettingsCard.calls.length}));
+"""
+        out = self.run_js(prelude, calls)
+        self.assertEqual(out['chipCount'], 1)
+        self.assertEqual(out['cardCount'], 1)
+        self.assertEqual(out['renderCalls'], 1)
+
+    def test_a_chip_without_settings_mounts_no_card(self):
+        prelude = """
+const CAPS = {'look-melt': {id: 'look-melt', family: 'looks', title: 'Surrealist melt', settings: null}};
+let pickedCapIds = ['look-melt'];
+let capValues = {};
+const ta = {value: ''};
+const capChips = makeEl(), capCards = makeEl();
+"""
+        calls = """
+renderCapChips();
+console.log(JSON.stringify({chipCount: capChips.children.length, cardCount: capCards.children.length,
+  renderCalls: window.SettingsCard.calls.length}));
+"""
+        out = self.run_js(prelude, calls)
+        self.assertEqual(out['chipCount'], 1)
+        self.assertEqual(out['cardCount'], 0)
+        self.assertEqual(out['renderCalls'], 0)
+
+    def test_picking_a_value_in_the_card_keeps_only_the_non_default_one(self):
+        prelude = f"""
+const CAPS = {{narration: {{id: 'narration', family: 'capabilities', title: 'Narration',
+  settings: {json.dumps(self.NARRATION_SETTINGS)}}}}};
+let pickedCapIds = ['narration'];
+let capValues = {{}};
+const ta = {{value: ''}};
+const capChips = makeEl(), capCards = makeEl();
+"""
+        calls = """
+renderCapChips();
+window.SettingsCard.lastOnChange({voice: 'af_heart', speed: 1.0});
+console.log(JSON.stringify({capValues}));
+"""
+        out = self.run_js(prelude, calls)
+        self.assertEqual(out['capValues'], {'narration': {'voice': 'af_heart'}})
+
+    def test_removing_the_chip_drops_its_card_and_its_values(self):
+        prelude = f"""
+const CAPS = {{narration: {{id: 'narration', family: 'capabilities', title: 'Narration',
+  settings: {json.dumps(self.NARRATION_SETTINGS)}}}}};
+let pickedCapIds = ['narration'];
+let capValues = {{narration: {{voice: 'af_heart'}}}};
+const ta = {{value: ''}};
+const capChips = makeEl(), capCards = makeEl();
+"""
+        calls = """
+renderCapChips();
+const chipSpan = capChips.children[0];
+const removeButton = chipSpan.children[chipSpan.children.length - 1];
+removeButton.onclick();
+console.log(JSON.stringify({pickedCapIds, capValues, cardCount: capCards.children.length}));
+"""
+        out = self.run_js(prelude, calls)
+        self.assertEqual(out['pickedCapIds'], [])
+        self.assertEqual(out['capValues'], {})
+        self.assertEqual(out['cardCount'], 0)
+
+
 class PageWiring(unittest.TestCase):
     """The composer loads the suggest layer."""
 
@@ -213,6 +338,11 @@ class PageWiring(unittest.TestCase):
         html = (PKG / 'editor.html').read_text()
         self.assertIn('<link rel="stylesheet" href="suggest.css">', html)
         self.assertIn('<script src="suggest.js" defer', html)
+
+    def test_editor_html_loads_settings_card_css_and_js(self):
+        html = (PKG / 'editor.html').read_text()
+        self.assertIn('<link rel="stylesheet" href="settings_card.css">', html)
+        self.assertIn('<script src="settings_card.js" defer', html)
 
     def test_editor_composer_markup_suggest_js_hooks_into(self):
         html = (PKG / 'editor.html').read_text()
