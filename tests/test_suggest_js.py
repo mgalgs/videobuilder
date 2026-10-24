@@ -1,8 +1,8 @@
-"""suggest.js's rewrite rules (a pick's words, run as the real code), against
-node: the model's own `replace.span`/`replace.text` is used when the span is
-still in the note; otherwise a per-family template either grows the last
-matching phrase or appends a short clause -- see suggest-notes.md's
-"Rewrites" design call."""
+"""suggest.js's pick() (a suggestion becoming a chip, run as the real code),
+against node. Every pick -- a look, a type style, a capability, a font, a
+sound effect or a music track -- adds a chip and leaves the note's own text
+untouched (see suggest-notes.md's "Rewrites" design call, which this
+replaced: no insertText, no replaced span, no flash)."""
 import json
 import re
 import shutil
@@ -11,81 +11,6 @@ import unittest
 from pathlib import Path
 
 PKG = Path(__file__).resolve().parents[1] / 'videobuilder'
-
-
-@unittest.skipUnless(shutil.which('node'), 'node is not available in this environment')
-class Rewrite(unittest.TestCase):
-    def run_rewrite(self, by, cases):
-        js = (PKG / 'suggest.js').read_text()
-        key_of = re.search(r'\nconst keyOf = .*?;', js).group(0)
-        template = re.search(r'\nconst TEMPLATE = \{.*?\n\};', js, re.S).group(0)
-        open_end = re.search(r'\nconst OPEN_END = .*?;', js).group(0)
-        name = re.search(r'\nconst NAME = \{.*?\n\};', js, re.S).group(0)
-        rewrite = re.search(r'\nfunction rewrite\(text, i\) \{.*?\n\}', js, re.S).group(0)
-        script = key_of + template + open_end + name + rewrite + f"""
-const BY = {json.dumps(by)};
-const out = [];
-for (const [text, item] of {json.dumps(cases)}) {{
-  out.push(rewrite(text, item));
-}}
-console.log(JSON.stringify(out));
-"""
-        result = subprocess.run(['node', '-'], input=script.encode(), capture_output=True)
-        self.assertEqual(result.returncode, 0, result.stderr.decode())
-        return json.loads(result.stdout)
-
-    def test_model_replace_used_when_span_still_in_text(self):
-        text = 'Make the intro look like a comic, and add a whoosh'
-        item = {'family': 'looks', 'id': 'look-pop-art',
-               'replace': {'span': 'look like a comic', 'text': 'look like a comic, in the Pop-art halftone look'}}
-        [[a, b, t]] = self.run_rewrite({}, [[text, item]])
-        self.assertEqual(text[a:b], 'look like a comic')
-        self.assertEqual(t, 'look like a comic, in the Pop-art halftone look')
-
-    def test_note_ending_on_an_open_word_is_finished_by_the_name(self):
-        by = {'looks:look-melt': {'title': 'Surrealist melt'}, 'fonts:cantarell': {'family': 'Cantarell'}}
-        cases = [['change the look to', {'family': 'looks', 'id': 'look-melt', 'replace': None}],
-                 ['set the title in a font like ', {'family': 'fonts', 'id': 'cantarell', 'replace': None}]]
-        out = self.run_rewrite(by, cases)
-        self.assertEqual([text[:a] + t + text[b:] for (text, _), (a, b, t) in zip(cases, out)],
-                         ['change the look to Surrealist melt', 'set the title in a font like Cantarell'])
-
-    def test_open_ending_beats_the_models_own_replace(self):
-        text = 'change the look to'
-        item = {'family': 'looks', 'id': 'look-melt', 'replace': {'span': 'look', 'text': 'look (Surrealist melt)'}}
-        [[a, b, t]] = self.run_rewrite({'looks:look-melt': {'title': 'Surrealist melt'}}, [[text, item]])
-        self.assertEqual(text[:a] + t + text[b:], 'change the look to Surrealist melt')
-
-    def test_look_template_names_the_look_without_splitting_the_sentence(self):
-        text = 'make the look warmer'
-        item = {'family': 'looks', 'id': 'look-melt', 'replace': None}
-        [[a, b, t]] = self.run_rewrite({'looks:look-melt': {'title': 'Surrealist melt'}}, [[text, item]])
-        self.assertEqual(text[:a] + t + text[b:], 'make the look (Surrealist melt) warmer')
-
-    def test_font_template_adds_parens_after_the_word_font(self):
-        text = 'Use a friendlier font for the title'
-        item = {'family': 'fonts', 'id': 'cantarell', 'replace': None}
-        by = {'fonts:cantarell': {'family': 'Cantarell'}}
-        [[a, b, t]] = self.run_rewrite(by, [[text, item]])
-        self.assertEqual(text[:a] + t + text[b:], 'Use a friendlier font (Cantarell) for the title')
-
-    def test_sfx_with_no_matching_word_appends_a_clause_before_final_punctuation(self):
-        text = 'Make each price appear in turn.'
-        item = {'family': 'sfx', 'id': 'fit/tick/domino', 'replace': None}
-        by = {'sfx:fit/tick/domino': {'id': 'fit/tick/domino', 'role': 'tick'}}
-        # No sfx-shaped word (whoosh/hit/pop/tick/...) is in the text, so this falls through
-        # to the append-a-clause branch, same as the design note's own example.
-        [[a, b, t]] = self.run_rewrite(by, [[text, item]])
-        self.assertEqual(a, b)
-        self.assertEqual(text[:a] + t + text[a:], 'Make each price appear in turn, with a tick (fit/tick/domino).')
-
-    def test_music_template_appends_clause_with_no_music_word(self):
-        text = 'A 30-second launch video for our app'
-        item = {'family': 'music', 'id': 'bright-steps', 'replace': None}
-        by = {'music:bright-steps': {'title': 'Bright Steps', 'source': 'Example Library'}}
-        [[a, b, t]] = self.run_rewrite(by, [[text, item]])
-        self.assertEqual(text + t, 'A 30-second launch video for our app, with "Bright Steps" '
-                                   '(Example Library) as the music')
 
 
 @unittest.skipUnless(shutil.which('node'), 'node is not available in this environment')
@@ -126,24 +51,35 @@ console.log(JSON.stringify(hashtagCapIds({json.dumps(text)}, {json.dumps(caps)})
 
 
 @unittest.skipUnless(shutil.which('node'), 'node is not available in this environment')
-class CapabilityPickNeverRewrites(unittest.TestCase):
-    """pick(): a capability-family suggestion (CAP_FAMILIES) adds a chip and
-    leaves the textarea untouched; any other family still rewrites the note
-    exactly as before (see Rewrite, above)."""
+class PickNeverTouchesTheNote(unittest.TestCase):
+    """pick(): every family -- a capability (CAP_FAMILIES) or a font/sfx/music
+    pick (ASSET_FAMILIES) -- adds a chip and leaves the textarea untouched.
+    Neither branch references `ta` at all (checked directly on the extracted
+    source, not just by example), which is what makes this true for every
+    case, not just the ones exercised here."""
 
     def run_js(self, prelude, calls):
         js = (PKG / 'suggest.js').read_text()
         cap_families = re.search(r'\nconst CAP_FAMILIES = .*?;', js, re.S).group(0)
+        asset_families = re.search(r'\nconst ASSET_FAMILIES = .*?;', js, re.S).group(0)
         key_of = re.search(r'\nconst keyOf = .*?;', js).group(0)
-        pick = re.search(r'\nfunction pick\(i, \{user\} = \{\}\) \{.*?\n\}', js, re.S).group(0)
-        script = cap_families + key_of + pick + prelude + calls
+        pick = re.search(r'\nfunction pick\(i\) \{.*?\n\}', js, re.S).group(0)
+        self.pick_source = pick
+        script = cap_families + asset_families + key_of + pick + prelude + calls
         result = subprocess.run(['node', '-'], input=script.encode(), capture_output=True)
         self.assertEqual(result.returncode, 0, result.stderr.decode())
         return json.loads(result.stdout)
 
+    def test_pick_never_mentions_the_textarea_or_any_text_insertion(self):
+        js = (PKG / 'suggest.js').read_text()
+        pick = re.search(r'\nfunction pick\(i\) \{.*?\n\}', js, re.S).group(0)
+        for needle in ('insertText', 'execCommand', 'ta.value', 'setRangeText'):
+            self.assertNotIn(needle, pick)
+
     def test_a_capability_pick_adds_a_chip_and_leaves_the_note_untouched(self):
         prelude = """
 let pickedCapIds = [];
+let pickedAssetIds = {fonts: [], sfx: [], music: []};
 let renderCapChipsCalls = 0;
 function renderCapChips() { renderCapChipsCalls++ }
 let shown = [{family: 'looks', id: 'look-melt'}, {family: 'fonts', id: 'cantarell'}];
@@ -152,7 +88,7 @@ function render() { renderCalls++ }
 const ta = {value: 'make it look like a dream'};
 """
         calls = """
-pick({family: 'looks', id: 'look-melt'}, {user: true});
+pick({family: 'looks', id: 'look-melt'});
 console.log(JSON.stringify({value: ta.value, pickedCapIds, renderCapChipsCalls, renderCalls,
   shownFamilies: shown.map(i => i.family)}));
 """
@@ -166,44 +102,71 @@ console.log(JSON.stringify({value: ta.value, pickedCapIds, renderCapChipsCalls, 
     def test_picking_the_same_capability_twice_does_not_duplicate_the_chip(self):
         prelude = """
 let pickedCapIds = ['look-melt'];
+let pickedAssetIds = {fonts: [], sfx: [], music: []};
 function renderCapChips() {}
 let shown = [];
 function render() {}
 const ta = {value: 'a note'};
 """
         calls = """
-pick({family: 'looks', id: 'look-melt'}, {user: true});
+pick({family: 'looks', id: 'look-melt'});
 console.log(JSON.stringify({pickedCapIds}));
 """
         self.assertEqual(self.run_js(prelude, calls)['pickedCapIds'], ['look-melt'])
 
-    def test_a_non_capability_pick_still_rewrites_the_note(self):
+    def test_a_font_pick_adds_a_chip_and_leaves_the_note_untouched(self):
         prelude = """
 let pickedCapIds = [];
-function renderCapChips() {}
-let shown = [{family: 'fonts', id: 'cantarell'}];
+let pickedAssetIds = {fonts: [], sfx: [], music: []};
+let renderCapChipsCalls = 0;
+function renderCapChips() { renderCapChipsCalls++ }
+let shown = [{family: 'fonts', id: 'cantarell'}, {family: 'looks', id: 'look-melt'}];
 function render() {}
-let programmatic = false;
-const ta = {
-  value: 'Use a friendlier font for the title',
-  focus() {}, setSelectionRange() {},
-  setRangeText(text, a, b) { this.value = this.value.slice(0, a) + text + this.value.slice(b) },
-  dispatchEvent() {},
-};
-const document = {execCommand: () => false};
-function rewrite(text, i) {
-  const m = / font\\b/.exec(text);
-  return [m.index, m.index + m[0].length, ' font (Cantarell)'];
-}
-function flash() {}
+const ta = {value: 'Use a friendlier font for the title'};
 """
         calls = """
-pick({family: 'fonts', id: 'cantarell'}, {user: true});
-console.log(JSON.stringify({value: ta.value, pickedCapIds}));
+pick({family: 'fonts', id: 'cantarell'});
+console.log(JSON.stringify({value: ta.value, pickedAssetIds, renderCapChipsCalls,
+  shownFamilies: shown.map(i => i.family)}));
 """
         out = self.run_js(prelude, calls)
-        self.assertEqual(out['value'], 'Use a friendlier font (Cantarell) for the title')
-        self.assertEqual(out['pickedCapIds'], [])
+        self.assertEqual(out['value'], 'Use a friendlier font for the title')
+        self.assertEqual(out['pickedAssetIds'], {'fonts': ['cantarell'], 'sfx': [], 'music': []})
+        self.assertEqual(out['renderCapChipsCalls'], 1)
+        self.assertEqual(out['shownFamilies'], ['looks'])
+
+    def test_an_sfx_and_a_music_pick_are_tracked_in_their_own_family(self):
+        prelude = """
+let pickedCapIds = [];
+let pickedAssetIds = {fonts: [], sfx: [], music: []};
+function renderCapChips() {}
+let shown = [];
+function render() {}
+const ta = {value: 'Make each price appear in turn, with a launch song behind it.'};
+"""
+        calls = """
+pick({family: 'sfx', id: 'fit/tick/domino'});
+pick({family: 'music', id: 'bright-steps'});
+console.log(JSON.stringify({value: ta.value, pickedAssetIds}));
+"""
+        out = self.run_js(prelude, calls)
+        self.assertEqual(out['value'], 'Make each price appear in turn, with a launch song behind it.')
+        self.assertEqual(out['pickedAssetIds'], {'fonts': [], 'sfx': ['fit/tick/domino'], 'music': ['bright-steps']})
+
+    def test_picking_the_same_asset_twice_does_not_duplicate_the_chip(self):
+        prelude = """
+let pickedCapIds = [];
+let pickedAssetIds = {fonts: ['cantarell'], sfx: [], music: []};
+function renderCapChips() {}
+let shown = [];
+function render() {}
+const ta = {value: 'a note'};
+"""
+        calls = """
+pick({family: 'fonts', id: 'cantarell'});
+console.log(JSON.stringify({pickedAssetIds}));
+"""
+        self.assertEqual(self.run_js(prelude, calls)['pickedAssetIds'], {'fonts': ['cantarell'], 'sfx': [], 'music': []})
 
 
 @unittest.skipUnless(shutil.which('node'), 'node is not available in this environment')
@@ -231,6 +194,7 @@ class CapabilitySettingsCards(unittest.TestCase):
         cap_chip_ids = re.search(r'\nfunction capChipIds\(\) \{.*?\n\}', js, re.S).group(0)
         diff = re.search(r'\nfunction settingsValuesDiff\(settings, values\) \{.*?\n\}', js, re.S).group(0)
         render_cap_chips = re.search(r'\nfunction renderCapChips\(\) \{.*?\n\}', js, re.S).group(0)
+        asset_families = re.search(r'\nconst ASSET_FAMILIES = .*?;', js, re.S).group(0)
         # Not `.*?;`: el's own body has a semicolon after each of its own statements.
         el = re.search(r'\nconst el = [^\n]*', js).group(0)
         dom = """
@@ -245,13 +209,14 @@ function makeEl() {
 }
 const document = {createElement: () => makeEl()};
 let capCardsKey = null;
+let pickedAssetIds = {fonts: [], sfx: [], music: []};
 const window = {SettingsCard: {calls: [], render(container, settings, values, onChange) {
   window.SettingsCard.calls.push({container, settings, values});
   window.SettingsCard.lastOnChange = onChange;
 }}};
 """
-        script = (dom + hashtag_re + hashtag_fn + esc + svg + icons + el + cap_chip_ids + diff + render_cap_chips +
-                  prelude + calls)
+        script = (dom + hashtag_re + hashtag_fn + esc + svg + icons + el + asset_families + cap_chip_ids + diff +
+                  render_cap_chips + prelude + calls)
         result = subprocess.run(['node', '-'], input=script.encode(), capture_output=True)
         self.assertEqual(result.returncode, 0, result.stderr.decode())
         return json.loads(result.stdout)
@@ -354,6 +319,141 @@ console.log(JSON.stringify({renderCalls: window.SettingsCard.calls.length, same:
 
 
 @unittest.skipUnless(shutil.which('node'), 'node is not available in this environment')
+class AssetChips(unittest.TestCase):
+    """renderCapChips: a picked font/sfx/music chip, in the same row as a
+    capability chip, named by nameOf and marked with an icon plus a plain
+    kind label ("Font"/"Sound"/"Music" -- never colour alone), a play button
+    for a sound or a music track (not a font), and an x that drops it."""
+
+    def run_js(self, prelude, calls):
+        js = (PKG / 'suggest.js').read_text()
+        hashtag_re = re.search(r'\nconst HASHTAG_RE = .*?;', js).group(0)
+        hashtag_fn = re.search(r'\nfunction hashtagCapIds\(text, caps\) \{.*?\n\}', js, re.S).group(0)
+        cap_chip_ids = re.search(r'\nfunction capChipIds\(\) \{.*?\n\}', js, re.S).group(0)
+        render_cap_chips = re.search(r'\nfunction renderCapChips\(\) \{.*?\n\}', js, re.S).group(0)
+        asset_families = re.search(r'\nconst ASSET_FAMILIES = .*?;', js, re.S).group(0)
+        asset_label = re.search(r'\nconst ASSET_LABEL = \{.*?\};', js, re.S).group(0)
+        key_of = re.search(r'\nconst keyOf = .*?;', js).group(0)
+        name_of = re.search(r'\nconst nameOf = .*?\n.*?;', js).group(0)
+        # Not `.*?;`: esc's own replacement map holds entities that carry a literal semicolon.
+        esc = re.search(r'\nconst esc = [^\n]*', js).group(0)
+        svg = re.search(r'\nconst svg = [^\n]*', js).group(0)
+        icons = re.search(r'\nconst I = \{.*?\n\};', js, re.S).group(0)
+        el = re.search(r'\nconst el = [^\n]*', js).group(0)
+        dom = """
+function makeEl() {
+  return {
+    className: '', innerHTML: '', children: [], attrs: {},
+    append(...xs) { this.children.push(...xs) },
+    replaceChildren(...xs) { this.children = xs },
+    setAttribute(k, v) { this.attrs[k] = v },
+    getAttribute(k) { return this.attrs[k] },
+  };
+}
+const document = {createElement: () => makeEl()};
+let CAPS = {};
+let pickedCapIds = [];
+let capCardsKey = null, capCards = null;
+let playCalls = [];
+function play(i) { playCalls.push(i) }
+"""
+        script = (dom + hashtag_re + hashtag_fn + key_of + name_of + esc + svg + icons + el + asset_families +
+                  asset_label + cap_chip_ids + render_cap_chips + prelude + calls)
+        result = subprocess.run(['node', '-'], input=script.encode(), capture_output=True)
+        self.assertEqual(result.returncode, 0, result.stderr.decode())
+        return json.loads(result.stdout)
+
+    def test_a_font_chip_has_no_play_button(self):
+        prelude = """
+const BY = {'fonts:cantarell': {id: 'cantarell', family: 'Cantarell'}};
+let pickedAssetIds = {fonts: ['cantarell'], sfx: [], music: []};
+const ta = {value: ''};
+const capChips = makeEl();
+"""
+        calls = """
+renderCapChips();
+const chip = capChips.children[0];
+console.log(JSON.stringify({chipCount: capChips.children.length, html: chip.children.map(c => c.innerHTML),
+  kinds: chip.children.map(c => c.className)}));
+"""
+        out = self.run_js(prelude, calls)
+        self.assertEqual(out['chipCount'], 1)
+        self.assertIn('sg-assetchip-kind', out['kinds'])
+        self.assertNotIn('sg-assetchip-play', out['kinds'])
+        self.assertTrue(any('Cantarell' in h for h in out['html']))
+        self.assertTrue(any('Font' in h for h in out['html']))
+
+    def test_a_sound_chip_has_a_play_button_that_calls_play(self):
+        prelude = """
+const BY = {'sfx:fit/tick/domino': {id: 'fit/tick/domino', role: 'tick'}};
+let pickedAssetIds = {fonts: [], sfx: ['fit/tick/domino'], music: []};
+const ta = {value: ''};
+const capChips = makeEl();
+"""
+        calls = """
+renderCapChips();
+const chip = capChips.children[0];
+const playButton = chip.children.find(c => c.className === 'sg-assetchip-play');
+playButton.onclick();
+console.log(JSON.stringify({kinds: chip.children.map(c => c.className), playCalls}));
+"""
+        out = self.run_js(prelude, calls)
+        self.assertIn('sg-assetchip-play', out['kinds'])
+        self.assertEqual(out['playCalls'], [{'family': 'sfx', 'id': 'fit/tick/domino'}])
+
+    def test_a_music_chip_also_has_a_play_button(self):
+        prelude = """
+const BY = {'music:bright-steps': {id: 'bright-steps', title: 'Bright Steps'}};
+let pickedAssetIds = {fonts: [], sfx: [], music: ['bright-steps']};
+const ta = {value: ''};
+const capChips = makeEl();
+"""
+        calls = """
+renderCapChips();
+const chip = capChips.children[0];
+console.log(JSON.stringify({kinds: chip.children.map(c => c.className),
+  html: chip.children.map(c => c.innerHTML)}));
+"""
+        out = self.run_js(prelude, calls)
+        self.assertIn('sg-assetchip-play', out['kinds'])
+        self.assertTrue(any('Bright Steps' in h for h in out['html']))
+        self.assertTrue(any('Music' in h for h in out['html']))
+
+    def test_removing_the_chip_drops_it_from_pickedassetids(self):
+        prelude = """
+const BY = {'fonts:cantarell': {id: 'cantarell', family: 'Cantarell'}};
+let pickedAssetIds = {fonts: ['cantarell'], sfx: [], music: []};
+const ta = {value: ''};
+const capChips = makeEl();
+"""
+        calls = """
+renderCapChips();
+const chip = capChips.children[0];
+const removeButton = chip.children[chip.children.length - 1];
+removeButton.onclick();
+console.log(JSON.stringify({pickedAssetIds, chipCountAfter: capChips.children.length}));
+"""
+        out = self.run_js(prelude, calls)
+        self.assertEqual(out['pickedAssetIds'], {'fonts': [], 'sfx': [], 'music': []})
+        self.assertEqual(out['chipCountAfter'], 0)
+
+    def test_a_capability_chip_and_an_asset_chip_share_the_same_row(self):
+        prelude = """
+CAPS = {'look-melt': {id: 'look-melt', family: 'looks', title: 'Surrealist melt', settings: null}};
+const BY = {'fonts:cantarell': {id: 'cantarell', family: 'Cantarell'}};
+pickedCapIds = ['look-melt'];
+let pickedAssetIds = {fonts: ['cantarell'], sfx: [], music: []};
+const ta = {value: ''};
+const capChips = makeEl();
+"""
+        calls = """
+renderCapChips();
+console.log(JSON.stringify({chipCount: capChips.children.length}));
+"""
+        self.assertEqual(self.run_js(prelude, calls)['chipCount'], 2)
+
+
+@unittest.skipUnless(shutil.which('node'), 'node is not available in this environment')
 class CapabilityEntriesForTheNote(unittest.TestCase):
     """capChipEntries (wired as noteCapabilityIds, see director.js's addPending/
     sendNow/batchBody) and the restorePickedCapIds assignment inside start()
@@ -409,6 +509,61 @@ console.log(JSON.stringify({pickedCapIds, capValues}));
 
 
 @unittest.skipUnless(shutil.which('node'), 'node is not available in this environment')
+class AssetEntriesForTheNote(unittest.TestCase):
+    """assetPickEntries (wired as noteAssetIds, see director.js's addPending/
+    sendNow/batchBody) and the restorePickedAssetIds assignment inside start()
+    (see director.js's editPending): the {fonts, sfx, music} shape a note
+    actually carries, and how a pending note's own chips come back."""
+
+    def run_js(self, prelude, calls):
+        js = (PKG / 'suggest.js').read_text()
+        asset_pick_entries = re.search(r'\nfunction assetPickEntries\(\) \{.*?\n\}', js, re.S).group(0)
+        restore = re.search(r'\n  restorePickedAssetIds = assets => \{.*?\n  \};', js, re.S).group(0)
+        script = f"""
+let pickedAssetIds = {{fonts: [], sfx: [], music: []}};
+let restorePickedAssetIds;
+{asset_pick_entries}
+{restore}
+{prelude}
+{calls}
+"""
+        result = subprocess.run(['node', '-'], input=script.encode(), capture_output=True)
+        self.assertEqual(result.returncode, 0, result.stderr.decode())
+        return json.loads(result.stdout)
+
+    def test_entries_reflect_each_familys_picked_ids(self):
+        prelude = "pickedAssetIds = {fonts: ['cantarell'], sfx: ['fit/tick/domino'], music: []};"
+        calls = "console.log(JSON.stringify(assetPickEntries()));"
+        self.assertEqual(self.run_js(prelude, calls),
+                         {'fonts': ['cantarell'], 'sfx': ['fit/tick/domino'], 'music': []})
+
+    def test_restore_recovers_ids_per_family(self):
+        calls = """
+restorePickedAssetIds({fonts: ['cantarell'], sfx: [], music: ['bright-steps']});
+console.log(JSON.stringify(pickedAssetIds));
+"""
+        self.assertEqual(self.run_js('', calls), {'fonts': ['cantarell'], 'sfx': [], 'music': ['bright-steps']})
+
+    def test_restore_dedups_repeated_ids_within_a_family(self):
+        calls = """
+restorePickedAssetIds({fonts: ['cantarell', 'cantarell'], sfx: [], music: []});
+console.log(JSON.stringify(pickedAssetIds));
+"""
+        self.assertEqual(self.run_js('', calls), {'fonts': ['cantarell'], 'sfx': [], 'music': []})
+
+    def test_restore_with_nothing_clears_every_family(self):
+        prelude = "pickedAssetIds = {fonts: ['cantarell'], sfx: ['x'], music: ['y']};"
+        calls = "restorePickedAssetIds({fonts: [], sfx: [], music: []}); console.log(JSON.stringify(pickedAssetIds));"
+        self.assertEqual(self.run_js(prelude, calls), {'fonts': [], 'sfx': [], 'music': []})
+
+    def test_restore_from_a_pending_note_saved_before_these_fields_shipped(self):
+        # director.js's editPending falls back to [] for a missing field before calling this.
+        prelude = "pickedAssetIds = {fonts: ['cantarell'], sfx: [], music: []};"
+        calls = "restorePickedAssetIds({fonts: [], sfx: [], music: []}); console.log(JSON.stringify(pickedAssetIds));"
+        self.assertEqual(self.run_js(prelude, calls), {'fonts': [], 'sfx': [], 'music': []})
+
+
+@unittest.skipUnless(shutil.which('node'), 'node is not available in this environment')
 class BatchBodyCapabilities(unittest.TestCase):
     """director.js's batchBody: each pending item's capabilities is now a list of
     {id, settings} (suggest.js's noteCapabilityIds), so the merge across items
@@ -443,6 +598,43 @@ console.log(JSON.stringify(batchBody({json.dumps(items)}).capabilities));
                  {'text': 'b', 'attachments': [], 'capabilities': [{'id': 'map-route-draw', 'settings': {}}]}]
         self.assertEqual(self.run_js(items), [{'id': 'narration'}, {'id': 'look-melt'},
                                               {'id': 'map-route-draw', 'settings': {}}])
+
+
+@unittest.skipUnless(shutil.which('node'), 'node is not available in this environment')
+class BatchBodyAssets(unittest.TestCase):
+    """director.js's batchBody: each pending item's fonts/sfx/music is a plain
+    list of ids (suggest.js's noteAssetIds); the merge across items dedups by
+    id, first occurrence wins, keeping pick order -- and an old pending item
+    saved before these fields shipped (no fonts/sfx/music keys at all) still
+    sends, as if it simply picked none of them."""
+
+    def run_js(self, items):
+        js = (PKG / 'director.js').read_text()
+        batch_body = re.search(r'\nfunction batchBody\(items\) \{.*?\n\}', js, re.S).group(0)
+        script = f"""
+function timeLabel() {{ return '0:00' }}
+{batch_body}
+const out = batchBody({json.dumps(items)});
+console.log(JSON.stringify({{fonts: out.fonts, sfx: out.sfx, music: out.music}}));
+"""
+        result = subprocess.run(['node', '-'], input=script.encode(), capture_output=True)
+        self.assertEqual(result.returncode, 0, result.stderr.decode())
+        return json.loads(result.stdout)
+
+    def test_a_single_items_assets_pass_through(self):
+        items = [{'text': 'a', 'attachments': [], 'fonts': ['cantarell'], 'sfx': ['fit/tick/domino'], 'music': []}]
+        self.assertEqual(self.run_js(items), {'fonts': ['cantarell'], 'sfx': ['fit/tick/domino'], 'music': []})
+
+    def test_the_same_id_across_items_is_kept_once_first_occurrence_wins(self):
+        items = [{'text': 'a', 'attachments': [], 'fonts': ['cantarell'], 'sfx': [], 'music': ['bright-steps']},
+                 {'text': 'b', 'attachments': [], 'fonts': ['cantarell', 'dejavu-sans'], 'sfx': [], 'music': []}]
+        self.assertEqual(self.run_js(items), {'fonts': ['cantarell', 'dejavu-sans'], 'sfx': [],
+                                              'music': ['bright-steps']})
+
+    def test_an_old_pending_item_with_no_asset_fields_still_sends(self):
+        items = [{'text': 'a', 'attachments': [], 'capabilities': []},
+                 {'text': 'b', 'attachments': [], 'fonts': ['cantarell'], 'sfx': [], 'music': []}]
+        self.assertEqual(self.run_js(items), {'fonts': ['cantarell'], 'sfx': [], 'music': []})
 
 
 class PageWiring(unittest.TestCase):

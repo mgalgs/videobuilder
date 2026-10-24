@@ -1,20 +1,26 @@
-/* Capability suggestions while a director types a note (editor.html's #message):
-   see suggest.py and suggest-notes.md for the design. A plain script, not a
-   module, so it shares director.js's top-level `const`/`let` bindings (`state`,
-   `player`, `tlNoteClip`); `noteCapabilityIds`, declared here at top level for
-   the same reason, is how director.js reads the capabilities a note's chips
-   named when it sends the note (see addPending in director.js) -- each entry
-   an {id, settings}, `settings` the non-default values that chip's settings
+/* Capability, font, sound and music suggestions while a director types a note
+   (editor.html's #message): see suggest.py and suggest-notes.md for the
+   design. A plain script, not a module, so it shares director.js's top-level
+   `const`/`let` bindings (`state`, `player`, `tlNoteClip`); `noteCapabilityIds`
+   and `noteAssetIds`, declared here at top level for the same reason, are how
+   director.js reads a note's chips when it sends the note (see addPending in
+   director.js). A capability pick (one of CAP_FAMILIES) carries an {id,
+   settings} entry, `settings` the non-default values that chip's settings
    card picked (capValues), empty for a chip with nothing changed or no card
-   at all. A look, type style or font/sfx/music pick is still just ordinary
-   typing (execCommand('insertText'), so Ctrl+Z undoes it) -- only a
-   capability pick (one of CAP_FAMILIES) is never written into the note: it
-   becomes a chip instead, the same as typing #its-id would. */
+   at all. A font, sound effect or music pick (ASSET_FAMILIES) carries a plain
+   id, with no settings card. No suggestion of any kind is ever written into
+   the note's own text (no insertText, no replaced span): every pick becomes a
+   chip below the note instead -- the only difference is that a capability's
+   chip also responds to typing its #id directly, while a font/sfx/music chip
+   is picked only, with no typed form. */
 let noteCapabilityIds = () => [];
+let noteAssetIds = () => ({fonts: [], sfx: [], music: []});
 // Restores picked (non-typed) chips, and the values their cards held, after
-// editPending puts a pending note's text back into the box; its own #id
-// chips reappear from the text once 'input' fires.
+// editPending puts a pending note's text back into the box; a capability's
+// own #id chips also reappear from the text once 'input' fires, but a font/
+// sfx/music chip has no typed form, so restoring it here is the only way back.
 let restorePickedCapIds = () => {};
+let restorePickedAssetIds = () => {};
 (() => {
 'use strict';
 if (!document.getElementById('message')) return;
@@ -36,9 +42,14 @@ const I = {
 };
 const FAM = ['looks', 'type', 'fonts', 'sfx', 'music', 'capabilities'];
 // The families that are capabilities in the strict sense (named moves with a
-// definition and an api, not an asset like a font file or a music track):
-// picking one of these never rewrites the note, only adds a #id chip (see pick()).
+// definition and an api, not an asset like a font file or a music track): a
+// capability's chip also responds to typing its #id (see hashtagCapIds).
 const CAP_FAMILIES = ['looks', 'type', 'capabilities'];
+// Assets: a font, a sound effect or a music track. Picked only -- no #id
+// hashtag form for these -- but a pick still never touches the note's own
+// text, the same as a capability (see pick()).
+const ASSET_FAMILIES = ['fonts', 'sfx', 'music'];
+const ASSET_LABEL = {fonts: 'Font', sfx: 'Sound', music: 'Music'};
 const FAM_LABEL = {looks: 'Looks', type: 'Type', fonts: 'Fonts', sfx: 'Sound effects', music: 'Music', capabilities: 'More'};
 const FAM_TAB = {looks: 'Looks', type: 'Type styles', fonts: 'Fonts', sfx: 'Sound effects', music: 'Music', capabilities: 'Other capabilities'};
 const DEBOUNCE_MS = 600;
@@ -83,7 +94,8 @@ function mount() {
   cards = el('div', 'sg-cards'); cards.setAttribute('role', 'list'); cards.setAttribute('aria-label', 'Suggested for this note');
   chips = el('div', 'sg-chips'); chips.setAttribute('aria-label', 'More you can ask for');
   tail = el('div', 'sg-tail');
-  capChips = el('div', 'sg-capchips'); capChips.setAttribute('aria-label', 'Capabilities this note references');
+  capChips = el('div', 'sg-capchips');
+  capChips.setAttribute('aria-label', 'Capabilities, fonts, sounds and music this note references');
   capCards = el('div', 'sg-capcards'); capCards.setAttribute('aria-label', 'Settings for the capabilities this note references');
   think = el('span', 'sg-think', '<span class="sg-dots"><i></i><i></i><i></i></span><span class="sg-slowtext">Still thinking…</span>');
   think.title = 'Looking for capabilities that fit this note';
@@ -104,11 +116,12 @@ function mount() {
 }
 
 /* ---- state ---- */
-let shown = [], dismissed = false, timer = 0, inflight = null, programmatic = false, staticChips = false;
+let shown = [], dismissed = false, timer = 0, inflight = null, staticChips = false;
 let hiddenNote = 0, seqCounter = 0, lastSeq = 0, modelOn = null, sentText = null;
 let pickedCapIds = []; // ids picked from a suggestion, in pick order (a chip the creator can remove)
 let capValues = {}; // id -> {settingId: value}, only entries that differ from that setting's own default
 let capCardsKey = null; // the chip ids the cards below them were last built for
+let pickedAssetIds = {fonts: [], sfx: [], music: []}; // ids picked from a suggestion, per family, in pick order
 
 function currentVideo() { return typeof state !== 'undefined' ? state.video : null }
 function currentClip() { return typeof tlNoteClip === 'function' ? tlNoteClip() : null }
@@ -118,9 +131,9 @@ function currentAt() {
 }
 
 function onInput() {
-  if (programmatic) return;
   if (!ta.value.trim()) {
     dismissed = false; shown = []; staticChips = false; sentText = null; pickedCapIds = []; capValues = {};
+    pickedAssetIds = {fonts: [], sfx: [], music: []};
     render(); renderCapChips(); cancel(); return
   }
   renderCapChips();
@@ -224,7 +237,7 @@ function render() {
       (i.why ? `<span class="sg-why">${esc(i.why)}</span>` : '');
     b.onmouseenter = () => { b.classList.add('sg-looping'); b.querySelector('video')?.play().catch(() => {}) };
     b.onmouseleave = () => { b.classList.remove('sg-looping'); b.querySelector('video')?.pause() };
-    b.onclick = e => { const p = e.target.closest('[data-play]'); if (p) { e.stopPropagation(); play(i); return } pick(i, {user: e.isTrusted}) };
+    b.onclick = e => { const p = e.target.closest('[data-play]'); if (p) { e.stopPropagation(); play(i); return } pick(i) };
     b.tabIndex = -1;
     cards.append(b);
   }
@@ -237,7 +250,7 @@ function render() {
       `<span class="sg-dot" style="background-image:url(${x.poster})"></span>`;
     c.innerHTML = dot + esc(nameOf(i.family, i.id));
     c.tabIndex = -1;
-    c.onclick = e => { if (e.target.closest('[data-play]')) { e.stopPropagation(); play(i); return } pick(i, {user: e.isTrusted}) };
+    c.onclick = e => { if (e.target.closest('[data-play]')) { e.stopPropagation(); play(i); return } pick(i) };
     chips.append(c);
   }
   const fams = staticChips ? FAM : FAM.filter(f => shown.some(i => i.family === f));
@@ -277,6 +290,12 @@ function capChipIds() {
 // whatever capValues holds for it (already the diff from default -- see renderCapChips).
 function capChipEntries() {
   return capChipIds().map(id => ({id, settings: capValues[id] || {}}));
+}
+// What a note actually sends for its font/sfx/music chips: {fonts, sfx, music}, each
+// the ids pickedAssetIds holds for that family, in pick order (there is no #id hashtag
+// form for these -- picked only, see pick()).
+function assetPickEntries() {
+  return {fonts: [...pickedAssetIds.fonts], sfx: [...pickedAssetIds.sfx], music: [...pickedAssetIds.music]};
 }
 // `values` as the settings card's onChange hands it (every declared id) narrowed
 // to the ones that actually differ from that setting's own default -- what a note
@@ -320,101 +339,43 @@ function renderCapChips() {
       capCards.append(card);
     }
   }
+  for (const fam of ASSET_FAMILIES) for (const id of pickedAssetIds[fam]) {
+    const c = el('span', 'sg-capchip sg-assetchip');
+    c.append(el('span', 'sg-assetchip-kind', svg(I[fam], 13) + ASSET_LABEL[fam]),
+             el('span', 'sg-capchip-name', esc(nameOf(fam, id))));
+    if (fam === 'sfx' || fam === 'music') {
+      const p = el('button', 'sg-assetchip-play', svg(I.play, 12));
+      p.type = 'button';
+      p.setAttribute('data-play', fam + ':' + id);
+      p.setAttribute('aria-label', `Play ${esc(nameOf(fam, id))}`);
+      p.onclick = () => play({family: fam, id});
+      c.append(p);
+    }
+    const rm = el('button', 'sg-capchip-x', svg(I.x, 12, 2.4));
+    rm.type = 'button';
+    rm.setAttribute('aria-label', `Remove ${esc(nameOf(fam, id))}`);
+    rm.onclick = () => { pickedAssetIds[fam] = pickedAssetIds[fam].filter(x => x !== id); renderCapChips() };
+    c.append(rm);
+    capChips.append(c);
+  }
 }
 
-/* ---- picking: rewrite the note's words, light up what changed ---- */
-const LIB_FALLBACK = 'the configured library';
-const TEMPLATE = {
-  looks: [/(?:look|feel|style)s?(?: like [^,.;!?]+)?/gi, x => ` (${x.title})`,
-          x => x.kind === 'filter' ? `, with the ${x.title}` : `, in the ${x.title} look`],
-  type: [null, x => `, with ${x.title.toLowerCase()}`],
-  capabilities: [null, x => `, with ${x.title.toLowerCase()}`],
-  fonts: [/\b(?:an? |the )?(?:[\w-]+ )?(?:font|typeface)\b/gi, x => ` (${x.family})`, x => `, set in ${x.family}`],
-  sfx: [/\ban? (?:[\w-]+ )?(?:whoosh|swish|hit|pop|click|ding|chime|tap|tick|riser|glitch|sound effect|sound|thump)\b/gi,
-       x => ` (${x.id})`, x => `, with a ${x.role} (${x.id})`],
-  music: [/\b(?:some |the )?(?:[\w-]+ )?(?:music|song|soundtrack)\b/gi, x => ` ("${x.title}", ${x.source || LIB_FALLBACK})`,
-         x => `, with "${x.title}" (${x.source || LIB_FALLBACK}) as the music`],
-};
-const OPEN_END = /\b(?:to|into|like|with|as|using|use|try|add|for)\s*$/i;
-const NAME = {
-  looks: x => x.title, type: x => x.title.toLowerCase(), capabilities: x => x.title.toLowerCase(),
-  fonts: x => x.family, sfx: x => x.id, music: x => `"${x.title}" (${x.source || LIB_FALLBACK})`,
-};
-function rewrite(text, i) {
-  const entry = () => BY[keyOf(i)] || {title: nameOf(i.family, i.id), family: nameOf(i.family, i.id)};
-  // A note that stops on an open word ("change the look to") is waiting for the pick's name itself.
-  if (OPEN_END.test(text)) {
-    const name = (NAME[i.family] || NAME.looks)(entry()), end = text.length;
-    return [end, end, (/\s$/.test(text) ? '' : ' ') + name];
-  }
-  if (i.replace && text.includes(i.replace.span)) {
-    const a = text.lastIndexOf(i.replace.span);
-    return [a, a + i.replace.span.length, i.replace.text];
-  }
-  const x = entry(), [re, add, append] = TEMPLATE[i.family] || [null, () => ''];
-  if (re) {
-    let m, last = null; re.lastIndex = 0;
-    while ((m = re.exec(text))) last = m;
-    if (last) return [last.index, last.index + last[0].length, last[0] + add(x)];
-  }
-  const clause = (append || add)(x);
-  const m = /[.!?]*\s*$/.exec(text), end = m.index;
-  return [end, end, clause];
-}
-function pick(i, {user} = {}) {
+/* ---- picking: every pick becomes a chip; none of them ever touch the note's
+   own text (see the file header for why) ---- */
+function pick(i) {
   if (CAP_FAMILIES.includes(i.family)) {
-    // A capability pick never touches the note: it adds a #id chip below it, exactly
-    // like typing the id's hashtag would (see hashtagCapIds/renderCapChips).
+    // A capability pick adds a #id chip below the note, exactly like typing
+    // the id's hashtag would (see hashtagCapIds/renderCapChips).
     if (!pickedCapIds.includes(i.id)) pickedCapIds.push(i.id);
-    renderCapChips();
-    shown = shown.filter(x => keyOf(x) !== keyOf(i));
-    render();
-    return;
-  }
-  const old = ta.value, [a, b, txt] = rewrite(old, i);
-  programmatic = true;
-  if (user) {
-    ta.focus({preventScroll: true});
-    ta.setSelectionRange(a, b);
-    if (!document.execCommand('insertText', false, txt)) ta.setRangeText(txt, a, b, 'end');
   } else {
-    ta.setRangeText(txt, a, b, 'end');
-    ta.dispatchEvent(new Event('input', {bubbles: true}));
+    // A font, sfx or music pick adds the same kind of chip, just with no typed
+    // form and no settings (see renderCapChips, assetPickEntries).
+    const list = pickedAssetIds[i.family];
+    if (list && !list.includes(i.id)) list.push(i.id);
   }
-  programmatic = false;
-  const v = ta.value;
-  let p = 0; while (p < old.length && p < v.length && old[p] === v[p]) p++;
-  let s = 0; while (s < old.length - p && s < v.length - p && old[old.length - 1 - s] === v[v.length - 1 - s]) s++;
-  flash(p, v.length - s);
-  shown = shown.filter(x => keyOf(x) !== keyOf(i) && !(x.replace && i.replace && x.replace.span === i.replace.span) &&
-                       (!x.replace || v.includes(x.replace.span)));
+  renderCapChips();
+  shown = shown.filter(x => keyOf(x) !== keyOf(i));
   render();
-}
-function flash(a, b) {
-  const p = ta.parentElement;
-  if (getComputedStyle(p).position === 'static') p.style.position = 'relative';
-  let m = p.querySelector(':scope>.sg-mirror');
-  if (!m) { m = el('div', 'sg-mirror'); p.append(m) }
-  const cs = getComputedStyle(ta);
-  for (const k of ['fontFamily', 'fontSize', 'fontWeight', 'lineHeight', 'letterSpacing', 'wordSpacing', 'paddingTop',
-                  'paddingRight', 'paddingBottom', 'paddingLeft', 'borderTopWidth', 'borderRightWidth',
-                  'borderBottomWidth', 'borderLeftWidth', 'borderStyle', 'borderRadius', 'boxSizing'])
-    m.style[k] = cs[k];
-  m.style.backgroundColor = cs.backgroundColor;
-  const place = () => {
-    const r = ta.getBoundingClientRect(), q = p.getBoundingClientRect();
-    Object.assign(m.style, {left: (r.left - q.left - p.clientLeft) + 'px', top: (r.top - q.top - p.clientTop) + 'px',
-                           width: r.width + 'px', height: r.height + 'px', display: ''});
-    m.scrollTop = ta.scrollTop;
-  };
-  place(); requestAnimationFrame(place); setTimeout(place, 250);
-  const v = ta.value;
-  m.innerHTML = esc(v.slice(0, a)) + '<mark>' + esc(v.slice(a, b)) + '</mark>' + esc(v.slice(b)) + '​';
-  m.scrollTop = ta.scrollTop;
-  m.classList.remove('fade'); ta.classList.add('sg-lit');
-  clearTimeout(flash.h1); clearTimeout(flash.h2);
-  flash.h1 = setTimeout(() => m.classList.add('fade'), 1100);
-  flash.h2 = setTimeout(() => { ta.classList.remove('sg-lit'); m.style.display = 'none' }, 2400);
 }
 
 /* ---- sound: sfx plays the real take, music plays its source's audio_url ---- */
@@ -454,7 +415,8 @@ async function openPicker(fam) {
   const count = {looks: CAT.looks.length, type: CAT.type.length, fonts: CAT.fonts.length, sfx: CAT.sfx.length,
                 music: CAT.music.length, capabilities: CAT.capabilities.length};
   box.innerHTML = (ph ? '<div class="sg-grab"></div>' : '') +
-    '<div class="sg-phead"><div><strong>Add to your note</strong><span>Picking one writes its name into your note</span></div>' +
+    '<div class="sg-phead"><div><strong>Add to your note</strong>' +
+    '<span>Picking one adds a chip below your note, without changing what you wrote</span></div>' +
     `<button type="button" class="sg-pclose" aria-label="Close">${svg(I.x, 20, 2.2)}</button></div>` +
     `<div class="sg-tabs" role="tablist">${FAM.map(f => `<button type="button" role="tab" data-tab="${f}">${FAM_TAB[f]}<span class="n">${count[f]}</span></button>`).join('')}</div>` +
     '<div class="sg-pbody"></div>';
@@ -580,7 +542,7 @@ async function openPicker(fam) {
     const [f, ...id] = g.dataset.pick.split(':'), k = f + ':' + id.join(':');
     const it = shown.find(x => keyOf(x) === k) || {family: f, id: id.join(':'), replace: null};
     closePicker();
-    pick(it, {user: e.isTrusted});
+    pick(it);
   });
   if (document.activeElement !== ta) box.focus({preventScroll: true});
 }
@@ -589,10 +551,15 @@ async function openPicker(fam) {
 async function start() {
   if (!mount()) return;
   noteCapabilityIds = capChipEntries;
+  noteAssetIds = assetPickEntries;
   restorePickedCapIds = entries => {
     pickedCapIds = [...new Set((entries || []).map(e => typeof e === 'string' ? e : e.id))];
     capValues = {}; capCardsKey = null;
     for (const e of entries || []) if (e && typeof e === 'object' && e.settings) capValues[e.id] = {...e.settings};
+  };
+  restorePickedAssetIds = assets => {
+    pickedAssetIds = {fonts: [...new Set(assets?.fonts || [])], sfx: [...new Set(assets?.sfx || [])],
+                      music: [...new Set(assets?.music || [])]};
   };
   // Loaded eagerly (not only once the model/debounce asks for it): a typed #id becomes
   // a chip as soon as the catalog is in, whether or not the AI suggest model is on.

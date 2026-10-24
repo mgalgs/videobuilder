@@ -2122,6 +2122,9 @@ function editPending(i) {
   $('message').value=item.text;
   fitMessage();
   if(typeof restorePickedCapIds==='function')restorePickedCapIds(item.capabilities);
+  // An old pending note saved before fonts/sfx/music chips shipped has none of these fields.
+  if(typeof restorePickedAssetIds==='function')
+    restorePickedAssetIds({fonts:item.fonts||[],sfx:item.sfx||[],music:item.music||[]});
   // A suggestion layer (suggest.js) listens for 'input' to redraw chips for the restored text.
   $('message').dispatchEvent(new Event('input',{bubbles:true}));
   state.files=item.attachments;
@@ -2184,7 +2187,10 @@ async function addPending() {
     const attachments=await uploadFiles([...state.files]);
     // The capabilities the note's #id chips named (suggest.js); [] where suggest.js never mounted.
     const capabilities=typeof noteCapabilityIds==='function'?noteCapabilityIds():[];
-    state.pending.push({text,time,attachments,capabilities});
+    // The fonts/sfx/music chips picked from a suggestion (suggest.js); {fonts:[],sfx:[],music:[]}
+    // where suggest.js never mounted.
+    const assets=typeof noteAssetIds==='function'?noteAssetIds():{fonts:[],sfx:[],music:[]};
+    state.pending.push({text,time,attachments,capabilities,...assets});
     savePending();
     renderPending();
     $('message').value='';
@@ -2218,23 +2224,35 @@ function batchBody(items) {
     if(!capById.has(c.id))capById.set(c.id,c)
   }
   const capabilities=[...capById.values()];
+  // Each item's fonts/sfx/music is a plain list of ids (suggest.js's noteAssetIds); merge
+  // across items the same way as attachments, first occurrence wins, keeping pick order.
+  const assetIds=key=> {
+    const seen=new Set(),out=[];
+    for(const item of items)for(const id of item[key]||[])if(!seen.has(id)) {
+      seen.add(id);
+      out.push(id)
+    }
+    return out
+  };
+  const fonts=assetIds('fonts'),sfx=assetIds('sfx'),music=assetIds('music');
   if(items.length===1) {
     const [item]=items;
-    return {text:item.text,attachments:ids,capabilities,...(item.time!=null?{time:item.time}:{})}
+    return {text:item.text,attachments:ids,capabilities,fonts,sfx,music,...(item.time!=null?{time:item.time}:{})}
   }
   const lines=items.map((item,i)=> {
     const at=item.time!=null?`At ${timeLabel(item.time)}: `:'';
     const names=item.attachments.map(a=>a.name).join(', ');
     return `${i+1}. ${at}${item.text}${names?` (attached: ${names})`:''}`
   });
-  return {text:lines.join('\n'),attachments:ids,capabilities}
+  return {text:lines.join('\n'),attachments:ids,capabilities,fonts,sfx,music}
 }
 // A video's first note, while it is not built yet, starts it the way New video does
 // (videos/first-note): the builder is also told what Film details set.
 function postNote(body) {
   if(notBuilt(currentVersion())&&!state.notes.length&&!body.clip)
     return json('videos/first-note',null,
-      {description:body.text,attachments:body.attachments,capabilities:body.capabilities});
+      {description:body.text,attachments:body.attachments,capabilities:body.capabilities,
+       fonts:body.fonts,sfx:body.sfx,music:body.music});
   return json('notes',null,body)
 }
 async function sendPending() {
@@ -2631,8 +2649,10 @@ async function sendNow() {
   try {
     const attachments=await uploadFiles([...state.files]);
     const capabilities=typeof noteCapabilityIds==='function'?noteCapabilityIds():[];
+    const assets=typeof noteAssetIds==='function'?noteAssetIds():{fonts:[],sfx:[],music:[]};
     await postNote({
-      video:state.video,format:state.format,...noteScope(),...batchBody([{text,time,attachments,capabilities}])
+      video:state.video,format:state.format,...noteScope(),
+      ...batchBody([{text,time,attachments,capabilities,...assets}])
     });
     $('message').value='';
     fitMessage();
