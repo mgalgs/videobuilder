@@ -117,9 +117,9 @@ class NoModel(Server):
         self.assertIn('it should speed up and then level off at a constant falling speed', entry['phrasings'])
         for leaked in ('api', 'related', 'family'):
             self.assertNotIn(leaked, entry)
-        curated = by_id['seamless-loops']  # a hand-written entry: no group/aliases/phrasings
+        curated = by_id['seamless-loops']  # a carded entry: no group, but its aliases, so the picker finds them
         self.assertNotIn('group', curated)
-        self.assertNotIn('aliases', curated)
+        self.assertIn('perfect loop', curated['aliases'])
 
     def test_no_capability_group_names_the_old_registry_word(self):
         catalog = self.get('/api/suggest/catalog')

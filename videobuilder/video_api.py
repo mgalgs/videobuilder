@@ -368,6 +368,7 @@ def _get_suggest_catalog(self, route, q, editor, user):
         if capabilities.is_lead(e):
             continue  # a section's lead card (Looks, Type): its members are listed instead
         item = {'id': e.id, 'title': e.name, 'card': e.definition, 'category': capabilities.category(e),
+               'aliases': list(e.aliases),
                'poster': f"/capabilities/{e.id}.jpg", 'clip': f"/capabilities/{e.id}.mp4"}
         if family == 'looks':
             item['kind'] = capabilities.kind(e)
@@ -381,7 +382,8 @@ def _get_suggest_catalog(self, route, q, editor, user):
                 item['settings'] = settings_json(e.settings)
             caps.append(item)
     # Every other capability (one with no card of its own): merged into the same list, same shape
-    # plus group/aliases/phrasings, so the picker can group and search them alike.
+    # plus group/phrasings, so the picker can group and search them alike. Every item carries its
+    # aliases, which the picker's search reads.
     for t in registry.catalog():
         if capabilities.has_card(t):
             continue
