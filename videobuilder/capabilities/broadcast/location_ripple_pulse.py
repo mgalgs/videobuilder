@@ -1,15 +1,18 @@
-"""Location ripple pulse: a marker dot on a map beats steadily, and with each
-beat a ring leaves it and widens out over the streets, thinning to nothing --
-the "this is where it's happening" ping of news and data maps. The rings are
-`shapes/ripple_rings.py`; this adds the marker that drives them."""
+"""Location ripple pulse: the same idea as Ripple rings
+(`../shapes/ripple_rings.py`, which keeps the capability) -- both spawn
+rings at one point that swell outward and fade to nothing; this one adds
+the beating marker dot on a map that drives them, the "this is where it's
+happening" ping of news and data maps. This module's own code stays (a film
+may still import it), but it is no longer a capability of its own."""
 import math
 
 import videobuilder as vb
 from videobuilder import paths
 
 from .. import _demo as demo
-from ..schema import Capability
 from ..shapes.ripple_rings import ripple_rings
+
+MERGED_INTO = 'ripple-rings'
 
 
 def location_pulse(cv, x, y, t, radius=200, every=0.8, life=2.2, color=demo.ACCENT, size=11,
@@ -65,22 +68,3 @@ def draw(n, cv):
     f = demo.mono(18, 700)
     shown = demo.phase(n, 0.2, 0.6)
     vb.text.draw(cv, ['LIVE  ·  5TH & MAIN'], f, x + 30, y - 52, demo.INK, alpha=shown)
-
-
-CAPABILITY = Capability(
-    id='location-ripple-pulse',
-    name='Location ripple pulse',
-    family='broadcast',
-    group='Maps',
-    aliases=('location pulse', 'radar ping on map', 'map ping', 'pulsing map marker'),
-    definition='A dot marking a place on a map beats in a steady rhythm, sending out a ring with each beat '
-               'that spreads across the map and fades away.',
-    phrasings=('make the spot on the map ping like radar',
-               'show where it is happening with circles pulsing out from the marker',
-               'a live location dot with rings rippling out'),
-    related=('ripple-rings', 'ripple', 'orbital-pulse', 'refraction-ripple', 'touch-ripple',
-             'ridgeline-ripple'),
-    api=('videobuilder.capabilities.broadcast.location_ripple_pulse.location_pulse',
-         'videobuilder.capabilities.shapes.ripple_rings.ripple_rings'),
-    demo=lambda: demo.film(draw),
-)

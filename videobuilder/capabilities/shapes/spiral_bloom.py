@@ -1,12 +1,16 @@
-"""Spiral Bloom: many small shapes unfurl from one centre point, each one set
-a golden angle round from the last, so the set spreads out along spiral arms
-like a flower head blooming."""
+"""Spiral Bloom: the same idea as Phyllotaxis (`../particles/phyllotaxis.py`,
+which keeps the capability) -- both add shapes one by one at the golden
+angle, each pushed out a little further than the last, so they unfurl into
+the same interlocking sunflower spiral arms. This module's own code stays
+(a film may still import it), but it is no longer a capability of its
+own."""
 import math
 
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Capability
+
+MERGED_INTO = 'phyllotaxis'
 
 GOLDEN_ANGLE = math.pi * (3 - math.sqrt(5))  # ~137.5 degrees: the turn between neighbouring seeds
 
@@ -60,21 +64,3 @@ def draw(n, cv):
     draw_spiral_bloom(cv, cx, cy, demo.phase(n, 0.2, 2.5), count=150, radius=210, petal=18,
                       colors=(demo.ACCENT, demo.TEAL, demo.INK))
     cv.mark('bloom', cx - 230, cy - 230, 460, 460)
-
-
-CAPABILITY = Capability(
-    id='spiral-bloom',
-    name='Spiral bloom',
-    family='shapes',
-    group='Repeaters & patterns',
-    aliases=('golden spiral bloom', 'sunflower bloom', 'fibonacci bloom'),
-    definition='Dozens of small shapes unfurl from a single centre point and settle along '
-               'curving spiral arms, like the seeds of a sunflower spreading out.',
-    phrasings=('dots that spiral out from the middle like a flower unfolding',
-               'a sunflower pattern that grows outward from the centre',
-               'shapes blossoming outward in a swirling spiral'),
-    related=('phyllotaxis', 'spiral-galaxy', 'spiral-wipe', 'shape-burst', 'bloom', 'swirl'),
-    api=('videobuilder.capabilities.shapes.spiral_bloom.draw_spiral_bloom',
-         'videobuilder.capabilities.shapes.spiral_bloom.spiral_bloom'),
-    demo=lambda: demo.film(draw),
-)

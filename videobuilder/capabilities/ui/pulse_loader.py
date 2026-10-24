@@ -1,12 +1,16 @@
-"""Pulse loader: a solid dot sits still while rings keep leaving it, each one
-growing outward and fading to nothing, over and over -- "working on it"
-without a progress amount."""
+"""Pulse loader: the same idea as Ripple rings (`../shapes/ripple_rings.py`,
+which keeps the capability) -- both spawn rings at one point that swell
+outward and fade to nothing, over and over; this one adds the steady dot at
+the centre and the "working on it" framing of a loader. This module's own
+code stays (a film may still import it), but it is no longer a capability
+of its own."""
 import math
 
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Capability
+
+MERGED_INTO = 'ripple-rings'
 
 
 def pulse_rings(t, period=1.2, rings=2):
@@ -41,22 +45,3 @@ def draw(n, cv):
     box = draw_pulse_loader(cv, demo.W / 2, demo.H / 2 - 30, t, r=36, reach=4.2, width=6)
     demo.word(cv, 'Loading', demo.W / 2, demo.H / 2 + 190, size=34, color=demo.MUTED, weight=600)
     cv.mark('loader', *box)
-
-
-CAPABILITY = Capability(
-    id='pulse-loader',
-    name='Pulse loader',
-    family='ui',
-    group='Loaders',
-    aliases=('ring pulse', 'breathing dot', 'shockwave ring', 'expanding ring'),
-    definition='A busy indicator where rings keep swelling out of a steady dot and fading away, '
-               'signalling that something is in progress without saying how far along it is.',
-    phrasings=('a dot with circles rippling out of it while it loads',
-               'a pulsing ring spinner for a waiting state',
-               'show that it is thinking with a beacon that keeps pinging'),
-    related=('orbital-pulse', 'live-indicator-pulse', 'scale-pulse', 'location-ripple-pulse',
-             'stroke-width-pulse', 'like-heart-burst'),
-    api=('videobuilder.capabilities.ui.pulse_loader.draw_pulse_loader',
-         'videobuilder.capabilities.ui.pulse_loader.pulse_rings'),
-    demo=lambda: demo.film(draw),
-)

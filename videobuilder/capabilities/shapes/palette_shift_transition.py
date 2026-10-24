@@ -77,7 +77,8 @@ CAPABILITY = Capability(
     name='Palette shift transition',
     family='shapes',
     group='Gradients & color',
-    aliases=('color swap transition', 'theme shift', 'palette crossfade'),
+    aliases=('color swap transition', 'theme shift', 'palette crossfade', 'dark mode fade',
+             'light/dark mode transition'),
     definition='Every colour in a graphic slides over to a new colour scheme in one timed move, '
                'while the shapes themselves stay exactly where they are.',
     phrasings=('recolour the whole layout from the cool scheme to the warm one',

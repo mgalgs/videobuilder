@@ -1,12 +1,16 @@
-"""Drop Shadow Breathing: a shape's drop shadow drifts farther, spreads softer
-and fades as the shape lifts toward the viewer, then pulls in tight and dark
-as it settles back down, so height reads from the shadow alone."""
+"""Drop Shadow Breathing: the same idea as Drop shadow lift
+(`../typography/drop_shadow_lift.py`, which keeps the capability) -- both
+rise while their shadow slides away, softens and fades, then settle back
+down as the shadow pulls in tight and dark again; this one demos it on a
+shape rather than text. This module's own code stays (a film may still
+import it), but it is no longer a capability of its own."""
 import math
 
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Capability
+
+MERGED_INTO = 'drop-shadow-lift'
 
 
 def elevation_shadow(height, near=(4, 8, 0.55), far=(42, 64, 0.22)):
@@ -51,23 +55,3 @@ def draw(n, cv):
     cv.rect(box.x + box.w * 0.12, box.y + box.h * 0.3 + 2 * bar, box.w * 0.4, bar, demo.INK, radius=bar / 2,
             alpha=0.6)
     cv.mark('card', *box)
-
-
-CAPABILITY = Capability(
-    id='drop-shadow-breathing',
-    name='Drop shadow breathing',
-    family='shapes',
-    group='Depth & shadows',
-    aliases=('shadow pulse', 'elevation change', 'lift and shadow'),
-    definition='A shape rises and settles while its shadow loosens, slides away and fades on the way up, '
-               'then snaps back tight and dark beneath it as it comes down.',
-    phrasings=('the card floats up off the page and its shadow gets softer',
-               'make it look like it lifts and lands just by changing the shadow',
-               'a gentle hover where the shadow spreads out and pulls back in'),
-    related=('drop-shadow-lift', 'drag-lift-with-shadow', 'shadow-play', 'long-shadow-growth', 'gravity-drop',
-             'twist-deformer'),
-    api=('videobuilder.capabilities.shapes.drop_shadow_breathing.draw_elevated',
-         'videobuilder.capabilities.shapes.drop_shadow_breathing.elevation_shadow',
-         'videobuilder.capabilities.shapes.drop_shadow_breathing.breath'),
-    demo=lambda: demo.film(draw),
-)

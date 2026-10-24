@@ -1,6 +1,8 @@
-"""Jitter and Boil Text: each letter's outline is redrawn a little differently
-a dozen times a second and the letters shift by a pixel or two, so a held word
-looks traced by hand frame after frame."""
+"""Jitter and Boil Text: the same idea as Line boil (`../shapes/line_boil.py`,
+which keeps the capability) -- both re-wobble an outline every few frames as
+if it were redrawn by hand; this one does it letter by letter, shifting each
+one a pixel or two as well. This module's own code stays (a film may still
+import it), but it is no longer a capability of its own."""
 import math
 import random
 from functools import lru_cache
@@ -12,7 +14,8 @@ import videobuilder as vb
 from videobuilder.looks.fx import boil
 
 from .. import _demo as demo
-from ..schema import Capability
+
+MERGED_INTO = 'line-boil'
 
 _scratch = cairo.Context(cairo.ImageSurface(cairo.FORMAT_ARGB32, 1, 1))
 
@@ -125,21 +128,3 @@ def draw(n, cv):
     box = draw_boil_text(cv, text, f, (demo.W - w) / 2, (demo.H - h) / 2, n / demo.FPS, demo.INK,
                          seed=3, boil_amount=2.5, jitter=2.5, turn=1.5)
     cv.mark('text', *box)
-
-
-CAPABILITY = Capability(
-    id='jitter-and-boil-text',
-    name='Jitter and boil text',
-    family='typography',
-    group='Wave and motion',
-    aliases=('boiling type', 'wobble text', 'shimmer jitter', 'line boil text'),
-    definition='Held letters twitch a pixel or two and their edges wobble into a slightly different '
-               'shape several times a second, as if each frame were traced again by hand.',
-    phrasings=('make the title look hand-animated, the letters always slightly wriggling',
-               'the word should shake and wobble like a pencil drawing redrawn every frame',
-               'give the text that nervous, boiling cartoon outline'),
-    related=('line-boil', 'jiggle', 'scanline-jitter', 'wiggle-path', 'tape-wobble', 'wobble'),
-    api=('videobuilder.capabilities.typography.jitter_and_boil_text.draw_boil_text',
-         'videobuilder.capabilities.typography.jitter_and_boil_text.boil_text'),
-    demo=lambda: demo.film(draw),
-)

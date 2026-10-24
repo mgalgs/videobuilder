@@ -57,7 +57,8 @@ CAPABILITY = Capability(
     name='Drop shadow lift',
     family='typography',
     group='Shadow',
-    aliases=('shadow lift', 'lifted text shadow', 'floating text shadow', 'elevation shadow'),
+    aliases=('shadow lift', 'lifted text shadow', 'floating text shadow', 'elevation shadow',
+             'elevation change', 'lift and shadow'),
     definition='Text rises toward the viewer while its shadow stays low, sliding further away and '
                'growing softer and fainter, so the words look raised off the page.',
     phrasings=('make the title float up off the background with its shadow dropping away',

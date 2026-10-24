@@ -57,7 +57,7 @@ CAPABILITY = Capability(
     name='Iris wipe',
     family='transitions',
     group='Wipes',
-    aliases=('iris in', 'iris out', 'circle wipe', 'iris transition'),
+    aliases=('iris in', 'iris out', 'circle wipe', 'iris transition', 'theme iris wipe'),
     definition='A circle opens from a point in the middle of the frame and keeps growing, '
                'showing the next scene inside it, until that scene fills the whole screen.',
     phrasings=('open the next shot out of a growing circle',

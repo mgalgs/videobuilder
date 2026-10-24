@@ -1,12 +1,17 @@
-"""Circular clip reveal: a new screen opens out of the control that was
-pressed, a circle centred on it growing until the new screen fills the view,
-as when a light/dark theme toggle floods the page with the other theme."""
+"""Circular clip reveal: the same idea as Iris wipe
+(`../transitions/iris_wipe.py`, which keeps the capability) -- both open the
+next screen out of a circle that grows until it covers the frame; this one
+grows from the control that was pressed rather than the frame's centre, as
+when a light/dark theme toggle floods the page with the other theme. This
+module's own code stays (a film may still import it), but it is no longer a
+capability of its own."""
 import math
 
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Capability
+
+MERGED_INTO = 'iris-wipe'
 
 GROW = vb.bezier(0.4, 0.0, 0.2, 1.0)
 
@@ -105,23 +110,3 @@ def draw(n, cv):
     x0, y0 = demo.W * 0.55, demo.H * 0.7
     _cursor(cv, x0 + (BTN[0] + 3 - x0) * move, y0 + (BTN[1] + 2 - y0) * move, 1 - 0.15 * press)
     cv.mark('toggle', BTN[0] - BTN_R, BTN[1] - BTN_R, 2 * BTN_R, 2 * BTN_R)
-
-
-CAPABILITY = Capability(
-    id='circular-clip-reveal',
-    name='Circular clip reveal',
-    family='ui',
-    group='Overlays & menus',
-    aliases=('circle reveal', 'iris reveal', 'clip-path circle reveal', 'radial theme transition',
-             'theme iris wipe'),
-    definition='Pressing a control makes the next screen open out of it as a growing circle, '
-               'which spreads from that spot until the new screen covers the whole view.',
-    phrasings=('when I tap the dark-mode button, have the new theme spread out from it in a circle',
-               'the next page should grow out of the button as an expanding circle',
-               'a round reveal that starts at the click and fills the screen'),
-    related=('iris-wipe', 'star-wipe', 'spiral-wipe', 'corner-wipe', 'scroll-linked-clip-reveal',
-             'zoom-out-reveal'),
-    api=('videobuilder.capabilities.ui.circular_clip_reveal.circular_reveal',
-         'videobuilder.capabilities.ui.circular_clip_reveal.reach'),
-    demo=lambda: demo.film(draw),
-)

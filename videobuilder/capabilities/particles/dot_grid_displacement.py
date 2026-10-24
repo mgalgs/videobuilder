@@ -87,7 +87,8 @@ CAPABILITY = Capability(
     name='Dot grid displacement',
     family='particles',
     group='Interaction fields',
-    aliases=('dot grid repel', 'interactive dot field', 'magnetic dot grid', 'cursor repel grid'),
+    aliases=('dot grid repel', 'interactive dot field', 'magnetic dot grid', 'cursor repel grid',
+             'cursor repel', 'repulsor field'),
     definition='A pointer moving over a regular grid of dots shoves the nearby dots outward, '
                'less the farther away they sit, and the grid eases back into rows once it passes.',
     phrasings=('a field of dots that moves out of the way of the cursor',

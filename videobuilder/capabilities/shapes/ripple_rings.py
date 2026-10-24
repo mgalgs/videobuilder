@@ -47,7 +47,7 @@ CAPABILITY = Capability(
     name='Ripple rings',
     family='shapes',
     group='Waves & ripples',
-    aliases=('concentric pulse', 'sonar ring', 'shockwave ring', 'radar ping'),
+    aliases=('concentric pulse', 'sonar ring', 'shockwave ring', 'radar ping', 'map ping'),
     definition='Thin circles keep spawning at one spot and swell outward, each one growing fainter '
                'until it vanishes, the way rings spread after a stone drops into still water.',
     phrasings=('send rings rippling out from that point',
@@ -55,6 +55,8 @@ CAPABILITY = Capability(
                'circles that spread out and fade like a drop in a pond'),
     related=('refraction-ripple', 'ripple', 'height-field-ripples', 'location-ripple-pulse',
              'rotating-rings', 'ripple-displacement'),
-    api=('videobuilder.capabilities.shapes.ripple_rings.ripple_rings',),
+    api=('videobuilder.capabilities.shapes.ripple_rings.ripple_rings',
+         'videobuilder.capabilities.ui.pulse_loader.draw_pulse_loader',
+         'videobuilder.capabilities.broadcast.location_ripple_pulse.location_pulse'),
     demo=lambda: demo.film(draw),
 )

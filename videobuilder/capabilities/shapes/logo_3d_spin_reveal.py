@@ -1,13 +1,16 @@
-"""Logo 3D Spin Reveal: a flat logo turns about its vertical axis in
-perspective, its thickness showing as it passes edge-on, and slows to rest
-facing the camera."""
+"""Logo 3D Spin Reveal: the same idea as Coin flip (`coin_flip.py`, which
+keeps the capability) -- both turn a logo or badge end over end about its
+upright axis in perspective, thinning to its edge and back, and slow to a
+stop facing the camera. This module's own code stays (a film may still
+import it), but it is no longer a capability of its own."""
 import math
 
 import videobuilder as vb
 from videobuilder.canvas import rgba
 
 from .. import _demo as demo
-from ..schema import Capability
+
+MERGED_INTO = 'coin-flip'
 
 
 def spin_angle(p, turns=1.25, ease=lambda t: 1 - (1 - t) ** 3):
@@ -101,21 +104,3 @@ def draw(n, cv):
     box = logo_spin(cv, _badge(), demo.W / 2, demo.H / 2, spin_angle(p), demo.ACCENT, decal=MARK,
                     decal_color=demo.INK, depth=44, alpha=vb.clamp01(p * 12))
     cv.mark('logo', *box)
-
-
-CAPABILITY = Capability(
-    id='logo-3d-spin-reveal',
-    name='Logo 3D spin reveal',
-    family='shapes',
-    group='Logo animation',
-    aliases=('flip logo reveal', 'card spin logo', 'Y-axis logo flip'),
-    definition='A logo swings round on its upright axis in perspective, its thin edge flashing past, '
-               'and slows until it comes to rest facing straight out.',
-    phrasings=('spin the logo in like a coin turning and let it settle facing us',
-               'the logo flips around in 3D and lands front-on',
-               'reveal the badge with a perspective turn that slows to a stop'),
-    related=('character-3d-flip', 'flip', 'word-flip-in', 'tile-flip', 'line-draw-logo-reveal', 'spin'),
-    api=('videobuilder.capabilities.shapes.logo_3d_spin_reveal.logo_spin',
-         'videobuilder.capabilities.shapes.logo_3d_spin_reveal.spin_angle'),
-    demo=lambda: demo.film(draw),
-)

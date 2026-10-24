@@ -72,7 +72,8 @@ CAPABILITY = Capability(
     name='Line boil',
     family='shapes',
     group='Hand-drawn & traditional',
-    aliases=('boiling line', 'hand-drawn jitter', 'rough outline', 'sketch wobble', 'line jitter'),
+    aliases=('boiling line', 'hand-drawn jitter', 'rough outline', 'sketch wobble', 'line jitter',
+             'boiling type', 'shimmer jitter'),
     definition='A shape that stays put while its outline is re-wobbled slightly every two or three '
                'frames, so the line seems to crawl as though freshly hand-drawn each time.',
     phrasings=('make the outline shimmer like it was drawn by hand frame by frame',

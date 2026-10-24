@@ -113,7 +113,8 @@ CAPABILITY = Capability(
     name='Infinite marquee',
     family='ui',
     group='Scroll',
-    aliases=('logo ticker', 'ticker loop', 'endless ticker', 'looping scroll', 'scrolling banner'),
+    aliases=('logo ticker', 'ticker loop', 'endless ticker', 'looping scroll', 'scrolling banner',
+             'news crawl', 'ticker'),
     definition='A strip of logos, words or tiles glides sideways at an even pace without end, '
                'the set repeating so the row never runs out or shows a gap.',
     phrasings=('a row of logos that keeps sliding across the screen on a loop',
@@ -122,6 +123,8 @@ CAPABILITY = Capability(
     related=('news-ticker-crawl', 'parallax-marquee-rows', 'scrolling-led-marquee-text',
              'infinite-scroll-append', 'seamless-loop', 'timeline-scroll'),
     api=('videobuilder.capabilities.ui.infinite_marquee.marquee',
-         'videobuilder.capabilities.ui.infinite_marquee.marquee_offset'),
+         'videobuilder.capabilities.ui.infinite_marquee.marquee_offset',
+         'videobuilder.capabilities.broadcast.news_ticker_crawl.ticker_crawl',
+         'videobuilder.capabilities.broadcast.news_ticker_crawl.crawl_cycle'),
     demo=lambda: demo.film(draw),
 )

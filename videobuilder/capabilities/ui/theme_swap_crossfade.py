@@ -1,10 +1,14 @@
-"""Theme Swap Crossfade: flipping between a dark and a light colour scheme,
-every surface, line and piece of text slides smoothly from its old colour to
-its new one instead of snapping."""
+"""Theme Swap Crossfade: the same idea as Palette shift transition
+(`../shapes/palette_shift_transition.py`, which keeps the capability) --
+both ease every colour to a new scheme while the layout stays put; this one
+demos it as a dark/light UI theme toggle. This module's own code stays
+(a film may still import it), but it is no longer a capability of its
+own."""
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Capability
+
+MERGED_INTO = 'palette-shift-transition'
 
 DARK = {'bg': '#1d1f24', 'surface': '#2a2d35', 'line': '#3a3e48', 'ink': '#eef0f3',
         'muted': '#8a909c', 'track': '#454a56', 'knob': '#f4f4f2'}
@@ -59,22 +63,3 @@ def draw(n, cv):
     cv.fill(t['bg'])
     demo.word(cv, 'Appearance', demo.W / 2, 110, size=64, color=t['ink'])
     _panel(cv, t, knob)
-
-
-CAPABILITY = Capability(
-    id='theme-swap-crossfade',
-    name='Theme swap crossfade',
-    family='ui',
-    group='Theme',
-    aliases=('dark mode fade', 'color scheme transition', 'light/dark mode transition'),
-    definition='When the interface switches between dark and light mode, the background, cards and text '
-               'all ease from their old colours to their new ones together rather than flipping instantly.',
-    phrasings=('flip the toggle and have the whole screen fade from dark mode to light mode',
-               'smoothly blend the UI colours when the theme changes',
-               'animate the switch to dark mode instead of a hard cut'),
-    related=('palette-shift-transition', 'typeface-crossfade', 'lyric-line-crossfade', 'cross-dissolve',
-             'scroll-linked-background-shift', 'cross-processing'),
-    api=('videobuilder.capabilities.ui.theme_swap_crossfade.theme_at',
-         'videobuilder.capabilities.ui.theme_swap_crossfade.mix_color'),
-    demo=lambda: demo.film(draw),
-)

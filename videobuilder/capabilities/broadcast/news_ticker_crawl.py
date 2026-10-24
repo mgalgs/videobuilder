@@ -1,11 +1,15 @@
-"""News ticker crawl: a bar pinned along the bottom of the picture, a fixed
-tag at its left, with a line of headlines creeping steadily leftwards
-through the rest of it, one story after another, without end."""
+"""News ticker crawl: the same idea as Infinite marquee
+(`../ui/infinite_marquee.py`, which keeps the capability) -- both slide a
+strip sideways without end, calling that module's own `marquee_offset`; this
+one adds the fixed broadcast tag at the left and bullets between headlines.
+This module's own code stays (a film may still import it), but it is no
+longer a capability of its own."""
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Capability
 from ..ui.infinite_marquee import marquee_offset
+
+MERGED_INTO = 'infinite-marquee'
 
 SEPARATOR = 0.6  # the bullet between stories, as a fraction of the font size
 
@@ -77,23 +81,3 @@ def draw(n, cv):
     off = marquee_offset(n / demo.FPS, SPEED, crawl_cycle(HEADLINES, f))
     box = ticker_crawl(cv, HEADLINES, f, 0, y, demo.W, h, off, bar='#101218', label='LIVE')
     cv.mark('ticker', *box)
-
-
-CAPABILITY = Capability(
-    id='news-ticker-crawl',
-    name='News ticker crawl',
-    family='broadcast',
-    group='Tickers & banners',
-    aliases=('news crawl', 'ticker', 'crawler', 'news ticker', 'breaking news ticker', 'text crawl bar'),
-    definition='A strip across the foot of the frame carries a line of headlines that slides steadily '
-               'from right to left past a fixed tag, story after story with bullets between.',
-    phrasings=('a breaking news bar at the bottom with headlines scrolling along it',
-               'the TV news strip where stories slide across the bottom of the screen',
-               'add a scrolling ticker of updates under the picture'),
-    related=('infinite-marquee', 'timeline-scroll', 'scroll-progress-bar', 'scroll-snap-sections',
-             'horizontal-scroll-section', 'scrollytelling-step-sequence'),
-    api=('videobuilder.capabilities.broadcast.news_ticker_crawl.ticker_crawl',
-         'videobuilder.capabilities.broadcast.news_ticker_crawl.crawl_cycle',
-         'videobuilder.capabilities.ui.infinite_marquee.marquee_offset'),
-    demo=lambda: demo.film(draw),
-)

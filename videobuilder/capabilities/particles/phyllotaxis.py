@@ -60,7 +60,8 @@ CAPABILITY = Capability(
     name='Phyllotaxis',
     family='particles',
     group='Growth & L-systems',
-    aliases=('sunflower spiral', 'golden angle spiral', 'Vogel spiral', 'sunflower seed pattern'),
+    aliases=('sunflower spiral', 'golden angle spiral', 'Vogel spiral', 'sunflower seed pattern',
+             'sunflower bloom', 'fibonacci bloom'),
     definition='Dots are added one by one, each turned about 137.5 degrees from the last and set a little '
                'further out, so a round seed head grows from the centre with interlocking spiral arms.',
     phrasings=('dots filling in like the seeds of a sunflower head',

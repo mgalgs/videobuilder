@@ -72,7 +72,7 @@ CAPABILITY = Capability(
     name='Coin flip',
     family='shapes',
     group='Logo animation',
-    aliases=('coin spin', 'coin toss', 'spinning coin', 'badge flip'),
+    aliases=('coin spin', 'coin toss', 'spinning coin', 'badge flip', 'flip logo reveal', 'Y-axis logo flip'),
     definition='A round logo or badge spins around its upright axis like a tossed coin, '
                'thinning to its edge and showing front and back in turn before it slows and lands face-up.',
     phrasings=('spin the logo like a coin being flipped',

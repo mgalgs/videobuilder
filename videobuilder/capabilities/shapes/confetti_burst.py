@@ -1,10 +1,14 @@
-"""Confetti Burst: a fistful of little paper pieces shoots up out of one
-point, spreads, then tumbles and flutters back down under gravity."""
+"""Confetti Burst: the same idea as Confetti (`../particles/confetti.py`,
+which keeps the capability) -- both show coloured paper pieces flipping and
+fluttering through the air; this one only adds the upward launch a fistful
+of them gets before gravity takes over. This module's own code stays (a
+film may still import it), but it is no longer a capability of its own."""
 import math
 import random
 
 from .. import _demo as demo
-from ..schema import Capability
+
+MERGED_INTO = 'confetti'
 
 COLORS = (demo.ACCENT, demo.TEAL, '#f2c14e', '#8e7cf0', demo.INK)
 
@@ -80,23 +84,3 @@ def draw(n, cv):
         demo.dot(cv, cx, cy, r, demo.INK, alpha=1 - max(0, t) / 0.12)
     draw_confetti(cv, cx, cy, t, BURST, fade=(2.4, 2.65))
     cv.mark('burst', cx - 40, cy - 40, 80, 80)
-
-
-CAPABILITY = Capability(
-    id='confetti-burst',
-    name='Confetti burst',
-    family='shapes',
-    group='Bursts & particles',
-    aliases=('paper shower', 'particle confetti', 'celebration burst'),
-    definition='A spray of small coloured paper pieces shoots up from one spot, fans out, then spins, '
-               'flips and flutters slowly back down.',
-    phrasings=('pop some confetti when they hit the goal',
-               'a party-popper explosion of paper bits',
-               'celebrate with confetti shooting up and raining down'),
-    related=('confetti', 'like-heart-burst', 'meteor-shower', 'type-explosion', 'falling-letter-rain',
-             'fireworks'),
-    api=('videobuilder.capabilities.shapes.confetti_burst.draw_confetti',
-         'videobuilder.capabilities.shapes.confetti_burst.pieces',
-         'videobuilder.capabilities.shapes.confetti_burst.place'),
-    demo=lambda: demo.film(draw),
-)

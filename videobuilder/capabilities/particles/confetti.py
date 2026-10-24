@@ -80,7 +80,7 @@ CAPABILITY = Capability(
     name='Confetti',
     family='particles',
     group='Emitters',
-    aliases=('paper confetti', 'tumbling flakes', 'confetti rain'),
+    aliases=('paper confetti', 'tumbling flakes', 'confetti rain', 'celebration burst', 'paper shower'),
     definition='Little flat paper pieces in a few colours drift down the screen, swaying and turning '
                'over so each one flickers between its full face and a thin edge.',
     phrasings=('make confetti fall over the whole screen',
@@ -89,6 +89,7 @@ CAPABILITY = Capability(
     related=('confetti-burst', 'circle-pop', 'crumple', 'twist-deformer', 'character-3d-flip', 'tile-flip'),
     api=('videobuilder.capabilities.particles.confetti.draw_confetti',
          'videobuilder.capabilities.particles.confetti.confetti',
-         'videobuilder.capabilities.particles.confetti.draw_piece'),
+         'videobuilder.capabilities.particles.confetti.draw_piece',
+         'videobuilder.capabilities.shapes.confetti_burst.draw_confetti'),
     demo=lambda: demo.film(draw),
 )

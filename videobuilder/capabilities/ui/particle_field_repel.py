@@ -1,13 +1,16 @@
-"""Particle Field Repel: a field of small dots drifts in place, and a pointer
-moving through it pushes the dots aside, opening a gap that closes again
-behind it as they ease back home."""
+"""Particle Field Repel: the same idea as Dot grid displacement
+(`../particles/dot_grid_displacement.py`, which keeps the capability) --
+both have a pointer shove nearby dots aside, which glide back once it has
+passed. This module's own code stays (a film may still import it), but it
+is no longer a capability of its own."""
 import math
 import random
 
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Capability
+
+MERGED_INTO = 'dot-grid-displacement'
 
 POINTER = ((0, 0), (0, 27), (7, 21), (12, 32), (17.5, 29.5), (12.5, 19), (21, 19))
 
@@ -115,24 +118,3 @@ def draw(n, cv):
     draw_field(cv, repel(HOME, pointer_path, t, seed=3))
     draw_pointer(cv, *pointer_path(t))
     cv.mark('field', *BOX)
-
-
-CAPABILITY = Capability(
-    id='particle-field-repel',
-    name='Particle field repel',
-    family='ui',
-    group='Cursor & hover',
-    aliases=('interactive particles', 'cursor repel', 'repulsor field', 'radial push'),
-    definition='A pointer moving through a softly drifting field of dots shoves the nearby ones aside, '
-               'and they glide back into place once it has passed.',
-    phrasings=('dots that scatter away from the mouse and then float back',
-               'the cursor pushes a hole through a grid of particles',
-               'particles that flee the pointer as it moves across them'),
-    related=('dot-grid-displacement', 'flow-field', 'spring-drag-letters', 'cursor-path-animation',
-             'wind-field', 'proximity-stagger'),
-    api=('videobuilder.capabilities.ui.particle_field_repel.repel',
-         'videobuilder.capabilities.ui.particle_field_repel.field',
-         'videobuilder.capabilities.ui.particle_field_repel.draw_field',
-         'videobuilder.capabilities.ui.particle_field_repel.draw_pointer'),
-    demo=lambda: demo.film(draw),
-)
