@@ -539,7 +539,7 @@ def family_page_html(family, capabilities_dir, version, header='', header_style=
     for group, group_members in _registry_groups(members):
         body.append(f'<h3 class="kind">{_esc(group)}</h3><div class="grid">')
         for t in group_members:
-            body.append(_card_html(t.id, t.name, t.definition, _thumb_html(t.id, built)))
+            body.append(_card_html(t.id, t.name, t.definition, _thumb_html(t.id, built), t.source))
         body.append('</div>')
     data = []
     for t in members:

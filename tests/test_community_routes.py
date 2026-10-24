@@ -418,6 +418,9 @@ class XPostRead(fixtures.AccountMixin, fixtures.LibraryFixture, unittest.TestCas
         self.assertEqual(code, 200, note)
         self.assertIn('@example_creator', note['text'])
         self.assertIn('A neat zoom transition on the logo, worth stealing.', note['text'])
+        # the add-from-a-post flow fills the capability's Source link from the post
+        self.assertEqual(self.library.community.get(created['slug'])['source'],
+                         {'url': self.POST_URL, 'credit': '@example_creator'})
         self.assertIn('untrusted', note['text'])
 
     @mock.patch('videobuilder.xpost._open')
@@ -463,6 +466,8 @@ class WebPageRead(fixtures.AccountMixin, fixtures.LibraryFixture, unittest.TestC
         post = self.library.community.get(created['slug'])['post']
         self.assertEqual(post['kind'], 'page')
         self.assertEqual(post['title'], 'Zoom reveal tutorial')
+        self.assertEqual(self.library.community.get(created['slug'])['source'],
+                         {'url': self.PAGE_URL, 'credit': 'Zoom reveal tutorial'})
         code, note = self.request(f'/api/capabilities/{created["slug"]}/send', {'attachments': []},
                                   headers=self.headers)
         self.assertEqual(code, 200, note)
