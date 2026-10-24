@@ -71,11 +71,13 @@ function loadCatalog() {
 }
 const BY = {};
 const CAPS = {}; // capability id -> {id, family, title, settings}: every #id a hashtag can name
+const CAP_OLD = {}; // old (merged) capability id -> the id it was merged into: #old-id makes that chip
 function indexCatalog() {
   if (!CAT) return;
   for (const fam of CAP_FAMILIES) for (const c of CAT[fam]) {
     BY[fam + ':' + c.id] = c;
     if (!(c.id in CAPS)) CAPS[c.id] = {id: c.id, family: fam, title: c.title, settings: c.settings || null};
+    for (const o of c.old_ids || []) CAP_OLD[o] = c.id;
   }
   for (const f of CAT.fonts) BY['fonts:' + f.id] = f;
   for (const s of CAT.sfx) BY['sfx:' + s.id] = s;
@@ -272,18 +274,20 @@ function render() {
 /* ---- capability references: #id anywhere in the note becomes a chip below it,
    live as the creator types, the same chip a suggestion pick adds ---- */
 const HASHTAG_RE = /#([a-z][a-z0-9-]*)/gi;
-function hashtagCapIds(text, caps) {
+// `oldIds` maps an old (merged) id to its survivor, so #voiceover makes the narration chip.
+function hashtagCapIds(text, caps, oldIds = {}) {
   const out = [];
   let m;
   HASHTAG_RE.lastIndex = 0;
   while ((m = HASHTAG_RE.exec(text))) {
-    const id = m[1].toLowerCase();
+    const typed = m[1].toLowerCase();
+    const id = Object.prototype.hasOwnProperty.call(oldIds, typed) && !caps[typed] ? oldIds[typed] : typed;
     if (caps[id] && !out.includes(id)) out.push(id);
   }
   return out;
 }
 function capChipIds() {
-  const ids = hashtagCapIds(ta.value, CAPS);
+  const ids = hashtagCapIds(ta.value, CAPS, CAP_OLD);
   for (const id of pickedCapIds) if (!ids.includes(id)) ids.push(id);
   return ids;
 }

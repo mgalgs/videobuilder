@@ -368,7 +368,7 @@ def _get_suggest_catalog(self, route, q, editor, user):
         if capabilities.is_lead(e):
             continue  # a section's lead card (Looks, Type): its members are listed instead
         item = {'id': e.id, 'title': e.name, 'card': e.definition, 'category': capabilities.category(e),
-               'aliases': list(e.aliases),
+               'aliases': list(e.aliases), 'old_ids': list(e.old_ids),
                'poster': f"/capabilities/{e.id}.jpg", 'clip': f"/capabilities/{e.id}.mp4"}
         if family == 'looks':
             item['kind'] = capabilities.kind(e)
@@ -383,14 +383,14 @@ def _get_suggest_catalog(self, route, q, editor, user):
             caps.append(item)
     # Every other capability (one with no card of its own): merged into the same list, same shape
     # plus group/phrasings, so the picker can group and search them alike. Every item carries its
-    # aliases, which the picker's search reads.
+    # aliases (searched) and its old ids (a typed #old-id makes its chip, see suggest.js).
     for t in registry.catalog():
         if capabilities.has_card(t):
             continue
         title, _ = capabilities.REGISTRY_FAMILIES[t.family]
         item = {'id': t.id, 'title': t.name, 'card': t.definition, 'category': title,
                 'group': t.group,
-                'aliases': list(t.aliases), 'phrasings': list(t.phrasings),
+                'aliases': list(t.aliases), 'old_ids': list(t.old_ids), 'phrasings': list(t.phrasings),
                 'poster': f'/capabilities/{t.id}.jpg', 'clip': f'/capabilities/{t.id}.mp4'}
         if t.settings:
             item['settings'] = settings_json(t.settings)

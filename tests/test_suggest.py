@@ -121,6 +121,13 @@ class NoModel(Server):
         self.assertNotIn('group', curated)
         self.assertIn('perfect loop', curated['aliases'])
 
+    def test_catalog_items_carry_their_old_ids(self):
+        catalog = self.get('/api/suggest/catalog')
+        by_id = {c['id']: c for c in catalog['capabilities']}
+        self.assertIn('voiceover', by_id['narration']['old_ids'])  # so #voiceover makes the narration chip
+        self.assertNotIn('voiceover', by_id)
+        self.assertEqual(by_id['air-drag']['old_ids'], [])
+
     def test_no_capability_group_names_the_old_registry_word(self):
         catalog = self.get('/api/suggest/catalog')
         groups = {c['group'] for c in catalog['capabilities'] if c.get('group')}

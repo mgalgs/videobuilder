@@ -19,12 +19,12 @@ class HashtagCapIds(unittest.TestCase):
     design call, and the chips call that replaced rewriting a capability pick
     into the note)."""
 
-    def run_js(self, text, caps):
+    def run_js(self, text, caps, old_ids=None):
         js = (PKG / 'suggest.js').read_text()
         hashtag_re = re.search(r'\nconst HASHTAG_RE = .*?;', js).group(0)
-        fn = re.search(r'\nfunction hashtagCapIds\(text, caps\) \{.*?\n\}', js, re.S).group(0)
+        fn = re.search(r'\nfunction hashtagCapIds\(text, caps[^)]*\) \{.*?\n\}', js, re.S).group(0)
         script = hashtag_re + fn + f"""
-console.log(JSON.stringify(hashtagCapIds({json.dumps(text)}, {json.dumps(caps)})));
+console.log(JSON.stringify(hashtagCapIds({json.dumps(text)}, {json.dumps(caps)}, {json.dumps(old_ids or {})})));
 """
         result = subprocess.run(['node', '-'], input=script.encode(), capture_output=True)
         self.assertEqual(result.returncode, 0, result.stderr.decode())
@@ -48,6 +48,14 @@ console.log(JSON.stringify(hashtagCapIds({json.dumps(text)}, {json.dumps(caps)})
 
     def test_no_hashtags_in_the_text_is_an_empty_list(self):
         self.assertEqual(self.run_js('just an ordinary note', {'a': 1}), [])
+
+    def test_a_merged_id_typed_as_a_hashtag_makes_its_survivors_chip(self):
+        self.assertEqual(self.run_js('add a #voiceover here', {'narration': 1}, {'voiceover': 'narration'}),
+                         ['narration'])
+
+    def test_a_merged_id_and_its_survivor_together_make_one_chip(self):
+        self.assertEqual(self.run_js('#Voiceover then #narration', {'narration': 1}, {'voiceover': 'narration'}),
+                         ['narration'])
 
 
 @unittest.skipUnless(shutil.which('node'), 'node is not available in this environment')
@@ -185,7 +193,7 @@ class CapabilitySettingsCards(unittest.TestCase):
     def run_js(self, prelude, calls):
         js = (PKG / 'suggest.js').read_text()
         hashtag_re = re.search(r'\nconst HASHTAG_RE = .*?;', js).group(0)
-        hashtag_fn = re.search(r'\nfunction hashtagCapIds\(text, caps\) \{.*?\n\}', js, re.S).group(0)
+        hashtag_fn = re.search(r'\nfunction hashtagCapIds\(text, caps[^)]*\) \{.*?\n\}', js, re.S).group(0)
         # Not `.*?;`: esc's own replacement map holds entities like '&amp;' that carry a
         # literal semicolon, which would end the match early.
         esc = re.search(r'\nconst esc = [^\n]*', js).group(0)
@@ -208,6 +216,7 @@ function makeEl() {
   };
 }
 const document = {createElement: () => makeEl()};
+const CAP_OLD = {};
 let capCardsKey = null;
 let pickedAssetIds = {fonts: [], sfx: [], music: []};
 const window = {SettingsCard: {calls: [], render(container, settings, values, onChange) {
@@ -239,6 +248,26 @@ console.log(JSON.stringify({chipCount: capChips.children.length, cardCount: capC
         self.assertEqual(out['chipCount'], 1)
         self.assertEqual(out['cardCount'], 1)
         self.assertEqual(out['renderCalls'], 1)
+
+    def test_typing_a_merged_id_shows_its_survivors_chip_carrying_the_survivors_id(self):
+        prelude = f"""
+const CAPS = {{narration: {{id: 'narration', family: 'capabilities', title: 'Narration',
+  settings: {json.dumps(self.NARRATION_SETTINGS)}}}}};
+CAP_OLD.voiceover = 'narration';
+let pickedCapIds = [];
+let capValues = {{}};
+const ta = {{value: 'add a #voiceover over the intro'}};
+const capChips = makeEl(), capCards = makeEl();
+"""
+        calls = """
+renderCapChips();
+console.log(JSON.stringify({ids: capChipIds(), chips: capChips.children.map(c => c.children.map(x => x.innerHTML)),
+  cardCount: capCards.children.length}));
+"""
+        out = self.run_js(prelude, calls)
+        self.assertEqual(out['ids'], ['narration'])
+        self.assertEqual(out['chips'], [['Narration', '#narration']])
+        self.assertEqual(out['cardCount'], 1)
 
     def test_a_chip_without_settings_mounts_no_card(self):
         prelude = """
@@ -328,7 +357,7 @@ class AssetChips(unittest.TestCase):
     def run_js(self, prelude, calls):
         js = (PKG / 'suggest.js').read_text()
         hashtag_re = re.search(r'\nconst HASHTAG_RE = .*?;', js).group(0)
-        hashtag_fn = re.search(r'\nfunction hashtagCapIds\(text, caps\) \{.*?\n\}', js, re.S).group(0)
+        hashtag_fn = re.search(r'\nfunction hashtagCapIds\(text, caps[^)]*\) \{.*?\n\}', js, re.S).group(0)
         cap_chip_ids = re.search(r'\nfunction capChipIds\(\) \{.*?\n\}', js, re.S).group(0)
         render_cap_chips = re.search(r'\nfunction renderCapChips\(\) \{.*?\n\}', js, re.S).group(0)
         asset_families = re.search(r'\nconst ASSET_FAMILIES = .*?;', js, re.S).group(0)
@@ -352,6 +381,7 @@ function makeEl() {
 }
 const document = {createElement: () => makeEl()};
 let CAPS = {};
+const CAP_OLD = {};
 let pickedCapIds = [];
 let capCardsKey = null, capCards = null;
 let playCalls = [];
@@ -531,12 +561,13 @@ class CapabilityEntriesForTheNote(unittest.TestCase):
     def run_js(self, prelude, calls):
         js = (PKG / 'suggest.js').read_text()
         hashtag_re = re.search(r'\nconst HASHTAG_RE = .*?;', js).group(0)
-        hashtag_fn = re.search(r'\nfunction hashtagCapIds\(text, caps\) \{.*?\n\}', js, re.S).group(0)
+        hashtag_fn = re.search(r'\nfunction hashtagCapIds\(text, caps[^)]*\) \{.*?\n\}', js, re.S).group(0)
         cap_chip_ids = re.search(r'\nfunction capChipIds\(\) \{.*?\n\}', js, re.S).group(0)
         cap_chip_entries = re.search(r'\nfunction capChipEntries\(\) \{.*?\n\}', js, re.S).group(0)
         restore = re.search(r'\n  restorePickedCapIds = entries => \{.*?\n  \};', js, re.S).group(0)
         script = f"""
 const CAPS = {{}};
+const CAP_OLD = {{}};
 let pickedCapIds = [];
 let capValues = {{}};
 let restorePickedCapIds;
