@@ -1,5 +1,9 @@
-"""Lightning Bolt: a jagged, forking line of light cracks down from a source
-to a target, flickers while it holds, then fades away."""
+"""Lightning Bolt: the one-shot strike of Electric arc (`electric_arc.py`,
+which keeps the capability) -- the same jagged, forking, glowing streak that
+stutters and fades, here as a single bolt that grows, flickers and dies
+rather than a continuous crackle between two points. This module's own code
+stays (a film may still import it), but it is no longer a capability of its
+own."""
 import math
 import random
 
@@ -9,7 +13,8 @@ import videobuilder as vb
 from videobuilder.canvas import rgba
 
 from .. import _demo as demo
-from ..schema import Capability
+
+MERGED_INTO = 'electric-arc'
 
 
 def _displace(points, rough, rng, depth):
@@ -103,22 +108,3 @@ def draw(n, cv):
     cv.fill('#c8d2ff', alpha=0.08 * brightness(p, seed=11))
     draw_bolt(cv, strokes, p, seed=11)
     cv.mark('bolt', demo.W * 0.3, demo.H * 0.08, demo.W * 0.4, demo.H * 0.82)
-
-
-CAPABILITY = Capability(
-    id='lightning-bolt',
-    name='Lightning bolt',
-    family='particles',
-    group='Electricity',
-    aliases=('branching lightning', 'midpoint displacement bolt', 'electric strike'),
-    definition='A crooked, forking streak of glowing light shoots out from a point, '
-               'stutters on and off for a moment, then dims to nothing.',
-    phrasings=('a bolt of lightning cracks down the screen',
-               'zap it with an electric strike that forks and flickers',
-               'add a jagged glowing lightning streak that fades out'),
-    related=('lightning-flash', 'particle-trail', 'diffraction-spikes', 'k-rm-n-vortex-street', 'embers', 'sparks'),
-    api=('videobuilder.capabilities.particles.lightning_bolt.draw_bolt',
-         'videobuilder.capabilities.particles.lightning_bolt.bolt',
-         'videobuilder.capabilities.particles.lightning_bolt.brightness'),
-    demo=lambda: demo.film(draw),
-)

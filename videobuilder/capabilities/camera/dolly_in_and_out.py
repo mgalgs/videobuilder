@@ -1,13 +1,14 @@
-"""Dolly in and out: the camera itself travels toward the subject and back,
-so a flat scene of layers at different depths each grows at its own rate --
-near things swell and slide out of frame fast, far things barely change.
-Unlike a zoom, which scales the whole picture by one factor."""
+"""Dolly in and out: the same idea as Push-in (`push_in.py`), which keeps the
+capability -- the camera travels toward the subject; this module only adds
+the return trip back out. This module's own code stays (a film may still
+import it), but it is no longer a capability of its own."""
 from contextlib import contextmanager
 
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Capability
+
+MERGED_INTO = 'push-in'
 
 
 def dolly_scale(depth, z):
@@ -86,22 +87,3 @@ def draw(n, cv):
     for depth, paint in ((FAR, _pillars), (GATE, _gate), (SUBJECT, _subject), (NEAR, _near)):
         with dolly(cv, depth, z, cy=HORIZON):
             paint(cv)
-
-
-CAPABILITY = Capability(
-    id='dolly-in-and-out',
-    name='Dolly in and out',
-    family='camera',
-    group='Camera moves',
-    aliases=('push and pull', 'track in, track out', 'dolly push'),
-    definition='The camera travels forward toward the subject and then back again, so close objects grow '
-               'and drift apart faster than distant ones as the depth of the scene opens up.',
-    phrasings=('move the camera in on the object and then pull back out',
-               'glide forward into the scene, then retreat',
-               'push in closer like the camera is on wheels, then roll back'),
-    related=('zoom-through', 'ease-in-out-back', 'push', 'dolly-zoom', 'zoom-out-reveal', 'roll-up'),
-    api=('videobuilder.capabilities.camera.dolly_in_and_out.dolly',
-         'videobuilder.capabilities.camera.dolly_in_and_out.dolly_scale',
-         'videobuilder.capabilities.camera.dolly_in_and_out.dolly_in_out'),
-    demo=lambda: demo.film(draw),
-)

@@ -61,7 +61,8 @@ CAPABILITY = Capability(
     name='Ping-Pong Loop',
     family='principles',
     group='Cycles & loops',
-    aliases=('yoyo', 'boomerang loop', 'back-and-forth loop', 'palindrome loop', 'alternate loop'),
+    aliases=('yoyo', 'boomerang loop', 'back-and-forth loop', 'palindrome loop', 'alternate loop',
+             'rewind', 'play in reverse'),
     definition='An animation that plays through to its end, then runs the same motion in reverse back '
                'to its start, over and over, so the loop never jumps.',
     phrasings=('play it forwards then backwards on repeat',

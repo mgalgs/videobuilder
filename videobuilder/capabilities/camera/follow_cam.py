@@ -1,12 +1,15 @@
-"""Follow Cam: the camera chases a moving subject with a little smoothed lag,
-so the subject stays near the middle of the frame while the world streams past."""
+"""Follow Cam: the same idea as Tracking shot (`tracking_shot.py`), which
+keeps the capability -- the camera travels with a moving subject, keeping it
+in frame while the scenery slides past. This module's own code stays (a film
+may still import it), but it is no longer a capability of its own."""
 import math
 import random
 
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Capability
+
+MERGED_INTO = 'tracking-shot'
 
 
 def follow_cam(target, t, lag=0.2, fps=30, start=0.0):
@@ -101,21 +104,3 @@ def draw(n, cv):
     cv.mark('subject', sx - cam[0] + demo.W / 2 - 40, sy - cam[1] + demo.H / 2 - 40, 80, 80)
     _reticle(cv)
     _minimap(cv, cam, (sx, sy))
-
-
-CAPABILITY = Capability(
-    id='follow-cam',
-    name='Follow cam',
-    family='camera',
-    group='Camera moves',
-    aliases=('chase cam', 'trailing camera', 'tracking camera'),
-    definition='The view chases a moving subject a beat behind it, so the subject stays roughly '
-               'centred while the scenery slides past around it.',
-    phrasings=('keep the camera on the ball as it travels',
-               'have the shot chase the character down the road',
-               'track the moving dot so it stays in the middle'),
-    related=('zoom-through', 'player-movement-trail', 'video-feedback-loop', 'reverse-motion-cut',
-             'follow-through', 'motion-blur'),
-    api=('videobuilder.capabilities.camera.follow_cam.follow_cam',),
-    demo=lambda: demo.film(draw, SECONDS),
-)

@@ -1,10 +1,11 @@
-"""Shutter wipe: the frame is cut into parallel slats, and each slat opens on
-the incoming scene in turn, one after the next across the frame, until the
-whole picture has changed."""
+"""Shutter wipe: the same idea as Venetian blinds wipe (`venetian_blinds_wipe.py`),
+which keeps the capability -- both cut the frame into strips that open on the
+next scene, the only difference being all at once versus one after another,
+which a stagger setting covers. This module's own code stays (a film may
+still import it), but it is no longer a capability of its own."""
 import videobuilder as vb
 
-from .. import _demo as demo
-from ..schema import Capability
+MERGED_INTO = 'venetian-blinds-wipe'
 
 
 def shutter_wipe(cv, a, b, p, slats=8, vertical=True, stagger=0.6, reverse=False, ease=vb.ease_in_out_quart):
@@ -43,21 +44,3 @@ def shutter_wipe(cv, a, b, p, slats=8, vertical=True, stagger=0.6, reverse=False
     ctx.clip()  # one clip for every slat, so `b` draws once and open neighbours meet without a seam
     b(cv)
     ctx.restore()
-
-
-CAPABILITY = Capability(
-    id='shutter-wipe',
-    name='Shutter wipe',
-    family='transitions',
-    group='Wipes',
-    aliases=('shutter transition', 'blinds wipe', 'venetian blinds', 'slat wipe'),
-    definition='The old shot is sliced into a row of strips that open one after another, '
-               'each widening from its middle, so the new shot appears band by band.',
-    phrasings=('open the next scene through a row of strips like window shutters',
-               'blinds that open one by one across the screen to show the next shot',
-               'cut to the next clip in slats instead of one straight wipe'),
-    related=('pan', 'paint-brush-wipe', 'uncover', 'split-screen-comparison', 'shutter-slat-reveal',
-             'split-screen-transition'),
-    api=('videobuilder.capabilities.transitions.shutter_wipe.shutter_wipe',),
-    demo=lambda: demo.two_scenes(shutter_wipe, start=1.2, length=1.6),
-)

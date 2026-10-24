@@ -1,13 +1,14 @@
-"""Streamlines: thin curves traced through a vector field, each one following
-the field's direction from a seed point, so a set of them maps the whole flow
-at a glance -- drawn on along their length, with small arrowheads gliding
-along them to show which way the flow runs."""
+"""Streamlines: the same idea as Flow field (`flow_field.py`), which keeps
+the capability -- both are curves following a hidden direction field, and
+both alias "flow lines". This module's own code stays (a film may still
+import it), but it is no longer a capability of its own."""
 import math
 
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Capability
+
+MERGED_INTO = 'flow-field'
 
 
 def trace(field, x, y, step=6.0, steps=400, bounds=None):
@@ -126,23 +127,3 @@ def draw(n, cv):
     draw_streamlines(cv, _lines(), COLORS, width=1.3, progress=grow, flow=t * 70.0, spacing=110.0,
                      arrow_size=4.5, alpha=0.85, arrow_alpha=arrows)
     cv.mark('field', MARGIN, MARGIN, demo.W - 2 * MARGIN, demo.H - 2 * MARGIN)
-
-
-CAPABILITY = Capability(
-    id='streamlines',
-    name='Streamlines',
-    family='particles',
-    group='Noise & fields',
-    aliases=('field lines', 'flow lines', 'stream lines', 'vector field lines'),
-    definition='Many thin curves follow the direction of an invisible current from point to point, '
-               'together sketching how the flow bends and where it goes.',
-    phrasings=('draw lines that follow the flow of a field',
-               'show the airflow parting around an object with thin flowing lines',
-               'trace the current with lines and little arrows showing direction'),
-    related=('flow-map-lines', 'streamgraph-flow', 'speed-lines', 'sparkline-draw', 'line-chart-draw-on',
-             'line-weave'),
-    api=('videobuilder.capabilities.particles.streamlines.draw_streamlines',
-         'videobuilder.capabilities.particles.streamlines.streamlines',
-         'videobuilder.capabilities.particles.streamlines.trace'),
-    demo=lambda: demo.film(draw),
-)

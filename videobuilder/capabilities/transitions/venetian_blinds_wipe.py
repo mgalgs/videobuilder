@@ -51,7 +51,7 @@ CAPABILITY = Capability(
     name='Venetian blinds wipe',
     family='transitions',
     group='Wipes',
-    aliases=('blinds wipe', 'slat wipe', 'blinds transition'),
+    aliases=('blinds wipe', 'slat wipe', 'blinds transition', 'shutter transition'),
     definition='The screen splits into a stack of thin bands, and every band opens out from its middle '
                'at once to show the next scene, like turning the slats of a window blind.',
     phrasings=('open the next shot like window blinds',

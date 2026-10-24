@@ -98,7 +98,7 @@ CAPABILITY = Capability(
     name='Push-in',
     family='camera',
     group='Camera moves',
-    aliases=('slow push', 'dolly in', 'digital dolly', 'slow zoom in', 'creep in'),
+    aliases=('slow push', 'dolly in', 'digital dolly', 'slow zoom in', 'creep in', 'push and pull', 'track out'),
     definition='The camera glides steadily forward toward the subject, which grows to fill more of the frame '
                'while the things around it, further back, swell less and slide outward.',
     phrasings=('slowly move the camera in on the subject',

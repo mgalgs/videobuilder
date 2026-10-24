@@ -88,7 +88,7 @@ CAPABILITY = Capability(
     name='Tracking shot',
     family='camera',
     group='Camera moves',
-    aliases=('follow tracking', 'travelling shot', 'follow shot'),
+    aliases=('follow tracking', 'travelling shot', 'follow shot', 'chase cam', 'trailing camera'),
     definition='The camera travels alongside a moving subject at its pace, keeping it fixed in frame '
                'while the scenery slides by behind it.',
     phrasings=('have the camera follow the ball as it rolls along',

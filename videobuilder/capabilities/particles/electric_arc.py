@@ -114,7 +114,8 @@ CAPABILITY = Capability(
     name='Electric arc',
     family='particles',
     group='Electricity',
-    aliases=('lightning arc', 'electric bolt', 'tesla arc', 'crackling electricity'),
+    aliases=('lightning arc', 'electric bolt', 'tesla arc', 'crackling electricity',
+             'branching lightning', 'electric strike'),
     definition='A jagged, glowing streak of electricity jumps between two points and keeps crackling, '
                'its zigzag path flickering into a new shape every few frames.',
     phrasings=('a crackling bolt of electricity between the two ends',
@@ -122,6 +123,8 @@ CAPABILITY = Capability(
                'make it look like current is arcing across the gap'),
     related=('flight-arc', 'diffraction-spikes', 'sparks', 'fireflies', 'lightning-flash', 'embers'),
     api=('videobuilder.capabilities.particles.electric_arc.draw_arc',
-         'videobuilder.capabilities.particles.electric_arc.arc_points'),
+         'videobuilder.capabilities.particles.electric_arc.arc_points',
+         'videobuilder.capabilities.particles.lightning_bolt.bolt',
+         'videobuilder.capabilities.particles.lightning_bolt.draw_bolt'),
     demo=lambda: demo.film(draw),
 )

@@ -81,7 +81,8 @@ CAPABILITY = Capability(
     name='Shared-element transition',
     family='transitions',
     group='Interface and Views',
-    aliases=('hero transition', 'hero animation', 'magic move', 'container transform', 'matched geometry'),
+    aliases=('hero transition', 'hero animation', 'magic move', 'container transform', 'matched geometry',
+             'page view transition', 'snapshot transition'),
     definition='An element present on both screens glides and resizes from where it sits on the first screen '
                'to where it sits on the second, while the rest of the view crossfades around it.',
     phrasings=('tap the thumbnail and have it grow into the big header image on the next screen',

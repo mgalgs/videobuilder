@@ -1,13 +1,16 @@
-"""Reverse Playback: a move plays forward, then the same frames run backwards
-so everything retraces its path to where it began -- a rewind."""
+"""Reverse Playback: the same idea as Ping-Pong Loop (`ping_pong_loop.py`),
+which keeps the capability -- play forward, then the same motion backwards to
+the start. This module's own code stays (a film may still import it), but it
+is no longer a capability of its own."""
 import math
 
 import videobuilder as vb
 from videobuilder.canvas import rgba
 
 from .. import _demo as demo
-from ..schema import Capability
 from .bounce_ease_out import bounce_ease_out
+
+MERGED_INTO = 'ping-pong-loop'
 
 
 def rewind_frame(n, turn, hold=0, speed=1.0):
@@ -85,22 +88,3 @@ def draw(n, cv):
     src = rewind_frame(n, TURN, HOLD)
     scene(src, cv)
     _transport(cv, n, src)
-
-
-CAPABILITY = Capability(
-    id='reverse-playback',
-    name='Reverse Playback',
-    family='principles',
-    group='Time remapping',
-    aliases=('rewind', 'backwards play', 'reverse motion', 'play in reverse'),
-    definition='An animation runs forward and then the very same motion plays backwards, '
-               'so everything retraces its path and ends where it started.',
-    phrasings=('play it forward, then rewind it back to the start',
-               'run the animation backwards',
-               'make it look like the tape is being rewound'),
-    related=('reverse-motion-cut', 'interruptible-motion', 'reverse-cymbal', 'flip', 'layout-animation-flip',
-             'frame-by-frame-hand-drawn-animation'),
-    api=('videobuilder.capabilities.principles.reverse_playback.reverse_playback',
-         'videobuilder.capabilities.principles.reverse_playback.rewind_frame'),
-    demo=lambda: demo.film(draw),
-)

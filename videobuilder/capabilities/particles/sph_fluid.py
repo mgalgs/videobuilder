@@ -228,6 +228,7 @@ CAPABILITY = Capability(
              'smoke-puffs', 'liquid-morph'),
     api=('videobuilder.capabilities.particles.sph_fluid.SPHFluid',
          'videobuilder.capabilities.particles.sph_fluid.simulate',
-         'videobuilder.capabilities.particles.sph_fluid.draw_fluid'),
+         'videobuilder.capabilities.particles.sph_fluid.draw_fluid',
+         'videobuilder.capabilities.particles.dam_break.simulate'),
     demo=lambda: demo.film(draw),
 )

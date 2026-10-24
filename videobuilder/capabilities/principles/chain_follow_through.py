@@ -1,11 +1,15 @@
-"""Chain Follow-Through: a chain of links hangs from a point that moves; the
-links lag behind it one after another, swing past when it stops, and settle."""
+"""Chain Follow-Through: the same idea as Verlet rope (`../particles/verlet_rope.py`),
+which keeps the capability -- both are a chain of rigid links simulated by
+Verlet, and both alias "verlet chain"; this module's own contribution is its
+moving-anchor demo. This module's own code stays (a film may still import
+it), but it is no longer a capability of its own."""
 import math
 
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Capability
+
+MERGED_INTO = 'verlet-rope'
 
 
 def chain_follow_through(anchor, t, links=8, length=40.0, gravity=2000.0, drag=2.0, tip_mass=2.0,
@@ -82,21 +86,3 @@ def draw(n, cv):
     ax, ay = pts[0]
     demo.dot(cv, ax, ay, 13, demo.INK)
     demo.dot(cv, ax, ay, 5, demo.BG)
-
-
-CAPABILITY = Capability(
-    id='chain-follow-through',
-    name='Chain Follow-Through',
-    family='principles',
-    group='Physics',
-    aliases=('verlet chain', 'multi-segment pendulum', 'rope physics'),
-    definition='A string of joined links hangs from a point that moves, and each link trails the one above it, '
-               'so the whole chain whips along late and keeps swinging after the point has stopped.',
-    phrasings=('a weight on a chain that swings and lags behind when the top moves',
-               'make it dangle like a rope and sway after it stops',
-               'a hanging chain that follows through with a delay down its length'),
-    related=('verlet-rope', 'follow-through', 'path-follow-motion', 'player-movement-trail',
-             'force-directed-network-settle', 'cycle-diagram-rotation'),
-    api=('videobuilder.capabilities.principles.chain_follow_through.chain_follow_through',),
-    demo=lambda: demo.film(draw, seconds=SECONDS),
-)

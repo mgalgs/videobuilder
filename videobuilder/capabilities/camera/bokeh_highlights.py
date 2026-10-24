@@ -97,7 +97,8 @@ CAPABILITY = Capability(
     name='Bokeh highlights',
     family='camera',
     group='Depth',
-    aliases=('bokeh', 'out-of-focus highlights', 'lens blur', 'circle of confusion blur'),
+    aliases=('bokeh', 'out-of-focus highlights', 'lens blur', 'circle of confusion blur',
+             'bokeh lights', 'bokeh field'),
     definition='Tiny points of light melt out of focus into soft, see-through discs in the shape of the '
                'lens opening, the farther from focus the bigger and fainter each one grows.',
     phrasings=('blur the background lights into those soft glowing circles',

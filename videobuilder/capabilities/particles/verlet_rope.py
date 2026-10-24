@@ -98,7 +98,7 @@ CAPABILITY = Capability(
     name='Verlet rope',
     family='particles',
     group='Soft bodies & cloth',
-    aliases=('rope simulation', 'chain physics', 'verlet chain'),
+    aliases=('rope simulation', 'chain physics', 'verlet chain', 'rope physics', 'multi-segment pendulum'),
     definition='A line built from many short links that never stretch falls from where it is pinned, '
                'swings loosely under gravity and drapes itself over anything it hits.',
     phrasings=('a rope pinned at one end that drops and swings realistically',
@@ -106,6 +106,7 @@ CAPABILITY = Capability(
                'a dangling cable that sways and settles with physics'),
     related=('chain-follow-through', 'newton-s-cradle', 'line-weave', 'bezier-handle-bend',
              'ping-pong-loop', 'seamless-loop'),
-    api=('videobuilder.capabilities.particles.verlet_rope.verlet_rope',),
+    api=('videobuilder.capabilities.particles.verlet_rope.verlet_rope',
+         'videobuilder.capabilities.principles.chain_follow_through.chain_follow_through'),
     demo=lambda: demo.film(draw),
 )

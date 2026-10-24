@@ -1,9 +1,12 @@
-"""Dam break: a tall block of water held at one end of a tank is let go; it
-slumps, races along the floor as a thin surge, slams into the far wall and
-throws up a splash, then sloshes back and settles.
+"""Dam break: the dam-burst setup as a preset of SPH fluid (`sph_fluid.py`,
+which keeps the capability) -- a tall block of water held at one end of a
+tank is let go; it slumps, races along the floor as a thin surge, slams into
+the far wall and throws up a splash, then sloshes back and settles.
 
 The water is a small particle fluid (double-density relaxation), simulated
-once in tank units and cached, so any frame can be drawn in any order."""
+once in tank units and cached, so any frame can be drawn in any order. This
+module's own code stays (a film may still import it), but it is no longer a
+capability of its own."""
 import functools
 import math
 import random
@@ -11,7 +14,8 @@ import random
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Capability
+
+MERGED_INTO = 'sph-fluid'
 
 WATER = '#4fa3e0'
 
@@ -175,22 +179,3 @@ def draw(n, cv):
     cv.rect(gx, floor_y - gate_h - bottom, 12, gate_h, demo.ACCENT, radius=3,
             alpha=1 - demo.phase(n, SIM['release'] + 0.15, SIM['release'] + 0.35))
     cv.mark('tank', x0, floor_y - tall, TANK_W, tall)
-
-
-CAPABILITY = Capability(
-    id='dam-break',
-    name='Dam break',
-    family='particles',
-    group='Water & light',
-    aliases=('water column collapse', 'dam burst', 'dam-break simulation'),
-    definition='A tall block of water held at one end of a tank is released and slumps into a fast surge '
-               'that runs along the floor, crashes up the far wall and sloshes back.',
-    phrasings=('let a wall of water go and have it flood across the tank',
-               'a fluid sim where the water column collapses and splashes into the other side',
-               'lift the gate and let the water rush out'),
-    related=('fracture-shatter', 'shatter', 'confetti-burst', 'waterfall-build', 'breaking-news-banner-slam',
-             'falling-letter-rain'),
-    api=('videobuilder.capabilities.particles.dam_break.draw_dam_break',
-         'videobuilder.capabilities.particles.dam_break.simulate'),
-    demo=lambda: demo.film(draw),
-)

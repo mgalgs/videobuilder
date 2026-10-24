@@ -1,11 +1,13 @@
-"""View transition: the whole old view and the whole new view, each frozen as
-a snapshot, cross-fade into each other, while any element the two views share
-glides and resizes from where it sat in the old view to where it sits in the
-new one."""
+"""View transition: the same idea as Shared-element transition
+(`shared_element_transition.py`), which keeps the capability -- both slide
+shared elements into place while the rest of the screen crossfades. This
+module's own code stays (a film may still import it), but it is no longer a
+capability of its own."""
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Capability
+
+MERGED_INTO = 'shared-element-transition'
 
 # The curve an interface uses for this by default: a quick start, a long soft settle.
 EASE = vb.bezier(0.25, 0.1, 0.25, 1)
@@ -73,22 +75,3 @@ def _draw(n, cv):
     else:
         view_transition(cv, lambda c: list_page(c, False), lambda c: detail_page(c, False), p,
                         shared=[(THUMB, HERO, _photo)])
-
-
-CAPABILITY = Capability(
-    id='view-transition',
-    name='View transition',
-    family='transitions',
-    group='Interface and Views',
-    aliases=('page view transition', 'snapshot transition', 'cross-document view transition',
-             'shared element transition'),
-    definition='One screen of an interface melts into the next as a cross-fade of the two whole views, '
-               'while anything they share slides and resizes straight into its new place.',
-    phrasings=('fade from one page of the app to the next like a browser page change',
-               'tap a thumbnail and have it grow into the header of the detail page while the rest fades over',
-               'move between two screens with a soft blend, keeping the shared picture in view'),
-    related=('split-screen-transition', 'palette-shift-transition', 'zoom-through',
-             'image-crossfade-slideshow', 'tab-panel-slide', 'theme-swap-crossfade'),
-    api=('videobuilder.capabilities.transitions.view_transition.view_transition',),
-    demo=lambda: demo.film(_draw),
-)

@@ -1,5 +1,8 @@
-"""Bokeh Particles: a field of big, soft, out-of-focus discs of coloured light
-that drift slowly across a dark frame, swelling and fading as they go."""
+"""Bokeh Particles: the same soft out-of-focus light discs as Bokeh highlights
+(`../camera/bokeh_highlights.py`, which keeps the capability) -- there one
+blurs real highlights, here they float free as particles. This module's own
+code stays (a film may still import it), but it is no longer a capability of
+its own."""
 import math
 import random
 
@@ -8,7 +11,8 @@ import cairo
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Capability
+
+MERGED_INTO = 'bokeh-highlights'
 
 COLORS = ('#e0a83a', '#f2c66b', '#7f8fe0', '#a7b2f0', '#dfe3ea')
 
@@ -73,22 +77,3 @@ LIGHTS = bokeh_lights(38, demo.W, demo.H, seed=11, sizes=(24, 150), drift=90)
 def draw(n, cv):
     cv.fill('#0d1016')
     draw_bokeh(cv, n / demo.FPS, LIGHTS, demo.W, demo.H, pulse=0.45, fade=0.4 + 0.6 * demo.phase(n, 0, 0.6))
-
-
-CAPABILITY = Capability(
-    id='bokeh-particles',
-    name='Bokeh particles',
-    family='particles',
-    group='Emitters',
-    aliases=('bokeh field', 'out-of-focus light discs', 'bokeh lights'),
-    definition='Big blurred circles of coloured light float gently over a dark background, '
-               'overlapping and slowly brightening and dimming like city lights seen out of focus.',
-    phrasings=('soft blurry circles of light floating in the background',
-               'a dreamy out-of-focus lights backdrop behind the title',
-               'glowing defocused dots drifting around like fairy lights'),
-    related=('bokeh-highlights', 'depth-of-field', 'particle-morph', 'bloom', 'ripple', 'diffraction-spikes'),
-    api=('videobuilder.capabilities.particles.bokeh_particles.draw_bokeh',
-         'videobuilder.capabilities.particles.bokeh_particles.bokeh_lights',
-         'videobuilder.capabilities.particles.bokeh_particles.bokeh_disc'),
-    demo=lambda: demo.film(draw),
-)

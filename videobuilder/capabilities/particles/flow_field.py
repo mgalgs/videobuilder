@@ -119,7 +119,8 @@ CAPABILITY = Capability(
     name='Flow field',
     family='particles',
     group='Noise & fields',
-    aliases=('vector field particles', 'angle field', 'noise flow', 'flow lines'),
+    aliases=('vector field particles', 'angle field', 'noise flow', 'flow lines',
+             'field lines', 'vector field lines'),
     definition='Thousands of particles drift along a hidden map of directions, and the streaks they '
                'leave bend together into smooth currents that reveal the shape of the field.',
     phrasings=('particles streaming along invisible swirling currents',
