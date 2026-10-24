@@ -27,6 +27,10 @@ the script.** Run it again after changing the script; with the same script
 and settings it writes nothing, so it never churns the repo. `--force`
 remakes it anyway.
 
+- If the note that asked for this carries a `voice` or `speed` line under
+  `narration` in "Capabilities the creator asked for", that is the
+  director's own pick from the `#narration` chip's settings card -- pass it
+  to `--voice`/`--speed` as given, not the defaults below.
 - `--voice`: default `af_heart`, an even, clear American English voice.
   `--list-voices` lists them: the first letter is the language (`a` American
   English, `b` British English, `e` Spanish, `f` French, `h` Hindi, `i`

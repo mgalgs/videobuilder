@@ -585,11 +585,16 @@ note's own words: it adds a `#id` chip below the input instead, the same chip
 that appears, live, the moment the director types a real capability's own
 `#id` anywhere in the note (anything else after a `#` is just text -- no chip,
 no error); a picked chip has its own remove button, a typed one goes away
-with its text. The builder's prompt lists every chip's capability by name,
-definition and api, so a note that asks for one by its `#id` is never left to
-prose alone. Picking a font, a sound effect or a music track still rewrites
-the note with the thing's unique name (`Ctrl+Z` undoes it, same as any
-typing) -- those are assets, not named capabilities, so chips don't apply.
+with its text. A chip whose capability declares settings (narration's voice
+and speed, say) shows a settings card under it -- audition a voice, drag a
+speed -- and only the values the director actually changed ride along with
+the note, re-validated server-side before they ever reach the builder. The
+builder's prompt lists every chip's capability by name, definition and api,
+plus one line per chosen setting, so a note that asks for one by its `#id`
+is never left to prose alone. Picking a font, a sound effect or a music
+track still rewrites the note with the thing's unique name (`Ctrl+Z` undoes
+it, same as any typing) -- those are assets, not named capabilities, so
+chips don't apply.
 `URL` is any
 OpenAI-compatible chat endpoint -- OpenRouter, Anthropic's own compatible
 endpoint, a local vLLM or llama.cpp -- asked with `--suggest-model` (default
