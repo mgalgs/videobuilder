@@ -1,5 +1,11 @@
 """The `Capability` record every registry module defines as `CAPABILITY`, and
-the families a capability belongs to (one subpackage each).
+the families a capability belongs to (one subpackage each). Every capability
+is one of these records, the ones with cards of their own on /capabilities
+too; the parts a record may carry beyond the core fields are here as well:
+`Example` (a worked example film as the demo, the one exemption from the
+short-demo rule), `Members` and `MemberBrief` (a capability grouping
+others, and what a community member of it ships) and `Source` (the post a
+capability came from).
 
 The record is checked when it is built, so a malformed capability fails at
 import with a message naming it. `api` is only format-checked here; whether

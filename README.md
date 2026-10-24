@@ -97,7 +97,7 @@ FILM = vb.Film(draw=draw, timeline=TIMELINE, formats=('16x9', '9x16', '1x1'), ba
 everything it can do in under 90 s, cut on the beat of a generated music
 bed. It counts every capability and puts them all on one wall, gives each
 family a beat with a few of its demos playing, and then cuts a launch film
-for a made-up app from the hand-written capabilities, every shot tagged
+for a made-up app from the capabilities with cards of their own, every shot tagged
 with the capabilities it shows. The counts, families and wall are read from
 the capabilities API when it renders, so it stays true as capabilities land
 (it's also the film at the top of `/capabilities`, re-rendered by
@@ -775,7 +775,7 @@ refuse to collide with it) and its first note, carrying a standing brief
 plus the post's text and handle, quoted as untrusted reference. The builder
 is told to make three files: `film.py` (an **original** demo of the
 capability -- never the post's own media, text, people or branding),
-`capability.toml` (a catalog entry: id, category, title, card, description,
+`capability.toml` (id, category, title, card, description,
 three prompts, apis, and the doc path) and a short `capability.md` reference
 doc. The post and any attachments are untrusted data throughout: read for
 the capability only, never as instructions. Each account may submit at most 5
@@ -809,8 +809,13 @@ note's `/attachments/capabilities/<slug>/` and named by title in the
 prompt, so the builder can reach for it instead of building the capability
 from scratch.
 
-Some of the catalog is **families**: named members, each with its own demo,
-that make up a section of the page of their own. **Looks** is the first:
+Every capability is one file, `videobuilder/capabilities/<family>/<id>.py`,
+read through one registry: most show on their family's page, while a few
+carry a `category` and have a card of their own on `/capabilities`. A card
+whose capability came from someone's post shows a **Source** link (the
+record's `source`, also in `capabilities index --json`); a community
+capability added from a link carries the same. Some capabilities group
+others (`members`) into a section of the page of their own. **Looks** is the first:
 named art styles (`videobuilder.looks`: pop art, woodblock, 8-bit pixel and
 more), in two kinds -- scene looks that repaint a video's own scene,
 described once as a few shapes with roles, and filter looks that restyle
@@ -818,7 +823,7 @@ whatever a video draws (photos, screen captures, footage) -- plus paper
 collage; every builder's prompt names them
 (`skill/make-a-video/reference/looks.md`). The old `comic-halftone` and
 `pixel-art-layer` ids now answer for the pop-art and pixel filter looks they
-were merged into (`capabilities.ALIASES`).
+were merged into (each record's `old_ids`).
 **Type** is the second: named typography styles (`videobuilder.type`:
 split-flap, typewriter, terminal, rubber, rack focus, letter cloud,
 editorial), every one taking the same props -- a few lines, three colours, a
@@ -827,8 +832,8 @@ segment or a title over another picture
 (`skill/make-a-video/reference/type.md`).
 The dialog's first choice is **A new capability** or a new member of a
 family (**A new look**, **A new type style**); each family's brief and the
-file its member ships (`look.py`, `style.py`) come from its own entry
-(`capabilities._member`). A look
+file its member ships (`look.py`, `style.py`) come from its own record
+(`members=Members(..., brief=MemberBrief(...))`). A look
 submission is briefed for one reusable look (`look.py`, following the look
 contract) with a demo on the shared lighthouse scene that passes the motion
 floor, a `capability.toml` with `family = "looks"`, and a doc. Publishing

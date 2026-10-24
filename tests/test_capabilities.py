@@ -154,6 +154,19 @@ class Families(unittest.TestCase):
         self.assertTrue(any('cv.pixelated' in a for a in capabilities.get('look-filter-pixel').api))
 
 
+BEFORE_RECORDS = (
+    'eased-entrances', 'springs-with-character', 'staggered-reveals', 'pop-on-the-beat', 'character-motion',
+    'puppet-motion', 'pose-swaps', 'walk-in-place', 'stick-figure', 'impact-frame', 'overlap-transitions',
+    'drawn-on-diagram', 'outline-morph', 'kinetic-typography', 'word-timed-captions', 'terminal-log',
+    'counting-numbers', 'bar-charts', 'gauges-and-rings', 'line-chart-callout', 'camera-on-a-screenshot',
+    'redrawn-product-ui', 'image-treatments', 'generated-art', 'orbit-3d', 'hard-light-sweep', 'parallax-scene',
+    'looks', 'look-swirl', 'look-pointillism', 'look-woodblock', 'look-melt', 'look-bauhaus', 'look-pop-art',
+    'look-pixel', 'look-blueprint', 'paper-collage', 'look-filter-pop-art', 'look-filter-pixel',
+    'look-filter-woodblock', 'look-filter-blueprint', 'look-filter-pointillism', 'type', 'type-split-flap',
+    'type-typewriter', 'type-terminal', 'type-rubber', 'type-rack-focus', 'type-letter-cloud', 'type-editorial',
+    'beat-lock', 'footage-with-sound', 'narration', 'sound-effects', 'every-format', 'seamless-loops')
+
+
 class OldIds(unittest.TestCase):
     """Entries merged away keep their old ids, answered by the entry that took them over."""
 
@@ -172,6 +185,16 @@ class OldIds(unittest.TestCase):
         for old in capabilities.old_ids():
             self.assertNotIn(old, capabilities.ids())
             self.assertFalse((ROOT / 'examples' / 'capabilities' / f'{old}.py').exists())
+
+    def test_every_id_from_before_the_one_record_format_still_resolves_to_itself(self):
+        # Films, notes and suggestion history name these: the hand-written capabilities became
+        # one-file records under the same ids (and the registry's own kept theirs).
+        for i in BEFORE_RECORDS:
+            with self.subTest(id=i):
+                self.assertEqual(capabilities.resolve(i), i)
+                self.assertEqual(capabilities.get(i).id, i)
+                self.assertEqual(capabilities.resolve_requested([i])[0]['id'], i)
+        self.assertEqual({t.id for t in capabilities.cards()}, set(BEFORE_RECORDS))
 
     def test_an_old_ids_clip_is_the_new_entrys(self):
         self.assertEqual(capabilities.clip_file('/c', 'comic-halftone', 'mp4'), '/c/look-filter-pop-art.mp4')
