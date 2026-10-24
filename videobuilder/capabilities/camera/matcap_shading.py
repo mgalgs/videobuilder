@@ -91,7 +91,9 @@ def torus_knot(p=2, q=3, tube=0.42, along=1200, around=96):
     v = np.linspace(0, 2 * np.pi, around, endpoint=False)
     normals = (np.cos(v)[None, :, None] * nrm[:, None, :] + np.sin(v)[None, :, None] * bin_[:, None, :])
     points = c[:, None, :] + tube * normals
-    return points.reshape(-1, 3), normals.reshape(-1, 3)
+    # float32: the per-frame render matmuls and indexes millions of these, so halving their
+    # width is a real win, and matcap shading never needs more than pixel precision anyway.
+    return points.reshape(-1, 3).astype(np.float32), normals.reshape(-1, 3).astype(np.float32)
 
 
 def matcap_render(points, normals, rot, matcap, px, extent=3.6):
@@ -99,20 +101,19 @@ def matcap_render(points, normals, rot, matcap, px, extent=3.6):
     space) turned by the 3x3 `rot`, shaded by `matcap`, orthographic, into a
     `px` x `px` RGBA PIL image covering -`extent` -> `extent` on both axes.
     Sample the surface finer than a pixel or it shows holes."""
+    rot = rot.astype(points.dtype, copy=False)   # keep the matmul in points' width, not upcast to it
     pv = points @ rot.T
     nv = normals @ rot.T
-    vis = nv[:, 2] > -0.05                      # back faces never win the depth test
-    pv, nv = pv[vis], nv[vis]
     ix = ((pv[:, 0] / extent + 1) * 0.5 * px).astype(int)
     iy = ((pv[:, 1] / extent + 1) * 0.5 * px).astype(int)
-    ok = (ix >= 0) & (ix < px) & (iy >= 0) & (iy < px)
+    # one combined mask (back faces, off-canvas) instead of filtering once per test
+    ok = (nv[:, 2] > -0.05) & (ix >= 0) & (ix < px) & (iy >= 0) & (iy < px)
     ix, iy, z, nv = ix[ok], iy[ok], pv[ok, 2], nv[ok]
     cell = iy * px + ix
-    order = np.lexsort((-z, cell))              # per pixel, the nearest point (largest z) first
-    cell, nv = cell[order], nv[order]
-    first = np.ones(len(cell), dtype=bool)
-    first[1:] = cell[1:] != cell[:-1]
-    cell, nv = cell[first], nv[first]
+    zbuf = np.full(px * px, -np.inf, dtype=points.dtype)   # per pixel, the nearest point (largest z) wins
+    np.maximum.at(zbuf, cell, z)
+    nearest = z >= zbuf[cell]
+    cell, nv = cell[nearest], nv[nearest]
     img = np.zeros((px * px, 4), dtype=np.uint8)
     img[cell, :3] = (matcap_lookup(matcap, nv[:, 0], nv[:, 1]) * 255 + 0.5).astype(np.uint8)
     img[cell, 3] = 255
