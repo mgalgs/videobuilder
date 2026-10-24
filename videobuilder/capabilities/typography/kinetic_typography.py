@@ -1,7 +1,7 @@
 """Kinetic typography: built from videobuilder's own API, so this record only names it and demos it
 with its worked example film, `examples/capabilities/kinetic-typography.py` (an `Example` demo: see
 schema.py)."""
-from ..schema import Capability, Example
+from ..schema import Capability, Example, Members
 
 CAPABILITY = Capability(
     id='kinetic-typography',
@@ -10,6 +10,7 @@ CAPABILITY = Capability(
     group='Variable font',
     category='Type and data',
     order=1,
+    aliases=('wght axis animation', 'word-by-word fade'),
     definition='Balanced wrapping, word-by-word reveal, live weight.',
     description=('A headline wraps with balanced line breaks, reveals word by word, and its variable-font '
                  'weight itself animates in — all real text layout, not an image of text.'),
@@ -18,7 +19,9 @@ CAPABILITY = Capability(
                'Make the type itself the motion here'),
     api=('text.wrap(copy, font, width, balance=True)',
          'vb.Font(..., weight=interpolated)',
-         'text.draw'),
+         'text.draw',
+         'videobuilder.capabilities.typography.variable_font_weight_animation.weight_wave(t, i)'),
     doc='skill/make-a-video/reference/api.md',
     demo=Example('examples/capabilities/kinetic-typography.py'),
+    members=Members(ids=('variable-font-weight-animation', 'per-word-fade-in')),
 )

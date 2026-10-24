@@ -1,7 +1,7 @@
 """Gauges and rings: built from videobuilder's own API, so this record only names it and demos it with
 its worked example film, `examples/capabilities/gauges-and-rings.py` (an `Example` demo: see
 schema.py)."""
-from ..schema import Capability, Example
+from ..schema import Capability, Example, Members
 
 CAPABILITY = Capability(
     id='gauges-and-rings',
@@ -10,6 +10,7 @@ CAPABILITY = Capability(
     group='Charts',
     category='Type and data',
     order=6,
+    aliases=('radial progress', 'speedometer dial'),
     definition='An arc fills to a reading, with a readout in the centre.',
     description=('A ring gauge sweeps from empty to its reading as an arc, with the number centred inside '
                  'it — the shape for a single score, percentage or level rather than a comparison.'),
@@ -18,7 +19,10 @@ CAPABILITY = Capability(
                'Sweep the gauge in on the beat'),
     api=('cv.arc(cx, cy, r, a0, a1, colour, width=...)',
          'cv.sector(...)',
-         'vb.spring_at drives the sweep angle'),
+         'vb.spring_at drives the sweep angle',
+         'videobuilder.capabilities.ui.progress_ring.draw_progress_ring(cv, cx, cy, r, p)',
+         'videobuilder.capabilities.broadcast.gauge_needle_sweep.draw_gauge(cv, cx, cy, r, value)'),
     doc='skill/make-a-video/reference/api.md',
     demo=Example('examples/capabilities/gauges-and-rings.py'),
+    members=Members(ids=('progress-ring', 'gauge-needle-sweep')),
 )

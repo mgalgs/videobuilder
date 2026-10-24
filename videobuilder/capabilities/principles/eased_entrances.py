@@ -1,7 +1,7 @@
 """Eased entrances: built from videobuilder's own API, so this record only names it and demos it with
 its worked example film, `examples/capabilities/eased-entrances.py` (an `Example` demo: see
 schema.py)."""
-from ..schema import Capability, Example, Source
+from ..schema import Capability, Example, Members, Source
 
 CAPABILITY = Capability(
     id='eased-entrances',
@@ -25,5 +25,12 @@ CAPABILITY = Capability(
          'vb.interpolate(f, keys, values, ease=...)'),
     doc='skill/make-a-video/reference/motion.md',
     demo=Example('examples/capabilities/eased-entrances.py'),
+    members=Members(
+        ids=('ease-out-back', 'ease-out-expo', 'ease-in-expo', 'bounce-ease-in', 'bounce-ease-out',
+             'custom-cubic-bezier-easing', 'ease-in-back', 'ease-in-circ', 'ease-in-cubic', 'ease-in-out-back',
+             'ease-in-out-cubic', 'ease-in-out-expo', 'ease-in-out-quad', 'ease-in-out-quint', 'ease-in-out-sine',
+             'ease-in-quad', 'ease-in-sine', 'ease-out-circ', 'ease-out-cubic', 'ease-out-quad', 'ease-out-quart',
+             'ease-out-sine', 'elastic-ease-in', 'elastic-ease-out', 'linear-easing', 'steps-easing'),
+        noun=('curve', 'curves')),
     source=Source('https://x.com/flxrnc/status/2105311836190978392', '@flxrnc'),
 )

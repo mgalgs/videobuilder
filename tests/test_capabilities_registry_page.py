@@ -265,7 +265,7 @@ class Routes(fixtures.API):
     def test_family_page_served_at_its_new_path(self):
         code, page, _ = _status(self.base, '/capabilities/principles')
         self.assertEqual(code, 200)
-        self.assertIn(b'Ease Out Back', page)
+        self.assertIn(b'Air Drag', page)
 
     def test_old_family_url_permanently_redirects(self):
         conn = http.client.HTTPConnection('127.0.0.1', self.httpd.server_address[1], timeout=20)
@@ -278,7 +278,7 @@ class Routes(fixtures.API):
     def test_old_family_url_still_resolves_the_same_page_once_followed(self):
         code, page, _ = _status(self.base, f'/capabilities/{_OLD_URL_SEGMENT}/principles')
         self.assertEqual(code, 200)
-        self.assertIn(b'Ease Out Back', page)
+        self.assertIn(b'Air Drag', page)
 
     def test_unknown_family_404s(self):
         for bad in ('not-a-family', '..', '%2e%2e%2fetc%2fpasswd'):

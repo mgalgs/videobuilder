@@ -1,6 +1,6 @@
 """Stick figure: built from videobuilder's own API, so this record only names it and demos it with its
 worked example film, `examples/capabilities/stick-figure.py` (an `Example` demo: see schema.py)."""
-from ..schema import Capability, Example, Source
+from ..schema import Capability, Example, Members, Source
 
 CAPABILITY = Capability(
     id='stick-figure',
@@ -9,6 +9,7 @@ CAPABILITY = Capability(
     group='Characters & rigs',
     category='Motion',
     order=9,
+    aliases=('running loop', 'run in place'),
     definition='A stick-figure character, drawn in code, that acts out the idea.',
     description=('The explainer favourite: a round white head with a face, a small white body and thin '
                  'black arms and legs, drawn entirely in code, so no picture is needed. It walks and runs '
@@ -33,5 +34,6 @@ CAPABILITY = Capability(
     doc='skill/make-a-video/reference/stick.md',
     demo=Example('examples/capabilities/stick-figure.py'),
     poster=130,
+    members=Members(ids=('run-cycle',)),
     source=Source('https://x.com/Jason23818126/status/2112030757724340314', '@Jason23818126'),
 )

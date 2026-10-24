@@ -1,6 +1,6 @@
 """Sound effects: built from videobuilder's own API, so this record only names it and demos it with its
 worked example film, `examples/capabilities/sound-effects.py` (an `Example` demo: see schema.py)."""
-from ..schema import Capability, Example, Source
+from ..schema import Capability, Example, Members, Source
 
 CAPABILITY = Capability(
     id='sound-effects',
@@ -30,6 +30,10 @@ CAPABILITY = Capability(
           'flash')),
     doc='skill/make-a-video/reference/sfx.md',
     demo=Example('examples/capabilities/sound-effects.py'),
+    members=Members(
+        ids=('whoosh', 'impact-hit', 'riser', 'sub-drop', 'success-chime', 'ui-sound-effects', 'typing-sounds',
+             'foley', 'glitch-sound', 'reverse-cymbal'),
+        noun=('effect', 'effects')),
     source=Source('https://x.com/LexnLin/status/2111927727318245426',
                   '@LexnLin',
                   upstream='https://github.com/Leonxlnx/earshot',
