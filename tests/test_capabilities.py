@@ -204,7 +204,7 @@ class OldIds(unittest.TestCase):
 
 class _Regrouped:
     """The records patched so `grouper` groups `ids` (a Members of nothing
-    but ids), and every cache that read them cleared, on the way in and out."""
+    but ids; None: its members as they are) and takes `changes`, and every cache that read them cleared, on the way in and out."""
 
     def __init__(self, grouper, ids, **changes):
         import dataclasses
@@ -214,7 +214,9 @@ class _Regrouped:
         t = registry.get(grouper)
         self.module = sys.modules[f'{registry.PACKAGE}.{t.family}.{grouper.replace("-", "_")}']
         self.before = t
-        self.after = dataclasses.replace(t, members=Members(ids=tuple(ids)), **changes)
+        if ids is not None:
+            changes['members'] = Members(ids=tuple(ids))
+        self.after = dataclasses.replace(t, **changes)
 
     def _clear(self):
         for f in (self.registry._all, capabilities.cards, capabilities._parents, capabilities.old_ids,
@@ -250,6 +252,46 @@ class GeneralMembers(unittest.TestCase):
             ids = {i for i, _ in suggest._capability_docs()}
             self.assertLessEqual({'narration', 'voiceover'}, ids)
         self.assertEqual(_section(capabilities.page_html(None, 'v').decode(), 'Timing, sound and formats'), before)
+
+    def test_the_editor_picker_lists_a_grouper_in_a_shared_section_and_its_members(self):
+        def picker_ids():
+            from videobuilder import video_api
+
+            class Handler:
+                def _json(self, status, data):
+                    return data
+
+            class Editor:
+                music = None
+            data = video_api._get_suggest_catalog(Handler(), None, {}, Editor(), None)
+            return [c['id'] for c in data['capabilities']], data
+        before, _ = picker_ids()
+        with _Regrouped('narration', ['voiceover']):
+            after, data = picker_ids()
+            self.assertEqual(sorted(after), sorted(before))
+            self.assertNotIn('looks', after)
+            self.assertNotIn('type', [c['id'] for c in data['type']])
+
+    def test_only_a_sections_lead_card_has_no_id_to_copy(self):
+        def page_data():
+            page = capabilities.page_html(None, 'v').decode()
+            m = re.search(r'<script id="capabilities-data" type="application/json">(.*?)</script>', page)
+            return {e['id']: e for e in json.loads(m.group(1))}
+        data = page_data()
+        self.assertTrue(data['looks'].get('lead') and data['type'].get('lead'))
+        with _Regrouped('narration', ['voiceover']):
+            data = page_data()
+            self.assertEqual(data['narration']['members'], 1)
+            self.assertFalse(data['narration'].get('lead'))
+
+    def test_the_sheet_takes_a_record_whose_demo_is_its_own_film(self):
+        with _Regrouped('narration', ['voiceover']):
+            sheet = capabilities.sheet_markdown()
+            self.assertIn('Example: `videobuilder/capabilities/sound/voiceover.py`', sheet)
+        with _Regrouped('voiceover', None, category='Timing, sound and formats'):
+            sheet = capabilities.sheet_markdown()
+            self.assertIn('**Worked example:** `videobuilder/capabilities/sound/voiceover.py`', sheet)
+            self.assertNotIn('Read ``', sheet)
 
     def test_a_member_of_a_grouper_with_no_card_stays_on_its_family_page(self):
         with _Regrouped('ambience', ['voiceover']):

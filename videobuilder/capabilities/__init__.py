@@ -39,7 +39,7 @@ import os
 from functools import lru_cache
 
 from . import registry
-from .schema import CATEGORIES, REPO_ROOT, module_name
+from .schema import CATEGORIES, REPO_ROOT, Example, module_name
 
 
 def _load_all():
@@ -132,6 +132,21 @@ def kind(t):
     """A member's kind slug ('scene', 'filter'), or None."""
     p = parent(t)
     return p.members.kind(t) if p else None
+
+
+def is_lead(t):
+    """Whether `t`'s card is a grouping capability's lead card for a section it
+    has to itself (Looks, Type): a way into its members, not a capability a
+    film asks for by id. A grouper among other cards is an ordinary one."""
+    return bool(t.members) and section_owner(t.category) is t
+
+
+def example_path(t):
+    """The file to read as `t`'s worked example: its `Example` film, or
+    else its own record file (whose `draw` is the example)."""
+    if isinstance(t.demo, Example):
+        return t.demo.path
+    return f'videobuilder/capabilities/{t.family}/{module_name(t.id)}.py'
 
 
 def kind_groups(family, members_=None):
@@ -284,9 +299,10 @@ def sheet_markdown():
             lines.append('**How to build it:**')
             for api in e.api:
                 lines.append(f'- `{api}`')
-            lines.append(f'- Read `{e.doc}`.')
+            if e.doc:
+                lines.append(f'- Read `{e.doc}`.')
             lines.append('')
-            lines.append(f'**Worked example:** `{e.demo.path}` — read it before writing something similar from scratch.')
+            lines.append(f'**Worked example:** `{example_path(e)}` — read it before writing something similar from scratch.')
             lines.append('')
             if e.members:
                 singular, plural = e.members.noun
@@ -301,7 +317,7 @@ def sheet_markdown():
                         name = member_name(child) or child.id
                         build = '; '.join(f'`{api}`' for api in child.api)
                         lines.append(f"- **{child.name}** (`{name}`): {child.definition} "
-                                     f"Ask: \"{child.phrasings[0]}\". Build: {build}. Example: `{child.demo.path}`.")
+                                     f"Ask: \"{child.phrasings[0]}\". Build: {build}. Example: `{example_path(child)}`.")
                     lines.append('')
                 merged = [(old, child) for child in kids for old in child.old_ids]
                 if merged:
@@ -749,10 +765,10 @@ _PAGE_SCRIPT = """
     document.getElementById('modal-title').textContent = e.title;
     document.getElementById('modal-cat').textContent = e.members ?
       e.category + ' \u00b7 ' + e.members + ' ' + e.plural : (e.family ? e.category + ' \u00b7 ' + e.kindTitle : e.category);
-    // A family's own lead card (e.members set) is a navigation card, and a community
+    // A family's own lead card (e.lead set) is a navigation card, and a community
     // card's id (the registry doesn't know "community:<slug>") isn't one #id chips
     // can name either: no slug to copy there, only on an actual registry capability's card.
-    copyId = (e.members || id.indexOf('community:') === 0) ? null : id;
+    copyId = (e.lead || id.indexOf('community:') === 0) ? null : id;
     idEl.hidden = !copyId;
     if(copyId){ idCode.textContent = '#' + copyId; copyBtn.textContent = 'Copy' }
     document.getElementById('modal-desc').textContent = e.description;
@@ -1548,6 +1564,8 @@ def page_html(capabilities_dir, version, header='', header_style='', community=N
         if e.members:
             item.update(members=len(e.members.ids) + len(published_by_family.get(e.id, [])),
                         plural=e.members.noun[1])
+            if is_lead(e):
+                item['lead'] = True
         p = parent(e)
         if p:
             item.update(family=p.id, kindTitle=_kind_title(e))

@@ -365,8 +365,8 @@ def _get_suggest_catalog(self, route, q, editor, user):
     for e in capabilities.cards():
         p = capabilities.parent(e)
         family = p.id if p else None
-        if e.members and family is None:
-            continue  # a grouping capability (Looks, Type): its members are listed instead
+        if capabilities.is_lead(e):
+            continue  # a section's lead card (Looks, Type): its members are listed instead
         item = {'id': e.id, 'title': e.name, 'card': e.definition, 'category': capabilities.category(e),
                'poster': f"/capabilities/{e.id}.jpg", 'clip': f"/capabilities/{e.id}.mp4"}
         if family == 'looks':
@@ -375,7 +375,7 @@ def _get_suggest_catalog(self, route, q, editor, user):
             looks.append(item)
         elif family == 'type':
             type_.append(item)
-        elif family is None:
+        else:
             item['phrasings'] = list(e.phrasings)
             if e.settings:
                 item['settings'] = settings_json(e.settings)
