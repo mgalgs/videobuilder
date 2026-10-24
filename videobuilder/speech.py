@@ -23,6 +23,7 @@ will be read, to copy from.
 """
 import array
 import hashlib
+import importlib.util
 import json
 import os
 import re
@@ -139,10 +140,10 @@ class Kokoro:
     """Kokoro through kokoro-onnx. The only part of this module that imports it."""
 
     def __init__(self, model=None, voices=None, model_dir=None):
-        try:
-            import kokoro_onnx  # noqa: F401
-        except ImportError:
-            raise SpeechUnavailable(INSTALL_HINT) from None
+        # find_spec, not import: listing voices (capabilities import time) must not pay for onnxruntime.
+        loaded = sys.modules.get('kokoro_onnx', False)   # None there means "import refused"
+        if loaded is None or (loaded is False and importlib.util.find_spec('kokoro_onnx') is None):
+            raise SpeechUnavailable(INSTALL_HINT)
         self.voices_path = Path(voices) if voices else _find(VOICES_FILE, model_dir)
         self.model_path = Path(model) if model else next(
             (p for p in (_find(m, model_dir) for m in MODEL_FILES) if p), None)
