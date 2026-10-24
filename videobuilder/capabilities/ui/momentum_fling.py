@@ -1,9 +1,14 @@
-"""Momentum Fling: a dragged thing is let go mid-swipe and keeps travelling at
-the speed it was thrown, slowing smoothly under friction until it stops."""
+"""Momentum Fling: the same idea as Friction Deceleration
+(`../principles/friction_deceleration.py`), which keeps the capability --
+both show something released at speed shedding its speed exponentially,
+braking hard at first and coasting ever more gently to a stop. This module's
+own code stays (a film may still import it), but it is no longer a
+capability of its own."""
 import math
 
 from .. import _demo as demo
-from ..schema import Capability
+
+MERGED_INTO = 'friction-deceleration'
 
 
 def fling(t, velocity, decay=4.0):
@@ -59,23 +64,3 @@ def draw(n, cv):
         demo.dot(cv, fx, y + 10 - 30 * lift, 30, color=demo.INK, alpha=0.4 * fa)
         cv.arc(fx, y + 10 - 30 * lift, 30, 0, 2 * math.pi, demo.INK, width=4, alpha=fa)
     cv.mark('card', x - CW / 2, y - CH / 2, CW, CH)
-
-
-CAPABILITY = Capability(
-    id='momentum-fling',
-    name='Momentum fling',
-    family='ui',
-    group='Gestures & drag',
-    aliases=('fling', 'flick', 'throw', 'inertial drag', 'kinetic drag'),
-    definition='Something dragged and let go mid-swipe keeps sliding at the speed it was thrown, '
-               'then slows down smoothly until it comes to a stop.',
-    phrasings=('flick the card and let it glide to a stop',
-               'throw it across the screen and have it coast',
-               'swipe it away so it keeps going on its own momentum'),
-    related=('smooth-scroll-inertia', 'friction-deceleration', 'air-drag', 'bounce-ease-in', 'recoil',
-             'scroll-velocity-skew'),
-    api=('videobuilder.capabilities.ui.momentum_fling.drag_and_fling',
-         'videobuilder.capabilities.ui.momentum_fling.fling',
-         'videobuilder.capabilities.ui.momentum_fling.fling_rest'),
-    demo=lambda: demo.film(draw),
-)

@@ -1,12 +1,16 @@
-"""Falling Glyph Rain Reveal: one column of random characters per letter
-pours down from above, and each column's leading glyph lands on its line and
-turns into the real letter while the trail behind it fades away."""
+"""Falling Glyph Rain Reveal: the same idea as Matrix digital rain
+(`../vfx/matrix_digital_rain.py`), which keeps the capability -- both stream
+columns of falling characters with a bright leading glyph and a fading
+tail, this one landing each column on a letter so the rain resolves into a
+word. This module's own code stays (a film may still import it), but it is
+no longer a capability of its own."""
 import random
 
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Capability
+
+MERGED_INTO = 'matrix-digital-rain'
 
 GLYPHS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789<>{}[]=+*#%&/?'
 
@@ -76,22 +80,3 @@ def draw(n, cv):
     box = draw_glyph_rain(cv, text, f, (demo.W - w) / 2, (demo.H - h) / 2 + 120, demo.phase(n, 0.0, 2.5),
                           demo.INK, rain=demo.TEAL, head=demo.ACCENT, seed=3)
     cv.mark('text', *box)
-
-
-CAPABILITY = Capability(
-    id='falling-glyph-rain-reveal',
-    name='Falling glyph rain reveal',
-    family='typography',
-    group='Scramble and decode',
-    aliases=('matrix rain text', 'code rain reveal', 'digital rain title'),
-    definition='A stream of random characters drops down above every letter, and as each stream '
-               'reaches the line its front character becomes the real letter while the rest fade.',
-    phrasings=('the title rains down out of falling computer code',
-               'streams of random symbols pour down and land as the word',
-               'each letter drops in at the bottom of a column of flickering characters'),
-    related=('matrix-digital-rain', 'falling-letter-rain', 'character-rise', 'dot-matrix-text', 'rainfall',
-             'text-mask-reveal'),
-    api=('videobuilder.capabilities.typography.falling_glyph_rain_reveal.draw_glyph_rain',
-         'videobuilder.capabilities.typography.falling_glyph_rain_reveal.glyph_rain'),
-    demo=lambda: demo.film(draw),
-)

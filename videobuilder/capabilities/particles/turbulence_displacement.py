@@ -106,7 +106,7 @@ CAPABILITY = Capability(
     family='particles',
     group='Forces',
     aliases=('turbulence displacement', 'noise displacement', 'jitter field', 'turbulent displace',
-             'turbulence warp', 'procedural displace'),
+             'turbulence warp', 'procedural displace', 'liquid text', 'perlin warp'),
     definition='Each particle is shoved about by a smoothly varying random force that shifts over time, '
                'so the swarm churns wildly yet neighbouring points still drift together.',
     phrasings=('make the dots get blown around by a swirling, chaotic wind',

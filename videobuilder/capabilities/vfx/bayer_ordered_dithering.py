@@ -90,7 +90,7 @@ CAPABILITY = Capability(
     name='Bayer ordered dithering',
     family='vfx',
     group='Dithering & quantization',
-    aliases=('Bayer dither', 'ordered dither', 'threshold matrix dither'),
+    aliases=('Bayer dither', 'ordered dither', 'threshold matrix dither', 'halftone dissolve in'),
     definition='The image is redrawn in just two colours, its shades of grey turned into a regular grid '
                'of dots and crosshatch checks that get denser where the picture is brighter.',
     phrasings=('make the photo look like an old 1-bit computer screen with that checkered dither',

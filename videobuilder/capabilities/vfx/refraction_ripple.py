@@ -135,7 +135,8 @@ CAPABILITY = Capability(
     name='Refraction ripple',
     family='vfx',
     group='Distortion & displacement',
-    aliases=('ripple distortion', 'shockwave distortion', 'ripple warp', 'shockwave'),
+    aliases=('ripple distortion', 'shockwave distortion', 'ripple warp', 'shockwave',
+             'water ripple transition', 'pond ripple'),
     definition='A ring of waves spreads out from one point over a still picture, bending everything under '
                'it as if seen through rippling glass, and the picture lies flat again once it has passed.',
     phrasings=('send a shockwave out from the middle that warps the image',

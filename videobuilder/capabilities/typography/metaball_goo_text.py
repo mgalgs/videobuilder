@@ -1,7 +1,9 @@
-"""Metaball Goo Text: letters drawn as soft blobs that fuse into one liquid
-shape where they come close and pull apart with a stretching neck. The look
-is the classic blur-then-threshold trick: the shapes are blurred together,
-and only the part above a cut-off is painted, with a crisp edge."""
+"""Metaball Goo Text: the same idea as Gooey filter
+(`../particles/gooey_filter.py`), which keeps the capability -- both call
+`goo` to blur shapes together and cut them back to a hard edge so nearby
+ones fuse, this one flowing letters into one liquid word with a stretching
+neck between them. This module's own code stays (a film may still import
+it), but it is no longer a capability of its own."""
 import math
 
 import cairo
@@ -10,7 +12,8 @@ from PIL import Image as PILImage, ImageFilter
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Capability
+
+MERGED_INTO = 'gooey-filter'
 
 
 def _a8(m):
@@ -120,22 +123,3 @@ def draw(n, cv):
             demo.dot(sub, bx, by, r, color='#ffffff')
     goo(cv, shapes, demo.ACCENT, blur=13, cut=0.5)
     cv.mark('text', demo.W / 2 - total * spread / 2 - gap / 2, demo.H / 2 - 70, total * spread + gap, 140)
-
-
-CAPABILITY = Capability(
-    id='metaball-goo-text',
-    name='Metaball goo text',
-    family='typography',
-    group='Liquid and organic',
-    aliases=('gooey text', 'metaball merge', 'liquid merge text', 'goo effect'),
-    definition='Letters behave like drops of thick liquid, so when two drift close their outlines '
-               'bulge and fuse into one blob, and stretch a neck before snapping apart.',
-    phrasings=('make the letters gloopy so they melt into each other when they touch',
-               'liquid blobby type where the characters merge together like droplets',
-               'the word flows together like goo and the letters stick to each other'),
-    related=('liquid-morph', 'particle-text-formation', 'dissolve-to-particles', 'gooey-filter',
-             'type-explosion', 'noise-dissolve'),
-    api=('videobuilder.capabilities.typography.metaball_goo_text.goo_text',
-         'videobuilder.capabilities.typography.metaball_goo_text.goo'),
-    demo=lambda: demo.film(draw),
-)

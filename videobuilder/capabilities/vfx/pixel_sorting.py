@@ -112,7 +112,7 @@ CAPABILITY = Capability(
     name='Pixel sorting',
     family='vfx',
     group='Glitch',
-    aliases=('pixel sort', 'pixel sort glitch', 'sorted pixels', 'databending streaks'),
+    aliases=('pixel sort', 'pixel sort glitch', 'sorted pixels', 'databending streaks', 'pixel streak text'),
     definition='Bright stretches of an image are reordered by brightness along each row or column, '
                'melting the picture into straight, smeared streaks while its darker shapes hold.',
     phrasings=('make the photo melt into glitchy streaks of colour',

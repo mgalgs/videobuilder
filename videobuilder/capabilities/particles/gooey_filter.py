@@ -41,7 +41,8 @@ CAPABILITY = Capability(
     name='Gooey filter',
     family='particles',
     group='Metaballs & blobs',
-    aliases=('goo effect', 'goo filter', 'gooey threshold', 'SVG goo', 'gooey blob', 'blur and threshold'),
+    aliases=('goo effect', 'goo filter', 'gooey threshold', 'SVG goo', 'gooey blob', 'blur and threshold',
+             'gooey text', 'liquid merge text'),
     definition='Separate round dots are softened and then cut back to a hard edge, so whenever two '
                'come close they melt into a single liquid shape joined by a stretchy neck.',
     phrasings=('make the dots blobby so they merge like liquid when they touch',

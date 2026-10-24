@@ -1,12 +1,16 @@
-"""Echo Trail Type: a moving word leaves a string of fainter copies of itself
-behind, each one where the word was a moment earlier, so the trail follows
-its path and closes up into it when it stops."""
+"""Echo Trail Type: the same idea as Frame delay echo
+(`../vfx/frame_delay_echo.py`), which keeps the capability -- both call
+`echo_trail` to stack fading copies of a moving subject at a few fixed lags
+behind the live one, this one tracing a moving word rather than a whole
+frame. This module's own code stays (a film may still import it), but it is
+no longer a capability of its own."""
 import math
 
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Capability
+
+MERGED_INTO = 'frame-delay-echo'
 
 
 def echo_trail(cv, draw_copy, t, copies=6, lag=0.05, falloff=0.62):
@@ -53,22 +57,3 @@ def draw(n, cv):
     box = draw_echo_trail(cv, 'ECHO', demo.font(150, 900), _path, n / demo.FPS, demo.INK, echo=demo.ACCENT,
                           copies=6, lag=0.1)
     cv.mark('text', *box)
-
-
-CAPABILITY = Capability(
-    id='echo-trail-type',
-    name='Echo trail type',
-    family='typography',
-    group='Motion trails',
-    aliases=('echo text', 'text echo trail', 'ghost trail text', 'onion-skin type'),
-    definition='As a word moves it leaves a line of fading duplicates at the spots it just passed through, '
-               'which catch up and vanish into it once it stops.',
-    phrasings=('the title swoops in with faded copies of itself trailing behind',
-               'text that leaves a ghostly echo of itself as it moves',
-               'give the word a stuttered after-image trail while it flies in'),
-    related=('frame-delay-echo', 'text-on-a-path', 'particle-trail', 'player-movement-trail',
-             'per-character-fade-in', 'cursor-particle-trail'),
-    api=('videobuilder.capabilities.typography.echo_trail_type.echo_trail',
-         'videobuilder.capabilities.typography.echo_trail_type.draw_echo_trail'),
-    demo=lambda: demo.film(draw),
-)

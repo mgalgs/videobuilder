@@ -1,12 +1,16 @@
-"""ASCII Glyph Density Reveal: a grid of monospaced characters, each picked
-by how much ink it should carry, churns as noise and then settles so the
-dense glyphs spell out a word."""
+"""ASCII Glyph Density Reveal: the same idea as ASCII art render
+(`../vfx/ascii_art_render.py`), which keeps the capability -- both pick a
+glyph for each cell by brightness and call `draw_density`, this one letting
+the grid churn as noise before it settles into a word. This module's own
+code stays (a film may still import it), but it is no longer a capability
+of its own."""
 import random
 
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Capability
+
+MERGED_INTO = 'ascii-art-render'
 
 RAMP = ' .:-=+*#%@'  # lightest to densest
 
@@ -85,23 +89,3 @@ def draw(n, cv):
     dens = density_frame(_grid[0], demo.phase(n, 0.3, 2.4), seed=5)
     box = draw_density(cv, dens, FONT, x, y, CELL_W, CELL_H, demo.INK, dim=demo.LINE)
     cv.mark('text', *box)
-
-
-CAPABILITY = Capability(
-    id='ascii-glyph-density-reveal',
-    name='ASCII glyph density reveal',
-    family='typography',
-    group='Glyph swaps',
-    aliases=('ASCII art type', 'character density text', 'ASCII text reveal'),
-    definition='A block of flickering monospaced characters settles so that heavy glyphs gather where '
-               'the letters are and light ones fade away, until the word stands out in pure type.',
-    phrasings=('make the title appear out of a field of ASCII characters',
-               'a wall of random code characters that resolves into the word',
-               'build the headline out of dense text symbols like ASCII art'),
-    related=('ascii-art-render', 'pixelation-reveal', 'random-order-character-reveal', 'typewriter-reveal',
-             'ink-spread-reveal', 'pixel-sort-text'),
-    api=('videobuilder.capabilities.typography.ascii_glyph_density_reveal.draw_density',
-         'videobuilder.capabilities.typography.ascii_glyph_density_reveal.density_frame',
-         'videobuilder.capabilities.typography.ascii_glyph_density_reveal.coverage_grid'),
-    demo=lambda: demo.film(draw),
-)

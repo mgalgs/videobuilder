@@ -1,6 +1,8 @@
-"""Pixel Sort Text: horizontal bands of the lettering have their pixels
-sorted by brightness, so the letters smear into hard streaks, then the sort
-lets go and the word comes back clean."""
+"""Pixel Sort Text: the same idea as Pixel sorting (`../vfx/pixel_sorting.py`),
+which keeps the capability -- both reorder runs of pixels by brightness into
+hard streaks, one on a photo, this one on type. This module's own code
+stays (a film may still import it), but it is no longer a capability of its
+own."""
 import random
 from contextlib import contextmanager
 
@@ -9,7 +11,8 @@ import cairo
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Capability
+
+MERGED_INTO = 'pixel-sorting'
 
 
 def _brightness(px):
@@ -104,22 +107,3 @@ def draw(n, cv):
     amount = vb.ease_out_quint(demo.phase(n, 0.3, 0.9)) * (1 - vb.ease_in_out_quart(demo.phase(n, 2.2, 2.8)))
     box = draw_pixel_sort_text(cv, text, f, (demo.W - w) / 2, (demo.H - h) / 2, amount, demo.INK, seed=3)
     cv.mark('text', *box)
-
-
-CAPABILITY = Capability(
-    id='pixel-sort-text',
-    name='Pixel sort text',
-    family='typography',
-    group='Glitch and distortion',
-    aliases=('pixel streak text', 'glitch pixel sort reveal'),
-    definition='Strips of a word have their pixels reordered from bright to dark, dragging the letters '
-               'into hard horizontal streaks that then pull back into clean type.',
-    phrasings=('the title smears sideways into glitchy streaks and then snaps back',
-               'a glitchy pixel sort on the headline',
-               'letters melt into horizontal light streaks before settling'),
-    related=('pixel-sorting', 'pixelation-reveal', 'dot-matrix-text', 'letter-sort-animation',
-             'ascii-art-render', 'pixel-build'),
-    api=('videobuilder.capabilities.typography.pixel_sort_text.draw_pixel_sort_text',
-         'videobuilder.capabilities.typography.pixel_sort_text.pixel_sorted'),
-    demo=lambda: demo.film(draw),
-)

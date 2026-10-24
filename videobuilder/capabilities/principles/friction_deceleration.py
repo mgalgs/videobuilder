@@ -68,7 +68,7 @@ CAPABILITY = Capability(
     name='Friction Deceleration',
     family='principles',
     group='Physics',
-    aliases=('exponential decay', 'friction slide', 'decay easing'),
+    aliases=('exponential decay', 'friction slide', 'decay easing', 'fling', 'flick', 'inertial drag'),
     definition='Something released at speed sheds a constant share of that speed each moment, '
                'so it brakes sharply at first and then drifts slower and slower into a soft stop.',
     phrasings=('let it glide and slow down on its own like it is sliding on ice',

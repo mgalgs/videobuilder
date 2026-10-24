@@ -1,13 +1,16 @@
-"""Accumulation Motion Blur: each frame is the average of many renders of the
-scene at instants spread across the shutter interval, so anything moving
-leaves a soft, see-through streak that follows its true path -- curves and
-spins included -- while whatever holds still stays sharp."""
+"""Accumulation Motion Blur: the same idea as Motion blur (`motion_blur.py`),
+which keeps the capability -- both smear whatever moves along the path it
+travelled during the exposure, this one by averaging many renders of the
+scene at instants spread across the shutter interval, so curves and spins
+blur along their true path. This module's own code stays (a film may still
+import it), but it is no longer a capability of its own."""
 import math
 
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Capability
+
+MERGED_INTO = 'motion-blur'
 
 
 def accumulation_blur(cv, draw, t, frame=1 / demo.FPS, shutter=0.5, samples=16, background=None):
@@ -81,21 +84,3 @@ def draw(n, cv):
         accumulation_blur(cv, lambda c, at: _card(c, at, BOTTOM), s, shutter=SHUTTER, samples=24,
                           background=demo.BG)
     _label(cv, '24 renders averaged across the shutter', demo.H / 2 + 24)
-
-
-CAPABILITY = Capability(
-    id='accumulation-motion-blur',
-    name='Accumulation motion blur',
-    family='vfx',
-    group='Motion & shutter',
-    aliases=('sub-frame motion blur', 'temporal supersampling', 'multi-sample motion blur',
-             'accumulation buffer blur', 'shutter-angle blur'),
-    definition='Each frame blends many renders of the scene taken a sliver of time apart, '
-               'so moving things smear into soft trails along the exact path they travelled.',
-    phrasings=('give it real camera-style motion blur by averaging lots of in-between frames',
-               'blur the spinning card along its actual curve, not just sideways',
-               'render several sub-frames per frame and mix them so fast moves look smooth'),
-    related=('motion-blur', 'gaussian-blur', 'spin-blur', 'blur-up-image-load', 'smear-frame', 'multiples'),
-    api=('videobuilder.capabilities.vfx.accumulation_motion_blur.accumulation_blur',),
-    demo=lambda: demo.film(draw),
-)

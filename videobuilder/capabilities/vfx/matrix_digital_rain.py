@@ -83,7 +83,7 @@ CAPABILITY = Capability(
     name='Matrix digital rain',
     family='vfx',
     group='Retro digital',
-    aliases=('code rain', 'digital rain', 'falling glyphs', 'green code rain'),
+    aliases=('code rain', 'digital rain', 'falling glyphs', 'green code rain', 'code rain reveal'),
     definition='Vertical streams of green computer characters slide down a dark screen at different '
                'speeds, each led by a glowing white glyph and trailing a tail that dims to nothing.',
     phrasings=('a screen full of falling green code like the hacker movie',

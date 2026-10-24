@@ -1,6 +1,9 @@
-"""Ripple Displacement: rings spread out from a point like a stone dropped in
-water, and as each crest passes through the text it pushes the letterforms
-outward and pulls them back, so the strokes bulge, thin and wobble."""
+"""Ripple Displacement: the same idea as Refraction ripple
+(`../vfx/refraction_ripple.py`), which keeps the capability -- both send a
+ring of waves out from a point that bends whatever is under it, this one
+pushing the letterforms of a word outward and pulling them back as each
+crest passes. This module's own code stays (a film may still import it),
+but it is no longer a capability of its own."""
 import math
 
 import cairo
@@ -8,9 +11,10 @@ import cairo
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Capability
 from ...canvas import rgba
 from ...type import kit as type_kit
+
+MERGED_INTO = 'refraction-ripple'
 
 
 def ripple_offset(x, y, cx, cy, t, amplitude=14.0, wavelength=110.0, speed=520.0, decay=1.6, falloff=900.0):
@@ -105,24 +109,3 @@ def draw(n, cv):
     box = draw_ripple_text(cv, text, f, x, y, demo.INK, t, cx=demo.W / 2 - w * 0.1, cy=demo.H / 2,
                            amplitude=26, wavelength=130, speed=420, decay=0.7, falloff=1400)
     cv.mark('text', *box)
-
-
-CAPABILITY = Capability(
-    id='ripple-displacement',
-    name='Ripple displacement',
-    family='typography',
-    group='Liquid and organic',
-    aliases=('water ripple text', 'radial wave warp', 'ripple distortion'),
-    definition='Rings of motion spread out from one spot through a word, and each one shoves the '
-               'letter outlines back and forth as it passes, so the type swells and wobbles like a '
-               'reflection on a pond.',
-    phrasings=('make the title wobble like a stone was dropped into water next to it',
-               'the letters ripple outward from the middle as if they were liquid',
-               'a water-drop wave that warps the text and then calms down'),
-    related=('ripple', 'height-field-ripples', 'refraction-ripple', 'wave-deformer',
-             'text-reflection-shimmer', 'sine-wave-text'),
-    api=('videobuilder.capabilities.typography.ripple_displacement.draw_ripple_text',
-         'videobuilder.capabilities.typography.ripple_displacement.ripple_offset',
-         'videobuilder.capabilities.typography.ripple_displacement.text_polylines'),
-    demo=lambda: demo.film(draw),
-)

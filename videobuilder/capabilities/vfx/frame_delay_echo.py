@@ -66,7 +66,7 @@ CAPABILITY = Capability(
     family='vfx',
     group='Recursion & feedback',
     aliases=('time echo', 'delayed echo', 'frame echo', 'echo trail', 'ghost trail', 'motion echo',
-             'afterimage trail'),
+             'afterimage trail', 'ghost trail text'),
     definition='Fainter copies of the picture from a few frames back are stacked under the live one, '
                'so a moving subject drags a fading replay of its recent path.',
     phrasings=('make the clip leave ghost copies of itself a few frames behind',

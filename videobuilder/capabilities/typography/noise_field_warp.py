@@ -1,6 +1,10 @@
-"""Noise Field Warp: whatever is drawn inside the warp -- usually a word -- is
-pushed around by a smooth, slowly drifting noise field, so its strokes ripple
-and pool like ink seen through moving water, then settle back to clean."""
+"""Noise Field Warp: the same idea as Turbulence field
+(`../particles/turbulence_displacement.py`), which keeps the capability --
+both shove points around by a smoothly drifting seeded noise force, this one
+pushing whatever is drawn inside the warp, usually a word, so its strokes
+ripple and pool before settling back to clean. This module's own code
+stays (a film may still import it), but it is no longer a capability of its
+own."""
 import math
 import random
 from contextlib import contextmanager
@@ -11,7 +15,8 @@ from PIL import Image
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Capability
+
+MERGED_INTO = 'turbulence-displacement'
 
 
 class Noise:
@@ -128,23 +133,3 @@ def draw(n, cv):
         demo.word(sub, 'flowing through a noise field', demo.W / 2, box.y + box.h + 40, size=34,
                   color=demo.TEAL, weight=700)
     cv.mark('text', x, y, w, h)
-
-
-CAPABILITY = Capability(
-    id='noise-field-warp',
-    name='Noise field warp',
-    family='typography',
-    group='Liquid and organic',
-    aliases=('noise displacement', 'liquid text', 'turbulent displace', 'perlin warp'),
-    definition='Letters are pushed around by a smooth drifting noise pattern, so their strokes ripple '
-               'and bulge like type under moving water before settling.',
-    phrasings=('make the title wobble like it is underwater',
-               'warp the text with a flowing, organic distortion',
-               'the word melts and ripples, then snaps back to normal'),
-    related=('domain-warping', 'noise-vertex-wobble', 'noise-dissolve', 'dot-grid-displacement',
-             'turbulence-displacement', 'arc-bend-morph'),
-    api=('videobuilder.capabilities.typography.noise_field_warp.noise_warp',
-         'videobuilder.capabilities.typography.noise_field_warp.field',
-         'videobuilder.capabilities.typography.noise_field_warp.Noise'),
-    demo=lambda: demo.film(draw),
-)

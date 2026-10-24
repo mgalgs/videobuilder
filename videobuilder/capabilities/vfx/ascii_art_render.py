@@ -101,7 +101,7 @@ CAPABILITY = Capability(
     name='ASCII art render',
     family='vfx',
     group='Pixel & mosaic',
-    aliases=('ASCII filter', 'text-mode image', 'character art effect', 'ASCII shader'),
+    aliases=('ASCII filter', 'text-mode image', 'character art effect', 'ASCII shader', 'ASCII text reveal'),
     definition='An image is rebuilt from rows of typed characters, with heavy symbols standing in for its '
                'bright areas and light dots or blanks for its dark ones.',
     phrasings=('turn the photo into ASCII art made of letters and symbols',

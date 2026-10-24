@@ -1,14 +1,18 @@
-"""Ripple: a wave front spreads out in rings from a point, bending the
-picture like water as it passes, and leaves the next scene behind it."""
+"""Ripple: the same idea as Refraction ripple (`../vfx/refraction_ripple.py`),
+which keeps the capability -- both send a ring of waves out from a point
+that bends the picture like rippled glass as it passes; this one is a
+transition between two scenes rather than a distortion over one. This
+module's own code stays (a film may still import it), but it is no longer a
+capability of its own."""
 import math
 
 import cairo
 from PIL import Image
 
-from .. import _demo as demo
-from ..schema import Capability
 from ...canvas import Canvas
 from ...looks.fx import image_surface, surface_image
+
+MERGED_INTO = 'refraction-ripple'
 
 
 def _offscreen(cv, scene):
@@ -100,21 +104,3 @@ def ripple(cv, a, b, p, center=(0.5, 0.5), wavelength=0.07, amplitude=0.022, rin
             c.set_source_rgba(1, 1, 1, 0.35 * strength)
             c.stroke()
     c.restore()
-
-
-CAPABILITY = Capability(
-    id='ripple',
-    name='Ripple',
-    family='transitions',
-    group='Organic and Fluid',
-    aliases=('ripple dissolve', 'water ripple transition', 'pond ripple'),
-    definition='Rings spread outward from a point like a stone dropped in a pond, warping the picture '
-               'as they pass, and the new scene is left calm behind them.',
-    phrasings=('make the next shot ripple in like water',
-               'drop a pebble in the middle and let the waves carry us to the next scene',
-               'a watery wave transition spreading out from the centre'),
-    related=('refraction-ripple', 'ripple-displacement', 'height-field-ripples', 'ripple-rings',
-             'ridgeline-ripple', 'wave-deformer'),
-    api=('videobuilder.capabilities.transitions.ripple.ripple',),
-    demo=lambda: demo.two_scenes(ripple, seconds=3.5, start=1.85, length=1.4),  # poster (70%) at p ~0.42
-)

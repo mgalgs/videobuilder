@@ -1,10 +1,14 @@
-"""Dither Reveal: text comes in through an ordered (Bayer) dither screen --
-a sparse grid of dots at first, filling in cell by cell in the dither's fixed
-order until the letters are solid."""
+"""Dither Reveal: the same idea as Bayer ordered dithering
+(`../vfx/bayer_ordered_dithering.py`), which keeps the capability -- both
+threshold against the same tiled Bayer matrix (`bayer`), this one sweeping
+the threshold over time so cells fill in until a word is solid. This
+module's own code stays (a film may still import it), but it is no longer a
+capability of its own."""
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Capability
+
+MERGED_INTO = 'bayer-ordered-dithering'
 
 
 def bayer(order=3):
@@ -66,23 +70,3 @@ def draw(n, cv):
     p = demo.phase(n, 0.3, 2.85)
     box = draw_dither_text(cv, text, f, (demo.W - w) / 2, (demo.H - h) / 2, p, demo.INK, cell=10)
     cv.mark('text', *box)
-
-
-CAPABILITY = Capability(
-    id='dither-reveal',
-    name='Dither reveal',
-    family='typography',
-    group='Masking and clipping',
-    aliases=('ordered dither text', 'halftone dissolve in', 'bayer dither reveal'),
-    definition='The words show up as a scattered grid of pixel dots that multiply in a fixed dither order '
-               'until the letters are fully solid.',
-    phrasings=('the title fills in out of a grid of little dots',
-               'text that pixel-dithers in like an old screen',
-               'letters made of dots that get denser until they are solid'),
-    related=('halftone', 'noise-dissolve', 'wipe-reveal', 'pixel-sort-text', 'random-order-character-reveal',
-             'dissolve-to-particles'),
-    api=('videobuilder.capabilities.typography.dither_reveal.dither_reveal',
-         'videobuilder.capabilities.typography.dither_reveal.draw_dither_text',
-         'videobuilder.capabilities.typography.dither_reveal.bayer'),
-    demo=lambda: demo.film(draw),
-)

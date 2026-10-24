@@ -118,7 +118,8 @@ CAPABILITY = Capability(
     name='Motion blur',
     family='vfx',
     group='Blur & focus',
-    aliases=('directional blur', 'linear blur', 'streak blur', 'shutter blur', 'vector motion blur'),
+    aliases=('directional blur', 'linear blur', 'streak blur', 'shutter blur', 'vector motion blur',
+             'shutter-angle blur'),
     definition='Anything moving is smeared along its own path in proportion to its speed, so fast parts '
                'streak while slow or still parts stay crisp.',
     phrasings=('add motion blur so the fast moves look smooth and not choppy',
@@ -127,6 +128,7 @@ CAPABILITY = Capability(
     related=('zoom-blur', 'smear-frame', 'whip-pan', 'tracking-shot', 'blur-dissolve', 'blur-up-image-load'),
     api=('videobuilder.capabilities.vfx.motion_blur.motion_blur',
          'videobuilder.capabilities.vfx.motion_blur.directional_blur',
-         'videobuilder.capabilities.vfx.motion_blur.accumulate'),
+         'videobuilder.capabilities.vfx.motion_blur.accumulate',
+         'videobuilder.capabilities.vfx.accumulation_motion_blur.accumulation_blur'),
     demo=lambda: demo.film(draw),
 )
