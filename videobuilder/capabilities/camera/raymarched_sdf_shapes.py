@@ -75,7 +75,7 @@ def _hex(color):
 
 def render_sdf(scene, width, height, eye=(0.0, 1.2, -6.0), target=(0.0, 0.0, 0.0), fov=40.0,
                light=(-0.5, 0.8, -0.6), color=None, background=demo.BG, floor=-1.0,
-               floor_color='#2a2c33', steps=72, far=30.0):
+               floor_color='#2a2c33', steps=40, far=30.0):
     """Raymarch `scene` to a `width` x `height` PIL image.
 
     `scene(p)` returns signed distances for points `p` = (x, y, z) arrays,
@@ -128,7 +128,7 @@ def render_sdf(scene, width, height, eye=(0.0, 1.2, -6.0), target=(0.0, 0.0, 0.0
         # Soft shadow: how close a ray towards the sun passes to any surface.
         res = np.ones(idx.size)
         s = np.full(idx.size, 0.05)
-        for _ in range(28):
+        for _ in range(14):
             p = tuple(origin[i] + sun[i] * s for i in range(3))
             d = scene(p)
             res = np.minimum(res, 8 * d / s)
@@ -165,7 +165,7 @@ def render_sdf(scene, width, height, eye=(0.0, 1.2, -6.0), target=(0.0, 0.0, 0.0
         nrm = [c / ln for c in nrm]
         # Ambient occlusion: how much nearby surface crowds in along the normal.
         occ = np.zeros(idx.size)
-        for j in range(1, 5):
+        for j in range(1, 4):
             h = 0.06 * j
             d = scene(tuple(p[i] + nrm[i] * h for i in range(3)))
             occ += (h - d) / (2 ** j)
@@ -192,7 +192,7 @@ def render_sdf(scene, width, height, eye=(0.0, 1.2, -6.0), target=(0.0, 0.0, 0.0
     return PILImage.fromarray(pixels, 'RGB')
 
 
-def draw_sdf(cv, scene, x, y, w, h, max_res=640, **kw):
+def draw_sdf(cv, scene, x, y, w, h, max_res=420, **kw):
     """Raymarch `scene` into the box (x, y, w, h) of `cv`. It renders at the
     box's on-screen pixel size, capped at `max_res` wide, and is stretched
     to fit; `kw` passes to `render_sdf` (camera, light, colour, floor)."""
