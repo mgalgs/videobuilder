@@ -202,7 +202,7 @@ class FamilyPage(unittest.TestCase):
         page = capabilities.family_page_html('principles', None, '0').decode()
         data = json.loads(re.search(r'<script id="registry-data" type="application/json">(.*?)</script>',
                                     page, re.S).group(1))
-        entry = next(t for t in data if t['id'] == 'ease-out-back')
+        entry = next(t for t in data if t['id'] == 'air-drag')
         self.assertEqual(entry['familyTitle'], 'Animation principles')
 
     def test_group_heading_and_modal_group_say_capability(self):
@@ -312,6 +312,8 @@ class RoutesWithClip(fixtures.API):
         self.addCleanup(self.cap_tmp.cleanup)
         Path(self.cap_tmp.name, 'ease-out-back.mp4').write_bytes(b'0123456789')
         Path(self.cap_tmp.name, 'ease-out-back.jpg').write_bytes(b'\xff\xd8\xffposter\xff\xd9')
+        Path(self.cap_tmp.name, 'air-drag.mp4').write_bytes(b'0123456789')
+        Path(self.cap_tmp.name, 'air-drag.jpg').write_bytes(b'\xff\xd8\xffposter\xff\xd9')
         self.start(capabilities_dir=self.cap_tmp.name)
 
     def test_poster_and_clip_served(self):
@@ -332,7 +334,7 @@ class RoutesWithClip(fixtures.API):
         self.assertEqual(code, 200)
         data = json.loads(re.search(rb'<script id="registry-data" type="application/json">(.*?)</script>',
                                     page, re.S).group(1))
-        entry = next(t for t in data if t['id'] == 'ease-out-back')
+        entry = next(t for t in data if t['id'] == 'air-drag')
         self.assertTrue(entry['available'])
 
 
