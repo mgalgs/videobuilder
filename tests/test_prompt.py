@@ -308,7 +308,7 @@ class RequestedCapabilitiesSettingsLines(unittest.TestCase):
         items = [{'id': 'x', 'name': 'X', 'definition': 'A thing.', 'api': [],
                  'settings': (Choice('voice', 'Voice', options=(Option('A', 'a'), Option('B', 'b')), default='a'),),
                  'values': {'voice': 'b'}}]
-        self.assertIn('  - voice: b (Voice)', prompt._requested_capabilities_lines(items))
+        self.assertIn('  - voice: b (B)', prompt._requested_capabilities_lines(items))
 
 
 class PinGuidance(unittest.TestCase):

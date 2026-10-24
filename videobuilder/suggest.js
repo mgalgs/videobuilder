@@ -108,6 +108,7 @@ let shown = [], dismissed = false, timer = 0, inflight = null, programmatic = fa
 let hiddenNote = 0, seqCounter = 0, lastSeq = 0, modelOn = null, sentText = null;
 let pickedCapIds = []; // ids picked from a suggestion, in pick order (a chip the creator can remove)
 let capValues = {}; // id -> {settingId: value}, only entries that differ from that setting's own default
+let capCardsKey = null; // the chip ids the cards below them were last built for
 
 function currentVideo() { return typeof state !== 'undefined' ? state.video : null }
 function currentClip() { return typeof tlNoteClip === 'function' ? tlNoteClip() : null }
@@ -291,7 +292,11 @@ function renderCapChips() {
   if (!capChips) return;
   const ids = capChipIds();
   capChips.replaceChildren();
-  if (capCards) capCards.replaceChildren();
+  // Rebuilding a card on every keystroke would cut off a voice sample mid-play
+  // and reset the card's scroll, so cards are rebuilt only when the chips change.
+  const cardKey = ids.map(id => id + (CAPS[id] ? '' : '?')).join(' ');
+  const rebuildCards = capCards && cardKey !== capCardsKey;
+  if (rebuildCards) { capCards.replaceChildren(); capCardsKey = cardKey }
   for (const id of ids) {
     const cap = CAPS[id];
     const typedOnly = !pickedCapIds.includes(id);
@@ -307,7 +312,7 @@ function renderCapChips() {
     capChips.append(c);
     // A chip whose capability declares settings (narration's voice/speed, say) gets
     // its own card, stacked below the chip row in the same order as the chips.
-    if (cap && cap.settings && cap.settings.length && capCards && window.SettingsCard) {
+    if (rebuildCards && cap && cap.settings && cap.settings.length && window.SettingsCard) {
       const card = el('div', 'sg-capcard');
       window.SettingsCard.render(card, cap.settings, capValues[id] || {}, values => {
         capValues[id] = settingsValuesDiff(cap.settings, values);
@@ -586,7 +591,7 @@ async function start() {
   noteCapabilityIds = capChipEntries;
   restorePickedCapIds = entries => {
     pickedCapIds = [...new Set((entries || []).map(e => typeof e === 'string' ? e : e.id))];
-    capValues = {};
+    capValues = {}; capCardsKey = null;
     for (const e of entries || []) if (e && typeof e === 'object' && e.settings) capValues[e.id] = {...e.settings};
   };
   // Loaded eagerly (not only once the model/debounce asks for it): a typed #id becomes

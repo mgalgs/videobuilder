@@ -165,8 +165,9 @@ def _requested_capabilities_lines(items):
             lines.append(f"  - api: {api}")
         for s in c['settings']:
             if s.id in c['values']:
-                suffix = f' ({s.label})' if isinstance(s, Choice) else ''
-                lines.append(f"  - {s.id}: {c['values'][s.id]}{suffix}")
+                value = c['values'][s.id]
+                label = next((o.label for o in s.options if o.value == value), None) if isinstance(s, Choice) else None
+                lines.append(f"  - {s.id}: {value}" + (f' ({label})' if label else ''))
     return lines
 
 
