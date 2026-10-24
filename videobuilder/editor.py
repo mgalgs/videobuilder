@@ -879,8 +879,11 @@ class Editor:
         except (ValueError, KeyError) as exc:
             raise HTTPError(400, str(exc)) from None
         note_assets = _note_assets(body, self.music)
-        music_attachments = _attach_music(self.attachments, self.music, vid, note_assets['music'],
-                                          attachments, self.attachments.max_files, self.attachments.max_message)
+        music_attachments, over_budget = _attach_music(self.attachments, self.music, vid, note_assets['music'],
+                                                       attachments, self.attachments.max_files,
+                                                       self.attachments.max_message)
+        if over_budget:
+            note_assets['music_over_budget'] = over_budget  # the prompt says why these are missing
         attachments = dedupe_names(attachments + music_attachments) if music_attachments else attachments
         with self.lock:
             info = s.request('info')
@@ -982,8 +985,11 @@ class Editor:
         extra = film_setup.note_lines(film_setup.read_details(Path(self.project.video(vid).path).parent))
         note_capabilities = _note_capabilities(body)
         note_assets = _note_assets(body, self.music)
-        music_attachments = _attach_music(self.attachments, self.music, vid, note_assets['music'], attachments,
-                                          self.attachments.start_video_max_files, self.attachments.start_video_max_message)
+        music_attachments, over_budget = _attach_music(self.attachments, self.music, vid, note_assets['music'],
+                                                       attachments, self.attachments.start_video_max_files,
+                                                       self.attachments.start_video_max_message)
+        if over_budget:
+            note_assets['music_over_budget'] = over_budget  # the prompt says why these are missing
         attachments = dedupe_names(attachments + music_attachments) if music_attachments else attachments
         s = self.session(vid)
         info = s.request('info')
@@ -1194,41 +1200,49 @@ def _attach_music(attachments, music, vid, music_ids, existing, max_files, max_m
     track -- tagged `music_track` with the id it came from, so the prompt can
     point at the attachment by name instead of a bare id (see prompt.
     _resolved_assets). Called once, here, outside any lock, before the note
-    is stored; a track that no longer resolves, or whose fetch fails, is
-    simply left off the returned list -- the id stays in the note's own
-    `music` field, and the prompt says that pick could not be fetched.
-    `existing` is the note's already-validated attachments (see
-    Attachments.validate); `max_files`/`max_message` are the same budget it
-    was validated against, which a track count no client list is trusted
-    against (_note_assets drops only unknown ids) could otherwise bypass --
-    a track pushing past either budget is left off exactly like a failed
-    fetch, and swept later by Attachments.expire since the note never
-    references it."""
+    is stored. Returns (attachment records, over-budget ids). A track that
+    no longer resolves, or whose fetch fails, is simply left off the
+    records -- the id stays in the note's own `music` field, and the prompt
+    says that pick could not be fetched. `existing` is the note's
+    already-validated attachments (see Attachments.validate);
+    `max_files`/`max_message` are the same budget it was validated against,
+    which a track count no client list is trusted against (_note_assets
+    drops only unknown ids) could otherwise bypass -- a track pushing past
+    either budget, or past the per-file limit (TooLarge), is left off too,
+    but its id is returned among the over-budget ones (stored as the note's
+    `music_over_budget`), so the prompt says it was over budget rather than
+    unfetchable; one already uploaded is swept later by Attachments.expire
+    since the note never references it."""
     if not music_ids:
-        return []
+        return [], []
     from . import music as music_module
     catalog = music_module.catalog(music)
-    out = []
+    out, over = [], []
     count = len(existing)
     total = sum(x['size'] for x in existing)
     for id_ in music_ids:
-        if count >= max_files:
-            break
         hit = catalog.get(id_)
         if hit is None:
+            continue
+        if count >= max_files:
+            over.append(id_)
             continue
         source, track = hit
         try:
             record = music_module.attach_track(attachments, vid, source['license'], track,
                                                extra_fields={'music_track': id_})
+        except music_module.TooLarge:
+            over.append(id_)
+            continue
         except (ValueError, music_module.FetchError):
             continue
         if total + record['size'] > max_message:
+            over.append(id_)
             continue
         count += 1
         total += record['size']
         out.append(record)
-    return out
+    return out, over
 
 
 def _note_links(text, explicit):

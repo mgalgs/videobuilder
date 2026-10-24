@@ -180,10 +180,12 @@ def _resolved_assets(note, music):
     An id that no longer resolves (a changed catalog) is dropped silently,
     the same way `resolve_requested` drops one for a capability. `sfx` items
     are `sfx.Effect`s; `fonts` items are fonts.get's plain dicts. `music`
-    items are (source, track, attachment) triples, `source` one of `music.
-    list_sources()`'s own {id, name, license} dicts and `attachment` the
-    note's own attachment record this pick reached the builder as (see
-    editor._attach_music), or None when its fetch failed."""
+    items are (source, track, attachment, over_budget) tuples, `source` one
+    of `music.list_sources()`'s own {id, name, license} dicts, `attachment`
+    the note's own attachment record this pick reached the builder as (see
+    editor._attach_music), or None when it didn't, and `over_budget` true
+    when that was because it would exceed the note's attachment limits
+    (`note['music_over_budget']`) rather than a failed fetch."""
     from . import fonts as fonts_module
     from . import sfx as sfx_module
     from . import music as music_module
@@ -204,10 +206,11 @@ def _resolved_assets(note, music):
     if music and note_music:
         by_id = music_module.catalog(music)
         attached = {a['music_track']: a for a in (note.get('attachments') or []) if a.get('music_track')}
+        over_budget = set(note.get('music_over_budget') or ())
         for id_ in note_music:
             if id_ in by_id:
                 source, t = by_id[id_]
-                music_out.append((source, t, attached.get(id_)))
+                music_out.append((source, t, attached.get(id_), id_ in over_budget))
     return fonts_out, sfx_out, music_out
 
 
@@ -241,11 +244,15 @@ def _requested_assets_lines(fonts_items, sfx_items, music_items):
         lines += [f"- `{e.id}`: {e.role} ({e.family}). {e.about}" for e in sfx_items]
     if music_items:
         lines += ['', 'Music:']
-        for source, t, attachment in music_items:
+        for source, t, attachment, over_budget in music_items:
             tags = ', '.join(t.get('tags', ()))
             header = f"\"{t['title']}\" ({source['name']}" + (f"; {tags}" if tags else '') + ')'
             if attachment:
                 lines.append(f"- {header}: use /attachments/{attachment['name']} as this track.")
+            elif over_budget:
+                lines.append(f"- {header}: left off because it would exceed this note's attachment limits, "
+                             "so it is not among the attachments; report it as a shortfall rather than "
+                             "substituting a different track.")
             else:
                 lines.append(f"- {header}: could not be fetched, so it is not among the attachments; "
                              "report it as a shortfall rather than substituting a different track.")

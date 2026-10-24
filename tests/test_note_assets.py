@@ -203,5 +203,42 @@ class MusicAttach(TempProject):
         self.assertEqual(sorted(note['music']), ['track-1', 'track-2'])
 
 
+    def test_a_pick_over_the_file_limit_is_reported_as_over_budget_not_unfetched(self):
+        (self.root / 'videobuilder.toml').write_text('[editor]\nattachment_max_files = 1\n')
+        other = b'ID3' + b'\x00' * 7 + b'different fake mp3 bytes'
+        self.server.routes['/track2.mp3'] = (other, 'audio/mpeg')
+        track1 = {'id': 'track-1', 'title': 'One', 'audio_url': self.server.base + '/track.mp3', 'tags': []}
+        track2 = {'id': 'track-2', 'title': 'Two', 'audio_url': self.server.base + '/track2.mp3', 'tags': []}
+        editor = self._editor([track1, track2])
+        note = editor.add_note(dict(video='promo/film', frame=0, text='Add music',
+                                    music=['track-1', 'track-2']), 'reviewer')
+        self.assertEqual(note['music_over_budget'], ['track-2'])
+        from videobuilder import prompt
+        md = prompt.render(note, note, None, music=editor.music)
+        self.assertIn('use /attachments/One.mp3 as this track.', md)
+        self.assertIn('"Two" (Test Music): left off because it would exceed this note\'s attachment limits', md)
+        self.assertNotIn('could not be fetched', md)
+
+    def test_a_pick_over_the_message_size_limit_is_reported_as_over_budget(self):
+        track = {'id': 'track-1', 'title': 'Theme', 'audio_url': self.server.base + '/track.mp3', 'tags': []}
+        editor = self._editor([track])
+        editor.attachments.max_message = len(self.TRACK_MP3) - 1
+        note = editor.add_note(dict(video='promo/film', frame=0, text='Add music', music=['track-1']), 'reviewer')
+        self.assertFalse([a for a in note['attachments'] if a.get('music_track')])
+        self.assertEqual(note['music_over_budget'], ['track-1'])
+        from videobuilder import prompt
+        md = prompt.render(note, note, None, music=editor.music)
+        self.assertIn("left off because it would exceed this note's attachment limits", md)
+        self.assertNotIn('could not be fetched', md)
+
+    def test_a_failed_fetch_is_not_marked_over_budget(self):
+        editor = self._editor([TRACK])  # TRACK's audio_url is a closed local port
+        note = editor.add_note(dict(video='promo/film', frame=0, text='Add music', music=['track-1']), 'reviewer')
+        self.assertNotIn('music_over_budget', note)
+        from videobuilder import prompt
+        md = prompt.render(note, note, None, music=editor.music)
+        self.assertIn('could not be fetched', md)
+        self.assertNotIn('attachment limits', md)
+
 if __name__ == '__main__':
     unittest.main()
