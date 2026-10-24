@@ -10,6 +10,7 @@ CAPABILITY = Capability(
     group='Hand-drawn & traditional',
     category='Motion',
     order=12,
+    aliases=('whiteboard animation', 'sketch explainer'),
     definition='A whiteboard diagram drawn stroke by stroke, pen tracked by camera.',
     description=('A small whiteboard diagram -- boxes, arrows, an icon, handwritten-looking labels -- '
                  'draws on stroke by stroke with a little hand jitter, the camera tracking the pen across '
@@ -19,7 +20,9 @@ CAPABILITY = Capability(
                'Give the lines a bit of hand-drawn wobble, not perfectly straight'),
     api=('videobuilder.paths.reveal(points, fraction)',
          'videobuilder.paths.jitter(points, seed)',
-         'cv.layer(dx=.., dy=.., scale=..)  # the tracking camera'),
+         'cv.layer(dx=.., dy=.., scale=..)  # the tracking camera',
+         'videobuilder.capabilities.broadcast.whiteboard_marker_drawing.draw_marker(cv, x, y)'
+         '  # the drawing hand holding the marker'),
     doc='skill/make-a-video/reference/api.md',
     demo=Example('examples/capabilities/drawn-on-diagram.py'),
     source=Source('https://x.com/voxyz_ai/status/2109690569563746755',

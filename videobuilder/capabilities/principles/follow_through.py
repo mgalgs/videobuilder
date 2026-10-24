@@ -63,7 +63,7 @@ CAPABILITY = Capability(
     name='Follow Through',
     family='principles',
     group='Classic principles',
-    aliases=('follow-through', 'drag and follow-through', 'overlapping action'),
+    aliases=('follow-through', 'drag and follow-through', 'overlapping action', 'secondary lag'),
     definition='When a moving thing comes to a stop, its loose bits (a tail, hair, an antenna) '
                'carry on past it, swing back and settle a beat later.',
     phrasings=('it stops but the antenna keeps wobbling',
@@ -71,6 +71,7 @@ CAPABILITY = Capability(
                'the floppy parts should keep going after the body stops'),
     related=('chain-follow-through', 'tracking-shot', 'path-follow-motion', 'fly-through', 'cut-on-action',
              'dolly-in-and-out'),
-    api=('videobuilder.capabilities.principles.follow_through.follow_through',),
+    api=('videobuilder.capabilities.principles.follow_through.follow_through',
+         'videobuilder.capabilities.principles.overlapping_action.overlapping_action'),
     demo=lambda: demo.film(draw),
 )

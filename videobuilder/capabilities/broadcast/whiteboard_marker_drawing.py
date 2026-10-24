@@ -1,12 +1,18 @@
-"""Whiteboard marker drawing: a hand holding a marker draws a diagram on a
-white board, stroke after stroke, the ink trailing the pen nib as it goes."""
+"""Whiteboard marker drawing: the same idea as Drawn-on diagram
+(`../shapes/drawn_on_diagram.py`), which keeps the capability -- both draw
+a whiteboard diagram stroke by stroke with paths.reveal plus paths.jitter:
+a hand holding a marker draws a diagram on a white board, stroke after
+stroke, the ink trailing the pen nib as it goes. This module's own code
+stays (a film may still import it), but it is no longer a capability of
+its own."""
 import math
 
 import videobuilder as vb
 
 from ... import paths
 from .. import _demo as demo
-from ..schema import Capability
+
+MERGED_INTO = 'drawn-on-diagram'
 
 BOARD = '#eef0f1'
 MARKER_INK = '#1c1d22'
@@ -120,25 +126,3 @@ def draw(n, cv):
     cv.rect(60, 50, demo.W - 120, demo.H - 100, BOARD, radius=14)
     cv.mark('board', 60, 50, demo.W - 120, demo.H - 100)
     marker_drawing(cv, DIAGRAM, demo.phase(n, 0.15, 2.6), width=3.5, scale=1.3)
-
-
-CAPABILITY = Capability(
-    id='whiteboard-marker-drawing',
-    name='Whiteboard marker drawing',
-    family='broadcast',
-    group='Explainers',
-    aliases=('whiteboard animation', 'sketch explainer', 'hand-drawn sketch reveal', 'sketch reveal',
-             'drawing hand overlay', 'hand cursor drawing'),
-    definition='A hand holding a marker draws a diagram on a white board line by line, '
-               'the ink appearing right behind the pen tip.',
-    phrasings=('show a hand drawing the diagram on a whiteboard',
-               'make it look like someone is sketching the explainer with a marker',
-               'the chart draws itself as a pen moves across a white board'),
-    related=('highlighter-swipe', 'pencil-sketch', 'frame-by-frame-hand-drawn-animation', 'line-draw-logo-reveal',
-             'flash-cut', 'stroke-draw-on'),
-    api=('videobuilder.capabilities.broadcast.whiteboard_marker_drawing.marker_drawing',
-         'videobuilder.capabilities.broadcast.whiteboard_marker_drawing.draw_marker',
-         'videobuilder.paths.reveal',
-         'videobuilder.paths.jitter'),
-    demo=lambda: demo.film(draw),
-)

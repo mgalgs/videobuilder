@@ -1,12 +1,17 @@
-"""Volume Preservation: when a shape squashes or stretches along one axis it
-gives the amount back on the other, so it never looks like it grew or shrank,
-only that it changed shape."""
+"""Volume Preservation: the rule Squash and Stretch (`squash_and_stretch.py`,
+which keeps the capability) is built on -- keeping the area constant while
+stretching and squashing: when a shape squashes or stretches along one
+axis it gives the amount back on the other, so it never looks like it
+grew or shrank, only that it changed shape. This module's own code stays
+(a film may still import it), but it is no longer a capability of its
+own."""
 import math
 
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Capability
+
+MERGED_INTO = 'squash-and-stretch'
 
 
 def preserve_volume(stretch, dims=2):
@@ -42,20 +47,3 @@ def draw(n, cv):
     cv.mark('blob', cx - w, ground - 2 * h, 2 * w, 2 * h)
     demo.word(cv, f'width {sx:.2f}  ×  height {sy:.2f}  =  1.00', cx, 64, size=28,
               color=demo.INK, font=demo.mono(28))
-
-
-CAPABILITY = Capability(
-    id='volume-preservation',
-    name='Volume Preservation',
-    family='principles',
-    group='Principle sub-capabilities',
-    aliases=('constant volume', 'area preservation', 'mass conservation'),
-    definition='A shape that gets thinner as it stretches and wider as it squashes, so its overall size '
-               'stays the same while its proportions change.',
-    phrasings=('squash it without making it look bigger or smaller',
-               'when it stretches tall it should get skinnier',
-               'keep the ball the same amount of stuff as it deforms'),
-    related=('squash-and-stretch', 'circle-packing', 'extrusion', 'solid-drawing', 'wobble', 'morphing-blob'),
-    api=('videobuilder.capabilities.principles.volume_preservation.preserve_volume',),
-    demo=lambda: demo.film(draw),
-)

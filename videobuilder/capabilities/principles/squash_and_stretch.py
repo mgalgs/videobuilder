@@ -120,7 +120,7 @@ CAPABILITY = Capability(
     name='Squash and Stretch',
     family='principles',
     group='Classic principles',
-    aliases=('squash & stretch', 'volume squash'),
+    aliases=('squash & stretch', 'volume squash', 'constant volume', 'area preservation'),
     definition='A moving body grows long and thin along its path while it travels fast and goes short and '
                'wide when it lands, trading width for height so it seems to hold the same amount of stuff.',
     phrasings=('make the ball flatten when it hits the ground and stretch out as it falls',

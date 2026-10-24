@@ -155,8 +155,11 @@ def _all():
         if final not in loaded:
             raise ValueError(f'{old}: MERGED_INTO names {final!r}, which is not a capability')
         picked_up.setdefault(final, []).append(old)
-    return tuple(dataclasses.replace(t, old_ids=t.old_ids + tuple(picked_up[t.id]))
-                if t.id in picked_up else t for t in loaded.values())
+    out = []
+    for t in loaded.values():
+        new = tuple(o for o in picked_up.get(t.id, ()) if o not in t.old_ids)  # a record may already carry one by hand
+        out.append(dataclasses.replace(t, old_ids=t.old_ids + new) if new else t)
+    return tuple(out)
 
 
 def catalog(family=None):

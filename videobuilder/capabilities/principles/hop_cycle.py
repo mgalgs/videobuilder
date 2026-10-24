@@ -1,11 +1,16 @@
-"""Hop Cycle: a body that hops in place over and over -- it crouches into the
-floor, springs up stretched tall, rounds out at the top of its arc, falls
-stretched again and squashes as it lands into the next crouch."""
+"""Hop Cycle: a hop with crouch, stretch, squash and settle, which is what
+Character motion (`character_motion.py`, which keeps the capability)
+demos by hand -- a body that hops in place over and over: it crouches
+into the floor, springs up stretched tall, rounds out at the top of its
+arc, falls stretched again and squashes as it lands into the next crouch.
+This module's own code stays (a film may still import it), but it is no
+longer a capability of its own."""
 import math
 from collections import namedtuple
 
 from .. import _demo as demo
-from ..schema import Capability
+
+MERGED_INTO = 'character-motion'
 
 Hop = namedtuple('Hop', 'lift sx sy')
 Hop.__doc__ = """One moment of a hop: `lift` is the height off the floor as a
@@ -55,21 +60,3 @@ def draw(n, cv):
     demo.dot(cv, 0, 0, R)
     cv.ctx.restore()
     cv.mark('ball', cx - rx, cy - ry, 2 * rx, 2 * ry)
-
-
-CAPABILITY = Capability(
-    id='hop-cycle',
-    name='Hop Cycle',
-    family='principles',
-    group='Cycles & loops',
-    aliases=('hopping loop', 'bounce cycle', 'jump cycle'),
-    definition='A looping hop in place: the body crouches and squashes, springs up stretched, rounds out '
-               'at the top, then falls and squashes on landing to start the next hop.',
-    phrasings=('make it keep hopping up and down on the spot',
-               'a little bouncing loop with squash and stretch',
-               'have the ball jump over and over like it is excited'),
-    related=('steps-easing', 'rotating-polygon-loop', 'geometric-loop', 'cyclic-cellular-automaton',
-             'hopalong-attractor', 'cycle-diagram-rotation'),
-    api=('videobuilder.capabilities.principles.hop_cycle.hop_cycle',),
-    demo=lambda: demo.film(draw),
-)

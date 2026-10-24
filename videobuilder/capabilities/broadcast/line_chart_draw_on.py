@@ -1,6 +1,9 @@
-"""Line chart draw-on: a data line grows left to right across ruled axes, a
-soft fill rising under it and each point's marker and value popping in as the
-line's head passes."""
+"""Line chart draw-on: the core of Self-drawing line chart with a callout
+(`line_chart_callout.py`, which keeps the capability): a data line grows
+left to right across ruled axes, a soft fill rising under it and each
+point's marker and value popping in as the line's head passes. This
+module's own code stays (a film may still import it), but it is no longer
+a capability of its own."""
 import math
 
 import cairo
@@ -9,7 +12,8 @@ import videobuilder as vb
 from videobuilder import paths
 
 from .. import _demo as demo
-from ..schema import Capability
+
+MERGED_INTO = 'line-chart-callout'
 
 
 def chart_points(box, values, lo=None, hi=None):
@@ -110,23 +114,3 @@ def draw(n, cv):
     p = demo.phase(n, 0.3, 2.5)
     tip = draw_line_chart(cv, box, VALUES, p * p * (3 - 2 * p), lo=0, hi=100)
     cv.mark('tip', tip[0] - 8, tip[1] - 8, 16, 16)
-
-
-CAPABILITY = Capability(
-    id='line-chart-draw-on',
-    name='Line chart draw-on',
-    family='broadcast',
-    group='Charts',
-    aliases=('line draw', 'trend line reveal', 'animated line graph'),
-    definition='A data line sweeps across a chart from left to right, plotting each value in turn so the '
-               'trend unfolds as you watch.',
-    phrasings=('animate the graph line drawing itself across the chart',
-               'have the trend line grow from the first data point to the last',
-               'reveal the line chart point by point from left to right'),
-    related=('stroke-draw-on', 'line-draw-logo-reveal', 'streamlines', 'map-route-draw', 'line-weave',
-             'virtual-first-down-line'),
-    api=('videobuilder.capabilities.broadcast.line_chart_draw_on.draw_line_chart',
-         'videobuilder.capabilities.broadcast.line_chart_draw_on.reveal_x',
-         'videobuilder.capabilities.broadcast.line_chart_draw_on.chart_points'),
-    demo=lambda: demo.film(draw),
-)

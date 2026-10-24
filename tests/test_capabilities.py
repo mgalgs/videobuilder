@@ -124,7 +124,8 @@ class Families(unittest.TestCase):
                 self.assertEqual(child.doc, 'skill/make-a-video/reference/type.md')
                 self.assertEqual(child.demo.path, f"examples/capabilities/type-{style}.py")
                 self.assertTrue(any(f"vb.type.draw(cv, '{style}'" in api for api in child.api))
-                self.assertEqual(len(child.phrasings), 3)
+                # Usually 3; type-split-flap carries split-flap-display's own phrasings too (merges.json).
+                self.assertGreaterEqual(len(child.phrasings), 3)
 
     def test_every_type_demo_takes_the_same_props(self):
         props = set()
@@ -250,19 +251,19 @@ class GeneralMembers(unittest.TestCase):
 
     def test_a_grouper_in_a_shared_section_is_one_card_among_the_rest(self):
         before = _section(capabilities.page_html(None, 'v').decode(), 'Timing, sound and formats')
-        with _Regrouped('narration', ['voiceover']):
+        with _Regrouped('narration', ['sonic-logo']):
             page = capabilities.page_html(None, 'v').decode()
             section = _section(page, 'Timing, sound and formats')
             for i in ('beat-lock', 'footage-with-sound', 'sound-effects', 'every-format', 'narration',
-                      'voiceover'):
+                      'sonic-logo'):
                 self.assertIn(f'data-card="{i}"', section, i)
             self.assertIn('href="/capabilities/sound"', section)
             self.assertIsNone(capabilities.section_owner('Timing, sound and formats'))
             self.assertIn('Timing, sound and formats', capabilities.loose_categories())
-            self.assertEqual(capabilities.category(capabilities.get('voiceover')), 'Timing, sound and formats')
+            self.assertEqual(capabilities.category(capabilities.get('sonic-logo')), 'Timing, sound and formats')
             from videobuilder import suggest
             ids = {i for i, _ in suggest._capability_docs()}
-            self.assertLessEqual({'narration', 'voiceover'}, ids)
+            self.assertLessEqual({'narration', 'sonic-logo'}, ids)
         self.assertEqual(_section(capabilities.page_html(None, 'v').decode(), 'Timing, sound and formats'), before)
 
     def test_the_editor_picker_lists_a_grouper_in_a_shared_section_and_its_members(self):
@@ -278,7 +279,7 @@ class GeneralMembers(unittest.TestCase):
             data = video_api._get_suggest_catalog(Handler(), None, {}, Editor(), None)
             return [c['id'] for c in data['capabilities']], data
         before, _ = picker_ids()
-        with _Regrouped('narration', ['voiceover']):
+        with _Regrouped('narration', ['sonic-logo']):
             after, data = picker_ids()
             self.assertEqual(sorted(after), sorted(before))
             self.assertNotIn('looks', after)
@@ -291,27 +292,27 @@ class GeneralMembers(unittest.TestCase):
             return {e['id']: e for e in json.loads(m.group(1))}
         data = page_data()
         self.assertTrue(data['looks'].get('lead') and data['type'].get('lead'))
-        with _Regrouped('narration', ['voiceover']):
+        with _Regrouped('narration', ['sonic-logo']):
             data = page_data()
             self.assertEqual(data['narration']['members'], 1)
             self.assertFalse(data['narration'].get('lead'))
 
     def test_the_sheet_takes_a_record_whose_demo_is_its_own_film(self):
-        with _Regrouped('narration', ['voiceover']):
+        with _Regrouped('narration', ['sonic-logo']):
             sheet = capabilities.sheet_markdown()
-            self.assertIn('Example: `videobuilder/capabilities/sound/voiceover.py`', sheet)
-        with _Regrouped('voiceover', None, category='Timing, sound and formats'):
+            self.assertIn('Example: `videobuilder/capabilities/sound/sonic_logo.py`', sheet)
+        with _Regrouped('sonic-logo', None, category='Timing, sound and formats'):
             sheet = capabilities.sheet_markdown()
-            self.assertIn('**Worked example:** `videobuilder/capabilities/sound/voiceover.py`', sheet)
+            self.assertIn('**Worked example:** `videobuilder/capabilities/sound/sonic_logo.py`', sheet)
             self.assertNotIn('Read ``', sheet)
 
     def test_a_member_of_a_grouper_with_no_card_stays_on_its_family_page(self):
-        with _Regrouped('ambience', ['voiceover']):
-            self.assertFalse(capabilities.has_card(capabilities.get('voiceover')))
-            self.assertNotIn('voiceover', {t.id for t in capabilities.cards()})
-            self.assertIn('voiceover', {t.id for t in capabilities._family_members('sound')})
+        with _Regrouped('ambience', ['sonic-logo']):
+            self.assertFalse(capabilities.has_card(capabilities.get('sonic-logo')))
+            self.assertNotIn('sonic-logo', {t.id for t in capabilities.cards()})
+            self.assertIn('sonic-logo', {t.id for t in capabilities._family_members('sound')})
             from videobuilder import suggest
-            self.assertIn('voiceover', {i for i, _ in suggest._capability_docs()})
+            self.assertIn('sonic-logo', {i for i, _ in suggest._capability_docs()})
 
     def test_looks_and_type_keep_their_sections_to_themselves(self):
         self.assertEqual(capabilities.section_owner('Looks').id, 'looks')

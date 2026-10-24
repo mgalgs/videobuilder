@@ -10,6 +10,7 @@ CAPABILITY = Capability(
     group='Charts',
     category='Type and data',
     order=7,
+    aliases=('trend line reveal', 'animated line graph'),
     definition='Axes first, the line draws itself on, then one point is called out.',
     description=('Honest axes appear first, then every series draws itself on along its own path -- the '
                  'background series in grey, only the hero series in colour -- and once it lands, one '
@@ -19,7 +20,10 @@ CAPABILITY = Capability(
                'Keep the other lines grey, only highlight the hero line',
                'Call out the final point with a dot and a short label'),
     api=('videobuilder.paths.reveal(points, fraction)',
-         'videobuilder.paths.draw(cv, points, colour, width=...)'),
+         'videobuilder.paths.draw(cv, points, colour, width=...)',
+         'videobuilder.capabilities.broadcast.line_chart_draw_on.draw_line_chart(cv, box, values, progress)',
+         'videobuilder.capabilities.broadcast.line_chart_draw_on.reveal_x(points, progress)',
+         'videobuilder.capabilities.broadcast.line_chart_draw_on.chart_points(box, values)'),
     doc='skill/make-a-video/reference/api.md',
     demo=Example('examples/capabilities/line-chart-callout.py'),
     source=Source('https://x.com/voxyz_ai/status/2109690569563746755',

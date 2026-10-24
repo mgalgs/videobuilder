@@ -1,10 +1,15 @@
-"""Overlapping Action: the parts of one thing don't move as a block. The lead
-part stops crisply while the parts hanging off it start a beat later, swing
-past the stop and settle on their own time."""
+"""Overlapping Action: the same classic principle as Follow Through
+(`follow_through.py`, which keeps the capability) -- loose parts trail,
+swing past and settle after the body stops. The parts of one thing don't
+move as a block: the lead part stops crisply while the parts hanging off
+it start a beat later, swing past the stop and settle on their own time.
+This module's own code stays (a film may still import it), but it is no
+longer a capability of its own."""
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Capability
+
+MERGED_INTO = 'follow-through'
 
 
 def overlapping_action(t, i, parts, lag=0.06, hz=1.6, lead=1.0, tail=0.3):
@@ -35,21 +40,3 @@ def draw(n, cv):
     demo.card(cv, xs[0], top, w=180, h=110)
     left, right = min(x for x, _ in pts), max(x for x, _ in pts)
     cv.mark('tassel', left - 22, top - 55, right - left + 44, pts[-1][1] - top + 77)
-
-
-CAPABILITY = Capability(
-    id='overlapping-action',
-    name='Overlapping Action',
-    family='principles',
-    group='Classic principles',
-    aliases=('follow through and overlapping action', 'drag', 'follow-through', 'secondary lag'),
-    definition='The parts of one moving thing travel out of step: the main body stops cleanly while the '
-               'looser parts attached to it trail behind, swing past and settle a moment later.',
-    phrasings=('the main shape stops but the bits hanging off it keep swinging',
-               'make the tail lag behind and catch up after it lands',
-               'give the parts a bit of drag so they don\'t all move at once'),
-    related=('offset', 'interruptible-motion', 'delay', 'cut-on-action', 'shape-boolean-merge', 'jump-cut'),
-    api=('videobuilder.capabilities.principles.overlapping_action.overlapping_action', 'videobuilder.spring',
-         'videobuilder.damped'),
-    demo=lambda: demo.film(draw),
-)

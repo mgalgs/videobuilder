@@ -1,7 +1,7 @@
 """Word-timed captions: built from videobuilder's own API, so this record only names it and demos it
 with its worked example film, `examples/capabilities/word-timed-captions.py` (an `Example` demo: see
 schema.py)."""
-from ..schema import Capability, Example, Source
+from ..schema import Capability, Example, Members, Source
 
 CAPABILITY = Capability(
     id='word-timed-captions',
@@ -10,6 +10,8 @@ CAPABILITY = Capability(
     group='Lyrics and captions',
     category='Type and data',
     order=2,
+    aliases=('karaoke captions', 'active word highlight', 'word highlight captions', 'karaoke fill',
+             'subtitle pop-on'),
     definition='Captions that follow the words as they are spoken.',
     description=("A speaker's words run along the bottom of the clip one short line at a time, each line "
                  'measured to fit the frame: the word being spoken lights up in yellow as it is said, and '
@@ -23,5 +25,6 @@ CAPABILITY = Capability(
          'vb.captions.draw(cv, track, t, keywords={...}, font=..., safe=...)'),
     doc='skill/make-a-video/reference/captions.md',
     demo=Example('examples/capabilities/word-timed-captions.py'),
+    members=Members(ids=('karaoke-highlight-sweep', 'pop-on-captions'), noun=('caption mode', 'caption modes')),
     source=Source('https://www.youtube.com/watch?v=JOSJE6hQbdE', 'The Anomaly Archive'),
 )

@@ -157,17 +157,19 @@ class CapabilitySettings(unittest.TestCase):
             self._capability(settings=(choice(id='voice'), choice(id='voice')))
 
 
-class NarrationSettingsAreShared(unittest.TestCase):
-    def test_narration_and_voiceover_agree(self):
+class NarrationSettings(unittest.TestCase):
+    """voiceover merged into narration (merges.json): narration is now the
+    only owner of speech.narration_settings(), once shared between the two
+    so they couldn't drift."""
+
+    def test_voice_and_speed(self):
         entry = registry.get('narration')
-        registered = registry.get('voiceover')
-        self.assertEqual(entry.settings, registered.settings)
-        ids = [s.id for s in registered.settings]
+        ids = [s.id for s in entry.settings]
         self.assertEqual(ids, ['voice', 'speed'])
 
     def test_voice_is_a_choice_and_speed_a_number_in_says_own_range(self):
-        registered = registry.get('voiceover')
-        voice, speed = registered.settings
+        entry = registry.get('narration')
+        voice, speed = entry.settings
         self.assertIsInstance(voice, Choice)
         self.assertIsInstance(speed, Number)
         self.assertTrue(voice.options)
