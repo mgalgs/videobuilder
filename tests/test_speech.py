@@ -81,10 +81,20 @@ class Script(unittest.TestCase):
             self.assertEqual(speech.spoken_years(s), s)
 
     def test_espeak_two_part_sounds_reach_the_voice_as_single_symbols(self):
+        # FakeEngine hands text back as its "espeak output": `^` is espeak's tie.
         for two, one in [('eɪ', 'A'), ('aɪ', 'I'), ('aʊ', 'W'), ('ɔɪ', 'Y'), ('oʊ', 'O'), ('əʊ', 'Q'),
                          ('tʃ', 'ʧ'), ('dʒ', 'ʤ')]:
             with self.subTest(two=two):
-                self.assertEqual(speech.phonemes_for(FakeEngine(), [('text', f'k{two}n')], 'en-us'), f'k{one}n')
+                self.assertEqual(speech.phonemes_for(FakeEngine(), [('text', f'k{two[0]}^{two[1]}n')], 'en-us'),
+                                 f'k{one}n')
+
+    def test_espeak_untied_pairs_stay_two_sounds(self):
+        # espeak-ng's "nutshell" and "sweatshirt": t + ʃ across the compound, untied, unlike "church".
+        for ph in ('nˈʌtʃɛl', 'swˈɛtʃɜːt'):
+            with self.subTest(ph=ph):
+                self.assertEqual(speech.phonemes_for(FakeEngine(), [('text', ph)], 'en-us'), ph)
+        self.assertEqual(speech.phonemes_for(FakeEngine(), [('text', 'nˈʌtʃɛl t^ʃˈɜːt^ʃ wˈɛ^ɹ')], 'en-us'),
+                         'nˈʌtʃɛl ʧˈɜːʧ wˈɛɹ')
 
     def test_typed_phonemes_get_single_symbols_too(self):
         self.assertEqual(speech.phonemes_for(FakeEngine(), [('phonemes', 'fɹˈɔɪd')], 'en-us'), 'fɹˈYd')

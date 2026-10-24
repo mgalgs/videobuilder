@@ -175,10 +175,15 @@ class Kokoro:
             return sorted(v.files)
 
     def phonemize(self, text, lang):
+        """espeak's phonemes for `text`, as the tokenizer's own `phonemize`
+        gives them but with each sound espeak counts as one tied by `^`
+        (`t^ʃ` in "church", not the t + ʃ of "nutshell"; see `single_symbols`)."""
         if self._tokenizer is None:
             from kokoro_onnx.tokenizer import Tokenizer
-            self._tokenizer = Tokenizer()
-        return self._tokenizer.phonemize(text, lang)
+            self._tokenizer = Tokenizer()   # also points phonemizer at its espeak
+        import phonemizer
+        out = phonemizer.phonemize(text.strip(), lang, preserve_punctuation=True, with_stress=True, tie=TIE)
+        return ''.join(c for c in out if c in self._tokenizer.vocab or c == TIE).strip()
 
     def synth(self, phonemes, voice, speed, lang):
         """16-bit mono samples at RATE for a phoneme string."""
@@ -259,16 +264,21 @@ def spoken_years(text):
 # Kokoro v1.0 was trained on one symbol for each of these two-part sounds,
 # but espeak (and IPA copied from a dictionary) writes them as two, which the
 # voice reads apart: "Freud" as "fried". A stress mark always comes before
-# the vowel, never between the parts, so a plain replace is enough.
+# the vowel, never between the parts, so a plain replace is enough -- except
+# that espeak also writes the t + ʃ of "nutshell" as `tʃ`, so its output is
+# merged only where espeak tied the two (`TIE`), the way Kokoro's own G2P does.
 SINGLE_SYMBOLS = (('eɪ', 'A'), ('aɪ', 'I'), ('aʊ', 'W'), ('ɔɪ', 'Y'), ('oʊ', 'O'), ('əʊ', 'Q'),
                   ('tʃ', 'ʧ'), ('dʒ', 'ʤ'))
+TIE = '^'
 
 
-def single_symbols(phonemes):
-    """`phonemes` with each two-part sound as Kokoro's single symbol."""
+def single_symbols(phonemes, tied=False):
+    """`phonemes` with each two-part sound as Kokoro's single symbol. `tied`:
+    espeak's output, where only a pair joined by `TIE` is one sound (any
+    other tie, such as `ɛ^ɹ`, is dropped); otherwise typed IPA, with no ties."""
     for two, one in SINGLE_SYMBOLS:
-        phonemes = phonemes.replace(two, one)
-    return phonemes
+        phonemes = phonemes.replace(two[0] + TIE + two[1] if tied else two, one)
+    return phonemes.replace(TIE, '') if tied else phonemes
 
 
 def phonemes_for(engine, parts, lang):
@@ -278,7 +288,8 @@ def phonemes_for(engine, parts, lang):
     for kind, s in parts:
         if kind == 'text' and lang.startswith('en'):
             s = spoken_years(s)
-        p = single_symbols(s.strip() if kind == 'phonemes' else engine.phonemize(s, lang).strip())
+        p = (single_symbols(s.strip()) if kind == 'phonemes'
+             else single_symbols(engine.phonemize(s, lang), tied=True).strip())
         if p:
             out += p if not out or p[0] in '.,!?;:…' else ' ' + p
     return out
