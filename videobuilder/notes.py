@@ -595,7 +595,8 @@ class NoteStore:
             self.save_session(video, state)
             png = self.image(nid) if note.get('frame') is not None else None
             context = {k: note[k] for k in ('time', 'beat', 'attachments', 'no_questions', 'clip', 'said',
-                                            'capabilities', 'refs', 'fonts', 'sfx', 'music') if k in note}
+                                            'capabilities', 'refs', 'fonts', 'sfx', 'music',
+                                            'music_over_budget') if k in note}
             new = self.add(video, note['format'], note['frame'], note['segment'], note['text'], png,
                            author=author or note.get('author'), retried_from=nid, **context)
             note['retried'] = new['id']
@@ -631,7 +632,7 @@ class NoteStore:
                     said = {'said': '\n\n'.join([note['said'], *qa])}
             png = self.image(nid) if note.get('frame') is not None else None
             context = {k: note[k] for k in ('time', 'beat', 'attachments', 'clip', 'capabilities', 'refs',
-                                            'fonts', 'sfx', 'music') if k in note}
+                                            'fonts', 'sfx', 'music', 'music_over_budget') if k in note}
             new = self.add(video, note['format'], note['frame'], note['segment'], text, png,
                            author=author or note.get('author'), answered_from=nid, no_questions=True, **context,
                            **said)

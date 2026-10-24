@@ -333,6 +333,23 @@ class Notes(unittest.TestCase):
         self.assertIn('No more questions', md)
         self.assertNotIn('Ask first if truly unclear', md)
 
+    def test_retry_and_answer_carry_over_budget_music_forward(self):
+        # Without it, the follow-up's prompt calls an over-budget pick "could not be fetched".
+        agent = FakeAgent()
+        store = NoteStore(self.dir, agent)
+        picks = dict(music=['track-2'], music_over_budget=['track-2'])
+        failed = store.add('promo/film', '16x9', 0, None, 'Add music', b'', **picks)
+        agent.states[failed['handle']] = AgentStatus('failed', 'could not apply')
+        self.assertEqual({n['id']: n['state'] for n in store.list('promo/film')}[failed['id']], 'failed')
+        self.assertEqual(store.retry(failed['id'])['music_over_budget'], ['track-2'])
+
+        asked = store.add('promo/other', '16x9', 0, None, 'Add music', b'', **picks)  # own video: no queue
+        reply = '```questions\n' + json.dumps({'questions': [{'text': 'Loud?', 'choices': ['Yes', 'No']}]}) + '\n```\n'
+        agent.states[asked['handle']] = AgentStatus('replied', reply, None)
+        states = {n['id']: n['state'] for n in store.list('promo/other')}
+        self.assertEqual(states[asked['id']], 'questions')
+        self.assertEqual(store.answer(asked['id'], False, ['Yes'])['music_over_budget'], ['track-2'])
+
     def test_a_no_questions_note_never_shows_a_stray_block(self):
         # A backend that ignores the no-questions instruction must not leak the raw
         # block into the reply, and must not put the note back into questions state.
