@@ -10,6 +10,7 @@ CAPABILITY = Capability(
     group='Camera moves',
     category='Imagery and camera',
     order=1,
+    aliases=('pan and zoom', 'slow zoom', 'scripted zoom', 'screen zoom focus', 'auto zoom on click'),
     definition='A window pans and zooms across a captured screen.',
     description=('A camera window pans and zooms across a (generated) screenshot, with a navbar strip '
                  'pinned to the top of the window while the page itself scrolls underneath it.'),
@@ -18,7 +19,12 @@ CAPABILITY = Capability(
                'Keep the header pinned while the camera scrolls the page'),
     api=('cv.view(img, box, center=, scale=, radius=)',
          'vb.log_lerp(a, b, p)  # even zoom',
-         'view.pin(src, y=box.y)'),
+         'view.pin(src, y=box.y)',
+         'videobuilder.capabilities.camera.ken_burns_effect.ken_burns(cv, img, p)  # pan and push across a still photo',
+         'videobuilder.capabilities.camera.ken_burns_effect.ken_burns_view(img, box, p)',
+         'videobuilder.capabilities.broadcast.ui_walkthrough_camera_zoom.ui_camera_zoom(cv, screen, focus, p)',
+         'videobuilder.capabilities.broadcast.cursor_follow_auto_zoom.cursor_follow_auto_zoom(cv, screen, t, '
+         'cursor, clicks)  # follows the pointer, pushing in around a click'),
     doc='skill/make-a-video/reference/api.md',
     demo=Example('examples/capabilities/camera-on-a-screenshot.py'),
     poster=0,  # the full-dashboard frame

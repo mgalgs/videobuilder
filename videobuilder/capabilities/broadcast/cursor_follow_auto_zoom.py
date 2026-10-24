@@ -1,13 +1,18 @@
-"""Cursor-follow auto zoom: a screen capture eases in close around the
-pointer when it is about to click, glides along behind it while it moves
-on, and pulls back out to the whole screen once the clicking is done."""
+"""Cursor-follow auto zoom: the follow-the-pointer mode of UI walkthrough
+camera zoom (`ui_walkthrough_camera_zoom.py`, itself merged into Camera on
+a screenshot): a screen capture eases in close around the pointer when it
+is about to click, glides along behind it while it moves on, and pulls
+back out to the whole screen once the clicking is done. This module's own
+code stays (a film may still import it), but it is no longer a capability
+of its own."""
 import math
 
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Capability
 from ..ui.cursor_state_change import draw_cursor
+
+MERGED_INTO = 'ui-walkthrough-camera-zoom'
 
 
 def zoom_amount(t, clicks, lead=0.5, hold=0.45, ramp=0.5):
@@ -156,24 +161,3 @@ def _screen(cv, t):
 def draw(n, cv):
     t = n / demo.FPS
     cursor_follow_auto_zoom(cv, lambda c: _screen(c, t), t, _pointer, CLICKS)
-
-
-CAPABILITY = Capability(
-    id='cursor-follow-auto-zoom',
-    name='Cursor-follow auto zoom',
-    family='broadcast',
-    group='UI walkthroughs',
-    aliases=('screen recording zoom', 'auto zoom on click', 'click zoom', 'follow-cursor zoom'),
-    definition='A screen capture pushes in close around the mouse pointer as it clicks, drifts along '
-               'after it while it moves, then eases back out to show the whole screen.',
-    phrasings=('zoom the screen recording in on wherever I click',
-               'have the camera follow my mouse and punch in on the clicks',
-               'auto-zoom the product demo onto the cursor, then back out'),
-    related=('canvas-pan-and-zoom', 'zoom-through', 'cursor-state-change', 'dock-magnification',
-             'cursor-particle-trail', 'magnetic-button'),
-    api=('videobuilder.capabilities.broadcast.cursor_follow_auto_zoom.cursor_follow_auto_zoom',
-         'videobuilder.capabilities.broadcast.cursor_follow_auto_zoom.auto_zoom_camera',
-         'videobuilder.capabilities.broadcast.cursor_follow_auto_zoom.zoom_amount',
-         'videobuilder.capabilities.broadcast.cursor_follow_auto_zoom.follow'),
-    demo=lambda: demo.film(draw, SECONDS),
-)

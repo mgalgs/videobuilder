@@ -1,6 +1,9 @@
-"""Pixelation Reveal: the subject first shows as a few big flat blocks of its
-own averaged colours, and the blocks halve in size, step by step, until the
-picture is sharp."""
+"""Pixelation Reveal: the same block mosaic as Pixelation (`../vfx/
+pixelation.py`, itself merged into 8-bit pixel filter), used as a text
+reveal: the subject first shows as a few big flat blocks of its own
+averaged colours, and the blocks halve in size, step by step, until the
+picture is sharp. This module's own code stays (a film may still import
+it), but it is no longer a capability of its own."""
 import math
 
 import cairo
@@ -8,7 +11,8 @@ import cairo
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Capability
+
+MERGED_INTO = 'pixelation'
 
 
 def block_size(p, block=64, steps=6):
@@ -88,23 +92,3 @@ def draw(n, cv):
     f = demo.font(96, 900)
     w, h = vb.text.block_size([TEXT], f)
     cv.mark('text', (demo.W - w) / 2, demo.H / 2 - 20 - h / 2, w, h)
-
-
-CAPABILITY = Capability(
-    id='pixelation-reveal',
-    name='Pixelation reveal',
-    family='typography',
-    group='Masking and clipping',
-    aliases=('depixelate', 'mosaic reveal', 'pixelate in', 'resolve from pixels'),
-    definition='A title starts as a handful of large flat colour squares and sharpens as the squares '
-               'get smaller and smaller, until the crisp words are left.',
-    phrasings=('the text starts blocky and pixelated and then sharpens into focus',
-               'reveal the headline by de-pixelating it',
-               'big chunky squares that resolve into the logo'),
-    related=('pixelate-transition', 'pixel-sort-text', 'pixelation', 'text-mask-reveal', 'pixel-build',
-             'noise-dissolve'),
-    api=('videobuilder.capabilities.typography.pixelation_reveal.pixelation_reveal',
-         'videobuilder.capabilities.typography.pixelation_reveal.mosaic',
-         'videobuilder.capabilities.typography.pixelation_reveal.block_size'),
-    demo=lambda: demo.film(draw),
-)

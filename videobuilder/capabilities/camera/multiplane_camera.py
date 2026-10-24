@@ -1,8 +1,12 @@
-"""Multiplane camera: flat painted planes hang at set distances in front of
-the lens, and as the camera trucks and pushes in each plane slides and grows
-by its own amount -- near planes a lot, far ones barely -- so a flat picture
-gains real depth. Unlike `videobuilder.parallax` (side-scrolling tiles), the
-camera here also moves along z, with true perspective scale per plane."""
+"""Multiplane camera: the zoom-into-planes mode of Parallax layers
+(`parallax_layers.py`, itself merged into Parallax scene): flat painted
+planes hang at set distances in front of the lens, and as the camera trucks
+and pushes in each plane slides and grows by its own amount -- near planes
+a lot, far ones barely -- so a flat picture gains real depth. Unlike
+`videobuilder.parallax` (side-scrolling tiles), the camera here also moves
+along z, with true perspective scale per plane. This module's own code
+stays (a film may still import it), but it is no longer a capability of its
+own."""
 from dataclasses import dataclass
 from typing import Callable
 
@@ -11,7 +15,8 @@ import videobuilder as vb
 from .. import _demo as demo
 from ...parallax import ridge
 from ...paths import draw as draw_path
-from ..schema import Capability
+
+MERGED_INTO = 'parallax-layers'
 
 
 @dataclass(frozen=True)
@@ -114,22 +119,3 @@ def draw(n, cv):
     cam = (K * (-1200 + 1400 * p), K * (-300 + 320 * p), -0.9 + 1.0 * p)
     multiplane(cv, PLANES, cam)
     cv.mark('planes', demo.W / 2 - K * PW / 2, demo.H / 2 - K * PH / 2, K * PW, K * PH)
-
-
-CAPABILITY = Capability(
-    id='multiplane-camera',
-    name='Multiplane camera',
-    family='camera',
-    group='Depth',
-    aliases=('multiplane parallax', 'multiplane shot'),
-    definition='Flat layers of artwork are stacked at different distances from the lens, so when the '
-               'camera moves past or into them the near layers shift and grow more than the far ones.',
-    phrasings=('split the illustration into foreground, middle and background sheets and fly the camera through them',
-               'an old-school animated depth shot where the trees slide past faster than the mountains',
-               'push into a layered flat scene so it feels three-dimensional'),
-    related=('multiples', 'zoom-to-location-map', 'fly-through', 'pan', 'orbit-shot', 'truck'),
-    api=('videobuilder.capabilities.camera.multiplane_camera.multiplane',
-         'videobuilder.capabilities.camera.multiplane_camera.Plane',
-         'videobuilder.capabilities.camera.multiplane_camera.plane_transform'),
-    demo=lambda: demo.film(draw),
-)

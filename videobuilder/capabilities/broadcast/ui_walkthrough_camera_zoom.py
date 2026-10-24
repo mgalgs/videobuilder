@@ -1,9 +1,14 @@
-"""UI walkthrough camera zoom: a whole app screen is shown, then the camera
-pushes in and pans so one region of the interface fills the frame."""
+"""UI walkthrough camera zoom: the same idea as Camera on a screenshot
+(`../camera/camera_on_a_screenshot.py`), which keeps the capability through
+Canvas.view-style framing: a whole app screen is shown, then the camera
+pushes in and pans so one region of the interface fills the frame. This
+module's own code stays (a film may still import it), but it is no longer
+a capability of its own."""
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Capability
+
+MERGED_INTO = 'camera-on-a-screenshot'
 
 
 def ui_camera_zoom(cv, screen, focus, p, margin=0.08, max_zoom=4.0):
@@ -90,21 +95,3 @@ def _app(cv):
 def draw(n, cv):
     p = vb.ease_in_out_quart(demo.phase(n, 0.6, 2.0))
     ui_camera_zoom(cv, app_screen, tuple(v * U for v in VIEW), p, margin=0)
-
-
-CAPABILITY = Capability(
-    id='ui-walkthrough-camera-zoom',
-    name='UI walkthrough camera zoom',
-    family='broadcast',
-    group='UI walkthroughs',
-    aliases=('scripted zoom', 'screen zoom focus', 'screen recording zoom'),
-    definition='Starting on a whole app screen, the camera glides in and across until one part of the '
-               'interface fills the frame.',
-    phrasings=('zoom in on the settings panel of the app screenshot',
-               'push the camera into the part of the screen we are talking about',
-               'show the full UI, then move in close on that one button'),
-    related=('canvas-pan-and-zoom', 'zoom-through', 'scale-zoom-through', 'zoom-to-location-map',
-             'infinite-zoom-tunnel', 'image-hover-zoom'),
-    api=('videobuilder.capabilities.broadcast.ui_walkthrough_camera_zoom.ui_camera_zoom',),
-    demo=lambda: demo.film(draw),
-)

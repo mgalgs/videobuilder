@@ -1,6 +1,7 @@
-"""Pixelation: the picture is broken into large square cells, each painted
-one flat colour -- the average of what it covers -- so detail drops out and
-only a blocky mosaic of the image is left.
+"""Pixelation: the same idea as 8-bit pixel filter (`look_filter_pixel.py`),
+which keeps the capability -- both turn any picture into coarse square
+blocks through `Canvas.pixelated`. This module's own code stays (a film
+may still import it), but it is no longer a capability of its own.
 
 `Canvas.pixelated` already gives a pixel-art layer, but it draws at low
 resolution, so each cell takes the colour under one point of the scene.
@@ -13,7 +14,8 @@ import cairo
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Capability
+
+MERGED_INTO = 'look-filter-pixel'
 
 
 def pixelate(cv, scene, block, x=0.0, y=0.0, w=None, h=None):
@@ -81,22 +83,3 @@ def scene(cv):
 
 def draw(n, cv):
     pixelate(cv, scene, round(_block(n)))
-
-
-CAPABILITY = Capability(
-    id='pixelation',
-    name='Pixelation',
-    family='vfx',
-    group='Pixel & mosaic',
-    aliases=('mosaic pixelate', 'block pixelation', 'pixel effect', 'low-res downsample', 'lo-fi downsample',
-             'mosaic', 'pixelize'),
-    definition='The frame is chopped into big square tiles and each tile shows just the average colour '
-               'underneath it, so the picture turns into a coarse, blocky version of itself.',
-    phrasings=('make the image go all blocky and low-res',
-               'pixelate the shot so you can only make out big squares of colour',
-               'put a mosaic over it like a censored face'),
-    related=('pixelate-transition', 'pixelation-reveal', 'pixel-sorting', 'blur-up-image-load', 'gaussian-blur',
-             'pixel-build'),
-    api=('videobuilder.capabilities.vfx.pixelation.pixelate', 'videobuilder.Canvas.pixelated'),
-    demo=lambda: demo.film(draw),
-)

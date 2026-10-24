@@ -8,6 +8,7 @@ CAPABILITY = Capability(
     name='8-bit pixel filter',
     family='vfx',
     group='Filter looks',
+    aliases=('mosaic', 'pixelize', 'low-res downsample', 'pixel dissolve', 'depixelate', 'mosaic reveal'),
     definition='Any picture as chunky 8-bit pixels, stepped like an old game.',
     description=('Restyles whatever the video draws: shrunk to a chunky grid in a 16-colour game palette '
                  'and scaled back up hard-edged on faint scan lines, while a rolling bar steps down the '
@@ -22,7 +23,8 @@ CAPABILITY = Capability(
     api=("with looks.filter(cv, 'pixel', t): draw_as_usual(n, cv)",
          "looks.get_filter('pixel').step(t)  # draw the picture at this time to step with the filter",
          'cv.pixelated(factor)  # one blocky layer of a drawn scene; draw with the canvas it yields',
-         'stepped_n = (n // 2) * 2  # 15fps motion on a 30fps film'),
+         'stepped_n = (n // 2) * 2  # 15fps motion on a 30fps film',
+         'videobuilder.capabilities.vfx.pixelation.pixelate(cv, scene, block)  # an amount the filter can animate'),
     doc='skill/make-a-video/reference/looks.md',
     demo=Example('examples/capabilities/look-filter-pixel.py'),
     old_ids=('pixel-art-layer',),

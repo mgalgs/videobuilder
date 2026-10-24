@@ -1,8 +1,11 @@
-"""Pixelate Transition: the outgoing scene breaks up into ever-larger square
-blocks, swaps for the incoming scene at its coarsest, and the incoming scene
-sharpens back down from those blocks to full detail."""
-from .. import _demo as demo
-from ..schema import Capability
+"""Pixelate Transition: the same block mosaic as Pixelation (`../vfx/
+pixelation.py`, itself merged into 8-bit pixel filter), used as a
+transition instead of a filter: the outgoing scene breaks up into
+ever-larger square blocks, swaps for the incoming scene at its coarsest,
+and the incoming scene sharpens back down from those blocks to full
+detail. This module's own code stays (a film may still import it), but it
+is no longer a capability of its own."""
+MERGED_INTO = 'pixelation'
 
 
 def pixelate_transition(cv, a, b, p, block=72, blend=0.12):
@@ -36,21 +39,3 @@ def pixelate_transition(cv, a, b, p, block=72, blend=0.12):
     else:
         draw(a, 1.0)
         draw(b, 1.0, alpha=(p - lo) / (hi - lo))
-
-
-CAPABILITY = Capability(
-    id='pixelate-transition',
-    name='Pixelate transition',
-    family='transitions',
-    group='Pixel and Mosaic',
-    aliases=('pixel transition', 'mosaic transition', 'pixelize', 'pixel dissolve'),
-    definition='The first shot dissolves into chunkier and chunkier square pixels, then the next shot '
-               'comes out of that blocky mosaic and sharpens back to full detail.',
-    phrasings=('pixelate out of this shot and into the next one',
-               'turn the picture into big blocky pixels and resolve it into the new scene',
-               'a retro mosaic transition between the two clips'),
-    related=('pixelation', 'pixelation-reveal', 'pixel-sorting', 'pixel-build', 'glitch-transition', 'liquify'),
-    api=('videobuilder.capabilities.transitions.pixelate_transition.pixelate_transition',
-         'videobuilder.Canvas.pixelated'),
-    demo=lambda: demo.two_scenes(pixelate_transition, start=1.0, length=1.6),
-)

@@ -1,12 +1,16 @@
-"""Ken Burns effect: a still picture fills the frame and the camera drifts
-across it, slowly pushing in (or pulling out) while it pans, so a photo
-plays like a shot."""
+"""Ken Burns effect: the same idea as Camera on a screenshot
+(`camera_on_a_screenshot.py`), which keeps the capability through
+Canvas.view-style framing: a still picture fills the frame and the camera
+drifts across it, slowly pushing in (or pulling out) while it pans, so a
+photo plays like a shot. This module's own code stays (a film may still
+import it), but it is no longer a capability of its own."""
 import math
 
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Capability
+
+MERGED_INTO = 'camera-on-a-screenshot'
 
 
 def _slow_both_ends(t):
@@ -60,23 +64,3 @@ def draw(n, cv):
     k = tw / img.w
     vw, vh = demo.W / s * k, demo.H / s * k
     cv.outline(tx + cx * k - vw / 2, ty + cy * k - vh / 2, vw, vh, demo.ACCENT, width=3)
-
-
-CAPABILITY = Capability(
-    id='ken-burns-effect',
-    name='Ken Burns effect',
-    family='camera',
-    group='Camera moves',
-    aliases=('pan and zoom', 'photo pan-zoom', 'slow zoom', 'slow pan', 'Ken Burns pan and zoom'),
-    definition='A still picture fills the screen while the view creeps across it and gently pushes in, '
-               'so a photo moves like footage.',
-    phrasings=('make the photo slowly drift and zoom in like in a history documentary',
-               'give the still image some gentle camera movement',
-               'slowly push into the picture while panning across it'),
-    related=('whip-pan', 'canvas-pan-and-zoom', 'zoom-blur', 'tilt-shift-miniature', 'image-hover-zoom',
-             'infinite-zoom-tunnel'),
-    api=('videobuilder.capabilities.camera.ken_burns_effect.ken_burns',
-         'videobuilder.capabilities.camera.ken_burns_effect.ken_burns_view',
-         'videobuilder.Canvas.view'),
-    demo=lambda: demo.film(draw),
-)

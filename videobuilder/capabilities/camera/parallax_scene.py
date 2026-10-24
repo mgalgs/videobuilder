@@ -10,6 +10,7 @@ CAPABILITY = Capability(
     group='Depth',
     category='Imagery and camera',
     order=7,
+    aliases=('layered parallax', '2.5D depth', 'paper layer parallax', 'Disney multiplane'),
     definition='Flat layers slide at their own speeds as the camera pans, giving depth.',
     description=('A scene built from five flat layers drawn in code -- a far sky, hills, a row of trees, '
                  'the ground the character stands on, and grass and a signpost in the foreground -- each '
@@ -22,7 +23,10 @@ CAPABILITY = Capability(
                'Pan across the scene slowly'),
     api=('parallax.Layer(depth, width, draw)  # draw(cv, x): one tile; depth 0 sky, 1 ground, >1 foreground',
          'parallax.draw(cv, layers, camera_x)  # far first; each tile repeated across the frame',
-         'parallax.ridge(width, height, seed)  # a rolling skyline whose ends meet'),
+         'parallax.ridge(width, height, seed)  # a rolling skyline whose ends meet',
+         'videobuilder.capabilities.camera.multiplane_camera.multiplane(cv, planes, camera)  # zoom into stacked planes',
+         'videobuilder.capabilities.camera.multiplane_camera.Plane(z, draw)',
+         'videobuilder.capabilities.camera.multiplane_camera.plane_transform(z, camera)'),
     doc='skill/make-a-video/reference/api.md',
     demo=Example('examples/capabilities/parallax-scene.py'),
 )

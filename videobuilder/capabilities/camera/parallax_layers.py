@@ -1,14 +1,16 @@
-"""Parallax layers: videobuilder already has it as `vb.parallax` (flat
-seamless tiles, each slid by the camera's pan times its own depth), so this
-entry only names it and demos it: a night landscape of hills, trees and
-grass panning sideways, the far bands creeping and the near ones racing."""
+"""Parallax layers: the same idea as Parallax scene (`parallax_scene.py`),
+which keeps the capability -- both are flat `parallax.Layer` tiles drawn
+with `parallax.draw`, far ones slow and near ones fast. This module's own
+code stays (a film may still import it), but it is no longer a capability
+of its own."""
 import math
 
 import videobuilder as vb
 from videobuilder import parallax, paths
 
 from .. import _demo as demo
-from ..schema import Capability
+
+MERGED_INTO = 'parallax-scene'
 
 PAN = 900                  # px the ground travels over the demo
 HORIZON = demo.H * 0.36
@@ -61,21 +63,3 @@ def draw(n, cv):
     demo.dot(cv, demo.W * 0.72, HORIZON - 150, r=48, color='#f2b632')  # the moon: pinned to the sky
     cam = PAN * vb.ease_in_out_quart(demo.phase(n, 0.2, 2.8))
     parallax.draw(cv, LAYERS, cam)
-
-
-CAPABILITY = Capability(
-    id='parallax-layers',
-    name='Parallax layers',
-    family='camera',
-    group='Depth',
-    aliases=('layered parallax', 'flat parallax layers', '2.5D depth', 'paper layer parallax'),
-    definition='A scene built from flat cut-out layers pans sideways, the distant layers creeping slowly and '
-               'the close ones sweeping past quickly, so a flat picture feels deep.',
-    phrasings=('pan across a layered landscape where the background moves slower than the foreground',
-               'give the flat scene some depth by sliding its layers at different speeds',
-               'a side-scrolling shot with stacked hills drifting past at their own pace'),
-    related=('scroll-parallax-layers', 'parallax-letter-layers', 'parallax-slide', 'pointer-parallax-layers',
-             'parallax-marquee-rows', 'motion-blur'),
-    api=('videobuilder.parallax.draw', 'videobuilder.parallax.Layer', 'videobuilder.parallax.ridge'),
-    demo=lambda: demo.film(draw),
-)
