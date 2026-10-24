@@ -7,8 +7,9 @@ angles, which a plain bump map can't do.
     def draw(n, cv):
         relief_plane(cv, grid, (0, 0, cv.width, cv.height), tilt=40, turn=10, depth=0.9)
 
-Pure Python, so the plane is raymarched at most `resolution` px wide and
-scaled up to its box.
+The plane is raymarched with numpy, every pixel's ray stepped together, at
+most `resolution` px wide and scaled up to its box. Needs numpy (imported
+when a frame is drawn, so the registry loads without it).
 """
 import math
 
@@ -123,6 +124,87 @@ def march(grid, u, v, du, dv, steps):
     return u + du, v + dv
 
 
+def _np():
+    import numpy
+    return numpy
+
+
+_GRID_ARRAYS = {}
+
+
+def _grid_arrays(grid):
+    """`grid` (from `relief_texture`) as numpy arrays: the height map, its
+    per-texel unit normal (..., 3) and colour (..., 3), cached by identity
+    since a grid never changes once built."""
+    cached = _GRID_ARRAYS.get(id(grid))
+    if cached is not None and cached[0] is grid:
+        return cached[1:]
+    np = _np()
+    size, hs, texels = grid
+    heights = np.array(hs, dtype=np.float64)
+    normals = np.array([[t[1:4] for t in row] for row in texels], dtype=np.float64)
+    colors = np.array([[t[4] for t in row] for row in texels], dtype=np.float64)
+    _GRID_ARRAYS.clear()
+    _GRID_ARRAYS[id(grid)] = (grid, heights, normals, colors)
+    return heights, normals, colors
+
+
+def _bilinear_np(array, u, v):
+    """`array` (size x size x ...), bilinearly filtered at texture
+    coordinates `u`, `v` (same-shape numpy arrays), tiling at the edges."""
+    np = _np()
+    size = array.shape[0]
+    x, y = u * size - 0.5, v * size - 0.5
+    fx0, fy0 = np.floor(x), np.floor(y)
+    fx, fy = x - fx0, y - fy0
+    i0, j0 = fx0.astype(np.int64) % size, fy0.astype(np.int64) % size
+    i1, j1 = (i0 + 1) % size, (j0 + 1) % size
+    if array.ndim > 2:
+        fx, fy = fx[..., None], fy[..., None]
+    top = array[j0, i0] + (array[j0, i1] - array[j0, i0]) * fx
+    bot = array[j1, i0] + (array[j1, i1] - array[j1, i0]) * fx
+    return top + (bot - top) * fy
+
+
+def _march_np(heights, u0, v0, du, dv, steps):
+    """`march`, run on whole numpy arrays of rays at once: every ray steps
+    together, but a ray that already crossed the surface drops out of the
+    shrinking `live` set instead of still being sampled. Returns (u, v)
+    arrays of where each ray lands."""
+    np = _np()
+    step = 1.0 / steps
+    shape = u0.shape
+    u0f, v0f, duf, dvf = u0.ravel(), v0.ravel(), du.ravel(), dv.ravel()
+    out_u, out_v = u0f + duf, v0f + dvf   # the no-hit fallback: the bottom of the depth
+    live = np.arange(u0f.size)
+    prev_gap = _bilinear_np(heights, u0f, v0f) - 1.0
+    for k in range(1, steps + 1):
+        if live.size == 0:
+            break
+        frac = k * step
+        lu0, lv0, ldu, ldv = u0f[live], v0f[live], duf[live], dvf[live]
+        gap = _bilinear_np(heights, lu0 + ldu * frac, lv0 + ldv * frac) - (1.0 - frac)
+        found = gap >= 0
+        if found.any():
+            idx = live[found]
+            lo = np.full(found.sum(), (k - 1) * step)
+            hi = np.full(found.sum(), frac)
+            glo, ghi = prev_gap[found], gap[found]
+            nu0, nv0, ndu, ndv = lu0[found], lv0[found], ldu[found], ldv[found]
+            for _ in range(7):
+                mid = (lo + hi) / 2
+                g = _bilinear_np(heights, nu0 + ndu * mid, nv0 + ndv * mid) - (1.0 - mid)
+                step_down = g >= 0
+                hi, ghi = np.where(step_down, mid, hi), np.where(step_down, g, ghi)
+                lo, glo = np.where(step_down, lo, mid), np.where(step_down, g, glo)
+            cross = ghi > glo
+            tt = np.where(cross, hi - (hi - lo) * ghi / np.where(cross, ghi - glo, 1), hi)
+            out_u[idx], out_v[idx] = nu0 + ndu * tt, nv0 + ndv * tt
+        live = live[~found]
+        prev_gap = gap[~found]
+    return out_u.reshape(shape), out_v.reshape(shape)
+
+
 def relief_plane(cv, grid, box, tilt=40.0, turn=0.0, depth=0.9, tiles=5, distance=12.0, aim=0.0, fov=50.0,
                  light=(-0.5, 0.6, 0.65), background=demo.BG, resolution=960):
     """Draw a flat square floor in perspective into `box` (x, y, w, h), with
@@ -131,6 +213,7 @@ def relief_plane(cv, grid, box, tilt=40.0, turn=0.0, depth=0.9, tiles=5, distanc
     The camera looks down at the floor's centre (or `aim` units beyond it)
     from `tilt` degrees above, swung `turn` degrees around it, `distance`
     away, with `fov` degrees of vertical view. Raymarched at most `resolution` px wide, then scaled up."""
+    np = _np()
     x, y, w, h = box
     rw = max(16, min(resolution, round(w * cv.scale_factor())))
     rh = max(9, round(rw * h / w))
@@ -146,32 +229,37 @@ def relief_plane(cv, grid, box, tilt=40.0, turn=0.0, depth=0.9, tiles=5, distanc
     per = tiles / PLANE                                         # tile units per world unit
     sink = depth / per                                          # relief depth, world units
     half = PLANE / 2
-    bg = bytes(round(c * 255) for c in _rgb(background))
-    px = bytearray(bg * (rw * rh))
-    for j in range(rh):
-        sy = (1 - 2 * (j + 0.5) / rh) * t
-        for i in range(rw):
-            sx = (2 * (i + 0.5) / rw - 1) * t * rw / rh
-            dx, dy, dz = fx + sx * rx + sy * ux, fy + sx * ry + sy * uy, fz + sy * uz
-            if dz >= -1e-6:
-                continue
-            s = -cz / dz
-            hx, hy = cx + s * dx, cy + s * dy
-            if abs(hx) > half or abs(hy) > half:
-                continue
-            u, v = (hx + half) * per, (hy + half) * per
-            if depth > 0:
-                d = math.sqrt(dx * dx + dy * dy + dz * dz)
-                steps = 10 + int(40 * (1 + dz / d))              # more layers at grazing angles
-                du, dv = dx / -dz * sink * per, dy / -dz * sink * per
-                u, v = march(grid, u, v, du, dv, steps)
-                if not (0 <= u <= tiles and 0 <= v <= tiles):   # ran out through the side
-                    continue
-            nx, ny, nz, r, g, b = _texel(grid, u, v)
-            lit = 0.28 + 0.85 * max(0.0, nx * lx + ny * ly + nz * lz)
-            o = (j * rw + i) * 3
-            px[o], px[o + 1], px[o + 2] = (min(255, int(c * lit * 255)) for c in (r, g, b))
-    img = vb.Image.from_pil(PILImage.frombytes('RGB', (rw, rh), bytes(px)))
+
+    heights, normals, colors = _grid_arrays(grid)
+    sx = (2 * (np.arange(rw) + 0.5) / rw - 1) * t * rw / rh
+    sy = (1 - 2 * (np.arange(rh) + 0.5) / rh) * t
+    SX, SY = np.meshgrid(sx, sy)                                 # (rh, rw)
+    dx, dy, dz = fx + SX * rx + SY * ux, fy + SX * ry + SY * uy, fz + SY * uz
+    faces_plane = dz < -1e-6
+    dz_safe = np.where(faces_plane, dz, -1.0)                    # keeps / finite; masked out below anyway
+    s = -cz / dz_safe
+    hx, hy = cx + s * dx, cy + s * dy
+    on_plane = faces_plane & (np.abs(hx) <= half) & (np.abs(hy) <= half)
+    u, v = (hx + half) * per, (hy + half) * per
+
+    if depth > 0:
+        d = np.sqrt(dx * dx + dy * dy + dz * dz)
+        steps = 20                                               # fine enough at any grazing angle here
+        du, dv = dx / -dz_safe * sink * per, dy / -dz_safe * sink * per
+        mu, mv = _march_np(heights, u, v, du, dv, steps)
+        on_plane &= (mu >= 0) & (mu <= tiles) & (mv >= 0) & (mv <= tiles)
+        u, v = mu, mv
+
+    nrm = _bilinear_np(normals, u, v)
+    nrm = nrm / (np.linalg.norm(nrm, axis=-1, keepdims=True) + 1e-9)
+    col = _bilinear_np(colors, u, v)
+    lit = 0.28 + 0.85 * np.clip(nrm[..., 0] * lx + nrm[..., 1] * ly + nrm[..., 2] * lz, 0, None)
+    rgb = np.clip(col * lit[..., None] * 255, 0, 255)
+
+    bg = np.array([round(c * 255) for c in _rgb(background)], dtype=np.float64)
+    out = np.where(on_plane[..., None], rgb, bg)
+    pixels = out.astype(np.uint8)
+    img = vb.Image.from_pil(PILImage.fromarray(pixels, 'RGB'))
     cv.image(img, x, y, w, h)
 
 
