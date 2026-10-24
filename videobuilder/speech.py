@@ -200,12 +200,16 @@ def voice_options(engine=None):
     try:
         voices = (engine or Kokoro()).voices()
     except SpeechUnavailable:
-        return (Option(DEFAULT_VOICE, DEFAULT_VOICE),)
+        voices = (DEFAULT_VOICE,)
     out = []
     for v in voices:
         lang = LANGS.get(v[:1], '?')
         sex = 'female' if v[1:2] == 'f' else 'male' if v[1:2] == 'm' else ''
-        out.append(Option(f"{v}  ({lang}{', ' + sex if sex else ''})", v))
+        # The settings card's play button, at the editor's own
+        # /api/narration/voice-sample (video_api.py); speed isn't part of this
+        # URL, so a preview always auditions the voice at its natural pace.
+        out.append(Option(f"{v}  ({lang}{', ' + sex if sex else ''})", v,
+                          preview=f'/api/narration/voice-sample?voice={v}'))
     return tuple(out)
 
 

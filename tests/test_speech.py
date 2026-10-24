@@ -211,6 +211,38 @@ class NarrationLoad(unittest.TestCase):
             self.assertEqual(len(n.mouth(30, at=15)), 15 + n.frames(30))
 
 
+class FakeVoicesEngine:
+    model_id = 'fake-voices-v1'
+
+    def voices(self):
+        return ['af_heart', 'bm_george']
+
+
+class VoiceOptions(unittest.TestCase):
+    def test_lists_the_engines_own_voices_not_a_hardcoded_set(self):
+        options = speech.voice_options(FakeVoicesEngine())
+        self.assertEqual([o.value for o in options], ['af_heart', 'bm_george'])
+        self.assertIn('en-us', options[0].label)
+        self.assertIn('en-gb', options[1].label)
+
+    def test_each_option_has_a_preview_url_for_its_own_voice(self):
+        options = speech.voice_options(FakeVoicesEngine())
+        self.assertEqual(options[0].preview, '/api/narration/voice-sample?voice=af_heart')
+        self.assertEqual(options[1].preview, '/api/narration/voice-sample?voice=bm_george')
+
+    def test_falls_back_to_default_voice_without_an_engine(self):
+        # No model files in this environment: a real `Kokoro()` is unavailable.
+        options = speech.voice_options()
+        self.assertEqual([o.value for o in options], [speech.DEFAULT_VOICE])
+        self.assertEqual(options[0].preview, f'/api/narration/voice-sample?voice={speech.DEFAULT_VOICE}')
+
+    def test_narration_settings_is_voice_then_speed_and_is_cached(self):
+        self.assertIs(speech.narration_settings(), speech.narration_settings())
+        voice, speed = speech.narration_settings()
+        self.assertEqual(voice.id, 'voice')
+        self.assertEqual((speed.id, speed.min, speed.max, speed.default), ('speed', 0.5, 2.0, 1.0))
+
+
 class WithoutTheExtra(unittest.TestCase):
     def test_say_exits_with_what_to_install(self):
         err = io.StringIO()
