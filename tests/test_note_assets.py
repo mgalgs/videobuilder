@@ -4,7 +4,6 @@ each one against the real catalog (fonts.ids(), the sfx pack, the configured
 music sources) before it ever reaches a note, the same way _note_capabilities
 re-checks a capability id (see test_note_capabilities.py)."""
 import unittest
-from unittest import mock
 
 from videobuilder.editor import Editor, HTTPError
 from videobuilder.music import MusicLibrary, Source
@@ -156,19 +155,41 @@ class MusicAttach(TempProject):
     def test_a_failing_fetch_still_adds_the_note_and_the_prompt_says_so(self):
         editor = self._editor([TRACK])  # TRACK's audio_url is a closed local port
         note = editor.add_note(dict(video='promo/film', frame=0, text='Add music', music=['track-1']), 'reviewer')
-        self.assertEqual(note['id'], note['id'])  # the note really was added
-        self.assertEqual(note['music'], ['track-1'])
-        self.assertFalse([a for a in note['attachments'] if a.get('music_track') == 'track-1'])
+        stored = editor.notes.get(note['id'])  # the note really was added, not just returned
+        self.assertEqual(stored['music'], ['track-1'])
+        self.assertFalse([a for a in stored['attachments'] if a.get('music_track') == 'track-1'])
         from videobuilder import prompt
         md = prompt.render(note, note, None, music=editor.music)
         self.assertIn('could not be fetched', md)
 
-    def test_a_note_with_no_music_picks_never_touches_the_music_sources(self):
-        editor = self._editor([TRACK])
-        with mock.patch('videobuilder.music.attach_track') as attach_track:
-            note = editor.add_note(dict(video='promo/film', frame=0, text='Just text'), 'reviewer')
-        self.assertEqual(note['music'], [])
-        attach_track.assert_not_called()
+    def test_two_picks_with_the_same_title_get_distinct_attachment_names(self):
+        other = b'ID3' + b'\x00' * 7 + b'different fake mp3 bytes'
+        self.server.routes['/track2.mp3'] = (other, 'audio/mpeg')
+        track1 = {'id': 'track-1', 'title': 'Theme', 'audio_url': self.server.base + '/track.mp3', 'tags': []}
+        track2 = {'id': 'track-2', 'title': 'Theme', 'audio_url': self.server.base + '/track2.mp3', 'tags': []}
+        editor = self._editor([track1, track2])
+        note = editor.add_note(dict(video='promo/film', frame=0, text='Add music',
+                                    music=['track-1', 'track-2']), 'reviewer')
+        attached = {a['music_track']: a for a in note['attachments'] if a.get('music_track')}
+        self.assertEqual(set(attached), {'track-1', 'track-2'})
+        names = {a['name'] for a in attached.values()}
+        self.assertEqual(len(names), 2, names)  # one must not have overwritten the other's file
+        contents = {editor.attachments.get(a['id'], 'promo/film')[1].read_bytes() for a in attached.values()}
+        self.assertEqual(contents, {self.TRACK_MP3, other})
+
+    def test_music_picks_are_capped_by_the_note_attachment_file_limit(self):
+        (self.root / 'videobuilder.toml').write_text('[editor]\nattachment_max_files = 1\n')
+        other = b'ID3' + b'\x00' * 7 + b'different fake mp3 bytes'
+        self.server.routes['/track2.mp3'] = (other, 'audio/mpeg')
+        track1 = {'id': 'track-1', 'title': 'One', 'audio_url': self.server.base + '/track.mp3', 'tags': []}
+        track2 = {'id': 'track-2', 'title': 'Two', 'audio_url': self.server.base + '/track2.mp3', 'tags': []}
+        editor = self._editor([track1, track2])
+        self.assertEqual(editor.attachments.max_files, 1)
+        note = editor.add_note(dict(video='promo/film', frame=0, text='Add music',
+                                    music=['track-1', 'track-2']), 'reviewer')
+        attached = [a for a in note['attachments'] if a.get('music_track')]
+        self.assertEqual(len(attached), 1, attached)
+        self.assertEqual(sorted(note['music']), ['track-1', 'track-2'])
 
 
 if __name__ == '__main__':

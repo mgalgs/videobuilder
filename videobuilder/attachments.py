@@ -35,6 +35,23 @@ def _sanitize_name(name):
     return re.sub(r'[^A-Za-z0-9._-]', '_', Path(name.replace('\\', '/')).name).lstrip('.') or 'file'
 
 
+def dedupe_names(items):
+    """`items` (each with at least 'id' and 'name'), renamed in order so no
+    two share a name -- the same collision handling `Attachments.validate`
+    applies to a note's own uploads, reused so attachments appended after
+    validation (a note's fetched music tracks) can't collide with a
+    validated upload or with each other."""
+    out, names = [], set()
+    for item in items:
+        item = dict(item)
+        if item['name'] in names:
+            stem, dot, ext = item['name'].rpartition('.')
+            item['name'] = (stem or ext) + '-' + item['id'][:8] + (dot + ext if dot else '')
+        names.add(item['name'])
+        out.append(item)
+    return out
+
+
 def svg_problem(data):
     """Why `data` is not an acceptable SVG, or None. A DOCTYPE or entity
     declaration is refused before parsing: entities are how an XML bomb
@@ -207,17 +224,13 @@ class Attachments:
         records = [self.get(ident, video)[0] for ident in ids]
         if sum(x['size'] for x in records) > max_message:
             raise ValueError('attachments exceed message size limit')
-        out, names = [], set()
+        out = []
         for x in records:
             item = {k: x[k] for k in ('id', 'name', 'type', 'size')}
             if x.get('credit'):
                 item['credit'] = x['credit']
-            if item['name'] in names:
-                stem, dot, ext = item['name'].rpartition('.')
-                item['name'] = (stem or ext) + '-' + item['id'][:8] + (dot + ext if dot else '')
-            names.add(item['name'])
             out.append(item)
-        return out
+        return dedupe_names(out)
 
     def stage(self, note, frame=None, force=False):
         """The note's attachments, plus its pinned frame PNG as FRAME_NAME, in one

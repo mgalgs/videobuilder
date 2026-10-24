@@ -514,7 +514,7 @@ from .pages import account_page
 from .render import default_jobs
 from .renders import Renders
 from .film_brief import FilmBrief
-from .attachments import Attachments
+from .attachments import Attachments, dedupe_names
 from .music import MusicLibrary
 from .sources import Sources
 from .versions import Versions
@@ -879,7 +879,9 @@ class Editor:
         except (ValueError, KeyError) as exc:
             raise HTTPError(400, str(exc)) from None
         note_assets = _note_assets(body, self.music)
-        attachments = attachments + _attach_music(self.attachments, self.music, vid, note_assets['music'])
+        music_attachments = _attach_music(self.attachments, self.music, vid, note_assets['music'],
+                                          attachments, self.attachments.max_files, self.attachments.max_message)
+        attachments = dedupe_names(attachments + music_attachments) if music_attachments else attachments
         with self.lock:
             info = s.request('info')
             if 'frames' not in info:
@@ -980,7 +982,9 @@ class Editor:
         extra = film_setup.note_lines(film_setup.read_details(Path(self.project.video(vid).path).parent))
         note_capabilities = _note_capabilities(body)
         note_assets = _note_assets(body, self.music)
-        attachments = attachments + _attach_music(self.attachments, self.music, vid, note_assets['music'])
+        music_attachments = _attach_music(self.attachments, self.music, vid, note_assets['music'], attachments,
+                                          self.attachments.start_video_max_files, self.attachments.start_video_max_message)
+        attachments = dedupe_names(attachments + music_attachments) if music_attachments else attachments
         s = self.session(vid)
         info = s.request('info')
         if 'frames' not in info:
@@ -1183,7 +1187,7 @@ def _note_assets(body, music):
     return out
 
 
-def _attach_music(attachments, music, vid, music_ids):
+def _attach_music(attachments, music, vid, music_ids, existing, max_files, max_message):
     """For each of a note's already-validated music ids (see _note_assets),
     fetches that track's audio and stages it on `vid` as an ordinary
     attachment -- exactly what /api/music/attach does for a manually "used"
@@ -1192,22 +1196,38 @@ def _attach_music(attachments, music, vid, music_ids):
     _resolved_assets). Called once, here, outside any lock, before the note
     is stored; a track that no longer resolves, or whose fetch fails, is
     simply left off the returned list -- the id stays in the note's own
-    `music` field, and the prompt says that pick could not be fetched."""
+    `music` field, and the prompt says that pick could not be fetched.
+    `existing` is the note's already-validated attachments (see
+    Attachments.validate); `max_files`/`max_message` are the same budget it
+    was validated against, which a track count no client list is trusted
+    against (_note_assets drops only unknown ids) could otherwise bypass --
+    a track pushing past either budget is left off exactly like a failed
+    fetch, and swept later by Attachments.expire since the note never
+    references it."""
     if not music_ids:
         return []
     from . import music as music_module
     catalog = music_module.catalog(music)
     out = []
+    count = len(existing)
+    total = sum(x['size'] for x in existing)
     for id_ in music_ids:
+        if count >= max_files:
+            break
         hit = catalog.get(id_)
         if hit is None:
             continue
         source, track = hit
         try:
-            out.append(music_module.attach_track(attachments, vid, source['license'], track,
-                                                  extra_fields={'music_track': id_}))
+            record = music_module.attach_track(attachments, vid, source['license'], track,
+                                               extra_fields={'music_track': id_})
         except (ValueError, music_module.FetchError):
             continue
+        if total + record['size'] > max_message:
+            continue
+        count += 1
+        total += record['size']
+        out.append(record)
     return out
 
 
