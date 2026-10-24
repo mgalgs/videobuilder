@@ -416,6 +416,12 @@ console.log(JSON.stringify(batchBody({json.dumps(items)}).capabilities));
         self.assertEqual(self.run_js(items), [{'id': 'narration', 'settings': {'speed': 1.2}},
                                               {'id': 'look-melt', 'settings': {}}])
 
+    def test_a_legacy_plain_id_string_from_a_pending_item_saved_before_this_shipped_is_kept(self):
+        items = [{'text': 'a', 'attachments': [], 'capabilities': ['narration', 'look-melt']},
+                 {'text': 'b', 'attachments': [], 'capabilities': [{'id': 'map-route-draw', 'settings': {}}]}]
+        self.assertEqual(self.run_js(items), [{'id': 'narration'}, {'id': 'look-melt'},
+                                              {'id': 'map-route-draw', 'settings': {}}])
+
 
 class PageWiring(unittest.TestCase):
     """The composer loads the suggest layer."""
