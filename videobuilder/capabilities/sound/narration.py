@@ -33,5 +33,5 @@ CAPABILITY = Capability(
          "mouth = VOICE.mouth(fps, at=frame, frames=TOTAL); pose = 'talk' if mouth[n] else 'idle'"),
     doc='skill/make-a-video/reference/narration.md',
     demo=Example('examples/capabilities/narration.py'),
-    settings=speech.narration_settings(),  # shared with sound/voiceover.py: the two offer the same controls
+    settings=speech.narration_settings(),
 )

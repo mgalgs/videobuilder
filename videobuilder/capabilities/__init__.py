@@ -29,8 +29,8 @@ Source-link code (`source_html`), and carrying the same `source` shape.
 
 A capability the editor should let the creator tune carries `settings`
 (Choice/Number from settings.py; see capabilities/schema.py and registry.py).
-`narration`'s is the worked example, shared with `voiceover` via
-speech.narration_settings so the two can't drift. `suggest/catalog`'s
+`narration`'s is the worked example (built from speech.narration_settings,
+once shared with `voiceover` before that merged into it). `suggest/catalog`'s
 per-capability JSON (video_api.py) carries a `settings` key only for a
 capability that declares one.
 """
@@ -218,13 +218,13 @@ def resolve_requested(requested):
             cid, raw_values = item['id'], item.get('settings')
         else:
             continue
-        if cid in seen:
-            continue
-        seen.add(cid)
         try:
             t = get(cid)
         except KeyError:
             continue
+        if t.id in seen:   # an old id and its keep (or two old ids of the same keep) are one capability
+            continue
+        seen.add(t.id)
         entry = {'id': t.id, 'name': t.name, 'definition': t.description or t.definition, 'api': list(t.api),
                  'settings': t.settings or ()}
         entry['values'] = non_default(entry['settings'], raw_values) if entry['settings'] else {}

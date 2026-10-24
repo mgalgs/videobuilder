@@ -156,6 +156,23 @@ class Registry(unittest.TestCase):
         only = registry.index_data('transitions')
         self.assertEqual([f['family'] for f in only['families']], ['transitions'])
 
+    def test_index_related_resolves_through_the_merge(self):
+        # breathing-idle's hand-written `related` still names scale-pulse by its old id (now
+        # breathing-idle's own old id, since scale-pulse merged into it): that must not come
+        # back as a self-reference in the index.
+        data = registry.index_data()
+        by_id = {t['id']: t for fam in data['families'] for g in fam['groups'] for t in g['capabilities']}
+        self.assertNotIn('scale-pulse', by_id['breathing-idle']['related'])
+        self.assertNotIn('breathing-idle', by_id['breathing-idle']['related'])
+        # air-drag names momentum-fling, which merged into friction-deceleration: the index
+        # must point at the survivor, not a dangling id with no entry of its own.
+        self.assertIn('friction-deceleration', by_id['air-drag']['related'])
+        self.assertNotIn('momentum-fling', by_id['air-drag']['related'])
+        old = {o for t in registry.catalog() for o in t.old_ids}
+        for t in by_id.values():
+            for r in t['related']:
+                self.assertNotIn(r, old, f'{t["id"]}: related id {r!r} is a merged-away id')
+
     def test_no_outside_sources_named(self):
         # Definitions and phrasings are our own words; nothing links or credits a catalogue. The one
         # place a link may sit is the record's own `source=Source(...)`: the post it came from.
@@ -196,6 +213,53 @@ class MergedModules(unittest.TestCase):
         self.assertEqual(capabilities.get('shape-morph').id, 'outline-morph')
         with self.assertRaises(KeyError):
             registry.get('shape-morph')
+
+
+class MergedModuleImports(unittest.TestCase):
+    """A merged module trades its `CAPABILITY` for `MERGED_INTO`, but its own
+    code stays, because a film may still import it (registry.py's module
+    docstring). One import per family that has a merge, so a later cleanup
+    that deletes a merged module's now-record-less helpers fails here first."""
+
+    def test_broadcast_flight_arc(self):
+        from videobuilder.capabilities.broadcast.flight_arc import flight_arc
+        self.assertTrue(callable(flight_arc))
+
+    def test_camera_parallax_layers(self):
+        from videobuilder.capabilities.camera.parallax_layers import draw
+        self.assertTrue(callable(draw))
+
+    def test_particles_water_caustics(self):
+        from videobuilder.capabilities.particles.water_caustics import caustic_field
+        self.assertTrue(callable(caustic_field))
+
+    def test_principles_underdamped_spring(self):
+        from videobuilder.capabilities.principles.underdamped_spring import coil
+        self.assertTrue(callable(coil))
+
+    def test_shapes_brush_stroke_paint_reveal(self):
+        from videobuilder.capabilities.shapes.brush_stroke_paint_reveal import brush_reveal
+        self.assertTrue(callable(brush_reveal))
+
+    def test_sound_ducking(self):
+        from videobuilder.capabilities.sound.ducking import gain
+        self.assertTrue(callable(gain))
+
+    def test_transitions_zoom_through(self):
+        from videobuilder.capabilities.transitions.zoom_through import zoom_through
+        self.assertTrue(callable(zoom_through))
+
+    def test_typography_terminal_line_print(self):
+        from videobuilder.capabilities.typography.terminal_line_print import draw
+        self.assertTrue(callable(draw))
+
+    def test_ui_cursor_particle_trail(self):
+        from videobuilder.capabilities.ui.cursor_particle_trail import trail_particles
+        self.assertTrue(callable(trail_particles))
+
+    def test_vfx_linocut(self):
+        from videobuilder.capabilities.vfx.linocut import linocut
+        self.assertTrue(callable(linocut))
 
 
 class PosterFrame(unittest.TestCase):

@@ -222,9 +222,30 @@ def grouped(capabilities):
 
 # ---- the index: the builder-facing sheet, markdown or JSON ----
 
+@lru_cache(maxsize=None)
+def _old_id_map():
+    """{old id: the capability it now resolves to}, from every record's `old_ids`."""
+    return {o: t.id for t in _all() for o in t.old_ids}
+
+
+def _related(t):
+    """`t.related`, each id resolved through the merge, self-references and
+    duplicates dropped (a record may name a since-merged id by hand, or two
+    of its related ids may have merged into one)."""
+    old = _old_id_map()
+    out, seen = [], set()
+    for r in t.related:
+        rid = old.get(r, r)
+        if rid == t.id or rid in seen:
+            continue
+        seen.add(rid)
+        out.append(rid)
+    return out
+
+
 def _data(t):
     d = {'id': t.id, 'name': t.name, 'family': t.family, 'group': t.group, 'aliases': list(t.aliases),
-         'definition': t.definition, 'phrasings': list(t.phrasings), 'related': list(t.related),
+         'definition': t.definition, 'phrasings': list(t.phrasings), 'related': _related(t),
          'api': list(t.api)}
     if t.settings:
         from .settings import as_json

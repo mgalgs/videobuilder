@@ -196,6 +196,15 @@ class OldIds(unittest.TestCase):
             self.assertNotIn(o, capabilities.ids())
             self.assertFalse((ROOT / 'examples' / 'capabilities' / f'{o}.py').exists())
 
+    def test_resolve_requested_dedupes_an_old_id_against_its_keep(self):
+        # A note made before the merge can hold both the old id and the one it was folded
+        # into (they were separate capabilities then); resolve_requested must not return the
+        # survivor twice.
+        requested = capabilities.resolve_requested(['comic-halftone', 'look-filter-pop-art'])
+        self.assertEqual([r['id'] for r in requested], ['look-filter-pop-art'])
+        requested = capabilities.resolve_requested(['comic-halftone', 'pixel-art-layer', 'look-filter-pop-art'])
+        self.assertEqual([r['id'] for r in requested], ['look-filter-pop-art', 'look-filter-pixel'])
+
     def test_every_id_from_before_the_one_record_format_still_resolves_to_itself(self):
         # Films, notes and suggestion history name these: the hand-written capabilities became
         # one-file records under the same ids (and the registry's own kept theirs). Some since

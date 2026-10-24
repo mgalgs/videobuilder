@@ -82,13 +82,13 @@ FAMILIES = _families()
 # group at a time. The film never depends on any of them being there.
 FAVOURITES = (
     'fireworks', 'mandelbrot-zoom', 'phyllotaxis', 'cyclic-cellular-automaton', 'like-heart-burst',
-    'coverflow-carousel', 'progress-ring', 'toggle-switch-slide', 'neon-flicker', 'liquid-melt',
-    'split-flap-display', 'odometer-roll', 'bar-chart-race', 'globe-spin', 'breaking-news-banner-slam',
-    'sunburst-build', 'walk-cycle', 'squash-and-stretch', 'radial-stagger', 'pendulum-swing', 'x-ray',
+    'coverflow-carousel', 'toggle-switch-slide', 'neon-flicker', 'liquid-melt',
+    'odometer-roll', 'bar-chart-race', 'globe-spin', 'breaking-news-banner-slam',
+    'sunburst-build', 'walk-cycle', 'pendulum-swing', 'x-ray',
     'halation', 'synthwave-sun', 'chromatic-dispersion', 'pixel-build', 'bauhaus-geometric-shuffle',
-    'spiral-bloom', 'hexagon-tile-reveal', 'smash-cut', 'cube-rotate', 'drip-wipe', 'shatter', 'fly-through',
-    'voxel-build', 'drone-flyover', 'thin-film-iridescence', 'impact-hit', 'whoosh', 'success-chime',
-    'sub-drop', 'star-rating-fill', 'gauge-needle-sweep', 'angled-lower-third', 'long-shadow-growth',
+    'hexagon-tile-reveal', 'smash-cut', 'cube-rotate', 'drip-wipe', 'shatter', 'fly-through',
+    'voxel-build', 'drone-flyover', 'thin-film-iridescence',
+    'star-rating-fill', 'angled-lower-third', 'long-shadow-extension',
     'swirl', 'color-cycling', 'ink-bleed', 'halftone',
 )
 # The wipes the family beats come in on, in this order where they exist;
