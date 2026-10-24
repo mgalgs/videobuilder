@@ -88,7 +88,9 @@ class HostedGit(LibraryFixture, unittest.TestCase):
         self.seed(film=True)
         for path, marker in (('', b'id="player"'), ('tuning.html', b'id="tl"'),
                              ('director.js', b'loadVersions'), ('director.css', b'.panel'),
-                             ('suggest.js', b'ensureModel'), ('suggest.css', b'.sg-picker')):
+                             ('suggest.js', b'ensureModel'), ('suggest.css', b'.sg-picker'),
+                             ('settings_card.js', b'window.SettingsCard'), ('settings_card.css', b'.sc-card'),
+                             ('settings_card_test.html', b'settings_card.js')):
             code, body = self.request('/v/acme/launch/' + path)
             self.assertEqual(code, 200, path)
             self.assertIn(marker, body)

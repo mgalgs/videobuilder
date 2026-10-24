@@ -206,10 +206,12 @@ def voice_options(engine=None):
         lang = LANGS.get(v[:1], '?')
         sex = 'female' if v[1:2] == 'f' else 'male' if v[1:2] == 'm' else ''
         # The settings card's play button, at the editor's own
-        # /api/narration/voice-sample (video_api.py); speed isn't part of this
-        # URL, so a preview always auditions the voice at its natural pace.
+        # api/narration/voice-sample (video_api.py); relative, like
+        # director.js's api(), so it still resolves under a library's
+        # /v/<name>/ prefix. Speed isn't part of this URL, so a preview
+        # always auditions the voice at its natural pace.
         out.append(Option(f"{v}  ({lang}{', ' + sex if sex else ''})", v,
-                          preview=f'/api/narration/voice-sample?voice={v}'))
+                          preview=f'api/narration/voice-sample?voice={v}'))
     return tuple(out)
 
 

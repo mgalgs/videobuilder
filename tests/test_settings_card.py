@@ -29,7 +29,7 @@ class StaticAssets(fixtures.API):
         voice = next(s for s in narration['settings'] if s['id'] == 'voice')
         self.assertTrue(voice['options'])
         for option in voice['options']:
-            self.assertTrue(option['preview'].startswith('/api/narration/voice-sample?voice='))
+            self.assertTrue(option['preview'].startswith('api/narration/voice-sample?voice='))
 
     def test_a_capability_without_settings_has_no_settings_key(self):
         catalog = self.get('/api/suggest/catalog')

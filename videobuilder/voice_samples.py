@@ -27,6 +27,7 @@ class VoiceSamples:
     def __init__(self, state_dir, engine_factory=None):
         self.dir = Path(state_dir) / 'voice-samples'
         self._engine_factory = engine_factory or speech.Kokoro
+        self._engine = None
         self._lock = threading.Lock()
         self._key_locks = {}
 
@@ -34,10 +35,19 @@ class VoiceSamples:
         with self._lock:
             return self._key_locks.setdefault(key, threading.Lock())
 
+    def _engine_instance(self):
+        """One engine, built on first use and shared by every request after
+        that: Kokoro loads its model lazily per instance, so a fresh engine
+        per call would reload it on every cache miss."""
+        with self._lock:
+            if self._engine is None:
+                self._engine = self._engine_factory()
+            return self._engine
+
     def path(self, voice, speed):
         """Raises `UnknownVoice` for a voice this engine doesn't have, or
         `speech.SpeechUnavailable` when there is no engine at all."""
-        engine = self._engine_factory()
+        engine = self._engine_instance()
         if voice not in engine.voices():
             raise UnknownVoice(voice)
         key = hashlib.sha256(f'{voice}|{speed}|{engine.model_id}'.encode()).hexdigest()[:24]

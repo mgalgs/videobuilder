@@ -46,8 +46,11 @@ class Choice:
             raise ValueError(f'{self.id}: default {self.default!r} is not one of its options')
 
     def clamp(self, value):
-        """`value` if it names one of `options`, else the default."""
-        return value if value in {o.value for o in self.options} else self.default
+        """`value` if it names one of `options`, else the default. A list
+        membership check, not a set, so an unhashable `value` (a note's raw
+        JSON can carry anything) falls through to the default instead of
+        raising."""
+        return value if value in [o.value for o in self.options] else self.default
 
 
 @dataclass(frozen=True)

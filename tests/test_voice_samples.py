@@ -76,6 +76,14 @@ class Path_(unittest.TestCase):
         with self.assertRaises(UnknownVoice):
             self.samples.path('nope', 1.0)
 
+    def test_one_engine_is_built_and_shared_across_voices(self):
+        built = []
+        samples = VoiceSamples(self.state_dir, engine_factory=lambda: built.append(1) or FakeEngine())
+        samples.path('af_heart', 1.0)
+        samples.path('bm_george', 1.0)
+        samples.path('af_heart', 1.3)
+        self.assertEqual(built, [1])
+
     def test_different_speed_is_a_different_cache_entry(self):
         p1 = self.samples.path('af_heart', 1.0)
         p2 = self.samples.path('af_heart', 1.3)

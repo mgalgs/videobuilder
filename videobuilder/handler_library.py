@@ -126,7 +126,8 @@ class LibraryHandler:
             video_name, video_subroute = None, None
             if library:
                 video_match = re.fullmatch(r'/v/(.+?)(/api(?:/.*)?|/tuning\.html|/director\.(?:js|css)|'
-                                           r'/suggest\.(?:js|css)|/)?', route)
+                                           r'/suggest\.(?:js|css)|/settings_card\.(?:js|css)|'
+                                           r'/settings_card_test\.html|/)?', route)
                 if video_match and valid_name(video_match.group(1)):
                     video_name, video_subroute = video_match.group(1), video_match.group(2)
             resolved = self.resolve_identity(route, method, video_name, video_subroute, identity)

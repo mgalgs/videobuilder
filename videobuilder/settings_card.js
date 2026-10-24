@@ -27,29 +27,41 @@
   }
 
   /* One <audio> at a time across every card: picking a second preview
-     stops whichever one was already playing. */
+     stops whichever one was already playing. `nowPlayingButton` is tracked
+     alongside the audio so its sc-playing class comes off wherever it was
+     left -- a second voice started, the same ▶ toggled off, or play()
+     rejecting (a 404 or 503 preview). */
   let nowPlaying = null;
+  let nowPlayingButton = null;
   function stopPlaying() {
-    if (nowPlaying) { nowPlaying.pause(); nowPlaying = null }
+    if (nowPlaying) nowPlaying.pause();
+    if (nowPlayingButton) nowPlayingButton.classList.remove('sc-playing');
+    nowPlaying = null;
+    nowPlayingButton = null;
   }
   function playPreview(url, button) {
     if (nowPlaying && nowPlaying.dataset && nowPlaying.dataset.url === url) { stopPlaying(); return }
     stopPlaying();
     const a = new Audio(url);
     a.dataset.url = url;
-    a.addEventListener('ended', () => { if (nowPlaying === a) nowPlaying = null; button.classList.remove('sc-playing') });
-    a.play().catch(() => {});
+    a.addEventListener('ended', stopPlaying);
     nowPlaying = a;
+    nowPlayingButton = button;
     button.classList.add('sc-playing');
+    a.play().catch(() => { if (nowPlaying === a) stopPlaying() });
   }
 
-  function renderChoice(setting, values, onChange, rerender) {
+  /* `current` is one object shared by every row of the card, mutated in
+     place: a row that changes it reads every other row's latest value too,
+     so picking a voice after dragging speed can't revert speed to the value
+     it had when the card was last drawn. */
+  function renderChoice(setting, current, onChange, redraw) {
     const row = el('div', 'sc-row sc-choice');
     row.append(el('div', 'sc-label', esc(setting.label)));
     const list = el('div', 'sc-options');
-    const current = valueOf(setting, values);
+    const value = valueOf(setting, current);
     for (const option of setting.options) {
-      const on = option.value === current;
+      const on = option.value === value;
       const opt = el('button', 'sc-option' + (on ? ' sc-on' : ''));
       opt.type = 'button';
       opt.setAttribute('aria-pressed', on ? 'true' : 'false');
@@ -60,9 +72,9 @@
       opt.addEventListener('click', e => {
         const play = e.target.closest('.sc-play');
         if (play) { e.stopPropagation(); playPreview(option.preview, play); return }
-        values = {...values, [setting.id]: option.value};
-        onChange({...values});
-        rerender(values);
+        current[setting.id] = option.value;
+        onChange({...current});
+        redraw();
       });
       list.append(opt);
     }
@@ -70,25 +82,25 @@
     return row;
   }
 
-  function renderNumber(setting, values, onChange) {
+  function renderNumber(setting, current, onChange) {
     const row = el('div', 'sc-row sc-number');
     const id = 'sc-' + setting.id + '-' + Math.random().toString(36).slice(2);
     const label = el('label', 'sc-label', esc(setting.label));
     label.htmlFor = id;
     row.append(label);
-    const current = valueOf(setting, values);
+    const value = valueOf(setting, current);
     const input = el('input', 'sc-range');
     input.type = 'range';
     input.id = id;
     input.min = setting.min;
     input.max = setting.max;
     input.step = setting.step;
-    input.value = current;
-    const readout = el('span', 'sc-value', String(current));
+    input.value = value;
+    const readout = el('span', 'sc-value', String(value));
     input.addEventListener('input', () => {
       readout.textContent = input.value;
-      values = {...values, [setting.id]: Number(input.value)};
-      onChange({...values});
+      current[setting.id] = Number(input.value);
+      onChange({...current});
     });
     row.append(input, readout);
     return row;
@@ -99,17 +111,16 @@
      one that changed) whenever any row changes. Returns nothing: callers
      that need the latest values keep their own copy from `onChange`. */
   function render(container, settings, values, onChange) {
-    values = {...(values || {})};
+    const current = {...(values || {})};
     container.classList.add('sc-card');
-    const draw = v => {
-      values = v;
+    const draw = () => {
       container.replaceChildren();
       for (const setting of settings) {
-        container.append(setting.type === 'choice' ? renderChoice(setting, values, onChange, draw)
-                                                     : renderNumber(setting, values, onChange));
+        container.append(setting.type === 'choice' ? renderChoice(setting, current, onChange, draw)
+                                                     : renderNumber(setting, current, onChange));
       }
     };
-    draw(values);
+    draw();
   }
 
   window.SettingsCard = {render};

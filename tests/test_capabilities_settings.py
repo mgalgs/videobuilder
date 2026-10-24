@@ -41,6 +41,11 @@ class OptionChoiceNumber(unittest.TestCase):
         self.assertEqual(c.clamp('b'), 'b')
         self.assertEqual(c.clamp('nope'), 'a')
 
+    def test_choice_clamp_falls_back_to_default_for_an_unhashable_value(self):
+        c = choice()
+        self.assertEqual(c.clamp(['b']), 'a')
+        self.assertEqual(c.clamp({}), 'a')
+
     def test_number_min_must_be_less_than_max(self):
         with self.assertRaises(ValueError):
             Number('speed', 'Speed', min=2.0, max=2.0, step=0.1, default=1.0)
@@ -90,6 +95,10 @@ class Validate(unittest.TestCase):
 
     def test_unknown_choice_value_falls_back_to_default(self):
         self.assertEqual(validate(self.SETTINGS, {'voice': 'nope'}), {'voice': 'a', 'speed': 1.0})
+
+    def test_an_unhashable_choice_value_falls_back_to_default(self):
+        self.assertEqual(validate(self.SETTINGS, {'voice': ['b']}), {'voice': 'a', 'speed': 1.0})
+        self.assertEqual(validate(self.SETTINGS, {'voice': {}}), {'voice': 'a', 'speed': 1.0})
 
     def test_a_non_dict_values_is_treated_as_empty(self):
         self.assertEqual(validate(self.SETTINGS, None), {'voice': 'a', 'speed': 1.0})

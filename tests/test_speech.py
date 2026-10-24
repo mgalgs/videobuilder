@@ -227,14 +227,14 @@ class VoiceOptions(unittest.TestCase):
 
     def test_each_option_has_a_preview_url_for_its_own_voice(self):
         options = speech.voice_options(FakeVoicesEngine())
-        self.assertEqual(options[0].preview, '/api/narration/voice-sample?voice=af_heart')
-        self.assertEqual(options[1].preview, '/api/narration/voice-sample?voice=bm_george')
+        self.assertEqual(options[0].preview, 'api/narration/voice-sample?voice=af_heart')
+        self.assertEqual(options[1].preview, 'api/narration/voice-sample?voice=bm_george')
 
     def test_falls_back_to_default_voice_without_an_engine(self):
         # No model files in this environment: a real `Kokoro()` is unavailable.
         options = speech.voice_options()
         self.assertEqual([o.value for o in options], [speech.DEFAULT_VOICE])
-        self.assertEqual(options[0].preview, f'/api/narration/voice-sample?voice={speech.DEFAULT_VOICE}')
+        self.assertEqual(options[0].preview, f'api/narration/voice-sample?voice={speech.DEFAULT_VOICE}')
 
     def test_narration_settings_is_voice_then_speed_and_is_cached(self):
         self.assertIs(speech.narration_settings(), speech.narration_settings())
