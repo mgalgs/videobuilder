@@ -1,13 +1,16 @@
-"""Screen refresh flicker: a picture shown as if on an old monitor filmed by a
-camera out of step with it -- a soft dark band with a bright leading edge
-rolls down the screen over and over, the whole picture pulses a little in
-brightness, and faint scan lines sit over it all."""
+"""Screen refresh flicker: the same soft band rolling down the picture like
+a screen filmed out of sync as Refresh bar (`refresh_bar.py`, which keeps
+the capability); they share the aliases rolling bar and hum bar. This
+module adds a brightness wobble and faint scanlines on top of the rolling
+band. This module's own code stays (a film may still import it), but it is
+no longer a capability of its own."""
 import random
 
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Capability
+
+MERGED_INTO = 'refresh-bar'
 
 
 def refresh_bar(t, h, roll=1.2, bar=0.38):
@@ -72,21 +75,3 @@ def draw(n, cv):
         screen_refresh_flicker(cv, screen, t, amount=demo.phase(n, 0.0, 0.4), x=bx, y=by, w=bw, h=bh,
                                roll=1.4, dark=0.6, edge=0.45, pulse=0.1, lines=3, seed=4, flicker=10)
     cv.mark('screen', bx, by, bw, bh)
-
-
-CAPABILITY = Capability(
-    id='screen-refresh-flicker',
-    name='Screen refresh flicker',
-    family='vfx',
-    group='CRT & display',
-    aliases=('rolling bar', 'CRT roll bar', 'scan roll', 'monitor flicker', 'refresh bar', 'hum bar'),
-    definition='A shadowy band with a bright lower edge keeps sliding down the picture while its brightness '
-               'wobbles, like an old monitor caught on camera out of sync.',
-    phrasings=('make it look like we filmed an old TV, with that dark bar rolling down it',
-               'add the flickering band you get when a camera records a computer screen',
-               'give the screen a retro monitor flicker with lines sweeping down'),
-    related=('screen-tearing', 'glitch-transition', 'pixel-sorting', 'scanline-jitter', 'crumple', 'static-noise'),
-    api=('videobuilder.capabilities.vfx.screen_refresh_flicker.screen_refresh_flicker',
-         'videobuilder.capabilities.vfx.screen_refresh_flicker.refresh_bar'),
-    demo=lambda: demo.film(draw),
-)

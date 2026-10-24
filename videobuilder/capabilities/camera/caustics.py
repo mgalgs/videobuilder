@@ -124,7 +124,8 @@ CAPABILITY = Capability(
     name='Caustics',
     family='camera',
     group='Lighting & surface',
-    aliases=('light caustics', 'refracted light patterns', 'pool light'),
+    aliases=('light caustics', 'refracted light patterns', 'pool light', 'underwater caustics',
+             'pool light caustics'),
     definition='Light bent by a moving, uneven surface such as water gathers into a net of bright, '
                'wavering lines that crawl across whatever lies underneath.',
     phrasings=('make it look like sunlight dancing on the bottom of a pool',
@@ -133,6 +134,7 @@ CAPABILITY = Capability(
     related=('water-caustics', 'refraction-ripple', 'gooch-shading', 'cymatics', 'ripple', 'ripple-rings'),
     api=('videobuilder.capabilities.camera.caustics.caustics',
          'videobuilder.capabilities.camera.caustics.caustic_image',
-         'videobuilder.capabilities.camera.caustics.caustic_light'),
+         'videobuilder.capabilities.camera.caustics.caustic_light',
+         'videobuilder.capabilities.particles.water_caustics.draw_caustics'),
     demo=lambda: demo.film(draw),
 )

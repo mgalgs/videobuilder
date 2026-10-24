@@ -1,6 +1,8 @@
-"""Pollen Drift: a steady trickle of tiny soft specks that float on a light
-breeze, each wobbling lazily as it rises, fading in when it appears and out
-before it goes, the near ones bigger, brighter and quicker than the far."""
+"""Pollen Drift: the same tiny glowing specks as Dust motes (`dust_motes.py`,
+which keeps the capability), drifting and wavering in the air on a light
+breeze, the near ones bigger, brighter and quicker than the far. This
+module's own code stays (a film may still import it), but it is no longer
+a capability of its own."""
 import math
 import random
 
@@ -9,7 +11,8 @@ import cairo
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Capability
+
+MERGED_INTO = 'dust-motes'
 
 
 def pollen(t, w, h, count=90, seed=0, wind=(60.0, -35.0), life=(4.0, 8.0), wobble=26.0):
@@ -77,22 +80,3 @@ def draw(n, cv):
     cv.ctx.paint()
     draw_pollen(cv, t, demo.W, demo.H, count=110, seed=3)
     cv.mark('field', 0, 0, demo.W, demo.H)
-
-
-CAPABILITY = Capability(
-    id='pollen-drift',
-    name='Pollen drift',
-    family='particles',
-    group='Emitters',
-    aliases=('floating dust', 'dust motes', 'floating particles', 'ambient particles', 'fairy dust'),
-    definition='A constant scatter of tiny glowing specks floats across the frame on a gentle breeze, '
-               'each swaying on its own path and fading in and out, the closer ones larger and faster.',
-    phrasings=('little bits of dust floating in the sunlight',
-               'soft glowing particles drifting slowly through the background',
-               'pollen hanging in the air and drifting on the wind'),
-    related=('spiral-bloom', 'wander-steering', 'voronoi-relaxation', 'turbulence-displacement', 'wind-field',
-             'phyllotaxis'),
-    api=('videobuilder.capabilities.particles.pollen_drift.draw_pollen',
-         'videobuilder.capabilities.particles.pollen_drift.pollen'),
-    demo=lambda: demo.film(draw),
-)

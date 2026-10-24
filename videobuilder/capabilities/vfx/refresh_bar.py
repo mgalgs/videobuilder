@@ -89,7 +89,7 @@ CAPABILITY = Capability(
     name='Refresh bar',
     family='vfx',
     group='CRT & display',
-    aliases=('rolling bar', 'hum bar', 'vertical roll bar'),
+    aliases=('rolling bar', 'hum bar', 'vertical roll bar', 'monitor flicker', 'scan roll'),
     definition='A broad, blurry stripe of brighter or dimmer light drifts slowly down the image '
                'and loops back to the top, like a TV screen filmed out of sync.',
     phrasings=('make it look like we filmed an old TV, with that band rolling down the screen',

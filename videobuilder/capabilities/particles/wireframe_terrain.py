@@ -91,7 +91,8 @@ CAPABILITY = Capability(
     name='Wireframe terrain',
     family='particles',
     group='Terrain',
-    aliases=('grid terrain', 'scrolling heightmap', 'synthwave grid'),
+    aliases=('grid terrain', 'scrolling heightmap', 'synthwave grid', 'procedural terrain flyover',
+             'retro mountain grid'),
     definition='A mesh of grid lines laid over rolling hills in perspective, the landscape '
                'streaming steadily toward the camera as if flying low over it.',
     phrasings=('a retro wireframe landscape scrolling toward me',

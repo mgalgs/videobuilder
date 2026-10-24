@@ -1,11 +1,15 @@
-"""Long Shadow Growth: a flat, hard-edged shadow streams out of the letters
-at a fixed angle, stretching from nothing to a long diagonal trail."""
+"""Long Shadow Growth: the same flat hard-edged diagonal shadow stretching
+out as Long shadow extension (`../shapes/long_shadow_extension.py`, which
+keeps the capability), on letters rather than a shape; they share the
+aliases long shadow and flat long shadow. This module's own code stays (a
+film may still import it), but it is no longer a capability of its own."""
 import math
 
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Capability
+
+MERGED_INTO = 'long-shadow-extension'
 
 
 def _mix(a, b, t):
@@ -44,21 +48,3 @@ def draw(n, cv):
     grow = vb.ease_in_out_quart(demo.phase(n, 0.4, 2.4))
     box = draw_long_shadow(cv, lines, f, x, y, demo.INK, '#b8402f', length * grow, fade=demo.BG)
     cv.mark('text', *box)
-
-
-CAPABILITY = Capability(
-    id='long-shadow-growth',
-    name='Long shadow growth',
-    family='typography',
-    group='Shadow',
-    aliases=('long shadow', 'flat long shadow', 'growing long shadow', 'shadow extend'),
-    definition='A flat, sharp-edged shadow slides out of the letters along a diagonal, '
-               'lengthening until it trails far across the frame.',
-    phrasings=('make the title cast a long diagonal shadow that stretches out',
-               'flat design text where the shadow grows longer behind it',
-               'the shadow should extend out from the words at 45 degrees'),
-    related=('long-shadow-extension', 'drop-shadow-breathing', 'character-rise', 'extrusion-depth-reveal',
-             'shadow-play', 'outline-pulse-glow'),
-    api=('videobuilder.capabilities.typography.long_shadow_growth.draw_long_shadow',),
-    demo=lambda: demo.film(draw),
-)

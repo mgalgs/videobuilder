@@ -1,12 +1,15 @@
-"""Droste effect: a picture holds a smaller framed copy of itself, which holds
-a smaller copy again, nesting down to a point; the camera pushes in for ever,
-each copy growing to fill the frame just as the next one takes its place."""
+"""Droste effect: the same idea as Infinite zoom (`../vfx/infinite_zoom_tunnel.py`,
+which keeps the capability) -- their own docstrings say the same thing: a
+picture holding a framed copy of itself with the camera pushing in for
+ever. This module's own code stays (a film may still import it), but it is
+no longer a capability of its own."""
 import cairo
 
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Capability
+
+MERGED_INTO = 'infinite-zoom-tunnel'
 
 
 def droste(cv, draw, p=0.0, ratio=0.42, cx=None, cy=None, border=8, border_color='#f4f1ea', min_px=3):
@@ -67,22 +70,3 @@ FOCUS = (demo.W * 0.6, demo.H * 0.5)
 def _draw(n, cv):
     # One and a half steady laps of the push-in over the demo: constant speed, so it reads as endless.
     droste(cv, _scene, p=1.5 * n / (demo.FPS * demo.SECONDS), cx=FOCUS[0], cy=FOCUS[1])
-
-
-CAPABILITY = Capability(
-    id='droste-effect',
-    name='Droste effect',
-    family='camera',
-    group='Shader looks',
-    aliases=('recursive picture', 'picture-in-picture recursion', 'self-embedding image', 'infinite picture',
-             'mise en abyme', 'infinite zoom'),
-    definition='A frame shows a shrunken copy of itself set inside it, which holds a smaller copy again, '
-               'and the view keeps pushing into that tunnel of pictures without end.',
-    phrasings=('put the picture inside itself over and over, getting smaller each time',
-               'an endless zoom into a picture within a picture within a picture',
-               'make the shot recursive, like a frame holding a copy of the whole frame'),
-    related=('multiples', 'pixelate-transition', 'blur-up-image-load', 'image-crossfade-slideshow',
-             'ascii-art-render', 'pixelation'),
-    api=('videobuilder.capabilities.camera.droste_effect.droste',),
-    demo=lambda: demo.film(_draw),
-)

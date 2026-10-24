@@ -26,7 +26,8 @@ CAPABILITY = Capability(
     name='Shake',
     family='principles',
     group='Physics',
-    aliases=('screen shake', 'camera shake', 'trauma shake', 'impact shake'),
+    aliases=('screen shake', 'camera shake', 'trauma shake', 'impact shake', 'hit shake text', 'kick jolt',
+             'text jolt'),
     definition='The view or an object jolts about in small random jumps that die away quickly, '
                'selling the force of a hit.',
     phrasings=('make the screen shake when it lands',

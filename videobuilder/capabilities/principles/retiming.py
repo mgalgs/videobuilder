@@ -1,12 +1,15 @@
-"""Retiming: an animation that already exists is played back on a new clock,
-holding its path but changing its pace -- here normal speed, then slow
-motion, then a fast catch-up -- by mapping output time to source time."""
+"""Retiming: the same idea as Time Remapping (`time_remapping.py`, which
+keeps the capability) -- an animation that already exists is played back on
+a new clock, holding its path but changing its pace, and they share
+aliases. This module's own code stays (a film may still import it), but it
+is no longer a capability of its own."""
 import math
 
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Capability
+
+MERGED_INTO = 'time-remapping'
 
 
 def retime(t, keys):
@@ -72,22 +75,3 @@ def draw(n, cv):
         f = demo.mono(40, 700)
         w, _ = vb.text.block_size([tag], f)
         vb.text.draw(cv, [tag], f, demo.W - 80 - w, LANES[1][0] - 160, demo.ACCENT)
-
-
-CAPABILITY = Capability(
-    id='retiming',
-    name='Retiming',
-    family='principles',
-    group='Time remapping',
-    aliases=('time remapping', 'time remap', 'speed ramp', 'time warp'),
-    definition='An existing move keeps its exact path but is played back on a new clock, '
-               'so parts of it run slower, faster or pause while it still ends where it did.',
-    phrasings=('slow that bit down, then let it whip through the rest',
-               'keep the same animation but change its pacing',
-               'make it go into slow motion halfway and then speed back up'),
-    related=('velocity-preserving-retarget', 'interruptible-motion', 'hyperlapse', 'cut-on-action',
-             'distance-based-duration', 'reverse-motion-cut'),
-    api=('videobuilder.capabilities.principles.retiming.retime',
-         'videobuilder.capabilities.principles.retiming.speed'),
-    demo=lambda: demo.film(draw),
-)

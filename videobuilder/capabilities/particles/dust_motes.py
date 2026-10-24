@@ -98,7 +98,7 @@ CAPABILITY = Capability(
     name='Dust motes',
     family='particles',
     group='Emitters',
-    aliases=('floating dust', 'light shaft particles', 'airborne dust'),
+    aliases=('floating dust', 'light shaft particles', 'airborne dust', 'fairy dust', 'ambient particles'),
     definition='Tiny bright specks float lazily in the air, wandering and glinting as they pass through a '
                'beam of light.',
     phrasings=('little bits of dust floating in a sunbeam',

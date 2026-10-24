@@ -71,7 +71,8 @@ CAPABILITY = Capability(
     name='Infinite zoom',
     family='vfx',
     group='Symmetry & geometry',
-    aliases=('infinite zoom tunnel', 'zoom tunnel', 'recursive zoom', 'Matryoshka zoom', 'Droste zoom'),
+    aliases=('infinite zoom tunnel', 'zoom tunnel', 'recursive zoom', 'Matryoshka zoom', 'Droste zoom',
+             'Droste effect', 'mise en abyme', 'recursive picture'),
     definition='The picture contains a smaller framed copy of itself, which contains another, and the camera '
                'pushes in without end as each inner copy swells to fill the screen.',
     phrasings=('a zoom that never stops going in',

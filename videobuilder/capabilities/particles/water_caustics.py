@@ -1,5 +1,9 @@
-"""Water caustics: a web of bright, wobbling light lines drifting over a
-surface, the pattern sunlight makes on a pool floor through moving water."""
+"""Water caustics: the same wavering net of light lines on a pool floor as
+Caustics (`../camera/caustics.py`, which keeps the capability) -- caustics
+traces rays through a wave-covered surface, this module paints the pattern
+directly, a cheaper option for the same look. This module's own code stays
+(a film may still import it), but it is no longer a capability of its
+own."""
 import math
 
 import numpy as np
@@ -8,7 +12,8 @@ from PIL import Image as PILImage
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Capability
+
+MERGED_INTO = 'caustics'
 
 
 def caustic_field(w, h, t, cell=320.0, speed=1.0, sharpness=8.0, octaves=5, seed=0.0):
@@ -79,23 +84,3 @@ def draw(n, cv):
     t = n / demo.FPS
     draw_caustics(cv, 0, 0, demo.W, demo.H, t, color=LIGHT, alpha=0.9, cell=420.0, speed=1.6, seed=3.0)
     cv.mark('caustics', 0, 0, demo.W, demo.H)
-
-
-CAPABILITY = Capability(
-    id='water-caustics',
-    name='Water caustics',
-    family='particles',
-    group='Water & light',
-    aliases=('caustic lighting', 'caustic pattern', 'underwater caustics', 'pool light caustics',
-             'water light patterns', 'refraction light patterns'),
-    definition='A shifting net of bright, wavy light lines plays across a surface, '
-               'like sunlight bent through moving water onto the bottom of a pool.',
-    phrasings=('make it look like light rippling on the floor of a swimming pool',
-               'add those wobbly underwater light patterns over the background',
-               'shimmering sunlight through water dancing across the scene'),
-    related=('caustics', 'ripple', 'ripple-rings', 'lens-flare', 'spotlight-follow', 'text-reflection-shimmer'),
-    api=('videobuilder.capabilities.particles.water_caustics.draw_caustics',
-         'videobuilder.capabilities.particles.water_caustics.caustic_image',
-         'videobuilder.capabilities.particles.water_caustics.caustic_field'),
-    demo=lambda: demo.film(draw),
-)

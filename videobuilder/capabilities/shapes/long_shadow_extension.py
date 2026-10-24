@@ -95,7 +95,7 @@ CAPABILITY = Capability(
     name='Long shadow extension',
     family='shapes',
     group='Depth & shadows',
-    aliases=('long shadow', 'flat long shadow', 'shadow stretch'),
+    aliases=('long shadow', 'flat long shadow', 'shadow stretch', 'shadow extend'),
     definition='A flat shape trails a solid, sharp-edged shadow off at a diagonal, '
                'and the shadow reaches further out and then draws back in.',
     phrasings=('give the icon one of those long flat-design shadows that grows out',

@@ -100,7 +100,7 @@ CAPABILITY = Capability(
     name='Time Remapping',
     family='principles',
     group='Time remapping',
-    aliases=('speed ramp', 'speed ramping', 'time warp', 'retiming'),
+    aliases=('speed ramp', 'speed ramping', 'time warp', 'retiming', 'ramp cut', 'variable speed'),
     definition='The playback speed of a motion changes as it runs, gliding from normal pace into '
                'slow motion and then racing faster than real time, without cutting.',
     phrasings=('slow it right down in the middle, then speed it back up',
@@ -110,6 +110,10 @@ CAPABILITY = Capability(
              'timecode-counter', 'delay'),
     api=('videobuilder.capabilities.principles.time_remapping.speed_ramp',
          'videobuilder.capabilities.principles.time_remapping.remapped',
-         'videobuilder.capabilities.principles.time_remapping.speed_at'),
+         'videobuilder.capabilities.principles.time_remapping.speed_at',
+         'videobuilder.capabilities.principles.speed_ramp.speed_ramp',
+         'videobuilder.capabilities.principles.speed_ramp.speed_at',
+         'videobuilder.capabilities.principles.retiming.retime',
+         'videobuilder.capabilities.principles.retiming.speed'),
     demo=lambda: demo.film(draw),
 )

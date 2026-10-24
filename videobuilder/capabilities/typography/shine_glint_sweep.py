@@ -103,7 +103,7 @@ CAPABILITY = Capability(
     name='Shine glint sweep',
     family='typography',
     group='Surface and light',
-    aliases=('glint', 'shine sweep', 'text shine', 'logo shine', 'specular sweep'),
+    aliases=('glint', 'shine sweep', 'text shine', 'logo shine', 'specular sweep', 'shine pass'),
     definition='A thin slanted streak of light travels across a word, brightening only the letters it touches, '
                'and finishes with a small sparkle as it leaves.',
     phrasings=('make a flash of light slide across the title like it is polished metal',
@@ -112,6 +112,7 @@ CAPABILITY = Capability(
     related=('sheen-sweep', 'text-reflection-shimmer', 'rim-light', 'spotlight-hover', 'fresnel-edge-glow',
              'gooch-shading'),
     api=('videobuilder.capabilities.typography.shine_glint_sweep.draw_glint',
-         'videobuilder.capabilities.typography.shine_glint_sweep.star'),
+         'videobuilder.capabilities.typography.shine_glint_sweep.star',
+         'videobuilder.capabilities.ui.sheen_sweep.sheen'),
     demo=lambda: demo.film(draw),
 )

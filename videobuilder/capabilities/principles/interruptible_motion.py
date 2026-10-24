@@ -101,7 +101,8 @@ CAPABILITY = Capability(
     name='Interruptible Motion',
     family='principles',
     group='Timing & spacing',
-    aliases=('cancellable animation', 'interrupt and reverse', 'retargetable animation'),
+    aliases=('cancellable animation', 'interrupt and reverse', 'retargetable animation',
+             'velocity handoff', 'smooth retarget', 'additive retargeting'),
     definition='A move that can be cut off or turned around partway through and simply heads for its new '
                'destination from wherever it is, keeping its momentum instead of snapping or starting over.',
     phrasings=('if I click again halfway, it should turn around smoothly instead of jumping',

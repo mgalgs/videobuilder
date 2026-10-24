@@ -1,11 +1,13 @@
-"""Impact Shake: videobuilder already has the jolt as `impact.shake` (the
-decaying rattle `impact.Hit` uses on the whole frame), so this entry only
-names it and demos it on a word: offset the text by `shake(n, hit)` and it
-kicks on every hit, then settles."""
+"""Impact Shake: the same videobuilder.impact.shake as Shake
+(`../principles/shake.py`, which keeps the capability) -- a sharp jolt that
+dies away within a fraction of a second, here applied to a word instead of
+the whole frame. This module's own code stays (a film may still import
+it), but it is no longer a capability of its own."""
 from videobuilder import impact
 
 from .. import _demo as demo
-from ..schema import Capability
+
+MERGED_INTO = 'shake'
 
 HITS = (18, 40, 62)  # frames the word is struck on
 
@@ -23,20 +25,3 @@ def draw(n, cv):
     if flash:  # the word blushes accent as it is struck
         demo.word(cv, 'IMPACT', x, y, size=150, weight=900, color=demo.ACCENT, alpha=flash)
     cv.mark('text', *box)
-
-
-CAPABILITY = Capability(
-    id='impact-shake',
-    name='Impact shake',
-    family='typography',
-    group='Wave and motion',
-    aliases=('hit shake text', 'kick jolt', 'text jolt'),
-    definition='Text jerks sharply from side to side the moment something strikes it, '
-               'the rattle dying away within a fraction of a second.',
-    phrasings=('make the title jolt every time the beat hits',
-               'the word rattles when it gets punched, then goes still',
-               'give the headline a quick shake on impact'),
-    related=('impact', 'impact-hit', 'shake', 'recoil', 'hitstop', 'error-shake'),
-    api=('videobuilder.impact.shake',),
-    demo=lambda: demo.film(draw),
-)

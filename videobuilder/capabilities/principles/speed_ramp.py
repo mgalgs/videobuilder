@@ -1,11 +1,13 @@
-"""Speed Ramp: the playback rate of a motion eases from one speed to another
--- normal into slow motion and back up to fast -- rather than cutting between
-speeds. `speed_ramp` turns film time into source time, so any animation driven
-by it slows and speeds up smoothly."""
+"""Speed Ramp: the same idea as Time Remapping (`time_remapping.py`, which
+keeps the capability) -- both feed an animation a retimed clock that eases
+from normal speed into slow motion and back up again, and they share
+aliases. This module's own code stays (a film may still import it), but it
+is no longer a capability of its own."""
 import math
 
 from .. import _demo as demo
-from ..schema import Capability
+
+MERGED_INTO = 'time-remapping'
 
 
 def speed_ramp(t, keys):
@@ -93,22 +95,3 @@ def draw(n, cv):
     demo.dot(cv, hx, py(v), 7, color=demo.INK)
     demo.word(cv, f'{v:.1f}×', demo.W / 2, 110, size=64, font=demo.mono(64))
     demo.word(cv, 'speed', gx - 40, py(1), size=18, color=demo.MUTED, weight=600)
-
-
-CAPABILITY = Capability(
-    id='speed-ramp',
-    name='Speed Ramp',
-    family='principles',
-    group='Time remapping',
-    aliases=('time remap', 'velocity ramp', 'ramp cut', 'variable speed', 'slow-motion ramp'),
-    definition='A shot whose playback rate glides between speeds, sinking into slow motion and '
-               'then surging fast again, instead of switching speed in one jump.',
-    phrasings=('slow it down to slow-mo in the middle and then speed it back up',
-               'ramp the speed so it eases into slow motion',
-               'make the action go fast, then slow, then fast again, smoothly'),
-    related=('steps-easing', 'speed-lines', 'velocity-preserving-retarget', 'linear-easing',
-             'animated-gradient-sweep', 'distance-based-duration'),
-    api=('videobuilder.capabilities.principles.speed_ramp.speed_ramp',
-         'videobuilder.capabilities.principles.speed_ramp.speed_at'),
-    demo=lambda: demo.film(draw),
-)

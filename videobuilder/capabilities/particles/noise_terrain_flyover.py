@@ -1,6 +1,8 @@
-"""Noise Terrain Flyover: a wireframe landscape whose hills come from layered
-noise, seen in perspective from a camera gliding low over it, so ridges rise
-out of the haze on the horizon and stream toward and under the viewer."""
+"""Noise Terrain Flyover: the same noise-height wireframe grid streaming
+toward a low camera as Wireframe terrain (`wireframe_terrain.py`, which
+keeps the capability); they share the alias synthwave grid. This module's
+own code stays (a film may still import it), but it is no longer a
+capability of its own."""
 import math
 
 import cairo
@@ -9,8 +11,9 @@ import videobuilder as vb
 from videobuilder.canvas import rgba
 
 from .. import _demo as demo
-from ..schema import Capability
 from ..typography.noise_field_warp import Noise
+
+MERGED_INTO = 'wireframe-terrain'
 
 _noises = {}
 
@@ -96,23 +99,3 @@ def draw(n, cv):
     demo.dot(cv, demo.W / 2, hy - 40, 120, color=demo.ACCENT, alpha=0.85)
     draw_terrain(cv, travel=3.0 + 4.2 * t, seed=3, haze='#3a2430')
     cv.mark('terrain', 0, hy, demo.W, demo.H - hy)
-
-
-CAPABILITY = Capability(
-    id='noise-terrain-flyover',
-    name='Noise terrain flyover',
-    family='particles',
-    group='Terrain',
-    aliases=('procedural terrain flyover', 'wireframe landscape fly-through', 'synthwave grid terrain',
-             'retro mountain grid'),
-    definition='A camera glides low over a mesh of hills shaped by smooth random noise, the ridges '
-               'emerging from the horizon haze and rolling toward and beneath the viewer.',
-    phrasings=('fly over a wireframe mountain landscape like an 80s synth video',
-               'a generated terrain grid scrolling toward the camera',
-               'endless procedural hills passing underneath as we fly forward'),
-    related=('drone-flyover', 'fly-through', 'zoom-to-location-map', 'scale-zoom-through', 'static-noise',
-             'fractal-brownian-motion'),
-    api=('videobuilder.capabilities.particles.noise_terrain_flyover.draw_terrain',
-         'videobuilder.capabilities.particles.noise_terrain_flyover.terrain_height'),
-    demo=lambda: demo.film(draw),
-)

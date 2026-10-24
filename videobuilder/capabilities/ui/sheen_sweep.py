@@ -1,5 +1,9 @@
-"""Sheen sweep: a slanted strip of soft light glides once across a button,
-left to right, clipped to its rounded face, as if the surface caught the light."""
+"""Sheen sweep: the button-clipped version of Shine glint sweep
+(`../typography/shine_glint_sweep.py`, which keeps the capability) -- a
+slanted streak of light crossing a surface once, here clipped to a
+button's rounded face instead of a word's glyphs; the two share four
+aliases. This module's own code stays (a film may still import it), but it
+is no longer a capability of its own."""
 import math
 
 import cairo
@@ -7,7 +11,8 @@ import cairo
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Capability
+
+MERGED_INTO = 'shine-glint-sweep'
 
 
 def sheen(cv, x, y, w, h, p, radius=0, width=None, angle=20, color='#ffffff', strength=0.55):
@@ -60,21 +65,3 @@ def draw(n, cv):
     p = demo.phase(n, 1.3, 2.9)  # centred on the button at the poster frame (2.1 s)
     sheen(cv, x, y, w, h, p * p * (3 - 2 * p), radius=r, strength=0.65)
     cv.mark('button', x, y, w, h)
-
-
-CAPABILITY = Capability(
-    id='sheen-sweep',
-    name='Sheen sweep',
-    family='ui',
-    group='Buttons',
-    aliases=('shine sweep', 'light sweep', 'specular sweep', 'shine pass', 'glint'),
-    definition='A slanted strip of soft light slides once across a button from one side to the other, '
-               'so its surface looks glossy for a moment.',
-    phrasings=('make the button gleam as a streak of light passes over it',
-               'a shiny highlight that runs across the button',
-               'give the call-to-action a glossy shine every few seconds'),
-    related=('shine-glint-sweep', 'gradient-sweep-across-text', 'fresnel-edge-glow',
-             'chrome-specular-shimmer', 'spotlight-hover', 'animated-gradient-sweep'),
-    api=('videobuilder.capabilities.ui.sheen_sweep.sheen',),
-    demo=lambda: demo.film(draw),
-)

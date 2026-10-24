@@ -1,10 +1,14 @@
-"""Velocity-Preserving Retarget: when a move's destination changes mid-flight,
-the new move starts from where the object is *and how fast it is going*, so
-it curves round to the new target instead of stopping dead or kinking."""
+"""Velocity-Preserving Retarget: the same idea as Interruptible Motion
+(`interruptible_motion.py`, which keeps the capability) -- when a move's
+destination changes mid-flight, the new move starts from where the object
+is *and how fast it is going*, so it curves round to the new target
+instead of stopping dead or kinking. This module's own code stays (a film
+may still import it), but it is no longer a capability of its own."""
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Capability
+
+MERGED_INTO = 'interruptible-motion'
 
 
 def _hermite(s, p0, v0, p1, length):
@@ -84,20 +88,3 @@ def draw(n, cv):
     f = demo.mono(18)
     vb.text.draw(cv, ['keeps its velocity'], f, 40, 30, demo.ACCENT)
     vb.text.draw(cv, ['restarts from rest'], f, 40, 58, demo.MUTED)
-
-
-CAPABILITY = Capability(
-    id='velocity-preserving-retarget',
-    name='Velocity-Preserving Retarget',
-    family='principles',
-    group='Timing & spacing',
-    aliases=('interruptible animation', 'velocity handoff', 'smooth retarget', 'additive retargeting'),
-    definition='When something already in motion is given a new destination, it carries its current '
-               'speed and direction into the new move and curves round to it, with no stop or sharp turn.',
-    phrasings=('change where it is going halfway without it jerking',
-               'if the target moves, let it swing over smoothly instead of snapping',
-               'redirect the motion mid-flight and keep its momentum'),
-    related=('retiming', 'momentum-fling', 'inertia', 'speed-ramp', 'reverse-playback', 'cut-on-action'),
-    api=('videobuilder.capabilities.principles.velocity_preserving_retarget.velocity_preserving_retarget',),
-    demo=lambda: demo.film(draw),
-)
