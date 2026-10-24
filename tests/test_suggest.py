@@ -107,14 +107,14 @@ class NoModel(Server):
     def test_catalog_merges_registry_entries_into_capabilities(self):
         catalog = self.get('/api/suggest/catalog')
         by_id = {c['id']: c for c in catalog['capabilities']}
-        self.assertIn('ease-out-back', by_id)  # a registry id
-        entry = by_id['ease-out-back']
-        self.assertEqual(entry['poster'], '/capabilities/ease-out-back.jpg')
-        self.assertEqual(entry['clip'], '/capabilities/ease-out-back.mp4')
+        self.assertIn('air-drag', by_id)  # a registry id with no card of its own
+        entry = by_id['air-drag']
+        self.assertEqual(entry['poster'], '/capabilities/air-drag.jpg')
+        self.assertEqual(entry['clip'], '/capabilities/air-drag.mp4')
         self.assertEqual(entry['category'], 'Animation principles')
-        self.assertEqual(entry['group'], 'Easing')
-        self.assertIn('back out', entry['aliases'])
-        self.assertIn('arrives with a small overshoot', entry['phrasings'])
+        self.assertEqual(entry['group'], 'Physics')
+        self.assertIn('air resistance', entry['aliases'])
+        self.assertIn('it should speed up and then level off at a constant falling speed', entry['phrasings'])
         for leaked in ('api', 'related', 'family'):
             self.assertNotIn(leaked, entry)
         curated = by_id['seamless-loops']  # a hand-written entry: no group/aliases/phrasings

@@ -165,7 +165,7 @@ END_CARD = TIMELINE.find('end').until - TIMELINE.find('end').at
 # and the wipe it comes in on.
 SHOTS = {
     'open': ['kinetic-typography', 'odometer-roll'],
-    'wall': ['optical-zoom', 'center-out-stagger'],
+    'wall': ['optical-zoom', 'radial-stagger'],     # once center-out-stagger
     **{b.name: b.tag for b in everything.BEATS},
     'ask': everything.ASK_TAG,
     'title': ['pop-on-the-beat', 'sound-effects'],
