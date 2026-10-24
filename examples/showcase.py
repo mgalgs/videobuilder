@@ -1,7 +1,8 @@
 """The showcase: videobuilder's product film. Everything it can do, in one
 quick cut on the beat of a generated music bed: every capability counted and
 on a wall, a beat for every family with its demos playing, and then a
-launch film for a made-up app, Lumen, cut from the hand-written ones.
+launch film for a made-up app, Lumen, cut from the capabilities with cards
+of their own on the /capabilities page.
 
     python -m videobuilder preview examples/showcase.py
     python -m videobuilder render examples/showcase.py --format all

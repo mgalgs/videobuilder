@@ -25,13 +25,15 @@ class Showcase(unittest.TestCase):
 
     def test_every_capability_is_named_in_some_shots_tag(self):
         tagged = {cap for caps in self.mod.SHOTS.values() for cap in caps}
-        for e in capabilities.CATALOG:
-            with self.subTest(id=e['id']):
-                self.assertIn(e['id'], tagged, f"no shot in examples/showcase.py names {e['id']} in its tag")
+        for e in capabilities.cards():
+            if not e.category:
+                continue   # a member of Looks or Type: its group's own shot names the group
+            with self.subTest(id=e.id):
+                self.assertIn(e.id, tagged, f"no shot in examples/showcase.py names {e.id} in its tag")
 
     def test_every_shot_has_a_tag_of_known_capabilities(self):
         from videobuilder.capabilities import registry
-        ids = set(capabilities.ids()) | set(registry.ids())
+        ids = set(capabilities.ids())
         for seg in self.timeline.leaves():
             with self.subTest(segment=seg.name):
                 caps = self.mod.SHOTS[seg.name]
@@ -42,13 +44,14 @@ class Showcase(unittest.TestCase):
     def test_the_counts_families_and_wall_come_from_the_capabilities_api(self):
         from videobuilder.capabilities import registry
         everything = self.mod.everything
-        every = [e['id'] for e in capabilities.entries()] + list(registry.ids())
+        every = list(registry.ids())
         self.assertEqual(everything.TOTAL, len(every))
         families = [f for f in registry.FAMILIES if registry.catalog(f)]
         self.assertEqual(sorted(b.family.slug for b in everything.BEATS), sorted(families))
         for b in everything.BEATS:
             with self.subTest(family=b.family.slug):
-                self.assertEqual(len(b.family.members), len(registry.catalog(b.family.slug)))
+                self.assertEqual(len(b.family.members), len([t for t in registry.catalog(b.family.slug)
+                                                             if not capabilities.has_card(t)]))
                 self.assertTrue(b.clips)
                 self.assertLessEqual({t.id for t in b.clips}, set(self.mod.SHOTS[b.name]))
                 self.assertIn(b.name, [s.name for s in self.timeline.leaves()])
@@ -153,8 +156,7 @@ class ServedWithTheCatalog(unittest.TestCase):
         with tempfile.TemporaryDirectory() as d, \
                 mock.patch('videobuilder.render.render'), \
                 mock.patch.object(capabilities, 'build_showcase', return_value=[{'id': 'showcase-16x9'}]) as reel, \
-                mock.patch.object(capabilities, 'build_registry', return_value=[]), \
-                mock.patch.object(capabilities, 'CATALOG', ()):
+                mock.patch.object(capabilities, 'build_registry', return_value=[]):
             capabilities.build(d)
             self.assertEqual(reel.call_count, 1)
             capabilities.build(d, only={'showcase'})

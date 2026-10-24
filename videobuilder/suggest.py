@@ -8,9 +8,8 @@ the full picture.
 The catalog the model sees is two system blocks. A small, cached one
 (Looks, Type, Fonts, and one line per `capabilities.REGISTRY_FAMILIES`
 family) lists what's cheap to list in full every time. Everything else --
-every other hand-written capability, every capability in the
-`videobuilder.capabilities.registry` (hundreds of them; to the director these
-are simply more capabilities, the registry is an implementation detail),
+every other capability (hundreds of them, read through
+`videobuilder.capabilities.registry`),
 every sound effect and every music track -- is far too large to list in
 full without making a small model's choice vague and slow. Those are
 matched per note instead, by a BM25 index (`suggest_index.py`) built over
@@ -71,32 +70,23 @@ def _normalize(text):
 
 
 def _looks_and_type_ids():
-    """(looks ids, type ids), from the real catalog -- never the family
-    wrapper entries themselves ('looks', 'type'), which aren't things a
-    note can ask for."""
+    """(looks ids, type ids): the members of the Looks and Type
+    capabilities -- never those grouping capabilities themselves ('looks',
+    'type'), which aren't things a note can ask for."""
     from . import capabilities
-    looks, type_ = set(), set()
-    for e in capabilities.entries():
-        family = e.get('family')
-        if family == 'looks':
-            looks.add(e['id'])
-        elif family == 'type':
-            type_.add(e['id'])
-    return looks, type_
+    return (set(capabilities.get('looks').members.ids), set(capabilities.get('type').members.ids))
 
 
-def _catalog_entry_line(e):
-    family = e.get('family') or 'capabilities'
-    prompts = ' / '.join(e.get('prompts', ())[:2])
-    return f"{e['id']} | {family} | {e['title']} | {e['card']} | {prompts}"
+def _catalog_entry_line(t, family):
+    prompts = ' / '.join(t.phrasings[:2])
+    return f"{t.id} | {family} | {t.name} | {t.definition} | {prompts}"
 
 
 def _build_static_block():
     """The static, cacheable system block: instructions, then Looks, Type
     and Fonts in full (small, curated lists, cheap to always list), then
     one line per `capabilities.REGISTRY_FAMILIES` family so the model
-    knows what else exists. Every other capability (hand-written or from
-    the `videobuilder.capabilities.registry`), every sound effect and every
+    knows what else exists. Every other capability, every sound effect and every
     music track is matched per note instead -- see `_build_indices` and
     `_shortlist_block` -- because listing hundreds of them here every time
     would make a small model's choice vague and slow."""
@@ -117,10 +107,9 @@ def _build_static_block():
              '{"items": [{"id", "family" (one of looks/type/fonts/sfx/music/capabilities), "strength" '
              '("strong"|"related"), "why", "replace": {"span", "text"} or null}]}.',
              '', 'Catalog (id | family | title | card | example phrasings):']
-    for e in capabilities.entries():
-        if e.get('family') not in ('looks', 'type'):
-            continue  # a family wrapper, or a plain capability -- matched per note instead
-        lines.append(_catalog_entry_line(e))
+    for family in ('looks', 'type'):  # every other capability is matched per note instead
+        for t in capabilities.members(capabilities.get(family)):
+            lines.append(_catalog_entry_line(t, family))
     lines.append('')
     lines.append('Fonts (id | family | about):')
     for f in fonts_module.public():
@@ -135,45 +124,34 @@ def _build_static_block():
 
 def _capability_line(entry):
     """One retrieval-block line, in the static block's own format (id |
-    capabilities | title | card | example phrasings) -- for a hand-written
-    catalog entry (a dict) or a `videobuilder.capabilities.registry` record,
-    whichever shape `entry` is. The director never sees which kind it is."""
-    if isinstance(entry, dict):
-        prompts = ' / '.join(entry.get('prompts', ())[:2])
-        return f"{entry['id']} | capabilities | {entry['title']} | {entry['card']} | {prompts}"
-    prompts = ' / '.join(entry.phrasings[:2])
-    return f'{entry.id} | capabilities | {entry.name} | {entry.definition} | {prompts}'
+    capabilities | title | card | example phrasings), for a capability record."""
+    return _catalog_entry_line(entry, 'capabilities')
 
 
 def _capability_entry(id_):
-    """The hand-written catalog entry or `videobuilder.capabilities.registry`
-    record named `id_` -- the two pools a "capabilities" answer may come
-    from. KeyError if it is neither (never happens for an id the index
-    itself just handed back)."""
+    """The capability named `id_` (an old id included). KeyError if there is
+    none (never happens for an id the index itself just handed back)."""
     from . import capabilities
-    from .capabilities import registry
-    try:
-        return capabilities.get(id_)
-    except KeyError:
-        pass
-    return registry.get(id_)
+    return capabilities.get(id_)
 
 
 def _capability_docs():
-    """Every capability's retrieval text: hand-written catalog entries
-    (apart from Looks and Type, which stay in the static block) and the
-    `videobuilder.capabilities.registry`, indexed alike -- both answer with
-    family "capabilities", and a director never sees the difference."""
+    """Every capability's retrieval text (apart from the Looks and Type
+    members, which stay in the static block, and the capabilities that
+    group them), all answering with family "capabilities": one with a card
+    of its own by its name, card line, description, phrasings and page
+    section; every other one by its name, aliases, phrasings, definition,
+    group and family."""
     from . import capabilities
     from .capabilities import registry
     docs = []
-    for e in capabilities.entries():
-        if e.get('family') is not None or e.get('children') is not None:
-            continue  # a look/type member (stays in the static block), or a family wrapper
-        docs.append((e['id'], ' '.join((e['title'], e['card'], e['description'], *e.get('prompts', ()),
-                                        e['category']))))
+    for t in capabilities.cards():
+        if t.members or capabilities.parent(t):
+            continue  # a look/type member (stays in the static block), or the capability grouping them
+        docs.append((t.id, ' '.join((t.name, t.definition, t.description, *t.phrasings, t.category))))
     for t in registry.catalog():
-        docs.append((t.id, ' '.join((t.name, *t.aliases, *t.phrasings, t.definition, t.group, t.family))))
+        if not capabilities.has_card(t):
+            docs.append((t.id, ' '.join((t.name, *t.aliases, *t.phrasings, t.definition, t.group, t.family))))
     return docs
 
 

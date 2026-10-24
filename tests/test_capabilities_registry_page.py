@@ -61,9 +61,9 @@ class CategoryMapping(unittest.TestCase):
 
     def test_no_family_slug_collides_with_a_capability_id_or_alias(self):
         # /capabilities/<id>.mp4 and /capabilities/<family> share the same prefix; a family slug
-        # equal to a capability id (or an old id in ALIASES) would make the routes ambiguous.
+        # equal to a capability id (or an old id) would make the routes ambiguous.
         self.assertFalse(set(registry.FAMILIES) & set(capabilities.ids()))
-        self.assertFalse(set(registry.FAMILIES) & set(capabilities.ALIASES))
+        self.assertFalse(set(registry.FAMILIES) & set(capabilities.old_ids()))
 
 
 class Overlap(unittest.TestCase):
@@ -157,7 +157,7 @@ class MainPageSection(unittest.TestCase):
     def test_card_shows_count_and_clip_not_built_placeholder(self):
         page = capabilities.page_html(None, '0').decode()
         section = _section(page, capabilities.FAMILY_CATEGORY['principles'])
-        n = len(registry.catalog('principles'))
+        n = len([t for t in registry.catalog('principles') if not capabilities.has_card(t)])
         self.assertIn(f'({n} capabilit{"ies" if n != 1 else "y"})', section)
         self.assertIn('clip not built', section)
 
@@ -176,7 +176,7 @@ class MainPageSection(unittest.TestCase):
         data = json.loads(re.search(r'<script id="registry-search-data" type="application/json">(.*?)</script>',
                                     page, re.S).group(1))
         ids = {e['id'] for e in data}
-        self.assertEqual(ids, set(registry.ids()))
+        self.assertEqual(ids, {t.id for t in registry.catalog() if not capabilities.has_card(t)})
 
     def test_overlapping_capability_links_to_its_registry_entry(self):
         page = capabilities.page_html(None, '0').decode()

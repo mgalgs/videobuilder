@@ -11,8 +11,9 @@ That command passing is a new capability's acceptance. Each test imports only
 its own module, so a broken capability fails its own test, not its
 neighbours'. It checks: the record is valid; its id matches the file and its
 family the package; every `api` name resolves; the demo builds a short 16:9
-Film; and a few frames rendered at a small scale are not all the same (a
-`sound` capability must carry audio instead).
+Film (a worked example film, `demo=Example(...)`, keeps its own length and
+format: see schema.Example); and a few frames rendered at a small scale are
+not all the same (a `sound` capability must carry audio instead).
 """
 import json
 import os
@@ -44,11 +45,14 @@ def check(case, family, name):
         case.assertIsNotNone(obj)
     film = t.demo()
     case.assertIsInstance(film, vb.Film, f'{t.id}: demo() must return a videobuilder.Film')
-    fmt = film.format()
-    case.assertEqual((fmt.width * 9, fmt.name), (fmt.height * 16, '16x9'), f'{t.id}: demo must be 16x9')
-    seconds = film.frames / film.fps
-    case.assertTrue(MIN_SECONDS <= seconds <= MAX_SECONDS,
-                    f'{t.id}: demo is {seconds:.2f}s; keep it about 2 to 4 seconds')
+    if t.is_example:
+        case.assertTrue((ROOT / t.demo.path).is_file(), t.demo.path)
+    else:   # the short-demo rule: every capability but a worked example film (schema.Example)
+        fmt = film.format()
+        case.assertEqual((fmt.width * 9, fmt.name), (fmt.height * 16, '16x9'), f'{t.id}: demo must be 16x9')
+        seconds = film.frames / film.fps
+        case.assertTrue(MIN_SECONDS <= seconds <= MAX_SECONDS,
+                        f'{t.id}: demo is {seconds:.2f}s; keep it about 2 to 4 seconds')
     if t.family == 'sound':
         case.assertTrue(film.audio is not None or film.sounds, f'{t.id}: a sound capability must carry audio')
         return
@@ -84,19 +88,31 @@ class Registry(unittest.TestCase):
         names = [name for _, name in registry.modules()]
         self.assertEqual(len(names), len(set(names)), 'two families have a capability with the same id')
 
-    def test_no_registry_id_collides_with_a_curated_capability_look_or_type_id(self):
-        # suggest.py answers a registry capability the same way as a hand-written one, family
-        # "capabilities" -- so the two id spaces must never collide, or one would shadow the other.
+    def test_no_id_collides_with_an_old_id_or_a_showcase_file(self):
+        # clip_file() rewrites old ids, and shares its directory with SHOWCASE_FILES -- a
+        # collision there would silently shadow or overwrite a capability's clip.
         from videobuilder import capabilities
-        self.assertFalse(set(registry.ids()) & set(capabilities.ids()))
-
-    def test_no_registry_id_collides_with_an_alias_or_a_showcase_file(self):
-        # clip_file() rewrites ALIASES keys, and shares its directory with SHOWCASE_FILES,
-        # before it ever looks at the registry -- a collision there would silently shadow
-        # or overwrite a registry capability's clip.
-        from videobuilder import capabilities
-        self.assertFalse(set(registry.ids()) & set(capabilities.ALIASES))
+        self.assertFalse(set(registry.ids()) & set(capabilities.old_ids()))
         self.assertFalse(set(registry.ids()) & set(capabilities.SHOWCASE_FILES))
+
+    def test_ids_are_the_loaded_records_ids(self):
+        self.assertEqual(registry.ids(), tuple(t.id for t in registry.catalog()))
+
+    def test_every_member_is_a_capability_in_one_group_only(self):
+        seen = {}
+        for t in registry.catalog():
+            if not t.members:
+                continue
+            headings = {h for _, h, _ in t.members.kinds}
+            for i in t.members.ids:
+                with self.subTest(group=t.id, member=i):
+                    m = registry.get(i)                # KeyError if it isn't one
+                    self.assertNotIn(i, seen)
+                    seen[i] = t.id
+                    self.assertFalse(m.category)       # its section is its group's
+                    self.assertFalse(m.members)
+                    if headings:
+                        self.assertIn(m.group, headings)
 
     def test_one_test_per_module(self):
         tests = {n for n in dir(EachCapability) if n.startswith('test_')}

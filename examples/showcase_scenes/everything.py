@@ -42,10 +42,10 @@ URL = 'mgalgs.io/videobuilder'
 WORDMARK = 'videobuilder'
 
 # ---- what there is ----
-CATALOG = capabilities.entries()   # the hand-written capabilities, families' members included
-REGISTRY = registry.catalog()      # the one-file capabilities
+CATALOG = capabilities.cards()     # the capabilities with cards of their own, Looks' and Type's members included
+REGISTRY = tuple(t for t in registry.catalog() if not capabilities.has_card(t))   # the rest, on family pages
 TOTAL = len(CATALOG) + len(REGISTRY)
-NAMES = {**{t.id: t.name for t in REGISTRY}, **{e['id']: e['title'] for e in CATALOG}}
+NAMES = {**{t.id: t.name for t in REGISTRY}, **{e.id: e.name for e in CATALOG}}
 _BY_ID = {t.id: t for t in REGISTRY}
 
 
@@ -208,8 +208,8 @@ def _search(word):
         if word in t.name.lower():
             hits.setdefault(capabilities.REGISTRY_FAMILIES.get(t.family, (t.family,))[0], []).append(t.id)
     for e in CATALOG:
-        if word in e['title'].lower():
-            hits.setdefault(e['category'], []).append(e['id'])
+        if word in e.name.lower():
+            hits.setdefault(capabilities.category(e), []).append(e.id)
     return sorted(hits.items(), key=lambda kv: -len(kv[1]))
 
 
@@ -300,7 +300,7 @@ def _colour(id):
     """A capability's tile colour: its family's, or its catalog category's."""
     t = _BY_ID.get(id)
     keys = [f.slug for f in FAMILIES] + list(capabilities.categories())
-    key = t.family if t else capabilities.get(id)['category']
+    key = t.family if t else capabilities.category(capabilities.get(id))
     return ACCENTS[keys.index(key) % len(ACCENTS)] if key in keys else MUTED
 
 
@@ -341,7 +341,7 @@ def wall(fmt):
     rows = max(hr, math.ceil(TOTAL / cols))
     c0, r0 = (cols - hc) // 2, (rows - hr) // 2
     live = [i for i in FAVOURITES if i in _BY_ID and demo(i) is not None][:hc * hr]
-    rest = [e['id'] for e in CATALOG] + [t.id for t in REGISTRY if t.id not in live]
+    rest = [e.id for e in CATALOG] + [t.id for t in REGISTRY if t.id not in live]
     random.Random(979).shuffle(rest)
     cells, k, h = [], 0, 0
     in_hero = [(c0 <= c < c0 + hc and r0 <= r < r0 + hr) for r in range(rows) for c in range(cols)]

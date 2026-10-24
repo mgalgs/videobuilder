@@ -21,10 +21,18 @@ existing API), `principles/bounce_ease_out.py` (a new easing curve),
 
 A capability the editor should let the creator tune (a voice, a speed) can
 carry `settings` -- see schema.py's `Capability.settings` and settings.py;
-`sound/voiceover.py` is the worked example (shared with the hand-written
-`narration` catalog entry, so both offer the same controls). `index_data`
-includes a capability's `settings` (as JSON) only when it has any, so every
-other capability's index output is unchanged.
+`sound/voiceover.py` is the worked example (shared with `sound/narration.py`,
+so both offer the same controls). `index_data` includes a capability's
+`settings` (as JSON) and its `source` (the post it came from) only when it
+has them, so every other capability's index output is unchanged.
+
+Every capability is here, the ones with a card of their own on the
+/capabilities page too: those give the record's optional page fields
+(`category`, `order`, `description`, `doc`, `members`, ... see schema.py)
+and usually demo a worked example film (`demo=Example(path)`), e.g.
+`principles/eased_entrances.py`; a capability grouping others (Looks, Type)
+lists them in `members`, e.g. `vfx/looks.py`. capabilities/__init__.py reads
+them for the page and the sheet.
 
 This finds and checks every capability module; there is no list of them
 anywhere else -- a new module is found by its file alone.
@@ -98,14 +106,20 @@ def get(id):
 
 
 def ids(family=None):
-    return tuple(t.id for t in catalog(family))
+    """Every capability's id (or one family's), in `modules` order: read
+    from the file names alone, so no module is imported (`load` checks each
+    id matches its file)."""
+    return tuple(name.replace('_', '-') for _, name in modules(family))
 
 
 def poster_frame(t, film, default):
-    """The frame `t`'s poster is taken from: for a transition, the middle of
-    its demo's move (a `film.keyframes` entry labelled 'mid-transition', see
+    """The frame `t`'s poster is taken from: its own `poster`, when the
+    record gives one; for a transition, the middle of its demo's move (a
+    `film.keyframes` entry labelled 'mid-transition', see
     `_demo.two_scenes`), when the demo marks one; else `default`, unchanged
     for every other capability."""
+    if t.poster is not None:
+        return t.poster
     if t.family == 'transitions':
         for n, label in film.keyframes:
             if label == 'mid-transition':
@@ -136,6 +150,8 @@ def _data(t):
     if t.settings:
         from .settings import as_json
         d['settings'] = as_json(t.settings)
+    if t.source:
+        d['source'] = t.source.as_json()
     return d
 
 

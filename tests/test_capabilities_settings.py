@@ -158,11 +158,10 @@ class CapabilitySettings(unittest.TestCase):
 
 
 class NarrationSettingsAreShared(unittest.TestCase):
-    def test_the_catalog_entry_and_the_registry_capability_agree(self):
-        from videobuilder import capabilities
-        entry = capabilities.get('narration')
+    def test_narration_and_voiceover_agree(self):
+        entry = registry.get('narration')
         registered = registry.get('voiceover')
-        self.assertEqual(entry['settings'], registered.settings)
+        self.assertEqual(entry.settings, registered.settings)
         ids = [s.id for s in registered.settings]
         self.assertEqual(ids, ['voice', 'speed'])
 

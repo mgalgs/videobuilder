@@ -1,8 +1,8 @@
-<!-- GENERATED from videobuilder/capabilities/__init__.py by `sheet_markdown()`. Do not hand-edit;
-     regenerate with `python -m videobuilder capabilities sheet > skill/make-a-video/reference/capabilities.md` after changing the catalog. -->
+<!-- GENERATED from the capability records by `sheet_markdown()` in videobuilder/capabilities/__init__.py.
+     Do not hand-edit; regenerate with `python -m videobuilder capabilities sheet > skill/make-a-video/reference/capabilities.md` after changing a capability. -->
 # Capabilities catalog
 
-What videobuilder can already do, with a worked example for each. Reach for one of these before inventing an effect. Adding a capability later means adding one entry to `CATALOG` in `videobuilder/capabilities/__init__.py` and one demo film beside the others in `examples/capabilities/`; this file and the `/capabilities` page are both generated from that single catalog.
+What videobuilder can already do, with a worked example for each. Reach for one of these before inventing an effect. Every capability is one file under `videobuilder/capabilities/<family>/` (see `videobuilder/capabilities/schema.py`); the ones below have a card of their own on the `/capabilities` page and a worked example film in `examples/capabilities/`. This file and that page are both generated from those records.
 
 ## Motion
 

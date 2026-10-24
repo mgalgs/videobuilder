@@ -529,8 +529,9 @@ class Library:
                 fetched_ids += gather.write_attachments(editor.attachments, vid, [page], [], reserved_files=files,
                                                         max_files=editor.attachments.start_video_max_files,
                                                         max_message=editor.attachments.start_video_max_message)
+            source = community.post_source(post, url) if url and self.capability_fetch else None
             self.community.create(slug, user, post=post, capture=(capture.strip() or None) if capture else None,
-                                  fetched=fetched_ids, family=family)
+                                  fetched=fetched_ids, family=family, source=source)
         finally:
             self.release_capability_slot(token)
         return {'name': name, 'slug': slug, 'video': result['video'], 'attachments': fetched_ids, 'read': read}
@@ -635,7 +636,7 @@ class Library:
         username, or None): whether they can submit one, whether they're an
         admin (who additionally gets Publish/Reject -- see community.py),
         whether the dialog's URL field should show at all, the currently-
-        valid published capabilities (grouped into the fixed catalog's
+        valid published capabilities (grouped into the page's
         categories by the page itself), and the drafts `user` may see --
         their own plus, for an admin, everyone's, always excluding rejected
         ones (on nobody's page) and a published one that still validates
@@ -663,7 +664,7 @@ class Library:
                 can_see_update = user == record['submitter'] or is_admin
                 pending_update = bool(can_see_update and tip and tip != pin and tip != record['update_rejected_sha'])
                 published.append({'slug': slug, **entry, 'available': self._capability_available(slug, pin),
-                                  'pending_update': pending_update})
+                                  'pending_update': pending_update, 'source': record.get('source')})
             else:
                 broken[slug] = problem
         drafts = []

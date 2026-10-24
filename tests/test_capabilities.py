@@ -1,5 +1,5 @@
-"""The capabilities catalog: every entry has a demo and every demo loads,
-draws, and passes the skill's own review check."""
+"""The capabilities with cards of their own: every one has a worked example
+demo and every demo loads, draws, and passes the skill's own review check."""
 import json
 import os
 import re
@@ -9,7 +9,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from videobuilder import capabilities, load, load_module
+from videobuilder import capabilities, load_module
 
 ROOT = Path(__file__).resolve().parent.parent
 DEMOS = ROOT / 'examples' / 'capabilities'
@@ -18,114 +18,122 @@ ENV = {**os.environ, 'PYTHONPATH': str(ROOT) + os.pathsep + os.environ.get('PYTH
 
 
 class Catalog(unittest.TestCase):
-    def test_every_entry_has_a_demo_and_every_demo_has_an_entry(self):
+    def test_every_card_has_a_demo_and_every_demo_has_a_card(self):
         demo_files = {p.name for p in DEMOS.glob('*.py') if not p.name.startswith('_')}
-        catalog_files = {os.path.basename(e['demo']) for e in capabilities.entries()}
+        catalog_files = {os.path.basename(e.demo.path) for e in capabilities.cards()}
         self.assertEqual(catalog_files, demo_files)
-        for e in capabilities.entries():
-            self.assertTrue((ROOT / e['demo']).is_file(), e['demo'])
+        for e in capabilities.cards():
+            self.assertTrue((ROOT / e.demo.path).is_file(), e.demo.path)
 
     def test_ids_are_unique_kebab_case(self):
         seen = set()
-        for e in capabilities.entries():
-            self.assertRegex(e['id'], r'\A[a-z][a-z0-9]*(-[a-z0-9]+)*\Z')
-            self.assertNotIn(e['id'], seen)
-            seen.add(e['id'])
+        for e in capabilities.cards():
+            self.assertRegex(e.id, r'\A[a-z][a-z0-9]*(-[a-z0-9]+)*\Z')
+            self.assertNotIn(e.id, seen)
+            seen.add(e.id)
 
     def test_prompts_are_plain_language_not_api_names(self):
         """'What to tell the builder' is spoken by a non-technical director:
         no prompt should read like code (an underscore name, or `vb.`)."""
-        for e in capabilities.entries():
-            for p in e['prompts']:
-                with self.subTest(id=e['id'], prompt=p):
+        for e in capabilities.cards():
+            for p in e.phrasings:
+                with self.subTest(id=e.id, prompt=p):
                     self.assertNotIn('_', p)
                     self.assertNotIn('vb.', p)
 
     def test_every_demo_draws_first_middle_last_frame(self):
-        for e in capabilities.entries():
-            with self.subTest(id=e['id']):
-                film = load(str(ROOT / e['demo']))
+        for e in capabilities.cards():
+            with self.subTest(id=e.id):
+                film = e.demo()
                 fmt = film.formats[0]
                 self.assertGreaterEqual(film.frames, 2)
                 for n in (0, film.frames // 2, film.frames - 1):
                     film.frame(n, fmt, scale=0.1)
 
     def test_every_demo_passes_check(self):
-        for e in capabilities.entries():
-            with self.subTest(id=e['id']):
-                result = subprocess.run([sys.executable, str(CHECK), str(ROOT / e['demo'])],
+        for e in capabilities.cards():
+            with self.subTest(id=e.id):
+                result = subprocess.run([sys.executable, str(CHECK), str(ROOT / e.demo.path)],
                                         capture_output=True, text=True, env=ENV)
                 self.assertIn('0 failed', result.stdout, result.stdout + result.stderr)
+
+
+def _top():
+    """The capabilities with a `category` of their own, page order."""
+    return [t for t in capabilities.cards() if t.category]
 
 
 class Families(unittest.TestCase):
     def test_looks_is_a_family_with_a_category_of_its_own(self):
         from videobuilder import looks
-        self.assertEqual([f['id'] for f in capabilities.families()], ['looks', 'type'])
+        self.assertEqual([f.id for f in capabilities.with_members()], ['looks', 'type'])
         family = capabilities.get('looks')
-        self.assertIn(family, capabilities.CATALOG)
-        self.assertEqual(family['category'], 'Looks')
-        self.assertEqual([e['id'] for e in capabilities.CATALOG if e['category'] == 'Looks'], ['looks'])
+        self.assertIn(family, _top())
+        self.assertEqual(family.category, 'Looks')
+        self.assertEqual([e.id for e in _top() if e.category == 'Looks'], ['looks'])
         self.assertEqual(capabilities.categories().index('Looks'), capabilities.categories().index('Imagery and camera') + 1)
-        self.assertEqual(family['noun'], ('look', 'looks'))
-        ids = [c['id'] for c in family['children']]
+        self.assertEqual(family.members.noun, ('look', 'looks'))
+        ids = list(family.members.ids)
         self.assertEqual(ids[:8], [f'look-{n}' for n in looks.names()[:8]])
         self.assertIn('paper-collage', ids)
         self.assertEqual([i for i in ids if i.startswith('look-filter-')], [f'look-filter-{n}' for n in looks.filters()[:5]])
-        for child in family['children']:
-            with self.subTest(id=child['id']):
-                self.assertNotIn(child, capabilities.CATALOG)      # reached through the family only
-                self.assertEqual(child['family'], 'looks')
-                self.assertEqual(child['category'], 'Looks')
-                self.assertIs(capabilities.get(child['id']), child)
-                self.assertIn(child['id'], capabilities.ids())
-                self.assertIn(child['kind'], ('scene', 'filter'))
-                if child['look'] is None:
+        for child in capabilities.members(family):
+            with self.subTest(id=child.id):
+                self.assertNotIn(child, _top())      # reached through the family only
+                self.assertEqual(capabilities.parent(child).id, 'looks')
+                self.assertEqual(capabilities.category(child), 'Looks')
+                self.assertEqual(child.category, '')
+                self.assertIs(capabilities.get(child.id), child)
+                self.assertIn(child.id, capabilities.ids())
+                kind, look = capabilities.kind(child), capabilities.member_name(child)
+                self.assertIn(kind, ('scene', 'filter'))
+                if look is None:
                     continue
-                if child['kind'] == 'scene':
-                    self.assertEqual(child['title'], looks.get(child['look']).title)
-                    self.assertTrue(any(f"looks.paint(cv, '{child['look']}'" in api for api in child['apis']))
+                if kind == 'scene':
+                    self.assertEqual(child.name, looks.get(look).title)
+                    self.assertTrue(any(f"looks.paint(cv, '{look}'" in api for api in child.api))
                 else:
-                    self.assertEqual(child['title'], looks.get_filter(child['look']).title)
-                    self.assertTrue(any(f"looks.filter(cv, '{child['look']}'" in api for api in child['apis']))
+                    self.assertEqual(child.name, looks.get_filter(look).title)
+                    self.assertTrue(any(f"looks.filter(cv, '{look}'" in api for api in child.api))
 
     def test_type_is_a_family_one_card_per_style(self):
         from videobuilder import type as vt
         family = capabilities.get('type')
-        self.assertIn(family, capabilities.CATALOG)
-        self.assertEqual(family['category'], 'Type')
-        self.assertEqual([e['id'] for e in capabilities.CATALOG if e['category'] == 'Type'], ['type'])
+        self.assertIn(family, _top())
+        self.assertEqual(family.category, 'Type')
+        self.assertEqual([e.id for e in _top() if e.category == 'Type'], ['type'])
         self.assertEqual(capabilities.categories().index('Type'), capabilities.categories().index('Looks') + 1)
-        self.assertEqual(family['noun'], ('type style', 'type styles'))
-        self.assertEqual((family['lead'], family['kinds']), ('A few type styles', None))
-        self.assertEqual(family['member']['file'], 'style.py')
-        self.assertEqual([c['id'] for c in family['children']], [f'type-{n}' for n in vt.names()])
-        for child in family['children']:
-            with self.subTest(id=child['id']):
-                self.assertNotIn(child, capabilities.CATALOG)
-                self.assertEqual((child['family'], child['category']), ('type', 'Type'))
-                self.assertEqual(child['title'], vt.get(child['style']).title)
-                self.assertEqual(child['doc'], 'skill/make-a-video/reference/type.md')
-                self.assertEqual(child['demo'], f"examples/capabilities/type-{child['style']}.py")
-                self.assertTrue(any(f"vb.type.draw(cv, '{child['style']}'" in api for api in child['apis']))
-                self.assertEqual(len(child['prompts']), 3)
+        self.assertEqual(family.members.noun, ('type style', 'type styles'))
+        self.assertEqual((family.members.lead, family.members.kinds), ('A few type styles', ()))
+        self.assertEqual(family.members.brief.file, 'style.py')
+        self.assertEqual(list(family.members.ids), [f'type-{n}' for n in vt.names()])
+        for child in capabilities.members(family):
+            with self.subTest(id=child.id):
+                style = capabilities.member_name(child)
+                self.assertNotIn(child, _top())
+                self.assertEqual((capabilities.parent(child).id, capabilities.category(child)), ('type', 'Type'))
+                self.assertEqual(child.name, vt.get(style).title)
+                self.assertEqual(child.doc, 'skill/make-a-video/reference/type.md')
+                self.assertEqual(child.demo.path, f"examples/capabilities/type-{style}.py")
+                self.assertTrue(any(f"vb.type.draw(cv, '{style}'" in api for api in child.api))
+                self.assertEqual(len(child.phrasings), 3)
 
     def test_every_type_demo_takes_the_same_props(self):
         props = set()
-        for child in capabilities.get('type')['children']:
-            film = load(str(ROOT / child['demo']))
+        for child in capabilities.members(capabilities.get('type')):
+            film = child.demo()
             self.assertEqual(film.formats[0].name, 'cap')
-            props.add(load_module(str(ROOT / child['demo']))._type.PROPS)
+            props.add(load_module(str(ROOT / child.demo.path))._type.PROPS)
         self.assertEqual(len(props), 1)
 
-    def test_entries_lists_each_family_then_its_members(self):
-        ids = [e['id'] for e in capabilities.entries()]
+    def test_cards_lists_each_family_then_its_members(self):
+        ids = [e.id for e in capabilities.cards()]
         at = ids.index('looks')
-        children = capabilities.get('looks')['children']
-        self.assertEqual(ids[at + 1:at + 1 + len(children)], [c['id'] for c in children])
+        children = capabilities.get('looks').members.ids
+        self.assertEqual(ids[at + 1:at + 1 + len(children)], list(children))
         self.assertEqual(len(ids), len(set(ids)))
-        for e in capabilities.CATALOG:
-            self.assertIsNone(e['family'])
+        for e in _top():
+            self.assertIsNone(capabilities.parent(e))
 
     def test_the_sheet_lists_every_look_by_name_in_its_kind(self):
         sheet = capabilities.sheet_markdown()
@@ -133,17 +141,17 @@ class Families(unittest.TestCase):
         looks_part = looks_part[:looks_part.index('\n## ', 3)]
         self.assertIn('**The looks** (14; ask for any look by name)', looks_part)
         scene, filters = looks_part.index('*Scene looks*'), looks_part.index('*Filter looks*')
-        for child in capabilities.get('looks')['children']:
-            line = looks_part[looks_part.index(f"- **{child['title']}** (`{child['look'] or child['id']}`)"):]
-            self.assertIn(child['demo'], line[:line.index('\n')])
-            self.assertEqual(looks_part.index(line[:40]) > filters, child['kind'] == 'filter')
+        for child in capabilities.members(capabilities.get('looks')):
+            line = looks_part[looks_part.index(f"- **{child.name}** (`{capabilities.member_name(child) or child.id}`)"):]
+            self.assertIn(child.demo.path, line[:line.index('\n')])
+            self.assertEqual(looks_part.index(line[:40]) > filters, capabilities.kind(child) == 'filter')
             self.assertGreater(looks_part.index(line[:40]), scene)
         self.assertIn('`comic-halftone` is the **Pop-art filter**', looks_part)
         self.assertIn('`pixel-art-layer` is the **8-bit pixel filter**', looks_part)
 
     def test_the_merged_entries_document_both_apis(self):
-        self.assertTrue(any('halftone_pattern' in a for a in capabilities.get('look-filter-pop-art')['apis']))
-        self.assertTrue(any('cv.pixelated' in a for a in capabilities.get('look-filter-pixel')['apis']))
+        self.assertTrue(any('halftone_pattern' in a for a in capabilities.get('look-filter-pop-art').api))
+        self.assertTrue(any('cv.pixelated' in a for a in capabilities.get('look-filter-pixel').api))
 
 
 class OldIds(unittest.TestCase):
@@ -158,8 +166,10 @@ class OldIds(unittest.TestCase):
         with self.assertRaises(KeyError):
             capabilities.resolve('never-was')
 
-    def test_an_old_id_is_not_an_entry_of_its_own(self):
-        for old in capabilities.ALIASES:
+    def test_an_old_id_is_not_a_capability_of_its_own(self):
+        self.assertEqual(capabilities.old_ids(), {'comic-halftone': 'look-filter-pop-art',
+                                                  'pixel-art-layer': 'look-filter-pixel'})
+        for old in capabilities.old_ids():
             self.assertNotIn(old, capabilities.ids())
             self.assertFalse((ROOT / 'examples' / 'capabilities' / f'{old}.py').exists())
 
@@ -200,9 +210,9 @@ class LooksSection(unittest.TestCase):
         self.assertIn('data-card="looks"', section)
         self.assertIn('<strong>Try a few looks</strong>', section)
         scene, filters = section.index('data-kind="scene"'), section.index('data-kind="filter"')
-        for child in capabilities.get('looks')['children']:
-            at = section.index(f'data-card="{child["id"]}"')
-            self.assertEqual(at > filters, child['kind'] == 'filter', child['id'])
+        for child in capabilities.members(capabilities.get('looks')):
+            at = section.index(f'data-card="{child.id}"')
+            self.assertEqual(at > filters, capabilities.kind(child) == 'filter', child.id)
             self.assertGreater(at, scene)
         self.assertIn('<img src="/capabilities/look-pixel.jpg"', section)
         self.assertNotIn('data-card="comic-halftone"', page)
@@ -273,8 +283,8 @@ class TypeSection(unittest.TestCase):
         self.assertIn('<span class="count">7 type styles</span>', section)
         lead = section.index('<strong>A few type styles</strong>')
         self.assertIn('The same three lines, one style after another.', section)
-        for child in capabilities.get('type')['children']:
-            self.assertGreater(section.index(f'data-card="{child["id"]}"'), lead)
+        for child in capabilities.get('type').members.ids:
+            self.assertGreater(section.index(f'data-card="{child}"'), lead)
         self.assertNotIn('data-kind=', section)                      # one group: no kind headings
         self.assertIn('<img src="/capabilities/type-rubber.jpg"', section)
         self.assertNotIn('data-card="type-rubber"', _section(self._page(), 'Looks'))
@@ -307,8 +317,8 @@ class TypeSection(unittest.TestCase):
         part = sheet[sheet.index('## Type\n'):]
         part = part[:part.index('\n## ', 3)]
         self.assertIn('**The type styles** (7; ask for any type style by name)', part)
-        for child in capabilities.get('type')['children']:
-            self.assertIn(f"- **{child['title']}** (`{child['style']}`)", part)
+        for child in capabilities.members(capabilities.get('type')):
+            self.assertIn(f"- **{child.name}** (`{capabilities.member_name(child)}`)", part)
 
 
 class Search(unittest.TestCase):

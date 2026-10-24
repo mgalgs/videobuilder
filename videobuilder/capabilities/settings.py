@@ -1,7 +1,7 @@
 """A capability's settings: a short declaration of the controls the editor
 shows as a card beside its chip (a voice picker, a speed dial) -- always
-plain data, never UI code. A capability (the hand-written catalog's `_entry`
-or the registry's `Capability`) carries a `settings` tuple of `Choice`/
+plain data, never UI code. A capability (`schema.Capability`) carries a
+`settings` tuple of `Choice`/
 `Number` instances; the editor's settings-card component (settings_card.js)
 renders whatever it finds there, and `validate` turns a note's raw
 `{id: value}` dict into one safe to act on.

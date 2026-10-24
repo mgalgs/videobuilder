@@ -186,7 +186,7 @@ def _get_family_page_redirect(self, route, q, editor, user, family):
 
 def _get_old_clip_redirect(self, route, q, editor, user, id, kind):
     """The pre-rename clip URL, permanently moved to /capabilities/<id>.mp4|jpg now that
-    every clip -- hand-written and registry alike -- lives in one flat directory."""
+    every capability's clip lives in one flat directory."""
     self.send_response(301)
     self.send_header('Location', f'/capabilities/{id}.{kind}')
     self.send_header('Content-Length', '0')
@@ -362,27 +362,29 @@ def _get_suggest_catalog(self, route, q, editor, user):
     from .capabilities import registry
     from .capabilities.settings import as_json as settings_json
     looks, type_, caps = [], [], []
-    for e in capabilities.entries():
-        family = e.get('family')
-        if family not in ('looks', 'type') and e.get('children') is not None:
-            continue
-        item = {'id': e['id'], 'title': e['title'], 'card': e['card'], 'category': e['category'],
-               'poster': f"/capabilities/{e['id']}.jpg", 'clip': f"/capabilities/{e['id']}.mp4"}
+    for e in capabilities.cards():
+        p = capabilities.parent(e)
+        family = p.id if p else None
+        if e.members and family is None:
+            continue  # a grouping capability (Looks, Type): its members are listed instead
+        item = {'id': e.id, 'title': e.name, 'card': e.definition, 'category': capabilities.category(e),
+               'poster': f"/capabilities/{e.id}.jpg", 'clip': f"/capabilities/{e.id}.mp4"}
         if family == 'looks':
-            item['kind'] = e.get('kind')
-            item['look'] = e.get('look')  # the vb.looks registry name (Film details' look picker uses this)
+            item['kind'] = capabilities.kind(e)
+            item['look'] = capabilities.member_name(e)  # the vb.looks name (Film details' look picker uses this)
             looks.append(item)
         elif family == 'type':
             type_.append(item)
         elif family is None:
-            item['phrasings'] = list(e.get('prompts', ()))
-            if e.get('settings'):
-                item['settings'] = settings_json(e['settings'])
+            item['phrasings'] = list(e.phrasings)
+            if e.settings:
+                item['settings'] = settings_json(e.settings)
             caps.append(item)
-    # The registry's capabilities (videobuilder.capabilities.registry) are capabilities too (just too
-    # many to hand-write): merged into the same list, same shape plus group/aliases/phrasings, so the
-    # picker can group and search them alike.
+    # Every other capability (one with no card of its own): merged into the same list, same shape
+    # plus group/aliases/phrasings, so the picker can group and search them alike.
     for t in registry.catalog():
+        if capabilities.has_card(t):
+            continue
         title, _ = capabilities.REGISTRY_FAMILIES[t.family]
         item = {'id': t.id, 'title': t.name, 'card': t.definition, 'category': title,
                 'group': t.group,

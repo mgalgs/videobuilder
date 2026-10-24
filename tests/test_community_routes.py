@@ -808,8 +808,7 @@ class Published(fixtures.AccountMixin, fixtures.LibraryFixture, unittest.TestCas
         path.write_bytes(b'FAKEMP4DATA' * 4)
         self.assertEqual(self.request(f'/capabilities/community/{slug}.mp4',
                                       headers={'Cookie': other})[0], 200)
-        fake_entry = {**capabilities.CATALOG[0], 'id': 'clashing-id'}
-        with mock.patch('videobuilder.capabilities.CATALOG', capabilities.CATALOG + (fake_entry,)):
+        with mock.patch('videobuilder.capabilities.ids', return_value=capabilities.ids() + ('clashing-id',)):
             self.assertEqual(self.request(f'/capabilities/community/{slug}.mp4',
                                           headers={'Cookie': other})[0], 404)
             self.assertEqual(self.request(f'/capabilities/community/{slug}.mp4',
@@ -955,7 +954,7 @@ LOOK_PY = ('from videobuilder import looks\n\n\ndef paint(cv, scene, t, age):\n 
 def publishable_look(case, slug, **overrides):
     """A valid look: family = "looks", the family's category, and a look.py."""
     return publishable(case, slug, title='Stained glass', id='stained-glass', family='looks',
-                       category=capabilities.get('looks')['category'], files={'look.py': LOOK_PY}, **overrides)
+                       category=capabilities.get('looks').category, files={'look.py': LOOK_PY}, **overrides)
 
 
 class LookSubmission(fixtures.AccountMixin, fixtures.LibraryFixture, unittest.TestCase):
@@ -1004,7 +1003,7 @@ class LookSubmission(fixtures.AccountMixin, fixtures.LibraryFixture, unittest.Te
         _, _, dana = self.signup('dana', 'longenoughpassword')
         look_slug = self._new_look(dana)['slug']
         publishable(self, look_slug, title='Stained glass', id='stained-glass',
-                    category=capabilities.get('looks')['category'])         # no family, no look.py
+                    category=capabilities.get('looks').category)         # no family, no look.py
         code, data, _ = self.request_full(f'/api/capabilities/{look_slug}/publish', {}, headers=admin_headers)
         self.assertEqual(code, 400, data)
         self.assertIn('family must be "looks"', data['error'])

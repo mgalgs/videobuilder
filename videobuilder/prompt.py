@@ -69,14 +69,15 @@ def _looks_lines(community_looks):
     any published community look staged beside them (see _community_lines
     for how those are staged and treated)."""
     from . import __version__
-    from .capabilities import get
-    family = get('looks')
+    from . import capabilities
+    looks = [(capabilities.member_name(c), capabilities.kind(c), c.name)
+             for c in capabilities.members(capabilities.get('looks'))]
 
     def named(kind):
-        return ', '.join(f"{c['look']} ({c['title']})" for c in family['children'] if c['kind'] == kind and c['look'])
-    by_hand = [c['title'] for c in family['children'] if not c['look']]
-    filters = {c['look'] for c in family['children'] if c['kind'] == 'filter'}
-    scene_only = [c['look'] for c in family['children'] if c['kind'] == 'scene' and c['look'] and c['look'] not in filters]
+        return ', '.join(f"{look} ({title})" for look, k, title in looks if k == kind and look)
+    by_hand = [title for look, _, title in looks if not look]
+    filters = {look for look, k, _ in looks if k == 'filter'}
+    scene_only = [look for look, k, _ in looks if k == 'scene' and look and look not in filters]
     lines = ['## Looks', '',
              'A note that asks for a look or an art style ("make it pop art", "paint it like a woodblock print", '
              '"try a few looks") means one of these named looks, each with its own motion, in two kinds. Scene '
@@ -117,9 +118,9 @@ def _type_lines(community_styles):
     and any published community style staged beside them (staged and
     treated like a community look, see _looks_lines)."""
     from . import __version__
-    from .capabilities import get
-    family = get('type')
-    named = ', '.join(f"{c['style']} ({c['title']})" for c in family['children'])
+    from . import capabilities
+    named = ', '.join(f"{capabilities.member_name(c)} ({c.name})"
+                      for c in capabilities.members(capabilities.get('type')))
     lines = ['## Type', '',
              'A note that asks for a type-only moment by name or by what it does ("make the title a split-flap '
              'board", "type it on like a terminal", "make the letters bounce") means one of these named type '

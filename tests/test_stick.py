@@ -571,12 +571,12 @@ class SceneKit(unittest.TestCase):
 class Capability(unittest.TestCase):
     def test_the_entry_sits_with_the_character_capabilities(self):
         e = capabilities.get('stick-figure')
-        self.assertIn(e, capabilities.CATALOG)
-        self.assertEqual((e['category'], e['title']), ('Motion', 'Stick figure'))
-        ids = [x['id'] for x in capabilities.CATALOG]
+        self.assertIn(e, capabilities.cards())
+        self.assertEqual((e.category, e.name), ('Motion', 'Stick figure'))
+        ids = [x.id for x in capabilities.cards()]
         self.assertEqual(ids.index('stick-figure'), ids.index('walk-in-place') + 1)
-        self.assertEqual(e['demo'], 'examples/capabilities/stick-figure.py')
-        self.assertTrue(any('vb.Stick(' in api for api in e['apis']))
+        self.assertEqual(e.demo.path, 'examples/capabilities/stick-figure.py')
+        self.assertTrue(any('vb.Stick(' in api for api in e.api))
         self.assertIn('### Stick figure', capabilities.sheet_markdown())
 
     def test_the_demo_shows_a_walk_an_expression_change_a_pose_blend_and_a_prop(self):
@@ -591,7 +591,7 @@ class Capability(unittest.TestCase):
 
 
     def test_the_reference_covers_every_name_and_the_skill_points_to_it(self):
-        doc = (ROOT / capabilities.get('stick-figure')['doc']).read_text()
+        doc = (ROOT / capabilities.get('stick-figure').doc).read_text()
         for name in stick.names() + stick.expressions() + stick.PROPS + tuple(stick.MOUTHS):
             self.assertIn(f'`{name}`', doc)
         for kit in ('ground', 'shadow', 'wall', 'door', 'desk', 'hill_path', 'cafe'):

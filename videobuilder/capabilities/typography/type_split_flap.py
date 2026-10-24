@@ -1,0 +1,24 @@
+"""Split-flap board: one type style of the Type capability, built from videobuilder's own API, so this
+record only names it and demos it with its worked example film, `examples/capabilities/type-split-
+flap.py` (an `Example` demo: see schema.py)."""
+from ..schema import Capability, Example
+
+CAPABILITY = Capability(
+    id='type-split-flap',
+    name='Split-flap board',
+    family='typography',
+    group='Type styles',
+    definition='A departures board: every letter flips through the alphabet and settles.',
+    description=("The lines set on a split-flap board, one cell per letter: each cell's flap falls through "
+                 'a run of characters before it lands on its own, the cells starting left to right and row '
+                 'by row so the lines clatter in as a wave. Blank cells round the copy flip now and then '
+                 'through the hold, a lamp beside each line pulses in the accent, and on the exit every '
+                 'letter flips back to blank. A tall frame gets a whole board of blank rows round the '
+                 'copy. With sound on, the flaps click.'),
+    phrasings=('Make the title a split-flap departures board',
+               'Flip the quote in letter by letter like an airport board',
+               'Show the times on a flip board, with the clicking'),
+    api=("vb.type.draw(cv, 'split-flap', props, t)",),
+    doc='skill/make-a-video/reference/type.md',
+    demo=Example('examples/capabilities/type-split-flap.py'),
+)

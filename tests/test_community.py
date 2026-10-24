@@ -236,7 +236,7 @@ class Validation(unittest.TestCase):
 
 def _look_fields(**overrides):
     fields = dict(_base_fields(), id='stained-glass', title='Stained glass', family='looks',
-                  category=capabilities.get('looks')['category'])
+                  category=capabilities.get('looks').category)
     fields.update(overrides)
     return fields
 
@@ -295,7 +295,7 @@ class LookValidation(unittest.TestCase):
 
 def _style_fields(**overrides):
     fields = dict(_base_fields(), id='neon-sign', title='Neon sign', family='type',
-                  category=capabilities.get('type')['category'])
+                  category=capabilities.get('type').category)
     fields.update(overrides)
     return fields
 

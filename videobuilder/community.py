@@ -1,6 +1,6 @@
 """Community-submitted capabilities: a creator points the editor at a link
 showing a capability (an X post, read by xpost, or any other web page, read
-once through gather's guarded crawler), the builder makes an original demo plus a catalog entry
+once through gather's guarded crawler), the builder makes an original demo plus a capability.toml
 and reference doc in a reserved `capabilities/<slug>` project, and an admin
 publishes or rejects it. This module is a leaf: it must not import `library`,
 `accounts` or `editor` at module level (library.py imports this module, and
@@ -31,9 +31,20 @@ TOML_PATH = 'capability.toml'
 FILM_PATH = 'film.py'
 FILM_MAX_BYTES = 256 * 1024
 DOC_MAX_BYTES = 64 * 1024
-# A family member's own reusable code, beside its demo (see capabilities._member): a look's
-# look.py, a type style's style.py. Read and staged for builders, never imported by the editor.
-MEMBER_PATHS = capabilities.member_paths()
+# A member's own reusable code, beside its demo (see schema.MemberBrief): a look's look.py, a
+# type style's style.py, keyed by the grouping capability's id. Read and staged for builders, never
+# imported by the editor. Read lazily (`MEMBER_PATHS`, via the module __getattr__ below):
+# finding the grouping capabilities loads every record.
+def member_paths():
+    return capabilities.member_paths()
+
+
+def __getattr__(name):
+    if name == 'MEMBER_PATHS':
+        return member_paths()
+    raise AttributeError(f'module {__name__!r} has no attribute {name!r}')
+
+
 MEMBER_MAX_BYTES = 64 * 1024
 ID_RE = re.compile(r'[a-z][a-z0-9-]{1,47}\Z')
 _TOML_FIELDS = ('id', 'category', 'title', 'card', 'description', 'prompts', 'apis', 'doc')
@@ -63,8 +74,7 @@ def check_family(family):
     a catalog family that takes community members (a new look: 'looks')."""
     if family is None:
         return None
-    if not isinstance(family, str) or family not in {f['id'] for f in capabilities.families()} or \
-            family not in MEMBER_PATHS:
+    if not isinstance(family, str) or family not in member_paths():
         raise ValueError('family must be the id of a catalog family, or left out for a new capability')
     return family
 
@@ -80,6 +90,24 @@ def page_record(page):
     return {'kind': 'page', 'url': _one_line(page.get('url'), LINK_MAX_CHARS),
             'title': _one_line(page.get('title'), PAGE_TITLE_MAX_CHARS),
             'text': _CONTROL_RE.sub('', page.get('text') or '')[:POST_TEXT_MAX_CHARS]}
+
+
+def post_source(post, url):
+    """The `source` a community capability added from a link carries, the
+    same shape as a record's (`schema.Source.as_json`): the link itself, and
+    as its credit the post's @handle, else the page's title, else the
+    link's host. None for no usable http(s) link."""
+    from urllib.parse import urlsplit
+    url = (post or {}).get('url') or url
+    try:
+        check_link(url)
+    except ValueError:
+        return None
+    post = post or {}
+    handle = _one_line(post.get('handle'), PAGE_TITLE_MAX_CHARS)
+    credit = (f'@{handle.lstrip("@")}' if handle else _one_line(post.get('title'), PAGE_TITLE_MAX_CHARS)) or \
+        urlsplit(url).hostname
+    return {'url': url, 'credit': credit}
 
 
 class FailedRead(Exception):
@@ -222,28 +250,28 @@ def _capability_files(source):
 
 def _member_files(family_id, source):
     """The brief's opening for a new member of the family `family_id`: what
-    to make, from the family's own member spec (capabilities._member), and
+    to make, from the grouping capability's own MemberBrief (schema.py), and
     the four files, the member's own among them."""
     import importlib
     family = capabilities.get(family_id)
-    member, (singular, _) = family['member'], family['noun']
-    names = importlib.import_module(member['registry']).names()
-    intro, read = member['intro']
+    member, (singular, _) = family.members.brief, family.members.noun
+    names = importlib.import_module(member.registry).names()
+    intro, read = member.intro
     return [
         intro,
         '',
         read,
         '',
         'Make exactly four files at this project\'s root:',
-        f"- {member['file']}: {member['code'].replace('{source}', source)}",
-        f"- film.py: {member['film']}",
+        f"- {member.file}: {member.code.replace('{source}', source)}",
+        f"- film.py: {member.film}",
         f'- capability.toml: id (a short new id for the {singular}, lowercase words joined by hyphens, not the '
         f'name of a {singular} that already exists: {", ".join(names)}), family = "{family_id}", category = '
-        f'"{family["category"]}", title (the {singular}\'s name, a single line, at most 80 characters), card (a '
+        f'"{family.category}", title (the {singular}\'s name, a single line, at most 80 characters), card (a '
         'single line, at most 160 characters), description (at most 1200 characters: what it looks like and '
         'what moves), prompts (exactly 3 director-style prompts asking for it, each at most 200 characters), '
         'apis (1-12 hints, each at most 200 characters), and doc = "capability.md".',
-        f"- capability.md: {member['doc']}",
+        f"- capability.md: {member.doc}",
     ]
 
 
@@ -276,8 +304,8 @@ def validate(read, published_ids=(), expected_family=None):
     capabilities -- the one published first keeps a clashing id, so a later
     one fails this check instead. Raises Invalid with a plain message,
     meant to be shown to the admin or the submitter as-is. On success,
-    returns a dict shaped like capabilities._entry, minus demo/poster (the
-    demo is always film.py; there is no community poster).
+    returns {id, category, title, card, description, prompts, apis, doc,
+    family} (the demo is always film.py; there is no community poster).
 
     `expected_family`: the family the draft was submitted to (its record's
     `family`: 'looks' for "A new look"), or None for a new capability. The
@@ -303,7 +331,7 @@ def validate(read, published_ids=(), expected_family=None):
     id_ = data['id']
     if not isinstance(id_, str) or not ID_RE.fullmatch(id_):
         raise Invalid('id must be lowercase letters, digits and hyphens, 2-48 characters, starting with a letter')
-    if id_ in capabilities.ids() or id_ in capabilities.ALIASES:
+    if id_ in capabilities.ids() or id_ in capabilities.old_ids():
         raise Invalid(f'id {id_!r} is already used by a built-in capability')
     if id_ in published_ids:
         raise Invalid(f'id {id_!r} is already used by another published capability')
@@ -312,20 +340,21 @@ def validate(read, published_ids=(), expected_family=None):
         try:
             check_family(family)
         except ValueError:
-            raise Invalid('family must be one of: ' + ', '.join(sorted(MEMBER_PATHS))) from None
+            raise Invalid('family must be one of: ' + ', '.join(sorted(member_paths()))) from None
     if family != expected_family:
         raise Invalid(f'family must be "{expected_family}": this was submitted as a new '
-                      f'{capabilities.get(expected_family)["noun"][0]}' if expected_family else
+                      f'{capabilities.get(expected_family).members.noun[0]}' if expected_family else
                       'family must be left out: this was submitted as a new capability, not a family member')
     if family is not None:
         import importlib
         member_family = capabilities.get(family)
         try:
-            taken = importlib.import_module(member_family['member']['registry']).get(id_)
+            taken = importlib.import_module(member_family.members.brief.registry).get(id_)
         except KeyError:
             taken = None
         if taken is not None:
-            raise Invalid(f'id {id_!r} is already the name of the built-in {member_family["noun"][0]} {taken.name!r}')
+            raise Invalid(f'id {id_!r} is already the name of the built-in {member_family.members.noun[0]} '
+                          f'{taken.name!r}')
     category = data['category']
     if family is not None:
         # A family member always sits in its family's category, whatever its
@@ -333,7 +362,7 @@ def validate(read, published_ids=(), expected_family=None):
         # camera" for its own "Looks"), and a member published before the
         # move still carries the old one at its pinned commit -- refusing it
         # would quietly drop it from the page and every builder's prompt.
-        category = capabilities.get(family)['category']
+        category = capabilities.get(family).category
     elif category not in capabilities.categories():
         raise Invalid(f'category must be one of: {", ".join(capabilities.categories())}')
     elif category not in capabilities.loose_categories():
@@ -365,7 +394,7 @@ def validate(read, published_ids=(), expected_family=None):
     if len(film_bytes) > FILM_MAX_BYTES:
         raise Invalid(f'{FILM_PATH} is larger than {FILM_MAX_BYTES} bytes')
     if family is not None:
-        member_path = MEMBER_PATHS[family]
+        member_path = member_paths()[family]
         member_bytes = read(member_path)
         if member_bytes is None:
             raise Invalid(f'{member_path} is missing on main')
@@ -452,16 +481,17 @@ class Store:
         os.makedirs(os.path.dirname(self.path), exist_ok=True)
         write_json_atomic(self.path, data)
 
-    def create(self, slug, submitter, post=None, capture=None, fetched=(), family=None):
+    def create(self, slug, submitter, post=None, capture=None, fetched=(), family=None, source=None):
         """A new draft record for `slug`, just-created and not yet sent to
         the builder (`note` is None until `set_note`). `family`: None for a
-        new capability, or the family it adds a member to ('looks')."""
+        new capability, or the family it adds a member to ('looks').
+        `source`: the link it was added from (`post_source`), or None."""
         with self.lock:
             data = self._load()
             data[slug] = {'status': 'draft', 'submitter': submitter, 'created': time.time(), 'family': family,
                          'post': post, 'capture': capture, 'fetched': list(fetched), 'note': None,
                          'sending': False, 'reviewed_by': None, 'reviewed_at': None, 'published_at': None,
-                         'pinned_sha': None, 'update_rejected_sha': None}
+                         'pinned_sha': None, 'update_rejected_sha': None, 'source': source}
             self._save(data)
             return data[slug]
 

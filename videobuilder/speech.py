@@ -219,8 +219,8 @@ def voice_options(engine=None):
 @lru_cache(maxsize=None)
 def narration_settings():
     """The settings narration shares everywhere it's offered (the
-    hand-written `narration` catalog entry and the registry's `voiceover`,
-    see capabilities/__init__.py and capabilities/sound/voiceover.py) --
+    `narration` and `voiceover` capabilities, see capabilities/sound/narration.py
+    and capabilities/sound/voiceover.py) --
     one definition, so the two can't drift: voice (this installation's own
     Kokoro voices) and speed (`say`'s own 0.5 to 2.0 range). Cached: called
     from more than one place, and real voices never change mid-process."""

@@ -38,8 +38,8 @@ class SingleProjectRoutes(fixtures.API):
         self.assertEqual(code, 200)
         self.assertIn(b'Capabilities', page)
         self.assertIn(b'clip not built', page)
-        for e in capabilities.CATALOG:
-            self.assertIn(e['id'].encode(), page)
+        for e in capabilities.cards():
+            self.assertIn(e.id.encode(), page)
 
     def test_unknown_and_traversal_shaped_ids_404(self):
         for bad in ('not-a-real-capability', '..', '%2e%2e%2fetc%2fpasswd', 'eased-entrances%2f..%2f..'):
