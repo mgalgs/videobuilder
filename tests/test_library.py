@@ -1320,6 +1320,115 @@ class References(LibraryFixture, unittest.TestCase):
         self.assertNotIn('Referenced videos', self._prompt(note))
         self.assertFalse((self._attach_dir(note)).exists())
 
+    def test_a_tree_entry_with_a_path_traversal_component_is_left_out_not_written(self):
+        # A maliciously crafted tree -- not something a normal commit can produce,
+        # but `git mktree` builds it and the library's bare repos don't fsck
+        # incoming pushes (library.create/git_bridge.serve_git) -- whose `git
+        # ls-tree -r` path has a '..' component (git prints the nested-tree-named-
+        # ".." trick as e.g. 'a/../x'). It must be left out of the staged copy,
+        # never written at its literal (or any other) path under tree_dir.
+        work = self.other_work
+        env = self.env
+        blob = subprocess.run(['git', 'hash-object', '-w', '--stdin'], cwd=work, env=env,
+                              input='pwned\n', capture_output=True, text=True, check=True).stdout.strip()
+        inner = subprocess.run(['git', 'mktree'], cwd=work, env=env, input=f'100644 blob {blob}\tx\n',
+                               capture_output=True, text=True, check=True).stdout.strip()
+        dotdot = subprocess.run(['git', 'mktree'], cwd=work, env=env, input=f'040000 tree {inner}\t..\n',
+                                capture_output=True, text=True, check=True).stdout.strip()
+        listing = subprocess.run(['git', 'ls-tree', 'HEAD'], cwd=work, env=env,
+                                 capture_output=True, text=True, check=True).stdout
+        top = subprocess.run(['git', 'mktree'], cwd=work, env=env,
+                             input=listing + f'040000 tree {dotdot}\ta\n',
+                             capture_output=True, text=True, check=True).stdout.strip()
+        commit = subprocess.run(['git', 'commit-tree', top, '-p', 'HEAD', '-m', 'evil'], cwd=work, env=env,
+                                capture_output=True, text=True, check=True).stdout.strip()
+        self.git('push', 'origin', f'{commit}:refs/heads/main', cwd=work)
+        from videobuilder import video_refs
+        with tempfile.TemporaryDirectory() as dest:
+            refs = video_refs.resolve(self.library, None, ['acme/other'])
+            staged = video_refs.stage(self.library, refs, dest)
+            self.assertTrue(staged[0]['staged'])
+            tree_dir = Path(dest) / 'refs' / 'acme' / 'other' / 'tree'
+            self.assertEqual(sorted(p.relative_to(tree_dir).as_posix() for p in tree_dir.rglob('*') if p.is_file()),
+                             ['README.md', 'promo/film.py'])
+            manifest = (Path(dest) / 'refs' / 'acme' / 'other' / 'manifest.md').read_text()
+            self.assertIn('unsafe path', manifest)
+
+    def test_a_non_utf8_filename_is_staged_without_failing_the_note(self):
+        # git itself is agnostic to filename encoding; the editor's `git()` helper
+        # decodes stdout as text by default, which used to raise UnicodeDecodeError
+        # straight out of the `ls-tree` call for a non-UTF-8 name like this one.
+        work = self.other_work
+        env = self.env
+        blob = subprocess.run(['git', 'hash-object', '-w', '--stdin'], cwd=work, env=env,
+                              input=b'latin1 content\n', capture_output=True, check=True).stdout.strip().decode()
+        listing = subprocess.run(['git', 'ls-tree', 'HEAD'], cwd=work, env=env,
+                                 capture_output=True, check=True).stdout
+        mktree_input = listing + f'100644 blob {blob}\t'.encode() + b'caf\xe9.txt\n'
+        top = subprocess.run(['git', 'mktree'], cwd=work, env=env, input=mktree_input,
+                             capture_output=True, check=True).stdout.strip().decode()
+        commit = subprocess.run(['git', 'commit-tree', top, '-p', 'HEAD', '-m', 'latin1 filename'],
+                                cwd=work, env=env, capture_output=True, check=True).stdout.strip().decode()
+        self.git('push', 'origin', f'{commit}:refs/heads/main', cwd=work)
+        link = self.base + '/v/acme/other'
+        note = self._note(f'Like {link} but about squid.')
+        self.assertNotEqual(note['state'], 'failed')
+        tree_dir = self._attach_dir(note) / 'refs' / 'acme' / 'other' / 'tree'
+        self.assertTrue((tree_dir / 'README.md').exists())
+        names = [p.name.encode('utf-8', 'surrogateescape') for p in tree_dir.iterdir()]
+        self.assertIn(b'caf\xe9.txt', names)
+
+    def test_the_reference_commit_is_the_one_at_the_moment_the_note_was_sent(self):
+        from videobuilder.notes import FINAL
+        from videobuilder.agents import FakeBackend
+        editor = self.library.editor('acme/launch')
+        # Keeps the video's single submission slot busy so our reference note sits
+        # queued, resolved but not yet staged, while acme/other moves on.
+        editor.notes.backend = FakeBackend(delay=1.5)
+        self._note('Warm up the queue.')
+        link = self.base + '/v/acme/other'
+        note = self._note(f'Like {link} but about squid.')
+        sha_before = self._other_sha()
+        (self.other_work / 'README.md').write_text('second\n')
+        self.git('add', '-A', cwd=self.other_work)
+        self.git('commit', '-m', 'second', cwd=self.other_work)
+        self.git('push', cwd=self.other_work)
+        self.assertNotEqual(self._other_sha(), sha_before)
+        deadline = time.monotonic() + 10
+        while note['state'] not in FINAL:
+            self.assertLess(time.monotonic(), deadline, note)
+            time.sleep(0.1)
+            _, notes = self.request('/v/acme/launch/api/notes?video=film')
+            note = next(n for n in notes['notes'] if n['id'] == note['id'])
+        md = self._prompt(note)
+        self.assertIn(f'commit {sha_before[:12]}', md)
+        self.assertNotIn(self._other_sha()[:12], md)
+
+    def test_answering_a_question_still_stages_the_reference(self):
+        from videobuilder.agents import FakeBackend
+        editor = self.library.editor('acme/launch')
+        editor.notes.backend = FakeBackend(delay=0, questions=[{'text': 'Any particular shot?'}])
+        link = self.base + '/v/acme/other'
+        note = self.wait_for_note(self._note(f'Like {link} but about squid.')['id'])
+        self.assertEqual(note['state'], 'questions')
+        code, followup = self.request(f'/v/acme/launch/api/notes/{note["id"]}/answer',
+                                      {'answers': ['A wide establishing shot']})
+        self.assertEqual(code, 200, followup)
+        followup = self.wait_for_note(followup['id'])
+        self.assertIn('## Referenced videos', self._prompt(followup))
+        self.assertTrue((self._attach_dir(followup) / 'refs' / 'acme' / 'other' / 'tree').exists())
+
+    def test_retrying_a_failed_note_still_stages_the_reference(self):
+        editor = self.library.editor('acme/launch')
+        link = self.base + '/v/acme/other'
+        note = self._note(f'Like {link} but about squid.')
+        editor.notes.update(editor.notes.get(note['id']), state='failed')
+        code, retried = self.request(f'/v/acme/launch/api/notes/{note["id"]}/retry', {})
+        self.assertEqual(code, 200, retried)
+        retried = self.wait_for_note(retried['id'])
+        self.assertIn('## Referenced videos', self._prompt(retried))
+        self.assertTrue((self._attach_dir(retried) / 'refs' / 'acme' / 'other' / 'tree').exists())
+
 
 class ReferencesAccess(AccountMixin, LibraryFixture, unittest.TestCase):
     """A reference the note's author cannot open is treated exactly like a

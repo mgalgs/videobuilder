@@ -702,14 +702,14 @@ class Editor:
         return self.library.community_for_builder() if self.library else []
 
     def _stage_video_refs(self, note, attach_dir):
-        """This note's referenced videos (video_refs.extract, run at note creation)
-        resolved and staged read-only under attach_dir/refs/<name>/ for the builder's
-        prompt -- see video_refs.stage. [] with none named, or outside library mode,
-        where there is no other video to reference."""
+        """This note's referenced videos (video_refs.extract/resolve, both run at
+        note creation) staged read-only under attach_dir/refs/<name>/ for the
+        builder's prompt -- see video_refs.stage. [] with none named, or outside
+        library mode, where there is no other video to reference."""
         refs = note.get('refs')
         if not refs or not self.library:
             return []
-        return video_refs.stage(self.library, note.get('author'), refs, attach_dir)
+        return video_refs.stage(self.library, refs, attach_dir)
 
     def _before_submit(self, video, note, state):
         self.sources.sync(video)
@@ -904,7 +904,7 @@ class Editor:
         # builder already has its own video.
         refs, links = video_refs.extract(links, self.library)
         refs = [r for r in refs if r != self.library_name]
-        context['refs'] = refs
+        context['refs'] = video_refs.resolve(self.library, author, refs) if refs else []
         if (links or refs) and not (isinstance(text, str) and text.strip()):
             raise HTTPError(400, 'a note needs some text')
         if links:
@@ -963,6 +963,7 @@ class Editor:
         links, skipped = _note_links(description or '', body.get('links'))
         refs, links = video_refs.extract(links, self.library)
         refs = [r for r in refs if r != self.library_name]
+        refs = video_refs.resolve(self.library, author, refs) if refs else []
         attachment_ids = body.get('attachments', [])
         if not isinstance(attachment_ids, list):
             attachment_ids = [None]

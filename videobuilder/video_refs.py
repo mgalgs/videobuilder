@@ -3,10 +3,13 @@ link to this same editor's `/v/<name>` is a library link, resolved locally
 -- never fetched over HTTP, unlike an ordinary link (see gather.py) -- and
 staged read-only under the note's own /attachments/refs/<name>/ for the
 builder to learn from. `extract` splits library links out of a note's links
-at note-creation time (editor.add_note/start_video); `stage` does the actual
-git reads and the contact sheet render at submission time (NoteStore._submit,
-through Editor._stage_video_refs), since both can take a moment and a note
-author's access can only be checked once we know who they are.
+at note-creation time (editor.add_note/start_video); `resolve`, run right
+after, fixes each name's current main-branch sha and the author's access to
+it right then, so a reference's snapshot is truly the commit at the moment
+the note was sent, not whenever the note later reaches the front of its
+video's queue. `stage` does the actual git reads and the contact sheet
+render at submission time (NoteStore._submit, through Editor.
+_stage_video_refs), against the sha `resolve` already fixed.
 
 A reference's tree is a snapshot at the moment the note is sent: the commit
 noted alongside it never changes even if the referenced video is edited
@@ -66,21 +69,23 @@ def _video_name(url, library):
     return video_name_in_path(parts.path)
 
 
-def stage(library, author, names, dest_dir):
-    """Resolve and stage each of `names` under `dest_dir`/refs/<name>/, for the
-    prompt's "## Referenced videos" section (prompt._refs_lines): one descriptor
-    per name, in order, either {'name', 'staged': True, 'commit', 'manifest'} (whether
-    a manifest.md was written, listing anything left out) or {'name', 'staged': False}
-    for one `author` cannot open right now, or that doesn't exist -- the same either
-    way, so this never discloses which. A video may not reference itself; the caller
-    (editor.add_note/start_video) drops that before it ever reaches here."""
-    out, used = [], 0
+def resolve(library, author, names):
+    """Fix each of `names` to the sha of its main branch right now, and whether
+    `author` may open it, at note-creation time (editor.add_note/start_video) --
+    so the tree `stage` later copies is a snapshot of this exact moment, not of
+    whenever the note eventually reaches the front of its video's queue. One
+    {'name', 'sha'} dict per name, in order; `sha` is None for one `author`
+    cannot open, that doesn't exist, or that disappeared between the access
+    check and the rev-parse -- all indistinguishable on purpose, see `stage`."""
+    out = []
     for name in names:
-        if not _accessible(library, name, author):
-            out.append({'name': name, 'staged': False})
-            continue
-        entry, used = _stage_one(library, name, dest_dir, used)
-        out.append(entry)
+        sha = None
+        if _accessible(library, name, author):
+            try:
+                sha = git(None, 'rev-parse', 'refs/heads/main', git_dir=library.path(name), hooks=False)
+            except (ValueError, OSError):
+                sha = None
+        out.append({'name': name, 'sha': sha})
     return out
 
 
@@ -92,20 +97,67 @@ def _accessible(library, name, author):
     return library.access.can_access(name, author, library.accounts)
 
 
-def _stage_one(library, name, dest_dir, used):
+def stage(library, refs, dest_dir):
+    """Stage each already-resolved reference (as `resolve` returns) under
+    `dest_dir`/refs/<name>/, for the prompt's "## Referenced videos" section
+    (prompt._refs_lines): one descriptor per reference, in order, either
+    {'name', 'staged': True, 'commit', 'manifest'} (whether a manifest.md was
+    written, listing anything left out) or {'name', 'staged': False} for one
+    with no sha (inaccessible or missing, see `resolve`) or that failed to
+    stage for any other reason (e.g. it vanished since `resolve` ran) -- the
+    same either way, so this never discloses which. A video may not
+    reference itself; the caller (editor.add_note/start_video) drops that
+    before it ever reaches here."""
+    out, used = [], 0
+    for ref in refs:
+        name, sha = ref['name'], ref['sha']
+        if sha is None:
+            out.append({'name': name, 'staged': False})
+            continue
+        try:
+            entry, used = _stage_one(library, name, sha, dest_dir, used)
+        except Exception:
+            # A reference must never fail the note it's attached to (handoff decision 3):
+            # treat any staging failure -- a corrupt tree, an odd filename, the video
+            # vanishing between resolve() and here -- the same as one that never resolved.
+            entry = {'name': name, 'staged': False}
+        out.append(entry)
+    return out
+
+
+def _safe_path(path):
+    """`path` unchanged, or None if it has a '..', empty or '.git' component --
+    `git ls-tree` happily prints such a path for a maliciously crafted tree
+    (e.g. `a/../../../x`), and since this is about to be joined onto a real
+    directory and written to, a single unchecked '..' would let a referenced
+    video's tree write anywhere this process can."""
+    parts = path.split('/')
+    if any(p in ('', '..', '.git') for p in parts):
+        return None
+    return path
+
+
+def _stage_one(library, name, sha, dest_dir, used):
     repo = library.path(name)
-    sha = git(None, 'rev-parse', 'refs/heads/main', git_dir=repo, hooks=False)
     root = Path(dest_dir) / 'refs' / name
     tree_dir = root / 'tree'
     tree_dir.mkdir(parents=True, exist_ok=True)
     left_out = []
-    listing = git(None, 'ls-tree', '-r', '-l', '-z', sha, git_dir=repo, hooks=False)
+    # binary=True: a referenced video's tree can hold a filename that isn't valid UTF-8;
+    # decoding with surrogateescape (not strict, as git()'s text mode would) never raises
+    # and round-trips the exact original bytes back out when we write the file below.
+    listing = git(None, 'ls-tree', '-r', '-l', '-z', sha, git_dir=repo, hooks=False, binary=True)
+    listing = listing.decode('utf-8', 'surrogateescape')
     for entry in filter(None, listing.split('\0')):
         meta, path = entry.split('\t', 1)
         _mode, kind, blob_id, size_text = meta.split()
         if kind != 'blob':
             continue
         size = int(size_text)
+        safe_path = _safe_path(path)
+        if safe_path is None:
+            left_out.append((path, size, 'an unsafe path'))
+            continue
         ext = path.rsplit('.', 1)[-1].lower() if '.' in path else ''
         if ext in MEDIA_EXT and size > PER_FILE_MEDIA_MAX:
             left_out.append((path, size, 'a media file over the per-file size cap'))
@@ -120,9 +172,13 @@ def _stage_one(library, name, dest_dir, used):
         if result.returncode:
             continue
         data = result.stdout
-        target = tree_dir / path
-        target.parent.mkdir(parents=True, exist_ok=True)
-        target.write_bytes(data)
+        target = tree_dir / safe_path
+        try:
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.write_bytes(data)
+        except OSError:
+            left_out.append((path, size, 'it could not be written'))
+            continue
         used += size
     sheet_problem = _build_sheet(library, name, root / 'sheet.png')
     if left_out or sheet_problem:
