@@ -144,9 +144,11 @@ def _capability_docs():
     group and family."""
     from . import capabilities
     from .capabilities import registry
+    looks, type_ = _looks_and_type_ids()
+    static = looks | type_ | {'looks', 'type'}
     docs = []
     for t in capabilities.cards():
-        if t.members or capabilities.parent(t):
+        if t.id in static:
             continue  # a look/type member (stays in the static block), or the capability grouping them
         docs.append((t.id, ' '.join((t.name, t.definition, t.description, *t.phrasings, t.category))))
     for t in registry.catalog():

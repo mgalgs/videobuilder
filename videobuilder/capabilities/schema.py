@@ -163,9 +163,11 @@ class Members:
     """The capabilities one capability groups (Looks groups the named looks):
     the one way to group capabilities. `ids`, the members in the order the
     page and the sheet list them (each its own record, anywhere in the
-    registry); `noun`, (singular, plural) for a member ("look", "looks");
-    `lead`, the title of the grouping capability's own card, first in its
-    section (its demo shows the members together), and `lead_line` its line.
+    registry); `noun`, (singular, plural) for a member ("look", "looks";
+    default "capability"); `lead`, the title of the grouping capability's
+    own card when it has its section to itself, first there (its demo shows
+    the members together), and `lead_line` its line ('': its `name` and
+    `definition`).
     `kinds`, ((kind, heading, who it is for), ...), splits the members into
     groups under those headings, a member's `group` naming its kind's
     heading; empty keeps them in one. `names`, {member id: the name it
@@ -173,9 +175,9 @@ class Members:
     videobuilder.looks), for those that have one. `brief` (MemberBrief), what
     a community member must ship for the page's add flow; None takes none."""
     ids: tuple
-    noun: tuple
-    lead: str
-    lead_line: str
+    noun: tuple = ('capability', 'capabilities')
+    lead: str = ''
+    lead_line: str = ''
     kinds: tuple = ()
     names: object = ()
     brief: object = None
@@ -189,8 +191,9 @@ class Members:
         set_('noun', _strings('members', 'noun', self.noun, at_least=2))
         if len(self.noun) != 2:
             raise ValueError('members: noun must be (singular, plural)')
-        _text('members', 'lead', self.lead)
-        _text('members', 'lead_line', self.lead_line)
+        for field in ('lead', 'lead_line'):
+            if getattr(self, field):
+                _text('members', field, getattr(self, field))
         kinds = tuple(tuple(k) for k in self.kinds)
         if any(len(k) != 3 for k in kinds):
             raise ValueError('members: each kind must be (kind, heading, line)')

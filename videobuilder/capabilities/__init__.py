@@ -9,8 +9,9 @@ Add a capability by adding its one file; nothing else lists capabilities.
     python -m videobuilder capabilities build --out DIR [--only ID]
 
 A capability with a `category` has a card of its own in that section of the
-page (in `order`); one that groups others (`members`, e.g. Looks) has the
-section to itself, its members after its own card. Every other capability is
+page (in `order`); one that groups others (`members`, e.g. Looks) has its
+members' cards right after its own, and, when nothing else has a card there,
+the section to itself (`section_owner`). Every other capability is
 counted on its family's card, linking to the family's own page
 (/capabilities/<family>).
 
@@ -51,7 +52,7 @@ def cards():
     order: by section (`schema.CATEGORIES`), then `order`, then name, a
     grouping capability's members right after it. What the page and the
     sheet list one by one, and the product film cuts from."""
-    top = sorted((t for t in _load_all() if t.category),
+    top = sorted((t for t in _load_all() if t.category and not (parent(t) and parent(t).category)),
                  key=lambda t: (CATEGORIES.index(t.category), t.order, t.name.casefold()))
     out = []
     for t in top:
@@ -80,7 +81,25 @@ def parent(t):
 def has_card(t):
     """Whether `t` has a card of its own on /capabilities (a `category`, or
     a member of one that does) rather than only on its family's page."""
-    return bool(t.category) or parent(t) is not None
+    p = parent(t)
+    return bool(t.category) or (p is not None and bool(p.category))
+
+
+def section_owner(section):
+    """The grouping capability that has `section` to itself (Looks, Type):
+    one whose category it is when every other card there is one of its
+    members and no family's card sits there; None for a section shared
+    with other cards, which shows the grouping capability as one card among
+    them, its members after it."""
+    groupers = [f for f in with_members() if f.category == section]
+    if len(groupers) != 1:
+        return None
+    f, = groupers
+    if any(c is not f and parent(c) is not f for c in cards() if category(c) == section):
+        return None
+    if any(FAMILY_CATEGORY.get(fam) == section and _family_members(fam) for fam in registry.FAMILIES):
+        return None
+    return f
 
 
 def category(t):
@@ -205,7 +224,7 @@ def categories():
 def loose_categories():
     """The categories a capability that isn't a member may take: every one
     but a grouping capability's own section (Looks holds looks only)."""
-    own = {f.category for f in with_members()}
+    own = {c for c in categories() if section_owner(c)}
     return tuple(c for c in categories() if c not in own)
 
 
@@ -1423,7 +1442,8 @@ def _family_section_html(e, built, community_members, is_admin):
     n = len(e.members.ids) + len(community_members)
     out = [f'<p class="section-lead">{_esc(e.definition)} <span class="count">{n} {plural}</span></p>',
            '<div class="grid looks-grid">',
-           _card_html(e.id, e.members.lead, e.members.lead_line, _thumb_html(e.id, built), e.source),
+           _card_html(e.id, e.members.lead or e.name, e.members.lead_line or e.definition, _thumb_html(e.id, built),
+                      e.source),
            '</div>']
     for i, (kind_, heading, line, group) in enumerate(kind_groups(e)):
         cards_ = [_card_html(c.id, c.name, c.definition, _thumb_html(c.id, built), c.source) for c in group]
@@ -1504,16 +1524,19 @@ def page_html(capabilities_dir, version, header='', header_style='', community=N
             '<p>Every shot in this reel is one of the capabilities below; its tag is the card\'s title.</p>'
             '</section>')
     for section in categories():
-        family = next((f for f in groupers if f.category == section), None)
+        family = section_owner(section)
         if family is not None:          # a grouping capability is a section of its own
             parts.append(f'<h2>{_esc(section)}</h2>')
             parts.append(_family_section_html(family, built, published_by_family.get(family.id, []), is_admin))
             continue
         parts.append(f'<h2>{_esc(section)}</h2><div class="grid">')
         for e in carded:
-            if e.category != section:
+            if category(e) != section:
                 continue
             parts.append(_card_html(e.id, e.name, e.definition, _thumb_html(e.id, built), e.source))
+        for f in groupers:
+            if f.category == section:
+                parts.extend(_community_card_html(entry, is_admin) for entry in published_by_family.get(f.id, []))
         for entry in published_by_category.get(section, []):
             parts.append(_community_card_html(entry, is_admin))
         parts.extend(family_cards_by_category.get(section, []))

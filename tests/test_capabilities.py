@@ -202,6 +202,81 @@ class OldIds(unittest.TestCase):
         self.assertIsNone(capabilities.clip_file('/c', 'never-was', 'mp4'))
 
 
+class _Regrouped:
+    """The records patched so `grouper` groups `ids` (a Members of nothing
+    but ids), and every cache that read them cleared, on the way in and out."""
+
+    def __init__(self, grouper, ids, **changes):
+        import dataclasses
+        from videobuilder.capabilities import registry
+        from videobuilder.capabilities.schema import Members
+        self.registry = registry
+        t = registry.get(grouper)
+        self.module = sys.modules[f'{registry.PACKAGE}.{t.family}.{grouper.replace("-", "_")}']
+        self.before = t
+        self.after = dataclasses.replace(t, members=Members(ids=tuple(ids)), **changes)
+
+    def _clear(self):
+        for f in (self.registry._all, capabilities.cards, capabilities._parents, capabilities.old_ids,
+                  capabilities._ids):
+            f.cache_clear()
+
+    def __enter__(self):
+        self.module.CAPABILITY = self.after
+        self._clear()
+
+    def __exit__(self, *exc):
+        self.module.CAPABILITY = self.before
+        self._clear()
+
+
+class GeneralMembers(unittest.TestCase):
+    """`members` groups any capabilities, not only Looks and Type's: the
+    next round's merges group with it too."""
+
+    def test_a_grouper_in_a_shared_section_is_one_card_among_the_rest(self):
+        before = _section(capabilities.page_html(None, 'v').decode(), 'Timing, sound and formats')
+        with _Regrouped('narration', ['voiceover']):
+            page = capabilities.page_html(None, 'v').decode()
+            section = _section(page, 'Timing, sound and formats')
+            for i in ('beat-lock', 'footage-with-sound', 'sound-effects', 'every-format', 'narration',
+                      'voiceover'):
+                self.assertIn(f'data-card="{i}"', section, i)
+            self.assertIn('href="/capabilities/sound"', section)
+            self.assertIsNone(capabilities.section_owner('Timing, sound and formats'))
+            self.assertIn('Timing, sound and formats', capabilities.loose_categories())
+            self.assertEqual(capabilities.category(capabilities.get('voiceover')), 'Timing, sound and formats')
+            from videobuilder import suggest
+            ids = {i for i, _ in suggest._capability_docs()}
+            self.assertLessEqual({'narration', 'voiceover'}, ids)
+        self.assertEqual(_section(capabilities.page_html(None, 'v').decode(), 'Timing, sound and formats'), before)
+
+    def test_a_member_of_a_grouper_with_no_card_stays_on_its_family_page(self):
+        with _Regrouped('ambience', ['voiceover']):
+            self.assertFalse(capabilities.has_card(capabilities.get('voiceover')))
+            self.assertNotIn('voiceover', {t.id for t in capabilities.cards()})
+            self.assertIn('voiceover', {t.id for t in capabilities._family_members('sound')})
+            from videobuilder import suggest
+            self.assertIn('voiceover', {i for i, _ in suggest._capability_docs()})
+
+    def test_looks_and_type_keep_their_sections_to_themselves(self):
+        self.assertEqual(capabilities.section_owner('Looks').id, 'looks')
+        self.assertEqual(capabilities.section_owner('Type').id, 'type')
+
+
+class Posters(unittest.TestCase):
+    def test_the_gallery_and_the_page_take_an_example_demos_poster_from_the_same_frame(self):
+        from videobuilder.capabilities import gallery, registry
+
+        class Film:
+            frames = 120
+            keyframes = ()
+        t = capabilities.get('eased-entrances')
+        self.assertIsNone(t.poster)
+        self.assertEqual(registry.poster_frame(t, Film, int(Film.frames * gallery.POSTER_AT)), 60)
+        self.assertEqual(registry.poster_frame(capabilities.get('stick-figure'), Film, 0), 130)
+
+
 def _data(page):
     return json.loads(re.search(r'<script id="capabilities-data" type="application/json">(.*?)</script>', page,
                                 re.S).group(1))

@@ -42,7 +42,7 @@ import json
 import pkgutil
 from functools import lru_cache
 
-from .schema import FAMILIES, Capability, module_name
+from .schema import FAMILIES, Capability, Example, module_name
 
 PACKAGE = __name__.rpartition('.')[0]
 
@@ -116,10 +116,13 @@ def poster_frame(t, film, default):
     """The frame `t`'s poster is taken from: its own `poster`, when the
     record gives one; for a transition, the middle of its demo's move (a
     `film.keyframes` entry labelled 'mid-transition', see
-    `_demo.two_scenes`), when the demo marks one; else `default`, unchanged
-    for every other capability."""
+    `_demo.two_scenes`), when the demo marks one; for an `Example` demo, its
+    middle frame, the poster the /capabilities page has always shown; else
+    `default`, unchanged for every other capability."""
     if t.poster is not None:
         return t.poster
+    if isinstance(t.demo, Example):
+        return film.frames // 2
     if t.family == 'transitions':
         for n, label in film.keyframes:
             if label == 'mid-transition':
