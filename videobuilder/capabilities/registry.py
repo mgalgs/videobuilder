@@ -19,6 +19,13 @@ existing API), `principles/bounce_ease_out.py` (a new easing curve),
 `transitions/dip_to_black.py` (a transition) and
 `typography/scramble_decode.py` (a text reveal).
 
+A capability the editor should let the creator tune (a voice, a speed) can
+carry `settings` -- see schema.py's `Capability.settings` and settings.py;
+`sound/voiceover.py` is the worked example (shared with the hand-written
+`narration` catalog entry, so both offer the same controls). `index_data`
+includes a capability's `settings` (as JSON) only when it has any, so every
+other capability's index output is unchanged.
+
 This finds and checks every capability module; there is no list of them
 anywhere else -- a new module is found by its file alone.
 """

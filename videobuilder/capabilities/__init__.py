@@ -18,6 +18,14 @@ beside the clips and shown at the top of the page.
 
 Community-submitted capabilities (community.py) are a separate, runtime-loaded
 list shown beside this fixed CATALOG -- never added to it.
+
+An entry the editor should let the creator tune can pass `_entry(...,
+settings=(...))` -- Choice/Number from settings.py, the same shape the
+registry's `Capability.settings` takes (see capabilities/schema.py and
+registry.py). `narration`'s is the worked example, shared with the
+registry's `voiceover` via speech.narration_settings so the two can't
+drift. `suggest/catalog`'s per-capability JSON (video_api.py) carries a
+`settings` key only for an entry that declares one.
 """
 import json
 import os
