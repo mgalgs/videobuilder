@@ -231,8 +231,9 @@ class VoiceOptions(unittest.TestCase):
         self.assertEqual(options[1].preview, 'api/narration/voice-sample?voice=bm_george')
 
     def test_falls_back_to_default_voice_without_an_engine(self):
-        # No model files in this environment: a real `Kokoro()` is unavailable.
-        options = speech.voice_options()
+        # The runtime gate image has the model, so take the engine away here.
+        with mock.patch.dict(sys.modules, {'kokoro_onnx': None}):
+            options = speech.voice_options()
         self.assertEqual([o.value for o in options], [speech.DEFAULT_VOICE])
         self.assertEqual(options[0].preview, f'api/narration/voice-sample?voice={speech.DEFAULT_VOICE}')
 
