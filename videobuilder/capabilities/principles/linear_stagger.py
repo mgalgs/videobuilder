@@ -1,10 +1,14 @@
-"""Linear Stagger: the items of a list run the same move, each one starting a
-fixed delay after the one before it, so the motion travels down the list in
-order (or back up it, reversed)."""
+"""Linear Stagger: the same cascade as Staggered reveals
+(`staggered_reveals.py`, which keeps the capability): the items of a list
+run the same move, each one starting a fixed delay after the one before
+it, so the motion travels down the list in order (or back up it,
+reversed). This module's own code stays (a film may still import it),
+but it is no longer a capability of its own."""
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Capability
+
+MERGED_INTO = 'staggered-reveals'
 
 
 def linear_stagger(p, i, count, spread=0.6, reverse=False):
@@ -35,22 +39,3 @@ def draw(n, cv):
         y = low + (high - low) * (up - down)
         cv.rect(x, y, SIZE, SIZE, demo.ACCENT, radius=12)
         cv.mark(f'item{i}', x, y, SIZE, SIZE)
-
-
-CAPABILITY = Capability(
-    id='linear-stagger',
-    name='Linear Stagger',
-    family='principles',
-    group='Stagger',
-    aliases=('sequential stagger', 'index delay stagger', 'reverse stagger', 'right-to-left stagger',
-             'end-first reveal'),
-    definition='A row of items all make the same move, each one setting off a fixed beat after its '
-               'neighbour, so the motion ripples through the list in order.',
-    phrasings=('animate these one after another with an even delay between each',
-               'have the items come in one at a time, left to right',
-               'cascade the list in, same gap between every item'),
-    related=('linear-repeater-stagger', 'staggered-cascade-reveal', 'per-word-fade-in', 'delay',
-             'random-order-character-reveal', 'offset'),
-    api=('videobuilder.capabilities.principles.linear_stagger.linear_stagger',),
-    demo=lambda: demo.film(draw),
-)

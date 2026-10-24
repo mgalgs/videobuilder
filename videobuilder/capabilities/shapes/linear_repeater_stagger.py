@@ -1,12 +1,17 @@
-"""Linear Repeater Stagger: a row of copies of one shape all make the same
-move, each a fixed beat behind its neighbour, so the move ripples down the
-row like an echo."""
+"""Linear Repeater Stagger: all three are a row or list of items making the
+same entrance one fixed beat apart, the same as Staggered reveals
+(`../principles/staggered_reveals.py`, which keeps the capability): a row
+of copies of one shape all make the same move, each a fixed beat behind
+its neighbour, so the move ripples down the row like an echo. This
+module's own code stays (a film may still import it), but it is no
+longer a capability of its own."""
 import math
 
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Capability
+
+MERGED_INTO = 'staggered-reveals'
 
 
 def stagger(p, i, count, spread=0.5):
@@ -48,22 +53,3 @@ def draw(n, cv):
         demo.dot(cv, x0 + i * GAP, y0 + SIZE / 2 + 18, r=4, color=demo.MUTED, alpha=0.5)
     linear_repeater(cv, _tile, COUNT, x0, y0, GAP, demo.phase(n, 0.4, 2.6), spread=0.55)
     cv.mark('row', x0 - SIZE / 2, y0 - RISE - SIZE / 2, GAP * (COUNT - 1) + SIZE, RISE + SIZE)
-
-
-CAPABILITY = Capability(
-    id='linear-repeater-stagger',
-    name='Linear repeater stagger',
-    family='shapes',
-    group='Repeaters & patterns',
-    aliases=('echo repeater', 'staggered copies', 'offset duplicates'),
-    definition='A line of identical shapes all perform the same move, each starting a beat after the one '
-               'before, so the motion rolls along the row.',
-    phrasings=('a row of squares that hop up one after another like a wave',
-               'duplicate the shape across the screen and offset each copy\'s timing',
-               'the same animation on every copy, cascading down the line'),
-    related=('linear-stagger', 'wave-stagger', 'grid-diagonal-stagger', 'proximity-stagger',
-             'frame-delay-echo', 'eased-stagger'),
-    api=('videobuilder.capabilities.shapes.linear_repeater_stagger.linear_repeater',
-         'videobuilder.capabilities.shapes.linear_repeater_stagger.stagger'),
-    demo=lambda: demo.film(draw),
-)

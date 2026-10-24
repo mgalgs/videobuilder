@@ -1,12 +1,17 @@
-"""Proximity Stagger: a group of items reacts to a trigger point one after
-another, each starting later the farther it sits from that point, so the
-change spreads outward like a ring on water."""
+"""Proximity Stagger: the same wave as Radial Stagger (`radial_stagger.py`,
+which keeps the capability), delaying each item by its distance from a
+chosen point so the change spreads out in rings: a group of items reacts
+to a trigger point one after another, each starting later the farther it
+sits from that point, so the change spreads outward like a ring on water.
+This module's own code stays (a film may still import it), but it is no
+longer a capability of its own."""
 import math
 
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Capability
+
+MERGED_INTO = 'radial-stagger'
 
 # A pointer arrow, tip at (0, 0), in pixels at scale 1.
 ARROW = ((0, 0), (0, 27), (7, 21), (12, 32), (17.5, 29.5), (12.5, 19), (21, 19))
@@ -72,22 +77,3 @@ def draw(n, cv):
     press = 1 - 0.15 * math.sin(math.pi * vb.clamp01((t - CLICK + 0.05) / 0.2))
     _arrow(cv, sx + (tx - sx) * arrive, sy + (ty - sy) * arrive, 1.3 * press)
     cv.mark('pointer', tx, ty, 28, 42)
-
-
-CAPABILITY = Capability(
-    id='proximity-stagger',
-    name='Proximity Stagger',
-    family='principles',
-    group='Stagger',
-    aliases=('pointer stagger', 'distance-based delay', 'cursor ripple'),
-    definition='A set of items each starts its move after a delay that grows with its distance from a '
-               'chosen point, so the change washes outward from there.',
-    phrasings=('the dots light up starting where I click and spread outwards',
-               'stagger them by how far they are from the cursor',
-               'make the grid react in a ripple out from one spot'),
-    related=('cursor-follower-dot-and-ring', 'linear-repeater-stagger', 'cursor-path-animation',
-             'per-word-fade-in', 'cursor-state-change', 'cursor-particle-trail'),
-    api=('videobuilder.capabilities.principles.proximity_stagger.proximity_stagger',
-         'videobuilder.capabilities.principles.proximity_stagger.proximity_delays'),
-    demo=lambda: demo.film(draw),
-)

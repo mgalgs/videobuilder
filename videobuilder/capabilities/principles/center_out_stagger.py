@@ -1,9 +1,14 @@
-"""Center-Out Stagger: a row of items starts moving from its middle, and the
-start times ripple out symmetrically so the two ends go last."""
+"""Center-Out Stagger: the one-dimensional case of Radial Stagger
+(`radial_stagger.py`, which keeps the capability) -- starting from a point
+and spreading by distance: a row of items starts moving from its middle,
+and the start times ripple out symmetrically so the two ends go last.
+This module's own code stays (a film may still import it), but it is no
+longer a capability of its own."""
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Capability
+
+MERGED_INTO = 'radial-stagger'
 
 
 def center_out_delay(i, count):
@@ -33,22 +38,3 @@ def draw(n, cv):
         q = vb.ease_out_back(center_out_stagger(i, count, p))
         demo.card(cv, x, low + (high - low) * q, w=w, h=h)
         cv.mark(f'item{i}', x - w / 2, low + (high - low) * q - h / 2, w, h)
-
-
-CAPABILITY = Capability(
-    id='center-out-stagger',
-    name='Center-Out Stagger',
-    family='principles',
-    group='Stagger',
-    aliases=('from-center stagger', 'inward-outward stagger', 'stagger from center'),
-    definition='Items in a row or group start their move one after another beginning at the middle, '
-               'with the timing spreading outward evenly so the outermost items go last.',
-    phrasings=('animate them from the middle out to the edges',
-               'start with the centre one and ripple outward to both sides',
-               'stagger the cards starting in the middle'),
-    related=('character-rotate-in', 'per-word-fade-in', 'character-scale-in', 'linear-repeater-stagger',
-             'circle-packing', 'per-character-fade-in'),
-    api=('videobuilder.capabilities.principles.center_out_stagger.center_out_stagger',
-         'videobuilder.capabilities.principles.center_out_stagger.center_out_delay'),
-    demo=lambda: demo.film(draw),
-)

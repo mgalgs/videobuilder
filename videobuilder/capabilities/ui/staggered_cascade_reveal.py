@@ -1,10 +1,15 @@
-"""Staggered cascade reveal: a set of items arrives one after another, each
-starting a beat after the one before, rising a little and fading in, so the
-group fills in as a ripple rather than all at once."""
+"""Staggered cascade reveal: the same cascade as Staggered reveals
+(`../principles/staggered_reveals.py`, which keeps the capability) -- a
+row or list of items making the same entrance one fixed beat apart: a set
+of items arrives one after another, each starting a beat after the one
+before, rising a little and fading in, so the group fills in as a ripple
+rather than all at once. This module's own code stays (a film may still
+import it), but it is no longer a capability of its own."""
 import videobuilder as vb
 
 from .. import _demo as demo
-from ..schema import Capability
+
+MERGED_INTO = 'staggered-reveals'
 
 
 def cascade(p, count, spread=0.6, ease=vb.ease_out_quint):
@@ -42,22 +47,3 @@ def draw(n, cv):
         r, c = divmod(i, COLS)
         cx, cy = x0 + c * (CW + GAP), y0 + r * (CH + GAP)
         reveal(cv, lambda cv, cx=cx, cy=cy, i=i: demo.card(cv, cx, cy, w=CW, h=CH, color=colors[i % 2]), q)
-
-
-CAPABILITY = Capability(
-    id='staggered-cascade-reveal',
-    name='Staggered cascade reveal',
-    family='ui',
-    group='Scroll',
-    aliases=('sequenced reveal', 'stagger on scroll', 'staggered entrance'),
-    definition='The items of a list or grid come into view in turn, each one rising and fading in '
-               'a moment after the one before it.',
-    phrasings=('bring the cards in one after another instead of all at once',
-               'have the grid ripple into view tile by tile',
-               'as the section appears, stagger the items in with a small delay each'),
-    related=('dropdown-stagger-reveal', 'uncover', 'linear-stagger', 'small-multiples-cascade', 'roll-up',
-             'stacked-card-reveal'),
-    api=('videobuilder.capabilities.ui.staggered_cascade_reveal.cascade',
-         'videobuilder.capabilities.ui.staggered_cascade_reveal.reveal'),
-    demo=lambda: demo.film(draw),
-)

@@ -1,7 +1,7 @@
 """Staggered reveals: built from videobuilder's own API, so this record only names it and demos it with
 its worked example film, `examples/capabilities/staggered-reveals.py` (an `Example` demo: see
 schema.py)."""
-from ..schema import Capability, Example, Source
+from ..schema import Capability, Example, Members, Source
 
 CAPABILITY = Capability(
     id='staggered-reveals',
@@ -10,6 +10,7 @@ CAPABILITY = Capability(
     group='Stagger',
     category='Motion',
     order=3,
+    aliases=('sequential stagger', 'staggered entrance', 'staggered copies'),
     definition='A list that cascades in, one item after the next.',
     description=('List chips reveal in sequence, each starting while the one before it is still '
                  'mid-flight, instead of all arriving at once — the cascade that makes a list of features '
@@ -18,8 +19,14 @@ CAPABILITY = Capability(
                "Don't pop them all in at once; stagger it",
                'Reveal the words one at a time, staggered'),
     api=('vb.spring_at(f - delay, fps, **vb.damped(...))',
-         'per-item frame delay (40-80ms list items)'),
+         'per-item frame delay (40-80ms list items)',
+         'videobuilder.capabilities.ui.staggered_cascade_reveal.cascade(p, count)',
+         'videobuilder.capabilities.ui.staggered_cascade_reveal.reveal(cv, item, q)',
+         'videobuilder.capabilities.principles.linear_stagger.linear_stagger(p, i, count)'),
     doc='skill/make-a-video/reference/motion.md',
     demo=Example('examples/capabilities/staggered-reveals.py'),
+    members=Members(ids=('edge-in-stagger', 'eased-stagger', 'grid-diagonal-stagger', 'random-stagger',
+                         'radial-stagger', 'wave-stagger', 'offset'),
+                    noun=('ordering', 'orderings')),
     source=Source('https://x.com/flxrnc/status/2105311836190978392', '@flxrnc'),
 )

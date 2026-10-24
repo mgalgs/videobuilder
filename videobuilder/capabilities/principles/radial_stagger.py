@@ -45,7 +45,8 @@ CAPABILITY = Capability(
     name='Radial Stagger',
     family='principles',
     group='Stagger',
-    aliases=('radial cascade', 'ripple stagger', 'stagger from center', 'distance-based stagger'),
+    aliases=('radial cascade', 'ripple stagger', 'stagger from center', 'distance-based stagger',
+             'pointer stagger', 'distance-based delay', 'cursor ripple'),
     definition='A group of elements animates one after another in rings spreading out from a single point, '
                'each one delayed by how far it sits from that point.',
     phrasings=('make the dots pop in from the middle outward like a ripple',
