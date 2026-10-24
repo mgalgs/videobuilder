@@ -4,20 +4,24 @@ each one against the real catalog (fonts.ids(), the sfx pack, the configured
 music sources) before it ever reaches a note, the same way _note_capabilities
 re-checks a capability id (see test_note_capabilities.py)."""
 import unittest
+from unittest import mock
 
 from videobuilder.editor import Editor, HTTPError
 from videobuilder.music import MusicLibrary, Source
+from tests.test_editor import _MusicServer
 from tests.test_notes import FakeAgent
 from tests.test_project import TempProject
 
-TRACK = {'id': 'track-1', 'title': 'Theme', 'audio_url': 'https://example.com/t.mp3', 'tags': ['calm']}
+# A closed local port: refused instantly, unlike a DNS name, so a test that never
+# means to actually fetch audio doesn't pay FETCH_TIMEOUT for every note it adds.
+TRACK = {'id': 'track-1', 'title': 'Theme', 'audio_url': 'http://127.0.0.1:1/t.mp3', 'tags': ['calm']}
 
 
-def _music_library(on_fetch=None):
+def _music_library(on_fetch=None, tracks=None):
     def func(cfg):
         if on_fetch:
             on_fetch()
-        return [TRACK]
+        return tracks if tracks is not None else [TRACK]
     source = Source('test-source', 'Test Music', 'CC0', 'entry_point', func=func, config=None)
     return MusicLibrary([source])
 
@@ -102,6 +106,69 @@ class NoteAssets(TempProject):
         note = editor.add_note(dict(video='promo/film', frame=0, text='Just text'), 'reviewer')
         self.assertEqual(note['music'], [])
         self.assertEqual(fetches, [])
+
+
+class MusicAttach(TempProject):
+    """A note's picked music chip reaches the builder the same way the Music
+    panel's "use this track" does: added as an ordinary attachment, with its
+    credit, and named in the prompt -- see editor._attach_music, music.
+    attach_track, and prompt._resolved_assets/_requested_assets_lines."""
+
+    TRACK_MP3 = b'ID3' + b'\x00' * 7 + b'fake mp3 bytes for the test'
+
+    def setUp(self):
+        super().setUp()
+        self.server = _MusicServer({'/track.mp3': (self.TRACK_MP3, 'audio/mpeg')})
+        self.addCleanup(self.server.close)
+        self.backend = FakeAgent()
+
+    def _editor(self, tracks):
+        editor = Editor(self.root, backend=self.backend, unsandboxed_previews=True, auto_land=False,
+                        music=_music_library(tracks=tracks))
+        self.addCleanup(editor.pool.close)
+        self.addCleanup(editor.renders.close)
+        return editor
+
+    def test_a_picked_track_is_attached_with_its_credit(self):
+        track = {'id': 'track-1', 'title': 'Theme', 'audio_url': self.server.base + '/track.mp3',
+                 'tags': ['calm'], 'creator': 'Jane', 'year': '2020'}
+        editor = self._editor([track])
+        note = editor.add_note(dict(video='promo/film', frame=0, text='Add music', music=['track-1']), 'reviewer')
+        self.assertEqual(note['music'], ['track-1'])
+        attached = [a for a in note['attachments'] if a.get('music_track') == 'track-1']
+        self.assertEqual(len(attached), 1, note['attachments'])
+        record = attached[0]
+        self.assertEqual(record['name'], 'Theme.mp3')
+        self.assertEqual(record['type'], 'audio/mpeg')
+        self.assertEqual(record['credit'], {'title': 'Theme', 'creator': 'Jane', 'year': '2020',
+                                            'license': 'CC0', 'item_url': None})
+        stored = editor.attachments.get(record['id'], 'promo/film')[1].read_bytes()
+        self.assertEqual(stored, self.TRACK_MP3)
+
+    def test_the_prompt_names_the_attachment(self):
+        track = {'id': 'track-1', 'title': 'Theme', 'audio_url': self.server.base + '/track.mp3', 'tags': ['calm']}
+        editor = self._editor([track])
+        note = editor.add_note(dict(video='promo/film', frame=0, text='Add music', music=['track-1']), 'reviewer')
+        from videobuilder import prompt
+        md = prompt.render(note, note, None, music=editor.music)
+        self.assertIn('use /attachments/Theme.mp3 as this track.', md)
+
+    def test_a_failing_fetch_still_adds_the_note_and_the_prompt_says_so(self):
+        editor = self._editor([TRACK])  # TRACK's audio_url is a closed local port
+        note = editor.add_note(dict(video='promo/film', frame=0, text='Add music', music=['track-1']), 'reviewer')
+        self.assertEqual(note['id'], note['id'])  # the note really was added
+        self.assertEqual(note['music'], ['track-1'])
+        self.assertFalse([a for a in note['attachments'] if a.get('music_track') == 'track-1'])
+        from videobuilder import prompt
+        md = prompt.render(note, note, None, music=editor.music)
+        self.assertIn('could not be fetched', md)
+
+    def test_a_note_with_no_music_picks_never_touches_the_music_sources(self):
+        editor = self._editor([TRACK])
+        with mock.patch('videobuilder.music.attach_track') as attach_track:
+            note = editor.add_note(dict(video='promo/film', frame=0, text='Just text'), 'reviewer')
+        self.assertEqual(note['music'], [])
+        attach_track.assert_not_called()
 
 
 if __name__ == '__main__':

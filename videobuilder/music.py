@@ -72,6 +72,11 @@ class TooLarge(FetchError):
     """A fetch exceeded its byte cap."""
 
 
+class UnsupportedAudio(ValueError):
+    """A fetched track's Content-Type and audio_url extension are neither one a
+    supported attachment type."""
+
+
 def fetch_binary(url, max_bytes, timeout=FETCH_TIMEOUT):
     """GET url, capped at max_bytes; (data, content_type), or raises FetchError/TooLarge."""
     try:
@@ -99,6 +104,50 @@ def extension_for(content_type, url):
         return ext
     suffix = Path(urlparse(url).path).suffix.lstrip('.').lower()
     return suffix if suffix in TYPES else None
+
+
+def attach_track(attachments, video, source_license, track, extra_fields=None):
+    """Fetches `track`'s audio and stores it on `video` as an ordinary
+    attachment, with its credit -- exactly what /api/music/attach does for a
+    manually "used" track, and what a note's picked music chip gets too.
+    `source_license` is the configured source's own license, a plain string,
+    used only when the track carries none of its own. `extra_fields`, when
+    given, is merged into the stored record alongside any credit -- used only
+    by a note's pick, to tag the attachment with which pick it came from.
+    Raises UnsupportedAudio, TooLarge, FetchError, or ValueError (the upload
+    itself refused the fetched bytes)."""
+    data, content_type = fetch_binary(track['audio_url'], attachments.max_file)
+    ext = extension_for(content_type, track['audio_url'])
+    if ext is None:
+        raise UnsupportedAudio('unsupported audio type for this track')
+    from .attachments import TYPES
+    extra = {}
+    if track.get('license') or track.get('creator') or track.get('year') or track.get('item_url'):
+        extra['credit'] = {'title': track['title'], 'creator': track.get('creator'), 'year': track.get('year'),
+                           'license': track.get('license') or source_license, 'item_url': track.get('item_url')}
+    if extra_fields:
+        extra.update(extra_fields)
+    return attachments.upload(video, f"{track['title']}.{ext}", TYPES[ext], data, extra=extra or None)
+
+
+def catalog(music):
+    """{track id: (source dict, track)} across every source `music` has
+    configured, first source to claim an id winning a collision -- the same
+    resolution a note's music pick is validated against (editor._note_assets),
+    fetched by (editor._attach_music), and rendered by (prompt._resolved_assets).
+    {} for no `music` configured. A source whose track list can't be fetched
+    (and has nothing cached) is simply skipped, the same as the others do."""
+    by_id = {}
+    if not music:
+        return by_id
+    for source in music.list_sources():
+        try:
+            _, tracks = music.list_tracks(source['id'])
+        except Exception:
+            continue
+        for t in tracks:
+            by_id.setdefault(t['id'], (source, t))
+    return by_id
 
 
 def _get_path(obj, dotted):

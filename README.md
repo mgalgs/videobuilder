@@ -597,7 +597,13 @@ untouched -- there is no `#font` hashtag, so these are picked only, each
 marked with an icon and a plain kind label ("Font"/"Sound"/"Music", never
 colour alone) and its own remove button; a sound or music chip can play its
 preview too. The builder's prompt lists them next to the capabilities
-section, by kind, with whatever id it needs to use the pick.
+section, by kind, with whatever id it needs to use the pick -- except a
+music pick, which is fetched right when the note is added (the same fetch
+"use this track" in the Music panel does) and staged as an ordinary
+attachment with its credit; the prompt then points at that attachment by
+name instead of a bare id, or says the pick could not be fetched when the
+fetch failed, so the builder reports it as a shortfall rather than
+inventing one.
 `URL` is any
 OpenAI-compatible chat endpoint -- OpenRouter, Anthropic's own compatible
 endpoint, a local vLLM or llama.cpp -- asked with `--suggest-model` (default

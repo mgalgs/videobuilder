@@ -351,10 +351,18 @@ class RequestedAssetsSection(unittest.TestCase):
         self.assertIn('Sound effects:', md)
         self.assertIn('`whoosh_fast/tight`: whoosh (classic). a fast pass', md)
 
-    def test_a_music_pick_is_named_by_its_title_and_source(self):
+    def test_a_fetched_music_pick_points_at_its_attachment(self):
+        attachment = {'id': 'abc123', 'name': 'Theme.mp3', 'type': 'audio/mpeg', 'size': 10,
+                      'music_track': 'track-1'}
+        md = prompt.render({**NOTE, 'music': ['track-1'], 'attachments': [attachment]}, PAYLOAD, None,
+                           music=self.music_library())
+        self.assertIn('Music:', md)
+        self.assertIn('"Theme" (Test Music; calm): use /attachments/Theme.mp3 as this track.', md)
+
+    def test_a_music_pick_whose_fetch_failed_says_so(self):
         md = prompt.render({**NOTE, 'music': ['track-1']}, PAYLOAD, None, music=self.music_library())
         self.assertIn('Music:', md)
-        self.assertIn('`track-1`: "Theme" (Test Music; calm)', md)
+        self.assertIn('"Theme" (Test Music; calm): could not be fetched', md)
 
     def test_an_unknown_font_id_is_dropped_silently(self):
         md = prompt.render({**NOTE, 'fonts': ['not-a-real-font']}, PAYLOAD, None)

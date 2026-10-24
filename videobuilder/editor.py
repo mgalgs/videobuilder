@@ -878,6 +878,8 @@ class Editor:
             attachments = self.attachments.validate(vid, body.get('attachments', []))
         except (ValueError, KeyError) as exc:
             raise HTTPError(400, str(exc)) from None
+        note_assets = _note_assets(body, self.music)
+        attachments = attachments + _attach_music(self.attachments, self.music, vid, note_assets['music'])
         with self.lock:
             info = s.request('info')
             if 'frames' not in info:
@@ -896,7 +898,7 @@ class Editor:
             png = s.request('frame', frame=frame, format=fmt, scale=NOTE_SCALE) if frame is not None else None
         text = body.get('text')
         context = dict(time=timestamp, attachments=attachments, clip=clip,
-                       capabilities=_note_capabilities(body), **_note_assets(body, self.music),
+                       capabilities=_note_capabilities(body), **note_assets,
                        beat=frame / tl['frames_per_beat'] if tl and frame is not None else None)
         links, skipped = _note_links(text if isinstance(text, str) else '', body.get('links'))
         # A link to one of this library's own videos is resolved locally (see
@@ -978,6 +980,7 @@ class Editor:
         extra = film_setup.note_lines(film_setup.read_details(Path(self.project.video(vid).path).parent))
         note_capabilities = _note_capabilities(body)
         note_assets = _note_assets(body, self.music)
+        attachments = attachments + _attach_music(self.attachments, self.music, vid, note_assets['music'])
         s = self.session(vid)
         info = s.request('info')
         if 'frames' not in info:
@@ -1173,15 +1176,38 @@ def _note_assets(body, music):
     except sfx_module.SfxUnavailable:
         sfx_ids = set()
     out['sfx'] = [i for i in out['sfx'] if i in sfx_ids]
-    music_ids = set()
-    if music and out['music']:
-        for source in music.list_sources():
-            try:
-                _, tracks = music.list_tracks(source['id'])
-            except Exception:
-                continue
-            music_ids.update(t['id'] for t in tracks)
-    out['music'] = [i for i in out['music'] if i in music_ids]
+    if out['music']:
+        from . import music as music_module
+        catalog = music_module.catalog(music)
+        out['music'] = [i for i in out['music'] if i in catalog]
+    return out
+
+
+def _attach_music(attachments, music, vid, music_ids):
+    """For each of a note's already-validated music ids (see _note_assets),
+    fetches that track's audio and stages it on `vid` as an ordinary
+    attachment -- exactly what /api/music/attach does for a manually "used"
+    track -- tagged `music_track` with the id it came from, so the prompt can
+    point at the attachment by name instead of a bare id (see prompt.
+    _resolved_assets). Called once, here, outside any lock, before the note
+    is stored; a track that no longer resolves, or whose fetch fails, is
+    simply left off the returned list -- the id stays in the note's own
+    `music` field, and the prompt says that pick could not be fetched."""
+    if not music_ids:
+        return []
+    from . import music as music_module
+    catalog = music_module.catalog(music)
+    out = []
+    for id_ in music_ids:
+        hit = catalog.get(id_)
+        if hit is None:
+            continue
+        source, track = hit
+        try:
+            out.append(music_module.attach_track(attachments, vid, source['license'], track,
+                                                  extra_fields={'music_track': id_}))
+        except (ValueError, music_module.FetchError):
+            continue
     return out
 
 

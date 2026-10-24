@@ -179,11 +179,14 @@ def _resolved_assets(note, music):
     configured sources -- so render() never trusts a stored id blind either.
     An id that no longer resolves (a changed catalog) is dropped silently,
     the same way `resolve_requested` drops one for a capability. `sfx` items
-    are `sfx.Effect`s; `music` items are (source, track) pairs, `source` one
-    of `music.list_sources()`'s own {id, name, license} dicts; `fonts` items
-    are fonts.get's plain dicts."""
+    are `sfx.Effect`s; `fonts` items are fonts.get's plain dicts. `music`
+    items are (source, track, attachment) triples, `source` one of `music.
+    list_sources()`'s own {id, name, license} dicts and `attachment` the
+    note's own attachment record this pick reached the builder as (see
+    editor._attach_music), or None when its fetch failed."""
     from . import fonts as fonts_module
     from . import sfx as sfx_module
+    from . import music as music_module
     fonts_out = []
     for id_ in note.get('fonts') or ():
         try:
@@ -199,17 +202,12 @@ def _resolved_assets(note, music):
     music_out = []
     note_music = note.get('music') or ()
     if music and note_music:
-        by_id = {}
-        for source in music.list_sources():
-            try:
-                _, tracks = music.list_tracks(source['id'])
-            except Exception:
-                continue
-            for t in tracks:
-                by_id.setdefault(t['id'], (source, t))
+        by_id = music_module.catalog(music)
+        attached = {a['music_track']: a for a in (note.get('attachments') or []) if a.get('music_track')}
         for id_ in note_music:
             if id_ in by_id:
-                music_out.append(by_id[id_])
+                source, t = by_id[id_]
+                music_out.append((source, t, attached.get(id_)))
     return fonts_out, sfx_out, music_out
 
 
@@ -220,7 +218,7 @@ def _requested_assets_lines(fonts_items, sfx_items, music_items):
     `_resolved_assets`). Listed next to '## Capabilities the creator asked
     for', by kind, each with the id the builder actually uses it by: a
     font's family name, a sound effect's own id (sfx.sound(id, ...)), a
-    music track's id and source."""
+    music track's attachment (or, failing that, a note that it is missing)."""
     lines = ['## Fonts, sound effects and music the creator picked', '',
              "These are the creator's own picks, chosen from a suggestion while writing the note (shown as "
              "a chip below it): use each one as given, not as a suggestion to second-guess."]
@@ -232,9 +230,14 @@ def _requested_assets_lines(fonts_items, sfx_items, music_items):
         lines += [f"- `{e.id}`: {e.role} ({e.family}). {e.about}" for e in sfx_items]
     if music_items:
         lines += ['', 'Music:']
-        for source, t in music_items:
+        for source, t, attachment in music_items:
             tags = ', '.join(t.get('tags', ()))
-            lines.append(f"- `{t['id']}`: \"{t['title']}\" ({source['name']}" + (f"; {tags}" if tags else '') + ')')
+            header = f"\"{t['title']}\" ({source['name']}" + (f"; {tags}" if tags else '') + ')'
+            if attachment:
+                lines.append(f"- {header}: use /attachments/{attachment['name']} as this track.")
+            else:
+                lines.append(f"- {header}: could not be fetched, so it is not among the attachments; "
+                             "report it as a shortfall rather than substituting a different track.")
     return lines
 
 

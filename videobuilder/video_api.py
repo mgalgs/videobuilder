@@ -13,7 +13,7 @@ from . import archive_org, speech
 from .attachments import TYPES
 from .editor import HTTPError, _field, _need, _page
 from .gitutil import git
-from .music import FetchError, TooLarge, extension_for, fetch_binary
+from .music import FetchError, TooLarge, UnsupportedAudio, attach_track
 from .notes import FINAL
 from .film_api import get_film, get_picture, post_film, post_start
 from .sources import TooLarge as SourceTooLarge
@@ -660,20 +660,13 @@ def _post_music_attach(self, route, body, identity, editor, user):
     if track is None:
         raise HTTPError(404, 'unknown track') from None
     try:
-        data, content_type = fetch_binary(track['audio_url'], editor.attachments.max_file)
+        record = attach_track(editor.attachments, video, source.license, track)
     except TooLarge:
         raise HTTPError(413, 'attachment exceeds file size limit') from None
+    except UnsupportedAudio as exc:
+        raise HTTPError(400, str(exc)) from None
     except FetchError as exc:
         raise HTTPError(502, f'could not fetch track audio: {exc}') from None
-    ext = extension_for(content_type, track['audio_url'])
-    if ext is None:
-        raise HTTPError(400, 'unsupported audio type for this track')
-    extra = None
-    if track.get('license') or track.get('creator') or track.get('year') or track.get('item_url'):
-        extra = {'credit': {'title': track['title'], 'creator': track.get('creator'), 'year': track.get('year'),
-                            'license': track.get('license') or source.license, 'item_url': track.get('item_url')}}
-    try:
-        record = editor.attachments.upload(video, f"{track['title']}.{ext}", TYPES[ext], data, extra=extra)
     except ValueError as exc:
         raise HTTPError(400, str(exc)) from None
     return self._json(201, record)
