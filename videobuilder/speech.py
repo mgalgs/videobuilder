@@ -59,6 +59,11 @@ _SENTENCE = re.compile(r'(?<=[.!?…])["\'”’)\]]*\s+')
 _INLINE = re.compile(r'\[([^\]]+)\]\(/([^/)]+)/\)')
 # A period after these (or after an initial, "J. R. R.") doesn't end a sentence.
 _ABBREV = re.compile(r'(?:mr|mrs|ms|dr|st|jr|sr|prof|mt|vs|e\.g|i\.e|cf|(?-i:[A-Z]))\.', re.IGNORECASE)
+# `|` between words: a phrase break the voice hears (a comma in its phonemes) and nobody sees.
+BREAK = '|'
+_PUNCT = '.,!?;:…'
+_BREAK_AT_EDGE = re.compile(r'^[\s|]*\||\s*\|[\s|]*(?=[.,!?;:…"\'”’)\]]|$)')
+_BREAKS = re.compile(r'\s*\|[\s|]*')
 
 
 def phrases(script):
@@ -76,22 +81,31 @@ def phrases(script):
             words = line[at:m.start()].split()
             if words and _ABBREV.fullmatch(words[-1].lstrip('("\'“‘[')):
                 continue
-            out.append(line[at:m.end()].strip())
+            if line[at:m.end()].strip(BREAK + ' '):
+                out.append(line[at:m.end()].strip())
             at = m.end()
-        if line[at:].strip():
+        if line[at:].strip(BREAK + ' '):
             out.append(line[at:].strip())
     return out
 
 
+def unmarked(text):
+    """`text` without its `|` breaks, spaced as if they were never typed."""
+    if BREAK not in text:
+        return text
+    return _BREAKS.sub(' ', _BREAK_AT_EDGE.sub('', text)).strip()
+
+
 def caption_text(phrase):
-    """What the captions show: `[word](/phonemes/)` as just the word."""
-    return _INLINE.sub(r'\1', phrase)
+    """What the captions show: `[word](/phonemes/)` as just the word, and no `|`."""
+    return unmarked(_INLINE.sub(r'\1', phrase))
 
 
 def spoken_parts(phrase, lexicon=None):
-    """The phrase as [(kind, text)], kind 'text' or 'phonemes', with `lexicon`
-    ({word: respelling, or '/phonemes/'}, whole words, case-insensitive)
-    applied to the plain text."""
+    """The phrase as [(kind, text)], kind 'text', 'phonemes' or 'break' (a `|`,
+    in the text, typed phonemes or a respelling), with `lexicon` ({word:
+    respelling, or '/phonemes/'}, whole words, case-insensitive) applied to
+    the plain text."""
     parts = []
     at = 0
     for m in _INLINE.finditer(phrase):
@@ -117,12 +131,18 @@ def spoken_parts(phrase, lexicon=None):
                 at = m.end()
             out.append(('text', s[at:]))
         parts = out
+    if any(BREAK in s for _, s in parts):
+        out = []
+        for kind, s in parts:
+            for i, piece in enumerate(s.split(BREAK)):
+                out += [('break', ',')] * (i > 0) + [(kind, piece)]
+        parts = out
     merged = []
     for kind, s in parts:
         if not s:
             continue
-        if merged and merged[-1][0] == kind == 'text':
-            merged[-1] = ('text', merged[-1][1] + s)
+        if merged and merged[-1][0] == kind and kind in ('text', 'break'):
+            merged[-1] = (kind, merged[-1][1] if kind == 'break' else merged[-1][1] + s)
         else:
             merged.append((kind, s))
     return merged
@@ -283,15 +303,24 @@ def single_symbols(phonemes, tied=False):
 
 def phonemes_for(engine, parts, lang):
     """One phoneme string for a phrase's spoken parts, espeak's and the
-    writer's alike, with Kokoro's single symbols (see `single_symbols`)."""
+    writer's alike, with Kokoro's single symbols (see `single_symbols`). A
+    break is a comma, as if typed, but only between two sounds that have no
+    punctuation between them already."""
     out = ''
+    pause = False
     for kind, s in parts:
+        if kind == 'break':
+            pause = True
+            continue
         if kind == 'text' and lang.startswith('en'):
             s = spoken_years(s)
         p = (single_symbols(s.strip()) if kind == 'phonemes'
              else single_symbols(engine.phonemize(s, lang), tied=True).strip())
         if p:
-            out += p if not out or p[0] in '.,!?;:…' else ' ' + p
+            if pause and out and out[-1] not in _PUNCT and p[0] not in _PUNCT:
+                out += ','
+            out += p if not out or p[0] in _PUNCT else ' ' + p
+            pause = False
     return out
 
 

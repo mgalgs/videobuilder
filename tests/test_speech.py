@@ -118,6 +118,67 @@ class Script(unittest.TestCase):
         self.assertEqual(speech.phonemes_for(FakeEngine(), [('text', 'En 1863')], 'fr-fr'), 'en 1863')
 
 
+class PhraseBreak(unittest.TestCase):
+    SENTENCE = "California's tax revenue | rises and falls with the economy."
+
+    def test_the_voice_gets_a_comma_where_the_mark_is_and_nowhere_else(self):
+        ph = speech.phonemes_for(FakeEngine(), speech.spoken_parts(self.SENTENCE), 'en-us')
+        self.assertEqual(ph, "california's tax revenue, rises and falls with the economy.")
+
+    def test_captions_and_json_show_neither_the_mark_nor_a_comma(self):
+        with tempfile.TemporaryDirectory() as d:
+            eng = FakeEngine()
+            doc = speech.say(self.SENTENCE, Path(d, 'n.wav'), eng)
+            self.assertEqual(eng.calls[0][0], "california's tax revenue, rises and falls with the economy.")
+            text = "California's tax revenue rises and falls with the economy."
+            self.assertEqual([p['text'] for p in doc['phrases']], [text])
+            self.assertEqual(json.loads(Path(d, 'n.json').read_text())['phrases'], doc['phrases'])
+            self.assertIn(f'\n{text}\n', Path(d, 'n.vtt').read_text())
+
+    def test_the_mark_does_not_split_a_phrase(self):
+        self.assertEqual(speech.phrases('One | two. Three | four'), ['One | two.', 'Three | four'])
+
+    def test_next_to_and_inside_typed_phonemes_and_respellings(self):
+        eng = FakeEngine()
+        for phrase, lexicon, want in [('tax [revenue](/ɹˈɛvənuː/) | rises.', None, 'tax ɹˈɛvənuː, rises.'),
+                                      ('tax [revenue](/ɹˈɛvənuː/)|rises.', None, 'tax ɹˈɛvənuː, rises.'),
+                                      ('[the tax](/ðə | tˈæks/) rises.', None, 'ðə, tˈæks rises.'),
+                                      ('Kokoro rises.', {'Kokoro': 'ko | ko ro'}, 'ko, ko ro rises.'),
+                                      ('tax Kokoro | rises.', {'Kokoro': '/kəkˈɔːɹəʊ/'}, 'tax kəkˈɔːɹQ, rises.')]:
+            with self.subTest(phrase=phrase):
+                self.assertEqual(speech.phonemes_for(eng, speech.spoken_parts(phrase, lexicon), 'en-us'), want)
+                self.assertNotIn('|', speech.caption_text(phrase))
+        self.assertEqual(speech.caption_text('[the tax](/ðə | tˈæks/) | rises.'), 'the tax rises.')
+
+    def test_a_stray_mark_adds_at_most_one_break_and_never_an_empty_phrase(self):
+        self.assertEqual(speech.phrases('| One || two |.\n|\n | \nThree. |\nFour. | Five |'),
+                         ['| One || two |.', 'Three.', 'Four.', '| Five |'])
+        eng = FakeEngine()
+        for phrase, want in [('| One || two |.', 'one, two.'), ('| Five |', 'five'), ('x, | y', 'x, y'),
+                             ('a | | b', 'a, b')]:
+            with self.subTest(phrase=phrase):
+                self.assertEqual(speech.phonemes_for(eng, speech.spoken_parts(phrase), 'en-us'), want)
+        self.assertEqual(speech.caption_text('| One || two |.'), 'One two.')
+        self.assertEqual(speech.caption_text('x, | y'), 'x, y')
+        with tempfile.TemporaryDirectory() as d, self.assertRaisesRegex(ValueError, 'no phrases'):
+            speech.say('|\n | |\n', Path(d, 'n.wav'), FakeEngine())
+
+    def test_phonemes_mode_echoes_the_phrase_without_the_mark(self):
+        out = io.StringIO()
+        with mock.patch.object(speech, 'Kokoro', lambda *a: FakeEngine()), contextlib.redirect_stdout(out):
+            cli.main(['say', '--text', 'Tax revenue | rises.', '--phonemes'])
+        self.assertEqual(out.getvalue(), 'Tax revenue rises.\n    /tax revenue, rises./\n')
+
+    def test_without_the_mark_nothing_changes(self):
+        phrase = "California's tax revenue rises, and [falls](/fˈɔːlz/) with C++. Ok"
+        lexicon = {'C++': 'see plus plus'}
+        self.assertEqual(speech.unmarked(phrase), phrase)
+        self.assertEqual(speech.spoken_parts(phrase, lexicon),
+                         [('text', "California's tax revenue rises, and "), ('phonemes', 'fˈɔːlz'),
+                          ('text', ' with see plus plus. Ok')])
+        self.assertEqual(speech.phonemes_for(FakeEngine(), speech.spoken_parts(phrase, lexicon), 'en-us'),
+                         "california's tax revenue rises, and fˈɔːlz with see plus plus. ok")
+
 class Assemble(unittest.TestCase):
     def test_trims_each_phrase_to_its_sound_and_gaps_them(self):
         chunks = [tone(1.0, lead=0.5, tail=0.5), tone(0.5, lead=0.2, tail=0.1)]

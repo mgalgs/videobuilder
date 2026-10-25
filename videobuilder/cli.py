@@ -426,7 +426,7 @@ def cmd_say(a):
         lang = a.lang or speech.LANGS.get(voice[:1], 'en-us')
         if a.phonemes:
             for ph in speech.phrases(script):
-                print(f'{ph}\n    /{speech.phonemes_for(engine, speech.spoken_parts(ph, lexicon), lang)}/')
+                print(f'{speech.unmarked(ph)}\n    /{speech.phonemes_for(engine, speech.spoken_parts(ph, lexicon), lang)}/')
             return
         if not a.out:
             raise SystemExit('say: --out is required (a .wav path)')
