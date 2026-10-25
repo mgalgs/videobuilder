@@ -585,9 +585,10 @@ class BackgroundSubmit(unittest.TestCase):
 
         restarted = NoteStore(self.dir, agent)
         stop = threading.Event()
-        self.addCleanup(stop.set)
         with mock.patch.object(editor_module, 'NOTE_TICK', 0.05):
-            editor_module._ticker(restarted.tick, stop)
+            ticker = editor_module._ticker(restarted.tick, stop)
+            # a tick in flight still writes notes: stop it before the directory goes
+            self.addCleanup(lambda: (stop.set(), ticker.join(10), settle(restarted)))
             deadline = time.monotonic() + 10
             while restarted.get(n['id'])['handle'] is None and time.monotonic() < deadline:
                 settle(restarted)
