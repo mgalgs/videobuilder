@@ -983,6 +983,11 @@ python -m videobuilder editor --library DIR [--checkouts DIR2] [--state-dir DIR3
   `pip install -e '.[speech]'`, and the Kokoro model files) makes a voiceover
   WAV with phrase-timed `.vtt`/`.json` sidecars, once; `speech.load` reads them
   at render time (captions, a `Sound`, a per-frame mouth-open signal) without the model.
+  Kokoro picks its own phrase breaks and often puts one inside a long subject:
+  hear them with `say --phonemes` and the audio, measure them with
+  `ffmpeg -i x.wav -af silencedetect=noise=-40dB:d=0.12 -f null -`, and move one
+  with `|` between words (`tax revenue | rises`), which the voice hears as a
+  comma and the captions never show, rather than by rewording or adding a comma.
 - `sfx`: sound effects. `vb.sfx.sound(id, at=frame)` puts a sound from the
   sound-effects pack (earshot's bank, MIT) on a frame by its peak or onset;
   `python -m videobuilder sfx fetch` downloads the pack (checked against

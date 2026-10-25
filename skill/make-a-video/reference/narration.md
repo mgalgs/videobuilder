@@ -68,6 +68,29 @@ that prints the same phonemes as the word itself (Freud and Froyd both give
 `fɹˈYd`) changes nothing in the audio. Years from 1100 to 1999 already read
 as years ("eighteen sixty-three"); write later ones as you want them said.
 
+## Fixing a pause in the wrong place
+
+Kokoro guesses its own phrasing, and inside a long subject it often
+guesses wrong: "California's tax revenue rises and falls with the
+economy." comes out as [California's tax revenue rises] [and falls with
+the economy]. Listen to each phrase, and measure its pauses:
+
+```
+ffmpeg -i assets/voice.wav -af silencedetect=noise=-40dB:d=0.12 -f null -
+```
+
+Mark where the break belongs with `|` between words:
+
+```
+California's tax revenue | rises and falls with the economy.
+```
+
+The voice gets a comma there (`--phonemes` shows it) and nothing else
+changes; the captions and the `.json` never show the mark. Don't reword a
+correct script or add a visible comma to move a pause. `|` works next to
+`[word](/phonemes/)`, inside the phonemes and in a respelling, and never
+splits a phrase.
+
 ## Using it in the film
 
 ```python
