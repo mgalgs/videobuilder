@@ -322,8 +322,11 @@ class API(TempProject):
             self.assertTrue(self.get('/api/draft/frame?video=promo/film&scale=0.1').startswith(b'\x89PNG'))
         self.assertEqual(self.post('/api/draft/accept', dict(video='promo/film'))[1]['state'], 'accepted')
         self.assertEqual(self.get('/api/notes')["notes"][0]['state'], 'accepted')
-        self.post('/api/notes', dict(video='promo/film', frame=0, text='Again'))
-        self.get('/api/notes')
+        nid = self.post('/api/notes', dict(video='promo/film', frame=0, text='Again'))[1]['id']
+        deadline = time.monotonic() + SETTLE_SECONDS  # a poll skips a video whose lock is busy
+        while next(n for n in self.get('/api/notes')['notes'] if n['id'] == nid)['state'] != 'replied':
+            self.assertLess(time.monotonic(), deadline, 'the second note never replied')
+            time.sleep(0.05)
         self.assertEqual(self.post('/api/draft/drop', dict(video='promo/film'))[1]['state'], 'dropped')
 
     def test_host_allowlist_get_and_post(self):
