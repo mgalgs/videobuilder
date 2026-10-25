@@ -62,7 +62,8 @@ _ABBREV = re.compile(r'(?:mr|mrs|ms|dr|st|jr|sr|prof|mt|vs|e\.g|i\.e|cf|(?-i:[A-
 # `|` between words: a phrase break the voice hears (a comma in its phonemes) and nobody sees.
 BREAK = '|'
 _PUNCT = '.,!?;:…'
-_BREAK_AT_EDGE = re.compile(r'^[\s|]*\||\s*\|[\s|]*(?=[.,!?;:…"\'”’)\]]|$)')
+# A straight quote can open as well as close: it closes only when no space comes before it.
+_BREAK_AT_EDGE = re.compile(r'^[\s|]*\||\s*\|[\s|]*(?=[.,!?;:…”’)\]]|$)|\s*\|(?:\s*\|)*(?=["\'])')
 _BREAKS = re.compile(r'\s*\|[\s|]*')
 
 

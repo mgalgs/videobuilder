@@ -160,6 +160,17 @@ class PhraseBreak(unittest.TestCase):
                 self.assertEqual(speech.phonemes_for(eng, speech.spoken_parts(phrase), 'en-us'), want)
         self.assertEqual(speech.caption_text('| One || two |.'), 'One two.')
         self.assertEqual(speech.caption_text('x, | y'), 'x, y')
+
+    def test_a_mark_before_an_opening_quote_keeps_the_space(self):
+        for phrase, want in [('The sign read | "Closed for the season."', 'The sign read "Closed for the season."'),
+                             ("He said | 'no' twice", "He said 'no' twice"),
+                             ('"Closed." | "Open."', '"Closed." "Open."'),
+                             ('He said "no |" twice', 'He said "no" twice'),
+                             ("He said 'no | |' twice", "He said 'no' twice")]:
+            with self.subTest(phrase=phrase):
+                self.assertEqual(speech.caption_text(phrase), want)
+        self.assertEqual(speech.phonemes_for(FakeEngine(), speech.spoken_parts('He said | "no" twice'), 'en-us'),
+                         'he said, "no" twice')
         with tempfile.TemporaryDirectory() as d, self.assertRaisesRegex(ValueError, 'no phrases'):
             speech.say('|\n | |\n', Path(d, 'n.wav'), FakeEngine())
 
