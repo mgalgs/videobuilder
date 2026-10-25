@@ -116,7 +116,12 @@ GET  /api/sources?video=V            {sources:[{name,ext,size,duration,width,
                                      A source imported with POST
                                      /api/sources/import also carries license
                                      and credit (title,creator,year,item_url);
-                                     absent for an uploaded source
+                                     absent for an uploaded source. Listed
+                                     too while an import downloads, with
+                                     status:"importing", received and total
+                                     (bytes), or once it failed, with
+                                     status:"failed" and error (delete it to
+                                     dismiss); status is absent once ready
 POST /api/sources?video=V&filename=F[&name=N]  raw body with Content-Type
                                      (a video, or a sound: mp3/m4a/wav/aac/ogg),
                                      streamed to disk as it arrives; name
@@ -145,19 +150,23 @@ GET  /api/archive/search?q=Q         {results:[{identifier,title,year,duration,
                                      memory per query for archive_org.CACHE_TTL
                                      seconds; 502 on an upstream fetch failure
 POST /api/sources/import {video,identifier,name?}
-                                     201 the same source record GET
-                                     /api/sources returns, with license/credit
-                                     present (archive.org's own title, creator,
-                                     year, licence, item URL); downloads the
-                                     largest MP4 derivative of the archive.org
-                                     item that fits this video's remaining
-                                     source budget, streamed to disk exactly as
-                                     an upload lands; 400 no derivative fits the
-                                     size limit, or the name is already taken;
-                                     404 unknown archive.org identifier; 413 the
-                                     chosen derivative exceeds the limit while
-                                     streaming; 502 archive.org could not be
-                                     reached
+                                     202 the same source record GET
+                                     /api/sources returns, status:"importing",
+                                     with license/credit present (archive.org's
+                                     own title, creator, year, licence, item
+                                     URL), at once; the largest MP4 derivative
+                                     of the archive.org item that fits this
+                                     video's remaining source budget (imports
+                                     in progress count at full size) then
+                                     downloads in the background, streamed to
+                                     disk exactly as an upload lands, and the
+                                     source turns ordinary or failed (a
+                                     restart mid-download marks it failed);
+                                     400 no derivative fits the size limit, or
+                                     the name is already taken; 404 unknown
+                                     archive.org identifier; 413 this video is
+                                     already at its total limit; 502
+                                     archive.org could not be reached
 GET  /api/music/sources              [{id,name,license}]; [] with none configured
 GET  /api/music/tracks?source=S      {source:{id,name,license},tracks:[...]};
                                      each track may carry its own license,

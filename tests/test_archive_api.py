@@ -15,6 +15,7 @@ from unittest import mock
 
 from videobuilder import archive_org
 from tests import fixtures
+from tests.test_sources import _join_imports
 
 FFMPEG = shutil.which('ffmpeg') and shutil.which('ffprobe')
 
@@ -85,21 +86,27 @@ class Import(fixtures.API):
         with mock.patch('videobuilder.archive_org.get_metadata', return_value=item or self._item()), \
              mock.patch('videobuilder.archive_org.open_download',
                         return_value=(_FakeDownload(data), len(data), 'video/mp4')):
-            return self.post('/api/sources/import', body)
+            code, record = self.post('/api/sources/import', body)
+            _join_imports(self.editor.sources)
+        return code, record
 
     def test_import_lands_as_a_source_with_license_and_credit(self):
         code, record = self._mocked_import({'video': 'promo/film', 'identifier': 'farm-safety-1955'})
-        self.assertEqual(code, 201, record)
+        self.assertEqual(code, 202, record)
         self.assertEqual(record['name'], 'farm-safety')
+        self.assertEqual(record['status'], 'importing')
         self.assertEqual(record['license'], 'https://creativecommons.org/publicdomain/mark/1.0/')
         self.assertEqual(record['credit']['title'], 'Farm Safety')
         sources = self.get('/api/sources?video=promo%2Ffilm')['sources']
         self.assertEqual([s['name'] for s in sources], ['farm-safety'])
+        self.assertNotIn('status', sources[0])
+        self.assertEqual(sources[0]['size'], len(self.clip.read_bytes()))
+        self.assertEqual(sources[0]['credit']['title'], 'Farm Safety')
 
     def test_explicit_name_is_honoured(self):
         code, record = self._mocked_import({'video': 'promo/film', 'identifier': 'farm-safety-1955',
                                             'name': 'My Import'})
-        self.assertEqual(code, 201, record)
+        self.assertEqual(code, 202, record)
         self.assertEqual(record['name'], 'my-import')
 
     def test_unknown_identifier_is_404(self):

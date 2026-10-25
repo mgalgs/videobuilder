@@ -240,7 +240,7 @@ def _get_attachment(self, route, q, editor, user, attachment_id):
 def _get_sources(self, route, q, editor, user):
     video = _need(q, 'video')
     editor.project.video(video)
-    return self._json(200, {'sources': [editor.sources.public(m) for m in editor.sources.list(video)]})
+    return self._json(200, {'sources': [editor.sources.public(m) for m in editor.sources.list(video, pending=True)]})
 
 
 def _get_source_file(self, route, q, editor, user, name):
@@ -276,7 +276,7 @@ def _post_sources_import(self, route, body, identity, editor, user):
         raise HTTPError(413, str(exc)) from None
     except ValueError as exc:
         raise HTTPError(400, str(exc)) from None
-    return self._json(201, record)
+    return self._json(202, record)
 
 
 def _get_music_sources(self, route, q, editor, user):

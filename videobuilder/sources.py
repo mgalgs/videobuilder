@@ -29,6 +29,19 @@ source deleted or an ffmpeg failure just leaves it False forever -- except
 that every `Sources.__init__` (so every editor start) re-queues a build for
 any source still not ready, which is also when a scratch file left by a
 build interrupted mid-encode gets swept up.
+
+An archive.org import (`import_archive_item`) is a source too before it is
+one: the request makes the cheap checks and reserves the name with a meta.json
+carrying `status: 'importing'` (plus `received`/`total` bytes), and a thread of
+its own streams the download into a scratch file beside the video's sources.
+Only once that file is complete and probes does it move into the source's
+directory and the status go, making it an ordinary source (preview build and
+all). A failed download keeps the meta with `status: 'failed'` and an `error`
+(its partial file removed) until it is deleted; an editor restart marks any
+import still `importing` failed. `list()`/`get()` -- so sync, staging,
+`file_path` and captions -- see only finished sources unless asked for the
+rest (`pending=True`), and the size budget counts an import in progress at its
+full size.
 """
 import hashlib
 import json
@@ -112,6 +125,10 @@ class TooLarge(ValueError):
     """An upload refused for exceeding a size limit; mapped to HTTP 413."""
 
 
+class _Cancelled(Exception):
+    """An import deleted while it was still downloading (see _download_import)."""
+
+
 def _slug(text):
     slug = re.sub(r'[^a-z0-9-]+', '-', text.strip().lower()).strip('-')
     return slug[:80] or 'source'
@@ -190,11 +207,13 @@ class Sources:
         self._tmp_dir.mkdir(exist_ok=True)
         for stale in self._tmp_dir.iterdir():
             stale.unlink(missing_ok=True)
-        # An upload cut off by a restart: the request died with the process.
+        # An upload (or an archive.org import) cut off by a restart: the request
+        # or thread died with the process.
         for stale in self.root.glob('*/.upload-*'):
             stale.unlink(missing_ok=True)
         self._locks = {}
         self._locks_guard = threading.Lock()
+        self._import_threads = {}  # (video, name) -> its download thread, for tests to join
         # One background worker for the whole process, building queued previews
         # one at a time (see the module docstring) rather than a thread per upload.
         _ensure_build_worker()
@@ -205,8 +224,11 @@ class Sources:
         # so this is the only way back to the (video, name) pair `get`/`_build_preview`
         # need.
         for video in self.editor.project.videos():
-            for meta in self.list(video.id):
-                if not meta.get('preview_ready'):
+            for meta in self.list(video.id, pending=True):
+                if meta.get('status') == 'importing':
+                    # Its download thread died with the last process; nothing resumes it.
+                    self._fail_import(video.id, meta['name'], 'the editor restarted before this import finished')
+                elif not meta.get('status') and not meta.get('preview_ready'):
                     _BUILD_QUEUE.put((self, video.id, meta['name']))
 
     def _lock(self, video, name):
@@ -278,19 +300,24 @@ class Sources:
         tmp.write_text(json.dumps(meta))
         tmp.rename(path)
 
-    def list(self, video):
+    def list(self, video, pending=False):
+        """This video's sources; `pending` also includes imports still
+        downloading or failed (see the module docstring), which nothing but
+        the Sources list, the budget and delete() should ever see."""
         d = self._video_dir(video)
         if not d.is_dir():
             return []
         out = []
         for meta_path in sorted(d.glob('*/meta.json')):
             try:
-                out.append(json.loads(meta_path.read_text()))
+                meta = json.loads(meta_path.read_text())
             except (OSError, ValueError):
                 continue
+            if pending or not meta.get('status'):
+                out.append(meta)
         return out
 
-    def get(self, video, name):
+    def get(self, video, name, pending=False):
         # `name` reaches here raw from a URL path segment (see video_api.py / handler_library.py):
         # every other method below funnels through get(), so this is the one place a traversal
         # name like '..' or '.' -- which `[^/]+` lets through the route regex unchanged -- is
@@ -298,12 +325,24 @@ class Sources:
         if not isinstance(name, str) or not _NAME_RE.fullmatch(name):
             raise KeyError(name)
         try:
-            return json.loads(self._meta_path(video, name).read_text())
+            meta = json.loads(self._meta_path(video, name).read_text())
         except FileNotFoundError:
             raise KeyError(name) from None
+        if meta.get('status') and not pending:
+            raise KeyError(name)
+        return meta
 
-    def _total_bytes(self, video):
-        return sum(m['size'] for m in self.list(video))
+    def _total_bytes(self, video, exclude=None):
+        """Bytes this video's sources use against max_total: an import in
+        progress counts at its full expected size, so a second one started
+        meanwhile can't be granted the same room; a failed one, its partial
+        file already gone, counts nothing."""
+        total = 0
+        for m in self.list(video, pending=True):
+            if m['name'] == exclude or m.get('status') == 'failed':
+                continue
+            total += max(m.get('total') or 0, m.get('received') or 0) if m.get('status') else m['size']
+        return total
 
     @staticmethod
     def public(meta):
@@ -314,6 +353,11 @@ class Sources:
         if meta.get('license') or meta.get('credit'):
             out['license'] = meta.get('license')
             out['credit'] = meta.get('credit')
+        # Likewise status, only while an import is downloading or once it has failed.
+        if meta.get('status') == 'importing':
+            out.update(status='importing', received=meta.get('received', 0), total=meta.get('total'))
+        elif meta.get('status'):
+            out.update(status=meta['status'], error=meta.get('error'))
         return out
 
     def file_path(self, video, name):
@@ -336,62 +380,151 @@ class Sources:
         return self._ingest(video, filename, name, content_type, rfile, content_length)
 
     def import_archive_item(self, video, identifier, name=None):
-        """Imports one archive.org item (a Prelinger film) as a new source
-        video: picks its largest MP4 derivative that fits this video's
-        remaining size budget, streams it to disk exactly like
-        stream_upload (an archive.org download response is, for this
-        purpose, just something with `.read(n)` and a known length), and
-        records the item's own licence and credit in meta.json -- absent
-        for an ordinary upload, see `public()`. Refuses an item outside
-        the Prelinger collection: this import is scoped to Prelinger
-        footage, not any archive.org item with an mp4. Raises
-        archive_org.NotFound/ArchiveError, `ValueError` (not a Prelinger
-        item, no derivative fits, name clash, unreadable video) or
-        `TooLarge`, and leaves nothing on disk either way."""
+        """Starts importing one archive.org item (a Prelinger film) as a new
+        source video and returns its public record at once, in the
+        `importing` state (see the module docstring). Here, before anything
+        downloads: the item must exist and be in the Prelinger collection
+        (this import is scoped to Prelinger footage, not any archive.org item
+        with an mp4), its largest MP4 derivative that fits this video's
+        remaining size budget is picked, and the name must be free -- raising
+        archive_org.NotFound/ArchiveError, `ValueError` or `TooLarge`, with
+        nothing on disk. Then a thread streams that derivative to disk exactly
+        like stream_upload (an archive.org download response is, for this
+        purpose, just something with `.read(n)` and a known length) and the
+        source becomes ordinary, or failed. The item's own licence and credit
+        are recorded in meta.json from the start -- absent for an ordinary
+        upload, see `public()`."""
         from . import archive_org
         self.editor.project.video(video)
         item = archive_org.get_metadata(identifier)
         if archive_org.PRELINGER_COLLECTION not in item['collection']:
             raise ValueError('this archive.org item is not part of the Prelinger collection')
-        existing_total = self._total_bytes(video)
-        if existing_total >= self.max_total:
-            raise TooLarge('this video has reached its total limit for source videos')
-        budget = min(self.max_file, self.max_total - existing_total)
-        filename = archive_org.pick_derivative(item['files'], budget)
-        if filename is None:
-            raise ValueError('no derivative of this archive.org item fits the source size limit')
-        response, content_length, content_type = archive_org.open_download(item['identifier'], filename)
+        credit = {'title': item['title'], 'creator': item['creator'], 'year': item['year'],
+                  'item_url': item['details_url']}
+        extra_meta = {'credit': credit}
+        if item['license'] or item['rights']:
+            extra_meta['license'] = item['license'] or item['rights']
+        video_dir = self._video_dir(video)
+        # The budget check and the name reservation are one step under this video's
+        # own lock, so two imports started together can't both be granted the same room.
+        with self._lock(video, None):
+            existing_total = self._total_bytes(video)
+            if existing_total >= self.max_total:
+                raise TooLarge('this video has reached its total limit for source videos')
+            budget = min(self.max_file, self.max_total - existing_total)
+            filename = archive_org.pick_derivative(item['files'], budget)
+            if filename is None:
+                raise ValueError('no derivative of this archive.org item fits the source size limit')
+            ext, slug = self._ext_and_slug(filename, name or item['title'])
+            size = next(int(f['size']) for f in item['files'] if f.get('name') == filename)
+            video_dir.mkdir(parents=True, exist_ok=True)
+            try:
+                self._dir(video, slug).mkdir()
+            except FileExistsError:
+                raise ValueError(f'a source named {slug!r} already exists for this video') from None
+            meta = dict(name=slug, ext=ext, size=0, duration=None, width=None, height=None, has_audio=None,
+                        caption=None, created=time.time(), preview_ready=False, **extra_meta,
+                        status='importing', received=0, total=size)
+            self._save(video, slug, meta)
+        thread = threading.Thread(target=self._download_import, args=(video, slug, item['identifier'], filename),
+                                  daemon=True)
+        self._import_threads[(video, slug)] = thread
+        thread.start()
+        return self.public(meta)
+
+    def _download_import(self, video, name, identifier, filename):
+        """The import's own thread (see import_archive_item): open the
+        download, stream it to a scratch file, saving progress into meta.json
+        as it goes, then publish it as an ordinary source -- or mark the
+        import failed. A delete() meanwhile wins: the next progress save
+        finds the meta gone and the download stops, its scratch file removed."""
+        from . import archive_org
         try:
-            credit = {'title': item['title'], 'creator': item['creator'], 'year': item['year'],
-                      'item_url': item['details_url']}
-            extra_meta = {'credit': credit}
-            if item['license'] or item['rights']:
-                extra_meta['license'] = item['license'] or item['rights']
-            return self._ingest(video, filename, name or item['title'], content_type, response, content_length,
-                                extra_meta)
+            response, content_length, content_type = archive_org.open_download(identifier, filename)
+        except archive_org.ArchiveError as exc:
+            self._fail_import(video, name, str(exc))
+            return
+        try:
+            with self._lock(video, None):
+                # archive.org's own Content-Length, not the metadata's size, is what will
+                # arrive: re-check the budget against it and reserve that much instead.
+                budget = min(self.max_file, self.max_total - self._total_bytes(video, exclude=name))
+                if content_length > budget:
+                    raise TooLarge('this source video exceeds the file size limit' if budget == self.max_file
+                                   else 'this video has reached its total limit for source videos')
+                if not self._set_import(video, name, total=content_length):
+                    return
+            ext = Path(filename).suffix.lstrip('.').lower()
+
+            def progress(received):
+                if not self._set_import(video, name, received=received):
+                    raise _Cancelled()
+
+            tmp, written, (duration, width, height, has_audio) = self._receive(
+                video, ext, content_type, response, content_length, budget, progress)
+        except _Cancelled:
+            return
+        except Exception as exc:
+            if not isinstance(exc, (ValueError, archive_org.ArchiveError, OSError)):
+                _log.exception('archive.org import failed for %r/%r', video, name)
+            self._fail_import(video, name, str(exc) or 'the download failed')
+            return
         finally:
             response.close()
+        with self._lock(video, name):
+            try:
+                meta = self.get(video, name, pending=True)
+            except KeyError:
+                tmp.unlink(missing_ok=True)
+                return
+            tmp.rename(self._dir(video, name) / f'{name}.{ext}')
+            for key in ('status', 'received', 'total', 'error'):
+                meta.pop(key, None)
+            meta.update(size=written, duration=duration, width=width, height=height, has_audio=has_audio)
+            self._save(video, name, meta)
+        self.sync(video)
+        _BUILD_QUEUE.put((self, video, name))
 
-    def _ingest(self, video, filename, name, content_type, rfile, content_length, extra_meta=None):
-        """Shared by stream_upload (an HTTP request body) and
-        import_archive_item (an archive.org download response): both are
-        just something with `.read(n)` and a known length. `extra_meta`,
-        when given, is merged into the saved meta.json (see
-        import_archive_item)."""
+    def _set_import(self, video, name, **fields):
+        """Save `fields` into an import's meta.json; False once it has been
+        deleted (or is somehow no longer importing)."""
+        with self._lock(video, name):
+            try:
+                meta = self.get(video, name, pending=True)
+            except KeyError:
+                return False
+            if meta.get('status') != 'importing':
+                return False
+            meta.update(fields)
+            self._save(video, name, meta)
+            return True
+
+    def _fail_import(self, video, name, error):
+        with self._lock(video, name):
+            try:
+                meta = self.get(video, name, pending=True)
+            except KeyError:
+                return
+            for key in ('received', 'total'):
+                meta.pop(key, None)
+            meta.update(status='failed', error=error)
+            self._save(video, name, meta)
+
+    def _ext_and_slug(self, filename, name):
         ext = Path(_basename(filename)).suffix.lstrip('.').lower()
         if ext not in EXTS + AUDIO_EXTS:
             raise ValueError('source videos must be .mp4, .mov or .webm (or a sound: .mp3, .m4a, .wav, .aac '
                              'or .ogg)')
         base = _basename(filename).rsplit('.', 1)[0]
-        slug = _slug(name) if name else _slug(base)
+        return ext, _slug(name) if name else _slug(base)
+
+    def _receive(self, video, ext, content_type, rfile, content_length, budget, progress=None):
+        """Stream `content_length` bytes from `rfile` into a scratch file in
+        this video's directory, refusing past `budget`, then check and probe
+        it: (scratch path, bytes written, probe()'s tuple). `progress`, when
+        given, is called with the running byte count after each chunk.
+        Leaves nothing on disk if it raises."""
         video_dir = self._video_dir(video)
-        dest = video_dir / slug
-        if dest.exists():
-            raise ValueError(f'a source named {slug!r} already exists for this video')
-        existing_total = self._total_bytes(video)
-        if existing_total >= self.max_total:
-            raise TooLarge('this video has reached its total limit for source videos')
-        budget = min(self.max_file, self.max_total - existing_total)
         video_dir.mkdir(parents=True, exist_ok=True)
         tmp = video_dir / ('.upload-' + secrets.token_hex(8))
         written = 0
@@ -412,8 +545,28 @@ class Sources:
                         raise TooLarge('this video has reached its total limit for source videos')
                     fh.write(chunk)
                     remaining -= len(chunk)
+                    if progress:
+                        progress(written)
             _validate_content(content_type, first_chunk, ext)
-            duration, width, height, has_audio = probe(tmp, audio_only=ext in AUDIO_EXTS)
+            return tmp, written, probe(tmp, audio_only=ext in AUDIO_EXTS)
+        except BaseException:
+            tmp.unlink(missing_ok=True)
+            raise
+
+    def _ingest(self, video, filename, name, content_type, rfile, content_length):
+        """stream_upload's own work, once the request is checked: stream the
+        body to disk (see _receive) and publish it as a new source."""
+        ext, slug = self._ext_and_slug(filename, name)
+        dest = self._video_dir(video) / slug
+        if dest.exists():
+            raise ValueError(f'a source named {slug!r} already exists for this video')
+        existing_total = self._total_bytes(video)
+        if existing_total >= self.max_total:
+            raise TooLarge('this video has reached its total limit for source videos')
+        budget = min(self.max_file, self.max_total - existing_total)
+        tmp, written, (duration, width, height, has_audio) = self._receive(
+            video, ext, content_type, rfile, content_length, budget)
+        try:
             try:
                 dest.mkdir()
             except FileExistsError:
@@ -425,8 +578,6 @@ class Sources:
             raise
         meta = dict(name=slug, ext=ext, size=written, duration=duration, width=width, height=height,
                     has_audio=has_audio, caption=None, created=time.time(), preview_ready=False)
-        if extra_meta:
-            meta.update(extra_meta)
         self._save(video, slug, meta)
         self.sync(video)
         _BUILD_QUEUE.put((self, video, slug))
@@ -459,7 +610,9 @@ class Sources:
         return self.public(meta)
 
     def delete(self, video, name):
-        self.get(video, name)  # validates `name` and that the source exists
+        # Validates `name` and that the source exists -- an import still
+        # downloading or failed included (see the module docstring).
+        self.get(video, name, pending=True)
         with self._lock(video, name):
             shutil.rmtree(self._dir(video, name))
         self.sync(video)

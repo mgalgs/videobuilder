@@ -372,6 +372,15 @@ class DirectUpload(fixtures.API):
             self.assertEqual(max_seen[0], 1)
 
 
+def _join_imports(sources):
+    """Waits for every archive.org import's download thread (see
+    Sources._download_import) -- with archive_org still mocked, since the
+    thread is what calls open_download."""
+    for thread in list(sources._import_threads.values()):
+        thread.join(20)
+        assert not thread.is_alive(), 'an import never finished'
+
+
 class _FakeDownload:
     """What archive_org.open_download hands back: something with .read(n) and
     .close(), standing in for the urllib response Sources.import_archive_item
@@ -417,7 +426,8 @@ class ArchiveImport(fixtures.API):
              mock.patch('videobuilder.archive_org.open_download',
                         return_value=(download, len(data), 'video/mp4')):
             record = self.editor.sources.import_archive_item(video, identifier, name)
-        return record, download
+            _join_imports(self.editor.sources)
+        return self.editor.sources.public(self.editor.sources.get(video, record['name'])), download
 
     def _nothing_left(self):
         video_dir = self.editor.sources._video_dir('promo/film')
@@ -503,6 +513,190 @@ class ArchiveImport(fixtures.API):
                                                     _Rfile(data), len(data))
         self.assertEqual(set(record), {'name', 'ext', 'size', 'duration', 'width', 'height', 'has_audio',
                                        'caption', 'created', 'preview_ready'})
+
+
+class _SlowDownload(_FakeDownload):
+    """A download that hands over `step` bytes, then waits for `go` before
+    each further read -- archive.org serving a large film slowly, so a test
+    can look at the import while it is still running. `cut`: the connection
+    drops (an empty read) once `go` is set, instead of finishing."""
+
+    def __init__(self, data, step=1024, cut=False):
+        super().__init__(data)
+        self.step, self.cut = step, cut
+        self.go = threading.Event()
+        self.reads = 0
+
+    def read(self, n):
+        if self.reads:
+            self.go.wait(20)
+            if self.cut:
+                return b''
+        self.reads += 1
+        return self.buf.read(min(n, self.step))
+
+
+@unittest.skipUnless(FFMPEG, 'needs ffmpeg/ffprobe')
+class ArchiveImportInBackground(fixtures.API):
+    """import_archive_item returns before the film has downloaded: the
+    request's own cheap checks, then a thread (see Sources._download_import)."""
+
+    def setUp(self):
+        super().setUp()
+        self.scratch = tempfile.TemporaryDirectory()
+        self.addCleanup(self.scratch.cleanup)
+        self.clip = Path(self.scratch.name) / 'clip.mp4'
+        _mp4(self.clip, audio=True)
+        self.data = self.clip.read_bytes()
+        self.downloads = []
+        patches = [mock.patch('videobuilder.archive_org.get_metadata', side_effect=self._item),
+                   mock.patch('videobuilder.archive_org.open_download', side_effect=self._open)]
+        for patch in patches:
+            patch.start()
+        # Cleanups run last-in first-out: let every download finish and its thread
+        # end, then unpatch, then (fixtures.API's own) delete the project.
+        for patch in patches:
+            self.addCleanup(patch.stop)
+        self.addCleanup(self._finish)
+        self.cut = False
+
+    def _finish(self):
+        for download in self.downloads:
+            download.go.set()
+        _join_imports(self.editor.sources)
+        sources_module._BUILD_QUEUE.join()
+
+    def _item(self, identifier):
+        return dict(identifier=identifier, title=identifier.title(), creator='A. Studio', year='1955',
+                    license='https://creativecommons.org/publicdomain/mark/1.0/', rights=None,
+                    details_url='https://archive.org/details/' + identifier, collection=['prelinger'],
+                    mediatype='movies', files=[{'name': identifier + '.mp4', 'size': str(len(self.data))}])
+
+    def _open(self, identifier, filename):
+        download = _SlowDownload(self.data, cut=self.cut)
+        self.downloads.append(download)
+        return download, len(self.data), 'video/mp4'
+
+    def _listed(self):
+        return {s['name']: s for s in self.get('/api/sources?video=promo%2Ffilm')['sources']}
+
+    def _wait_for(self, check):
+        deadline = time.monotonic() + 20
+        while not check():
+            if time.monotonic() > deadline:
+                self.fail('timed out waiting')
+            time.sleep(0.02)
+
+    def _disk(self):
+        d = self.editor.sources._video_dir('promo/film')
+        return sorted(str(p.relative_to(d)) for p in d.rglob('*')) if d.is_dir() else []
+
+    def test_the_request_returns_before_the_download_finishes_and_shows_progress(self):
+        code, record = self.post('/api/sources/import', {'video': 'promo/film', 'identifier': 'farm'})
+        self.assertEqual(code, 202, record)
+        self.assertEqual((record['status'], record['received'], record['total']), ('importing', 0, len(self.data)))
+        self._wait_for(lambda: self._listed()['farm']['received'] > 0)
+        row = self._listed()['farm']
+        self.assertEqual((row['status'], row['received'], row['total']), ('importing', 1024, len(self.data)))
+        self.assertEqual(row['credit']['title'], 'Farm')
+        # Not yet a usable source: no file to serve, not linked into the checkout.
+        with self.assertRaises(KeyError):
+            self.editor.sources.file_path('promo/film', 'farm')
+        self.assertEqual(self.editor.sources.list('promo/film'), [])
+        self.assertFalse((self.root / 'promo' / 'sources' / 'farm.mp4').exists())
+        self.downloads[0].go.set()
+        _join_imports(self.editor.sources)
+        row = self._listed()['farm']
+        self.assertNotIn('status', row)
+        self.assertEqual(row['size'], len(self.data))
+        self.assertTrue(row['has_audio'])
+        self.assertEqual(row['license'], 'https://creativecommons.org/publicdomain/mark/1.0/')
+        meta, path = self.editor.sources.file_path('promo/film', 'farm')
+        self.assertEqual(path.read_bytes(), self.data)
+        self.assertTrue((self.root / 'promo' / 'sources' / 'farm.mp4').is_file())
+        # ... and its preview encode runs as it does after an upload.
+        sources_module._BUILD_QUEUE.join()
+        self.assertTrue(self._listed()['farm']['preview_ready'])
+
+    def test_a_failed_download_leaves_an_error_row_and_no_file_until_dismissed(self):
+        self.cut = True
+        self.post('/api/sources/import', {'video': 'promo/film', 'identifier': 'farm'})
+        self.downloads[0].go.set()
+        _join_imports(self.editor.sources)
+        row = self._listed()['farm']
+        self.assertEqual(row['status'], 'failed')
+        self.assertIn('ended early', row['error'])
+        self.assertNotIn('received', row)
+        self.assertEqual(self._disk(), ['farm', 'farm/meta.json'])
+        self.assertEqual(self.editor.sources.list('promo/film'), [])
+        # A failed import holds no room in the budget.
+        self.assertEqual(self.editor.sources._total_bytes('promo/film'), 0)
+        code, result = self.post('/api/sources/farm/delete', {'video': 'promo/film'})
+        self.assertEqual(code, 200, result)
+        self.assertEqual(self._listed(), {})
+        self.assertEqual(self._disk(), [])
+
+    def test_an_unreachable_download_fails_the_import(self):
+        from videobuilder import archive_org
+        with mock.patch('videobuilder.archive_org.open_download',
+                        side_effect=archive_org.ArchiveError('could not reach archive.org')):
+            self.post('/api/sources/import', {'video': 'promo/film', 'identifier': 'farm'})
+            _join_imports(self.editor.sources)
+        self.assertEqual((self._listed()['farm']['status'], self._listed()['farm']['error']),
+                         ('failed', 'could not reach archive.org'))
+
+    def test_deleting_an_import_mid_download_stops_it_and_leaves_nothing(self):
+        self.post('/api/sources/import', {'video': 'promo/film', 'identifier': 'farm'})
+        self._wait_for(lambda: self._listed()['farm']['received'] > 0)
+        code, result = self.post('/api/sources/farm/delete', {'video': 'promo/film'})
+        self.assertEqual(code, 200, result)
+        self.downloads[0].go.set()
+        _join_imports(self.editor.sources)
+        self.assertEqual(self._listed(), {})
+        self.assertEqual(self._disk(), [])
+        self.assertTrue(self.downloads[0].closed)
+
+    def test_a_restart_mid_import_marks_it_failed(self):
+        self.post('/api/sources/import', {'video': 'promo/film', 'identifier': 'farm'})
+        self._wait_for(lambda: self._listed()['farm']['received'] > 0)
+        restarted = Sources(self.editor, self.editor.sources.max_file, self.editor.sources.max_total)
+        meta = restarted.get('promo/film', 'farm', pending=True)
+        self.assertEqual(meta['status'], 'failed')
+        self.assertIn('restarted', meta['error'])
+        # The partial download is swept up with an interrupted upload's.
+        self.assertEqual(self._disk(), ['farm', 'farm/meta.json'])
+        # The old process's thread, were it somehow still running, doesn't resurrect it.
+        self.downloads[0].go.set()
+        _join_imports(self.editor.sources)
+        self.assertEqual(restarted.get('promo/film', 'farm', pending=True)['status'], 'failed')
+        self.assertEqual(self._disk(), ['farm', 'farm/meta.json'])
+
+    def test_the_budget_counts_an_import_in_progress(self):
+        self.editor.sources.max_total = len(self.data) * 3 // 2
+        code, _ = self.post('/api/sources/import', {'video': 'promo/film', 'identifier': 'farm'})
+        self.assertEqual(code, 202)
+        # Half a film's room left, though not a byte of the first has landed yet.
+        code, result = self.post('/api/sources/import', {'video': 'promo/film', 'identifier': 'town'})
+        self.assertEqual(code, 400, result)
+        self.assertIn('no derivative', result['error'])
+        with self.assertRaises(TooLarge):
+            self.editor.sources.stream_upload('promo/film', 'clip.mp4', 'upload', 'video/mp4',
+                                              _Rfile(self.data), len(self.data))
+        self.assertEqual(set(self._listed()), {'farm'})
+
+    def test_the_name_is_taken_while_importing(self):
+        self.post('/api/sources/import', {'video': 'promo/film', 'identifier': 'farm'})
+        code, result = self.post('/api/sources/import', {'video': 'promo/film', 'identifier': 'farm'})
+        self.assertEqual(code, 400, result)
+        self.assertIn('already exists', result['error'])
+        with self.assertRaisesRegex(ValueError, 'already exists'):
+            self.editor.sources.stream_upload('promo/film', 'farm.mp4', None, 'video/mp4',
+                                              _Rfile(self.data), len(self.data))
+
+    def test_no_caption_on_an_import_still_downloading(self):
+        self.post('/api/sources/import', {'video': 'promo/film', 'identifier': 'farm'})
+        with self.assertRaises(KeyError):
+            self.editor.sources.add_caption('promo/film', 'farm', 'farm.vtt', b'WEBVTT\n')
 
 
 @unittest.skipUnless(FFMPEG, 'needs ffmpeg/ffprobe')
