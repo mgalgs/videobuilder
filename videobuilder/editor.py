@@ -879,12 +879,6 @@ class Editor:
         except (ValueError, KeyError) as exc:
             raise HTTPError(400, str(exc)) from None
         note_assets = _note_assets(body, self.music)
-        music_attachments, over_budget = _attach_music(self.attachments, self.music, vid, note_assets['music'],
-                                                       attachments, self.attachments.max_files,
-                                                       self.attachments.max_message)
-        if over_budget:
-            note_assets['music_over_budget'] = over_budget  # the prompt says why these are missing
-        attachments = dedupe_names(attachments + music_attachments) if music_attachments else attachments
         with self.lock:
             info = s.request('info')
             if 'frames' not in info:
@@ -915,6 +909,15 @@ class Editor:
         context['refs'] = video_refs.resolve(self.library, author, refs) if refs else []
         if (links or refs) and not (isinstance(text, str) and text.strip()):
             raise HTTPError(400, 'a note needs some text')
+        # Last of the checks: fetching a track can take seconds, so every cheap
+        # rejection above runs first.
+        music_attachments, over_budget = _attach_music(self.attachments, self.music, vid, note_assets['music'],
+                                                       attachments, self.attachments.max_files,
+                                                       self.attachments.max_message)
+        if over_budget:
+            context['music_over_budget'] = over_budget  # the prompt says why these are missing
+        if music_attachments:
+            context['attachments'] = dedupe_names(attachments + music_attachments)
         if links:
             # Only the linked pages themselves, no crawl: a later note is usually
             # "use this page", and the editor reads it so the builder stays offline.
@@ -985,17 +988,18 @@ class Editor:
         extra = film_setup.note_lines(film_setup.read_details(Path(self.project.video(vid).path).parent))
         note_capabilities = _note_capabilities(body)
         note_assets = _note_assets(body, self.music)
+        s = self.session(vid)
+        info = s.request('info')
+        if 'frames' not in info:
+            raise HTTPError(409, 'the video does not load; fix it before starting it')
+        fmt = info['formats'][0]['name']
+        # Fetching a track can take seconds, so it runs after every cheap rejection.
         music_attachments, over_budget = _attach_music(self.attachments, self.music, vid, note_assets['music'],
                                                        attachments, self.attachments.start_video_max_files,
                                                        self.attachments.start_video_max_message)
         if over_budget:
             note_assets['music_over_budget'] = over_budget  # the prompt says why these are missing
         attachments = dedupe_names(attachments + music_attachments) if music_attachments else attachments
-        s = self.session(vid)
-        info = s.request('info')
-        if 'frames' not in info:
-            raise HTTPError(409, 'the video does not load; fix it before starting it')
-        fmt = info['formats'][0]['name']
         # The chat shows `said`; `text` is the whole brief the builder gets.
         said = {'said': description.strip()} if description and description.strip() else {}
 

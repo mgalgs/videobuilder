@@ -163,6 +163,20 @@ class MusicAttach(TempProject):
         md = prompt.render(note, note, None, music=editor.music)
         self.assertIn('use /attachments/Theme.mp3 as this track.', md)
 
+    def test_a_note_rejected_by_a_cheap_check_never_fetches_its_track(self):
+        from unittest import mock
+        from videobuilder import music
+        track = {'id': 'track-1', 'title': 'Theme', 'audio_url': self.server.base + '/track.mp3'}
+        editor = self._editor([track])
+        with mock.patch.object(music, 'attach_track', wraps=music.attach_track) as attach:
+            with self.assertRaises(HTTPError):
+                editor.add_note(dict(video='promo/film', frame=0, text='x', music=['track-1'],
+                                     format='no-such-format'), 'reviewer')
+            with self.assertRaises(HTTPError):
+                editor.add_note(dict(video='promo/film', text='', music=['track-1'],
+                                     links=['https://example.com/']), 'reviewer')
+            self.assertEqual(attach.call_count, 0)
+
     def test_a_failing_fetch_still_adds_the_note_and_the_prompt_says_so(self):
         editor = self._editor([TRACK])  # TRACK's audio_url is a closed local port
         note = editor.add_note(dict(video='promo/film', frame=0, text='Add music', music=['track-1']), 'reviewer')
