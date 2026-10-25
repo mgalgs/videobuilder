@@ -15,6 +15,7 @@ from unittest import mock
 
 from videobuilder.editor import UPDATING, Editor, Server, _drain, make_handler
 from tests.fixtures import settle
+from tests.test_notes import FakeAgent
 from tests.test_project import TempProject
 
 
@@ -198,6 +199,43 @@ class Draining(Restart):
         self.assertTrue(self.started.wait(10))
         began = time.monotonic()
         self.assertFalse(_drain(self.httpd, threading.Event(), [], lambda: None, began + 0.5))
+        self.assertLess(time.monotonic() - began, 3)
+
+
+    def slow_store(self):
+        """A NoteStore with one note whose backend.submit blocks on `self.release`."""
+        from videobuilder.notes import NoteStore
+        agent, entered = FakeAgent(), threading.Event()
+        submit = agent.submit
+
+        def slow(note):
+            entered.set()
+            self.release.wait(10)
+            return submit(note)
+        agent.submit = slow
+        store = NoteStore(os.path.join(self.root, 'state', 'slow-notes'), agent)
+        self.addCleanup(settle, store)
+        store.add('promo/film', '16x9', 0, None, 'Bigger title', b'')
+        self.assertTrue(entered.wait(5))
+        return store
+
+    def test_a_note_submission_under_way_finishes_before_the_drain_ends(self):
+        store = self.slow_store()
+        drained = []
+        drainer = threading.Thread(target=lambda: drained.append(_drain(
+            self.httpd, threading.Event(), [], lambda: None, time.monotonic() + 10, lambda: [store])))
+        drainer.start()
+        drainer.join(0.5)
+        self.assertTrue(drainer.is_alive())
+        self.release.set()
+        drainer.join(10)
+        self.assertEqual(drained, [True])
+        self.assertEqual(store.list('promo/film', refresh=False)[0]['handle'], 'h1')
+
+    def test_a_note_submission_that_never_finishes_does_not_hold_the_drain_past_its_deadline(self):
+        store = self.slow_store()
+        began = time.monotonic()
+        self.assertFalse(_drain(self.httpd, threading.Event(), [], lambda: None, began + 0.5, lambda: [store]))
         self.assertLess(time.monotonic() - began, 3)
 
 

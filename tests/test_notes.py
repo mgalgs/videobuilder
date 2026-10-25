@@ -496,10 +496,6 @@ class Questions(unittest.TestCase):
                          ('Quick check:', [{'text': 'Light or dark logo?', 'choices': ['Light', 'Dark']}]))
 
 
-if __name__ == '__main__':
-    unittest.main()
-
-
 class BackgroundSubmit(unittest.TestCase):
     """Submitting a note (staging, the prompt, backend.submit) runs on a thread
     of its own, never in the request that stored the note."""
@@ -598,3 +594,7 @@ class BackgroundSubmit(unittest.TestCase):
                 stop.wait(0.05)
         self.assertEqual(restarted.get(n['id'])['handle'], 'h1')
         self.assertEqual([s['text'] for s in agent.submitted], ['Bigger title'])
+
+
+if __name__ == '__main__':
+    unittest.main()

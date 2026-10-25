@@ -1555,11 +1555,12 @@ class Server(ThreadingHTTPServer):
             return self.idle.wait_for(lambda: not self.writes, max(0, deadline - time.monotonic()))
 
 
-def _run(httpd, stop, loops, stop_renders, close, drain_seconds=DRAIN_SECONDS):
+def _run(httpd, stop, loops, stop_renders, close, drain_seconds=DRAIN_SECONDS, note_stores=lambda: ()):
     """Serve until Ctrl-C or SIGTERM. Ctrl-C stops at once; SIGTERM (a deploy)
     drains first: `stop` ends the background `loops`, renders are stopped (the
-    player asks again after the restart), new writes are refused, and writes
-    and loop iterations already under way get until the deadline. Reads are
+    player asks again after the restart), new writes are refused, and writes,
+    loop iterations and the note submissions of `note_stores()` already under
+    way get until the deadline. Reads are
     served throughout, so an open tab's polls keep answering."""
     terminated = []
     if threading.current_thread() is threading.main_thread():
@@ -1570,7 +1571,7 @@ def _run(httpd, stop, loops, stop_renders, close, drain_seconds=DRAIN_SECONDS):
         while not terminated:
             time.sleep(0.2)
         print('[editor] stopping: finishing work in flight', file=sys.stderr, flush=True)
-        _drain(httpd, stop, loops, stop_renders, time.monotonic() + drain_seconds)
+        _drain(httpd, stop, loops, stop_renders, time.monotonic() + drain_seconds, note_stores)
     except KeyboardInterrupt:
         pass
     finally:
@@ -1580,13 +1581,16 @@ def _run(httpd, stop, loops, stop_renders, close, drain_seconds=DRAIN_SECONDS):
         close()
 
 
-def _drain(httpd, stop, loops, stop_renders, deadline):
+def _drain(httpd, stop, loops, stop_renders, deadline, note_stores=lambda: ()):
     stop.set()
     stop_renders()
     finished = httpd.drain(deadline)
     for loop in loops:
         loop.join(max(0, deadline - time.monotonic()))
         finished = finished and not loop.is_alive()
+    # After the writes and loops, which may have kicked one: a submission runs on its store's own thread.
+    for store in note_stores():
+        finished = store.idle(max(0, deadline - time.monotonic())) and finished
     if not finished:
         print('[editor] stopping with work still in flight', file=sys.stderr, flush=True)
     return finished
@@ -1630,7 +1634,7 @@ def serve(root, host='127.0.0.1', port=8100, state_dir=None, open_browser=False,
     def close():
         editor.renders.close()
         editor.pool.close()
-    _run(httpd, stop_sync, loops, editor.renders.close, close)
+    _run(httpd, stop_sync, loops, editor.renders.close, close, note_stores=lambda: [editor.notes])
 
 
 def serve_library(root, host='127.0.0.1', port=8100, checkouts=None, state_dir=None, open_browser=False,
@@ -1667,4 +1671,5 @@ def serve_library(root, host='127.0.0.1', port=8100, checkouts=None, state_dir=N
     def stop_renders():
         for editor in list(library.editors.values()):
             editor.renders.close()
-    _run(httpd, stop, loops, stop_renders, library.close)
+    _run(httpd, stop, loops, stop_renders, library.close,
+         note_stores=lambda: [e.notes for e in list(library.editors.values())])
