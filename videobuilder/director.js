@@ -1741,6 +1741,10 @@ function sourceUrl(name) {
     video:state.video
   })
 }
+// An archive.org import downloads on the editor (POST sources/import answers at once): look again
+// this often while any source is still importing.
+const SOURCE_POLL_MS=1500;
+let sourcePollTimer=null;
 async function loadSources() {
   try {
     const data=await json('sources', {
@@ -1754,11 +1758,42 @@ async function loadSources() {
     $('source-error').textContent=e.message;
     $('source-error').hidden=false
   }
+  clearTimeout(sourcePollTimer);
+  sourcePollTimer=state.sources.some(s=>s.status==='importing')?setTimeout(loadSources,SOURCE_POLL_MS):null
+}
+// A source still downloading from archive.org, or whose download failed: no file to show or play yet.
+function pendingSourceRow(s) {
+  const row=node('div','source-row source-pending-row');
+  row.append(node('div','source-poster'));
+  const info=node('div','source-info');
+  info.append(node('span','source-name',s.name));
+  if(s.status==='importing') {
+    const pct=s.total?Math.min(100,Math.floor(100*s.received/s.total)):0;
+    const bar=node('div','source-progress'),fill=node('div','source-import-fill');
+    fill.style.width=`${pct}%`;
+    bar.append(fill,node('span','source-import-label',`Importing… ${pct}%`));
+    info.append(bar)
+  }
+  else info.append(node('span','source-import-error','Import failed: '+(s.error||'unknown error')));
+  row.append(info);
+  const del=node('button','source-delete',s.status==='importing'?'Delete':'Dismiss');
+  del.setAttribute('aria-label',(s.status==='importing'?'Delete ':'Dismiss ')+s.name);
+  del.onclick=e=> {
+    e.stopPropagation();
+    if(s.status==='importing')confirmDeleteSource(del,s.name);
+    else deleteSource(s.name)
+  };
+  row.append(del);
+  return row
 }
 function renderSources() {
   const list=$('source-list');
   list.replaceChildren();
   for(const s of state.sources) {
+    if(s.status) {
+      list.append(pendingSourceRow(s));
+      continue
+    }
     const row=node('div','source-row');
     const poster=document.createElement('video');
     poster.className='source-poster';
@@ -1987,14 +2022,15 @@ function renderArchiveResults() {
 async function importArchiveItem(result,button) {
   button.disabled=true;
   const original=button.textContent;
-  button.textContent='Importing…';
+  button.textContent='Starting…';
   $('archive-error').hidden=true;
   try {
+    // Answers once the item is checked; the film itself downloads afterwards, shown in the Sources list.
     await json('sources/import',null, {
       video:state.video,identifier:result.identifier
     });
-    await loadSources();
-    closeArchiveImport()
+    closeArchiveImport();
+    await loadSources()
   }
   catch(e) {
     $('archive-error').textContent=e.message;

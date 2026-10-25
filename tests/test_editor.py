@@ -284,6 +284,94 @@ console.log(JSON.stringify(out));
         self.assertEqual(out[3], [['b', 'c', 'a'], ['Two:bca']])
 
     @unittest.skipUnless(shutil.which('node'), 'node is not available in this environment')
+    def test_an_archive_import_closes_its_dialog_and_shows_its_progress_until_done(self):
+        # importArchiveItem, loadSources and renderSources as they are in director.js: "Use" closes the
+        # dialog as soon as POST sources/import answers; the Sources list shows the import's own row with
+        # its progress, and looks again every SOURCE_POLL_MS until it is a source or has failed.
+        import re
+        import subprocess
+        js = (PKG / 'director.js').read_text()
+        parts = [re.search(r'\nconst SOURCE_POLL_MS=.*?\n', js).group(0),
+                 re.search(r'\nlet sourcePollTimer=.*?\n', js).group(0)]
+        parts += [re.search(r'\n(async )?function ' + name + r'\(.*?\n\}', js, re.S).group(0)
+                  for name in ('loadSources', 'pendingSourceRow', 'renderSources', 'importArchiveItem')]
+        script = """
+const els={};
+const mk=tag=>({tag,className:'',textContent:'',children:[],style:{},hidden:true,dataset:{},attrs:{},
+  append(...c){this.children.push(...c)},replaceChildren(){this.children=[]},setAttribute(k,v){this.attrs[k]=v}});
+const document={createElement:mk,createTextNode:t=>({...mk('#text'),textContent:t})};
+const $=id=>els[id]??=mk('div');
+const node=(tag,className,text)=>{const n=document.createElement(tag);if(className)n.className=className;
+  if(text!=null)n.textContent=text;return n};
+const sourceUrl=name=>'src/'+name,sourceClock=x=>String(x);
+const timers=new Map();let nextTimer=0;
+const setTimeout=(fn,ms)=>{timers.set(++nextTimer,[fn,ms]);return nextTimer};
+const clearTimeout=id=>timers.delete(id);
+const log=[];
+const state={video:'promo/film',sources:[]};
+const base={name:'farm',ext:'mp4',size:0,duration:null,width:null,height:null,has_audio:null,caption:null,
+  preview_ready:false,license:'pd',credit:{title:'Farm'}};
+const listings=[
+  [{...base,status:'importing',received:250,total:1000}],
+  [{...base,status:'importing',received:750,total:1000}],
+  [{...base,size:1000,duration:3,width:64,height:64,has_audio:true}],
+  [{...base,status:'failed',error:'the upload ended early'}],
+];
+let importFails=false;
+const json=async(path,params,body)=>{
+  log.push(path);
+  if(path==='sources/import'){if(importFails)throw Error('no derivative fits');
+    return {...base,status:'importing',received:0,total:1000}}
+  return {sources:listings.shift()}};
+const closeArchiveImport=()=>log.push('closed');
+const deleteSource=name=>log.push('delete '+name);
+const confirmDeleteSource=(b,name)=>log.push('confirm '+name);
+const openSourcePlayer=()=>{};
+""" + '\n'.join(parts) + """
+const text=n=>[n.textContent,...n.children.map(text)].join('');
+const find=(n,cls)=>n.className.split(' ').includes(cls)?n:n.children.map(c=>find(c,cls)).find(Boolean);
+const snap=()=>{const row=$('source-list').children[0];
+  return {cls:row.className,text:text(find(row,'source-info')),fill:find(row,'source-import-fill')?.style.width??null,
+    button:find(row,'source-delete').textContent,timers:[...timers.values()].map(t=>t[1])}};
+const tick=async()=>{const [[id,[fn]]]=[...timers];timers.delete(id);await fn()};
+(async()=>{
+  const out=[];
+  const use={disabled:false,textContent:'Use'};
+  await importArchiveItem({identifier:'farm'},use);
+  out.push(log.splice(0),snap());
+  await tick();
+  out.push(snap());
+  await tick();
+  out.push(snap());
+  await loadSources();
+  const failed=snap();
+  find($('source-list').children[0],'source-delete').onclick({stopPropagation(){}});
+  out.push(failed,log.splice(0));
+  importFails=true;
+  const again={disabled:false,textContent:'Use'};
+  await importArchiveItem({identifier:'farm'},again);
+  out.push(log.splice(0),$('archive-error').hidden,$('archive-error').textContent,again.textContent);
+  console.log(JSON.stringify(out));
+})();
+"""
+        result = subprocess.run(['node', '-'], input=script.encode(), capture_output=True)
+        self.assertEqual(result.returncode, 0, result.stderr.decode())
+        out = json.loads(result.stdout)
+        self.assertEqual(out[0], ['sources/import', 'closed', 'sources'])
+        self.assertEqual(out[1], {'cls': 'source-row source-pending-row', 'text': 'farmImporting… 25%',
+                                  'fill': '25%', 'button': 'Delete', 'timers': [1500]})
+        self.assertEqual(out[2]['text'], 'farmImporting… 75%')
+        self.assertEqual(out[2]['timers'], [1500])
+        self.assertEqual(out[3]['cls'], 'source-row')
+        self.assertIsNone(out[3]['fill'])
+        self.assertEqual(out[3]['timers'], [])
+        self.assertEqual(out[4], {'cls': 'source-row source-pending-row',
+                                  'text': 'farmImport failed: the upload ended early', 'fill': None,
+                                  'button': 'Dismiss', 'timers': []})
+        self.assertEqual(out[5], ['sources', 'sources', 'sources', 'delete farm'])  # two polls, then a load
+        self.assertEqual(out[6:], [['sources/import'], False, 'no derivative fits', 'Use'])
+
+    @unittest.skipUnless(shutil.which('node'), 'node is not available in this environment')
     def test_a_note_says_it_is_being_fixed_only_while_its_fix_is_on_the_way(self):
         # fixingMessage, as renderNotes uses it for a draft that didn't load (drafts.Drafts._not_loading).
         import re
