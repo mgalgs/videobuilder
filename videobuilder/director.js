@@ -1745,6 +1745,10 @@ function sourceUrl(name) {
 // this often while any source is still importing.
 const SOURCE_POLL_MS=1500;
 let sourcePollTimer=null;
+// Whether the Sources list is worth re-fetching now: only while it is on screen.
+function sourcesPollable() {
+  return !document.hidden&&!state.signedOut&&!state.restarting&&state.view==='sources'
+}
 async function loadSources() {
   try {
     const data=await json('sources', {
@@ -1759,7 +1763,11 @@ async function loadSources() {
     $('source-error').hidden=false
   }
   clearTimeout(sourcePollTimer);
-  sourcePollTimer=state.sources.some(s=>s.status==='importing')?setTimeout(loadSources,SOURCE_POLL_MS):null
+  // Hidden or off the Sources view, stop; the 3 s interval below picks the import up again on return.
+  sourcePollTimer=state.sources.some(s=>s.status==='importing')?setTimeout(()=> {
+    sourcePollTimer=null;
+    return sourcesPollable()?loadSources():null
+  },SOURCE_POLL_MS):null
 }
 // A source still downloading from archive.org, or whose download failed: no file to show or play yet.
 function pendingSourceRow(s) {
@@ -1783,6 +1791,7 @@ function pendingSourceRow(s) {
     if(s.status==='importing')confirmDeleteSource(del,s.name);
     else deleteSource(s.name)
   };
+  if(s.status==='importing')keepDeleteConfirm(del,s.name);
   row.append(del);
   return row
 }
@@ -1831,24 +1840,37 @@ function renderSources() {
       e.stopPropagation();
       confirmDeleteSource(del,s.name)
     };
+    keepDeleteConfirm(del,s.name);
     row.append(del);
     row.onclick=()=>openSourcePlayer(s);
     list.append(row)
   }
   if(!state.sources.length)list.append(node('p','source-empty','No source videos yet.'))
 }
+// The source whose Delete was clicked once and awaits the second click. Kept by name, not on the
+// button, because a poll re-renders the list (a new button) between the two clicks.
+let deleteConfirmName=null;
 let deleteConfirmTimer=null;
+function keepDeleteConfirm(button,name) {
+  if(deleteConfirmName!==name)return;
+  button.dataset.confirm='1';
+  button.textContent='Really delete?'
+}
 function confirmDeleteSource(button,name) {
-  if(button.dataset.confirm) {
+  clearTimeout(deleteConfirmTimer);
+  if(deleteConfirmName===name) {
+    deleteConfirmName=null;
     deleteSource(name);
     return
   }
-  button.dataset.confirm='1';
-  button.textContent='Really delete?';
-  clearTimeout(deleteConfirmTimer);
+  deleteConfirmName=name;
+  keepDeleteConfirm(button,name);
   deleteConfirmTimer=setTimeout(()=> {
-    button.dataset.confirm='';
-    button.textContent='Delete'
+    deleteConfirmName=null;
+    for(const b of $('source-list').querySelectorAll('.source-delete[data-confirm="1"]')) {
+      b.dataset.confirm='';
+      b.textContent='Delete'
+    }
   },3000)
 }
 async function deleteSource(name) {
@@ -4235,8 +4257,9 @@ setInterval(()=> {
   }
 },3000);
 setInterval(()=> {
-  if(document.hidden||state.signedOut||state.restarting||state.view!=='sources')return;
-  if((state.sources||[]).some(s=>!s.preview_ready))loadSources()
+  if(!sourcesPollable()||sourcePollTimer)return;  // an import's own quicker poll is already running
+  // Waiting on an import or a preview encode; a failed import waits on nobody.
+  if((state.sources||[]).some(s=>s.status==='importing'||(!s.status&&!s.preview_ready)))loadSources()
 },3000);
 // /api/project syncs with the forge, so poll the cheap /healthz and refetch the
 // project only when the editor's version changes (a deploy), for the upgrade chip.

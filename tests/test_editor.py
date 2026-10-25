@@ -294,7 +294,8 @@ console.log(JSON.stringify(out));
         parts = [re.search(r'\nconst SOURCE_POLL_MS=.*?\n', js).group(0),
                  re.search(r'\nlet sourcePollTimer=.*?\n', js).group(0)]
         parts += [re.search(r'\n(async )?function ' + name + r'\(.*?\n\}', js, re.S).group(0)
-                  for name in ('loadSources', 'pendingSourceRow', 'renderSources', 'importArchiveItem')]
+                  for name in ('sourcesPollable', 'loadSources', 'pendingSourceRow', 'renderSources',
+                               'importArchiveItem')]
         script = """
 const els={};
 const mk=tag=>({tag,className:'',textContent:'',children:[],style:{},hidden:true,dataset:{},attrs:{},
@@ -308,7 +309,7 @@ const timers=new Map();let nextTimer=0;
 const setTimeout=(fn,ms)=>{timers.set(++nextTimer,[fn,ms]);return nextTimer};
 const clearTimeout=id=>timers.delete(id);
 const log=[];
-const state={video:'promo/film',sources:[]};
+const state={video:'promo/film',sources:[],view:'sources'};
 const base={name:'farm',ext:'mp4',size:0,duration:null,width:null,height:null,has_audio:null,caption:null,
   preview_ready:false,license:'pd',credit:{title:'Farm'}};
 const listings=[
@@ -326,6 +327,7 @@ const json=async(path,params,body)=>{
 const closeArchiveImport=()=>log.push('closed');
 const deleteSource=name=>log.push('delete '+name);
 const confirmDeleteSource=(b,name)=>log.push('confirm '+name);
+const keepDeleteConfirm=()=>{};
 const openSourcePlayer=()=>{};
 """ + '\n'.join(parts) + """
 const text=n=>[n.textContent,...n.children.map(text)].join('');
@@ -339,7 +341,11 @@ const tick=async()=>{const [[id,[fn]]]=[...timers];timers.delete(id);await fn()}
   const use={disabled:false,textContent:'Use'};
   await importArchiveItem({identifier:'farm'},use);
   out.push(log.splice(0),snap());
+  state.view='notes';
   await tick();
+  out.push(log.splice(0),timers.size);
+  state.view='sources';
+  await loadSources();
   out.push(snap());
   await tick();
   out.push(snap());
@@ -360,6 +366,8 @@ const tick=async()=>{const [[id,[fn]]]=[...timers];timers.delete(id);await fn()}
         self.assertEqual(out[0], ['sources/import', 'closed', 'sources'])
         self.assertEqual(out[1], {'cls': 'source-row source-pending-row', 'text': 'farmImporting… 25%',
                                   'fill': '25%', 'button': 'Delete', 'timers': [1500]})
+        self.assertEqual(out[2:4], [[], 0])  # off the Sources view, the poll stops
+        out[2:4] = []
         self.assertEqual(out[2]['text'], 'farmImporting… 75%')
         self.assertEqual(out[2]['timers'], [1500])
         self.assertEqual(out[3]['cls'], 'source-row')
@@ -370,6 +378,47 @@ const tick=async()=>{const [[id,[fn]]]=[...timers];timers.delete(id);await fn()}
                                   'button': 'Dismiss', 'timers': []})
         self.assertEqual(out[5], ['sources', 'sources', 'sources', 'delete farm'])  # two polls, then a load
         self.assertEqual(out[6:], [['sources/import'], False, 'no derivative fits', 'Use'])
+
+    @unittest.skipUnless(shutil.which('node'), 'node is not available in this environment')
+    def test_a_sources_delete_stays_armed_when_a_poll_redraws_the_list(self):
+        # confirmDeleteSource and keepDeleteConfirm as they are in director.js: the armed "Really delete?"
+        # belongs to the source's name, so the button a poll draws in its place takes the second click.
+        import re
+        import subprocess
+        js = (PKG / 'director.js').read_text()
+        parts = [re.search(r'\nlet deleteConfirmName=.*?\n', js).group(0),
+                 re.search(r'\nlet deleteConfirmTimer=.*?\n', js).group(0)]
+        parts += [re.search(r'\nfunction ' + name + r'\(.*?\n\}', js, re.S).group(0)
+                  for name in ('keepDeleteConfirm', 'confirmDeleteSource')]
+        script = """
+const timers=[];
+const setTimeout=fn=>timers.push(fn),clearTimeout=()=>{};
+const log=[];
+const deleteSource=name=>log.push('delete '+name);
+const draw=name=>{const b={dataset:{},textContent:'Delete'};keepDeleteConfirm(b,name);return b};
+let shown=[];
+const $=()=>({querySelectorAll:()=>shown.filter(b=>b.dataset.confirm==='1')});
+""" + '\n'.join(parts) + """
+const out=[];
+let b=draw('farm');
+confirmDeleteSource(b,'farm');
+out.push(b.textContent);
+b=draw('farm');                       // a poll redraws the row
+const other=draw('city');
+out.push(b.textContent,other.textContent);
+confirmDeleteSource(b,'farm');
+out.push(log.splice(0),draw('farm').textContent);
+b=draw('farm');shown=[b];
+confirmDeleteSource(b,'farm');
+timers.pop()();                       // three seconds pass
+out.push(b.textContent,draw('farm').textContent,log);
+console.log(JSON.stringify(out));
+"""
+        result = subprocess.run(['node', '-'], input=script.encode(), capture_output=True)
+        self.assertEqual(result.returncode, 0, result.stderr.decode())
+        self.assertEqual(json.loads(result.stdout),
+                         ['Really delete?', 'Really delete?', 'Delete', ['delete farm'], 'Delete',
+                          'Delete', 'Delete', []])
 
     @unittest.skipUnless(shutil.which('node'), 'node is not available in this environment')
     def test_a_note_says_it_is_being_fixed_only_while_its_fix_is_on_the_way(self):
