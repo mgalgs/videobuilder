@@ -656,6 +656,25 @@ class ArchiveImportInBackground(fixtures.API):
         self.assertEqual(self._disk(), [])
         self.assertTrue(self.downloads[0].closed)
 
+    def test_a_deleted_imports_thread_never_touches_a_newer_import_of_the_same_name(self):
+        self.post('/api/sources/import', {'video': 'promo/film', 'identifier': 'farm'})
+        self._wait_for(lambda: self._listed()['farm']['received'] > 0)
+        old_thread = self.editor.sources._import_threads[('promo/film', 'farm')]
+        self.post('/api/sources/farm/delete', {'video': 'promo/film'})
+        code, record = self.post('/api/sources/import', {'video': 'promo/film', 'identifier': 'other',
+                                                         'name': 'farm'})
+        self.assertEqual(code, 202, record)
+        self.downloads[0].go.set()   # the deleted import's download now runs to its end
+        old_thread.join(20)
+        row = self._listed()['farm']
+        self.assertEqual((row['status'], row['credit']['title']), ('importing', 'Other'))
+        self.assertLess(row['received'], len(self.data))   # the old thread's progress never landed here
+        self.downloads[1].go.set()
+        _join_imports(self.editor.sources)
+        row = self._listed()['farm']
+        self.assertNotIn('status', row)
+        self.assertEqual(row['credit']['title'], 'Other')
+
     def test_a_restart_mid_import_marks_it_failed(self):
         self.post('/api/sources/import', {'video': 'promo/film', 'identifier': 'farm'})
         self._wait_for(lambda: self._listed()['farm']['received'] > 0)

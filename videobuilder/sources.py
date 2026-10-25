@@ -227,7 +227,8 @@ class Sources:
             for meta in self.list(video.id, pending=True):
                 if meta.get('status') == 'importing':
                     # Its download thread died with the last process; nothing resumes it.
-                    self._fail_import(video.id, meta['name'], 'the editor restarted before this import finished')
+                    self._fail_import(video.id, meta['name'], meta.get('import_id'),
+                                      'the editor restarted before this import finished')
                 elif not meta.get('status') and not meta.get('preview_ready'):
                     _BUILD_QUEUE.put((self, video.id, meta['name']))
 
@@ -424,25 +425,27 @@ class Sources:
                 raise ValueError(f'a source named {slug!r} already exists for this video') from None
             meta = dict(name=slug, ext=ext, size=0, duration=None, width=None, height=None, has_audio=None,
                         caption=None, created=time.time(), preview_ready=False, **extra_meta,
-                        status='importing', received=0, total=size)
+                        status='importing', received=0, total=size, import_id=secrets.token_hex(8))
             self._save(video, slug, meta)
-        thread = threading.Thread(target=self._download_import, args=(video, slug, item['identifier'], filename),
-                                  daemon=True)
+        thread = threading.Thread(target=self._download_import,
+                                  args=(video, slug, item['identifier'], filename, meta['import_id']), daemon=True)
         self._import_threads[(video, slug)] = thread
         thread.start()
         return self.public(meta)
 
-    def _download_import(self, video, name, identifier, filename):
+    def _download_import(self, video, name, identifier, filename, import_id):
         """The import's own thread (see import_archive_item): open the
         download, stream it to a scratch file, saving progress into meta.json
         as it goes, then publish it as an ordinary source -- or mark the
         import failed. A delete() meanwhile wins: the next progress save
-        finds the meta gone and the download stops, its scratch file removed."""
+        finds the meta gone and the download stops, its scratch file removed.
+        Every write checks `import_id`, so a thread whose import was deleted
+        never touches a newer import that reused the name."""
         from . import archive_org
         try:
             response, content_length, content_type = archive_org.open_download(identifier, filename)
         except archive_org.ArchiveError as exc:
-            self._fail_import(video, name, str(exc))
+            self._fail_import(video, name, import_id, str(exc))
             return
         try:
             with self._lock(video, None):
@@ -452,12 +455,12 @@ class Sources:
                 if content_length > budget:
                     raise TooLarge('this source video exceeds the file size limit' if budget == self.max_file
                                    else 'this video has reached its total limit for source videos')
-                if not self._set_import(video, name, total=content_length):
+                if not self._set_import(video, name, import_id, total=content_length):
                     return
             ext = Path(filename).suffix.lstrip('.').lower()
 
             def progress(received):
-                if not self._set_import(video, name, received=received):
+                if not self._set_import(video, name, import_id, received=received):
                     raise _Cancelled()
 
             tmp, written, (duration, width, height, has_audio) = self._receive(
@@ -467,45 +470,50 @@ class Sources:
         except Exception as exc:
             if not isinstance(exc, (ValueError, archive_org.ArchiveError, OSError)):
                 _log.exception('archive.org import failed for %r/%r', video, name)
-            self._fail_import(video, name, str(exc) or 'the download failed')
+            self._fail_import(video, name, import_id, str(exc) or 'the download failed')
             return
         finally:
             response.close()
         with self._lock(video, name):
-            try:
-                meta = self.get(video, name, pending=True)
-            except KeyError:
+            meta = self._own_import(video, name, import_id)
+            if meta is None:
                 tmp.unlink(missing_ok=True)
                 return
             tmp.rename(self._dir(video, name) / f'{name}.{ext}')
-            for key in ('status', 'received', 'total', 'error'):
+            for key in ('status', 'received', 'total', 'error', 'import_id'):
                 meta.pop(key, None)
             meta.update(size=written, duration=duration, width=width, height=height, has_audio=has_audio)
             self._save(video, name, meta)
         self.sync(video)
         _BUILD_QUEUE.put((self, video, name))
 
-    def _set_import(self, video, name, **fields):
-        """Save `fields` into an import's meta.json; False once it has been
-        deleted (or is somehow no longer importing)."""
+    def _own_import(self, video, name, import_id):
+        """The meta of the import `import_id` while it is still importing, else
+        None (deleted, finished, failed, or the name now belongs to another
+        import). Call under the source's lock."""
+        try:
+            meta = self.get(video, name, pending=True)
+        except KeyError:
+            return None
+        return meta if meta.get('status') == 'importing' and meta.get('import_id') == import_id else None
+
+    def _set_import(self, video, name, import_id, **fields):
+        """Save `fields` into an import's meta.json; False once it is no
+        longer this import (see _own_import)."""
         with self._lock(video, name):
-            try:
-                meta = self.get(video, name, pending=True)
-            except KeyError:
-                return False
-            if meta.get('status') != 'importing':
+            meta = self._own_import(video, name, import_id)
+            if meta is None:
                 return False
             meta.update(fields)
             self._save(video, name, meta)
             return True
 
-    def _fail_import(self, video, name, error):
+    def _fail_import(self, video, name, import_id, error):
         with self._lock(video, name):
-            try:
-                meta = self.get(video, name, pending=True)
-            except KeyError:
+            meta = self._own_import(video, name, import_id)
+            if meta is None:
                 return
-            for key in ('received', 'total'):
+            for key in ('received', 'total', 'import_id'):
                 meta.pop(key, None)
             meta.update(status='failed', error=error)
             self._save(video, name, meta)
