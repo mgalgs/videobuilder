@@ -51,7 +51,9 @@ class Director(TempProject):
     start = fixtures.API.start
     get = fixtures.API.get
     post = fixtures.API.post
+
     def tearDown(self):
+        fixtures.settle(self.editor)
         self.editor.renders.close()
         super().tearDown()
 
@@ -218,7 +220,7 @@ class Director(TempProject):
     def test_conflict_retries_once_then_stops(self):
         self.editor.notes.backend = FakeBackend(delay=0)
         note = self.post('/api/notes', {'video':'promo/film','text':'Change ending'})[1]
-        self.editor.notes.backend.poll(note['handle'])
+        self.editor.notes.backend.poll(self.editor.notes.get(note['id'])['handle'])
         self.film.write_text(self.film.read_text() + '\n# competing main edit\n')
         git(self.root, 'commit', '-am', 'main changed')
         self.get('/api/notes')
@@ -237,7 +239,7 @@ class Director(TempProject):
     def broken_draft(self, change=MISSING):
         self.editor.notes.backend = FakeBackend(delay=0, change=change)
         note = self.post('/api/notes', {'video': 'promo/film', 'text': 'Use the clip'})[1]
-        self.editor.notes.backend.poll(note['handle'])
+        self.editor.notes.backend.poll(self.editor.notes.get(note['id'])['handle'])
         return note
 
     def fix_notes(self):
@@ -351,7 +353,7 @@ class Director(TempProject):
     def test_retry_conflicted_note_on_main(self):
         self.editor.notes.backend = FakeBackend(delay=0)
         note = self.post('/api/notes', {'video':'promo/film','text':'Change ending','time':0.4})[1]
-        self.editor.notes.backend.poll(note['handle'])
+        self.editor.notes.backend.poll(self.editor.notes.get(note['id'])['handle'])
         self.film.write_text(self.film.read_text() + '\n# competing main edit\n')
         git(self.root, 'commit', '-am', 'main changed')
         self.get('/api/notes')
@@ -429,7 +431,7 @@ class Director(TempProject):
     def test_clean_rebase_and_reply_only(self):
         self.editor.notes.backend = FakeBackend(delay=0)
         note = self.post('/api/notes', {'video':'promo/film','text':'Change'})[1]
-        self.editor.notes.backend.poll(note['handle'])
+        self.editor.notes.backend.poll(self.editor.notes.get(note['id'])['handle'])
         (self.root / 'README.md').write_text('A newer main\n')
         git(self.root, 'commit', '-am', 'main changed')
         middle = git(self.root, 'rev-parse', 'main').strip()

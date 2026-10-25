@@ -13,6 +13,7 @@ from videobuilder.clip_cache import GitTree
 from videobuilder.notes import AgentStatus, NoteStore
 
 from tests import fixtures
+from tests.fixtures import settle
 from tests.test_films import QUIET, make_media, three_clips, write_film
 from tests.test_notes import FakeAgent
 from tests.test_project import TempProject, git
@@ -103,10 +104,12 @@ class FilmPrompt(unittest.TestCase):
         self.sha = film_repo(self.repo)
         self.cache = assembly.ClipCache(Path(self.tmp.name, 'clips'))
         self.store = NoteStore(Path(self.tmp.name, 'notes'), FakeAgent(), context=DIRECTORY)
+        self.addCleanup(settle, self.store)
         self.store.film = lambda video, note, state: film_brief.brief(
             self.repo, self.sha, 'promo', note.get('clip'), note.get('format'), self.repo / 'promo', self.cache)
 
     def md(self, note):
+        settle(self.store)
         return (self.store.session_dir(note['video']) / (note['id'] + '.md')).read_text()
 
     def test_clip_note_golden_text(self):
@@ -121,6 +124,7 @@ class FilmPrompt(unittest.TestCase):
 
         single = NoteStore(Path(self.tmp.name, 'single'), FakeAgent(), context=DIRECTORY)
         plain = single.add('promo/film', '1x1', None, None, 'Make the credits warmer', None)
+        settle(single)
         plain_md = (single.session_dir('promo/film') / (plain['id'] + '.md')).read_text()
         film_part = md[md.index('## This note is about one clip'):md.index('## Ask first')]
         self.assertEqual(md.replace(film_part, '').replace(CLIP_NOTE_SCOPE_GOLDEN, 'Change files only under promo.\n'),
@@ -187,6 +191,8 @@ class FilmPrompt(unittest.TestCase):
     def test_retry_and_answer_keep_the_clip(self):
         agent = self.store.backend
         note = self.store.add('promo/film', '1x1', None, None, 'Hm', None, clip='c')
+        settle(self.store)
+        note = self.store.get(note['id'])
         agent.states[note['handle']] = AgentStatus('failed', 'no')
         self.store.list()
         self.assertEqual(self.store.retry(note['id'])['clip'], 'c')
@@ -194,6 +200,7 @@ class FilmPrompt(unittest.TestCase):
     def test_a_note_without_a_clip_reads_back_with_clip_null(self):
         store = NoteStore(Path(self.tmp.name, 'old'))
         note = store.add('promo/film', '1x1', None, None, 'Hm', None)
+        settle(store)
         path = Path(store.dir, note['id'] + '.json')
         data = json.loads(path.read_text())
         data.pop('clip', None)
@@ -274,7 +281,9 @@ class NeighbourFrames(unittest.TestCase):
                 return str(path) if force else None
         store.attachments = Staging()
         store.film = lambda video, note, state: self.brief(note.get('clip'))
+        self.addCleanup(settle, store)
         note = store.add('promo/film', '1x1', None, None, 'Warmer', None, clip='c')
+        settle(store)
         md = (store.session_dir('promo/film') / (note['id'] + '.md')).read_text()
         self.assertIn('Its last frame, as the film shows it, is /attachments/previous-clip-last-frame.png.', md)
         self.assertIn('open /attachments/previous-clip-last-frame.png before you start.', md)
@@ -322,6 +331,7 @@ class ClipField(TempProject):
         self.assertNotIn('film made of clips', md)  # a single film's note, as before
         self.editor.notes.update(self.editor.notes.get(plain['id']), state='failed')
         self.editor.notes.list()  # the whole-video note was a single film's: let the clip note go next
+        settle(self.editor)
         md = (self.editor.notes.session_dir('promo/film') / (note['id'] + '.md')).read_text()
         self.assertIn('This note is about clip 3 of 3, `c`', md)
         self.assertIn('Change files only under promo/clips/c.', md)

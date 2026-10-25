@@ -14,15 +14,27 @@ import urllib.request
 from unittest import mock
 
 from videobuilder.editor import UPDATING, Editor, Server, _drain, make_handler
+from tests.fixtures import settle
 from tests.test_project import TempProject
 
 
 class Restart(TempProject):
+    def setUp(self):
+        super().setUp()
+        self.editors = []
+
     def editor(self):
         editor = Editor(self.root, state_dir='state', unsandboxed_previews=True, auto_land=False)
         self.addCleanup(editor.pool.close)
         self.addCleanup(editor.renders.close)
+        self.editors.append(editor)
         return editor
+
+    def tearDown(self):
+        # A note queued by a test is submitted in the background, writing the video's
+        # session: let that finish before the project is deleted.
+        settle(*self.editors)
+        super().tearDown()
 
     def wait(self, predicate, timeout=10):
         deadline = time.monotonic() + timeout

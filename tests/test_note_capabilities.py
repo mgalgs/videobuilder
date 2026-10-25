@@ -9,6 +9,7 @@ it -- see capabilities/settings.py's validate/non_default."""
 import unittest
 
 from videobuilder.editor import Editor, HTTPError
+from tests.fixtures import settle
 from tests.test_notes import FakeAgent
 from tests.test_project import TempProject
 
@@ -20,6 +21,10 @@ class NoteCapabilities(TempProject):
         self.editor = Editor(self.root, backend=self.backend, unsandboxed_previews=True, auto_land=False)
         self.addCleanup(self.editor.pool.close)
         self.addCleanup(self.editor.renders.close)
+
+    def tearDown(self):
+        settle(self.editor)  # before the project dir goes: a submitter may still be writing to it
+        super().tearDown()
 
     def test_add_note_keeps_only_known_capability_ids(self):
         note = self.editor.add_note(

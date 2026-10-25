@@ -5,6 +5,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
+from tests.fixtures import settle
 from tests.test_notes import FakeAgent
 from tests.test_project import TempProject, git
 from videobuilder.agents import FakeBackend
@@ -102,6 +103,8 @@ class ShortfallsOnTheNote(unittest.TestCase):
         agent = FakeAgent()
         store = NoteStore(self.dir, agent)
         note = store.add('promo/film', '16x9', 0, None, 'Make a photorealistic shot', b'')
+        settle(store)
+        note = store.get(note['id'])
         reply = ('Built a stylized version instead.\n\n' +
                 block([{'kind': 'cannot', 'what': 'photorealistic rendering'}]) +
                 'Summary: used a stylized look instead.')
@@ -115,6 +118,8 @@ class ShortfallsOnTheNote(unittest.TestCase):
         agent = FakeAgent()
         store = NoteStore(self.dir, agent)
         note = store.add('promo/film', '16x9', 0, None, 'Add a cameo', b'')
+        settle(store)
+        note = store.get(note['id'])
         reply = ('Quick check first.\n\n' +
                 block([{'kind': 'weak', 'what': 'matching the exact voice'}]) +
                 '\n```questions\n' + json.dumps(
@@ -132,6 +137,8 @@ class ShortfallsOnTheNote(unittest.TestCase):
         agent = FakeAgent()
         store = NoteStore(self.dir, agent)
         note = store.add('promo/film', '16x9', 0, None, 'Make it louder', b'')
+        settle(store)
+        note = store.get(note['id'])
         reply = 'Done.\n\n```shortfalls\nnot json\n```\nSummary: done.'
         agent.states[note['handle']] = AgentStatus('replied', reply, 'notes/branch')
         got = store.list('promo/film')[0]
@@ -142,6 +149,8 @@ class ShortfallsOnTheNote(unittest.TestCase):
         agent = FakeAgent()
         store = NoteStore(self.dir, agent)
         note = store.add('promo/film', '16x9', 0, None, 'Make it louder', b'')
+        settle(store)
+        note = store.get(note['id'])
         agent.states[note['handle']] = AgentStatus('replied', 'Done: made it louder.', 'notes/branch')
         got = store.list('promo/film')[0]
         self.assertNotIn('shortfalls', got)
@@ -153,6 +162,7 @@ class FakeBackendShortfallSupport(TempProject):
     video_api._get_notes returns `editor.notes.list()` verbatim, with no route changes."""
 
     def tearDown(self):
+        settle(self.editor)  # before the project dir goes: a submitter may still be writing to it
         self.editor.renders.close()
         super().tearDown()
 
@@ -167,6 +177,7 @@ class FakeBackendShortfallSupport(TempProject):
         self.editor.notes.backend = FakeBackend(delay=0, shortfalls=[{'kind': 'weak', 'what': 'exact color match'}])
         note = self.editor.add_note(dict(video='promo/film', frame=0, text='Match the brand color exactly'),
                                     'reviewer')
+        settle(self.editor)
         self.editor.notes.list()
         got = self.editor.notes.get(note['id'])
         self.assertEqual(got['state'], 'replied')
@@ -179,6 +190,7 @@ class FakeBackendShortfallSupport(TempProject):
             delay=0, questions=[{'text': 'Light or dark logo?', 'choices': ['Light', 'Dark']}],
             shortfalls=[{'kind': 'cannot', 'what': 'a licensed soundtrack'}])
         note = self.editor.add_note(dict(video='promo/film', frame=0, text='Add a music track'), 'reviewer')
+        settle(self.editor)
         self.editor.notes.list()
         got = self.editor.notes.get(note['id'])
         self.assertEqual(got['state'], 'questions')

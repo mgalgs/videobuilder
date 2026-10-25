@@ -11,6 +11,7 @@ import time
 import unittest
 from unittest.mock import patch
 
+from tests.fixtures import settle
 from tests.test_project import TempProject, git
 from tests.test_notes import FakeAgent
 from tests.test_sources import _Rfile
@@ -31,12 +32,16 @@ class Queue(TempProject):
         store = NoteStore(directory, backend)
         a = store.add('a', '1x1', 0, None, 'first', b'')
         b = store.add('a', '1x1', 0, None, 'second', b'')
+        settle(store)  # one submitter at a time: FakeAgent's handle numbering isn't thread-safe
         store.add('b', '1x1', 0, None, 'independent', b'')
+        settle(store)
+        a, b = store.get(a['id']), store.get(b['id'])
         self.assertEqual(len(backend.submitted), 2)
         self.assertIsNone(b['handle'])
         backend.states[a['handle']] = AgentStatus('replied', 'done', 'draft/a')
         restarted = NoteStore(directory, backend)
         restarted.list('a')
+        settle(restarted)
         self.assertEqual(len(backend.submitted), 3)
         self.assertEqual(backend.submitted[-1]['draft'], 'draft/a')
         self.assertEqual(restarted.session('a')['session'], store.session('a')['session'])
@@ -46,6 +51,8 @@ class Queue(TempProject):
         backend = FakeAgent()
         store = NoteStore(self.root / '.vb-editor/notes', backend)
         note = store.add('a', '1x1', 0, None, 'first', b'')
+        settle(store)
+        note = store.get(note['id'])
         backend.states[note['handle']] = AgentStatus('replied', 'done', 'draft/a')
         self.assertEqual(store.get(note['id'])['state'], 'queued')
         self.assertEqual(store.current(note['id'])['reply'], 'done')
@@ -55,12 +62,15 @@ class Queue(TempProject):
         store = NoteStore(self.root / '.vb-editor/notes', backend)
         first = store.add('a', '1x1', 0, None, 'first', b'')
         second = store.add('a', '1x1', 0, None, 'second', b'')
-        backend.states[first['handle']] = AgentStatus('failed', 'try again')
+        settle(store)
+        backend.states[store.get(first['id'])['handle']] = AgentStatus('failed', 'try again')
         store.list('a')
+        settle(store)
         backend.states[store.get(second['id'])['handle']] = AgentStatus('replied', 'done', 'draft/a')
         store.list('a')
         third = store.add('a', '1x1', 0, None, 'followup', b'')
-        backend.states[third['handle']] = AgentStatus('replied', 'done', 'draft/wrong')
+        settle(store)
+        backend.states[store.get(third['id'])['handle']] = AgentStatus('replied', 'done', 'draft/wrong')
         store.list('a')
         self.assertEqual(store.get(third['id'])['state'], 'failed')
         self.assertEqual(store.session('a')['draft'], 'draft/a')
@@ -74,16 +84,20 @@ class Queue(TempProject):
                     release.wait(5)
                 return super().submit(note)
         store = NoteStore(self.root / '.vb-editor/notes', Slow())
-        worker = threading.Thread(target=lambda: store.add('slow', '1x1', 0, None, 'slow', b''))
-        worker.start()
+        store.add('slow', '1x1', 0, None, 'slow', b'')
         try:
             self.assertTrue(entered.wait(2))
             fast = store.add('fast', '1x1', 0, None, 'fast', b'')
-            self.assertIsNotNone(fast['handle'])
-            self.assertTrue(worker.is_alive())
+            # Each video has its own submitter thread (NoteStore.kick); wait for fast's alone.
+            for t in threading.enumerate():
+                if t.name == 'note submit fast':
+                    t.join(5)
+            self.assertIsNotNone(store.get(fast['id'])['handle'])
+            self.assertTrue(any(t.name == 'note submit slow' and t.is_alive() for t in threading.enumerate()))
+            self.assertIsNone(store.list('slow', refresh=False)[0]['handle'])
         finally:
             release.set()
-            worker.join(5)
+            settle(store)
 
     def test_command_contract(self):
         script = self.root / 'runner.py'
@@ -101,6 +115,7 @@ else:
         backend = CommandBackend([sys.executable, str(script), 'submit'], [sys.executable, str(script), 'poll'])
         editor = Editor(self.root, backend=backend, unsandboxed_previews=True)
         note = editor.add_note(dict(video='promo/film', frame=12, text='Change title'), 'reviewer')
+        settle(editor)
         result = editor.notes.list()[0]
         self.assertEqual(result['reply'], 'Done')
         md = (editor.notes.session_dir('promo/film') / (note['id'] + '.md')).read_text()
@@ -114,6 +129,8 @@ else:
         command = [sys.executable, str(script)]
         editor = Editor(self.root, backend=CommandBackend(command, command), unsandboxed_previews=True)
         note = editor.add_note(dict(video='promo/film', frame=12, text='Change title'), 'reviewer')
+        settle(editor)
+        note = editor.notes.get(note['id'])
         self.assertEqual(note['state'], 'failed')
         self.assertIn('must live under an allowed root', note['reply'])
 
@@ -364,6 +381,7 @@ sys.exit(1)
 
 class DraftLoop(TempProject):
     def tearDown(self):
+        settle(self.editor)
         self.editor.renders.close()
         super().tearDown()
 
@@ -376,6 +394,7 @@ class DraftLoop(TempProject):
 
     def draft(self):
         n = self.editor.add_note(dict(video='promo/film', frame=0, text='Add a highlight'), 'reviewer')
+        settle(self.editor)
         self.editor.notes.list()
         return self.editor.notes.get(n['id'])
 

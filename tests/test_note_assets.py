@@ -7,6 +7,7 @@ import unittest
 
 from videobuilder.editor import Editor, HTTPError
 from videobuilder.music import MusicLibrary, Source
+from tests.fixtures import settle
 from tests.test_editor import _MusicServer
 from tests.test_notes import FakeAgent
 from tests.test_project import TempProject
@@ -33,6 +34,11 @@ class NoteAssets(TempProject):
                              music=_music_library())
         self.addCleanup(self.editor.pool.close)
         self.addCleanup(self.editor.renders.close)
+        self.editors = [self.editor]
+
+    def tearDown(self):
+        settle(*self.editors)  # before the project dir goes: a submitter may still be writing to it
+        super().tearDown()
 
     def test_add_note_keeps_only_known_font_ids(self):
         note = self.editor.add_note(
@@ -90,6 +96,7 @@ class NoteAssets(TempProject):
     def test_music_ids_drop_silently_with_no_music_configured(self):
         backend = FakeAgent()
         editor = Editor(self.root, backend=backend, unsandboxed_previews=True, auto_land=False)
+        self.editors.append(editor)
         self.addCleanup(editor.pool.close)
         self.addCleanup(editor.renders.close)
         note = editor.add_note(dict(video='promo/film', frame=0, text='x', music=['track-1']), 'reviewer')
@@ -100,10 +107,12 @@ class NoteAssets(TempProject):
         backend = FakeAgent()
         editor = Editor(self.root, backend=backend, unsandboxed_previews=True, auto_land=False,
                         music=_music_library(on_fetch=lambda: fetches.append(1)))
+        self.editors.append(editor)
         self.addCleanup(editor.pool.close)
         self.addCleanup(editor.renders.close)
         note = editor.add_note(dict(video='promo/film', frame=0, text='Just text'), 'reviewer')
         self.assertEqual(note['music'], [])
+        settle(editor)  # nor does its background submission
         self.assertEqual(fetches, [])
 
 
@@ -120,12 +129,18 @@ class MusicAttach(TempProject):
         self.server = _MusicServer({'/track.mp3': (self.TRACK_MP3, 'audio/mpeg')})
         self.addCleanup(self.server.close)
         self.backend = FakeAgent()
+        self.editors = []
+
+    def tearDown(self):
+        settle(*self.editors)  # before the project dir goes: a submitter may still be writing to it
+        super().tearDown()
 
     def _editor(self, tracks):
         editor = Editor(self.root, backend=self.backend, unsandboxed_previews=True, auto_land=False,
                         music=_music_library(tracks=tracks))
         self.addCleanup(editor.pool.close)
         self.addCleanup(editor.renders.close)
+        self.editors.append(editor)
         return editor
 
     def test_a_picked_track_is_attached_with_its_credit(self):

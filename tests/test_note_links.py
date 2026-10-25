@@ -10,6 +10,7 @@ from unittest import mock
 
 from videobuilder import gather
 from videobuilder.editor import Editor
+from tests.fixtures import settle
 from tests.test_gather import _Site
 from tests.test_notes import FakeAgent
 from tests.test_project import TempProject
@@ -39,15 +40,20 @@ class NoteLinks(TempProject):
         self.addCleanup(self.editor.renders.close)
         self.before = set(threading.enumerate())
 
+    def tearDown(self):
+        settle(self.editor)  # before the project dir goes: a submitter may still be writing to it
+        super().tearDown()
+
     def settled(self, nid, timeout=20):
         deadline = time.monotonic() + timeout
         while time.monotonic() < deadline:
             note = self.editor.notes.get(nid)
             if note['state'] != 'gathering':
-                # The gather thread goes on to submit; let it finish before tearDown.
+                # The gather thread goes on to queue it, kicking the submitter: let both finish.
                 for thread in set(threading.enumerate()) - self.before:
                     if 'gather_then_queue' in thread.name:
                         thread.join(10)
+                settle(self.editor)
                 return self.editor.notes.get(nid)
             time.sleep(0.05)
         self.fail('the note never left gathering')

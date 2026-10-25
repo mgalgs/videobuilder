@@ -2,12 +2,24 @@
 import json
 import os
 import tempfile
+import threading
+import time
 import unittest
+from unittest import mock
 from pathlib import Path
 
 import videobuilder
+import videobuilder.editor as editor_module
 import videobuilder.notes as notes_module
 from videobuilder.notes import AgentBackend, AgentStatus, NoteStore, NullBackend, parse_questions
+
+from tests.fixtures import settle
+
+
+def sent(store, note):
+    """`note` as stored once `store`'s background submitter has had its turn."""
+    settle(store)
+    return store.get(note['id'])
 
 
 class FakeAgent(AgentBackend):
@@ -38,6 +50,8 @@ class Notes(unittest.TestCase):
         store = NoteStore(self.dir)
         self.assertEqual(store.list(), [])
         n = store.add('promo/film', '16x9', 12, 'intro', '  Bigger title  ', b'png-bytes', author='sam')
+        self.assertEqual((n['state'], n['handle']), ('queued', None))  # stored; sent in the background
+        n = sent(store, n)
         self.assertEqual({k: n[k] for k in ('video', 'format', 'frame', 'segment', 'text', 'author', 'backend',
                                             'handle', 'state', 'reply', 'branch')},
                          {'video': 'promo/film', 'format': '16x9', 'frame': 12, 'segment': 'intro',
@@ -47,6 +61,7 @@ class Notes(unittest.TestCase):
         self.assertEqual(store.image(n['id']), b'png-bytes')
         self.assertEqual(sorted(os.listdir(self.dir)), [f'{n["id"]}.json', f'{n["id"]}.png'])
         m = store.add('other/film', '1x1', 0, None, 'x', b'')
+        settle(store)
         self.assertEqual([x['id'] for x in store.list()], [n['id'], m['id']])
         self.assertEqual([x['id'] for x in store.list('other/film')], [m['id']])
         store.delete(n['id'])
@@ -68,7 +83,7 @@ class Notes(unittest.TestCase):
     def test_a_backend_moves_notes_along(self):
         agent = FakeAgent()
         store = NoteStore(self.dir, agent)
-        n = store.add('promo/film', '16x9', 3, 'intro', 'Shorter', b'png')
+        n = sent(store, store.add('promo/film', '16x9', 3, 'intro', 'Shorter', b'png'))
         self.assertEqual(agent.submitted[0]['image'], str(self.dir / f'{n["id"]}.png'))
         self.assertEqual(agent.submitted[0]['text'], 'Shorter')
         self.assertEqual(store.get(n['id'])['handle'], 'h1')
@@ -82,7 +97,7 @@ class Notes(unittest.TestCase):
     def test_cost_and_tokens_land_on_the_note_once_final(self):
         agent = FakeAgent()
         store = NoteStore(self.dir, agent)
-        n = store.add('promo/film', '16x9', 3, 'intro', 'Shorter', b'png')
+        n = sent(store, store.add('promo/film', '16x9', 3, 'intro', 'Shorter', b'png'))
         self.assertIsNone(store.get(n['id'])['cost_usd'])
         self.assertIsNone(store.get(n['id'])['tokens'])
         agent.states['h1'] = AgentStatus('replied', 'Done', 'notes/shorter', 0.42, {'input': 100, 'output': 20})
@@ -93,7 +108,7 @@ class Notes(unittest.TestCase):
     def test_an_unreported_cost_stays_null_never_zero(self):
         agent = FakeAgent()
         store = NoteStore(self.dir, agent)
-        n = store.add('promo/film', '16x9', 3, 'intro', 'Shorter', b'png')
+        n = sent(store, store.add('promo/film', '16x9', 3, 'intro', 'Shorter', b'png'))
         agent.states['h1'] = AgentStatus('replied', 'Done', 'notes/shorter')
         got = store.list()[0]
         self.assertIsNone(got['cost_usd'])
@@ -103,7 +118,8 @@ class Notes(unittest.TestCase):
         class Down(NullBackend):
             def submit(self, note):
                 raise ConnectionError('unreachable')
-        n = NoteStore(self.dir, Down()).add('v', '16x9', 0, None, 'hello', b'')
+        store = NoteStore(self.dir, Down())
+        n = sent(store, store.add('v', '16x9', 0, None, 'hello', b''))
         self.assertEqual((n['state'], n['handle']), ('failed', None))
         self.assertIn('unreachable', n['reply'])
 
@@ -127,6 +143,7 @@ class Notes(unittest.TestCase):
             restarted.tick()
         finally:
             notes_module.GATHER_STALE_SECONDS = old_stale
+        settle(restarted)
 
         recovered = restarted.get(gathering['id'])
         self.assertNotEqual(recovered['state'], 'gathering')
@@ -144,12 +161,13 @@ class Notes(unittest.TestCase):
         # is dispatched too: the video is unblocked for good, not just for one poll.
         agent.states[recovered['handle']] = AgentStatus('replied', 'Done', 'notes/branch')
         restarted.tick()
+        settle(restarted)
         self.assertEqual(restarted.get(followup['id'])['handle'], 'h2')
 
     def test_note_file_asks_by_default_then_not_after_an_answer(self):
         agent = FakeAgent()
         store = NoteStore(self.dir, agent)
-        note = store.add('promo/film', '16x9', 0, None, 'Make it punchier', b'')
+        note = sent(store, store.add('promo/film', '16x9', 0, None, 'Make it punchier', b''))
         md = (store.session_dir('promo/film') / (note['id'] + '.md')).read_text()
         self.assertIn('ask the director 1 to 3 short questions', md)
         self.assertNotIn('Do not ask clarifying questions', md)
@@ -161,6 +179,7 @@ class Notes(unittest.TestCase):
         self.assertEqual(store.list('promo/film')[0]['state'], 'questions')
 
         followup = store.answer(note['id'], False, ['Dark'])
+        settle(store)
         md2 = (store.session_dir('promo/film') / (followup['id'] + '.md')).read_text()
         self.assertIn('Do not ask clarifying questions', md2)
         self.assertNotIn('ask the director 1 to 3 short questions', md2)
@@ -174,11 +193,12 @@ class Notes(unittest.TestCase):
         for build, said in ((False, 'A pier at dawn\n\nQ: Light or dark?\nA: Dark'), (True, 'A pier at dawn')):
             with self.subTest(build=build):
                 video = f'promo/film-{int(build)}'
-                note = store.add(video, '16x9', None, None, 'A pier at dawn\n\nBuild a first version.', None,
-                                 said='A pier at dawn')
+                note = sent(store, store.add(video, '16x9', None, None, 'A pier at dawn\n\nBuild a first version.',
+                                             None, said='A pier at dawn'))
                 agent.states[note['handle']] = AgentStatus('replied', reply, None)
                 self.assertEqual(store.list(video)[0]['state'], 'questions')
                 followup = store.answer(note['id'], build, None if build else ['Dark'])
+                settle(store)
                 self.assertIn('Build a first version.', followup['text'])
                 self.assertEqual(followup['said'], said)
 
@@ -187,7 +207,7 @@ class Notes(unittest.TestCase):
         means the prompt itself changed, not just where it's built."""
         agent = FakeAgent()
         store = NoteStore(self.dir, agent)
-        note = store.add('promo/film', '16x9', None, None, 'Make it punchier', None)
+        note = sent(store, store.add('promo/film', '16x9', None, None, 'Make it punchier', None))
         md = (store.session_dir('promo/film') / (note['id'] + '.md')).read_text()
         self.assertEqual(md, (
             '# Review request\n'
@@ -321,12 +341,14 @@ class Notes(unittest.TestCase):
     def test_retry_carries_no_questions_forward(self):
         agent = FakeAgent()
         store = NoteStore(self.dir, agent)
-        note = store.add('promo/film', '16x9', 0, None, 'Build it with your best judgement; do not ask questions.',
-                         b'', no_questions=True, said='Make it')
+        note = sent(store, store.add('promo/film', '16x9', 0, None,
+                                     'Build it with your best judgement; do not ask questions.',
+                                     b'', no_questions=True, said='Make it'))
         agent.states[note['handle']] = AgentStatus('failed', 'could not apply')
         failed = store.list('promo/film')[0]
         self.assertEqual(failed['state'], 'failed')
         retried = store.retry(failed['id'])
+        settle(store)
         self.assertTrue(retried.get('no_questions'))
         self.assertEqual(retried['said'], 'Make it')         # the chat still shows the creator's words
         md = (store.session_dir('promo/film') / (retried['id'] + '.md')).read_text()
@@ -338,24 +360,25 @@ class Notes(unittest.TestCase):
         agent = FakeAgent()
         store = NoteStore(self.dir, agent)
         picks = dict(music=['track-2'], music_over_budget=['track-2'])
-        failed = store.add('promo/film', '16x9', 0, None, 'Add music', b'', **picks)
+        failed = sent(store, store.add('promo/film', '16x9', 0, None, 'Add music', b'', **picks))
         agent.states[failed['handle']] = AgentStatus('failed', 'could not apply')
         self.assertEqual({n['id']: n['state'] for n in store.list('promo/film')}[failed['id']], 'failed')
         self.assertEqual(store.retry(failed['id'])['music_over_budget'], ['track-2'])
 
-        asked = store.add('promo/other', '16x9', 0, None, 'Add music', b'', **picks)  # own video: no queue
+        asked = sent(store, store.add('promo/other', '16x9', 0, None, 'Add music', b'', **picks))  # own video: no queue
         reply = '```questions\n' + json.dumps({'questions': [{'text': 'Loud?', 'choices': ['Yes', 'No']}]}) + '\n```\n'
         agent.states[asked['handle']] = AgentStatus('replied', reply, None)
         states = {n['id']: n['state'] for n in store.list('promo/other')}
         self.assertEqual(states[asked['id']], 'questions')
         self.assertEqual(store.answer(asked['id'], False, ['Yes'])['music_over_budget'], ['track-2'])
+        settle(store)
 
     def test_a_no_questions_note_never_shows_a_stray_block(self):
         # A backend that ignores the no-questions instruction must not leak the raw
         # block into the reply, and must not put the note back into questions state.
         agent = FakeAgent()
         store = NoteStore(self.dir, agent)
-        note = store.add('promo/film', '16x9', 0, None, 'Make it punchier', b'', no_questions=True)
+        note = sent(store, store.add('promo/film', '16x9', 0, None, 'Make it punchier', b'', no_questions=True))
         reply = 'Done.\n\n```questions\n' + json.dumps(
             {'questions': [{'text': 'Light or dark logo?', 'choices': ['Light', 'Dark']}]}) + '\n```\n'
         agent.states[note['handle']] = AgentStatus('replied', reply, 'notes/branch')
@@ -387,7 +410,7 @@ class CompendiumForBuilder(unittest.TestCase):
         self.tmp.cleanup()
 
     def _md(self, store):
-        note = store.add('promo/film', '16x9', 0, None, 'Make it punchier', b'')
+        note = sent(store, store.add('promo/film', '16x9', 0, None, 'Make it punchier', b''))
         return (store.session_dir('promo/film') / (note['id'] + '.md')).read_text()
 
     def test_section_appears_when_the_backend_has_a_compendium_and_the_switch_is_on(self):
@@ -475,3 +498,103 @@ class Questions(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+class BackgroundSubmit(unittest.TestCase):
+    """Submitting a note (staging, the prompt, backend.submit) runs on a thread
+    of its own, never in the request that stored the note."""
+    BLOCK = 10  # the slow submit's own timeout: far longer than any prompt return
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        self.dir = Path(self.tmp.name, 'notes')
+
+    def slow_agent(self, slow_texts=None):
+        """A FakeAgent whose submit blocks until its `release` is set, for every
+        note or only those whose text is in `slow_texts`; `calls` records the
+        order submissions start in."""
+        agent = FakeAgent()
+        agent.entered, agent.release, agent.calls = threading.Event(), threading.Event(), []
+        submit = agent.submit
+
+        def slow(note):
+            agent.calls.append(note['text'])
+            if slow_texts is None or note['text'] in slow_texts:
+                agent.entered.set()
+                agent.release.wait(self.BLOCK)
+            return submit(note)
+        agent.submit = slow
+        self.addCleanup(agent.release.set)
+        return agent
+
+    def test_a_slow_submit_never_holds_up_the_request_or_a_poll(self):
+        agent = self.slow_agent()
+        store = NoteStore(self.dir, agent)
+        self.addCleanup(settle, store)
+        start = time.monotonic()
+        n = store.add('promo/film', '16x9', 0, None, 'Bigger title', b'')
+        self.assertLess(time.monotonic() - start, 2)
+        self.assertEqual((n['state'], n['handle']), ('queued', None))
+        self.assertTrue(agent.entered.wait(5))  # the submitter is in backend.submit, holding the video's lock
+
+        listed = []
+        poll = threading.Thread(target=lambda: listed.append(store.list('promo/film')))
+        start = time.monotonic()
+        poll.start()
+        poll.join(2)
+        self.assertLess(time.monotonic() - start, 2)
+        self.assertEqual([(x['id'], x['state'], x['handle']) for x in listed[0]], [(n['id'], 'queued', None)])
+        self.assertEqual((store.current(n['id'])['handle'], store.get(n['id'])['handle']), (None, None))
+
+        agent.release.set()  # no further request: the submitter finishes on its own
+        settle(store)
+        self.assertEqual(store.get(n['id'])['handle'], 'h1')
+        self.assertEqual(len(agent.submitted), 1)
+
+    def test_notes_added_back_to_back_are_submitted_in_order_one_at_a_time(self):
+        agent = self.slow_agent(slow_texts={'First'})
+        store = NoteStore(self.dir, agent)
+        self.addCleanup(settle, store)
+        first = store.add('promo/film', '16x9', 0, None, 'First', b'')
+        self.assertTrue(agent.entered.wait(5))
+        start = time.monotonic()
+        second = store.add('promo/film', '16x9', 0, None, 'Second', b'')  # while the first is still submitting
+        self.assertLess(time.monotonic() - start, 2)
+        other = store.add('other/film', '16x9', 0, None, 'Elsewhere', b'')
+        # Another video's note goes out on its own while this video's first is still submitting.
+        deadline = time.monotonic() + 5
+        while store.get(other['id'])['handle'] is None and time.monotonic() < deadline:
+            agent.release.wait(0.01)
+        self.assertEqual(store.get(other['id'])['handle'], 'h1')
+        self.assertEqual(agent.calls, ['First', 'Elsewhere'])
+        agent.release.set()
+        settle(store)
+        # This video's second waits for its first to finish.
+        self.assertEqual(store.get(first['id'])['handle'], 'h2')
+        self.assertIsNone(store.get(second['id'])['handle'])
+
+        agent.states[store.get(first['id'])['handle']] = AgentStatus('replied', 'Done', 'notes/first')
+        store.list('promo/film')  # a poll sees the first replied and kicks the submitter for the second
+        settle(store)
+        self.assertEqual(agent.calls, ['First', 'Elsewhere', 'Second'])
+        self.assertEqual(store.get(second['id'])['handle'], 'h3')
+
+    def test_a_note_left_queued_is_sent_by_the_tick_with_no_page_open(self):
+        agent = FakeAgent()
+        store = NoteStore(self.dir, agent)
+        store.kick = lambda video: None  # the editor stops before its submitter runs
+        n = store.add('promo/film', '16x9', 0, None, 'Bigger title', b'')
+        self.assertEqual((store.get(n['id'])['state'], agent.submitted), ('queued', []))
+
+        restarted = NoteStore(self.dir, agent)
+        stop = threading.Event()
+        self.addCleanup(stop.set)
+        with mock.patch.object(editor_module, 'NOTE_TICK', 0.05):
+            editor_module._ticker(restarted.tick, stop)
+            deadline = time.monotonic() + 10
+            while restarted.get(n['id'])['handle'] is None and time.monotonic() < deadline:
+                settle(restarted)
+                stop.wait(0.05)
+        self.assertEqual(restarted.get(n['id'])['handle'], 'h1')
+        self.assertEqual([s['text'] for s in agent.submitted], ['Bigger title'])

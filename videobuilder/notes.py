@@ -12,8 +12,9 @@ The backend retains submit(note) -> str and poll(handle) -> AgentStatus.
 Submissions additionally carry project, film, directory, beat, time, image,
 note_file, state_dir, session (stable id), and draft (current branch or null).
 One note per video is submitted at a time; other notes wait in order.
-Listing notes polls in-flight handles, including after restart, and dispatches
-the next note after replied/failed. accepted/dropped are reviewer decisions.
+Listing notes polls in-flight handles, including after restart; the next note
+is submitted after replied/failed by a background thread per video (NoteStore.
+kick), never in a request. accepted/dropped are reviewer decisions.
 Per-video session.json survives both decisions. The runner owns any additional
 session files. See agents.py for the external command protocol. Submission
 must be idempotent by note id to tolerate a crash before saving the handle.
@@ -60,6 +61,7 @@ import json
 import os
 import re
 import secrets
+import sys
 import threading
 import time
 from dataclasses import asdict, dataclass
@@ -255,7 +257,7 @@ class NullBackend(AgentBackend):
 
 
 class NoteStore:
-    """Notes on disk under `dir`, submitted to `backend` as they are added."""
+    """Notes on disk under `dir`, submitted to `backend` in the background as they are added."""
 
     def __init__(self, dir, backend=None, context=None, before_submit=None, on_reply=None, attachments=None,
                 compendium_for_builder=False, compendium_votes=None, community=None):
@@ -282,6 +284,10 @@ class NoteStore:
         # descriptors for a note's own `refs` (see video_refs.extract/stage, Editor.
         # _stage_video_refs); set by Editor, None outside library mode.
         self.video_refs = None
+        # The background submitters (see kick): video -> its worker thread, and the videos
+        # kicked again while their worker was already running.
+        self._workers, self._rekicked = {}, set()
+        self._workers_idle = threading.Condition(threading.Lock())
 
     def video_lock(self, video):
         with self.lock:
@@ -305,7 +311,8 @@ class NoteStore:
         return note
 
     def add(self, video, format, frame, segment, text, png, author=None, **context):
-        """Store a new note with its frame's PNG bytes, submit it, and return it."""
+        """Store a new note with its frame's PNG bytes and return it, `queued`;
+        a background thread submits it (see kick)."""
         if not isinstance(text, str) or not text.strip():
             raise ValueError('a note needs some text')
         os.makedirs(self.dir, exist_ok=True)
@@ -318,11 +325,11 @@ class NoteStore:
                 'text': text.strip(), 'author': author,
                 'created': time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime(now)),
                 **context, 'backend': self.backend.name, 'handle': None, **asdict(AgentStatus('queued'))}
-        with self.video_lock(video):
-            self._save(note)
-            self._advance(video)
-            note = self.get(nid)
-        return note
+        # Not under the video's lock, which a submission in progress holds for its whole run:
+        # a new file of its own, written atomically, that the submitter reaches once kicked.
+        self._save(note)
+        self._refresh(video)
+        return self.get(nid)
 
     def start_gathering(self, video, format, text=None, author=None, attachments=None, png=None, **context):
         """A placeholder note in the `gathering` state, saved and visible to
@@ -380,9 +387,7 @@ class NoteStore:
 
     def current(self, nid):
         """One note after polling its video's backend, as list() does."""
-        video = self.get(nid)['video']
-        with self.video_lock(video):
-            self._advance(video)
+        self._refresh(self.get(nid)['video'])
         return self.get(nid)
 
     def image(self, nid):
@@ -423,8 +428,7 @@ class NoteStore:
                 notes.append(note)
         if refresh:
             for vid in dict.fromkeys(n['video'] for n in notes):
-                with self.video_lock(vid):
-                    self._advance(vid)
+                self._refresh(vid)
             return self.list(video, refresh=False)
         return notes
 
@@ -433,12 +437,67 @@ class NoteStore:
         return list(dict.fromkeys(n['video'] for n in self.list(refresh=False) if n['state'] not in FINAL))
 
     def tick(self):
-        """Advance every video with unfinished notes, as a page poll would."""
+        """Advance every video with unfinished notes, as a page poll would --
+        which also kicks the submitter of any video with a note to send, so a
+        note left queued (a restart, a missed kick) is still sent."""
         for vid in self.pending():
-            with self.video_lock(vid):
-                self._advance(vid)
+            self._refresh(vid)
 
-    def _advance(self, video):
+    def _refresh(self, video):
+        """Poll `video`'s notes and kick its submitter if one is due, as every
+        request does -- never waiting behind a submission in progress, which
+        holds the video's lock for its whole (possibly slow) run: then the notes
+        stay as stored and the submitter, kicked, polls once it is done."""
+        lock = self.video_lock(video)
+        if not lock.acquire(blocking=False):
+            self.kick(video)
+            return
+        try:
+            self._advance(video)
+        finally:
+            lock.release()
+
+    def kick(self, video):
+        """Wake `video`'s background submitter, starting it if it isn't running.
+        Submitting (staging attachments, rendering the prompt, backend.submit)
+        can take seconds, so it never runs in a request: request paths only
+        store and poll, and kick this instead. One worker per video, so one
+        submitter: its notes go out in order, one at a time, under the video's
+        lock as before, while other videos' workers proceed independently."""
+        with self._workers_idle:
+            if video in self._workers:
+                self._rekicked.add(video)
+                return
+            worker = threading.Thread(target=self._work, args=(video,), daemon=True, name=f'note submit {video}')
+            self._workers[video] = worker
+            worker.start()
+
+    def _work(self, video):
+        while True:
+            try:
+                with self.video_lock(video):
+                    self._advance(video, submit=True)
+            except Exception as e:
+                print(f'[editor] {video}: note submit failed: {e}', file=sys.stderr, flush=True)
+            with self._workers_idle:
+                if video in self._rekicked:
+                    self._rekicked.discard(video)
+                    continue
+                del self._workers[video]
+                self._workers_idle.notify_all()
+                return
+
+    def idle(self, timeout=None):
+        """Wait until no background submitter is running; True if none is by
+        `timeout` seconds. For tests, and anything else that must see a
+        kicked note submitted."""
+        with self._workers_idle:
+            return self._workers_idle.wait_for(lambda: not self._workers, timeout)
+
+    def _advance(self, video, submit=False):
+        """Poll `video`'s in-flight note and, once it's final, send the next
+        one. Without submit (every request path) a note due to be sent is
+        left queued and its video's submitter kicked instead."""
         for note in self.list(video, refresh=False):
             if note['state'] in FINAL:
                 continue
@@ -457,6 +516,9 @@ class NoteStore:
                 self._save(note)
             state = self.session(video)
             if not note['handle']:
+                if not submit:
+                    self.kick(video)
+                    return
                 if self._submit(video, note, state):
                     return
             else:

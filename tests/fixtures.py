@@ -27,10 +27,29 @@ from videobuilder.library import Library
 
 from tests.test_project import FILM, TempProject, git
 
+SETTLE_SECONDS = 20
+
+
+def settle(*owners, timeout=SETTLE_SECONDS):
+    """Wait for the background note submitters (NoteStore.kick) of each owner --
+    a NoteStore, an Editor, or a Library (every editor it has open) -- to finish,
+    failing after `timeout` seconds. A note is stored `queued` by add() and sent
+    on a thread, so a test that wants it submitted waits here first."""
+    deadline = time.monotonic() + timeout
+    for owner in owners:
+        if isinstance(owner, Library):
+            stores = [e.notes for e in list(owner.editors.values())]
+        else:
+            stores = [getattr(owner, 'notes', owner)]
+        for store in stores:
+            if not store.idle(max(0, deadline - time.monotonic())):
+                raise AssertionError(f'note submitter for {store.dir} still running after {timeout}s')
+
 
 class API(TempProject):
     def tearDown(self):
         self.editor.renders.close()
+        settle(self.editor)  # a GET may have kicked a submitter: let it finish before the files go
         super().tearDown()
 
     def start(self, **kw):
@@ -50,9 +69,12 @@ class API(TempProject):
         self.start()
 
     def get(self, path):
-        with urllib.request.urlopen(self.base + path, timeout=20) as r:
-            body = r.read()
-            return json.loads(body) if r.headers.get('Content-Type') == 'application/json' else body
+        try:
+            with urllib.request.urlopen(self.base + path, timeout=20) as r:
+                body = r.read()
+                return json.loads(body) if r.headers.get('Content-Type') == 'application/json' else body
+        finally:
+            settle(self.editor)  # a poll can queue a note (a rebase request, a load fix) or kick one
 
     def post(self, path, body, headers=None):
         req = urllib.request.Request(self.base + path, json.dumps(body).encode(), method='POST',
@@ -63,6 +85,8 @@ class API(TempProject):
         except urllib.error.HTTPError as e:
             with e:
                 return e.code, json.loads(e.read())
+        finally:
+            settle(self.editor)
 
     def test_healthz_ignores_host_allowlist(self):
         req = urllib.request.Request(self.base + '/healthz', headers={'Host': 'kubelet.invalid'})
@@ -181,7 +205,9 @@ class API(TempProject):
         png = self.get(f'/api/notes/{n["id"]}.png')
         self.assertEqual((int.from_bytes(png[16:20], 'big'), int.from_bytes(png[20:24], 'big')), (540, 540))
         self.assertTrue((self.root / '.vb-editor' / 'notes' / f'{n["id"]}.json').exists())
-        self.assertEqual(self.get(f'/api/notes/{n["id"]}'), n)
+        self.assertIsNone(n['handle'])  # stored, not yet sent: a background thread submits it
+        stored = self.get(f'/api/notes/{n["id"]}')
+        self.assertEqual(stored, {**n, 'handle': f'null:{n["id"]}', 'started': stored['started']})
         self.assertEqual([x['id'] for x in self.get('/api/notes?video=promo/film')['notes']], [n['id']])
         self.assertEqual(self.get('/api/notes?video=other')['notes'], [])
         code, d = self.post('/api/notes', {'video': 'promo/film', 'frame': 9999, 'text': 'the end'})
@@ -326,6 +352,7 @@ class LibraryFixture:
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
         self.addCleanup(self.tmp.cleanup)
+        self.addCleanup(lambda: settle(self.library))  # before the files go, after the server stops
         self.root = Path(self.tmp.name)
         self.home = self.root / 'home'
         self.home.mkdir()
@@ -372,6 +399,8 @@ class LibraryFixture:
         except urllib.error.HTTPError as e:
             with e:
                 return e.code, e.read()
+        finally:
+            settle(self.library)
 
     def request_full(self, path, body=None, headers=None, method=None):
         req = urllib.request.Request(self.base + path, method=method or ('POST' if body is not None else 'GET'),
@@ -387,6 +416,8 @@ class LibraryFixture:
                 data = e.read()
                 parsed = json.loads(data) if e.headers.get_content_type() == 'application/json' else data
                 return e.code, parsed, e.headers
+        finally:
+            settle(self.library)
 
     def cookie(self, headers):
         raw = headers.get('Set-Cookie', '')
