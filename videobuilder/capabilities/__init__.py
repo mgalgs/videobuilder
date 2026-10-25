@@ -563,6 +563,8 @@ def family_page_html(family, capabilities_dir, version, header='', header_style=
                 'group': t.group,
                 'description': t.definition, 'prompts': list(t.phrasings), 'aliases': list(t.aliases),
                 'api': list(t.api), 'available': t.id in built}
+        if t.source:
+            item['source'] = t.source.as_json()
         data.append(item)
     style = _PAGE_STYLE + header_style + _REGISTRY_MODAL_STYLE
     html = (
@@ -648,6 +650,7 @@ h2{font-size:15px;text-transform:uppercase;letter-spacing:.04em;color:#a9a9b2;ma
   color:#dcdcdc;font:inherit;font-size:12px;cursor:pointer}
 #modal .copy-id:hover{border-color:#e5483b;color:#fff}
 #modal .desc{margin:0 0 18px;color:#dcdcdc}
+#modal .source{margin:-8px 0 18px;font-size:13px;color:#a9a9b2}
 #modal .prompts{background:#1b1e24;border-radius:10px;padding:14px 16px;margin:0}
 #modal .prompts p{margin:0 0 8px;font-weight:600;font-size:13px;color:#a9a9b2;text-transform:uppercase;
   letter-spacing:.03em}
@@ -714,8 +717,33 @@ _COMMUNITY_STYLE = """
 .community-card .draft-actions{padding:0}
 """
 
+# A modal's Source line, the same text and links as `source_html`, built from the
+# capability's `source` (schema.Source.as_json) in the page's data; hidden for none.
+_MODAL_SOURCE_SCRIPT = """
+  function sourceLink(url, text){
+    var a = document.createElement('a');
+    a.setAttribute('href', url);
+    a.setAttribute('target', '_blank');
+    a.setAttribute('rel', 'noopener noreferrer');
+    a.textContent = text;
+    return a;
+  }
+  function showSource(el, s){
+    el.textContent = '';
+    el.hidden = !s;
+    if(!s) return;
+    el.appendChild(document.createTextNode('Source: '));
+    el.appendChild(sourceLink(s.url, s.credit));
+    if(s.upstream){
+      el.appendChild(document.createTextNode(', built on '));
+      el.appendChild(sourceLink(s.upstream, s.upstream_credit));
+    }
+  }
+"""
+
 _PAGE_SCRIPT = """
 (function(){
+""" + _MODAL_SOURCE_SCRIPT + """
   var data = JSON.parse(document.getElementById('capabilities-data').textContent);
   var communityEl = document.getElementById('community-data');
   var community = communityEl ? JSON.parse(communityEl.textContent) : [];
@@ -746,6 +774,7 @@ _PAGE_SCRIPT = """
     idEl.hidden = !copyId;
     if(copyId){ idCode.textContent = '#' + copyId; copyBtn.textContent = 'Copy' }
     document.getElementById('modal-desc').textContent = e.description;
+    showSource(document.getElementById('modal-source'), e.source);
     var ul = document.getElementById('modal-prompts');
     ul.innerHTML = '';
     e.prompts.forEach(function(p){
@@ -867,7 +896,7 @@ _REGISTRY_MODAL_HTML = (
     '<h3 id="modal-title"></h3><p class="cat" id="modal-cat"></p>'
     '<p class="cap-id" id="modal-id" hidden><code id="modal-id-code"></code>'
     '<button type="button" class="copy-id" id="modal-copy">Copy</button></p>'
-    '<p class="desc" id="modal-desc"></p>'
+    '<p class="desc" id="modal-desc"></p><p class="source" id="modal-source" hidden></p>'
     '<div class="prompts"><p>What to tell the builder</p><ul id="modal-prompts"></ul></div>'
     '<p class="reg-aliases" id="modal-aliases" hidden></p>'
     '<div class="reg-api" id="modal-api-wrap" hidden><p>Build it</p><ul id="modal-api"></ul></div>'
@@ -876,6 +905,7 @@ _REGISTRY_MODAL_HTML = (
 
 _REGISTRY_PAGE_SCRIPT = """
 (function(){
+""" + _MODAL_SOURCE_SCRIPT + """
   var data = JSON.parse(document.getElementById('registry-data').textContent);
   var byId = {};
   data.forEach(function(t){byId[t.id] = t});
@@ -903,6 +933,7 @@ _REGISTRY_PAGE_SCRIPT = """
     idEl.hidden = false;
     copyBtn.textContent = 'Copy';
     document.getElementById('modal-desc').textContent = t.description;
+    showSource(document.getElementById('modal-source'), t.source);
     var ul = document.getElementById('modal-prompts');
     ul.innerHTML = '';
     t.prompts.forEach(function(p){
@@ -1521,6 +1552,8 @@ def page_html(capabilities_dir, version, header='', header_style='', community=N
         p = parent(e)
         if p:
             item.update(family=p.id, kindTitle=_kind_title(e))
+        if e.source:
+            item['source'] = e.source.as_json()
         data.append(item)
     registry_search_data = [{'id': t.id, 'title': t.name, 'family': t.family, 'aliases': list(t.aliases)}
                            for t in registry.catalog() if not has_card(t)]
@@ -1551,6 +1584,8 @@ def page_html(capabilities_dir, version, header='', header_style='', community=N
                     'poster': f'/capabilities/community/{e["slug"]}.jpg'}
             if e.get('family') in family_ids:
                 item.update(family=e['family'], kindTitle=_kind_title(e))
+            if e.get('source'):
+                item['source'] = e['source']
             community_data.append(item)
         community_json = json.dumps(community_data).replace('<', '\\u003c')
         community_data_script = f'<script id="community-data" type="application/json">{community_json}</script>'
@@ -1576,10 +1611,10 @@ def page_html(capabilities_dir, version, header='', header_style='', community=N
         '<h3 id="modal-title"></h3><p class="cat" id="modal-cat"></p>'
         '<p class="cap-id" id="modal-id" hidden><code id="modal-id-code"></code>'
         '<button type="button" class="copy-id" id="modal-copy">Copy</button></p>'
-        '<p class="desc" id="modal-desc"></p>'
+        '<p class="desc" id="modal-desc"></p><p class="source" id="modal-source" hidden></p>'
         '<div class="prompts"><p>What to tell the builder</p><ul id="modal-prompts"></ul></div>'
         '</div></div></div>' + dialog_html +
-        f'<script id="capabilities-data" type="application/json">{json.dumps(data)}</script>' +
+        f'<script id="capabilities-data" type="application/json">{json.dumps(data).replace("<", "\\u003c")}</script>' +
         community_data_script + registry_search_script +
         f'<script>{_PAGE_SCRIPT}</script><script>{_SEARCH_SCRIPT}</script>' + dialog_script + community_script +
         '</body></html>'

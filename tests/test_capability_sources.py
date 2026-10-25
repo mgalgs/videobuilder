@@ -1,6 +1,10 @@
 """A capability's `source`: the post or page it came from (schema.Source),
 shown as a Source link on its card and carried in the index JSON; a
 community capability added from a link carries the same shape."""
+import json
+import re
+import shutil
+import subprocess
 import unittest
 from dataclasses import replace
 from unittest import mock
@@ -70,6 +74,84 @@ class Shown(unittest.TestCase):
         card = page[page.index('<div class="community-card">'):]
         card = card[:card.index('</div>')]
         self.assertIn(f'Source: <a href="{POST}"', card)
+
+
+# A page's modal script run under node against a stand-in DOM holding the page's own ids
+# (and its JSON data), opened on `#<id>`: what its Source line ends up showing.
+_MODAL_HARNESS = """
+const IDS=%s, DATA=%s, els={};
+function el(tag){const e={tag,hidden:false,attrs:{},children:[],dataset:{},style:{},scrollTop:0,
+  set textContent(v){this.children=[];this._text=v},get textContent(){return this._text||''},
+  set innerHTML(v){this.children=[]},appendChild(c){this.children.push(c);return c},
+  setAttribute(k,v){this.attrs[k]=String(v)},removeAttribute(){},addEventListener(){},focus(){},
+  play(){return Promise.resolve()},pause(){},load(){},querySelector(){return el('div')},closest(){return null}};
+  return e}
+for(const id of IDS){els[id]=el('x');if(id in DATA)els[id].textContent=DATA[id]}
+globalThis.document={getElementById:id=>els[id]||null,querySelectorAll:()=>[],querySelector:()=>null,
+  createElement:el,createTextNode:t=>({text:t}),addEventListener(){}};
+globalThis.window={matchMedia:()=>({matches:false})};
+globalThis.history={replaceState(){}};
+globalThis.location={hash:'#'+%s};
+"""
+_MODAL_SHOW = """
+const src=els['modal-source'];
+console.log(JSON.stringify({title:els['modal-title'].textContent,hidden:src.hidden,parts:src.children.map(c=>'text' in c?c.text:
+  {href:c.attrs.href,target:c.attrs.target,rel:c.attrs.rel,text:c.textContent})}));
+"""
+
+
+def _modal_source(page, card_id):
+    """Open `card_id`'s modal on `page` under node; the title it shows and its Source line,
+    as {title, hidden, parts}."""
+    ids = re.findall(r' id="([^"]+)"', page)
+    data = dict(re.findall(r'<script id="([^"]+)" type="application/json">(.*?)</script>', page, re.S))
+    script = re.search(r'<script>(\s*\(function\(\)\{\s*function sourceLink.*?)</script>', page, re.S).group(1)
+    harness = _MODAL_HARNESS % (json.dumps(ids), json.dumps(data), json.dumps(card_id))
+    result = subprocess.run(['node', '-'], input=(harness + script + _MODAL_SHOW).encode(), capture_output=True)
+    if result.returncode:
+        raise AssertionError(result.stderr.decode())
+    return json.loads(result.stdout)
+
+
+def _link(url, text):
+    return {'href': url, 'target': '_blank', 'rel': 'noopener noreferrer', 'text': text}
+
+
+@unittest.skipUnless(shutil.which('node'), 'node is not available in this environment')
+class Modal(unittest.TestCase):
+    """Both modals (/capabilities' and a family page's) show the Source line its card does."""
+
+    def test_the_capabilities_modal_shows_a_source_and_nothing_for_none(self):
+        page = capabilities.page_html(None, '0').decode()
+        self.assertEqual(_modal_source(page, 'eased-entrances'),
+                         {'title': 'Eased entrances', 'hidden': False,
+                          'parts': ['Source: ', _link(registry.get('eased-entrances').source.url, '@flxrnc')]})
+        unsourced = next(e.id for e in capabilities.cards() if not e.source)
+        self.assertEqual(_modal_source(page, unsourced),
+                         {'title': registry.get(unsourced).name, 'hidden': True, 'parts': []})
+
+    def test_a_family_page_modal_shows_a_source_and_nothing_for_none(self):
+        # No capability on a family page has a source today (each sourced one has a card of its own),
+        # so give one of them outline-morph's, upstream and all.
+        s = registry.get('outline-morph').source
+        members = capabilities._family_members('principles')
+        sourced = replace(members[0], source=s)
+        with mock.patch.object(capabilities, '_family_members', lambda f: (sourced,) + members[1:]):
+            fam = capabilities.family_page_html('principles', None, '0').decode()
+        self.assertEqual(_modal_source(fam, sourced.id),
+                         {'title': sourced.name, 'hidden': False,
+                          'parts': ['Source: ', _link(s.url, s.credit), ', built on ',
+                                    _link(s.upstream, s.upstream_credit)]})
+        self.assertEqual(_modal_source(fam, members[1].id), {'title': members[1].name, 'hidden': True, 'parts': []})
+
+    def test_a_community_modal_shows_its_source_dict(self):
+        entry = {'slug': 'c-20260101-abc123', 'id': 'zoom-reveal', 'family': None, 'category': 'Motion',
+                 'title': 'Zoom reveal', 'card': 'Zooms.', 'description': 'Zooms.', 'prompts': ('a', 'b', 'c'),
+                 'available': False, 'pending_update': False, 'source': {'url': POST, 'credit': '@some</script>'}}
+        page = capabilities.page_html(None, '0', community={'published': [entry], 'drafts': [], 'can_submit': False,
+                                                          'is_admin': False, 'fetch': False}).decode()
+        self.assertEqual(_modal_source(page, 'community:' + entry['slug']),
+                         {'title': 'Zoom reveal', 'hidden': False, 'parts': ['Source: ', _link(POST, '@some</script>')]})
 
 
 class Community(unittest.TestCase):
