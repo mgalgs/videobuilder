@@ -133,9 +133,9 @@ class TestDrawSegment(unittest.TestCase):
         cv = vb.Canvas(900, 300, '#000')
         tdm.draw_segment(cv, 20, 20, sans, old, ['different'], 0.0, '#ffffff')
         got, want = bytes(cv.surface.get_data()), self.plain(old, sans)
-        # a few antialiased edge pixels where words meet; summed per-letter widths
-        # (kerning lost) put the line's tail several px off and differ by thousands
-        self.assertLess(sum(a != b for a, b in zip(got, want)), 100)
+        # antialiased edge pixels where words meet (~100-200 bytes, varies with the
+        # font stack); summed per-letter widths (kerning lost) differ by ~20000
+        self.assertLess(sum(a != b for a, b in zip(got, want)), 2000)
 
     def test_too_many_tokens_crossfades_instead_of_raising(self):
         old = [' '.join('abcdefghijklmnopqrstuvwxyz')] * 80
