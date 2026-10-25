@@ -72,8 +72,29 @@ class Shown(unittest.TestCase):
         page = capabilities.page_html(None, '0', community={'published': [entry], 'drafts': [], 'can_submit': False,
                                                           'is_admin': False, 'fetch': False}).decode()
         card = page[page.index('<div class="community-card">'):]
+        self.assertTrue(card.startswith('<div class="community-card"><div class="sourced-card"><button class="card"'))
         card = card[:card.index('</div>')]
         self.assertIn(f'Source: <a href="{POST}"', card)
+        plain = capabilities._community_card_html({**entry, 'source': None}, False)
+        self.assertNotIn('sourced-card', plain)
+        self.assertNotIn('Source', plain)
+
+    def test_the_source_sits_inside_the_card(self):
+        # The sourced-card wrapper is the card's frame (the border a plain card's button has), its
+        # button frameless, so the Source line is inside the card and a row's cards line up.
+        page = capabilities.page_html(None, '0').decode()
+        style = page[page.index('<style>'):page.index('</style>')]
+        frame = re.search(r'\n\.sourced-card\{([^}]*)\}', style).group(1)
+        self.assertIn('border:1px solid #26262c', frame)
+        self.assertIn('border-radius:12px', frame)
+        self.assertIn('border:0', re.search(r'\.sourced-card > \.card\{([^}]*)\}', style).group(1))
+        for t in capabilities.cards():
+            if not t.source:
+                continue
+            with self.subTest(id=t.id):
+                at = page.index(f'<div class="sourced-card"><button class="card" type="button" data-card="{t.id}">')
+                card = page[at:page.index('</div>', at)]
+                self.assertTrue(card.endswith(capabilities.source_html(t.source)), card[-200:])
 
 
 # A page's modal script run under node against a stand-in DOM holding the page's own ids

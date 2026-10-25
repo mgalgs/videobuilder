@@ -620,7 +620,7 @@ h2{font-size:15px;text-transform:uppercase;letter-spacing:.04em;color:#a9a9b2;ma
 @media (max-width:1000px){.grid{grid-template-columns:repeat(3,1fr)}}
 @media (max-width:720px){main{padding:8px 16px 48px}.cap-head{padding-top:20px}}
 @media (max-width:700px){.grid{grid-template-columns:repeat(2,1fr)}}
-.card{display:block;width:100%;text-align:left;background:#141417;border:1px solid #26262c;border-radius:12px;
+.card{display:flex;flex-direction:column;width:100%;text-align:left;background:#141417;border:1px solid #26262c;border-radius:12px;
   padding:0;overflow:hidden;cursor:pointer;color:inherit;font:inherit;min-height:44px;text-decoration:none}
 .card:hover,.card:focus-visible{border-color:#e5483b;outline:none}
 .card .thumb{width:100%;aspect-ratio:1/1;background:#0d0d10;display:flex;align-items:center;justify-content:center;
@@ -629,8 +629,13 @@ h2{font-size:15px;text-transform:uppercase;letter-spacing:.04em;color:#a9a9b2;ma
 .card .meta{display:block;padding:10px 12px 14px}
 .card .meta strong{display:block;font-size:14px;margin-bottom:4px}
 .card .meta span{display:block;font-size:12.5px;color:#a9a9b2}
-.sourced-card{display:flex;flex-direction:column;gap:6px}
-.sourced-card .source,.community-card .source{font-size:12px;color:#a9a9b2;padding:0 4px}
+/* A sourced card's frame is its wrapper, so its Source line sits inside the card and a row's cards
+   line up with or without one. */
+.sourced-card{display:flex;flex-direction:column;background:#141417;border:1px solid #26262c;border-radius:12px;
+  overflow:hidden}
+.sourced-card:hover,.sourced-card:focus-within{border-color:#e5483b}
+.sourced-card > .card{flex:1 0 auto;border:0;border-radius:0}
+.sourced-card .source{font-size:12px;color:#a9a9b2;padding:0 12px 12px;margin-top:-6px}
 #modal{position:fixed;inset:0;background:#000c;display:flex;align-items:center;justify-content:center;
   padding:24px;z-index:30}
 #modal[hidden]{display:none}
@@ -1125,7 +1130,7 @@ _SEARCH_SCRIPT = """
     cards.forEach(function(card){
       var hay = (text[card.getAttribute('data-card')] || '') + ' ' + card.textContent.toLowerCase();
       var match = words.every(function(w){ return hay.indexOf(w) >= 0 });
-      hide(card.closest('.community-card, .sourced-card') || card, searching && !match);
+      hide(card.closest('.community-card') || card.closest('.sourced-card') || card, searching && !match);
       if(match) shown++;
     });
     main.querySelectorAll('.reel, .draft-section').forEach(function(el){ hide(el, searching) });
@@ -1381,22 +1386,23 @@ def _community_card_html(entry, is_admin):
     slug = entry['slug']
     thumb = (f'<img src="/capabilities/community/{_esc(slug)}.jpg" alt="" loading="lazy">' if entry.get('available')
             else '<span>clip not built</span>')
-    return (
-        '<div class="community-card">'
+    card = (
         f'<button class="card" type="button" data-card="{_esc("community:" + slug)}">'
         f'<span class="thumb">{thumb}</span>'
         f'<span class="meta"><strong>{_esc(entry["title"])}'
         '<span class="community-badge">Community</span></strong>'
         f'<span>{_esc(entry["card"])}</span></span>'
-        '</button>' + source_html(entry.get('source')) + _community_actions_html(entry, is_admin) +
-        '</div>'
-    )
+        '</button>')
+    if entry.get('source'):
+        card = f'<div class="sourced-card">{card}{source_html(entry["source"])}</div>'
+    return f'<div class="community-card">{card}{_community_actions_html(entry, is_admin)}</div>'
 
 
 
 def _card_html(card_id, title, card, thumb, source=None):
     """A capability's card; one with a `source` (schema.Source) gets its
-    Source link under it (`source_html`)."""
+    Source link (`source_html`) inside the card: the `sourced-card` wrapper
+    is then the card's frame, the button within it borderless."""
     html = (
         f'<button class="card" type="button" data-card="{_esc(card_id)}">'
         f'<span class="thumb">{thumb}</span>'
