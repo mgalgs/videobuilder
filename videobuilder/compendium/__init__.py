@@ -10,10 +10,18 @@ A component is one module under `components/`; see `schema.py` for the
 format (`Component`, `Slot`) and `catalog.py` for the registry, the index,
 and rendering previews.
 """
-from .catalog import (CATALOG, RECIPES, build, build_recipe_film, component_film, fingerprint, get, get_recipe,
-                      ids, index_data, index_json, index_markdown, kinds, recipe_ids)
 from .schema import Component, Recipe, RecipeStep, Slot, SlotError
 
-__all__ = ['CATALOG', 'Component', 'Recipe', 'RECIPES', 'RecipeStep', 'Slot', 'SlotError', 'build',
-           'build_recipe_film', 'component_film', 'fingerprint', 'get', 'get_recipe', 'ids', 'index_data',
-           'index_json', 'index_markdown', 'kinds', 'recipe_ids']
+_CATALOG_NAMES = ('CATALOG', 'RECIPES', 'build', 'build_recipe_film', 'component_film', 'fingerprint', 'get',
+                  'get_recipe', 'ids', 'index_data', 'index_json', 'index_markdown', 'kinds', 'recipe_ids')
+__all__ = ['Component', 'Recipe', 'RecipeStep', 'Slot', 'SlotError', *_CATALOG_NAMES]
+
+
+def __getattr__(name):
+    # The catalog imports every component, and their samples render images (text
+    # and all), so it loads on first use: `compendium.kit` alone (every
+    # capability demo imports it) must stay cheap.
+    if name in _CATALOG_NAMES:
+        from . import catalog
+        return getattr(catalog, name)
+    raise AttributeError(f'module {__name__!r} has no attribute {name!r}')
