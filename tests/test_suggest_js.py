@@ -40,6 +40,10 @@ console.log(JSON.stringify(hashtagCapIds({json.dumps(text)}, {json.dumps(caps)},
     def test_an_unknown_hashtag_is_ordinary_text_no_chip_no_error(self):
         self.assertEqual(self.run_js('#notacap and #also-not-one', {'map-route-draw': 1}), [])
 
+    def test_object_prototype_names_are_not_capabilities(self):
+        self.assertEqual(self.run_js('#constructor #toString #hasOwnProperty #__proto__', {'a': 1},
+                                     {'a-old': 'a'}), [])
+
     def test_repeats_are_deduplicated(self):
         self.assertEqual(self.run_js('#a #b #a', {'a': 1, 'b': 1}), ['a', 'b'])
 

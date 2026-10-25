@@ -281,8 +281,10 @@ function hashtagCapIds(text, caps, oldIds = {}) {
   HASHTAG_RE.lastIndex = 0;
   while ((m = HASHTAG_RE.exec(text))) {
     const typed = m[1].toLowerCase();
-    const id = Object.prototype.hasOwnProperty.call(oldIds, typed) && !caps[typed] ? oldIds[typed] : typed;
-    if (caps[id] && !out.includes(id)) out.push(id);
+    // own properties only: a plain object also "has" #constructor, #tostring...
+    const has = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
+    const id = has(oldIds, typed) && !has(caps, typed) ? oldIds[typed] : typed;
+    if (has(caps, id) && !out.includes(id)) out.push(id);
   }
   return out;
 }
