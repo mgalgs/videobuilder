@@ -3,6 +3,7 @@ flap, and `say` without the speech extra. A fake synthesizer stands in for
 Kokoro: no test needs the model or kokoro-onnx."""
 import array
 import contextlib
+import hashlib
 import io
 import json
 import math
@@ -383,6 +384,201 @@ class WithoutTheExtra(unittest.TestCase):
         env = {**os.environ, 'PYTHONPATH': str(ROOT)}
         out = subprocess.run([sys.executable, '-c', code], env=env, capture_output=True, text=True, check=True)
         self.assertEqual(out.stdout.split(), ['False', 'False'])
+
+
+
+class KokoroUnchanged(unittest.TestCase):
+    def test_kokoro_outputs_are_byte_for_byte_what_they_were(self):
+        # Hashes from before `say` had a second engine: the default path must never move.
+        want = {'.wav': 'f8efdab813f7937c9339cd58765f190ee15c0133b647dcb8e2637b86740025cd',
+                '.vtt': 'cc638b0ced07384d130275eb807351d60bf98888ef2596c79d32bd1e93621085',
+                '.json': 'a0ab9a72de396d69837483adf7f170bbff51a071834106d61ac163f4f3125156'}
+        with tempfile.TemporaryDirectory() as d:
+            out = Path(d, 'n.wav')
+            speech.say('Hello there.\nI am [Kokoro](/kko/), a fox | today.', out, FakeEngine(),
+                       lexicon={'fox': 'focks'})
+            got = {p.suffix: hashlib.sha256(p.read_bytes()).hexdigest()
+                   for p in (out, out.with_suffix('.vtt'), out.with_suffix('.json'))}
+        self.assertEqual(got, want)
+
+    def test_chatterbox_flags_are_refused_for_kokoro(self):
+        with self.assertRaisesRegex(SystemExit, '--seed is for --engine chatterbox'):
+            cli.main(['say', '--text', 'Hi.', '--seed', '3', '--out', 'never.wav'])
+
+
+class ChatterboxEngine(unittest.TestCase):
+    """`say --engine chatterbox` against tests/fake_chatterbox.py standing in
+    for Chatterbox's interpreter and its worker."""
+    SCRIPT = 'Tax revenue | rises.\nI am [Kokoro](/kko/), a fox.'
+
+    def setUp(self):
+        self.dir = Path(tempfile.mkdtemp())
+        self.addCleanup(__import__('shutil').rmtree, self.dir)
+        self.python = self.dir / 'python'
+        self.python.write_text(f'#!/bin/sh\nexec "{sys.executable}" "{ROOT / "tests" / "fake_chatterbox.py"}" "$@"\n')
+        self.python.chmod(0o755)
+        self.log = self.dir / 'log.jsonl'
+        env = {'VIDEOBUILDER_CHATTERBOX_PYTHON': str(self.python), 'FAKE_CHATTERBOX_LOG': str(self.log)}
+        patcher = mock.patch.dict(os.environ, env)
+        patcher.start()
+        self.addCleanup(patcher.stop)
+
+    def logged(self):
+        if not self.log.exists():
+            return [], []
+        lines = [json.loads(l) for l in self.log.read_text().splitlines()]
+        return [l['argv'] for l in lines if 'argv' in l], [l['text'] for l in lines if 'text' in l]
+
+    def say(self, *args):
+        out, err = io.StringIO(), io.StringIO()
+        with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
+            cli.main(['say', '--engine', 'chatterbox', '--text', self.SCRIPT, '--out', str(self.dir / 'n.wav'), *args])
+        return out.getvalue(), err.getvalue()
+
+    def test_writes_wav_vtt_and_json_with_phrase_cues(self):
+        _, err = self.say()
+        runs, texts = self.logged()
+        self.assertEqual(len(runs), 1)   # one process for every phrase
+        self.assertEqual(texts, ['Tax revenue rises.', 'I am Kokoro, a fox.'])
+        self.assertIn('[word](/phonemes/) speaks the word as written', err)
+        self.assertEqual(err.count('Chatterbox reads text'), 1)
+        doc = json.loads((self.dir / 'n.json').read_text())
+        self.assertEqual([p['text'] for p in doc['phrases']], texts)
+        p0, p1 = doc['phrases']
+        self.assertAlmostEqual(p0['end'] - p0['start'], 0.05 * len(texts[0]), delta=0.011)
+        self.assertAlmostEqual(p1['start'] - p0['end'], 0.03 + 0.35 + 0.03, delta=0.02)
+        self.assertEqual(doc['inputs'], {
+            'phrases': texts, 'gap': 0.35, 'engine': 'chatterbox', 'model': speech.Chatterbox.model_id,
+            'seed': 0, 'exaggeration': 0.4, 'cfg_weight': 0.5, 'voice': None, 'voice_sha256': None})
+        self.assertIn(speech.CHATTERBOX_REVISION, doc['inputs']['model'])
+        with wave.open(str(self.dir / 'n.wav')) as w:
+            self.assertEqual((w.getnchannels(), w.getsampwidth(), w.getframerate()), (1, 2, RATE))
+            self.assertAlmostEqual(w.getnframes() / RATE, doc['seconds'], places=3)
+        self.assertIn(f"{speech._ts(p1['start'])} --> {speech._ts(p1['end'])}\nI am Kokoro, a fox.\n",
+                      (self.dir / 'n.vtt').read_text())
+        argv = runs[0]
+        self.assertEqual(argv[0], str(speech.CHATTERBOX_WORKER))
+        for flag, v in (('--seed', '0'), ('--exaggeration', '0.4'), ('--cfg-weight', '0.5'),
+                        ('--revision', speech.CHATTERBOX_REVISION)):
+            self.assertEqual(argv[argv.index(flag) + 1], v)
+        self.assertNotIn('--voice', argv)
+
+    def test_a_break_never_reaches_the_worker(self):
+        self.SCRIPT = '| Tax | revenue || rises |.\n"Yes |" | she said.'
+        self.say()
+        _, texts = self.logged()
+        self.assertEqual(texts, ['Tax revenue rises.', '"Yes" she said.'])
+        self.assertFalse(any('|' in t for t in texts))
+
+    def test_reruns_only_when_seed_voice_contents_or_engine_change(self):
+        out = self.dir / 'n.wav'
+        self.say()
+        before = out.read_bytes()
+        printed, _ = self.say()
+        self.assertIn('unchanged', printed)
+        self.assertEqual(len(self.logged()[0]), 1)
+        self.say('--seed', '1')
+        self.assertEqual(len(self.logged()[0]), 2)
+        self.assertNotEqual(out.read_bytes(), before)
+        clip = self.dir / 'me.wav'
+        clip.write_bytes(b'x' * 10)
+        self.say('--seed', '1', '--voice', str(clip))
+        argv = self.logged()[0][-1]
+        self.assertEqual(argv[argv.index('--voice') + 1], str(clip.resolve()))
+        inputs = json.loads((self.dir / 'n.json').read_text())['inputs']
+        self.assertEqual(inputs['voice_sha256'], hashlib.sha256(b'x' * 10).hexdigest())
+        self.say('--seed', '1', '--voice', str(clip))
+        self.assertEqual(len(self.logged()[0]), 3)
+        clip.write_bytes(b'y' * 10)   # same path, other voice
+        self.say('--seed', '1', '--voice', str(clip))
+        self.assertEqual(len(self.logged()[0]), 4)
+        # Kokoro never reuses Chatterbox's audio, nor Chatterbox Kokoro's.
+        kokoro = FakeEngine()
+        speech.say(self.SCRIPT, out, kokoro)
+        self.assertEqual(len(kokoro.calls), 2)
+        self.say('--seed', '1', '--voice', str(clip))
+        self.assertEqual(len(self.logged()[0]), 5)
+
+    def test_a_kokoro_voice_name_says_what_voice_means_here(self):
+        with self.assertRaisesRegex(SystemExit, r"no voice clip 'af_heart'.*--voice is a \.wav"):
+            self.say('--voice', 'af_heart')
+        self.assertEqual(self.logged(), ([], []))
+
+    def test_kokoro_only_options_are_refused(self):
+        for flags in (['--lang', 'en-gb'], ['--phonemes'], ['--speed', '1.2']):
+            with self.subTest(flags=flags), self.assertRaises(SystemExit):
+                self.say(*flags)
+        self.assertFalse((self.dir / 'n.wav').exists())
+
+    def test_a_missing_interpreter_says_how_to_install_it(self):
+        os.environ['VIDEOBUILDER_CHATTERBOX_PYTHON'] = str(self.dir / 'nope' / 'python')
+        with self.assertRaises(SystemExit) as cm:
+            self.say()
+        msg = str(cm.exception)
+        self.assertTrue(msg.startswith('say: no Chatterbox interpreter at '))
+        for want in ('$VIDEOBUILDER_CHATTERBOX_PYTHON', 'uv pip install', 'chatterbox-tts==',
+                     'download.pytorch.org/whl/cpu'):
+            self.assertIn(want, msg)
+        self.assertFalse((self.dir / 'n.wav').exists())
+
+    def test_a_worker_failure_is_a_clear_error_and_writes_nothing(self):
+        os.environ['FAKE_CHATTERBOX_FAIL'] = 'ModuleNotFoundError: No module named chatterbox'
+        with self.assertRaises(SystemExit) as cm:
+            self.say()
+        self.assertIn('Chatterbox: ModuleNotFoundError', str(cm.exception))
+        self.assertIn('$VIDEOBUILDER_CHATTERBOX_PYTHON', str(cm.exception))
+        self.assertFalse((self.dir / 'n.wav').exists())
+
+
+class ChatterboxWorker(unittest.TestCase):
+    """The real chatterbox_worker.py, which runs in another interpreter."""
+    WORKER = ROOT / 'videobuilder' / 'chatterbox_worker.py'
+
+    def test_it_imports_nothing_from_videobuilder(self):
+        import ast
+        tree = ast.parse(self.WORKER.read_text(encoding='utf-8'))
+        names = set()
+        for node in ast.walk(tree):
+            if isinstance(node, ast.ImportFrom):
+                self.assertEqual(node.level, 0, 'a relative import')
+                names.add(node.module.split('.')[0])
+            elif isinstance(node, ast.Import):
+                names.update(n.name.split('.')[0] for n in node.names)
+        self.assertNotIn('videobuilder', names)
+        allowed = set(sys.stdlib_module_names) | {'torch', 'torchaudio', 'chatterbox', 'perth', 'numpy',
+                                                   'huggingface_hub'}
+        self.assertEqual(names - allowed, set())
+
+    def run_worker(self, modules):
+        with tempfile.TemporaryDirectory() as d:
+            for name, src in modules.items():
+                Path(d, *name.split('.')[:-1]).mkdir(parents=True, exist_ok=True)
+                Path(d, *name.split('.')).with_suffix('.py').write_text(src)
+            env = {**os.environ, 'PYTHONPATH': d}
+            return subprocess.run([sys.executable, str(self.WORKER), '--repo', 'r', '--revision', 'v'], env=env,
+                                  input='', capture_output=True, text=True)
+
+    def test_a_watermarker_that_did_not_load_is_an_error_naming_why(self):
+        # resemble-perth hides its own ImportError (pkg_resources, gone from setuptools 81 on) as None.
+        out = self.run_worker({
+            'perth.__init__': 'PerthImplicitWatermarker = None\nprint("noise on stdout")\n',
+            'perth.perth_net.__init__': '', 'perth.perth_net.perth_net_implicit.__init__': '',
+            'perth.perth_net.perth_net_implicit.perth_watermarker': 'from pkg_resources_gone import x\n',
+            'torch': '', 'chatterbox.__init__': '', 'chatterbox.tts': 'ChatterboxTTS = None\n',
+            'huggingface_hub': 'snapshot_download = None\n'})
+        self.assertEqual(out.returncode, 1)
+        msg = json.loads(out.stdout)   # one line: the library's print went to stderr
+        self.assertTrue(msg['install'])
+        self.assertIn("No module named 'pkg_resources_gone'", msg['error'])
+        self.assertIn("'setuptools<81'", msg['error'])
+        self.assertIn('noise on stdout', out.stderr)
+
+    def test_without_chatterbox_it_says_so(self):
+        out = self.run_worker({'perth': 'PerthImplicitWatermarker = object\n', 'torch': ''})
+        msg = json.loads(out.stdout)
+        self.assertEqual(out.returncode, 1)
+        self.assertTrue(msg['install'])
+        self.assertIn("No module named 'chatterbox'", msg['error'])
 
 
 if __name__ == '__main__':

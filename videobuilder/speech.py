@@ -23,6 +23,7 @@ will be read, to copy from. Two-part sounds reach the voice as Kokoro's
 single symbols (`ɔɪ` as `Y`, see `single_symbols`), typed or not. In English, 1100-1999 is read as a year.
 """
 import array
+import base64
 import hashlib
 import importlib.util
 import json
@@ -44,6 +45,18 @@ MODEL_URL = 'https://github.com/thewh1teagle/kokoro-onnx/releases/download/model
 INSTALL_HINT = ("text to speech needs the speech extra: pip install 'videobuilder[speech]' (kokoro-onnx), "
                 f'plus the model files {MODEL_FILES[0]} and {VOICES_FILE} from {MODEL_URL} '
                 'in $VIDEOBUILDER_KOKORO_DIR or ~/.cache/kokoro')
+
+CHATTERBOX_PYTHON = '/opt/chatterbox/bin/python'
+CHATTERBOX_REPO = 'ResembleAI/chatterbox'
+CHATTERBOX_REVISION = '5bb1f6ee58e50c3b8d408bc82a6d3740c2db6e18'
+CHATTERBOX_CACHE = '/opt/chatterbox/hf'
+CHATTERBOX_WORKER = Path(__file__).with_name('chatterbox_worker.py')
+CHATTERBOX_HINT = (
+    'Chatterbox runs in its own Python: $VIDEOBUILDER_CHATTERBOX_PYTHON (default '
+    f'{CHATTERBOX_PYTHON}). Make one with: uv venv --python 3.11 ~/.local/chatterbox && '
+    'uv pip install --python ~/.local/chatterbox/bin/python chatterbox-tts==0.1.7 "setuptools<81" '
+    '--extra-index-url https://download.pytorch.org/whl/cpu --index-strategy unsafe-best-match; '
+    'then export VIDEOBUILDER_CHATTERBOX_PYTHON=~/.local/chatterbox/bin/python')
 
 # Kokoro voice ids start with a language letter, then f/m.
 LANGS = {'a': 'en-us', 'b': 'en-gb', 'e': 'es', 'f': 'fr-fr', 'h': 'hi', 'i': 'it', 'j': 'ja', 'p': 'pt-br',
@@ -216,6 +229,80 @@ class Kokoro:
         if rate != RATE:
             raise ValueError(f'Kokoro returned {rate} Hz, expected {RATE}')
         return array.array('h', (np.clip(samples, -1, 1) * 32767).round().astype('<i2').tobytes())
+
+
+class Chatterbox:
+    """Chatterbox (Resemble AI) through chatterbox_worker.py, run in its own
+    interpreter ($VIDEOBUILDER_CHATTERBOX_PYTHON): one process per `say`,
+    loading the model once for all its phrases. It reads text, not phonemes,
+    and speaks English in its built-in voice, or in the voice of `voice` (a
+    reference clip)."""
+    speaks_text = True
+    model_id = f'{CHATTERBOX_REPO}@{CHATTERBOX_REVISION}'
+
+    def __init__(self, voice=None, seed=0, exaggeration=0.4, cfg_weight=0.5, python=None, cache_dir=None):
+        if voice is not None and not Path(voice).is_file():
+            raise ValueError(f'no voice clip {voice!r}: with --engine chatterbox, --voice is a .wav of the voice '
+                             "to speak in (default: Chatterbox's built-in voice), not a Kokoro voice name")
+        self.python = python or os.environ.get('VIDEOBUILDER_CHATTERBOX_PYTHON') or CHATTERBOX_PYTHON
+        if not (Path(self.python).is_file() and os.access(self.python, os.X_OK)):
+            raise SpeechUnavailable(f'no Chatterbox interpreter at {self.python}. {CHATTERBOX_HINT}')
+        cache = os.environ.get('VIDEOBUILDER_CHATTERBOX_CACHE')
+        self.cache_dir = cache_dir or cache or (CHATTERBOX_CACHE if Path(CHATTERBOX_CACHE).is_dir() else None)
+        self.voice = voice
+        self.voice_sha256 = hashlib.sha256(Path(voice).read_bytes()).hexdigest() if voice else None
+        self.seed, self.exaggeration, self.cfg_weight = seed, exaggeration, cfg_weight
+
+    def settings(self):
+        """What, beside the text, decides the audio: `say`'s inputs."""
+        return {'engine': 'chatterbox', 'model': self.model_id, 'seed': self.seed,
+                'exaggeration': self.exaggeration, 'cfg_weight': self.cfg_weight,
+                'voice': Path(self.voice).as_posix() if self.voice else None, 'voice_sha256': self.voice_sha256}
+
+    def synth_all(self, texts):
+        """16-bit mono samples at RATE for each text, in order."""
+        cmd = [self.python, str(CHATTERBOX_WORKER), '--repo', CHATTERBOX_REPO, '--revision', CHATTERBOX_REVISION,
+               '--seed', str(self.seed), '--exaggeration', repr(self.exaggeration),
+               '--cfg-weight', repr(self.cfg_weight)]
+        if self.cache_dir:
+            cmd += ['--cache-dir', str(self.cache_dir)]
+        if self.voice:
+            cmd += ['--voice', str(Path(self.voice).resolve())]
+        try:
+            proc = subprocess.Popen(cmd, stdin=subprocess.PIPE, stdout=subprocess.PIPE, encoding='utf-8')
+        except OSError as e:
+            raise SpeechUnavailable(f'could not run {self.python}: {e}. {CHATTERBOX_HINT}') from None
+        out = []
+        with proc:
+            try:
+                ready = self._reply(proc)
+                if ready.get('rate') != RATE:
+                    raise SpeechUnavailable(f"Chatterbox makes {ready.get('rate')} Hz, expected {RATE}")
+                for i, text in enumerate(texts):
+                    print(f'chatterbox {i + 1}/{len(texts)}: {text}', file=sys.stderr, flush=True)
+                    proc.stdin.write(json.dumps({'text': text}, ensure_ascii=False) + '\n')
+                    proc.stdin.flush()
+                    s = array.array('h', base64.b64decode(self._reply(proc)['samples']))
+                    out.append(s if sys.byteorder == 'little' else _swapped(s))
+            finally:
+                proc.stdin.close()
+                if proc.poll() is None and len(out) < len(texts):
+                    proc.kill()
+        return out
+
+    @staticmethod
+    def _reply(proc):
+        line = proc.stdout.readline()
+        if not line:
+            raise SpeechUnavailable(f'the Chatterbox worker exited ({proc.wait()}) without answering; '
+                                    'its own message, if any, is above')
+        try:
+            msg = json.loads(line)
+        except ValueError:
+            raise SpeechUnavailable(f'the Chatterbox worker said {line.strip()[:200]!r}, not JSON') from None
+        if 'error' in msg:
+            raise SpeechUnavailable(f"Chatterbox: {msg['error']}" + (f'. {CHATTERBOX_HINT}' if msg.get('install') else ''))
+        return msg
 
 
 def voice_options(engine=None):
@@ -411,14 +498,25 @@ def say(script, out, engine, voice=DEFAULT_VOICE, speed=1.0, lang=None, gap=0.35
     out = Path(out)
     if out.suffix.lower() != '.wav':
         raise ValueError(f'{out}: say writes a .wav')
+    reads_text = getattr(engine, 'speaks_text', False)
+    if reads_text and speed != 1.0:
+        raise ValueError(f'speed {speed}: Chatterbox has no speed setting')
     if not 0.5 <= speed <= 2.0:
         raise ValueError(f'speed {speed} is out of range: Kokoro takes 0.5 to 2.0')
     lang = lang or LANGS.get(voice[:1], 'en-us')
     items = phrases(script)
     if not items:
         raise ValueError('the script has no phrases: write one phrase or sentence per line')
-    inputs = {'phrases': items, 'voice': voice, 'speed': speed, 'lang': lang, 'gap': gap,
-              'lexicon': dict(sorted((lexicon or {}).items())), 'model': getattr(engine, 'model_id', None)}
+    if reads_text:
+        # The text the voice reads is the captions' own: `|` and phonemes have no meaning there.
+        texts = [caption_text(p) for p in items]
+        if lexicon or any(_INLINE.search(p) for p in items):
+            print("say: Chatterbox reads text, not phonemes: [word](/phonemes/) speaks the word as written, "
+                  'and --say/--lexicon respellings do not apply', file=sys.stderr)
+        inputs = {'phrases': texts, 'gap': gap, **engine.settings()}
+    else:
+        inputs = {'phrases': items, 'voice': voice, 'speed': speed, 'lang': lang, 'gap': gap,
+                  'lexicon': dict(sorted((lexicon or {}).items())), 'model': getattr(engine, 'model_id', None)}
     vtt_path, json_path = sidecars(out)
     if not force and out.is_file() and vtt_path.is_file() and json_path.is_file():
         try:
@@ -427,10 +525,13 @@ def say(script, out, engine, voice=DEFAULT_VOICE, speed=1.0, lang=None, gap=0.35
             old = {}
         if old.get('inputs') == inputs:
             return {**old, 'unchanged': True}
-    chunks = []
-    for p in items:
-        ph = phonemes_for(engine, spoken_parts(p, lexicon), lang)
-        chunks.append(engine.synth(ph, voice, speed, lang))
+    if reads_text:
+        chunks = engine.synth_all(texts)
+    else:
+        chunks = []
+        for p in items:
+            ph = phonemes_for(engine, spoken_parts(p, lexicon), lang)
+            chunks.append(engine.synth(ph, voice, speed, lang))
     samples, spans = assemble(chunks, RATE, gap=gap)
     cues = [(caption_text(p), round(a, 3), round(z, 3)) for p, (a, z) in zip(items, spans)]
     doc = {'audio': out.name, 'captions': vtt_path.name, 'seconds': round(len(samples) / RATE, 3),

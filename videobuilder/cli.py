@@ -401,9 +401,22 @@ def cmd_say(a):
     import json
     from pathlib import Path
     from . import speech
+    chatterbox = a.engine == 'chatterbox'
+    tuned = [f for f, v in (('--seed', a.seed), ('--exaggeration', a.exaggeration), ('--cfg-weight', a.cfg_weight))
+             if v is not None]
+    if tuned and not chatterbox:
+        raise SystemExit(f'say: {tuned[0]} is for --engine chatterbox')
+    if chatterbox and (a.list_voices or a.phonemes or a.lang):
+        raise SystemExit("say: Chatterbox reads English text in one built-in voice (or --voice clip.wav): "
+                         "--list-voices, --phonemes and --lang are Kokoro's")
     voice = a.voice or speech.DEFAULT_VOICE
     try:
-        engine = speech.Kokoro(a.model, a.voices, a.model_dir)
+        if chatterbox:
+            engine = speech.Chatterbox(a.voice, seed=0 if a.seed is None else a.seed,
+                                       exaggeration=0.4 if a.exaggeration is None else a.exaggeration,
+                                       cfg_weight=0.5 if a.cfg_weight is None else a.cfg_weight)
+        else:
+            engine = speech.Kokoro(a.model, a.voices, a.model_dir)
         if a.list_voices:
             for v in engine.voices():
                 lang = speech.LANGS.get(v[:1], '?')
@@ -729,11 +742,15 @@ def main(argv=None):
                      help='9x16, 16x9 or 1x1 = an MP4 (repeatable, one per format)')
     wnr.add_argument('id')
 
-    sy = sub.add_parser('say', help='narration: text to speech (Kokoro) to a WAV plus phrase-timed .vtt/.json')
+    sy = sub.add_parser('say', help='narration: text to speech (Kokoro or Chatterbox) to a WAV plus phrase-timed .vtt/.json')
     sy.add_argument('script', nargs='?', help='a text file: one phrase per line (sentences split too; # lines skipped)')
     sy.add_argument('--text', help='the script inline, instead of a file')
     sy.add_argument('--out', help='the .wav to write; the .vtt and .json go beside it')
-    sy.add_argument('--voice', help='a Kokoro voice id (default af_heart; see --list-voices)')
+    sy.add_argument('--engine', choices=('kokoro', 'chatterbox'), default='kokoro',
+                    help='kokoro (default: fast, takes phonemes and | breaks) or chatterbox (natural phrasing, '
+                         'slow, text only, in its own Python: $VIDEOBUILDER_CHATTERBOX_PYTHON)')
+    sy.add_argument('--voice', help='a Kokoro voice id (default af_heart; see --list-voices); with --engine '
+                                    "chatterbox, a .wav of the voice to speak in (default: Chatterbox's own)")
     sy.add_argument('--speed', type=float, default=1.0, help='0.5-2.0 (default 1.0)')
     sy.add_argument('--lang', help='espeak language (default: from the voice, e.g. en-us for a*, en-gb for b*)')
     sy.add_argument('--gap', type=float, default=0.35, help='seconds of silence between phrases (default 0.35)')
@@ -743,6 +760,9 @@ def main(argv=None):
     sy.add_argument('--phonemes', action='store_true', help='print how each phrase will be read, then stop')
     sy.add_argument('--list-voices', action='store_true')
     sy.add_argument('--force', action='store_true', help='synthesize even when the sidecar says nothing changed')
+    sy.add_argument('--seed', type=int, help='chatterbox: the seed set before every phrase (default 0)')
+    sy.add_argument('--exaggeration', type=float, help='chatterbox: emotion, 0-1 (default 0.4)')
+    sy.add_argument('--cfg-weight', type=float, help='chatterbox: guidance; lower paces slower (default 0.5)')
     sy.add_argument('--model', help='the Kokoro .onnx (default: found in $VIDEOBUILDER_KOKORO_DIR, /opt/kokoro, ~/.cache/kokoro)')
     sy.add_argument('--voices', help='voices-v1.0.bin (default: beside the model)')
     sy.add_argument('--model-dir', help='look for both model files here')
