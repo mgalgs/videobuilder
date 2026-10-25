@@ -21,6 +21,9 @@ between the slashes and captions the word in brackets (Kokoro's own syntax);
 (a value in slashes is phonemes). `say --phonemes` prints how each phrase
 will be read, to copy from. Two-part sounds reach the voice as Kokoro's
 single symbols (`ɔɪ` as `Y`, see `single_symbols`), typed or not. In English, 1100-1999 is read as a year.
+
+`say --engine chatterbox` reads the same script's text with Chatterbox
+instead (see `Chatterbox`): slower, phrased by the model, no phonemes.
 """
 import array
 import base64

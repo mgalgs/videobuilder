@@ -988,6 +988,27 @@ python -m videobuilder editor --library DIR [--checkouts DIR2] [--state-dir DIR3
   `ffmpeg -i x.wav -af silencedetect=noise=-40dB:d=0.12 -f null -`, and move one
   with `|` between words (`tax revenue | rises`), which the voice hears as a
   comma and the captions never show, rather than by rewording or adding a comma.
+  Where Kokoro's phrasing still sounds wrong, `say --engine chatterbox` reads
+  the same script with Chatterbox (Resemble AI, MIT, 0.5B): natural phrasing
+  from the plain text, but slow (about 7x real time on CPU; unchanged scripts
+  are never redone) and text only: `|` is dropped, `[word](/phonemes/)` speaks
+  the word, and `--say`/`--lexicon` don't apply. Same outputs, captions and
+  `--gap`; `--voice clip.wav` speaks in that clip's voice (default its
+  built-in one), and `--seed` (0), `--exaggeration` (0.4) and `--cfg-weight`
+  (0.5) tune it, seeded per phrase so a re-run gives the same audio. It runs
+  in its own Python, `$VIDEOBUILDER_CHATTERBOX_PYTHON` (default
+  `/opt/chatterbox/bin/python`, already in the builder agent's image), with
+  `videobuilder/chatterbox_worker.py`. On a host:
+
+      uv venv --python 3.11 ~/.local/chatterbox
+      uv pip install --python ~/.local/chatterbox/bin/python chatterbox-tts==0.1.7 'setuptools<81' \
+          --extra-index-url https://download.pytorch.org/whl/cpu --index-strategy unsafe-best-match
+      export VIDEOBUILDER_CHATTERBOX_PYTHON=~/.local/chatterbox/bin/python
+
+  The weights (about 3 GB, at the revision `speech.CHATTERBOX_REVISION`)
+  download into the Hugging Face cache on first use, or
+  `$VIDEOBUILDER_CHATTERBOX_CACHE`. `setuptools<81` matters: without
+  `pkg_resources`, Chatterbox's Perth watermarker fails to import silently.
 - `sfx`: sound effects. `vb.sfx.sound(id, at=frame)` puts a sound from the
   sound-effects pack (earshot's bank, MIT) on a frame by its peak or onset;
   `python -m videobuilder sfx fetch` downloads the pack (checked against

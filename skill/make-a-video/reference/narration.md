@@ -2,8 +2,9 @@
 
 For a video that someone should hear talking: a voiceover read from a
 script, captions that follow it, and optionally a cut-out character whose
-mouth moves with it. The voice is Kokoro (open weights, Apache-2.0), run
-once by `python -m videobuilder say`. The film loads the files `say` wrote
+mouth moves with it. The voice is Kokoro (open weights, Apache-2.0), or
+Chatterbox with `--engine chatterbox` (see "Choosing the engine"), run once
+by `python -m videobuilder say`. The film loads the files `say` wrote
 like any other sound; rendering never runs the model.
 
 ## Making the voice
@@ -45,6 +46,35 @@ remakes it anyway.
 - Without the model, `say` says what to install: `pip install
   'videobuilder[speech]'` and the two model files. In the videobuilder
   image they are already there.
+
+## Choosing the engine
+
+- **Kokoro** (the default): fast (a few seconds for a whole script), many
+  voices, and you steer it: phonemes, respellings and `|` breaks (below).
+  Start here.
+- **Chatterbox** (`--engine chatterbox`): a larger model that phrases from
+  the plain text the way a person would, where Kokoro keeps breaking in the
+  wrong place even with `|`. Slow, about 7x real time (half a minute per
+  sentence), but an unchanged script is never redone. Text only: `|` is
+  dropped, `[word](/phonemes/)` speaks the word as written, and
+  `--say`/`--lexicon` don't apply (it says so). Same script, same `.wav`,
+  `.vtt` and `.json`, same `--gap`; English only, no `--speed`,
+  `--phonemes`, `--lang` or `--list-voices`.
+  - `--voice clip.wav`: speak in the voice of a clip (a few clean seconds of
+    one speaker); default is Chatterbox's own voice. A Kokoro voice name is
+    an error here.
+  - `--seed` (default 0): set before every phrase, so a re-run gives the
+    same audio, and editing one line leaves the others sounding the same
+    (every line is still redone, so expect the wait). Another seed is
+    another take.
+  - `--exaggeration` (0-1, default 0.4): more is more emotional, and
+    faster. `--cfg-weight` (default 0.5): lower paces slower.
+  - It runs in its own Python, `$VIDEOBUILDER_CHATTERBOX_PYTHON` (default
+    `/opt/chatterbox/bin/python`, already there in the builder's image);
+    without it `say` prints the commands that install it.
+
+Switching engine (or seed, voice clip or setting) re-synthesizes; the
+`.json` records which made the audio.
 
 ## Fixing a mispronounced word
 
