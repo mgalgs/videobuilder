@@ -7,6 +7,7 @@ and `draw_mesh` projects, lights and paints it flat-shaded with a painter's
 sort, so a film can wobble any closed mesh it has.
 """
 import math
+from functools import lru_cache
 
 import videobuilder as vb
 from videobuilder.canvas import rgba
@@ -148,12 +149,14 @@ def draw_mesh(cv, vertices, faces, cx, cy, radius, color, yaw=0.0, pitch=0.0, li
     return vb.Box(min(xs), min(ys), max(xs) - min(xs), max(ys) - min(ys))
 
 
-SPHERE = icosphere(4)
+@lru_cache(maxsize=None)
+def _sphere():
+    return icosphere(4)
 
 
 def draw(n, cv):
     t = n / demo.FPS
-    verts, faces = SPHERE
+    verts, faces = _sphere()
     cx, cy, radius = demo.W / 2, demo.H / 2 - 20, 150
     # A soft contact shadow, so the blob floats over a floor.
     with cv.layer(opacity=0.5):

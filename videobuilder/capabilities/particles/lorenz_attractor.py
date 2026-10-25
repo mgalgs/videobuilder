@@ -2,6 +2,7 @@
 path, drawn as a glowing line, loops round one wing then the other without
 ever retracing itself, sketching the two-lobed butterfly."""
 import math
+from functools import lru_cache
 
 import videobuilder as vb
 
@@ -67,13 +68,15 @@ def draw_trace(cv, points, color, head_color=None, width=2.0, tail=160, alpha=1.
     cv.mark('head', hx - 6, hy - 6, 12, 12)
 
 
-_PATH = lorenz_trajectory(2400, dt=0.008, start=(1.0, 1.0, 1.0), settle=2000)
+@lru_cache(maxsize=None)
+def _path():
+    return lorenz_trajectory(2400, dt=0.008, start=(1.0, 1.0, 1.0), settle=2000)
 
 
 def draw(n, cv):
     p = n / (demo.FPS * demo.SECONDS)
     shown = 900 + round(1500 * p)   # opens with both wings sketched, then keeps tracing
-    pts = project_attractor(_PATH[:shown], demo.W / 2, demo.H / 2, 500, yaw=-0.05 - 0.35 * p, tilt=0.1)
+    pts = project_attractor(_path()[:shown], demo.W / 2, demo.H / 2, 500, yaw=-0.05 - 0.35 * p, tilt=0.1)
     draw_trace(cv, pts, '#7f8cff', head_color='#f2c84b', width=2.0)
 
 

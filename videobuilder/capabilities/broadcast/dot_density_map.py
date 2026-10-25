@@ -4,6 +4,7 @@ the region they count. Busy places come out dense and dark with dots, empty
 ones stay sparse, and two colours of dot show a mix at a glance."""
 import math
 import random
+from functools import lru_cache
 
 import videobuilder as vb
 
@@ -113,11 +114,15 @@ def _provinces(cols=6, rows=3, x=170, y=50, w=620, h=370, seed=4):
 
 
 _REGIONS = _provinces()
-_DOTS = dot_density(_REGIONS, unit=100, seed=9)
+
+
+@lru_cache(maxsize=None)
+def _dots():
+    return dot_density(_REGIONS, unit=100, seed=9)
 
 
 def draw(n, cv):
-    draw_dot_density_map(cv, _REGIONS, _DOTS, demo.phase(n, 0.3, 2.5),
+    draw_dot_density_map(cv, _REGIONS, _dots(), demo.phase(n, 0.3, 2.5),
                          {'a': demo.ACCENT, 'b': demo.TEAL}, r=1.8, land='#1b1d23')
     f = demo.font(15, 600)
     y = demo.H - 50

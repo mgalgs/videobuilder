@@ -3,6 +3,7 @@ rigid shards, and the shards fly off the hit, tumble under gravity, bounce
 on the floor and come to rest in a heap of rubble."""
 import math
 import random
+from functools import lru_cache
 
 import videobuilder as vb
 
@@ -111,8 +112,13 @@ BALL_R = 34
 HIT_AT = 0.7                   # seconds: when the ball meets the block
 _bx, _by, _bw, _bh = BLOCK
 IMPACT = (_bx, _by + _bh * 0.55)
-SHARDS = shatter([[(_bx, _by), (_bx + _bw, _by), (_bx + _bw, _by + _bh), (_bx, _by + _bh)]], pieces=46, seed=5)
-KICKS = launch(SHARDS, IMPACT, seed=5, speed=330, lift=320)
+
+
+@lru_cache(maxsize=None)
+def _pieces():
+    """`(shards, kicks)`: the block broken and launched, on the first frame."""
+    shards = shatter([[(_bx, _by), (_bx + _bw, _by), (_bx + _bw, _by + _bh), (_bx, _by + _bh)]], pieces=46, seed=5)
+    return shards, launch(shards, IMPACT, seed=5, speed=330, lift=320)
 
 
 def _ball(t):
@@ -127,7 +133,7 @@ def _ball(t):
 def draw(n, cv):
     t = n / demo.FPS
     demo.floor(cv, FLOOR, demo.LINE)
-    draw_fracture(cv, SHARDS, KICKS, t - HIT_AT, demo.INK, floor=FLOOR, seed=5)
+    draw_fracture(cv, *_pieces(), t - HIT_AT, demo.INK, floor=FLOOR, seed=5)
     demo.dot(cv, *_ball(t), BALL_R, '#f2c14e')
     cv.mark('block', *BLOCK)
 

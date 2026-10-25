@@ -16,7 +16,6 @@ import videobuilder as vb
 
 from .. import _demo as demo
 from ..schema import Capability
-from ...compendium.components.title_extruded_3d import _outline
 
 NEAR = 0.2   # the camera's near plane, in tunnel half-heights: glyphs are cut off where they cross it
 
@@ -74,6 +73,8 @@ def draw_tunnel_type(cv, text, font, travel, color=demo.INK, fog=demo.BG, walls=
     how deep the walls run. Each wall in `walls` (names from `WALLS`) fills
     with `colors[wall]` if given, else `color`, fading into `fog` towards the
     vanishing point. `edges`, if not None, strokes the tunnel's four corners."""
+    # the components package loads every component: import it on use, not at import
+    from ...compendium.components.title_extruded_3d import _outline
     cx = cv.width / 2 if cx is None else cx
     cy = cv.height / 2 if cy is None else cy
     k = cv.height / 2 if scale is None else scale

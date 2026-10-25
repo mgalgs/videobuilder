@@ -47,25 +47,31 @@ def make_lut(grade=teal_orange, size=17):
     return ImageFilter.Color3DLUT.generate(size, grade)
 
 
-TEAL_ORANGE = make_lut()
+def __getattr__(name):
+    # TEAL_ORANGE is built on first use (`make_lut` caches it), not at import.
+    if name == 'TEAL_ORANGE':
+        return make_lut()
+    raise AttributeError(f'module {__name__!r} has no attribute {name!r}')
 
 
-def grade_image(im, lut=TEAL_ORANGE, amount=1.0):
+def grade_image(im, lut=None, amount=1.0):
     """A PIL RGB image sent through `lut`, mixed `amount` (0..1) of the way
-    from the original to the fully graded picture."""
+    from the original to the fully graded picture. `lut` defaults to
+    `TEAL_ORANGE`."""
     if amount <= 0:
         return im
+    lut = make_lut() if lut is None else lut
     graded = im.convert('RGB').filter(lut)
     return graded if amount >= 1 else Image.blend(im.convert('RGB'), graded, amount)
 
 
-def lut_grade(cv, lut=TEAL_ORANGE, amount=1.0, box=None):
+def lut_grade(cv, lut=None, amount=1.0, box=None):
     """A context manager: what is on `cv` already, and everything drawn
     inside the block, goes through the colour lookup table `lut` when the
     block ends -- every pixel, or only those in `box` ((x, y, w, h), frame
     px). `amount` (0..1) dials the grade in: animate it to fade the look up,
     or animate `box` to wipe it across. Draw copy that must keep its own
-    colours after the block."""
+    colours after the block. `lut` defaults to `TEAL_ORANGE`."""
     flt = Filter('lut-grade', 'LUT color grade', 'colours remapped through a lookup table',
                  lambda im, t, age, u: grade_image(im, lut, amount))
     return apply(cv, flt, 0.0, box=box)

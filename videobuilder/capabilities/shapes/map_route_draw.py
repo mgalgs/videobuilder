@@ -1,5 +1,7 @@
 """Map Route Draw: a travel line grows across a map from stop to stop, a marker
 riding its tip, each stop's pin popping in as the line reaches it."""
+from functools import lru_cache
+
 import videobuilder as vb
 from videobuilder import paths
 
@@ -79,7 +81,11 @@ LAND = (
 )
 STOPS = [(170, 200), (300, 380), (560, 160), (790, 400)]
 NAMES = ('ORIGIN', 'STOP 1', 'STOP 2', 'ARRIVAL')
-_COAST = [paths.torn(paths.resample(land, 60, closed=True), seed=i, amount=6) for i, land in enumerate(LAND)]
+
+
+@lru_cache(maxsize=None)
+def _coast():
+    return [paths.torn(paths.resample(land, 60, closed=True), seed=i, amount=6) for i, land in enumerate(LAND)]
 
 
 def _map(cv):
@@ -88,7 +94,7 @@ def _map(cv):
         cv.line(x, 0, x, demo.H, '#22303f', width=1)
     for y in range(30, demo.H, 80):
         cv.line(0, y, demo.W, y, '#22303f', width=1)
-    for coast in _COAST:
+    for coast in _coast():
         paths.draw(cv, coast, '#2b3a4c', fill=True)
         paths.draw(cv, coast, '#3b4d63', width=1.5, closed=True)
 

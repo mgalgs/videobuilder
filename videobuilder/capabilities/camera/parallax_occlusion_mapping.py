@@ -12,6 +12,7 @@ most `resolution` px wide and scaled up to its box. Needs numpy (imported
 when a frame is drawn, so the registry loads without it).
 """
 import math
+from functools import lru_cache
 
 from PIL import Image as PILImage
 
@@ -263,13 +264,15 @@ def relief_plane(cv, grid, box, tilt=40.0, turn=0.0, depth=0.9, tiles=5, distanc
     cv.image(img, x, y, w, h)
 
 
-GRID = relief_texture(stud_height)
+@lru_cache(maxsize=None)
+def _grid():
+    return relief_texture(stud_height)
 
 
 def draw(n, cv):
     p = vb.ease_in_out_quart(demo.phase(n, 0.0, demo.SECONDS))
     grow = vb.ease_out_expo(demo.phase(n, 0.35, 1.3))  # flat texture first, then the relief appears
-    relief_plane(cv, GRID, (0, 0, demo.W, demo.H), tilt=64 - 40 * p, turn=-30 + 55 * p,
+    relief_plane(cv, _grid(), (0, 0, demo.W, demo.H), tilt=64 - 40 * p, turn=-30 + 55 * p,
                  depth=0.9 * grow, distance=12 - 2.5 * p, aim=1.5 * p)
 
 

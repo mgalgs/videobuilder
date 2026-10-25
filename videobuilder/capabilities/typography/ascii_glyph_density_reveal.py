@@ -5,6 +5,7 @@ the grid churn as noise before it settles into a word. This module's own
 code stays (a film may still import it), but it is no longer a capability
 of its own."""
 import random
+from functools import lru_cache
 
 import videobuilder as vb
 
@@ -77,15 +78,28 @@ def draw_density(cv, densities, font, x, y, cell_w, cell_h, color, dim=None, ram
 
 
 FONT = demo.mono(12, 700)
-CELL_W, CELL_H = vb.text.measure('@', FONT), 14
-COLS, ROWS = int(840 // CELL_W), int(230 // CELL_H)
-_grid = []
+CELL_H = 14
+
+
+@lru_cache(maxsize=None)
+def _layout():
+    """`(cell_w, cols, rows, coverage grid)`: measured on the first frame,
+    not at import, so listing capabilities lays out no text."""
+    cell_w = vb.text.measure('@', FONT)
+    cols, rows = int(840 // cell_w), int(230 // CELL_H)
+    return cell_w, cols, rows, coverage_grid('MOTION', demo.font(190, 900), cols, rows, cell_w, CELL_H)
+
+
+def __getattr__(name):
+    # CELL_W, COLS and ROWS were module constants, and a film may still import them.
+    if name in ('CELL_W', 'COLS', 'ROWS'):
+        return _layout()[('CELL_W', 'COLS', 'ROWS').index(name)]
+    raise AttributeError(f'module {__name__!r} has no attribute {name!r}')
 
 
 def draw(n, cv):
-    if not _grid:
-        _grid.append(coverage_grid('MOTION', demo.font(190, 900), COLS, ROWS, CELL_W, CELL_H))
-    x, y = (demo.W - COLS * CELL_W) / 2, (demo.H - ROWS * CELL_H) / 2
-    dens = density_frame(_grid[0], demo.phase(n, 0.3, 2.4), seed=5)
-    box = draw_density(cv, dens, FONT, x, y, CELL_W, CELL_H, demo.INK, dim=demo.LINE)
+    cell_w, cols, rows, grid = _layout()
+    x, y = (demo.W - cols * cell_w) / 2, (demo.H - rows * CELL_H) / 2
+    dens = density_frame(grid, demo.phase(n, 0.3, 2.4), seed=5)
+    box = draw_density(cv, dens, FONT, x, y, cell_w, CELL_H, demo.INK, dim=demo.LINE)
     cv.mark('text', *box)

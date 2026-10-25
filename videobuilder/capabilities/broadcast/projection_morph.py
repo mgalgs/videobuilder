@@ -2,6 +2,7 @@
 back up), every coastline and grid line sliding smoothly from where the
 sphere puts it to where the flat map does."""
 import math
+from functools import lru_cache
 
 import videobuilder as vb
 from videobuilder import paths
@@ -84,7 +85,9 @@ def land_cells(outlines=CONTINENTS, cell=CELL):
     return rows
 
 
-_LAND = land_cells()
+@lru_cache(maxsize=None)
+def _land():
+    return land_cells()
 
 
 def _wrap(lon):
@@ -102,7 +105,7 @@ def draw_projection_morph(cv, cx, cy, progress, radius, spin=0.0, land=demo.TEAL
     30-degree graticule and the equator. `spin` (degrees) turns the world
     eastward under the centre meridian, for a globe that rotates before or
     after it unrolls. `rows` is a `land_cells` result (default: a rough Earth)."""
-    rows = _LAND if rows is None else rows
+    rows = _land() if rows is None else rows
     span = visible_span(progress)
 
     def pt(lon, lat):

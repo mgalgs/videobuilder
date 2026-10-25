@@ -3,6 +3,7 @@ the side facing the light goes yellow-orange, the side turned away goes
 blue -- with a dark ink outline round its silhouette, the technical
 illustration look."""
 import math
+from functools import lru_cache
 
 import cairo
 
@@ -111,14 +112,18 @@ def gooch_mesh(cv, quads, cx, cy, yaw=0.0, pitch=0.0, roll=0.0, outline='#101114
         cv.mark('gooch', min(xs), min(ys), max(xs) - min(xs), max(ys) - min(ys))
 
 
-TORUS = torus_mesh(150, 62)
+@lru_cache(maxsize=None)
+def _torus():
+    return torus_mesh(150, 62)
+
+
 PAPER = '#e9e6df'   # a light ground, so the ink outline reads as it would on a technical drawing
 
 
 def draw(n, cv):
     p = n / (demo.SECONDS * demo.FPS)
     cv.fill(PAPER)
-    gooch_mesh(cv, TORUS, demo.W / 2, demo.H / 2,   # tumbles end over end under a fixed light
+    gooch_mesh(cv, _torus(), demo.W / 2, demo.H / 2,   # tumbles end over end under a fixed light
                pitch=0.75 + 0.85 * math.pi * p, roll=0.5 - 0.6 * p)
 
 

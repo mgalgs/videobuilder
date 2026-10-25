@@ -3,6 +3,7 @@ and a turtle reads the result as draw-forward, turn and branch commands, so a
 whole branching plant grows up from one stem, tips budding as they arrive."""
 import math
 import random
+from functools import lru_cache
 
 import videobuilder as vb
 
@@ -100,17 +101,20 @@ def draw_l_system_plant(cv, x, y, p, height=440, generations=5, color=demo.TEAL,
     return vb.Box(x + min(xs) * k, y + min(ys) * k, (max(xs) - min(xs)) * k, height)
 
 
-DEMO_PLANT = l_system_plant(5, jitter=4, seed=3)
+@lru_cache(maxsize=None)
+def _demo_plant():
+    return l_system_plant(5, jitter=4, seed=3)
 
 
 def draw(n, cv):
     p = vb.ease_in_out_quart(demo.phase(n, 0.2, 2.6))
     demo.floor(cv, 490, demo.LINE)
-    segs = DEMO_PLANT[0]
+    plant = _demo_plant()
+    segs = plant[0]
     xs = [c for s in segs for c in (s[0], s[2])]
     ys = [c for s in segs for c in (s[1], s[3])]
     lean = (min(xs) + max(xs)) / 2 * 430 / (max(ys) - min(ys))  # centre the crown, not the root
-    box = draw_l_system_plant(cv, demo.W / 2 - lean, 490, p, height=430, plant=DEMO_PLANT)
+    box = draw_l_system_plant(cv, demo.W / 2 - lean, 490, p, height=430, plant=plant)
     cv.mark('plant', *box)
     f = demo.mono(17, 500)
     vb.text.draw(cv, ['X -> F+[[X]-X]-F[-FX]+X', 'F -> FF'], f, 40, 36, demo.MUTED)

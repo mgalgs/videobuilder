@@ -3,6 +3,7 @@ sliding, scaling or turning into its own slot, until together they lock into
 a composed poster."""
 import math
 from dataclasses import dataclass
+from functools import lru_cache
 
 import videobuilder as vb
 
@@ -84,18 +85,23 @@ def _left(text, x, size, weight=800, **kw):
 
 
 GRID = 250  # the right column's left edge; the turned word stands in the gutter before it
-BLOCKS = (
-    _left('SAY IT', GRID, 104)(118, enter='left', start=0.15),
-    _left('LOUDER', GRID, 104)(222, enter='right', start=0.45),
-    PosterBlock('TYPE', 165, 300, size=92, color=demo.ACCENT, angle=-math.pi / 2, enter='rotate', start=0.8),
-    _left('IN MOTION', GRID, 58, color=demo.TEAL)(318, enter='up', start=1.1),
-    _left('ON THE GRID', GRID, 58)(382, enter='scale', start=1.35),
-    _left('VOL. 01  /  NO. 03', GRID, 20, weight=600, color=demo.MUTED)(462, enter='down', start=1.6),
-)
+
+
+@lru_cache(maxsize=None)
+def _blocks():
+    # Built on the first frame: placing a block on the grid measures its text.
+    return (
+        _left('SAY IT', GRID, 104)(118, enter='left', start=0.15),
+        _left('LOUDER', GRID, 104)(222, enter='right', start=0.45),
+        PosterBlock('TYPE', 165, 300, size=92, color=demo.ACCENT, angle=-math.pi / 2, enter='rotate', start=0.8),
+        _left('IN MOTION', GRID, 58, color=demo.TEAL)(318, enter='up', start=1.1),
+        _left('ON THE GRID', GRID, 58)(382, enter='scale', start=1.35),
+        _left('VOL. 01  /  NO. 03', GRID, 20, weight=600, color=demo.MUTED)(462, enter='down', start=1.6),
+    )
 
 
 def draw(n, cv):
-    draw_poster(cv, BLOCKS, n / demo.FPS)
+    draw_poster(cv, _blocks(), n / demo.FPS)
     if n / demo.FPS > 1.9:
         cv.mark('poster', 100, 40, demo.W - 200, demo.H - 80)
 

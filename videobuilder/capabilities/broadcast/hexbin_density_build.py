@@ -3,6 +3,7 @@ counted into a honeycomb of hexagonal bins, each cell deepening in colour as
 more points land in it, until the density pattern stands out."""
 import math
 import random
+from functools import lru_cache
 
 import videobuilder as vb
 
@@ -88,17 +89,21 @@ def sample_points(n, clusters, seed=0):
 
 
 X0, Y0, X1, Y1 = 110, 50, 820, 490
-POINTS = [(x, y) for x, y in sample_points(
-    1600, ((420, 330, 75, 5), (610, 220, 48, 3), (300, 170, 35, 1.5), (470, 270, 160, 2)), seed=4)
-    if X0 < x < X1 and Y0 < y < Y1]
 RAMP = ('#2a2c33', '#4fc3b0', '#f2b705', '#ef5b4c')
+
+
+@lru_cache(maxsize=None)
+def _points():
+    return [(x, y) for x, y in sample_points(
+        1600, ((420, 330, 75, 5), (610, 220, 48, 3), (300, 170, 35, 1.5), (470, 270, 160, 2)), seed=4)
+        if X0 < x < X1 and Y0 < y < Y1]
 
 
 def draw(n, cv):
     cv.line(X0 - 10, Y1 + 10, X1, Y1 + 10, demo.MUTED, width=2)
     cv.line(X0 - 10, Y0, X0 - 10, Y1 + 10, demo.MUTED, width=2)
     with cv.clip(X0 - 8, Y0, X1 - X0 + 8, Y1 - Y0 + 8):
-        hexbin_build(cv, POINTS, demo.phase(n, 0.2, 2.6), size=17, origin=(demo.W / 2, demo.H / 2),
+        hexbin_build(cv, _points(), demo.phase(n, 0.2, 2.6), size=17, origin=(demo.W / 2, demo.H / 2),
                      ramp=RAMP, drop=0.1)
     # density legend
     for i in range(6):

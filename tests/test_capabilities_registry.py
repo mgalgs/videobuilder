@@ -358,6 +358,48 @@ class Cli(unittest.TestCase):
         self.assertNotIn('http', re.sub(r'<span class="source">.*?</span>', '', page))
 
 
+_COLD_IDS = '''
+import json, sys, time
+t0 = time.process_time()
+import videobuilder.text as text
+families = []
+lookup = text._warn_missing_family
+def spy(family):
+    families.append(family)
+    return lookup(family)
+text._warn_missing_family = spy
+from videobuilder.capabilities import registry
+n = len(registry.ids())
+components = sys.modules.get('videobuilder.compendium.components')
+print(json.dumps({'ids': n, 'seconds': time.process_time() - t0, 'families': families,
+                  'catalog': 'videobuilder.compendium.catalog' in sys.modules,
+                  'components_catalog': components is not None and 'CATALOG' in vars(components)}))
+'''
+
+
+class ColdIds(unittest.TestCase):
+    """Listing capabilities imports every capability module, so a module that
+    does real work at import (lays out text, builds a mesh, loads the
+    compendium's components) slows every listing: work a module needs goes
+    in the draw or demo that uses it, cached (see `functools.lru_cache`)."""
+
+    # CPU seconds, not wall time, so a loaded box doesn't flake it: measured
+    # at 1.2-1.5 s with no bytecode cache on a busy 16-core box (0.5 s with
+    # one), so this is about 3x. The text and compendium checks catch the
+    # known costs; the budget, whatever else a module starts doing at import.
+    BUDGET = 4.5
+
+    def test_ids_in_a_fresh_interpreter_does_no_work_at_import(self):
+        proc = subprocess.run([sys.executable, '-c', _COLD_IDS], cwd=ROOT, capture_output=True, text=True)
+        self.assertEqual(proc.returncode, 0, proc.stderr)
+        out = json.loads(proc.stdout)
+        self.assertGreater(out['ids'], 0)
+        self.assertEqual(out['families'], [], 'a capability module laid out text at import')
+        self.assertFalse(out['catalog'], 'a capability module imported the compendium catalog')
+        self.assertFalse(out['components_catalog'], "a capability module built the compendium's components")
+        self.assertLess(out['seconds'], self.BUDGET)
+
+
 class OneCapabilityAlone(unittest.TestCase):
     def test_documented_command_runs_one_capability(self):
         proc = subprocess.run([sys.executable, '-m', 'unittest', '-v',

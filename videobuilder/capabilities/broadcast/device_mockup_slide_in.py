@@ -8,7 +8,6 @@ from videobuilder import Box
 
 from .. import _demo as demo
 from ..schema import Capability
-from ...compendium.components import _images_util as u
 
 BODY = '#0e0f13'
 RIM = '#3a3d47'
@@ -23,6 +22,8 @@ def _screen(cv, screen, box, radius=0):
         with cv.clip(*box, radius):
             screen(cv, box)
     else:
+        # the components package loads every component: import it on use, not at import
+        from ...compendium.components import _images_util as u
         u.cover_image(cv, screen, box, fy=0.0, radius=radius)
 
 
@@ -122,6 +123,7 @@ def _dashboard(cv, box):
 
 
 def draw(n, cv):
+    from ...compendium.components import _images_util as u
     laptop = Box(demo.W / 2 - 330, demo.H / 2 - 170, 560, 350)
     phone = Box(laptop.right - 80, demo.H / 2 - 120, 140, 290)
     device_slide_in(cv, 'laptop', laptop, _dashboard, demo.phase(n, 0.3, 1.4), side='bottom')

@@ -3,7 +3,6 @@ steady beat, so the letters seem to breathe while staying put."""
 import math
 
 from .. import _demo as demo
-from ...compendium.components._transition_util import outline_text, text_path
 from ..schema import Capability
 
 
@@ -19,6 +18,8 @@ def draw_stroke_pulse(cv, line, font, cx, cy, t, color, **kw):
     """Draw `line` as outline type centred on (cx, cy), its stroke width
     breathing with `stroke_pulse(t, **kw)`. The letters are placed by their
     ink box, so they hold still while the line thickens. Returns the ink Box."""
+    # the components package loads every component: import it on use, not at import
+    from ...compendium.components._transition_util import outline_text, text_path
     width = stroke_pulse(t, **kw)
     ink = text_path(cv, line, font, 0, 0)  # measure only
     cv.ctx.new_path()

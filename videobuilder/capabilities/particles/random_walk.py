@@ -3,6 +3,7 @@ another, and the jagged trail it leaves behind meanders, doubles back on
 itself and slowly fills in a patch of the frame."""
 import math
 import random
+from functools import lru_cache
 
 from .. import _demo as demo
 from ..schema import Capability
@@ -45,16 +46,20 @@ def draw_walk(cv, pts, color, head_color=None, width=3, fresh=24, fresh_color=No
 
 
 STEPS = 1400
-# seed 6 wanders over a wide patch without touching the bounds; the start is
-# offset so that patch sits centred in the frame
-WALK = random_walk(STEPS, seed=6, step=9, start=(demo.W / 2 - 216, demo.H / 2 - 50),
-                   bounds=(40, 40, demo.W - 40, demo.H - 40))
+
+
+@lru_cache(maxsize=None)
+def _walk():
+    # seed 6 wanders over a wide patch without touching the bounds; the start is
+    # offset so that patch sits centred in the frame
+    return random_walk(STEPS, seed=6, step=9, start=(demo.W / 2 - 216, demo.H / 2 - 50),
+                       bounds=(40, 40, demo.W - 40, demo.H - 40))
 
 
 def draw(n, cv):
     p = demo.phase(n, 0, demo.SECONDS - 0.15)
     k = min(STEPS, 12 + round(STEPS * p ** 1.3))  # starts slow so the first steps read, then speeds up to fill
-    draw_walk(cv, WALK[:k + 1], demo.TEAL, head_color=demo.ACCENT, fresh_color=demo.INK)
+    draw_walk(cv, _walk()[:k + 1], demo.TEAL, head_color=demo.ACCENT, fresh_color=demo.INK)
 
 
 CAPABILITY = Capability(
