@@ -20,6 +20,9 @@ dependencies = [
 [project.optional-dependencies]
 # `python -m videobuilder say` (narration). Rendering never needs it.
 speech = ["kokoro-onnx>=0.4.7,<0.5"]
+# Syntax colours for the code-pane capability. Without it, code_pane still
+# works; every line just comes back as one plain colour.
+highlight = ["Pygments"]
 
 [project.scripts]
 videobuilder = "videobuilder.cli:main"
