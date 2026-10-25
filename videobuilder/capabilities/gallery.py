@@ -95,6 +95,8 @@ h3 { font-size: 13px; text-transform: uppercase; letter-spacing: .08em; color: v
   margin-left: 6px; cursor: pointer; }
 .tile .copy-id:hover { border-color: var(--accent); color: var(--ink); }
 .tile p { margin: 0; font-size: 14px; }
+.tile .source { display: block; margin-top: 8px; color: var(--muted); font-size: 12.5px; }
+.tile .source a { color: var(--accent); }
 .hidden { display: none !important; }
 """
 
@@ -144,6 +146,7 @@ def _family_title(slug):
 
 
 def _tile(t):
+    from . import source_html
     e = html.escape
     search = ' '.join((t.id, t.name, t.family, t.group, t.definition, *t.aliases, *t.phrasings)).lower()
     # A sound capability is the one tile worth hearing: controls, not muted.
@@ -154,7 +157,7 @@ def _tile(t):
             f'<div class="meta">{e(_family_title(t.family))} / {e(t.group)} &middot; '
             f'<code>{e(t.id)}</code>'
             f'<button type="button" class="copy-id" data-copy="#{e(t.id)}">Copy</button></div>'
-            f'<p>{e(t.definition)}</p></div></article>')
+            f'<p>{e(t.definition)}</p>{source_html(t.source)}</div></article>')
 
 
 def gallery_html(capabilities):

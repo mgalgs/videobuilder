@@ -354,7 +354,8 @@ class Cli(unittest.TestCase):
         from videobuilder.capabilities.gallery import gallery_html
         page = gallery_html(registry.catalog())
         self.assertLess(page.index('id="family-principles"'), page.index('id="family-transitions"'))
-        self.assertNotIn('http', page)
+        # Self-contained: the only links out are the Source credits.
+        self.assertNotIn('http', re.sub(r'<span class="source">.*?</span>', '', page))
 
 
 class OneCapabilityAlone(unittest.TestCase):

@@ -125,6 +125,19 @@ class Backfilled(unittest.TestCase):
                 self.assertIn(capabilities.source_html(t.source), pages[at:at + 2000])
         self.assertEqual(pages.count('class="sourced-card"'), len(SOURCED))
 
+    def test_every_sourced_gallery_tile_shows_its_link_inside_the_tile(self):
+        from videobuilder.capabilities.gallery import gallery_html
+        page = gallery_html(registry.catalog())
+        for t in registry.catalog():
+            with self.subTest(id=t.id):
+                at = page.index(f'<article class="tile" id="{t.id}"')
+                tile = page[at:page.index('</article>', at)]
+                if t.source:
+                    self.assertTrue(tile.endswith(capabilities.source_html(t.source) + '</div>'), tile[-300:])
+                else:
+                    self.assertNotIn('Source', tile)
+        self.assertEqual(page.count('<span class="source">'), len(SOURCED))
+
 
 if __name__ == '__main__':
     unittest.main()
