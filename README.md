@@ -1002,6 +1002,7 @@ python -m videobuilder editor --library DIR [--checkouts DIR2] [--state-dir DIR3
 
       uv venv --python 3.11 ~/.local/chatterbox
       uv pip install --python ~/.local/chatterbox/bin/python chatterbox-tts==0.1.7 'setuptools<81' \
+          faster-whisper==1.2.1 \
           --extra-index-url https://download.pytorch.org/whl/cpu --index-strategy unsafe-best-match
       export VIDEOBUILDER_CHATTERBOX_PYTHON=~/.local/chatterbox/bin/python
 
@@ -1009,6 +1010,39 @@ python -m videobuilder editor --library DIR [--checkouts DIR2] [--state-dir DIR3
   download into the Hugging Face cache on first use, or
   `$VIDEOBUILDER_CHATTERBOX_CACHE`. `setuptools<81` matters: without
   `pkg_resources`, Chatterbox's Perth watermarker fails to import silently.
+  `faster-whisper` (pinned here) is for `say --engine gemini`'s transcript
+  check below and nothing else; it downloads its own model, `small.en`, on
+  first use, same cache.
+
+  `say --engine gemini` reads the same script with Gemini 3.8 Flash TTS
+  over the network: natural phrasing and a `--style` direction (e.g.
+  `--style "warm and a little playful"`, sent beside the text, never
+  spoken; every phrase after the first also carries the previous phrase's
+  own text as context, so the model hears the sentence before the one it
+  reads). Host only: needs `$GEMINI_API_KEY` (an API key from
+  [AI Studio](https://aistudio.google.com/apikey)) and the network; the
+  key never reaches the sidecar, logs or an error message. Text only,
+  same as Chatterbox: `|` is dropped, `[word](/phonemes/)` speaks the
+  word, and `--say`/`--lexicon` don't apply. `--voice` (default `Kore`) is
+  a prebuilt Gemini voice name, and `--model` the model name (default
+  `gemini-3.8-flash-tts`). Gemini can't be seeded, so instead of redoing
+  every phrase on every run, `say` keeps each unchanged phrase's committed
+  audio exactly and only asks Gemini again for a phrase that changed (and
+  the one after it, since its style quotes the edited phrase as context).
+
+  Gemini can't clone a voice, so `--convert-to clip.wav` converts every
+  phrase to that voice afterwards with Chatterbox's own voice converter
+  (`chatterbox.vc.ChatterboxVC`), through the same
+  `$VIDEOBUILDER_CHATTERBOX_PYTHON`/`chatterbox_worker.py` as `--engine
+  chatterbox`. Gemini also changes a word on about 3% of takes, so by
+  default (`--no-check` turns it off) every phrase is transcribed
+  afterwards (faster-whisper, CPU, `small.en`) and checked word for word
+  against the text; a mismatch redoes that phrase (and reconverts it),
+  `--retries` times (default 3) before giving up, writing nothing over
+  the existing outputs. The comparison (`speech.normalize_for_check`)
+  ignores case, punctuation, how a number is spoken ("1,500", "fifteen
+  hundred", "one thousand five hundred" and "20%"/"twenty percent" all
+  compare equal) and a joined compound ("healthcare" vs "health care").
 - `sfx`: sound effects. `vb.sfx.sound(id, at=frame)` puts a sound from the
   sound-effects pack (earshot's bank, MIT) on a frame by its peak or onset;
   `python -m videobuilder sfx fetch` downloads the pack (checked against

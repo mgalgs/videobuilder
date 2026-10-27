@@ -2,10 +2,11 @@
 
 For a video that someone should hear talking: a voiceover read from a
 script, captions that follow it, and optionally a cut-out character whose
-mouth moves with it. The voice is Kokoro (open weights, Apache-2.0), or
-Chatterbox with `--engine chatterbox` (see "Choosing the engine"), run once
-by `python -m videobuilder say`. The film loads the files `say` wrote
-like any other sound; rendering never runs the model.
+mouth moves with it. The voice is Kokoro (open weights, Apache-2.0),
+Chatterbox with `--engine chatterbox`, or Gemini with `--engine gemini`
+(host only; see "Choosing the engine"), run once by `python -m
+videobuilder say`. The film loads the files `say` wrote like any other
+sound; rendering never runs the model.
 
 ## Making the voice
 
@@ -72,9 +73,29 @@ remakes it anyway.
   - It runs in its own Python, `$VIDEOBUILDER_CHATTERBOX_PYTHON` (default
     `/opt/chatterbox/bin/python`, already there in the builder's image);
     without it `say` prints the commands that install it.
+- **Gemini** (`--engine gemini`, host only -- it needs the network and
+  `$GEMINI_API_KEY`): stresses the right word in a tricky sentence far
+  more often than Chatterbox does, and `--style` gives it a
+  natural-language direction for how to read the whole script, e.g.
+  `--style "warm and a little playful"` -- sent beside the text, never
+  spoken. Text only, same rules as Chatterbox (`|` dropped,
+  `[word](/phonemes/)` speaks the word, no `--say`/`--lexicon`), and no
+  seed: instead, an unchanged phrase keeps its exact committed audio, and
+  editing one phrase redoes only that phrase and the one right after it
+  (its style quotes the edited phrase as context, so it changed too).
+  - `--voice` (default `Kore`): a prebuilt Gemini voice name, not a Kokoro
+    one. `--model`: the model name (default `gemini-3.8-flash-tts`).
+  - Gemini can't clone a voice: `--convert-to clip.wav` runs every phrase
+    through Chatterbox's own voice converter afterwards (same
+    `$VIDEOBUILDER_CHATTERBOX_PYTHON` as `--engine chatterbox`).
+  - Gemini occasionally changes a word. By default (`--no-check` turns it
+    off) `say` transcribes every phrase afterwards and checks it against
+    the script; a mismatch redoes that phrase, `--retries` times (default
+    3) before giving up with the phrase, what it should have said and
+    what it heard instead -- writing nothing over what was already there.
 
-Switching engine (or seed, voice clip or setting) re-synthesizes; the
-`.json` records which made the audio.
+Switching engine (or seed, voice clip, style or setting) re-synthesizes;
+the `.json` records which made the audio.
 
 ## Fixing a mispronounced word
 
