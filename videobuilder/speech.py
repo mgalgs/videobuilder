@@ -567,6 +567,63 @@ def spoken_years(text):
     return _YEAR.sub(lambda m: year_words(int(m.group(1))), text)
 
 
+# For the transcript check (say --engine gemini): turning a run of number
+# words back into a value, so "fifteen hundred", "one thousand five
+# hundred" and "1,500" all end up the same after normalize_for_check.
+_UNIT_WORDS = {w: i for i, w in enumerate(_ONES)}
+_TEN_WORDS = {w: i * 10 for i, w in enumerate(_TENS) if w}
+_SCALE_WORDS = {'thousand': 1000, 'million': 1000000}
+_WORD = re.compile(r'[a-z0-9]+')
+_PERCENT = re.compile(r'(\d[\d,]*)\s*%')
+
+
+def _number_words(tokens):
+    """(value, how many of `tokens` it took), for the run of number words
+    starting at `tokens[0]` ("fifteen hundred", "two hundred thousand",
+    "twenty"); (None, 0) if `tokens[0]` isn't one."""
+    total = current = n = 0
+    for t in tokens:
+        if t in _UNIT_WORDS:
+            current += _UNIT_WORDS[t]
+        elif t in _TEN_WORDS:
+            current += _TEN_WORDS[t]
+        elif t == 'hundred':
+            current = (current or 1) * 100
+        elif t in _SCALE_WORDS:
+            total += (current or 1) * _SCALE_WORDS[t]
+            current = 0
+        else:
+            break
+        n += 1
+    return (total + current, n) if n else (None, 0)
+
+
+def normalize_for_check(text):
+    """`text`, ready to compare word-for-word against a transcript (see
+    `say`'s transcript check): lowercased, every number -- written as
+    digits ("1,500"), spelled out ("fifteen hundred", "one thousand five
+    hundred") or with a percent sign ("20%", "twenty percent") -- folded to
+    the same digits, and every word run joined with no spaces or
+    punctuation at all, so "healthcare" and "health care" compare equal
+    too."""
+    text = _PERCENT.sub(r'\1 percent', text.lower()).replace(',', '')
+    tokens = _WORD.findall(text)
+    out, i = [], 0
+    while i < len(tokens):
+        if tokens[i].isdigit():
+            out.append(tokens[i])
+            i += 1
+            continue
+        value, n = _number_words(tokens[i:])
+        if n:
+            out.append(str(value))
+            i += n
+        else:
+            out.append(tokens[i])
+            i += 1
+    return ''.join(out)
+
+
 # Kokoro v1.0 was trained on one symbol for each of these two-part sounds,
 # but espeak (and IPA copied from a dictionary) writes them as two, which the
 # voice reads apart: "Freud" as "fried". A stress mark always comes before
@@ -712,12 +769,14 @@ def sidecars(out):
     return out.with_suffix('.vtt'), out.with_suffix('.json')
 
 
-def say(script, out, engine, voice=DEFAULT_VOICE, speed=1.0, lang=None, gap=0.35, lexicon=None, force=False):
+def say(script, out, engine, voice=DEFAULT_VOICE, speed=1.0, lang=None, gap=0.35, lexicon=None, force=False,
+        convert_to=None, check=True, retries=3):
     """Synthesize `script` to `out` (.wav) and its .vtt/.json sidecars, and
     return the sidecar's dict. With the same inputs as the committed sidecar
     and the WAV present, writes nothing (returns it with 'unchanged': True),
     so a re-run never churns the repo even where Kokoro's floating point
-    differs between machines."""
+    differs between machines. `convert_to`, `check` and `retries` are
+    `Gemini`-only (see `_say_gemini`)."""
     out = Path(out)
     if out.suffix.lower() != '.wav':
         raise ValueError(f'{out}: say writes a .wav')
@@ -727,7 +786,7 @@ def say(script, out, engine, voice=DEFAULT_VOICE, speed=1.0, lang=None, gap=0.35
     if not 0.5 <= speed <= 2.0:
         raise ValueError(f'speed {speed} is out of range: Kokoro takes 0.5 to 2.0')
     if isinstance(engine, Gemini):
-        return _say_gemini(engine, script, out, gap, force)
+        return _say_gemini(engine, script, out, gap, force, convert_to=convert_to, check=check, retries=retries)
     lang = lang or LANGS.get(voice[:1], 'en-us')
     items = phrases(script)
     if not items:
@@ -784,20 +843,49 @@ def _reuse(old_samples, old_cue, bounds):
     return _Reused(array.array('h', old_samples[b:e]), inner)
 
 
-def _say_gemini(engine, script, out, gap, force):
+def _gemini_phrase(engine, ops, i, text, style, convert_to, check, retries):
+    """One phrase's final samples: Gemini, then `--convert-to` if given,
+    then the transcript check if `check` -- redoing both on a word
+    mismatch, up to `retries` more times, before giving up."""
+    heard = None
+    for attempt in range(retries + 1):
+        audio = engine.synth_one(text, style)
+        if convert_to is not None:
+            audio = ops.convert(audio)
+        if not check:
+            return audio
+        heard = ops.transcribe(audio)
+        if normalize_for_check(heard) == normalize_for_check(text):
+            return audio
+        if attempt < retries:
+            print(f'say: gemini phrase {i + 1} mismatch, retrying: expected {text!r}, heard {heard!r}',
+                  file=sys.stderr)
+    raise ValueError(f'phrase {i + 1} ({text!r}): after {retries} retries, Gemini still said {heard!r}')
+
+
+def _say_gemini(engine, script, out, gap, force, convert_to=None, check=True, retries=3):
     """`say` for `Gemini`: unlike Kokoro and Chatterbox, Gemini can't be
     seeded, so a changed phrase can't just be redone with the same take as
     last time -- every call gives a different one. Instead, each phrase is
     cached on its own: `doc['phrase_cache']` records what decided its audio
-    (its text, its style with context, and the engine's settings), and a
-    phrase whose record is still exactly that is sliced straight out of the
-    old committed WAV (`_reuse`) instead of asked for again. Editing one
-    phrase changes its own record and, because the next phrase's style
-    quotes it as context, the next phrase's record too -- so exactly those
-    two are redone, and nothing else moves."""
+    (its text, its style with context, and the engine's, conversion's and
+    check's settings), and a phrase whose record is still exactly that is
+    sliced straight out of the old committed WAV (`_reuse`) instead of
+    asked for again. Editing one phrase changes its own record and,
+    because the next phrase's style quotes it as context, the next
+    phrase's record too -- so exactly those two are redone, and nothing
+    else moves.
+
+    `convert_to` (a reference clip) converts each freshly synthesized
+    phrase to that voice with Chatterbox's own voice converter. `check`
+    transcribes each final phrase (after conversion) and, on a word
+    mismatch against the spoken text (`normalize_for_check`), redoes it
+    (and reconverts it) up to `retries` more times before giving up."""
     items = phrases(script)
     if not items:
         raise ValueError('the script has no phrases: write one phrase or sentence per line')
+    if convert_to is not None and not Path(convert_to).is_file():
+        raise ValueError(f'no voice clip {convert_to!r}: --convert-to is a .wav of the voice to convert to')
     texts = [caption_text(p) for p in items]
     if any(_INLINE.search(p) for p in items):
         print(f'say: {engine.engine_name} reads text, not phonemes: [word](/phonemes/) speaks the word as '
@@ -806,11 +894,14 @@ def _say_gemini(engine, script, out, gap, force):
     for t in texts:
         styles.append(_gemini_style(engine.style, previous))
         previous = t
+    convert_sha = hashlib.sha256(Path(convert_to).read_bytes()).hexdigest() if convert_to else None
+    extra = {'convert_to': Path(convert_to).as_posix() if convert_to else None,
+             'convert_to_sha256': convert_sha, 'check': check, 'retries': retries}
     settings = engine.settings()
-    # settings() has its own 'style' (the raw --style, no context): text/style must win, so they
-    # come after it, or an unchanged phrase whose context changed would wrongly look unchanged.
-    keys = [{**settings, 'text': t, 'style': s} for t, s in zip(texts, styles)]
-    inputs = {'phrases': texts, 'gap': gap, **settings}
+    # settings() and extra each have their own 'style'/'check' etc: text/style must win, so they
+    # come after both, or an unchanged phrase whose context changed would wrongly look unchanged.
+    keys = [{**settings, **extra, 'text': t, 'style': s} for t, s in zip(texts, styles)]
+    inputs = {'phrases': texts, 'gap': gap, **settings, **extra}
     vtt_path, json_path = sidecars(out)
     old = {}
     if not force and out.is_file() and vtt_path.is_file() and json_path.is_file():
@@ -822,12 +913,17 @@ def _say_gemini(engine, script, out, gap, force):
             return {**old, 'unchanged': True}
     old_cache, old_cues = old.get('phrase_cache') or [], old.get('phrases') or []
     old_samples = read_samples(out)[0] if old_cache and out.is_file() else None
-    chunks = []
-    for i, (text, style, key) in enumerate(zip(texts, styles, keys)):
-        reused = None
-        if old_samples is not None and i < len(old_cache) and old_cache[i].get('key') == key:
-            reused = _reuse(old_samples, old_cues[i] if i < len(old_cues) else None, old_cache[i].get('bounds'))
-        chunks.append(reused if reused is not None else engine.synth_one(text, style))
+    ops = ChatterboxOps(convert_to=convert_to, transcribe=check)
+    try:
+        chunks = []
+        for i, (text, style, key) in enumerate(zip(texts, styles, keys)):
+            reused = None
+            if old_samples is not None and i < len(old_cache) and old_cache[i].get('key') == key:
+                reused = _reuse(old_samples, old_cues[i] if i < len(old_cues) else None, old_cache[i].get('bounds'))
+            chunks.append(reused if reused is not None else _gemini_phrase(engine, ops, i, text, style,
+                                                                           convert_to, check, retries))
+    finally:
+        ops.close()
     samples, spans, bounds = _assemble_with_bounds(chunks, RATE, gap=gap)
     cues = [(t, round(a, 3), round(z, 3)) for t, (a, z) in zip(texts, spans)]
     doc = {'audio': out.name, 'captions': vtt_path.name, 'seconds': round(len(samples) / RATE, 3),

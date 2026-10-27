@@ -670,6 +670,34 @@ class GeminiStyle(unittest.TestCase):
                          'This continues straight on from the narrator\'s previous sentence: "Meet Lumen."')
 
 
+class TranscriptNormalize(unittest.TestCase):
+    """normalize_for_check: say's transcript-check comparison, no model needed."""
+
+    def test_case_and_punctuation_are_ignored(self):
+        self.assertEqual(speech.normalize_for_check('Hello, World!'), speech.normalize_for_check('hello world'))
+
+    def test_a_number_matches_however_it_is_spelled(self):
+        for text in ('1,500', 'fifteen hundred', 'one thousand five hundred'):
+            with self.subTest(text=text):
+                self.assertEqual(speech.normalize_for_check(text), speech.normalize_for_check('1,500'))
+
+    def test_percent_matches_the_written_word(self):
+        self.assertEqual(speech.normalize_for_check('20%'), speech.normalize_for_check('twenty percent'))
+
+    def test_a_joined_compound_matches_the_two_words(self):
+        self.assertEqual(speech.normalize_for_check('healthcare'), speech.normalize_for_check('health care'))
+
+    def test_a_real_mismatch_still_differs(self):
+        self.assertNotEqual(speech.normalize_for_check('the cat sat'), speech.normalize_for_check('the cat ran'))
+        self.assertNotEqual(speech.normalize_for_check('1,500'), speech.normalize_for_check('1,600'))
+
+    def test_a_whole_sentence_with_a_number_and_a_compound(self):
+        a = speech.normalize_for_check('Our healthcare costs rose by 20% to $1,500 this year.')
+        b = speech.normalize_for_check('our health care costs rose by twenty percent to $one thousand five '
+                                       'hundred this year')
+        self.assertEqual(a, b)
+
+
 class GeminiEngine(unittest.TestCase):
     """`say --engine gemini` against tests/fake_gemini.py standing in for Gemini's REST endpoint."""
     SCRIPT = 'Hello there.\nHow are you today?\nGoodbye now.'
@@ -688,10 +716,12 @@ class GeminiEngine(unittest.TestCase):
         self.addCleanup(sleeper.stop)
 
     def say(self, *args, script=None):
+        # --no-check: this class is about style, caching and HTTP errors, not the transcript check
+        # (see GeminiCheck), and it has no Chatterbox worker to run that check with.
         out, err = io.StringIO(), io.StringIO()
         with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
-            cli.main(['say', '--engine', 'gemini', '--text', script if script is not None else self.SCRIPT,
-                     '--out', str(self.dir / 'n.wav'), *args])
+            cli.main(['say', '--engine', 'gemini', '--no-check', '--text',
+                     script if script is not None else self.SCRIPT, '--out', str(self.dir / 'n.wav'), *args])
         return out.getvalue(), err.getvalue()
 
     def test_style_and_context_go_in_speech_metadata_not_the_text(self):
@@ -815,6 +845,108 @@ class GeminiEngine(unittest.TestCase):
             with self.subTest(flags=flags), self.assertRaises(SystemExit):
                 self.say(*flags)
         self.assertFalse((self.dir / 'n.wav').exists())
+
+    def test_gemini_only_flags_are_refused_for_other_engines(self):
+        for flags in (['--convert-to', 'x.wav'], ['--retries', '1'], ['--no-check']):
+            with self.subTest(flags=flags), self.assertRaisesRegex(SystemExit, 'is for --engine gemini'):
+                cli.main(['say', '--text', 'Hi.', '--out', str(self.dir / 'never.wav'), *flags])
+            self.assertFalse((self.dir / 'never.wav').exists())
+
+
+class GeminiCheck(unittest.TestCase):
+    """`say --engine gemini`'s `--convert-to` and transcript check, against
+    both tests/fake_gemini.py and tests/fake_chatterbox.py."""
+
+    def setUp(self):
+        self.fake = FakeGemini()
+        self.addCleanup(self.fake.close)
+        self.dir = Path(tempfile.mkdtemp())
+        self.addCleanup(__import__('shutil').rmtree, self.dir)
+        self.python = self.dir / 'python'
+        self.python.write_text(f'#!/bin/sh\nexec "{sys.executable}" "{ROOT / "tests" / "fake_chatterbox.py"}" "$@"\n')
+        self.python.chmod(0o755)
+        self.log = self.dir / 'log.jsonl'
+        self.clip = self.dir / 'target.wav'
+        self.clip.write_bytes(b'x' * 37)
+        env = {'GEMINI_API_KEY': 'test-key', 'VIDEOBUILDER_GEMINI_URL': self.fake.url,
+               'VIDEOBUILDER_CHATTERBOX_PYTHON': str(self.python), 'FAKE_CHATTERBOX_LOG': str(self.log)}
+        patcher = mock.patch.dict(os.environ, env)
+        patcher.start()
+        self.addCleanup(patcher.stop)
+        sleeper = mock.patch.object(speech.time, 'sleep')
+        sleeper.start()
+        self.addCleanup(sleeper.stop)
+
+    def logged(self):
+        if not self.log.exists():
+            return []
+        return [json.loads(l) for l in self.log.read_text().splitlines()]
+
+    def say(self, *args, script='Hello there.'):
+        out, err = io.StringIO(), io.StringIO()
+        with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
+            cli.main(['say', '--engine', 'gemini', '--text', script, '--out', str(self.dir / 'n.wav'), *args])
+        return out.getvalue(), err.getvalue()
+
+    def test_check_passes_when_the_transcript_matches(self):
+        os.environ['FAKE_CHATTERBOX_TRANSCRIPTS'] = json.dumps(['Hello there.'])
+        self.say()
+        self.assertTrue((self.dir / 'n.wav').exists())
+        self.assertEqual(len([l for l in self.logged() if 'transcribe' in l]), 1)
+
+    def test_a_mismatch_retries_then_succeeds(self):
+        os.environ['FAKE_CHATTERBOX_TRANSCRIPTS'] = json.dumps(['wrong words', 'Hello there.'])
+        _, err = self.say()
+        self.assertIn('mismatch', err)
+        self.assertIn('wrong words', err)
+        self.assertIn('Hello there.', err)
+        self.assertEqual(len(self.fake.requests), 2)   # redone once
+        self.assertEqual(len([l for l in self.logged() if 'transcribe' in l]), 2)
+
+    def test_persistent_mismatch_fails_without_writing_partial_output(self):
+        os.environ['FAKE_CHATTERBOX_TRANSCRIPTS'] = json.dumps(['nope'])
+        with self.assertRaises(SystemExit) as cm:
+            self.say('--retries', '1')
+        msg = str(cm.exception)
+        self.assertIn('Hello there.', msg)
+        self.assertIn('nope', msg)
+        self.assertFalse((self.dir / 'n.wav').exists())
+        self.assertFalse((self.dir / 'n.json').exists())
+        self.assertEqual(len(self.fake.requests), 2)   # the initial try plus 1 retry
+
+    def test_no_check_skips_the_transcript_worker_entirely(self):
+        self.say('--no-check')
+        self.assertTrue((self.dir / 'n.wav').exists())
+        self.assertEqual(self.logged(), [])
+
+    def test_convert_to_sends_each_phrase_through_one_shared_worker(self):
+        os.environ['FAKE_CHATTERBOX_TRANSCRIPTS'] = json.dumps(['Hello there.', 'How are you?'])
+        self.say('--convert-to', str(self.clip), script='Hello there.\nHow are you?')
+        self.assertEqual(len([l for l in self.logged() if 'convert' in l]), 2)
+        self.assertEqual(len([l for l in self.logged() if 'transcribe' in l]), 2)
+        runs = [l for l in self.logged() if 'argv' in l]
+        self.assertEqual(len(runs), 1)   # convert and transcribe share one worker process
+        argv = runs[0]['argv']
+        self.assertEqual(sorted(argv[argv.index('--ops') + 1].split(',')), ['convert', 'transcribe'])
+        self.assertEqual(argv[argv.index('--convert-to') + 1], str(self.clip.resolve()))
+
+    def test_unchanged_reuse_starts_no_worker_either(self):
+        os.environ['FAKE_CHATTERBOX_TRANSCRIPTS'] = json.dumps(['Hello there.'])
+        self.say()
+        self.assertEqual(len(self.fake.requests), 1)
+        runs_before = len([l for l in self.logged() if 'argv' in l])
+        printed, _ = self.say()
+        self.assertIn('unchanged', printed)
+        self.assertEqual(len(self.fake.requests), 1)
+        self.assertEqual(len([l for l in self.logged() if 'argv' in l]), runs_before)
+
+    def test_changing_convert_to_bytes_redoes_the_phrase(self):
+        os.environ['FAKE_CHATTERBOX_TRANSCRIPTS'] = json.dumps(['Hello there.'])
+        self.say('--convert-to', str(self.clip))
+        self.assertEqual(len(self.fake.requests), 1)
+        self.clip.write_bytes(b'y' * 37)   # same path, different bytes
+        self.say('--convert-to', str(self.clip))
+        self.assertEqual(len(self.fake.requests), 2)
 
 
 if __name__ == '__main__':

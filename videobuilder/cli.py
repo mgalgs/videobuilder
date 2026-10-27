@@ -407,8 +407,12 @@ def cmd_say(a):
              if v is not None]
     if tuned and not chatterbox:
         raise SystemExit(f'say: {tuned[0]} is for --engine chatterbox')
-    if a.style is not None and not gemini:
-        raise SystemExit('say: --style is for --engine gemini')
+    gemini_only = [f for f, v in (('--style', a.style), ('--convert-to', a.convert_to), ('--retries', a.retries))
+                   if v is not None]
+    if a.check is False:
+        gemini_only.append('--no-check')
+    if gemini_only and not gemini:
+        raise SystemExit(f'say: {gemini_only[0]} is for --engine gemini')
     if chatterbox and (a.list_voices or a.phonemes or a.lang):
         raise SystemExit("say: Chatterbox reads English text in one built-in voice (or --voice clip.wav): "
                          "--list-voices, --phonemes and --lang are Kokoro's")
@@ -452,7 +456,8 @@ def cmd_say(a):
         if not a.out:
             raise SystemExit('say: --out is required (a .wav path)')
         doc = speech.say(script, a.out, engine, voice=voice, speed=a.speed, lang=lang, gap=a.gap,
-                         lexicon=lexicon, force=a.force)
+                         lexicon=lexicon, force=a.force, convert_to=a.convert_to, check=a.check,
+                         retries=3 if a.retries is None else a.retries)
     except speech.SpeechUnavailable as e:
         raise SystemExit(f'say: {e}') from None
     except (ValueError, OSError) as e:
@@ -775,6 +780,13 @@ def main(argv=None):
     sy.add_argument('--seed', type=int, help='chatterbox: the seed set before every phrase (default 0)')
     sy.add_argument('--exaggeration', type=float, help='chatterbox: emotion, 0-1 (default 0.4)')
     sy.add_argument('--cfg-weight', type=float, help='chatterbox: guidance; lower paces slower (default 0.5)')
+    sy.add_argument('--convert-to', metavar='CLIP.WAV', help='gemini: convert each phrase to this voice with '
+                                    "Chatterbox's own voice converter ($VIDEOBUILDER_CHATTERBOX_PYTHON)")
+    sy.add_argument('--check', action=argparse.BooleanOptionalAction, default=True,
+                    help='gemini: transcribe each phrase (faster-whisper, through '
+                         '$VIDEOBUILDER_CHATTERBOX_PYTHON) and redo it on a word mismatch (default: on)')
+    sy.add_argument('--retries', type=int, help='gemini: redo a mismatched phrase up to this many more '
+                                                 'times before failing (default 3)')
     sy.add_argument('--model', help='the Kokoro .onnx (default: found in $VIDEOBUILDER_KOKORO_DIR, /opt/kokoro, '
                                     '~/.cache/kokoro); with --engine gemini, the model name (default '
                                     'gemini-3.8-flash-tts)')
