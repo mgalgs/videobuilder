@@ -749,6 +749,12 @@ class GeminiEngine(unittest.TestCase):
         p1 = self.fake.requests[1]['contents'][0]['parts'][0]
         self.assertIn('speech_metadata', p1)
 
+    def test_a_lexicon_or_say_prints_a_notice_and_does_not_apply(self):
+        _, err = self.say('--say', 'there=thair')
+        self.assertIn('Gemini reads text, not phonemes', err)
+        self.assertIn('--say/--lexicon respellings do not apply', err)
+        self.assertEqual(self.fake.requests[0]['contents'][0]['parts'][0]['text'], 'Hello there.')
+
     def test_a_custom_voice_and_model_reach_the_request(self):
         self.say('--voice', 'Puck', '--model', 'gemini-9000-tts')
         self.assertEqual(self.fake.requests[0]['generationConfig']['speechConfig']['voiceConfig']

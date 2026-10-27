@@ -786,7 +786,8 @@ def say(script, out, engine, voice=DEFAULT_VOICE, speed=1.0, lang=None, gap=0.35
     if not 0.5 <= speed <= 2.0:
         raise ValueError(f'speed {speed} is out of range: Kokoro takes 0.5 to 2.0')
     if isinstance(engine, Gemini):
-        return _say_gemini(engine, script, out, gap, force, convert_to=convert_to, check=check, retries=retries)
+        return _say_gemini(engine, script, out, gap, force, lexicon, convert_to=convert_to, check=check,
+                          retries=retries)
     lang = lang or LANGS.get(voice[:1], 'en-us')
     items = phrases(script)
     if not items:
@@ -863,7 +864,7 @@ def _gemini_phrase(engine, ops, i, text, style, convert_to, check, retries):
     raise ValueError(f'phrase {i + 1} ({text!r}): after {retries} retries, Gemini still said {heard!r}')
 
 
-def _say_gemini(engine, script, out, gap, force, convert_to=None, check=True, retries=3):
+def _say_gemini(engine, script, out, gap, force, lexicon=None, convert_to=None, check=True, retries=3):
     """`say` for `Gemini`: unlike Kokoro and Chatterbox, Gemini can't be
     seeded, so a changed phrase can't just be redone with the same take as
     last time -- every call gives a different one. Instead, each phrase is
@@ -887,7 +888,7 @@ def _say_gemini(engine, script, out, gap, force, convert_to=None, check=True, re
     if convert_to is not None and not Path(convert_to).is_file():
         raise ValueError(f'no voice clip {convert_to!r}: --convert-to is a .wav of the voice to convert to')
     texts = [caption_text(p) for p in items]
-    if any(_INLINE.search(p) for p in items):
+    if lexicon or any(_INLINE.search(p) for p in items):
         print(f'say: {engine.engine_name} reads text, not phonemes: [word](/phonemes/) speaks the word as '
               'written, and --say/--lexicon respellings do not apply', file=sys.stderr)
     styles, previous = [], None
