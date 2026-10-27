@@ -413,6 +413,8 @@ def cmd_say(a):
         gemini_only.append('--no-check')
     if gemini_only and not gemini:
         raise SystemExit(f'say: {gemini_only[0]} is for --engine gemini')
+    if a.retries is not None and a.retries < 0:
+        raise SystemExit(f'say: --retries {a.retries}: it must be 0 or more')
     if chatterbox and (a.list_voices or a.phonemes or a.lang):
         raise SystemExit("say: Chatterbox reads English text in one built-in voice (or --voice clip.wav): "
                          "--list-voices, --phonemes and --lang are Kokoro's")

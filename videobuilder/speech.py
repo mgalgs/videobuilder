@@ -66,7 +66,7 @@ CHATTERBOX_HINT = (
     'Chatterbox runs in its own Python: $VIDEOBUILDER_CHATTERBOX_PYTHON (default '
     f'{CHATTERBOX_PYTHON}). Make one with: uv venv --python 3.11 ~/.local/chatterbox && '
     'uv pip install --python ~/.local/chatterbox/bin/python chatterbox-tts==0.1.7 "setuptools<81" '
-    '--extra-index-url https://download.pytorch.org/whl/cpu --index-strategy unsafe-best-match; '
+    'faster-whisper==1.2.1 --extra-index-url https://download.pytorch.org/whl/cpu --index-strategy unsafe-best-match; '
     'then export VIDEOBUILDER_CHATTERBOX_PYTHON=~/.local/chatterbox/bin/python')
 
 GEMINI_MODEL = 'gemini-3.8-flash-tts'
@@ -347,17 +347,19 @@ class ChatterboxOps:
         self._python_arg, self._cache_dir_arg = python, cache_dir
         self.proc = None
 
-    def _start(self):
-        if self.proc is not None:
+    def start(self):
+        """Start the worker now, if it isn't running yet (`_call` does too),
+        so a broken interpreter fails before anything is paid for."""
+        if self.proc is not None or not self.ops:
             return
         python = _chatterbox_python(self._python_arg)
         cmd = [python, str(CHATTERBOX_WORKER), '--ops', ','.join(self.ops)]
         if 'convert' in self.ops:
-            cache_dir = _chatterbox_cache_dir(self._cache_dir_arg)
             cmd += ['--repo', CHATTERBOX_REPO, '--revision', CHATTERBOX_REVISION,
                    '--convert-to', str(Path(self.convert_to).resolve())]
-            if cache_dir:
-                cmd += ['--cache-dir', str(cache_dir)]
+        cache_dir = _chatterbox_cache_dir(self._cache_dir_arg)
+        if cache_dir:
+            cmd += ['--cache-dir', str(cache_dir)]
         try:
             proc = subprocess.Popen(cmd, stdin=subprocess.PIPE, stdout=subprocess.PIPE, encoding='utf-8')
         except OSError as e:
@@ -369,7 +371,7 @@ class ChatterboxOps:
         self.proc = proc
 
     def _call(self, **req):
-        self._start()
+        self.start()
         self.proc.stdin.write(json.dumps(req, ensure_ascii=False) + '\n')
         self.proc.stdin.flush()
         return _worker_reply(self.proc)
@@ -580,22 +582,42 @@ _PERCENT = re.compile(r'(\d[\d,]*)\s*%')
 def _number_words(tokens):
     """(value, how many of `tokens` it took), for the run of number words
     starting at `tokens[0]` ("fifteen hundred", "two hundred thousand",
-    "twenty"); (None, 0) if `tokens[0]` isn't one."""
-    total = current = n = 0
-    for t in tokens:
+    "one hundred and twenty"); (None, 0) if `tokens[0]` isn't one. The run
+    ends where place value says a new number starts, so "one two three"
+    is three numbers, not six, and "twenty twenty-four" is 20 then 24 --
+    which `normalize_for_check` joins to "2024", the way it is written."""
+    total = group = n = 0
+    last = None  # what the previous word was: 'ones', 'teen', 'tens', 'hundred', 'scale' or 'and'
+    for i, t in enumerate(tokens):
         if t in _UNIT_WORDS:
-            current += _UNIT_WORDS[t]
+            kind = 'ones' if _UNIT_WORDS[t] < 10 else 'teen'
+            if not (last in (None, 'hundred', 'scale', 'and') or (kind == 'ones' and last == 'tens')):
+                break
+            group += _UNIT_WORDS[t]
         elif t in _TEN_WORDS:
-            current += _TEN_WORDS[t]
+            kind = 'tens'
+            if last not in (None, 'hundred', 'scale', 'and'):
+                break
+            group += _TEN_WORDS[t]
         elif t == 'hundred':
-            current = (current or 1) * 100
+            kind = 'hundred'
+            if last not in (None, 'ones', 'teen', 'tens') or group >= 100:
+                break
+            group = (group or 1) * 100
         elif t in _SCALE_WORDS:
-            total += (current or 1) * _SCALE_WORDS[t]
-            current = 0
+            kind = 'scale'
+            if last not in (None, 'ones', 'teen', 'tens', 'hundred'):
+                break
+            total += (group or 1) * _SCALE_WORDS[t]
+            group = 0
+        elif t == 'and' and last in ('hundred', 'scale') and i + 1 < len(tokens) and (
+                tokens[i + 1] in _UNIT_WORDS or tokens[i + 1] in _TEN_WORDS):
+            kind = 'and'
         else:
             break
+        last = kind
         n += 1
-    return (total + current, n) if n else (None, 0)
+    return (total + group, n) if n else (None, 0)
 
 
 def normalize_for_check(text):
@@ -769,6 +791,16 @@ def sidecars(out):
     return out.with_suffix('.vtt'), out.with_suffix('.json')
 
 
+def _spoken_texts(engine, items, lexicon):
+    """What a text-reading engine (Chatterbox, Gemini) speaks for each of
+    `items`: the captions' own text, since `|` and phonemes have no meaning
+    there -- with one stderr notice if the script or `lexicon` relied on them."""
+    if lexicon or any(_INLINE.search(p) for p in items):
+        print(f"say: {getattr(engine, 'engine_name', 'Chatterbox')} reads text, not phonemes: [word](/phonemes/) "
+              'speaks the word as written, and --say/--lexicon respellings do not apply', file=sys.stderr)
+    return [caption_text(p) for p in items]
+
+
 def say(script, out, engine, voice=DEFAULT_VOICE, speed=1.0, lang=None, gap=0.35, lexicon=None, force=False,
         convert_to=None, check=True, retries=3):
     """Synthesize `script` to `out` (.wav) and its .vtt/.json sidecars, and
@@ -785,6 +817,8 @@ def say(script, out, engine, voice=DEFAULT_VOICE, speed=1.0, lang=None, gap=0.35
         raise ValueError(f"speed {speed}: {getattr(engine, 'engine_name', 'this engine')} has no speed setting")
     if not 0.5 <= speed <= 2.0:
         raise ValueError(f'speed {speed} is out of range: Kokoro takes 0.5 to 2.0')
+    if retries < 0:
+        raise ValueError(f'retries {retries}: it must be 0 or more')
     if isinstance(engine, Gemini):
         return _say_gemini(engine, script, out, gap, force, lexicon, convert_to=convert_to, check=check,
                           retries=retries)
@@ -793,11 +827,7 @@ def say(script, out, engine, voice=DEFAULT_VOICE, speed=1.0, lang=None, gap=0.35
     if not items:
         raise ValueError('the script has no phrases: write one phrase or sentence per line')
     if reads_text:
-        # The text the voice reads is the captions' own: `|` and phonemes have no meaning there.
-        texts = [caption_text(p) for p in items]
-        if lexicon or any(_INLINE.search(p) for p in items):
-            print("say: Chatterbox reads text, not phonemes: [word](/phonemes/) speaks the word as written, "
-                  'and --say/--lexicon respellings do not apply', file=sys.stderr)
+        texts = _spoken_texts(engine, items, lexicon)
         inputs = {'phrases': texts, 'gap': gap, **engine.settings()}
     else:
         inputs = {'phrases': items, 'voice': voice, 'speed': speed, 'lang': lang, 'gap': gap,
@@ -849,6 +879,7 @@ def _gemini_phrase(engine, ops, i, text, style, convert_to, check, retries):
     then the transcript check if `check` -- redoing both on a word
     mismatch, up to `retries` more times, before giving up."""
     heard = None
+    ops.start()
     for attempt in range(retries + 1):
         audio = engine.synth_one(text, style)
         if convert_to is not None:
@@ -887,10 +918,7 @@ def _say_gemini(engine, script, out, gap, force, lexicon=None, convert_to=None, 
         raise ValueError('the script has no phrases: write one phrase or sentence per line')
     if convert_to is not None and not Path(convert_to).is_file():
         raise ValueError(f'no voice clip {convert_to!r}: --convert-to is a .wav of the voice to convert to')
-    texts = [caption_text(p) for p in items]
-    if lexicon or any(_INLINE.search(p) for p in items):
-        print(f'say: {engine.engine_name} reads text, not phonemes: [word](/phonemes/) speaks the word as '
-              'written, and --say/--lexicon respellings do not apply', file=sys.stderr)
+    texts = _spoken_texts(engine, items, lexicon)
     styles, previous = [], None
     for t in texts:
         styles.append(_gemini_style(engine.style, previous))
@@ -899,9 +927,12 @@ def _say_gemini(engine, script, out, gap, force, lexicon=None, convert_to=None, 
     extra = {'convert_to': Path(convert_to).as_posix() if convert_to else None,
              'convert_to_sha256': convert_sha, 'check': check, 'retries': retries}
     settings = engine.settings()
-    # settings() and extra each have their own 'style'/'check' etc: text/style must win, so they
-    # come after both, or an unchanged phrase whose context changed would wrongly look unchanged.
-    keys = [{**settings, **extra, 'text': t, 'style': s} for t, s in zip(texts, styles)]
+    # A phrase's key is what decides its audio: the reference clip's bytes, not how its path
+    # was spelled, and the retry limit only while there is a check for it to limit.
+    decides = {'convert_to_sha256': convert_sha, 'check': check, **({'retries': retries} if check else {})}
+    # settings() has its own 'style': text/style must win, so they come after it, or an
+    # unchanged phrase whose context changed would wrongly look unchanged.
+    keys = [{**settings, **decides, 'text': t, 'style': s} for t, s in zip(texts, styles)]
     inputs = {'phrases': texts, 'gap': gap, **settings, **extra}
     vtt_path, json_path = sidecars(out)
     old = {}
@@ -914,13 +945,17 @@ def _say_gemini(engine, script, out, gap, force, lexicon=None, convert_to=None, 
             return {**old, 'unchanged': True}
     old_cache, old_cues = old.get('phrase_cache') or [], old.get('phrases') or []
     old_samples = read_samples(out)[0] if old_cache and out.is_file() else None
+    # Found by key, not position: a line added or removed above a phrase moves it, not changes it.
+    old_at = {}
+    for j, entry in enumerate(old_cache):
+        old_at.setdefault(json.dumps(entry.get('key'), sort_keys=True), j)
     ops = ChatterboxOps(convert_to=convert_to, transcribe=check)
     try:
         chunks = []
         for i, (text, style, key) in enumerate(zip(texts, styles, keys)):
-            reused = None
-            if old_samples is not None and i < len(old_cache) and old_cache[i].get('key') == key:
-                reused = _reuse(old_samples, old_cues[i] if i < len(old_cues) else None, old_cache[i].get('bounds'))
+            reused, j = None, old_at.get(json.dumps(key, sort_keys=True))
+            if old_samples is not None and j is not None:
+                reused = _reuse(old_samples, old_cues[j] if j < len(old_cues) else None, old_cache[j].get('bounds'))
             chunks.append(reused if reused is not None else _gemini_phrase(engine, ops, i, text, style,
                                                                            convert_to, check, retries))
     finally:

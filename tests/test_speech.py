@@ -651,6 +651,16 @@ class ChatterboxOpsTest(unittest.TestCase):
         with self.assertRaises(speech.SpeechUnavailable) as cm:
             ops.transcribe(tone(0.05))
         self.assertIn('$VIDEOBUILDER_CHATTERBOX_PYTHON', str(cm.exception))
+        self.assertIn('faster-whisper==', str(cm.exception))   # the transcript check needs it too
+
+    def test_transcribe_gets_the_cache_dir(self):
+        os.environ['FAKE_CHATTERBOX_TRANSCRIPTS'] = json.dumps(['ok'])
+        os.environ['VIDEOBUILDER_CHATTERBOX_CACHE'] = str(self.dir / 'hf')
+        ops = speech.ChatterboxOps(transcribe=True)
+        self.addCleanup(ops.close)
+        ops.transcribe(tone(0.05))
+        argv = self.runs()[0]['argv']
+        self.assertEqual(argv[argv.index('--cache-dir') + 1], str(self.dir / 'hf'))
 
 
 class GeminiStyle(unittest.TestCase):
@@ -690,6 +700,16 @@ class TranscriptNormalize(unittest.TestCase):
     def test_a_real_mismatch_still_differs(self):
         self.assertNotEqual(speech.normalize_for_check('the cat sat'), speech.normalize_for_check('the cat ran'))
         self.assertNotEqual(speech.normalize_for_check('1,500'), speech.normalize_for_check('1,600'))
+
+    def test_place_value_ends_a_number(self):
+        n = speech.normalize_for_check
+        self.assertEqual(n('one hundred and twenty people'), n('120 people'))
+        self.assertEqual(n('in twenty twenty-four'), n('in 2024'))
+        self.assertEqual(n('nineteen eighty-four'), n('1984'))
+        self.assertEqual(n('one, two, three'), n('1, 2, 3'))
+        self.assertNotEqual(n('one, two, three'), n('six'))
+        self.assertNotEqual(n('in twenty twenty-four'), n('in forty-four'))
+        self.assertEqual(n('salt and pepper'), 'saltandpepper')
 
     def test_a_whole_sentence_with_a_number_and_a_compound(self):
         a = speech.normalize_for_check('Our healthcare costs rose by 20% to $1,500 this year.')
@@ -785,6 +805,31 @@ class GeminiEngine(unittest.TestCase):
             z = round(cue['end'] * RATE) * 2 + 44
             return wav_bytes[a:z]
         self.assertEqual(slice_bytes(before, p0_before), slice_bytes(after, p0_after))
+
+    def phrase_audio(self):
+        """{text: its samples' bytes} from the committed n.wav and n.json."""
+        wav = (self.dir / 'n.wav').read_bytes()
+        doc = json.loads((self.dir / 'n.json').read_text())
+        return {p['text']: wav[round(p['start'] * RATE) * 2 + 44:round(p['end'] * RATE) * 2 + 44]
+                for p in doc['phrases']}
+
+    def test_removing_a_line_redoes_only_the_phrase_after_it(self):
+        self.say(script='One.\nTwo.\nThree.\nFour.\nFive.')
+        before = self.phrase_audio()
+        self.say(script='One.\nThree.\nFour.\nFive.')
+        self.assertEqual([r['contents'][0]['parts'][0]['text'] for r in self.fake.requests[5:]], ['Three.'])
+        after = self.phrase_audio()
+        for t in ('One.', 'Four.', 'Five.'):
+            self.assertEqual(before[t], after[t])
+
+    def test_inserting_a_line_redoes_it_and_the_phrase_after_it_only(self):
+        self.say(script='One.\nTwo.\nThree.')
+        before = self.phrase_audio()
+        self.say(script='Zero.\nOne.\nTwo.\nThree.')
+        self.assertEqual([r['contents'][0]['parts'][0]['text'] for r in self.fake.requests[3:]], ['Zero.', 'One.'])
+        after = self.phrase_audio()
+        for t in ('Two.', 'Three.'):
+            self.assertEqual(before[t], after[t])
 
     def test_changing_style_voice_or_model_redoes_every_phrase(self):
         self.say()
@@ -951,6 +996,32 @@ class GeminiCheck(unittest.TestCase):
         self.assertIn('unchanged', printed)
         self.assertEqual(len(self.fake.requests), 1)
         self.assertEqual(len([l for l in self.logged() if 'argv' in l]), runs_before)
+
+    def test_the_same_clip_by_another_path_redoes_nothing(self):
+        os.environ['FAKE_CHATTERBOX_TRANSCRIPTS'] = json.dumps(['Hello there.'])
+        self.say('--convert-to', str(self.clip))
+        other = self.dir / 'elsewhere' / 'same.wav'
+        other.parent.mkdir()
+        other.write_bytes(self.clip.read_bytes())
+        self.say('--convert-to', str(other))
+        self.assertEqual(len(self.fake.requests), 1)
+
+    def test_retries_without_the_check_redoes_nothing(self):
+        self.say('--no-check')
+        self.say('--no-check', '--retries', '5')
+        self.assertEqual(len(self.fake.requests), 1)
+
+    def test_negative_retries_is_refused(self):
+        with self.assertRaises(SystemExit) as cm:
+            self.say('--retries', '-1')
+        self.assertIn('--retries', str(cm.exception))
+        self.assertEqual(self.fake.requests, [])
+
+    def test_a_broken_worker_fails_before_any_gemini_call(self):
+        os.environ['VIDEOBUILDER_CHATTERBOX_PYTHON'] = str(self.dir / 'does' / 'not' / 'exist')
+        with self.assertRaises(SystemExit):
+            self.say()
+        self.assertEqual(self.fake.requests, [])
 
     def test_changing_convert_to_bytes_redoes_the_phrase(self):
         os.environ['FAKE_CHATTERBOX_TRANSCRIPTS'] = json.dumps(['Hello there.'])

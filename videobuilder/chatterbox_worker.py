@@ -12,7 +12,7 @@ brings) and faster-whisper, never videobuilder:
         [--cache-dir D] [--voice clip.wav] --seed 0 --exaggeration 0.4 --cfg-weight 0.5
     python chatterbox_worker.py --ops convert --repo ResembleAI/chatterbox --revision <sha> \\
         [--cache-dir D] --convert-to clip.wav
-    python chatterbox_worker.py --ops transcribe
+    python chatterbox_worker.py --ops transcribe [--cache-dir D]
     python chatterbox_worker.py --ops convert,transcribe ... --convert-to clip.wav
 
 `--ops` (comma-separated: synth, convert, transcribe) says which of the
@@ -107,12 +107,12 @@ def load_vc(a):
     return model
 
 
-def load_whisper():
+def load_whisper(a):
     try:
         from faster_whisper import WhisperModel
     except ImportError as e:
         raise Missing(f'{type(e).__name__}: {e}') from None
-    return WhisperModel(WHISPER_MODEL, device='cpu', compute_type='int8')
+    return WhisperModel(WHISPER_MODEL, device='cpu', compute_type='int8', download_root=a.cache_dir)
 
 
 def seed(n):
@@ -193,7 +193,7 @@ def main(argv=None):
         if 'convert' in ops:
             models['convert'] = load_vc(a)
         if 'transcribe' in ops:
-            models['transcribe'] = load_whisper()
+            models['transcribe'] = load_whisper(a)
     except Missing as e:
         send(error=str(e), install=True)
         return 1
