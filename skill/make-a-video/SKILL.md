@@ -46,6 +46,10 @@ film, its `assets/`, renders and sheets go there.
 If `import videobuilder` fails and a checkout is provided, run each command
 with `PYTHONPATH=<checkout>`. Read the skill directly from that checkout's
 `skill/make-a-video/`; a global skill installation or network is unnecessary.
+Launching one: stage a local clone of videobuilder (it is public at
+https://github.com/mgalgs/videobuilder) read-only into the sandbox, e.g.
+fork-sandbox's `--attach-dir`, and name its path in the handoff. For
+narration, stage the Kokoro model files beside it.
 When the real track is unavailable, use `scripts/make_track.py --bpm 120
 --beats 40 --out assets/music.wav` for a placeholder bed (choose the film's
 BPM and beat count). Swap in the real track later, checking its BPM and
