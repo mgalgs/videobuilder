@@ -36,6 +36,10 @@ import random
 import sys
 import wave
 
+# Chatterbox's sampler draws a tqdm bar per phrase on stderr, which `say`
+# passes through; set before chatterbox (and so tqdm) is imported.
+os.environ.setdefault('TQDM_DISABLE', '1')
+
 RATE = 24000
 # What ChatterboxTTS.from_local reads: the English model and its built-in voice.
 FILES = ('ve.safetensors', 't3_cfg.safetensors', 's3gen.safetensors', 'tokenizer.json', 'conds.pt')
