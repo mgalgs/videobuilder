@@ -18,6 +18,7 @@ from unittest import mock
 
 import videobuilder as vb
 from videobuilder import cli, speech
+from tests.fake_gemini import FakeGemini
 
 ROOT = Path(__file__).resolve().parent.parent
 RATE = speech.RATE
@@ -579,6 +580,170 @@ class ChatterboxWorker(unittest.TestCase):
         self.assertEqual(out.returncode, 1)
         self.assertTrue(msg['install'])
         self.assertIn("No module named 'chatterbox'", msg['error'])
+
+
+class GeminiStyle(unittest.TestCase):
+    """The pure style/context helpers, no HTTP needed."""
+
+    def test_first_phrase_gets_the_style_alone(self):
+        self.assertEqual(speech._gemini_style('warm and playful', None), 'warm and playful')
+        self.assertEqual(speech._gemini_style('', None), '')
+
+    def test_later_phrases_get_the_previous_phrase_as_context(self):
+        got = speech._gemini_style('warm and playful', 'Meet Lumen.')
+        self.assertEqual(got, 'warm and playful This continues straight on from the narrator\'s '
+                               'previous sentence: "Meet Lumen."')
+
+    def test_no_style_still_gets_context_alone(self):
+        self.assertEqual(speech._gemini_style('', 'Meet Lumen.'),
+                         'This continues straight on from the narrator\'s previous sentence: "Meet Lumen."')
+
+
+class GeminiEngine(unittest.TestCase):
+    """`say --engine gemini` against tests/fake_gemini.py standing in for Gemini's REST endpoint."""
+    SCRIPT = 'Hello there.\nHow are you today?\nGoodbye now.'
+
+    def setUp(self):
+        self.fake = FakeGemini()
+        self.addCleanup(self.fake.close)
+        self.dir = Path(tempfile.mkdtemp())
+        self.addCleanup(__import__('shutil').rmtree, self.dir)
+        env = {'GEMINI_API_KEY': 'test-key-xyz', 'VIDEOBUILDER_GEMINI_URL': self.fake.url}
+        patcher = mock.patch.dict(os.environ, env)
+        patcher.start()
+        self.addCleanup(patcher.stop)
+        sleeper = mock.patch.object(speech.time, 'sleep')
+        self.sleep = sleeper.start()
+        self.addCleanup(sleeper.stop)
+
+    def say(self, *args, script=None):
+        out, err = io.StringIO(), io.StringIO()
+        with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
+            cli.main(['say', '--engine', 'gemini', '--text', script if script is not None else self.SCRIPT,
+                     '--out', str(self.dir / 'n.wav'), *args])
+        return out.getvalue(), err.getvalue()
+
+    def test_style_and_context_go_in_speech_metadata_not_the_text(self):
+        self.say('--style', 'warm and playful')
+        reqs = self.fake.requests
+        self.assertEqual(len(reqs), 3)
+        p0, p1, p2 = (r['contents'][0]['parts'][0] for r in reqs)
+        self.assertEqual(p0['text'], 'Hello there.')
+        self.assertEqual(p0['speech_metadata'], {'style': 'warm and playful'})
+        self.assertEqual(p1['text'], 'How are you today?')
+        self.assertEqual(p1['speech_metadata'], {'style': 'warm and playful This continues straight on '
+                                                           'from the narrator\'s previous sentence: '
+                                                           '"Hello there."'})
+        self.assertNotIn('Hello there', p1['text'])
+        self.assertEqual(p2['text'], 'Goodbye now.')
+        self.assertIn('How are you today?', p2['speech_metadata']['style'])
+        for r in reqs:
+            self.assertEqual(r['generationConfig']['speechConfig']['voiceConfig']['prebuiltVoiceConfig']
+                             ['voiceName'], speech.GEMINI_VOICE)
+
+    def test_without_style_the_first_phrase_has_no_metadata_key(self):
+        self.say()
+        p0 = self.fake.requests[0]['contents'][0]['parts'][0]
+        self.assertNotIn('speech_metadata', p0)
+        p1 = self.fake.requests[1]['contents'][0]['parts'][0]
+        self.assertIn('speech_metadata', p1)
+
+    def test_a_custom_voice_and_model_reach_the_request(self):
+        self.say('--voice', 'Puck', '--model', 'gemini-9000-tts')
+        self.assertEqual(self.fake.requests[0]['generationConfig']['speechConfig']['voiceConfig']
+                         ['prebuiltVoiceConfig']['voiceName'], 'Puck')
+
+    def test_unchanged_input_makes_no_network_call(self):
+        self.say()
+        self.assertEqual(len(self.fake.requests), 3)
+        printed, _ = self.say()
+        self.assertIn('unchanged', printed)
+        self.assertEqual(len(self.fake.requests), 3)
+
+    def test_editing_one_phrase_redoes_it_and_the_next_only(self):
+        self.say()
+        self.assertEqual(len(self.fake.requests), 3)
+        before = (self.dir / 'n.wav').read_bytes()
+        before_doc = json.loads((self.dir / 'n.json').read_text())
+        self.say(script='Hello there.\nHow are you this evening?\nGoodbye now.')
+        self.assertEqual(len(self.fake.requests), 5)   # phrase 2 and phrase 3 only
+        after = (self.dir / 'n.wav').read_bytes()
+        self.assertNotEqual(before, after)
+        after_doc = json.loads((self.dir / 'n.json').read_text())
+        p0_before, p0_after = before_doc['phrases'][0], after_doc['phrases'][0]
+        self.assertEqual(p0_before['text'], p0_after['text'])
+
+        def slice_bytes(wav_bytes, cue):
+            a = round(cue['start'] * RATE) * 2 + 44   # 44-byte canonical WAV header
+            z = round(cue['end'] * RATE) * 2 + 44
+            return wav_bytes[a:z]
+        self.assertEqual(slice_bytes(before, p0_before), slice_bytes(after, p0_after))
+
+    def test_changing_style_voice_or_model_redoes_every_phrase(self):
+        self.say()
+        self.assertEqual(len(self.fake.requests), 3)
+        self.say('--style', 'cheerful')
+        self.assertEqual(len(self.fake.requests), 6)
+        self.say('--style', 'cheerful', '--voice', 'Puck')
+        self.assertEqual(len(self.fake.requests), 9)
+        self.say('--style', 'cheerful', '--voice', 'Puck', '--model', 'gemini-9000-tts')
+        self.assertEqual(len(self.fake.requests), 12)
+
+    def test_missing_api_key_is_a_clear_error(self):
+        del os.environ['GEMINI_API_KEY']
+        with self.assertRaises(SystemExit) as cm:
+            self.say()
+        self.assertIn('GEMINI_API_KEY', str(cm.exception))
+        self.assertTrue(str(cm.exception).startswith('say: '))
+
+    def test_the_key_never_appears_in_output(self):
+        self.fake.queue(400, {'error': {'message': 'nope'}})
+        with self.assertRaises(SystemExit) as cm:
+            self.say()
+        self.assertNotIn('test-key-xyz', str(cm.exception))
+        self.assertFalse((self.dir / 'n.json').exists())
+
+    def test_a_rate_other_than_24k_is_a_clear_error(self):
+        self.fake.queue(200, {'candidates': [{'content': {'parts': [
+            {'inlineData': {'mimeType': 'audio/L16;rate=16000', 'data': 'AAAA'}}]}}]})
+        with self.assertRaises(SystemExit) as cm:
+            self.say()
+        self.assertIn('16000', str(cm.exception))
+        self.assertIn('24000', str(cm.exception))
+
+    def test_unsupported_style_names_the_model_not_a_raw_dump(self):
+        self.fake.queue(400, {'error': {'message': 'Unknown name "speech_metadata": Cannot find field.'}})
+        with self.assertRaises(SystemExit) as cm:
+            self.say('--style', 'warm')
+        msg = str(cm.exception)
+        self.assertIn(speech.GEMINI_MODEL, msg)
+        self.assertIn('style', msg)
+        self.assertNotIn('Traceback', msg)
+
+    def test_429_then_503_then_success_retries_with_backoff(self):
+        self.fake.queue(429, {'error': {'message': 'rate limited'}})
+        self.fake.queue(503, {'error': {'message': 'overloaded'}})
+        self.say(script='Hello there.')
+        self.assertEqual(len(self.fake.requests), 3)
+        self.assertEqual(self.sleep.call_count, 2)
+
+    def test_exhausted_retries_is_a_clear_error(self):
+        for _ in range(speech.GEMINI_HTTP_RETRIES):
+            self.fake.queue(500, {'error': {'message': 'down for maintenance'}})
+        with self.assertRaises(SystemExit) as cm:
+            self.say(script='Hello there.')
+        self.assertIn('down for maintenance', str(cm.exception))
+
+    def test_style_is_refused_for_other_engines(self):
+        with self.assertRaisesRegex(SystemExit, '--style is for --engine gemini'):
+            cli.main(['say', '--text', 'Hi.', '--style', 'warm', '--out', str(self.dir / 'never.wav')])
+        self.assertFalse((self.dir / 'never.wav').exists())
+
+    def test_kokoro_only_options_are_refused(self):
+        for flags in (['--lang', 'en-gb'], ['--phonemes'], ['--list-voices']):
+            with self.subTest(flags=flags), self.assertRaises(SystemExit):
+                self.say(*flags)
+        self.assertFalse((self.dir / 'n.wav').exists())
 
 
 if __name__ == '__main__':

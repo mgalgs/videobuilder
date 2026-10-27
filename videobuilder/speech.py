@@ -24,6 +24,11 @@ single symbols (`ɔɪ` as `Y`, see `single_symbols`), typed or not. In English, 
 
 `say --engine chatterbox` reads the same script's text with Chatterbox
 instead (see `Chatterbox`): slower, phrased by the model, no phonemes.
+
+`say --engine gemini` reads it with Gemini (see `Gemini`), over the
+network: natural phrasing, a `--style` direction, and (unlike Chatterbox)
+no seed, so unchanged phrases keep their committed audio instead of being
+redone every run.
 """
 import array
 import base64
@@ -34,6 +39,9 @@ import os
 import re
 import subprocess
 import sys
+import time
+import urllib.error
+import urllib.request
 import wave
 from dataclasses import dataclass
 from functools import lru_cache
@@ -60,6 +68,14 @@ CHATTERBOX_HINT = (
     'uv pip install --python ~/.local/chatterbox/bin/python chatterbox-tts==0.1.7 "setuptools<81" '
     '--extra-index-url https://download.pytorch.org/whl/cpu --index-strategy unsafe-best-match; '
     'then export VIDEOBUILDER_CHATTERBOX_PYTHON=~/.local/chatterbox/bin/python')
+
+GEMINI_MODEL = 'gemini-3.8-flash-tts'
+GEMINI_VOICE = 'Kore'
+GEMINI_URL = 'https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent'
+GEMINI_HINT = 'export GEMINI_API_KEY=... (an API key from https://aistudio.google.com/apikey)'
+GEMINI_HTTP_RETRIES = 4
+GEMINI_BACKOFF = 1.0
+GEMINI_TIMEOUT = 120
 
 # Kokoro voice ids start with a language letter, then f/m.
 LANGS = {'a': 'en-us', 'b': 'en-gb', 'e': 'es', 'f': 'fr-fr', 'h': 'hi', 'i': 'it', 'j': 'ja', 'p': 'pt-br',
@@ -241,6 +257,7 @@ class Chatterbox:
     and speaks English in its built-in voice, or in the voice of `voice` (a
     reference clip)."""
     speaks_text = True
+    engine_name = 'Chatterbox'
     model_id = f'{CHATTERBOX_REPO}@{CHATTERBOX_REVISION}'
 
     def __init__(self, voice=None, seed=0, exaggeration=0.4, cfg_weight=0.5, python=None, cache_dir=None):
@@ -306,6 +323,115 @@ class Chatterbox:
         if 'error' in msg:
             raise SpeechUnavailable(f"Chatterbox: {msg['error']}" + (f'. {CHATTERBOX_HINT}' if msg.get('install') else ''))
         return msg
+
+
+_GEMINI_UNSUPPORTED = re.compile(r'speech.?metadata|\bstyle\b', re.IGNORECASE)
+_GEMINI_RATE = re.compile(r'rate=(\d+)')
+
+
+def _gemini_context(previous):
+    """The style direction's context clause for the phrase after `previous`
+    (its own spoken text), so the model hears the sentence before the one it
+    reads; never spoken itself. None for the first phrase."""
+    if previous is None:
+        return None
+    return f"This continues straight on from the narrator's previous sentence: \"{previous}\""
+
+
+def _gemini_style(style, previous):
+    """`style` with `_gemini_context(previous)` appended, or `style` alone
+    for the first phrase (`previous` is None)."""
+    ctx = _gemini_context(previous)
+    if ctx is None:
+        return style or ''
+    return f'{style} {ctx}' if style else ctx
+
+
+def _gemini_error(code, payload, model):
+    try:
+        msg = json.loads(payload)['error']['message']
+    except (ValueError, KeyError, TypeError):
+        msg = payload.decode('utf-8', 'replace')[:300] if isinstance(payload, bytes) else str(payload)[:300]
+    if code == 400 and _GEMINI_UNSUPPORTED.search(msg):
+        return SpeechUnavailable(f'{model} does not support a style direction (--style): {msg}')
+    return SpeechUnavailable(f'Gemini ({model}): {msg}')
+
+
+class Gemini:
+    """Gemini (Google), text to speech over the network: REST generateContent
+    on v1beta, stdlib urllib only, needs $GEMINI_API_KEY. Reads text, like
+    Chatterbox: no phonemes, `--say`/`--lexicon` don't apply. `style` is a
+    natural-language direction for how to read the script (sent beside the
+    text, never spoken); every phrase after the first also carries the
+    previous phrase's own text as context (see `_gemini_style`), so the
+    model hears the sentence before the one it reads. Gemini can't be
+    seeded, so `say` keeps an unchanged phrase's committed audio rather than
+    asking for a new, different-sounding take of it every run (see
+    `_say_gemini`)."""
+    speaks_text = True
+    engine_name = 'Gemini'
+
+    def __init__(self, voice=None, model=None, style=None, api_key=None):
+        self.voice = voice or GEMINI_VOICE
+        self.model = model or GEMINI_MODEL
+        self.model_id = self.model
+        self.style = style or ''
+        self.api_key = api_key or os.environ.get('GEMINI_API_KEY')
+        if not self.api_key:
+            raise SpeechUnavailable(f'say --engine gemini needs $GEMINI_API_KEY. {GEMINI_HINT}')
+        self.url = (os.environ.get('VIDEOBUILDER_GEMINI_URL') or GEMINI_URL).format(model=self.model)
+
+    def settings(self):
+        """What, beside the text, decides the audio: `say`'s inputs."""
+        return {'engine': 'gemini', 'model': self.model, 'voice': self.voice, 'style': self.style}
+
+    def synth_one(self, text, style):
+        """16-bit mono samples at RATE for one phrase, `style` already
+        carrying any previous-phrase context (see `_gemini_style`)."""
+        part = {'text': text}
+        if style:
+            part['speech_metadata'] = {'style': style}
+        body = {
+            'contents': [{'parts': [part]}],
+            'generationConfig': {
+                'responseModalities': ['AUDIO'],
+                'speechConfig': {'voiceConfig': {'prebuiltVoiceConfig': {'voiceName': self.voice}}},
+            },
+        }
+        reply = self._post(body)
+        return self._audio(reply)
+
+    def _post(self, body):
+        data = json.dumps(body).encode('utf-8')
+        headers = {'Content-Type': 'application/json', 'x-goog-api-key': self.api_key}
+        for attempt in range(GEMINI_HTTP_RETRIES):
+            req = urllib.request.Request(self.url, data=data, headers=headers, method='POST')
+            try:
+                with urllib.request.urlopen(req, timeout=GEMINI_TIMEOUT) as resp:
+                    return json.loads(resp.read())
+            except urllib.error.HTTPError as e:
+                payload = e.read()
+                retryable = e.code == 429 or 500 <= e.code < 600
+                if retryable and attempt < GEMINI_HTTP_RETRIES - 1:
+                    time.sleep(GEMINI_BACKOFF * (2 ** attempt))
+                    continue
+                raise _gemini_error(e.code, payload, self.model) from None
+            except urllib.error.URLError as e:
+                raise SpeechUnavailable(f'Gemini: could not reach {self.url}: {e.reason}') from None
+
+    def _audio(self, reply):
+        try:
+            parts = reply['candidates'][0]['content']['parts']
+            inline = next(p['inlineData'] for p in parts if 'inlineData' in p)
+            mime, data = inline['mimeType'], inline['data']
+        except (KeyError, IndexError, StopIteration, TypeError):
+            raise SpeechUnavailable(f'Gemini ({self.model}) returned no audio: '
+                                    f'{json.dumps(reply)[:300]}') from None
+        m = _GEMINI_RATE.search(mime)
+        if not m or int(m.group(1)) != RATE:
+            raise SpeechUnavailable(f'Gemini ({self.model}) returned {mime}, expected {RATE} Hz 16-bit PCM')
+        samples = array.array('h', base64.b64decode(data))
+        return samples if sys.byteorder == 'little' else _swapped(samples)
 
 
 def voice_options(engine=None):
@@ -426,30 +552,55 @@ def _audible(samples, rate, floor_db=-45, window=0.01):
     return loud[0], min(len(samples), loud[-1] + n)
 
 
+@dataclass(frozen=True)
+class _Reused:
+    """A phrase's samples straight from the old committed WAV (see
+    `_say_gemini`): already trimmed and faded by a previous `_assemble_with_bounds`
+    call, so this one must place them as-is, with no further trim or fade --
+    an unchanged phrase's bytes never move. `inner` is (start, end), the
+    audible span's offset into `samples`, for the new cue span."""
+    samples: array.array
+    inner: tuple
+
+
+def _assemble_with_bounds(chunks, rate, gap=0.35, margin=0.03, fade=0.005):
+    """`assemble`, and also each piece's (start, end) sample bounds on the
+    joined clock -- where its bytes sit in the output, pad and fade
+    included -- so a later run can reuse an unchanged phrase's exact bytes
+    (see `_Reused`, `_say_gemini`)."""
+    out = array.array('h')
+    spans, bounds = [], []
+    pad, ramp = int(margin * rate), max(1, int(fade * rate))
+    for i, s in enumerate(chunks):
+        if isinstance(s, _Reused):
+            piece, (inner_a, inner_z) = s.samples, s.inner
+        else:
+            a, z = _audible(s, rate)
+            if z <= a:
+                raise ValueError(f'phrase {i + 1} came out silent')
+            a0, z0 = max(0, a - pad), min(len(s), z + pad)
+            piece = array.array('h', s[a0:z0])
+            # Kokoro's phrase edges aren't always at a zero crossing: a few ms of fade keeps the join from clicking.
+            for k in range(min(ramp, len(piece))):
+                g = k / ramp
+                piece[k] = int(piece[k] * g)
+                piece[-1 - k] = int(piece[-1 - k] * g)
+            inner_a, inner_z = a - a0, z - a0
+        if i:
+            out.extend(array.array('h', bytes(2 * round(gap * rate))))
+        base = len(out)
+        spans.append(((base + inner_a) / rate, (base + inner_z) / rate))
+        bounds.append((base, base + len(piece)))
+        out.extend(piece)
+    return out, spans, bounds
+
+
 def assemble(chunks, rate, gap=0.35, margin=0.03, fade=0.005):
     """Join each phrase's samples, trimmed to its audible span plus `margin`
     s, with `gap` s of silence between. Returns (samples, [(start, end)] in
     seconds): each phrase's audible span on the joined clock."""
-    out = array.array('h')
-    spans = []
-    pad, ramp = int(margin * rate), max(1, int(fade * rate))
-    for i, s in enumerate(chunks):
-        a, z = _audible(s, rate)
-        if z <= a:
-            raise ValueError(f'phrase {i + 1} came out silent')
-        a0, z0 = max(0, a - pad), min(len(s), z + pad)
-        piece = array.array('h', s[a0:z0])
-        # Kokoro's phrase edges aren't always at a zero crossing: a few ms of fade keeps the join from clicking.
-        for k in range(min(ramp, len(piece))):
-            g = k / ramp
-            piece[k] = int(piece[k] * g)
-            piece[-1 - k] = int(piece[-1 - k] * g)
-        if i:
-            out.extend(array.array('h', bytes(2 * round(gap * rate))))
-        base = len(out)
-        spans.append(((base + a - a0) / rate, (base + z - a0) / rate))
-        out.extend(piece)
-    return out, spans
+    samples, spans, _ = _assemble_with_bounds(chunks, rate, gap, margin, fade)
+    return samples, spans
 
 
 def _ts(t):
@@ -503,9 +654,11 @@ def say(script, out, engine, voice=DEFAULT_VOICE, speed=1.0, lang=None, gap=0.35
         raise ValueError(f'{out}: say writes a .wav')
     reads_text = getattr(engine, 'speaks_text', False)
     if reads_text and speed != 1.0:
-        raise ValueError(f'speed {speed}: Chatterbox has no speed setting')
+        raise ValueError(f"speed {speed}: {getattr(engine, 'engine_name', 'this engine')} has no speed setting")
     if not 0.5 <= speed <= 2.0:
         raise ValueError(f'speed {speed} is out of range: Kokoro takes 0.5 to 2.0')
+    if isinstance(engine, Gemini):
+        return _say_gemini(engine, script, out, gap, force)
     lang = lang or LANGS.get(voice[:1], 'en-us')
     items = phrases(script)
     if not items:
@@ -539,6 +692,78 @@ def say(script, out, engine, voice=DEFAULT_VOICE, speed=1.0, lang=None, gap=0.35
     cues = [(caption_text(p), round(a, 3), round(z, 3)) for p, (a, z) in zip(items, spans)]
     doc = {'audio': out.name, 'captions': vtt_path.name, 'seconds': round(len(samples) / RATE, 3),
            'phrases': [{'text': t, 'start': a, 'end': z} for t, a, z in cues], 'inputs': inputs,
+           'sha256': hashlib.sha256(samples.tobytes()).hexdigest()}
+    out.parent.mkdir(parents=True, exist_ok=True)
+    _write_wav(out, samples, RATE)
+    _write_text(vtt_path, vtt(cues))
+    _write_text(json_path, json.dumps(doc, indent=2, ensure_ascii=False) + '\n')
+    return doc
+
+
+def _reuse(old_samples, old_cue, bounds):
+    """An unchanged phrase's `_Reused` chunk, sliced straight out of the old
+    committed WAV at `bounds` (that phrase's (start, end) sample bounds, see
+    `_assemble_with_bounds`); `old_cue` (that phrase's old {'start', 'end'})
+    locates its audible span inside the slice. None where there is nothing
+    to reuse (no prior run, or `bounds` no longer fits the old WAV)."""
+    if not bounds or old_cue is None or old_samples is None:
+        return None
+    b, e = bounds
+    if not (0 <= b <= e <= len(old_samples)):
+        return None
+    inner = round(old_cue['start'] * RATE) - b, round(old_cue['end'] * RATE) - b
+    return _Reused(array.array('h', old_samples[b:e]), inner)
+
+
+def _say_gemini(engine, script, out, gap, force):
+    """`say` for `Gemini`: unlike Kokoro and Chatterbox, Gemini can't be
+    seeded, so a changed phrase can't just be redone with the same take as
+    last time -- every call gives a different one. Instead, each phrase is
+    cached on its own: `doc['phrase_cache']` records what decided its audio
+    (its text, its style with context, and the engine's settings), and a
+    phrase whose record is still exactly that is sliced straight out of the
+    old committed WAV (`_reuse`) instead of asked for again. Editing one
+    phrase changes its own record and, because the next phrase's style
+    quotes it as context, the next phrase's record too -- so exactly those
+    two are redone, and nothing else moves."""
+    items = phrases(script)
+    if not items:
+        raise ValueError('the script has no phrases: write one phrase or sentence per line')
+    texts = [caption_text(p) for p in items]
+    if any(_INLINE.search(p) for p in items):
+        print(f'say: {engine.engine_name} reads text, not phonemes: [word](/phonemes/) speaks the word as '
+              'written, and --say/--lexicon respellings do not apply', file=sys.stderr)
+    styles, previous = [], None
+    for t in texts:
+        styles.append(_gemini_style(engine.style, previous))
+        previous = t
+    settings = engine.settings()
+    # settings() has its own 'style' (the raw --style, no context): text/style must win, so they
+    # come after it, or an unchanged phrase whose context changed would wrongly look unchanged.
+    keys = [{**settings, 'text': t, 'style': s} for t, s in zip(texts, styles)]
+    inputs = {'phrases': texts, 'gap': gap, **settings}
+    vtt_path, json_path = sidecars(out)
+    old = {}
+    if not force and out.is_file() and vtt_path.is_file() and json_path.is_file():
+        try:
+            old = json.loads(json_path.read_text(encoding='utf-8'))
+        except ValueError:
+            old = {}
+        if old.get('inputs') == inputs:
+            return {**old, 'unchanged': True}
+    old_cache, old_cues = old.get('phrase_cache') or [], old.get('phrases') or []
+    old_samples = read_samples(out)[0] if old_cache and out.is_file() else None
+    chunks = []
+    for i, (text, style, key) in enumerate(zip(texts, styles, keys)):
+        reused = None
+        if old_samples is not None and i < len(old_cache) and old_cache[i].get('key') == key:
+            reused = _reuse(old_samples, old_cues[i] if i < len(old_cues) else None, old_cache[i].get('bounds'))
+        chunks.append(reused if reused is not None else engine.synth_one(text, style))
+    samples, spans, bounds = _assemble_with_bounds(chunks, RATE, gap=gap)
+    cues = [(t, round(a, 3), round(z, 3)) for t, (a, z) in zip(texts, spans)]
+    doc = {'audio': out.name, 'captions': vtt_path.name, 'seconds': round(len(samples) / RATE, 3),
+           'phrases': [{'text': t, 'start': a, 'end': z} for t, a, z in cues], 'inputs': inputs,
+           'phrase_cache': [{'key': k, 'bounds': list(b)} for k, b in zip(keys, bounds)],
            'sha256': hashlib.sha256(samples.tobytes()).hexdigest()}
     out.parent.mkdir(parents=True, exist_ok=True)
     _write_wav(out, samples, RATE)
