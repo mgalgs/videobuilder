@@ -928,8 +928,14 @@ class GeminiCheck(unittest.TestCase):
     def test_convert_to_sends_each_phrase_through_one_shared_worker(self):
         os.environ['FAKE_CHATTERBOX_TRANSCRIPTS'] = json.dumps(['Hello there.', 'How are you?'])
         self.say('--convert-to', str(self.clip), script='Hello there.\nHow are you?')
-        self.assertEqual(len([l for l in self.logged() if 'convert' in l]), 2)
-        self.assertEqual(len([l for l in self.logged() if 'transcribe' in l]), 2)
+        converts = [l for l in self.logged() if 'convert' in l]
+        transcribes = [l for l in self.logged() if 'transcribe' in l]
+        self.assertEqual(len(converts), 2)
+        self.assertEqual(len(transcribes), 2)
+        # the check ran on the converted audio, not the pre-conversion Gemini audio: each
+        # transcribe request's bytes are exactly some convert reply's bytes, in order.
+        self.assertEqual([t['transcribe_sha256'] for t in transcribes],
+                         [c['convert_out_sha256'] for c in converts])
         runs = [l for l in self.logged() if 'argv' in l]
         self.assertEqual(len(runs), 1)   # convert and transcribe share one worker process
         argv = runs[0]['argv']
