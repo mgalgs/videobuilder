@@ -33,4 +33,5 @@ RUN python3 -m venv /opt/chatterbox \
     && set -- $(python3 -c 'from videobuilder import speech as s; print(s.CHATTERBOX_WORKER, s.CHATTERBOX_REPO, s.CHATTERBOX_REVISION, s.CHATTERBOX_CACHE)') \
     && env -u HF_HUB_OFFLINE /opt/chatterbox/bin/python "$1" --repo "$2" --revision "$3" --cache-dir "$4" </dev/null >/dev/null \
     && ready="$(HF_HUB_OFFLINE=1 /opt/chatterbox/bin/python "$1" --repo "$2" --revision "$3" --cache-dir "$4" </dev/null)" \
-    && echo "$ready" && test "$ready" = '{"ready": true, "rate": 24000}'
+    && echo "$ready" && test "$ready" = '{"ready": true, "rate": 24000}' \
+    && chmod -R a+rX "$4"
