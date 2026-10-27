@@ -250,6 +250,32 @@ class Kokoro:
         return array.array('h', (np.clip(samples, -1, 1) * 32767).round().astype('<i2').tobytes())
 
 
+def _chatterbox_python(python=None):
+    python = python or os.environ.get('VIDEOBUILDER_CHATTERBOX_PYTHON') or CHATTERBOX_PYTHON
+    if not (Path(python).is_file() and os.access(python, os.X_OK)):
+        raise SpeechUnavailable(f'no Chatterbox interpreter at {python}. {CHATTERBOX_HINT}')
+    return python
+
+
+def _chatterbox_cache_dir(cache_dir=None):
+    cache = os.environ.get('VIDEOBUILDER_CHATTERBOX_CACHE')
+    return cache_dir or cache or (CHATTERBOX_CACHE if Path(CHATTERBOX_CACHE).is_dir() else None)
+
+
+def _worker_reply(proc):
+    line = proc.stdout.readline()
+    if not line:
+        raise SpeechUnavailable(f'the Chatterbox worker exited ({proc.wait()}) without answering; '
+                                'its own message, if any, is above')
+    try:
+        msg = json.loads(line)
+    except ValueError:
+        raise SpeechUnavailable(f'the Chatterbox worker said {line.strip()[:200]!r}, not JSON') from None
+    if 'error' in msg:
+        raise SpeechUnavailable(f"Chatterbox: {msg['error']}" + (f'. {CHATTERBOX_HINT}' if msg.get('install') else ''))
+    return msg
+
+
 class Chatterbox:
     """Chatterbox (Resemble AI) through chatterbox_worker.py, run in its own
     interpreter ($VIDEOBUILDER_CHATTERBOX_PYTHON): one process per `say`,
@@ -264,11 +290,8 @@ class Chatterbox:
         if voice is not None and not Path(voice).is_file():
             raise ValueError(f'no voice clip {voice!r}: with --engine chatterbox, --voice is a .wav of the voice '
                              "to speak in (default: Chatterbox's built-in voice), not a Kokoro voice name")
-        self.python = python or os.environ.get('VIDEOBUILDER_CHATTERBOX_PYTHON') or CHATTERBOX_PYTHON
-        if not (Path(self.python).is_file() and os.access(self.python, os.X_OK)):
-            raise SpeechUnavailable(f'no Chatterbox interpreter at {self.python}. {CHATTERBOX_HINT}')
-        cache = os.environ.get('VIDEOBUILDER_CHATTERBOX_CACHE')
-        self.cache_dir = cache_dir or cache or (CHATTERBOX_CACHE if Path(CHATTERBOX_CACHE).is_dir() else None)
+        self.python = _chatterbox_python(python)
+        self.cache_dir = _chatterbox_cache_dir(cache_dir)
         self.voice = voice
         self.voice_sha256 = hashlib.sha256(Path(voice).read_bytes()).hexdigest() if voice else None
         self.seed, self.exaggeration, self.cfg_weight = seed, exaggeration, cfg_weight
@@ -295,14 +318,14 @@ class Chatterbox:
         out = []
         with proc:
             try:
-                ready = self._reply(proc)
+                ready = _worker_reply(proc)
                 if ready.get('rate') != RATE:
                     raise SpeechUnavailable(f"Chatterbox makes {ready.get('rate')} Hz, expected {RATE}")
                 for i, text in enumerate(texts):
                     print(f'chatterbox {i + 1}/{len(texts)}: {text}', file=sys.stderr, flush=True)
                     proc.stdin.write(json.dumps({'text': text}, ensure_ascii=False) + '\n')
                     proc.stdin.flush()
-                    s = array.array('h', base64.b64decode(self._reply(proc)['samples']))
+                    s = array.array('h', base64.b64decode(_worker_reply(proc)['samples']))
                     out.append(s if sys.byteorder == 'little' else _swapped(s))
             finally:
                 proc.stdin.close()
@@ -310,19 +333,65 @@ class Chatterbox:
                     proc.kill()
         return out
 
-    @staticmethod
-    def _reply(proc):
-        line = proc.stdout.readline()
-        if not line:
-            raise SpeechUnavailable(f'the Chatterbox worker exited ({proc.wait()}) without answering; '
-                                    'its own message, if any, is above')
+
+class ChatterboxOps:
+    """Voice conversion and transcript checking for `say --engine gemini`
+    (`--convert-to`, the transcript check), through chatterbox_worker.py run
+    with `--ops` set to whichever of convert/transcribe it is asked for: one
+    process for the whole `say` call, each model loaded once, started lazily
+    on first use so a `say` that needs neither starts no worker at all."""
+
+    def __init__(self, convert_to=None, transcribe=False, python=None, cache_dir=None):
+        self.convert_to = convert_to
+        self.ops = [op for op, on in (('convert', convert_to is not None), ('transcribe', transcribe)) if on]
+        self._python_arg, self._cache_dir_arg = python, cache_dir
+        self.proc = None
+
+    def _start(self):
+        if self.proc is not None:
+            return
+        python = _chatterbox_python(self._python_arg)
+        cmd = [python, str(CHATTERBOX_WORKER), '--ops', ','.join(self.ops)]
+        if 'convert' in self.ops:
+            cache_dir = _chatterbox_cache_dir(self._cache_dir_arg)
+            cmd += ['--repo', CHATTERBOX_REPO, '--revision', CHATTERBOX_REVISION,
+                   '--convert-to', str(Path(self.convert_to).resolve())]
+            if cache_dir:
+                cmd += ['--cache-dir', str(cache_dir)]
         try:
-            msg = json.loads(line)
-        except ValueError:
-            raise SpeechUnavailable(f'the Chatterbox worker said {line.strip()[:200]!r}, not JSON') from None
-        if 'error' in msg:
-            raise SpeechUnavailable(f"Chatterbox: {msg['error']}" + (f'. {CHATTERBOX_HINT}' if msg.get('install') else ''))
-        return msg
+            proc = subprocess.Popen(cmd, stdin=subprocess.PIPE, stdout=subprocess.PIPE, encoding='utf-8')
+        except OSError as e:
+            raise SpeechUnavailable(f'could not run {python}: {e}. {CHATTERBOX_HINT}') from None
+        ready = _worker_reply(proc)
+        if 'convert' in self.ops and ready.get('rate') != RATE:
+            proc.stdin.close()
+            raise SpeechUnavailable(f"Chatterbox's voice converter makes {ready.get('rate')} Hz, expected {RATE}")
+        self.proc = proc
+
+    def _call(self, **req):
+        self._start()
+        self.proc.stdin.write(json.dumps(req, ensure_ascii=False) + '\n')
+        self.proc.stdin.flush()
+        return _worker_reply(self.proc)
+
+    def convert(self, samples):
+        """`samples` (16-bit mono at RATE), spoken in the --convert-to voice."""
+        pcm = samples.tobytes() if sys.byteorder == 'little' else _swapped(samples).tobytes()
+        reply = self._call(convert=base64.b64encode(pcm).decode('ascii'))
+        s = array.array('h', base64.b64decode(reply['samples']))
+        return s if sys.byteorder == 'little' else _swapped(s)
+
+    def transcribe(self, samples):
+        """The words faster-whisper hears in `samples` (16-bit mono at RATE)."""
+        pcm = samples.tobytes() if sys.byteorder == 'little' else _swapped(samples).tobytes()
+        return self._call(transcribe=base64.b64encode(pcm).decode('ascii'))['transcript']
+
+    def close(self):
+        if self.proc is not None:
+            self.proc.stdin.close()
+            if self.proc.poll() is None:
+                self.proc.wait()
+            self.proc = None
 
 
 _GEMINI_UNSUPPORTED = re.compile(r'speech.?metadata|\bstyle\b', re.IGNORECASE)

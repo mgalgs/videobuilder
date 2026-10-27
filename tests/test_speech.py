@@ -547,7 +547,7 @@ class ChatterboxWorker(unittest.TestCase):
                 names.update(n.name.split('.')[0] for n in node.names)
         self.assertNotIn('videobuilder', names)
         allowed = set(sys.stdlib_module_names) | {'torch', 'torchaudio', 'chatterbox', 'perth', 'numpy',
-                                                   'huggingface_hub'}
+                                                   'huggingface_hub', 'faster_whisper'}
         self.assertEqual(names - allowed, set())
 
     def run_worker(self, modules):
@@ -580,6 +580,77 @@ class ChatterboxWorker(unittest.TestCase):
         self.assertEqual(out.returncode, 1)
         self.assertTrue(msg['install'])
         self.assertIn("No module named 'chatterbox'", msg['error'])
+
+
+class ChatterboxOpsTest(unittest.TestCase):
+    """speech.ChatterboxOps (voice conversion and the transcript check, for
+    `say --engine gemini`) against tests/fake_chatterbox.py."""
+
+    def setUp(self):
+        self.dir = Path(tempfile.mkdtemp())
+        self.addCleanup(__import__('shutil').rmtree, self.dir)
+        self.python = self.dir / 'python'
+        self.python.write_text(f'#!/bin/sh\nexec "{sys.executable}" "{ROOT / "tests" / "fake_chatterbox.py"}" "$@"\n')
+        self.python.chmod(0o755)
+        self.log = self.dir / 'log.jsonl'
+        self.clip = self.dir / 'target.wav'
+        self.clip.write_bytes(b'x' * 37)
+        env = {'VIDEOBUILDER_CHATTERBOX_PYTHON': str(self.python), 'FAKE_CHATTERBOX_LOG': str(self.log)}
+        patcher = mock.patch.dict(os.environ, env)
+        patcher.start()
+        self.addCleanup(patcher.stop)
+
+    def logged(self):
+        if not self.log.exists():
+            return []
+        return [json.loads(l) for l in self.log.read_text().splitlines()]
+
+    def runs(self):
+        return [l for l in self.logged() if 'argv' in l]
+
+    def test_convert_starts_one_process_and_carries_the_target_clip(self):
+        ops = speech.ChatterboxOps(convert_to=str(self.clip))
+        self.addCleanup(ops.close)
+        out = ops.convert(tone(0.05))
+        self.assertIsInstance(out, array.array)
+        self.assertEqual(len(self.runs()), 1)
+        argv = self.runs()[0]['argv']
+        self.assertEqual(argv[argv.index('--ops') + 1], 'convert')
+        self.assertEqual(argv[argv.index('--convert-to') + 1], str(self.clip.resolve()))
+        ops.convert(tone(0.05))
+        self.assertEqual(len(self.runs()), 1)   # the second call reuses the same process
+
+    def test_transcribe_gets_the_canned_words(self):
+        os.environ['FAKE_CHATTERBOX_TRANSCRIPTS'] = json.dumps(['hello there'])
+        ops = speech.ChatterboxOps(transcribe=True)
+        self.addCleanup(ops.close)
+        self.assertEqual(ops.transcribe(tone(0.1)), 'hello there')
+        argv = self.runs()[0]['argv']
+        self.assertEqual(argv[argv.index('--ops') + 1], 'transcribe')
+        self.assertNotIn('--convert-to', argv)
+
+    def test_convert_and_transcribe_share_one_process(self):
+        os.environ['FAKE_CHATTERBOX_TRANSCRIPTS'] = json.dumps(['ok'])
+        ops = speech.ChatterboxOps(convert_to=str(self.clip), transcribe=True)
+        self.addCleanup(ops.close)
+        ops.convert(tone(0.05))
+        ops.transcribe(tone(0.05))
+        self.assertEqual(len(self.runs()), 1)
+        self.assertEqual(sorted(self.runs()[0]['argv'][self.runs()[0]['argv'].index('--ops') + 1].split(',')),
+                         ['convert', 'transcribe'])
+
+    def test_no_worker_without_convert_or_transcribe(self):
+        os.environ['VIDEOBUILDER_CHATTERBOX_PYTHON'] = str(self.dir / 'does' / 'not' / 'exist')
+        ops = speech.ChatterboxOps()
+        self.addCleanup(ops.close)
+        self.assertEqual(self.logged(), [])
+
+    def test_a_missing_interpreter_says_how_to_install_it(self):
+        os.environ['VIDEOBUILDER_CHATTERBOX_PYTHON'] = str(self.dir / 'does' / 'not' / 'exist')
+        ops = speech.ChatterboxOps(transcribe=True)
+        with self.assertRaises(speech.SpeechUnavailable) as cm:
+            ops.transcribe(tone(0.05))
+        self.assertIn('$VIDEOBUILDER_CHATTERBOX_PYTHON', str(cm.exception))
 
 
 class GeminiStyle(unittest.TestCase):
