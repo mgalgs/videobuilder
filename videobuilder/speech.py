@@ -34,6 +34,7 @@ import array
 import base64
 import hashlib
 import importlib.util
+import io
 import json
 import os
 import re
@@ -498,10 +499,24 @@ class Gemini:
         except (KeyError, IndexError, StopIteration, TypeError):
             raise SpeechUnavailable(f'Gemini ({self.model}) returned no audio: '
                                     f'{json.dumps(reply)[:300]}') from None
-        m = _GEMINI_RATE.search(mime)
-        if not m or int(m.group(1)) != RATE:
-            raise SpeechUnavailable(f'Gemini ({self.model}) returned {mime}, expected {RATE} Hz 16-bit PCM')
-        samples = array.array('h', base64.b64decode(data))
+        raw = base64.b64decode(data)
+        if mime.split(';')[0].strip().lower() in ('audio/wav', 'audio/x-wav', 'audio/wave'):
+            # A whole RIFF file: wave walks its chunks for fmt and data and
+            # refuses anything but integer PCM.
+            try:
+                with wave.open(io.BytesIO(raw)) as w:
+                    shape = (w.getnchannels(), w.getsampwidth(), w.getframerate())
+                    raw = w.readframes(w.getnframes())
+            except (wave.Error, EOFError) as e:
+                raise SpeechUnavailable(f'Gemini ({self.model}) returned an unreadable WAV: {e}') from None
+            if shape != (1, 2, RATE):
+                raise SpeechUnavailable(f'Gemini ({self.model}) returned a WAV of {shape[0]} channel(s), '
+                                        f'{8 * shape[1]}-bit, {shape[2]} Hz; expected mono 16-bit {RATE} Hz')
+        else:
+            m = _GEMINI_RATE.search(mime)
+            if not m or int(m.group(1)) != RATE:
+                raise SpeechUnavailable(f'Gemini ({self.model}) returned {mime}, expected {RATE} Hz 16-bit PCM')
+        samples = array.array('h', raw)
         return samples if sys.byteorder == 'little' else _swapped(samples)
 
 

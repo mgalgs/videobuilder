@@ -863,6 +863,38 @@ class GeminiEngine(unittest.TestCase):
         self.assertIn('16000', str(cm.exception))
         self.assertIn('24000', str(cm.exception))
 
+    @staticmethod
+    def wav_reply(samples, rate=speech.RATE, channels=1):
+        """Gemini's audio/wav reply: a whole RIFF file, here with a LIST chunk
+        before data, so a reader that assumes a 44-byte header gets it wrong."""
+        buf = io.BytesIO()
+        with wave.open(buf, 'wb') as w:
+            w.setnchannels(channels), w.setsampwidth(2), w.setframerate(rate)
+            w.writeframes(array.array('h', samples).tobytes())
+        riff = buf.getvalue()
+        at = riff.index(b'data')
+        extra = b'LIST' + (4).to_bytes(4, 'little') + b'INFO'
+        riff = riff[:at] + extra + riff[at:]
+        riff = riff[:4] + (len(riff) - 8).to_bytes(4, 'little') + riff[8:]
+        data = __import__('base64').b64encode(riff).decode()
+        return {'candidates': [{'content': {'parts': [{'inlineData': {'mimeType': 'audio/wav', 'data': data}}]}}]}
+
+    def test_a_wav_reply_is_read_by_its_chunks(self):
+        tone = [int(8000 * math.sin(i / 10)) for i in range(speech.RATE // 2)]
+        self.fake.queue(200, self.wav_reply(tone))
+        self.say(script='Hello there.')
+        with wave.open(str(self.dir / 'n.wav')) as w:
+            got = array.array('h', w.readframes(w.getnframes()))
+        self.assertNotIn(b'LIST', got.tobytes())
+        self.assertIn(array.array('h', tone[2000:2100]).tobytes(), got.tobytes())
+
+    def test_a_wav_at_another_rate_is_a_clear_error(self):
+        self.fake.queue(200, self.wav_reply([0] * 100, rate=16000))
+        with self.assertRaises(SystemExit) as cm:
+            self.say(script='Hello there.')
+        self.assertIn('16000', str(cm.exception))
+        self.assertIn('24000', str(cm.exception))
+
     def test_unsupported_style_names_the_model_not_a_raw_dump(self):
         self.fake.queue(400, {'error': {'message': 'Unknown name "speech_metadata": Cannot find field.'}})
         with self.assertRaises(SystemExit) as cm:
