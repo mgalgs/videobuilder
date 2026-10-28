@@ -713,9 +713,36 @@ class TranscriptNormalize(unittest.TestCase):
 
     def test_a_whole_sentence_with_a_number_and_a_compound(self):
         a = speech.normalize_for_check('Our healthcare costs rose by 20% to $1,500 this year.')
-        b = speech.normalize_for_check('our health care costs rose by twenty percent to $one thousand five '
-                                       'hundred this year')
+        b = speech.normalize_for_check('our health care costs rose by twenty percent to one thousand five '
+                                       'hundred dollars this year')
         self.assertEqual(a, b)
+
+    def test_how_a_transcript_writes_money_dates_and_percents(self):
+        # The script as written, then the transcriber's rendering of it.
+        n = speech.normalize_for_check
+        for script, heard in (('371,000 dollars', '$371,000'),
+                              ('11.25 billion dollars', '$11.25 billion'),
+                              ('1 billion dollars', '$1 billion'),
+                              ('one billion dollars', '$1 billion'),
+                              ('a 1 dollar fee', 'a $1 fee'),
+                              ('5 percent', '5%'),
+                              ('2.5 percent', '2.5%'),
+                              ('January 1, 2026', 'January 1st, 2026'),
+                              ('the 22nd and 3rd', 'the 22 and 3'),
+                              ('371,000', '371000')):
+            with self.subTest(script=script):
+                self.assertEqual(n(script), n(heard))
+
+    def test_a_folded_number_keeps_its_value(self):
+        n = speech.normalize_for_check
+        for script, heard in (('25 billion dollars', '$2.5 billion'),
+                              ('2.5 percent', '25%'),
+                              ('11.25 billion', '1125 billion'),
+                              ('1 billion dollars', '$1 million'),
+                              ('$5', '5%')):
+            with self.subTest(script=script):
+                self.assertNotEqual(n(script), n(heard))
+        self.assertEqual(n('in 2024, 300 people'), n('in 2024 300 people'))  # a comma before a space isn't grouping
 
 
 class GeminiEngine(unittest.TestCase):

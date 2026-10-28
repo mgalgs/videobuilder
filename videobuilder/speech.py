@@ -45,6 +45,7 @@ import urllib.error
 import urllib.request
 import wave
 from dataclasses import dataclass
+from decimal import Decimal
 from functools import lru_cache
 from pathlib import Path
 
@@ -589,9 +590,14 @@ def spoken_years(text):
 # hundred" and "1,500" all end up the same after normalize_for_check.
 _UNIT_WORDS = {w: i for i, w in enumerate(_ONES)}
 _TEN_WORDS = {w: i * 10 for i, w in enumerate(_TENS) if w}
-_SCALE_WORDS = {'thousand': 1000, 'million': 1000000}
-_WORD = re.compile(r'[a-z0-9]+')
-_PERCENT = re.compile(r'(\d[\d,]*)\s*%')
+_SCALE_WORDS = {'thousand': 10 ** 3, 'million': 10 ** 6, 'billion': 10 ** 9, 'trillion': 10 ** 12}
+# A number in digits is one token, its grouping commas and decimal point
+# included: "2.5" must never fold to the "25" that splitting it would give.
+_DIGITS = r'(?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d+)?'
+_TOKEN = re.compile(_DIGITS + r'|[a-z]+')
+_PERCENT = re.compile(rf'({_DIGITS})\s*%')
+_CURRENCY = re.compile(rf'\$\s*({_DIGITS})(\s+(?:hundred|{"|".join(_SCALE_WORDS)})\b)?')
+_ORDINAL = re.compile(r'\b(\d+)(?:st|nd|rd|th)\b')
 
 
 def _number_words(tokens):
@@ -637,27 +643,32 @@ def _number_words(tokens):
 
 def normalize_for_check(text):
     """`text`, ready to compare word-for-word against a transcript (see
-    `say`'s transcript check): lowercased, every number -- written as
-    digits ("1,500"), spelled out ("fifteen hundred", "one thousand five
-    hundred") or with a percent sign ("20%", "twenty percent") -- folded to
-    the same digits, and every word run joined with no spaces or
-    punctuation at all, so "healthcare" and "health care" compare equal
-    too."""
-    text = _PERCENT.sub(r'\1 percent', text.lower()).replace(',', '')
-    tokens = _WORD.findall(text)
+    `say`'s transcript check): lowercased, every number folded to its value
+    however it is written -- digits ("371,000", "11.25 billion"), words
+    ("fifteen hundred"), currency ("$1 billion" = "1 billion dollars"),
+    percent ("5%" = "five percent") or an ordinal ("1st" = "1") -- and
+    every word run joined with no spaces or punctuation at all, so
+    "healthcare" and "health care" compare equal too. Values are kept
+    exactly: "2.5 billion" never matches "25 billion"."""
+    text = _CURRENCY.sub(lambda m: f'{m[1]}{m[2] or ""} dollars', text.lower())
+    text = _ORDINAL.sub(r'\1', _PERCENT.sub(r'\1 percent', text))
+    tokens = ['dollars' if t == 'dollar' else t for t in _TOKEN.findall(text)]
     out, i = [], 0
     while i < len(tokens):
-        if tokens[i].isdigit():
-            out.append(tokens[i])
+        if tokens[i][0].isdigit():
+            value = Decimal(tokens[i].replace(',', ''))
             i += 1
-            continue
-        value, n = _number_words(tokens[i:])
-        if n:
-            out.append(str(value))
-            i += n
+            if i < len(tokens) and (tokens[i] == 'hundred' or tokens[i] in _SCALE_WORDS):
+                value *= 100 if tokens[i] == 'hundred' else _SCALE_WORDS[tokens[i]]
+                i += 1
         else:
-            out.append(tokens[i])
-            i += 1
+            value, n = _number_words(tokens[i:])
+            if not n:
+                out.append(tokens[i])
+                i += 1
+                continue
+            i += n
+        out.append(str(int(value)) if value == int(value) else str(Decimal(value).normalize()))
     return ''.join(out)
 
 
