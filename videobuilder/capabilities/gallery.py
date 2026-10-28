@@ -99,6 +99,16 @@ h3 { font-size: 13px; text-transform: uppercase; letter-spacing: .08em; color: v
 .tile .source { display: block; margin-top: 8px; color: var(--muted); font-size: 12.5px; }
 .tile .source a { color: var(--accent); }
 .hidden { display: none !important; }
+section { scroll-margin-top: 130px; }
+/* A phone: the sticky header keeps to the filter and one sideways-scrolling row of families. */
+@media (max-width: 640px) {
+  header { padding: 10px 14px; gap: 8px 12px; }
+  header input { max-width: none; }
+  nav { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; width: 100%; padding-bottom: 2px; }
+  nav::-webkit-scrollbar { display: none; }
+  nav a { flex: none; }
+  main { padding: 4px 14px 40px; }
+}
 """
 
 _JS = """
