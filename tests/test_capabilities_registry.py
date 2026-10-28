@@ -344,8 +344,10 @@ class Cli(unittest.TestCase):
             self.assertEqual(out.returncode, 0, out.stderr)
             self.assertEqual(sorted(os.listdir(d)), ['dip-to-black.jpg', 'dip-to-black.mp4', 'index.html'])
             page = Path(d, 'index.html').read_text()
-            self.assertIn('src="dip-to-black.mp4"', page)
-            self.assertIn('poster="dip-to-black.jpg"', page)
+            self.assertIn('data-clip="dip-to-black.mp4"', page)
+            # a lazy poster, not an eager <video poster=>, so hundreds of tiles cost nothing off screen
+            self.assertIn('<img src="dip-to-black.jpg" alt="" loading="lazy"', page)
+            self.assertNotIn('<video', page.split('<script>')[0])
             self.assertIn('prefers-color-scheme: dark', page)
             self.assertNotIn('bounce-ease-out', page)
             self.assertNotEqual(cli('gallery', '--out', d, '--only', 'no-such-id').returncode, 0)

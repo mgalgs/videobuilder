@@ -85,7 +85,8 @@ h3 { font-size: 13px; text-transform: uppercase; letter-spacing: .08em; color: v
   margin: 18px 0 10px; font-weight: 600; }
 .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 18px; }
 .tile { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
-.tile video { display: block; width: 100%; aspect-ratio: 16 / 9; background: #14151a; }
+.tile .clip { position: relative; aspect-ratio: 16 / 9; background: #14151a; }
+.tile .clip img, .tile .clip video { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
 .tile .text { padding: 10px 14px 14px; }
 .tile .name { font-weight: 650; font-size: 16px; }
 .tile .meta { color: var(--muted); font-size: 12.5px; margin: 1px 0 6px; }
@@ -102,10 +103,34 @@ h3 { font-size: 13px; text-transform: uppercase; letter-spacing: .08em; color: v
 
 _JS = """
 const tiles = [...document.querySelectorAll('.tile')];
+// Hundreds of tiles: a tile is a lazy poster until it is mostly on screen, and
+// only the first MAX_LIVE of those get a <video>, removed again (freeing its
+// decoder) once the tile leaves -- unless a sound clip is playing.
+const MAX_LIVE = 6, seen = new Set(), clips = [...document.querySelectorAll('.tile .clip')];
+function sync() {
+  let live = 0;
+  for (const c of clips) {
+    let v = c.querySelector('video');
+    const sound = 'sound' in c.dataset;
+    if (seen.has(c) && live < MAX_LIVE) {
+      live++;
+      if (!v) {
+        v = document.createElement('video');
+        v.poster = c.querySelector('img').src; v.playsInline = true; v.src = c.dataset.clip;
+        if (sound) { v.controls = true; v.preload = 'none'; } else { v.muted = true; v.loop = true; }
+        c.append(v);
+      }
+      if (!sound) v.play().catch(() => {});
+    } else if (v && (!sound || v.paused)) {
+      v.pause(); v.removeAttribute('src'); v.load(); v.remove();
+    }
+  }
+}
 const io = new IntersectionObserver(entries => {
-  for (const e of entries) { const v = e.target; if (e.isIntersecting) { v.play().catch(() => {}); } else { v.pause(); } }
-}, {rootMargin: '200px'});
-document.querySelectorAll('video').forEach(v => io.observe(v));
+  for (const e of entries) e.isIntersecting ? seen.add(e.target) : seen.delete(e.target);
+  sync();
+}, {threshold: 0.6});
+clips.forEach(c => io.observe(c));
 const q = document.getElementById('q'), count = document.getElementById('count');
 function filter() {
   const words = q.value.toLowerCase().split(/\\s+/).filter(Boolean);
@@ -149,10 +174,11 @@ def _tile(t):
     from . import source_html
     e = html.escape
     search = ' '.join((t.id, t.name, t.family, t.group, t.definition, *t.aliases, *t.phrasings)).lower()
-    # A sound capability is the one tile worth hearing: controls, not muted.
-    media = 'controls preload="none"' if t.family == 'sound' else 'muted loop playsinline preload="none"'
+    # A sound capability is the one tile worth hearing: controls, not muted (see _JS).
+    sound = ' data-sound' if t.family == 'sound' else ''
     return (f'<article class="tile" id="{e(t.id)}" data-search="{e(search)}">'
-            f'<video src="{e(t.id)}.mp4" poster="{e(t.id)}.jpg" {media}></video>'
+            f'<div class="clip" data-clip="{e(t.id)}.mp4"{sound}>'
+            f'<img src="{e(t.id)}.jpg" alt="" loading="lazy" decoding="async"></div>'
             f'<div class="text"><div class="name">{e(t.name)}</div>'
             f'<div class="meta">{e(_family_title(t.family))} / {e(t.group)} &middot; '
             f'<code>{e(t.id)}</code>'
