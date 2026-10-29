@@ -608,6 +608,13 @@ class EditorAssembly(FilmOfClips):
     def test_video_and_clip(self):
         data = self.wait(f'/api/video?video=promo/film&commit={self.sha}')
         self.assertTrue(data[4:8] == b'ftyp')
+        # The Download button's link: an attachment, its name made safe for a header.
+        url = f'{self.base}/api/video?video=promo/film&commit={self.sha}&download=promo%2Ffilm%22%3B+x-v1.mp4'
+        with urllib.request.urlopen(url) as r:
+            self.assertEqual(r.headers['Content-Disposition'], 'attachment; filename="promo-film-x-v1.mp4"')
+            self.assertEqual(r.read(), data)
+        with urllib.request.urlopen(f'{self.base}/api/video?video=promo/film&commit={self.sha}') as r:
+            self.assertIsNone(r.headers['Content-Disposition'])
         self.assertEqual(sorted(self.rendered), ['a', 'c'])
         self.assertEqual(self.editor.renders.states('promo/film', self.sha), {'1x1': 'ready'})
 

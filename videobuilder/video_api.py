@@ -87,6 +87,11 @@ def _get_video(self, route, q, editor, user):
         return self._json(202, {'state': state['state'], 'position': state['position']})
     data = editor.renders.path(video, sha, fmt).read_bytes()
     headers = {'Accept-Ranges': 'bytes', 'ETag': f'"{sha}-{fmt}"'}
+    if q.get('download'):
+        # The Download button's link: iOS browsers ignore <a download> and open
+        # the player, but save a response marked as an attachment.
+        name = re.sub(r'[^A-Za-z0-9._-]+', '-', q['download']).strip('.-') or 'video'
+        headers['Content-Disposition'] = f'attachment; filename="{name.removesuffix(".mp4")}.mp4"'
     return self._send_ranged(data, 'video/mp4', headers)
 
 

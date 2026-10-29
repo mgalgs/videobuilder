@@ -238,6 +238,11 @@ function videoUrl(commit=state.commit) {
   if (commit) params.commit=commit;
   return api('video', params);
 }
+// The Download buttons' link: the name goes in the URL as well as `download`, so the
+// server marks the response an attachment -- the only thing iOS browsers honour.
+function saveUrl(name) {
+  return name ? `${videoUrl()}&download=${encodeURIComponent(name)}` : videoUrl();
+}
 function frameUrl() {
   return api('frame', {
     video: state.video, format: state.format, frame: 0, scale: 0.5
@@ -252,12 +257,12 @@ function updateLabels() {
   $('caption-by').textContent=`Builder · v${v.n}`;
   $('caption-text').textContent=v.summary||'';
   $('sheet-subtitle').textContent=`Playing v${v.n} · ${timeLabel(player.currentTime)}`;
-  const url=videoUrl();
   const multi=(state.project?.videos?.length||0)>1;
   const base=libName?(multi?`${libName}-${state.video}`:libName):state.video;
+  const name=`${base.replaceAll('/','-')}-v${v.n}-${state.format}.mp4`;
   for(const id of ['rail-save','desktop-save']) {
-    if(state.videoReady)$(id).href=url;
-    $(id).download=`${base.replaceAll('/','-')}-v${v.n}-${state.format}.mp4`
+    if(state.videoReady)$(id).href=saveUrl(name);
+    $(id).download=name
   }
   renderVersions()
 }
@@ -361,7 +366,7 @@ async function loadPlayer(retry=false) {
     await r.body?.cancel();
     state.videoReady=true;
     setPlayState('play');
-    for(const id of ['rail-save','desktop-save'])$(id).href=videoUrl();
+    for(const id of ['rail-save','desktop-save'])$(id).href=saveUrl($(id).download);
     $('poster').hidden=true;
     $('render-status').hidden=true;
     player.src=url;
