@@ -264,7 +264,48 @@ function updateLabels() {
     if(state.videoReady)$(id).href=saveUrl(name);
     $(id).download=name
   }
+  $('rail-photos').hidden=!(fileSharing&&state.videoReady);
   renderVersions()
+}
+// Photos: the share sheet with the MP4 itself, which is where iOS offers "Save Video".
+// share() needs a recent tap and fetching the file can outlast it, so a refused share
+// keeps the file and the next tap shares it at once.
+const fileSharing=(()=> {
+  try {
+    return !!navigator.canShare?.({files:[new File([],'v.mp4',{type:'video/mp4'})]})
+  } catch (_) {
+    return false
+  }
+})();
+let photosFile=null;
+async function saveToPhotos() {
+  const url=$('rail-save').href, name=$('rail-save').download, label=$('rail-photos-label');
+  if(!url)return;
+  if(photosFile?.url!==url) {
+    $('rail-photos').disabled=true;
+    label.textContent='Getting…';
+    try {
+      const r=await reach(url);
+      if(!r.ok)throw httpError(r,await parseJSON(r));
+      photosFile={url,file:new File([await r.blob()],name,{type:'video/mp4'})}
+    }
+    catch(e) {
+      toast(e.message);
+      return
+    }
+    finally {
+      $('rail-photos').disabled=false;
+      label.textContent='Photos'
+    }
+  }
+  label.textContent='Photos';
+  try {
+    await navigator.share({files:[photosFile.file]})
+  }
+  catch(e) {
+    if(e.name==='NotAllowedError')label.textContent='Tap again';
+    else if(e.name!=='AbortError')toast(e.message)
+  }
 }
 function renderFormats() {
   const formats=state.info?.formats||[];
@@ -344,6 +385,7 @@ async function loadPlayer(retry=false) {
   }
   $('render-status').hidden=false;
   for(const id of ['rail-save','desktop-save'])$(id).removeAttribute('href');
+  $('rail-photos').hidden=true;
   const what=tlNoteClip()?`clip ${state.tl.data.clips.findIndex(c=>c.id===tlNoteClip())+1}`:`v${v?.n||'…'}`;
   $('render-text').textContent=`Rendering ${what}…`;
   $('retry-render').hidden=true;
@@ -2675,6 +2717,7 @@ $('share-invite').onclick=()=> {
 };
 $('tab-share').onclick=()=>setView('share');
 $('rail-share').onclick=()=>openSheet('share');
+$('rail-photos').onclick=saveToPhotos;
 $('tab-sources').onclick=()=>setView('sources');
 $('rail-sources').onclick=()=>openSheet('sources');
 // ---- Composer wiring: drag/drop, paste, keyboard shortcuts ----
