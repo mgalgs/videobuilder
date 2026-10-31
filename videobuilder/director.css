@@ -4939,3 +4939,120 @@ button.tl-act:hover {
     margin-bottom: calc(-16px - env(safe-area-inset-bottom));
   }
 }
+
+/* ---- Pre-production board: phone layout -- a bottom dock instead of the player rail,
+   tabs that scroll sideways, and the Start production dialog as a bottom sheet ---- */
+@media (max-width:700px) {
+  body.preprod #app {
+    background: var(--bg);
+  }
+
+  /* The topbar's video-overlay gradient is translucent by design (it floats over a
+     dark player); the board is a page of text, not a player, so it needs a solid
+     backing or the board's own top row shows through it. */
+  body.preprod .topbar {
+    background: var(--bg);
+  }
+
+  .board {
+    position: absolute;
+    inset: 0;
+    padding: 88px 12px calc(64px + env(safe-area-inset-bottom));
+    overflow-y: auto;
+    overflow-x: hidden;
+  }
+
+  .pp-tabs {
+    overflow-x: auto;
+    flex-wrap: nowrap;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+
+  .pp-tabs::-webkit-scrollbar {
+    display: none;
+  }
+
+  .pp-tab {
+    flex: none;
+  }
+
+  .pp-tabs-hint {
+    display: none;
+  }
+
+  /* Every grid in the board shrinks to fit instead of forcing the page wider. */
+  .pp-opts,.pp-refs,.pp-scenes,.pp-script {
+    grid-template-columns: minmax(0,1fr);
+  }
+
+  .pp-script {
+    display: block;
+  }
+
+  .pp-sc-jumplist {
+    width: auto;
+    flex-direction: row;
+    overflow-x: auto;
+    margin-bottom: 10px;
+  }
+
+  .pp-sc-jump {
+    flex: none;
+  }
+
+  .pp-dock {
+    position: absolute;
+    z-index: 2;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    display: flex;
+    gap: 10px;
+    padding: 10px 12px calc(10px + env(safe-area-inset-bottom));
+    background: #141417f2;
+    border-top: 1px solid #23232a;
+  }
+
+  .pp-dock button {
+    flex: 1;
+    min-height: 48px;
+    border: 0;
+    border-radius: 14px;
+    background: #1d1d22;
+    color: #fff;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    position: relative;
+  }
+
+  .pp-dock-badge {
+    position: absolute;
+    top: -6px;
+    right: -6px;
+    min-width: 18px;
+    height: 18px;
+    padding: 0 5px;
+    border-radius: 9px;
+    background: var(--accent);
+    color: #fff;
+    font-size: 10px;
+    font-weight: 700;
+    display: grid;
+    place-items: center;
+  }
+
+  .pp-start-pop {
+    position: fixed;
+    inset: auto 0 0 0;
+    top: auto;
+    right: auto;
+    width: auto;
+    max-height: 80dvh;
+    border-radius: 18px 18px 0 0;
+    padding-bottom: calc(18px + env(safe-area-inset-bottom));
+  }
+}

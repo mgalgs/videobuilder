@@ -1599,9 +1599,9 @@ console.log(JSON.stringify(['pre-production','production',null].map(ppLayout)));
 """
         pre, prod, none = run_node(script)
         self.assertEqual(pre, {'board': True, 'watch': False, 'header': True, 'phoneFormat': False,
-                               'timestamp': False, 'back': False})
+                               'timestamp': False, 'back': False, 'dock': True, 'phoneRail': False})
         self.assertEqual(prod, {'board': False, 'watch': True, 'header': False, 'phoneFormat': True,
-                                'timestamp': True, 'back': True})
+                                'timestamp': True, 'back': True, 'dock': False, 'phoneRail': True})
         self.assertEqual(none, prod)
 
 

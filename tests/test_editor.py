@@ -264,6 +264,7 @@ class DirectorPageRoutes(API):
                        'id="pp-phase" class="desktop-only pp-phase" aria-label="Phase" hidden',
                        'id="pp-settled" class="desktop-only pp-settled" hidden',
                        'id="pp-start" class="desktop-only pp-start-btn" aria-expanded="false"',
+                       'id="pp-dock" class="phone-only pp-dock" aria-label="Pre-production actions" hidden',
                        'id="pp-start-shade" class="music-shade" hidden',
                        'id="pp-start-pop" class="pp-start-pop" role="dialog"',
                        'id="pp-back" class="link-button" hidden'):
@@ -279,6 +280,25 @@ class DirectorPageRoutes(API):
         for name in ('sendNow', 'addPending'):
             body = re.search(r'async function ' + name + r'\(\) \{(.*?)\n\}', js, re.S).group(1)
             self.assertIn("state.stamp&&state.phase!=='pre-production'", body)
+
+    def test_preprod_phone_dock_wiring(self):
+        # The phone layout: a bottom dock (Chat, Start production) replaces .phone-rail in
+        # pre-production (ppLayout flips both, see test_preprod.BoardLayoutJS); the dock's
+        # own buttons open the chat sheet and the Start production popover, and the 700px
+        # media query gives the board, its tabs and the dock their phone-specific layout.
+        import re
+        html = (PKG / 'editor.html').read_text()
+        self.assertIn('id="pp-dock" class="phone-only pp-dock" aria-label="Pre-production actions" hidden', html)
+        self.assertIn('id="pp-dock-chat"', html)
+        self.assertIn('id="pp-dock-badge" class="pp-dock-badge" hidden', html)
+        self.assertIn('id="pp-dock-start" class="accent">Start production</button>', html)
+        js = (PKG / 'director.js').read_text()
+        self.assertIn("$('pp-dock-chat').onclick=()=>openSheet('chat');", js)
+        self.assertIn("$('pp-dock-start').onclick=()=>ppOpenStart(true);", js)
+        # These selectors exist only inside the 700px media query (the phone layout).
+        css = (PKG / 'director.css').read_text()
+        for selector in ('\n  .board {', '\n  .pp-dock {', '\n  .pp-tabs {', '\n  .pp-start-pop {'):
+            self.assertIn(selector, css)
 
     @unittest.skipUnless(shutil.which('node'), 'node is not available in this environment')
     def test_moving_a_clip_keeps_acts_runs_of_clips(self):

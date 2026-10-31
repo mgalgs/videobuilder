@@ -128,7 +128,7 @@
 </div>
 </div>
       </div>
-      <nav class="phone-rail phone-only" aria-label="Director tools">
+      <nav id="phone-rail" class="phone-rail phone-only" aria-label="Director tools">
         <button id="rail-chat" aria-label="Chat with the builder">
 <span class="rail-icon">
 <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -438,6 +438,15 @@
 </div>
     </aside>
   </main>
+  <nav id="pp-dock" class="phone-only pp-dock" aria-label="Pre-production actions" hidden>
+<button id="pp-dock-chat">
+<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+<path d="M4 5.5h16v10H9l-4.5 3.5v-3.5H4z">
+</path>
+</svg> <span>Chat</span><span id="pp-dock-badge" class="pp-dock-badge" hidden></span>
+</button>
+<button id="pp-dock-start" class="accent">Start production</button>
+</nav>
   <div id="pp-start-shade" class="music-shade" hidden>
 </div>
   <section id="pp-start-pop" class="pp-start-pop" role="dialog" aria-modal="true" aria-labelledby="pp-start-title" hidden>

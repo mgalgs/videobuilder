@@ -1044,6 +1044,9 @@ async function loadNotes() {
       if(state.phase==='pre-production')loadPreprod()
     }
     updateBuildPill();
+    const questionCount=state.notes.filter(n=>n.state==='questions').length;
+    $('pp-dock-badge').textContent=`${questionCount} question${questionCount===1?'':'s'}`;
+    $('pp-dock-badge').hidden=!questionCount;
     // Clear only the poll's own error, never one from a send the director made.
     if(state.pollError&&$('composer-error').textContent===state.pollError)showError('');
     state.pollError=null
@@ -4383,7 +4386,8 @@ const PP_ICON={open:'<circle cx="12" cy="12" r="8"/>',
 // Pure: the DOM flags for a phase, with no DOM touched -- testable in node with no stubs.
 function ppLayout(phase) {
   const pre=phase==='pre-production';
-  return {board:pre,watch:!pre,header:pre,phoneFormat:!pre,timestamp:!pre,back:!pre}
+  return {board:pre,watch:!pre,header:pre,phoneFormat:!pre,timestamp:!pre,back:!pre,
+          dock:pre,phoneRail:!pre}
 }
 function applyPhase(phase) {
   const was=state.phase;
@@ -4394,6 +4398,8 @@ function applyPhase(phase) {
   for(const id of ['pp-sub','pp-phase','pp-settled','pp-start'])$(id).hidden=!L.header;
   $('phone-format').hidden=!L.phoneFormat;
   $('timestamp').hidden=!L.timestamp;
+  $('pp-dock').hidden=!L.dock;
+  $('phone-rail').hidden=!L.phoneRail;
   $('pp-back').hidden=!L.back;
   document.body.classList.toggle('preprod',phase==='pre-production');
   if(phase==='pre-production'&&was!=='pre-production') {
@@ -4942,6 +4948,8 @@ $('board').addEventListener('change',e=> {
 $('board').addEventListener('pointerdown',ppDragStart);
 $('board').addEventListener('keydown',ppDragKey);
 $('pp-start').onclick=()=>ppOpenStart(true);
+$('pp-dock-start').onclick=()=>ppOpenStart(true);
+$('pp-dock-chat').onclick=()=>openSheet('chat');
 $('pp-keep').onclick=()=>ppOpenStart(false);
 $('pp-checks').addEventListener('click',e=> {
   const b=e.target.closest('[data-pp="goto"]');
