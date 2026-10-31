@@ -265,7 +265,8 @@ class DirectorDuringARestart(unittest.TestCase):
         self.assertLess(player.index('if(state.restarting)return'), player.index("$('retry-render').hidden=false"))
         # The draft, pending list and picked files are cleared only after a send succeeds
         # (pinned in test_editor's signed-out test); a failed upload leaves state.files as it was.
-        self.assertNotIn('state.files=', body('uploadFiles'))
+        self.assertNotIn('state.files=', body('uploadAttachment'))
+        self.assertNotIn('state.files=', body('collectAttachments'))
 
 
 class Sigterm(TempProject):

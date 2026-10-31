@@ -313,8 +313,11 @@
             <button id="send-all" class="accent">Send to the builder</button>
           </section>
           <div class="composer-extras">
-<span class="drop-hint desktop-only">Drop screenshots, images, clips or audio here</span>
-<div id="attachments">
+<div class="tray-wrap" id="tray-wrap" hidden>
+<div class="tray-head"><span id="tray-count">
+</span><span class="drop-hint desktop-only">or drop files anywhere on the chat</span></div>
+<div class="tray" id="attachments">
+</div>
 </div>
 </div>
           <div class="composer-row">
@@ -435,6 +438,16 @@
 </p>
 </div>
 </div>
+</div>
+      <div id="drop-overlay" class="drop-ov" hidden>
+<div class="drop-ov-icon">
+<svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+<path d="M12 20V4M5 11l7-7 7 7">
+</path>
+</svg>
+</div>
+<strong>Drop to attach</strong>
+<span>Screenshots, songs, clips, notes and PDFs go with your next note.</span>
 </div>
     </aside>
   </main>
@@ -620,6 +633,38 @@ time: whatever is still open, the builder decides and tells you what it chose.</
 </div>
     <p id="source-player-error" class="composer-error" hidden>
 </p>
+  </div>
+  <div id="lightbox" class="lb" role="dialog" aria-modal="true" aria-label="Attachment preview" hidden>
+    <div class="lb-top">
+<div class="lb-meta">
+<span id="lb-name" class="lb-name">
+</span>
+<span id="lb-count" class="lb-count">
+</span>
+</div>
+<button id="lb-close" aria-label="Close">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+<path d="M6 6l12 12M18 6L6 18">
+</path>
+</svg>
+</button>
+</div>
+    <div id="lb-mid" class="lb-mid">
+<button id="lb-prev" aria-label="Previous">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+<path d="M15 5l-7 7 7 7">
+</path>
+</svg>
+</button>
+<div id="lb-stage" class="lb-stage">
+</div>
+<button id="lb-next" aria-label="Next">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+<path d="M9 5l7 7-7 7">
+</path>
+</svg>
+</button>
+</div>
   </div>
 </div>
 <template id="icon-play">

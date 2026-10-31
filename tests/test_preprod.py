@@ -2349,6 +2349,225 @@ console.log(JSON.stringify({
         self.assertEqual(out['build'], 1)
 
 
+class ChatAttachmentsJS(unittest.TestCase):
+    """The composer tray, the drop overlay, sent-bubble media and the lightbox
+    (director.js's trayItemNode/bubbleAttachments/openLightbox family), run for
+    real against plain attachment-record data -- not the mockup's own JS, the
+    same node()-built code the editor actually ships."""
+
+    # Like ChatPictureCardsJS.DOM_STUB, but also resolves #icon-* templates (icon()/
+    # sizedIcon() clone one) and keeps a $(id) registry (the glue functions -- renderFiles,
+    # openLightbox -- read/write specific ids, not just build detached nodes).
+    DOM_STUB = """
+function mkEl(tag) {
+  const el={tag,className:'',textContent:'',innerHTML:'',children:[],dataset:{},attrs:{},hidden:false,
+    disabled:false,type:'',value:'',src:'',alt:'',controls:false,autoplay:false,style:{},
+    append(...cs){this.children.push(...cs)},
+    replaceChildren(...cs){this.children=cs},
+    remove(){},
+    setAttribute(k,v){this.attrs[k]=String(v)},
+    getAttribute(k){return this.attrs[k]},
+    cloneNode(){const c=mkEl(this.tag);c.className=this.className;return c},
+    classList:{
+      add:(...cs)=>{for(const c of cs){const parts=el.className.split(' ').filter(Boolean);
+        if(!parts.includes(c))parts.push(c);el.className=parts.join(' ')}},
+      remove:(...cs)=>{el.className=el.className.split(' ').filter(c=>c&&!cs.includes(c)).join(' ')}
+    },
+    querySelector(sel){return this.querySelectorAll(sel)[0]||null},
+    querySelectorAll(sel){
+      const cls=sel.replace('.','');
+      const out=[];
+      const walk=n=>{for(const c of (n.children||[])){
+        if((c.className||'').split(' ').filter(Boolean).includes(cls))out.push(c);
+        walk(c)
+      }};
+      walk(el);
+      return out
+    }
+  };
+  return el
+}
+const ICON_EL={};
+const document={
+  createElement:mkEl,
+  querySelector(sel){
+    const m=/^#icon-(.+)$/.exec(sel);
+    if(!m)return null;
+    if(!ICON_EL[m[1]])ICON_EL[m[1]]=mkEl('svg');
+    return {content:{firstElementChild:ICON_EL[m[1]]}}
+  },
+  addEventListener(){},removeEventListener(){}
+};
+const ELS={};
+const $=id=>ELS[id]||(ELS[id]=mkEl('div'));
+const text=n=>[n.textContent,n.innerHTML,...(n.children||[]).map(text)].join(' ');
+const classes=n=>(n.className||'').split(' ').filter(Boolean);
+"""
+
+    @unittest.skipUnless(shutil.which('node'), 'node is not available in this environment')
+    def test_tray_renders_each_attachment_type_with_progress_and_error(self):
+        js = (PKG / 'director.js').read_text()
+        script = (self.DOM_STUB + _consts(js, 'node', 'api') +
+                 _fns(js, 'icon', 'sizedIcon', 'sizeLabel', 'waveSvg', 'ringSvg', 'ringDash',
+                      'attachmentUrl', 'trayAudioSrc', 'trayItemNode') + """
+const timeLabel=s=>{s=Math.max(0,Math.floor(s||0));return `${Math.floor(s/60)}:${String(s%60).padStart(2,'0')}`};
+let trayPlayingId=null;
+const uploadingImage=trayItemNode({localId:1,file:null,id:null,name:'screenshot.png',type:'image/png',
+  size:900000,progress:45,error:null,url:'blob:local',frame:null,duration:null,peaks:null,thumb:null});
+const plainImage=trayItemNode({localId:2,file:null,id:'img2',name:'lamp-room.jpg',type:'image/jpeg',
+  size:120000,progress:null,error:null,url:null,frame:null,duration:null,peaks:null,thumb:null});
+const video=trayItemNode({localId:3,file:null,id:'vid3',name:'waves.mp4',type:'video/mp4',
+  size:3000000,progress:null,error:null,url:null,frame:'data:image/jpeg;base64,x',duration:75,peaks:null});
+const audio=trayItemNode({localId:4,file:null,id:'au4',name:'storm-theme.wav',type:'audio/wav',
+  size:5000000,progress:null,error:null,url:null,frame:null,duration:187,peaks:[.1,.4,.9,.2]});
+const doc=trayItemNode({localId:5,file:null,id:null,name:'treatment.pdf',type:'application/pdf',
+  size:600000,progress:null,error:'attachment exceeds file size limit',url:null,frame:null,duration:null,peaks:null});
+console.log(JSON.stringify({
+  uploadingImage:{cls:classes(uploadingImage),up:uploadingImage.querySelectorAll('up').length,
+    pct:text(uploadingImage.querySelectorAll('up')[0])},
+  plainImage:{cls:classes(plainImage),name:plainImage.querySelectorAll('tname-ov')[0].textContent,
+    imgSrc:plainImage.children.find(c=>c.className==='art').children[0].src},
+  video:{cls:classes(video),dur:video.querySelectorAll('dur')[0].textContent,
+    imgSrc:video.children.find(c=>c.className==='art').children[0].src},
+  audio:{cls:classes(audio),times:audio.querySelectorAll('times')[0].textContent,
+    wave:audio.querySelectorAll('wave')[0].innerHTML.includes('<svg')},
+  doc:{cls:classes(doc),kind:doc.querySelectorAll('doc-ic')[0].textContent,
+    sub:text(doc.querySelectorAll('doc-sub')[0]),bad:doc.querySelectorAll('bad')[0].textContent}
+}));
+""")
+        out = run_node(script)
+        self.assertEqual(out['uploadingImage']['cls'], ['tile'])
+        self.assertEqual(out['uploadingImage']['up'], 1)
+        self.assertIn('45%', out['uploadingImage']['pct'])
+        self.assertEqual(out['plainImage']['cls'], ['tile'])
+        self.assertEqual(out['plainImage']['name'], 'lamp-room.jpg')
+        # No local url/thumb: falls back to the uploaded attachment's own URL.
+        self.assertEqual(out['plainImage']['imgSrc'], 'api/attachments/img2')
+        self.assertEqual(out['video']['cls'], ['tile'])
+        self.assertEqual(out['video']['dur'], '1:15')
+        self.assertEqual(out['video']['imgSrc'], 'data:image/jpeg;base64,x')
+        self.assertEqual(out['audio']['cls'], ['aud'])
+        self.assertEqual(out['audio']['times'], '3:07')
+        self.assertTrue(out['audio']['wave'])
+        self.assertEqual(out['doc']['cls'], ['tile', 'doc'])
+        self.assertEqual(out['doc']['kind'], 'PDF')
+        self.assertIn('PDF ·', out['doc']['sub'])
+        self.assertEqual(out['doc']['bad'], 'attachment exceeds file size limit')
+
+    @unittest.skipUnless(shutil.which('node'), 'node is not available in this environment')
+    def test_drop_overlay_shows_while_dragging_and_hides_on_leave_or_drop(self):
+        js = (PKG / 'director.js').read_text()
+        script = (self.DOM_STUB + _consts(js, 'dropDepth') +
+                 _fns(js, 'panelDragEnter', 'panelDragLeave', 'panelDragOver', 'panelDrop') + """
+function setView(){}
+function addFiles(){}
+const ev=()=>({preventDefault(){},dataTransfer:{types:['Files'],files:[]}});
+const out=[];
+panelDragEnter(ev());
+out.push(['afterFirstEnter',$('drop-overlay').hidden]);
+panelDragEnter(ev());
+out.push(['afterNestedEnter',$('drop-overlay').hidden]);
+panelDragLeave();
+out.push(['afterOneLeave',$('drop-overlay').hidden]);
+panelDragLeave();
+out.push(['afterSecondLeave',$('drop-overlay').hidden]);
+panelDragEnter(ev());
+panelDrop(ev());
+out.push(['afterDrop',$('drop-overlay').hidden]);
+console.log(JSON.stringify(out));
+""")
+        out = dict(run_node(script))
+        self.assertFalse(out['afterFirstEnter'], 'the overlay should show as soon as a drag carries files in')
+        self.assertFalse(out['afterNestedEnter'], 'still showing while the drag is over a child element')
+        self.assertFalse(out['afterOneLeave'], 'one dragleave (a child) must not hide it -- the drag is still over the panel')
+        self.assertTrue(out['afterSecondLeave'], 'the matching second dragleave actually left the panel')
+        self.assertTrue(out['afterDrop'], 'dropping hides the overlay')
+
+    @unittest.skipUnless(shutil.which('node'), 'node is not available in this environment')
+    def test_sent_bubble_groups_images_into_a_grid_with_plus_n_then_video_audio_and_file_chips(self):
+        js = (PKG / 'director.js').read_text()
+        script = (self.DOM_STUB + _consts(js, 'node', 'api', 'TL_ICON', 'svg', 'remoteMediaCache') +
+                 _fns(js, 'icon', 'sizedIcon', 'sizeLabel', 'attachmentUrl', 'attachmentKind',
+                      'bubbleImageGrid', 'enrichRemoteVideo', 'bubbleVideoTile', 'enrichRemoteAudio',
+                      'bubbleAudioTile', 'bubbleFileChip', 'bubbleAttachments') + """
+const timeLabel=s=>{s=Math.max(0,Math.floor(s||0));return `${Math.floor(s/60)}:${String(s%60).padStart(2,'0')}`};
+let bubbleAudioId=null;
+function renderNotes(){}
+const atts=[
+  {id:'i1',name:'cliff-night.jpg',type:'image/jpeg',size:1},
+  {id:'i2',name:'keeper-ref.png',type:'image/png',size:1},
+  {id:'i3',name:'harbor-ref.jpg',type:'image/jpeg',size:1},
+  {id:'i4',name:'window-rain.jpg',type:'image/jpeg',size:1},
+  {id:'i5',name:'dawn-grid.png',type:'image/png',size:1},
+  {id:'v1',name:'waves.mp4',type:'video/mp4',size:1},
+  {id:'a1',name:'storm-theme.wav',type:'audio/wav',size:1},
+  {id:'f1',name:'treatment.pdf',type:'application/pdf',size:2100000}
+];
+const bubble=mkEl('div');
+bubbleAttachments(bubble,atts);
+const grid=bubble.children.find(c=>classes(c).includes('igrid'));
+console.log(JSON.stringify({
+  order:bubble.children.map(c=>classes(c)[0]),
+  gridClass:classes(grid),
+  tileCount:grid.children.length,
+  plusN:grid.children[3].querySelectorAll('more')[0].textContent,
+  videoDur:classes(bubble.children.find(c=>classes(c).includes('bubble-video'))),
+  audioChip:classes(bubble.children.find(c=>classes(c).includes('aud'))),
+  fileChipKind:bubble.children.find(c=>c.tag==='a').querySelectorAll('doc-mini')[0].textContent,
+  fileChipName:text(bubble.children.find(c=>c.tag==='a')).includes('treatment.pdf'),
+}));
+""")
+        out = run_node(script)
+        # images, then the video tile, then the audio chip, then the file chip.
+        self.assertEqual(out['order'], ['igrid', 'tile', 'aud', 'file-chip'])
+        self.assertEqual(out['gridClass'], ['igrid', 'n4'])
+        self.assertEqual(out['tileCount'], 4, 'only 4 tiles shown for 5 images, the 5th folds into "+1"')
+        self.assertEqual(out['plusN'], '+1')
+        self.assertIn('bubble-video', out['videoDur'])
+        self.assertIn('aud', out['audioChip'])
+        self.assertEqual(out['fileChipKind'], 'PDF')
+        self.assertTrue(out['fileChipName'])
+
+    @unittest.skipUnless(shutil.which('node'), 'node is not available in this environment')
+    def test_lightbox_opens_on_an_item_steps_next_and_wraps_and_closes(self):
+        js = (PKG / 'director.js').read_text()
+        script = (self.DOM_STUB + _consts(js, 'node', 'api', 'lightboxItems') +
+                 _fns(js, 'attachmentUrl', 'attachmentKind', 'renderLightbox', 'lightboxStep',
+                      'lightboxKeydown', 'openLightbox', 'closeLightbox') + """
+const items=[{id:'i1',name:'a.jpg',type:'image/jpeg'},{id:'i2',name:'b.mp4',type:'video/mp4'},
+  {id:'i3',name:'c.jpg',type:'image/jpeg'}];
+openLightbox(items,1);
+const afterOpen={hidden:$('lightbox').hidden,name:$('lb-name').textContent,count:$('lb-count').textContent,
+  stageTag:$('lb-stage').children[0].tag,prevHidden:$('lb-prev').hidden,nextHidden:$('lb-next').hidden};
+lightboxStep(1);
+const afterNext={name:$('lb-name').textContent,stageTag:$('lb-stage').children[0].tag};
+lightboxStep(1);
+const afterWrap={name:$('lb-name').textContent};
+closeLightbox();
+const afterClose={hidden:$('lightbox').hidden,stageChildren:$('lb-stage').children.length};
+console.log(JSON.stringify({afterOpen,afterNext,afterWrap,afterClose}));
+""")
+        out = run_node(script)
+        self.assertEqual(out['afterOpen'], {'hidden': False, 'name': 'b.mp4', 'count': '2 / 3',
+                                            'stageTag': 'video', 'prevHidden': False, 'nextHidden': False})
+        self.assertEqual(out['afterNext'], {'name': 'c.jpg', 'stageTag': 'img'})
+        self.assertEqual(out['afterWrap']['name'], 'a.jpg', 'next from the last item wraps to the first')
+        self.assertEqual(out['afterClose'], {'hidden': True, 'stageChildren': 0})
+
+    @unittest.skipUnless(shutil.which('node'), 'node is not available in this environment')
+    def test_bubble_attachments_is_a_no_op_for_a_text_only_note(self):
+        js = (PKG / 'director.js').read_text()
+        script = (self.DOM_STUB + _consts(js, 'node') +
+                 _fns(js, 'attachmentKind', 'bubbleAttachments') + """
+const bubbleA=mkEl('div'),bubbleB=mkEl('div');
+bubbleAttachments(bubbleA,undefined);
+bubbleAttachments(bubbleB,[]);
+console.log(JSON.stringify({a:bubbleA.children.length,b:bubbleB.children.length}));
+""")
+        out = run_node(script)
+        self.assertEqual(out, {'a': 0, 'b': 0})
+
+
 class Docs(unittest.TestCase):
     """docs/preproduction.md must name every route preprod_api registers,
     the library-only New-video routes, and every bible/ file -- so a route

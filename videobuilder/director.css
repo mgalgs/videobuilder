@@ -702,6 +702,7 @@ button.danger:disabled {
   display: flex;
   flex-direction: column;
   min-height: 0;
+  position: relative;
 }
 
 .desktop-tabs {
@@ -806,22 +807,140 @@ button.danger:disabled {
   font-weight: 700;
 }
 
-.bubble img {
-  max-width: 120px;
-  max-height: 214px;
-  object-fit: contain;
-  border-radius: 9px;
+/* A sent message's images (1-4 shown, "+N" on the last when there are more). */
+.igrid {
+  display: grid;
+  gap: 3px;
+  border-radius: 12px;
+  overflow: hidden;
+  width: min(264px,100%);
+}
+
+.igrid > button {
+  position: relative;
+  padding: 0;
+  border: 0;
+  background: #000;
+  display: block;
+  min-width: 0;
+}
+
+.igrid .art {
+  width: 100%;
+  height: 100%;
+  position: relative;
+  overflow: hidden;
+  background: #07040f;
+}
+
+.igrid .art img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.igrid.n1 {
+  grid-template-columns: 1fr;
+}
+
+.igrid.n1 > button {
+  aspect-ratio: 4 / 3;
+}
+
+.igrid.n2 {
+  grid-template-columns: 1fr 1fr;
+}
+
+.igrid.n2 > button {
+  aspect-ratio: 3 / 4;
+}
+
+.igrid.n3 {
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: 1fr 1fr;
+  aspect-ratio: 1;
+}
+
+.igrid.n3 > button:first-child {
+  grid-row: span 2;
+}
+
+.igrid.n4 {
+  grid-template-columns: 1fr 1fr;
+}
+
+.igrid.n4 > button {
+  aspect-ratio: 1;
+}
+
+.igrid .more {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  background: #000a;
+  display: grid;
+  place-items: center;
+  font-size: 22px;
+  font-weight: 800;
+  color: #fff;
+}
+
+/* A sent video: the same tile look as the composer tray, sized a little larger. */
+.bubble .tile.bubble-video {
+  width: 132px;
+  height: 132px;
+  padding: 0;
+  border: 0;
+}
+
+.bubble .aud {
+  background: #00000038;
+  border-color: #ffffff1f;
 }
 
 .file-chip {
   display: inline-flex;
   align-items: center;
+  gap: 8px;
   background: #ffffff18;
-  border-radius: 8px;
-  padding: 4px 7px;
+  border-radius: 10px;
+  padding: 8px 10px;
   color: #fff;
   max-width: 100%;
+  min-height: 44px;
   overflow-wrap: anywhere;
+}
+
+.file-chip .doc-mini {
+  flex: none;
+  width: 22px;
+  height: 26px;
+  border-radius: 3px;
+  background: #f4f4f2;
+  color: #c62828;
+  font: 800 7px/26px system-ui;
+  text-align: center;
+}
+
+.file-chip b {
+  font-size: 13px;
+  font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.file-chip > span {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.file-chip > span > span {
+  font-size: 12px;
+  color: var(--muted);
+  white-space: nowrap;
 }
 
 .bubble .dots {
@@ -1147,8 +1266,12 @@ button.danger:disabled {
    item still costs .composer's own `gap`, so collapse it entirely rather than
    just emptying its content. */
 @media (max-width: 700px) {
-  .composer-extras:not(.sg-on):not(:has(#attachments .file-chip)) {
+  .composer-extras:not(.sg-on):has(#tray-wrap[hidden]) {
     display: none;
+  }
+
+  .tray {
+    flex-wrap: nowrap;
   }
 }
 
@@ -1325,56 +1448,442 @@ button.danger:disabled {
   font-weight: 700;
 }
 
-#attachments {
+.tray-wrap {
+  width: 100%;
   display: flex;
-  flex-wrap: wrap;
-  gap: 5px;
+  flex-direction: column;
+  gap: 2px;
 }
 
-/* With chips, the row is the composer's full width, so an image's chip can take half of it. */
-#attachments:has(.file-chip) {
+.tray-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--muted);
+  font-weight: 700;
+}
+
+.tray {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 6px 2px 4px;
+  overflow-x: auto;
+  scrollbar-width: thin;
+}
+
+/* A tray tile (picture/video/document) or audio row: the composer's own attachment cards,
+   sized bigger than a sent bubble's so an in-progress upload is easy to read. */
+.tray > .tile {
+  width: 84px;
+  height: 84px;
+  flex: none;
+}
+
+.tray > .aud {
+  flex: none;
+  width: 210px;
+  height: 84px;
+}
+
+.tile {
+  position: relative;
+  border-radius: 12px;
+  overflow: hidden;
+  background: #1d1d22;
+  border: 1px solid #34343c;
+  min-width: 0;
+}
+
+.tile > .art {
+  position: absolute;
+  inset: 0;
+  background: #07040f;
+}
+
+.tile > .art.icon-art {
+  display: grid;
+  place-items: center;
+  color: var(--muted);
+}
+
+.tile > .art img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.tile .x,.aud .x {
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  z-index: 4;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  padding: 0;
+  background: #000b;
+  border: 1px solid #ffffff59;
+  color: #fff;
+  display: grid;
+  place-items: center;
+}
+
+.tile .dur {
+  position: absolute;
+  right: 6px;
+  bottom: 6px;
+  z-index: 2;
+  background: #000c;
+  border-radius: 6px;
+  padding: 1px 6px;
+  font-size: 11px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.tile .vid {
+  position: absolute;
+  left: 6px;
+  bottom: 6px;
+  z-index: 2;
+  background: #000c;
+  border-radius: 6px;
+  padding: 2px 4px;
+  display: flex;
+}
+
+.tile .tname-ov {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 2;
+  padding: 12px 6px 4px;
+  font-size: 10px;
+  font-weight: 600;
+  background: linear-gradient(transparent,#000c);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-align: left;
+}
+
+button.tname-ov {
+  border: 0;
+  color: #fff;
+}
+
+.tile .up {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  background: #000a;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.ring-prog {
+  width: 34px;
+  height: 34px;
+}
+
+.tile .bar,.aud .bar {
+  position: absolute;
+  left: 8px;
+  right: 8px;
+  bottom: 6px;
+  height: 4px;
+  border-radius: 2px;
+  background: #ffffff30;
+  z-index: 3;
+}
+
+.tile .bar i,.aud .bar i {
+  display: block;
+  height: 100%;
+  background: #fff;
+  border-radius: 2px;
+}
+
+.tile.doc {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 10px;
+  background: #1a1a1f;
+}
+
+.doc-ic {
+  width: 26px;
+  height: 32px;
+  border-radius: 4px;
+  background: #f4f4f2;
+  color: #c62828;
+  display: grid;
+  place-items: end center;
+  padding-bottom: 4px;
+  font: 800 8px/1 system-ui;
+  position: relative;
+}
+
+.doc-ic.txt {
+  color: #333;
+}
+
+.doc-ic::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  border: 5px solid;
+  border-color: #1a1a1f #1a1a1f #c9c9cf #c9c9cf;
+}
+
+.doc-name {
+  font-size: 11px;
+  font-weight: 700;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.doc-sub {
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.aud {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px 8px 8px;
+  border-radius: 12px;
+  background: #1d1d22;
+  border: 1px solid #34343c;
+  min-width: 0;
+  position: relative;
+}
+
+.aud .play {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: #fff;
+  color: #111;
+  border: 0;
+  display: grid;
+  place-items: center;
+  flex: none;
+}
+
+.aud .play.on {
+  background: var(--accent);
+  color: #fff;
+}
+
+.aud .meta {
+  min-width: 0;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.aud .name {
+  font-size: 13px;
+  font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.aud .sub {
+  font-size: 11px;
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.aud .times {
+  font-size: 11px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+  flex: none;
+}
+
+.wave {
+  height: 22px;
   width: 100%;
 }
 
-/* An image's chip leads with a thumbnail; its name is cut short so a phone fits two to a row. */
-#attachments .file-chip.with-thumb {
-  gap: 8px;
-  padding: 0 0 0 3px;
-  min-height: 44px;
-  max-width: min(240px,calc(50% - 3px));
-  overflow-wrap: normal;
+.wave svg {
+  width: 100%;
+  height: 100%;
+  display: block;
 }
 
-.file-thumb {
-  flex: none;
-  width: 38px;
-  height: 38px;
+/* Doubles as a playback-position bar for a sent bubble's audio chip (no peaks there --
+   see enrichRemoteAudio in director.js): same look, filled by elapsed/duration instead of upload %. */
+.wave.bar-wave {
+  position: relative;
+  height: 4px;
+  border-radius: 2px;
+  background: #ffffff30;
+  overflow: hidden;
+}
+
+.wave.bar-wave i {
+  display: block;
+  height: 100%;
+  width: 0;
+  background: #fff;
+}
+
+.bad {
+  position: absolute;
+  left: 6px;
+  right: 6px;
+  bottom: 4px;
+  z-index: 4;
+  font-size: 10px;
+  font-weight: 700;
+  color: #ffb4ad;
+  background: #000c;
   border-radius: 6px;
-  object-fit: cover;
-  background: #ffffff14;
+  padding: 2px 5px;
 }
 
-.file-chip.with-thumb .file-name {
+.aud .bad {
+  position: static;
+  flex: 1 0 100%;
+}
+
+/* A footage file offers the timeline instead of the plain filename caption. */
+#attachments .tname-ov.file-clip {
+  background: var(--accent);
+  text-align: center;
+  font-weight: 700;
+}
+
+/* Covers the whole chat panel while a drag carries files over it (director.js's
+   panelDragEnter/panelDragLeave); .panel's own position:relative anchors it. */
+.drop-ov {
+  position: absolute;
+  inset: 8px;
+  z-index: 30;
+  border: 2px dashed #fff;
+  border-radius: 14px;
+  background: #0d0d10eb;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  text-align: center;
+  padding: 20px;
+}
+
+.drop-ov-icon {
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  background: #fff;
+  color: #111;
+  display: grid;
+  place-items: center;
+}
+
+.drop-ov strong {
+  font-size: 20px;
+}
+
+.drop-ov span {
+  color: var(--muted);
+  font-size: 13px;
+  max-width: 28ch;
+}
+
+/* The attachment lightbox: an image or video, full screen, with next/previous and close. */
+.lb {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  background: #050507;
+  display: flex;
+  flex-direction: column;
+}
+
+.lb-top {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+}
+
+.lb-meta {
   flex: 1;
   min-width: 0;
-  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.lb-name {
+  font-weight: 700;
   white-space: nowrap;
+  overflow: hidden;
   text-overflow: ellipsis;
-  font-size: 13px;
 }
 
-#attachments .file-chip.with-thumb button {
-  flex: none;
-  min-width: 36px;
-  min-height: 44px;
+.lb-count {
+  font-size: 12px;
+  color: var(--muted);
 }
 
-#attachments .file-chip button {
-  min-width: 28px;
-  min-height: 28px;
-  color: #fff;
-  background: none;
+.lb-top button,.lb-mid > button {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
   border: 0;
+  background: #ffffff1a;
+  color: #fff;
+  display: grid;
+  place-items: center;
+  flex: none;
+}
+
+.lb-mid {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 8px;
+}
+
+.lb-stage {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.lb-stage .art {
+  width: 100%;
+  max-height: 100%;
+  aspect-ratio: 16 / 10;
+  border-radius: 8px;
+  object-fit: contain;
 }
 
 .composer-error {
@@ -4690,17 +5199,6 @@ button.danger:disabled {
   margin: 0 16px 16px;
 }
 
-/* A video file in the composer can go on the timeline instead. */
-#attachments .file-chip .file-clip {
-  min-height: 28px;
-  margin-left: 6px;
-  padding: 0 8px;
-  border: 1px solid #ffffff44;
-  border-radius: 6px;
-  font-size: 12px;
-  font-weight: 700;
-  white-space: nowrap;
-}
 
 button.tl-act {
   font: inherit;

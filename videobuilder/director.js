@@ -884,6 +884,230 @@ function fixingMessage(note, notes) {
   const fixing=notes.some(n=>n.retry_for===note.id&&['gathering','queued','working'].includes(n.state));
   return note.state==='replied'&&note.message&&fixing ? note.message : null
 }
+// ---- Sent-message attachments and the lightbox ----
+function attachmentKind(att) {
+  const t=att.type||'';
+  if(t.startsWith('image/'))return 'image';
+  if(t.startsWith('video/'))return 'video';
+  if(t.startsWith('audio/'))return 'audio';
+  return 'file'
+}
+function bubbleImageGrid(images, openAt) {
+  const grid=node('div','igrid n'+Math.min(images.length,4));
+  const extra=images.length-4;
+  images.slice(0,4).forEach((att,i)=> {
+    const btn=node('button');
+    btn.type='button';
+    const art=node('div','art'),img=node('img');
+    img.src=attachmentUrl(att.id);
+    img.alt=att.name;
+    img.loading='lazy';
+    img.decoding='async';
+    art.append(img);
+    btn.append(art);
+    if(i===3&&extra>0)btn.append(node('span','more','+'+extra));
+    btn.setAttribute('aria-label',`Open ${att.name}`+(i===3&&extra>0?` and ${extra} more`:''));
+    btn.onclick=()=>openAt(i);
+    grid.append(btn)
+  });
+  return grid
+}
+// A sent video's frame and duration, cached by attachment id so repeated renderNotes() calls
+// (the chat polls) never re-fetch or re-decode a clip already seen -- GET /api/attachments/<id>
+// has no Range support, so pulling one is the whole file.
+const remoteMediaCache=new Map();
+function enrichRemoteVideo(att) {
+  if(remoteMediaCache.has(att.id))return;
+  remoteMediaCache.set(att.id, {});
+  try {
+    const v=document.createElement('video');
+    v.preload='metadata';
+    v.muted=true;
+    v.src=attachmentUrl(att.id);
+    v.onloadedmetadata=()=> {
+      remoteMediaCache.set(att.id, {...remoteMediaCache.get(att.id),duration:v.duration});
+      renderNotes();
+      try {
+        v.currentTime=Math.min(1,(v.duration||0)/4)
+      }
+      catch(_) {
+      }
+    };
+    v.onseeked=()=> {
+      try {
+        const w=v.videoWidth,h=v.videoHeight,side=Math.min(w,h);
+        const c=document.createElement('canvas');
+        c.width=160;
+        c.height=160;
+        c.getContext('2d').drawImage(v,(w-side)/2,(h-side)/2,side,side,0,0,c.width,c.height);
+        remoteMediaCache.set(att.id, {...remoteMediaCache.get(att.id),frame:c.toDataURL('image/jpeg',.7)});
+        renderNotes()
+      }
+      catch(_) {
+      }
+    }
+  }
+  catch(_) {
+  }
+}
+function bubbleVideoTile(att, index, openAt) {
+  const cached=remoteMediaCache.get(att.id)||{};
+  const btn=node('button','tile bubble-video');
+  btn.type='button';
+  const art=node('div','art');
+  if(cached.frame) {
+    const img=node('img');
+    img.src=cached.frame;
+    img.alt='';
+    art.append(img)
+  }
+  const vid=node('span','vid');
+  vid.innerHTML=svg(TL_ICON.video,13);
+  btn.append(art,vid,node('span','dur',cached.duration!=null?timeLabel(cached.duration):''));
+  btn.setAttribute('aria-label',`Open ${att.name}`);
+  btn.onclick=()=>openAt(index);
+  enrichRemoteVideo(att);
+  return btn
+}
+// A single shared player for every sent-bubble audio chip, like the tray's own trayPlayer:
+// only one can play at a time.
+let bubbleAudioPlayer=typeof Audio!=='undefined'?new Audio():null;
+let bubbleAudioId=null;
+if(bubbleAudioPlayer) {
+  bubbleAudioPlayer.onended=()=> {
+    bubbleAudioId=null;
+    renderNotes()
+  };
+  bubbleAudioPlayer.ontimeupdate=()=>paintBubbleAudioProgress()
+}
+function paintBubbleAudioProgress() {
+  if(!bubbleAudioId||!bubbleAudioPlayer.duration)return;
+  const fill=document.querySelector(`.aud[data-att="${bubbleAudioId}"] .bar-wave i`);
+  if(fill)fill.style.width=Math.min(100,bubbleAudioPlayer.currentTime/bubbleAudioPlayer.duration*100)+'%'
+}
+function toggleBubbleAudio(att) {
+  if(!bubbleAudioPlayer)return;
+  if(bubbleAudioId===att.id) {
+    bubbleAudioPlayer.pause();
+    bubbleAudioId=null
+  }
+  else {
+    bubbleAudioPlayer.src=attachmentUrl(att.id);
+    bubbleAudioPlayer.play().catch(()=> {
+    });
+    bubbleAudioId=att.id
+  }
+  renderNotes()
+}
+function enrichRemoteAudio(att) {
+  if(remoteMediaCache.has(att.id))return;
+  remoteMediaCache.set(att.id, {});
+  try {
+    const a=new Audio();
+    a.preload='metadata';
+    a.src=attachmentUrl(att.id);
+    a.onloadedmetadata=()=> {
+      remoteMediaCache.set(att.id, {duration:a.duration});
+      renderNotes()
+    }
+  }
+  catch(_) {
+  }
+}
+function bubbleAudioTile(att) {
+  const cached=remoteMediaCache.get(att.id)||{};
+  const playing=bubbleAudioId===att.id;
+  const el=node('div','aud');
+  el.dataset.att=att.id;
+  const play=node('button','play'+(playing?' on':''));
+  play.type='button';
+  play.append(sizedIcon(playing?'pause':'play',15));
+  play.setAttribute('aria-label',`${playing?'Pause':'Play'} ${att.name}`);
+  play.onclick=()=>toggleBubbleAudio(att);
+  const meta=node('div','meta');
+  meta.append(node('span','name',att.name));
+  const wave=node('div','wave bar-wave');
+  wave.append(node('i'));
+  meta.append(wave);
+  el.append(play,meta,node('span','times',cached.duration!=null?timeLabel(cached.duration):''));
+  enrichRemoteAudio(att);
+  return el
+}
+function bubbleFileChip(att) {
+  const kind=att.type==='application/pdf'?'PDF':att.type==='image/svg+xml'?'SVG'
+    :/\.md$/i.test(att.name||'')?'MD':'TXT';
+  const a=node('a','file-chip');
+  a.href=attachmentUrl(att.id);
+  a.target='_blank';
+  a.rel='noopener';
+  a.setAttribute('aria-label',`Open ${att.name}`);
+  a.append(node('span','doc-mini',kind));
+  const text=node('span');
+  text.append(node('b',null,att.name));
+  text.append(node('span',null,kind+(att.size!=null?` · ${sizeLabel(att.size)}`:'')));
+  a.append(text);
+  return a
+}
+// Images first as a grid, then video tiles, then audio chips, then everything else as a file
+// chip -- next/previous in the lightbox walks the images and videos together, grid order first.
+function bubbleAttachments(bubble, attachments) {
+  if(!attachments||!attachments.length)return;
+  const images=attachments.filter(a=>attachmentKind(a)==='image');
+  const videos=attachments.filter(a=>attachmentKind(a)==='video');
+  const audios=attachments.filter(a=>attachmentKind(a)==='audio');
+  const files=attachments.filter(a=>attachmentKind(a)==='file');
+  const media=[...images,...videos];
+  const openAt=i=>openLightbox(media,i);
+  if(images.length)bubble.append(bubbleImageGrid(images,openAt));
+  videos.forEach((att,i)=>bubble.append(bubbleVideoTile(att,images.length+i,openAt)));
+  audios.forEach(att=>bubble.append(bubbleAudioTile(att)));
+  files.forEach(att=>bubble.append(bubbleFileChip(att)))
+}
+let lightboxItems=[],lightboxIndex=0;
+function renderLightbox() {
+  const item=lightboxItems[lightboxIndex];
+  if(!item)return;
+  $('lb-name').textContent=item.name;
+  $('lb-count').textContent=lightboxItems.length>1?`${lightboxIndex+1} / ${lightboxItems.length}`:'';
+  const stage=$('lb-stage');
+  stage.replaceChildren();
+  if(attachmentKind(item)==='video') {
+    const v=node('video','art');
+    v.src=attachmentUrl(item.id);
+    v.controls=true;
+    v.autoplay=true;
+    stage.append(v)
+  }
+  else {
+    const img=node('img','art');
+    img.src=attachmentUrl(item.id);
+    img.alt=item.name;
+    stage.append(img)
+  }
+  $('lb-prev').hidden=$('lb-next').hidden=lightboxItems.length<=1
+}
+function lightboxStep(delta) {
+  if(!lightboxItems.length)return;
+  lightboxIndex=(lightboxIndex+delta+lightboxItems.length)%lightboxItems.length;
+  renderLightbox()
+}
+function lightboxKeydown(e) {
+  if(e.key==='Escape')closeLightbox();
+  else if(e.key==='ArrowLeft')lightboxStep(-1);
+  else if(e.key==='ArrowRight')lightboxStep(1)
+}
+function openLightbox(items, index) {
+  lightboxItems=items;
+  lightboxIndex=index;
+  renderLightbox();
+  $('lightbox').hidden=false;
+  document.addEventListener('keydown',lightboxKeydown)
+}
+function closeLightbox() {
+  $('lightbox').hidden=true;
+  document.removeEventListener('keydown',lightboxKeydown);
+  $('lb-stage').replaceChildren()
+}
 function renderNotes() {
   const list=$('note-list'),atBottom=list.scrollHeight-list.scrollTop-list.clientHeight<80;
   fdShowLink();
@@ -903,22 +1127,8 @@ function renderNotes() {
       };
       bubble.append(stamp)
     }
+    bubbleAttachments(bubble,note.attachments);
     bubble.append(node('span','msg-text',note.said||note.text));
-    for(const attachment of note.attachments||[]) {
-      if(attachment.type?.startsWith('image/')) {
-        const img=node('img');
-        img.src=attachmentUrl(attachment.id);
-        img.alt=attachment.name;
-        bubble.append(img)
-      }
-      else {
-        const a=node('a','file-chip',attachment.name);
-        a.href=attachmentUrl(attachment.id);
-        a.target='_blank';
-        a.rel='noopener';
-        bubble.append(a)
-      }
-    }
     row.append(bubble);
     list.append(row);
     if(note.handle)list.append(renderStepsToggle(note));
@@ -1197,67 +1407,371 @@ async function upgradeVideo() {
   }
 }
 // ---- File attachments and the music picker ----
-// A chip's thumbnail: a picked or dropped image's own object URL (made once, revoked once the
-// file leaves the note), a picture's stored thumbnail, or an uploaded image's attachment.
-const chipUrls=new Map();
-const isImage=f=>/^image\/(png|jpeg|webp|gif)$/.test(f.type||'')||/\.(png|jpe?g|webp|gif)$/i.test(f.name||'');
-function chipThumb(f) {
-  if(!isImage(f))return null;
-  if(f instanceof Blob) {
-    if(!chipUrls.has(f))chipUrls.set(f,URL.createObjectURL(f));
-    return chipUrls.get(f)
+// The composer tray: state.files holds a "record" per attachment, not the raw File -- a picked/
+// dropped/pasted file is uploaded in the background as soon as it's added (uploadAttachment),
+// so the tray can show real per-item progress; an already-uploaded item (a restored pending note,
+// a picture from the picture maker) is a record with no .file and an .id from the start.
+let nextFileLocalId=1;
+function fileRecord(input) {
+  if(input instanceof File) {
+    return {localId:nextFileLocalId++,file:input,id:null,name:input.name,type:input.type||'',
+      size:input.size,progress:0,error:null,url:null,frame:null,duration:null,peaks:null,audioUrl:null}
   }
-  return f.thumb||(f.id?attachmentUrl(f.id):null)
+  return {localId:nextFileLocalId++,file:null,id:input.id,name:input.name,type:input.type||'',
+    size:input.size??null,progress:null,error:null,url:null,frame:null,duration:null,peaks:null,
+    audioUrl:null,pictureKey:input.pictureKey,thumb:input.thumb,credit:input.credit}
+}
+function sizeLabel(bytes) {
+  if(bytes>=1048576)return(bytes/1048576).toFixed(1)+' MB';
+  if(bytes>=1024)return Math.round(bytes/1024)+' KB';
+  return bytes+' B'
+}
+function ringDash(p) {
+  return(Math.max(0,Math.min(100,p))/100*94.2).toFixed(1)+' 94.2'
+}
+function ringSvg(p) {
+  return `<svg class="ring-prog" viewBox="0 0 36 36"><circle cx="18" cy="18" r="15" fill="none" `+
+    `stroke="#ffffff33" stroke-width="3"/><circle cx="18" cy="18" r="15" fill="none" stroke="#fff" `+
+    `stroke-width="3" stroke-dasharray="${ringDash(p)}" transform="rotate(-90 18 18)" stroke-linecap="round"/></svg>`
+}
+function waveSvg(peaks) {
+  if(!peaks||!peaks.length)return '<svg viewBox="0 0 100 22" aria-hidden="true"></svg>';
+  const n=peaks.length;
+  let bars='';
+  for(let i=0;i<n;i++) {
+    const h=Math.max(2,peaks[i]*18+2),x=i*(100/n);
+    bars+=`<rect x="${x.toFixed(2)}" y="${((22-h)/2).toFixed(2)}" width="${(100/n*.55).toFixed(2)}" `+
+      `height="${h.toFixed(2)}" rx=".8" fill="#6b6b75"/>`
+  }
+  return `<svg viewBox="0 0 100 22" preserveAspectRatio="none" aria-hidden="true">${bars}</svg>`
+}
+function computePeaks(data, n) {
+  const peaks=[],block=Math.max(1,Math.floor(data.length/n));
+  for(let i=0;i<n;i++) {
+    let max=0;
+    for(let j=i*block;j<Math.min(data.length,(i+1)*block);j++) {
+      const v=Math.abs(data[j]);
+      if(v>max)max=v
+    }
+    peaks.push(max)
+  }
+  return peaks
+}
+function sizedIcon(name, size) {
+  const el=icon(name);
+  el.setAttribute('width',size);
+  el.setAttribute('height',size);
+  return el
+}
+let trayPlayer=typeof Audio!=='undefined'?new Audio():null;
+let trayPlayingId=null;
+if(trayPlayer)trayPlayer.onended=()=> {
+  trayPlayingId=null;
+  renderFiles()
+};
+function trayAudioSrc(record) {
+  return record.audioUrl||(record.id?attachmentUrl(record.id):null)
+}
+function toggleTrayAudio(record) {
+  const src=trayAudioSrc(record);
+  if(!src||!trayPlayer)return;
+  if(trayPlayingId===record.localId) {
+    trayPlayer.pause();
+    trayPlayingId=null
+  }
+  else {
+    trayPlayer.src=src;
+    trayPlayer.play().catch(()=> {
+    });
+    trayPlayingId=record.localId
+  }
+  renderFiles()
+}
+// Progress events fire many times a second: repaint just the one tile's bar/ring/percent in
+// place, so a click or keyboard focus on its remove button is never lost to a full rerender.
+function paintTrayProgress(record) {
+  const t=$('attachments').querySelector(`[data-tile="${record.localId}"]`);
+  if(!t) {
+    renderFiles();
+    return
+  }
+  const bar=t.querySelector('.bar i');
+  if(bar)bar.style.width=record.progress+'%';
+  const arc=t.querySelector('.ring-prog circle:last-child');
+  if(arc)arc.setAttribute('stroke-dasharray',ringDash(record.progress));
+  for(const s of t.querySelectorAll('[data-pct]'))s.textContent=s.dataset.pct+record.progress+'%'
+}
+function uploadAttachment(record) {
+  if(record._upload)return record._upload;
+  record.progress=0;
+  renderFiles();
+  record._upload=new Promise(resolve=> {
+    const xhr=new XMLHttpRequest();
+    record.xhr=xhr;
+    xhr.open('POST',api('attachments', {video:state.video,name:record.name}));
+    xhr.setRequestHeader('Content-Type',record.type||'application/octet-stream');
+    xhr.upload.onprogress=e=> {
+      if(!e.lengthComputable||!state.files.includes(record))return;
+      record.progress=Math.round(e.loaded/e.total*100);
+      paintTrayProgress(record)
+    };
+    xhr.onload=()=> {
+      record.xhr=null;
+      let data=null;
+      try {
+        data=JSON.parse(xhr.responseText)
+      }
+      catch(_) {
+      }
+      if(xhr.status>=200&&xhr.status<300&&data) {
+        record.id=data.id;
+        record.progress=null
+      }
+      else {
+        record.error=(data&&data.error)||'upload failed';
+        record.progress=null
+      }
+      renderFiles();
+      resolve()
+    };
+    xhr.onerror=()=> {
+      record.xhr=null;
+      record.error='upload failed';
+      record.progress=null;
+      renderFiles();
+      resolve()
+    };
+    xhr.send(record.file)
+  });
+  return record._upload
+}
+// Best-effort client-side preview -- a real thumbnail/frame/waveform from the file itself,
+// never from the network -- same approach as new_video.js's own enrich(): any missing browser
+// API (no AudioContext, a flaky video decode) just leaves the tile at its plain icon, nothing
+// here may ever break the upload itself.
+function enrichFile(record) {
+  try {
+    if(record.type.startsWith('image/')) {
+      record.url=URL.createObjectURL(record.file);
+      renderFiles()
+    }
+    else if(record.type.startsWith('video/')) {
+      record.url=URL.createObjectURL(record.file);
+      const v=document.createElement('video');
+      v.preload='auto';
+      v.muted=true;
+      v.src=record.url;
+      // Frame 0 is often black or mid-fade: seek a little way in before grabbing one.
+      v.onloadedmetadata=()=> {
+        record.duration=v.duration;
+        renderFiles();
+        try {
+          v.currentTime=Math.min(1,(v.duration||0)/4)
+        }
+        catch(_) {
+        }
+      };
+      v.onseeked=()=> {
+        try {
+          const w=v.videoWidth,h=v.videoHeight,side=Math.min(w,h);
+          const c=document.createElement('canvas');
+          c.width=160;
+          c.height=160;
+          c.getContext('2d').drawImage(v,(w-side)/2,(h-side)/2,side,side,0,0,c.width,c.height);
+          record.frame=c.toDataURL('image/jpeg',.7)
+        }
+        catch(_) {
+        }
+        renderFiles()
+      }
+    }
+    else if(record.type.startsWith('audio/')) {
+      const a=new Audio();
+      a.preload='metadata';
+      a.src=URL.createObjectURL(record.file);
+      record.audioUrl=a.src;
+      a.onloadedmetadata=()=> {
+        record.duration=a.duration;
+        renderFiles()
+      };
+      const Ctx=window.AudioContext||window.webkitAudioContext;
+      if(Ctx&&record.file.arrayBuffer) {
+        record.file.arrayBuffer().then(buf=> {
+          const ctx=new Ctx();
+          return ctx.decodeAudioData(buf).finally(()=> {
+            try {
+              ctx.close()
+            }
+            catch(_) {
+            }
+          })
+        }).then(audioBuf=> {
+          record.peaks=computePeaks(audioBuf.getChannelData(0),40);
+          renderFiles()
+        }).catch(()=> {
+        })
+      }
+    }
+  }
+  catch(_) {
+  }
+}
+function removeFileRecord(record) {
+  const i=state.files.indexOf(record);
+  if(i<0)return;
+  state.files.splice(i,1);
+  if(record.xhr) {
+    try {
+      record.xhr.abort()
+    }
+    catch(_) {
+    }
+  }
+  if(record.url) {
+    try {
+      URL.revokeObjectURL(record.url)
+    }
+    catch(_) {
+    }
+  }
+  renderFiles()
+}
+function trayItemNode(record) {
+  const remove=node('button','x');
+  remove.type='button';
+  remove.append(sizedIcon('close',13));
+  remove.setAttribute('aria-label',`Remove ${record.name}`);
+  remove.onclick=()=>removeFileRecord(record);
+  const uploading=record.progress!=null;
+  const badNode=()=>record.error?node('div','bad',record.error):null;
+  if(record.type.startsWith('audio/')) {
+    const el=node('div','aud');
+    el.dataset.tile=record.localId;
+    const playing=trayPlayingId===record.localId;
+    const play=node('button','play'+(playing?' on':''));
+    play.type='button';
+    play.append(sizedIcon(playing?'pause':'play',15));
+    play.setAttribute('aria-label',`${playing?'Pause':'Play'} ${record.name}`);
+    play.disabled=!trayAudioSrc(record);
+    play.onclick=()=>toggleTrayAudio(record);
+    const meta=node('div','meta');
+    meta.append(node('span','name',record.name));
+    const wave=node('div','wave');
+    wave.innerHTML=waveSvg(record.peaks);
+    meta.append(wave);
+    if(uploading) {
+      const sub=node('span','sub');
+      sub.dataset.pct='Uploading… ';
+      sub.textContent=`Uploading… ${record.progress}%`;
+      meta.append(sub)
+    }
+    el.append(remove,play,meta);
+    if(record.duration!=null)el.append(node('span','times',timeLabel(record.duration)));
+    if(uploading) {
+      const bar=node('div','bar'),i=node('i');
+      i.style.width=record.progress+'%';
+      bar.append(i);
+      el.append(bar)
+    }
+    const bad=badNode();
+    if(bad)el.append(bad);
+    return el
+  }
+  const isDoc=record.type==='application/pdf'||record.type==='text/plain';
+  if(isDoc) {
+    const kind=record.type==='application/pdf'?'PDF':/\.md$/i.test(record.name)?'MD':'TXT';
+    const el=node('div','tile doc');
+    el.dataset.tile=record.localId;
+    el.append(remove,node('span','doc-ic'+(kind==='PDF'?'':' txt'),kind));
+    const text=node('span');
+    text.append(node('div','doc-name',record.name));
+    text.append(node('div','doc-sub',kind+(record.size!=null?` · ${sizeLabel(record.size)}`:'')));
+    el.append(text);
+    if(uploading) {
+      const bar=node('div','bar'),i=node('i');
+      i.style.width=record.progress+'%';
+      bar.append(i);
+      el.append(bar)
+    }
+    const bad=badNode();
+    if(bad)el.append(bad);
+    return el
+  }
+  // Image, video or anything else: a square tile with a thumbnail (or a blank icon placeholder)
+  // and either a duration badge (video) or the filename (everything else).
+  const el=node('div','tile');
+  el.dataset.tile=record.localId;
+  el.append(remove);
+  const isVideo=record.type.startsWith('video/');
+  const art=node('div','art');
+  const src=isVideo?record.frame:record.url||record.thumb||(record.id?attachmentUrl(record.id):null);
+  if(src) {
+    const img=node('img');
+    img.src=src;
+    img.alt='';
+    img.decoding='async';
+    art.append(img)
+  }
+  else art.classList.add('icon-art');
+  el.append(art);
+  if(isVideo)el.append(node('span','dur',record.duration!=null?timeLabel(record.duration):''));
+  // Footage eligible for the timeline gets the escape hatch instead of its filename.
+  const footage=record.file&&isFootage(record.file)&&canAddClip();
+  if(footage) {
+    const clip=node('button','tname-ov file-clip','Add as a clip');
+    clip.type='button';
+    clip.onclick=()=> {
+      removeFileRecord(record);
+      addAsClip(record.file,showError).then(()=>showError('')).catch(e=>showError(e.message))
+    };
+    el.append(clip)
+  }
+  else if(!isVideo)el.append(node('span','tname-ov',record.name));
+  if(uploading) {
+    const up=node('div','up');
+    up.innerHTML=ringSvg(record.progress);
+    const pct=node('span');
+    pct.dataset.pct='';
+    pct.textContent=record.progress+'%';
+    up.append(pct);
+    el.append(up)
+  }
+  const bad=badNode();
+  if(bad)el.append(bad);
+  return el
 }
 function renderFiles() {
   const wrap=$('attachments');
   wrap.replaceChildren();
-  state.files.forEach((f,i)=> {
-    const thumb=chipThumb(f);
-    const chip=node('span','file-chip');
-    if(thumb) {
-      chip.classList.add('with-thumb');
-      const img=node('img','file-thumb');
-      img.alt='';
-      img.decoding='async';
-      // An attachment past its expiry has nothing to show: back to the plain chip.
-      img.onerror=()=> {
-        img.remove();
-        chip.classList.remove('with-thumb')
-      };
-      img.src=thumb;
-      chip.append(img)
-    }
-    chip.append(node('span','file-name',f.name));
-    chip.title=f.name;
-    if(f instanceof Blob&&isFootage(f)&&canAddClip()) {
-      // Footage of the film itself, not a reference for the builder: a clip on the timeline.
-      const clip=node('button','file-clip','Add as a clip');
-      clip.onclick=()=> {
-        state.files.splice(state.files.indexOf(f),1);
-        renderFiles();
-        addAsClip(f,showError).then(()=>showError('')).catch(e=>showError(e.message))
-      };
-      chip.append(clip)
-    }
-    const remove=node('button');
-    remove.append(icon('close'));
-    remove.setAttribute('aria-label',`Remove ${f.name}`);
-    remove.onclick=()=> {
-      state.files.splice(i,1);
-      renderFiles();
-    };
-    chip.append(remove);
-    wrap.append(chip);
-  });
-  for(const [f,url] of chipUrls)if(!state.files.includes(f)) {
-    URL.revokeObjectURL(url);
-    chipUrls.delete(f)
-  }
+  for(const record of state.files)wrap.append(trayItemNode(record));
+  $('tray-wrap').hidden=!state.files.length;
+  const uploading=state.files.filter(f=>f.progress!=null).length;
+  $('tray-count').textContent=state.files.length
+    ?`${state.files.length} attached`+(uploading?` · ${uploading} uploading`:'')
+    :''
 }
 function addFiles(files) {
-  for(const f of files)state.files.push(f);
+  for(const f of files) {
+    const record=fileRecord(f);
+    state.files.push(record);
+    if(record.file) {
+      enrichFile(record);
+      // A footage file offered as a timeline clip is uploaded there instead, only if the
+      // offer isn't taken (see trayItemNode's "Add as a clip" and collectAttachments).
+      if(!(isFootage(record.file)&&canAddClip()))uploadAttachment(record)
+    }
+  }
   renderFiles()
+}
+// Every record's upload settled (already uploaded, or started here for a footage file whose
+// "Add as a clip" offer went untaken), or throws naming what's still wrong.
+async function collectAttachments(records) {
+  await Promise.all(records.filter(r=>r.file&&!r.id&&!r.error).map(uploadAttachment));
+  const bad=records.find(r=>r.error);
+  if(bad)throw Error(`${bad.name}: ${bad.error}`);
+  if(records.some(r=>r.progress!=null))throw Error('Wait for the attachments to finish uploading.');
+  if(records.some(r=>!r.id))throw Error('Something went wrong attaching a file; remove it and try again.');
+  return records.map(r=>({id:r.id,name:r.name,type:r.type}))
 }
 async function loadMusicSources() {
   try {
@@ -2324,34 +2838,12 @@ function editPending(i) {
     restorePickedAssetIds({fonts:item.fonts||[],sfx:item.sfx||[],music:item.music||[]});
   // A suggestion layer (suggest.js) listens for 'input' to redraw chips for the restored text.
   $('message').dispatchEvent(new Event('input',{bubbles:true}));
-  state.files=item.attachments;
+  state.files=item.attachments.map(fileRecord);
   renderFiles();
   state.stamp=item.time!=null;
   if(state.stamp&&state.videoReady)player.currentTime=item.time;
   stampLabel();
   $('message').focus({preventScroll: true})
-}
-// Uploads File objects; entries already uploaded ({id, name}) pass through.
-async function uploadFiles(files) {
-  const out=[];
-  for(let i=0;i<files.length;i++) {
-    if(files[i].id) {
-      out.push(files[i]);
-      continue
-    }
-    showError(`Uploading ${i+1} of ${files.length}…`);
-    const r=await reach(api('attachments', {
-      video:state.video,name:files[i].name
-    }), {
-      method:'POST',headers: {
-        'Content-Type':files[i].type||'application/octet-stream'
-      },body:files[i]
-    });
-    const data=await parseJSON(r);
-    if(!r.ok)throw httpError(r,data);
-    out.push({id:data.id,name:files[i].name,type:files[i].type})
-  }
-  return out
 }
 // Call after every programmatic change to the box's value: only typing fires `input`.
 function fitMessage() {
@@ -2381,7 +2873,7 @@ async function addPending() {
   showError('');
   const time=state.stamp&&state.phase!=='pre-production'?player.currentTime||0:null;
   try {
-    const attachments=await uploadFiles([...state.files]);
+    const attachments=await collectAttachments(state.files);
     // The capabilities the note's #id chips named (suggest.js); [] where suggest.js never mounted.
     const capabilities=typeof noteCapabilityIds==='function'?noteCapabilityIds():[];
     // The fonts/sfx/music chips picked from a suggestion (suggest.js); {fonts:[],sfx:[],music:[]}
@@ -2853,7 +3345,7 @@ async function sendNow() {
   showError('Sending…');
   const time=state.stamp&&state.phase!=='pre-production'?player.currentTime||0:null;
   try {
-    const attachments=await uploadFiles([...state.files]);
+    const attachments=await collectAttachments(state.files);
     const capabilities=typeof noteCapabilityIds==='function'?noteCapabilityIds():[];
     const assets=typeof noteAssetIds==='function'?noteAssetIds():{fonts:[],sfx:[],music:[]};
     await postNote({
@@ -2900,16 +3392,49 @@ $('version-list').onscroll=e=> {
   const el=e.target;
   if(el.scrollTop+el.clientHeight>=el.scrollHeight-100)loadVersions(true)
 };
-$('panel').ondragover=e=> {
+// Dragging files over the panel (any tab) shows a full-panel "Drop to attach" overlay;
+// dragenter/dragleave fire on every child crossed too, so a depth counter is needed to tell
+// "left a child" from "left the panel".
+let dropDepth=0;
+function panelDragEnter(e) {
+  if(!e.dataTransfer?.types.includes('Files'))return;
+  e.preventDefault();
+  dropDepth++;
+  $('drop-overlay').hidden=false
+}
+function panelDragLeave() {
+  if(--dropDepth<=0) {
+    dropDepth=0;
+    $('drop-overlay').hidden=true
+  }
+}
+function panelDragOver(e) {
   if(e.dataTransfer?.types.includes('Files')) {
     e.preventDefault();
     e.dataTransfer.dropEffect='copy'
   }
-};
-$('panel').ondrop=e=> {
+}
+function panelDrop(e) {
   e.preventDefault();
+  dropDepth=0;
+  $('drop-overlay').hidden=true;
   setView('chat');
   addFiles(e.dataTransfer.files)
+}
+$('panel').addEventListener('dragenter',panelDragEnter);
+$('panel').addEventListener('dragleave',panelDragLeave);
+$('panel').ondragover=panelDragOver;
+$('panel').ondrop=panelDrop;
+$('drop-overlay').onclick=()=> {
+  dropDepth=0;
+  $('drop-overlay').hidden=true
+};
+$('lb-close').onclick=closeLightbox;
+$('lb-prev').onclick=()=>lightboxStep(-1);
+$('lb-next').onclick=()=>lightboxStep(1);
+// Tapping the backdrop (not the stage, the image/video itself, or a control button) closes it.
+$('lightbox').onclick=e=> {
+  if(e.target.id==='lightbox'||e.target.id==='lb-mid')closeLightbox()
 };
 // ---- Timeline: a film made of clips (timeline.json) ----
 // The strip under the player and the chat, for a video with a timeline file. Its direct edits
@@ -2922,6 +3447,7 @@ const TL_ICON={
   film:'<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18M3 15h18M8 4v5M16 4v5M8 15v5M16 15v5"/>',
   down:'<path d="M6 9l6 6 6-6"/>',plus:'<path d="M12 5v14M5 12h14"/>',minus:'<path d="M5 12h14"/>',
   flag:'<path d="M5 21V4h11l-2 4 2 4H5"/>',audio:'<path d="M3 12h2M7 8v8M11 5v14M15 9v6M19 7v10"/>',
+  video:'<rect x="3" y="5" width="14" height="14" rx="2"/><path d="M17 10l4-2.5v9L17 14"/>',
   dots:'<circle cx="5" cy="12" r="1.3"/><circle cx="12" cy="12" r="1.3"/><circle cx="19" cy="12" r="1.3"/>',
   zin:'<circle cx="11" cy="11" r="7"/><path d="M21 21l-5-5M8 11h6M11 8v6"/>',
   zout:'<circle cx="11" cy="11" r="7"/><path d="M21 21l-5-5M8 11h6"/>',
