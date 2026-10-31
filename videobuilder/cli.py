@@ -806,6 +806,9 @@ def main(argv=None):
     sub.add_parser('beats', help="a song's BPM, first beat and beat grid, for a reel's timeline.json (see films.md)",
                    add_help=False)
 
+    sub.add_parser('listen', help='listening notes for a song, written by Gemini ($GEMINI_API_KEY; see listen.py)',
+                   add_help=False)
+
     sub.add_parser('sfx', help='sound effects: list the pack, print a take\'s path, fetch the pack (see sfx.py)',
                    add_help=False)
 
@@ -816,6 +819,9 @@ def main(argv=None):
     if argv[:1] == ['beats']:
         from .beats import main as beats_main
         return beats_main(argv[1:])
+    if argv[:1] == ['listen']:
+        from .listen import main as listen_main
+        return listen_main(argv[1:])
     if argv[:1] == ['sfx']:
         from .sfx import main as sfx_main
         return sfx_main(argv[1:])

@@ -237,6 +237,13 @@ See `reference/music.md`. In short:
 - Cuts land on beats; a half-beat (`at=6.5`) is fine for a quick cut.
   `check.py --video` reports where the music's onsets fall against the grid.
 
+To hear what a track is like before planning to it (genre, mood, its
+sections with timestamps, lyrics, its emotional arc, where scenes could
+turn), `python -m videobuilder listen track.mp3 -o track.listening.md` has
+Gemini listen and write notes (needs `$GEMINI_API_KEY`). A note's attached
+songs may already come with `<name>.listening.md` beside them. Plan the
+story from the notes; time the cuts from `beats`.
+
 ### Sound effects
 
 `vb.sfx.sound(id, at=frame)` puts a sound from the sound-effects pack on a

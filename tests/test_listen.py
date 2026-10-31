@@ -10,7 +10,7 @@ from pathlib import Path
 from unittest import mock
 
 from tests.fake_gemini import FakeGemini
-from videobuilder import listen, speech
+from videobuilder import cli, listen, speech
 
 KEY = 'test-key-sekrit-123'
 
@@ -81,6 +81,26 @@ class Listen(FakeCase):
         self.assertIn('HTTP 400', str(cm.exception))
         self.assertIn('not valid', str(cm.exception))
         self.assertNotIn(KEY, str(cm.exception))
+
+    def test_cli_writes_the_notes(self):
+        song = self.dir / 'song.mp3'
+        song.write_bytes(b'ID3')
+        out = self.dir / 'notes.md'
+        with contextlib.redirect_stderr(io.StringIO()):
+            cli.main(['listen', str(song), '-o', str(out)])
+        self.assertIn('## Overall', out.read_text())
+        buf = io.StringIO()
+        with contextlib.redirect_stdout(buf):
+            cli.main(['listen', str(song)])
+        self.assertIn('# Listening notes: song.mp3', buf.getvalue())
+
+    def test_cli_without_a_key_names_the_variable(self):
+        song = self.dir / 'song.mp3'
+        song.write_bytes(b'ID3')
+        with mock.patch.dict(os.environ, {'GEMINI_API_KEY': ''}), \
+                self.assertRaisesRegex(SystemExit, r'listen: listen needs \$GEMINI_API_KEY'):
+            cli.main(['listen', str(song)])
+        self.assertEqual(self.fake.requests, [])
 
 
 class ListenerTests(FakeCase):
