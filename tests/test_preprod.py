@@ -1719,6 +1719,28 @@ console.log(ppLookHtml(BOARD,'promo/film'));
         self.assertIn('value="" selected>Film look</option>', html)      # lantern-room/dawn: no override
         self.assertIn('value="Sunbleached" selected', html)              # cliff's own override, unknown to the set
 
+    @unittest.skipUnless(shutil.which('node'), 'node is not available in this environment')
+    def test_scenes_tab(self):
+        js = (PKG / 'director.js').read_text()
+        script = (_consts(js, 'esc', 'svg', 'TL_ICON', 'PP_ICON', 'PP_KIND', 'api') +
+                 _fns(js, 'ppTag', 'ppConceptFor', 'ppPicture', 'ppSetStatus', 'ppOptionCard', 'ppSceneThumb',
+                      'ppSceneMusicLine', 'ppSceneCard', 'ppScenesHtml') + """
+console.log(ppScenesHtml(BOARD,'promo/film'));
+""".replace('BOARD', json.dumps(self.board())))
+        result = subprocess.run(['node', '-'], input=script.encode(), capture_output=True)
+        self.assertEqual(result.returncode, 0, result.stderr.decode())
+        html = result.stdout.decode()
+        self.assertEqual(html.count('class="pp-scene-card"'), 3)
+        self.assertIn('INT. LIGHTHOUSE - LANTERN ROOM - NIGHT', html)
+        self.assertIn('Mara checks the lamp as the storm builds.', html)
+        self.assertIn('Storm theme', html)
+        self.assertIn('0:00', html)
+        self.assertIn('0:28', html)
+        # lantern-room's thumb, plus its own option A card -- cliff and dawn have no picture at all
+        self.assertEqual(html.count('class="pp-pic'), 2)
+        self.assertEqual(html.count('data-pp="pick"'), 4)         # lantern-room's 2 options + cliff's 2
+        self.assertEqual(html.count('class="pp-scene-music"'), 1)  # only lantern-room sits on a song
+
 
 class BoardActionsJS(BoardFixture):
     @unittest.skipUnless(shutil.which('node'), 'node is not available in this environment')
@@ -1943,7 +1965,7 @@ const $=id=>id==='pp-panel-script'?panel:{hidden:true,textContent:''};
 const PP_TABS=[];
 const ppSettled=()=>0, ppTabStatus=()=>({});
 const renderScript=()=>{state.ppShown=state.script;calls.push('renderScript')};
-const renderCharacters=()=>{}, renderLook=()=>{};
+const renderCharacters=()=>{}, renderLook=()=>{}, renderScenes=()=>{};
 const savePending=()=>{}, renderPending=()=>{};
 const tlPhone=()=>false;
 const ppCommentBoxHtml=()=>'';
@@ -2144,6 +2166,54 @@ const json=async(path,params,body)=>{calls.push([path,body]);
         self.assertEqual(out[2][2]['commit'], 'c1')       # and leaves the board exactly as it was
         self.assertEqual(out[3][0], [['preprod/scenes', mock.ANY], 'loadPreprod'])
         self.assertEqual(out[3][1], ['The plan changed while you were dragging. Here it is now.'])
+
+    @unittest.skipUnless(shutil.which('node'), 'node is not available in this environment')
+    def test_reorder_posts_new_order_and_handles_conflict(self):
+        js = (PKG / 'director.js').read_text()
+        script = _fns(js, 'ppMoveScene', 'ppStoredScenes', 'ppSaveScenes', 'ppReorder') + """
+const scenes=['a','b','c','d'].map(id=>({id}));
+const moves={
+  firstToLast: ppMoveScene(scenes,'a',3).map(s=>s.id),
+  lastToFirst: ppMoveScene(scenes,'d',0).map(s=>s.id),
+  middle: ppMoveScene(scenes,'b',2).map(s=>s.id),
+};
+function freshBoard() {
+  return {commit:'c1',scenes:{songs:[],scenes:[
+    {id:'a',number:1,length:'0:10',from_clock:null,to_clock:null,set:null,slugline:'A',summary:'',seconds:10},
+    {id:'b',number:2,length:'0:10',from_clock:null,to_clock:null,set:null,slugline:'B',summary:'',seconds:10},
+  ]}};
+}
+let state={video:'promo/film',board:freshBoard()};
+const calls=[];
+const toasts=[];
+const toast=m=>toasts.push(m);
+const renderBoard=()=>calls.push('renderBoard');
+const loadPreprod=()=>calls.push('loadPreprod');
+let reply=null;
+const json=async(path,params,body)=>{calls.push([path,body]);
+  if(reply instanceof Error)throw reply;
+  return reply};
+(async()=>{
+  const out=[moves];
+  await ppReorder('a',0);                     // dropped where it already was: no request
+  out.push(calls.splice(0));
+  reply={commit:'c2'};
+  await ppReorder('b',0);
+  const snap=calls.splice(0);
+  out.push([snap[0][1].scenes.map(s=>s.id), snap[1]]);
+  state.board=freshBoard();
+  reply=Object.assign(new Error('stale'),{status:409});
+  await ppReorder('a',1);
+  out.push(calls.splice(0));
+  console.log(JSON.stringify(out));
+})();
+"""
+        out = run_node(script)
+        self.assertEqual(out[0], {'firstToLast': ['b', 'c', 'd', 'a'], 'lastToFirst': ['d', 'a', 'b', 'c'],
+                                  'middle': ['a', 'c', 'b', 'd']})
+        self.assertEqual(out[1], [])
+        self.assertEqual(out[2], [['b', 'a'], 'renderBoard'])
+        self.assertEqual(out[3], [['preprod/scenes', mock.ANY], 'loadPreprod'])
 
 
 class Docs(unittest.TestCase):

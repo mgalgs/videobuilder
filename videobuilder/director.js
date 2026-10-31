@@ -4313,7 +4313,9 @@ const PP_TAB_LABEL={script:'Script',characters:'Characters',look:'Look',scenes:'
 const PP_ICON={open:'<circle cx="12" cy="12" r="8"/>',
   brush:'<path d="M4 20c1-5 3-8 7-12l3 3c-4 4-7 6-12 7z"/><path d="M13 2.5a2.5 2.5 0 0 1 3.5 0l2 2a2.5 2.5 0 0 1 '+
     '0 3.5L14 12l-5-5z"/>',
-  upload:'<path d="M12 4v11M7 9l5-5 5 5"/><path d="M5 20h14"/>'};
+  upload:'<path d="M12 4v11M7 9l5-5 5 5"/><path d="M5 20h14"/>',
+  drag:'<circle cx="9" cy="6" r="1.3"/><circle cx="15" cy="6" r="1.3"/><circle cx="9" cy="12" r="1.3"/>'+
+    '<circle cx="15" cy="12" r="1.3"/><circle cx="9" cy="18" r="1.3"/><circle cx="15" cy="18" r="1.3"/>'};
 // Pure: the DOM flags for a phase, with no DOM touched -- testable in node with no stubs.
 function ppLayout(phase) {
   const pre=phase==='pre-production';
@@ -4438,7 +4440,8 @@ function renderBoard() {
   // wipe the one and could shift the other, so the panel catches up when the box closes.
   if(!state.ppComment)renderScript();
   renderCharacters();
-  renderLook()
+  renderLook();
+  renderScenes()
 }
 // The newest note still running, named in the "builder is drafting" banner -- there is no
 // per-scene signal, so this just says what it is working on, not which scenes it touches.
@@ -4595,6 +4598,116 @@ function ppSetSceneLook(id, value) {
 function renderLook() {
   if(!state.board)return;
   $('pp-panel-look').innerHTML=ppLookHtml(state.board,state.video)
+}
+// A12: the scene's own set's picked option's picture; failing that, the first option with
+// one; failing that, no picture at all (a plain slugline card).
+function ppSceneThumb(scene, setsById, board, video) {
+  const set=scene.set?setsById[scene.set]:null;
+  if(!set)return '';
+  const picked=set.pick?set.options.find(o=>o.key===set.pick):null;
+  const opt=(picked&&picked.image)?picked:set.options.find(o=>o.image);
+  return opt?ppPicture(opt.image,opt.kind,ppConceptFor(board,set.id,opt.key),video,board.commit):''
+}
+function ppSceneMusicLine(scene, songsById) {
+  if(!scene.song)return '';
+  const song=songsById[scene.song];
+  const section=scene.section?` · ${esc(scene.section)}`:'';
+  const clock=scene.from_clock!=null?` ${scene.from_clock}–${scene.to_clock}`:'';
+  return `<div class="pp-scene-music">${svg(TL_ICON.music,12)}${esc(song?song.name:scene.song)}${section}`+
+    `${clock}</div>`
+}
+function ppSceneCard(scene, setsById, songsById, board, video) {
+  const set=scene.set?setsById[scene.set]:null;
+  const thumb=ppSceneThumb(scene,setsById,board,video);
+  const options=set?`<div class="pp-sec-label">Alternatives</div><div class="pp-opts">`+
+    `${set.options.map(o=>ppOptionCard(set,o,ppConceptFor(board,set.id,o.key),video,board.commit)).join('')}`+
+    '</div>' : '';
+  return `<div class="pp-scene-card" data-pp-scene="${esc(scene.id)}" role="listitem">`+
+    `<div class="pp-scene-head"><button type="button" class="pp-drag" data-pp="drag" data-id="${esc(scene.id)}" `+
+    `aria-label="Reorder scene ${scene.number}: arrow keys move it">${svg(PP_ICON.drag,16)}</button>`+
+    `<span class="pp-scene-n">${scene.number}</span><span class="pp-scene-len">${esc(scene.length)}</span></div>`+
+    thumb+`<strong class="pp-scene-slug">${esc(scene.slugline)}</strong>`+
+    (scene.summary?`<p class="pp-scene-summary">${esc(scene.summary)}</p>`:'')+
+    ppSceneMusicLine(scene,songsById)+options+'</div>'
+}
+function ppScenesHtml(board, video) {
+  const scenes=board.scenes.scenes;
+  if(!scenes.length)return '<p class="pp-empty">No scenes yet. Ask the builder for a scene plan in chat.</p>';
+  const setsById=Object.fromEntries(board.sets.map(s=>[s.id,s]));
+  const songsById=Object.fromEntries(board.scenes.songs.map(s=>[s.id,s]));
+  return `<div class="pp-scenes-head">${scenes.length} scene${scenes.length===1?'':'s'} · `+
+    `${esc(board.scenes.length)}</div><div class="pp-scenes" role="list">`+
+    `${scenes.map(s=>ppSceneCard(s,setsById,songsById,board,video)).join('')}</div>`
+}
+function renderScenes() {
+  if(!state.board)return;
+  $('pp-panel-scenes').innerHTML=ppScenesHtml(state.board,state.video)
+}
+// A10: the new order's scenes, the request's own commit as `base`, and the songs unchanged.
+function ppMoveScene(scenes, id, to) {
+  const from=scenes.findIndex(s=>s.id===id);
+  if(from<0)return scenes;
+  const out=scenes.slice();
+  const [item]=out.splice(from,1);
+  out.splice(Math.max(0,Math.min(out.length,to)),0,item);
+  return out
+}
+function ppReorder(id, to) {
+  const scenes=state.board.scenes.scenes;
+  if(scenes.findIndex(s=>s.id===id)===to)return;
+  return ppSaveScenes(ppMoveScene(scenes,id,to))
+}
+// A11: a pointer drag off the handle, following the timeline strip's own model (tlDragStart);
+// ArrowUp/ArrowDown on the handle move the scene one place, a keyboard path with no pointer.
+function ppDragStart(e) {
+  const handle=e.target.closest('.pp-drag');
+  if(!handle||e.button>0)return;
+  e.preventDefault();
+  const card=handle.closest('.pp-scene-card'),id=handle.dataset.id,container=$('pp-panel-scenes');
+  let moved=false,marker=null;
+  const others=()=>[...container.querySelectorAll('.pp-scene-card')].filter(c=>c!==card);
+  const target=ev=> {
+    const list=others();
+    for(let i=0;i<list.length;i++) {
+      const r=list[i].getBoundingClientRect();
+      if(ev.clientY<r.top+r.height/2)return i
+    }
+    return list.length
+  };
+  const move=ev=> {
+    if(!moved) {
+      moved=true;
+      card.classList.add('dragging');
+      marker=node('div','pp-drop-marker');
+      container.insertBefore(marker,card)
+    }
+    container.insertBefore(marker,others()[target(ev)]||null)
+  };
+  const cleanup=()=> {
+    window.removeEventListener('pointermove',move);
+    window.removeEventListener('pointerup',up);
+    window.removeEventListener('pointercancel',cleanup);
+    card.classList.remove('dragging');
+    marker?.remove()
+  };
+  const up=ev=> {
+    const to=moved?target(ev):null;
+    cleanup();
+    if(to!=null)ppReorder(id,to)
+  };
+  window.addEventListener('pointermove',move);
+  window.addEventListener('pointerup',up);
+  window.addEventListener('pointercancel',cleanup)
+}
+function ppDragKey(e) {
+  if(e.key!=='ArrowUp'&&e.key!=='ArrowDown')return;
+  const handle=e.target.closest('.pp-drag');
+  if(!handle)return;
+  e.preventDefault();
+  const scenes=state.board.scenes.scenes,from=scenes.findIndex(s=>s.id===handle.dataset.id);
+  const to=e.key==='ArrowUp'?from-1:from+1;
+  if(from<0||to<0||to>=scenes.length)return;
+  ppReorder(handle.dataset.id,to)
 }
 function ppCharacterCard(c, set, board, video) {
   const refs=(c.pictures||[]).map(n=>`<div class="pp-pic pp-pic-yours">`+
@@ -4761,6 +4874,8 @@ $('board').addEventListener('change',e=> {
   const el=e.target.closest('[data-pp="look-override"]');
   if(el)ppSetSceneLook(el.dataset.id,el.value)
 });
+$('board').addEventListener('pointerdown',ppDragStart);
+$('board').addEventListener('keydown',ppDragKey);
 $('pp-start').onclick=()=>ppOpenStart(true);
 $('pp-keep').onclick=()=>ppOpenStart(false);
 $('pp-checks').addEventListener('click',e=> {

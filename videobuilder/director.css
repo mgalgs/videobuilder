@@ -3231,6 +3231,97 @@ button.danger:disabled {
   color: #fff;
 }
 
+/* ---- Scenes tab: cards, drag handle and the music line ---- */
+.pp-scenes-head {
+  margin-bottom: 10px;
+  color: var(--muted);
+  font-size: 12.5px;
+}
+
+.pp-scenes {
+  display: grid;
+  grid-template-columns: repeat(auto-fill,minmax(220px,1fr));
+  gap: 14px;
+  align-items: start;
+}
+
+.pp-scene-card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px;
+  border: 1px solid #23232a;
+  border-radius: 14px;
+  background: #16161a;
+}
+
+.pp-scene-card.dragging {
+  opacity: .5;
+}
+
+.pp-scene-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.pp-drag {
+  border: 0;
+  background: none;
+  color: var(--muted);
+  padding: 4px;
+  border-radius: 8px;
+  cursor: grab;
+  touch-action: none;
+}
+
+.pp-drag:hover {
+  color: #fff;
+  background: #ffffff10;
+}
+
+.pp-scene-n {
+  font-weight: 700;
+}
+
+.pp-scene-len {
+  margin-left: auto;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.pp-scene-card .pp-pic {
+  aspect-ratio: 16/9;
+}
+
+.pp-scene-slug {
+  font-size: 12.5px;
+  letter-spacing: .01em;
+}
+
+.pp-scene-summary {
+  margin: 0;
+  color: #c9c9d1;
+  font-size: 12.5px;
+  line-height: 1.4;
+}
+
+.pp-scene-music {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--muted);
+  font-size: 11.5px;
+}
+
+.pp-drop-marker {
+  grid-column: 1/-1;
+  height: 3px;
+  margin: -7px 0;
+  border-radius: 2px;
+  background: var(--accent);
+}
+
 @media (max-width:700px) {
   .desktop-only {
     display: none !important;
