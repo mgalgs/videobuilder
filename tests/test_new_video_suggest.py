@@ -35,6 +35,13 @@ class SuggestName(LibraryFixture, unittest.TestCase):
         self.assertEqual(code, 200, body)
         self.assertEqual(body, {'name': 'lighthouse-storm'})
 
+    def test_no_system_message_is_empty(self):
+        # An Anthropic model behind the endpoint refuses an empty text block.
+        self.fake.answer = {'name': 'storm'}
+        self.request('/api/videos/suggest-name', {'idea': 'A storm film.'})
+        for m in self.fake.requests[-1]['body']['messages']:
+            self.assertTrue(m['content'], m)
+
     def test_the_answer_comes_back_as_a_valid_video_name(self):
         self.fake.answer = {'name': 'Lighthouse Storm!'}
         code, body = self.request('/api/videos/suggest-name', {'idea': 'A lighthouse keeper riding out a storm.'})

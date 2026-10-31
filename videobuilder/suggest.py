@@ -523,7 +523,7 @@ class Suggest:
         timer.daemon = True
         timer.start()
         try:
-            answer, usage = self.client.complete(NAME_SYSTEM_BLOCK, '', user_text, max_tokens=40,
+            answer, usage = self.client.complete(NAME_SYSTEM_BLOCK, NEW_VIDEO_BLOCK, user_text, max_tokens=40,
                                                  cancel_event=cancel_event)
         except (SuggestCancelled, SuggestError) as exc:
             if not isinstance(exc, SuggestCancelled) or timer.finished.is_set():

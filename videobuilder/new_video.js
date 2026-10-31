@@ -83,11 +83,11 @@ function timeLabel(s){
   s=Math.round(s);
   return Math.floor(s/60)+':'+String(s%60).padStart(2,'0');
 }
+function ringDash(p){return (Math.max(0,Math.min(100,p))/100*94.2).toFixed(1)+' 94.2'}
 function ring(p){
-  const c=(Math.max(0,Math.min(100,p))/100*94.2).toFixed(1);
   return `<svg class="ring-prog" viewBox="0 0 36 36"><circle cx="18" cy="18" r="15" fill="none" `+
     `stroke="#ffffff33" stroke-width="3"/><circle cx="18" cy="18" r="15" fill="none" stroke="#fff" `+
-    `stroke-width="3" stroke-dasharray="${c} 94.2" transform="rotate(-90 18 18)" stroke-linecap="round"/></svg>`;
+    `stroke-width="3" stroke-dasharray="${ringDash(p)}" transform="rotate(-90 18 18)" stroke-linecap="round"/></svg>`;
 }
 function waveSvg(peaks){
   if(!peaks||!peaks.length)return'<svg viewBox="0 0 100 22" aria-hidden="true"></svg>';
@@ -118,15 +118,15 @@ function tileHtml(f){
   const bad=f.error?`<div class="bad">${esc(f.error)}</div>`:'';
   if(f.type.startsWith('audio/')){
     const playing=playingId===f.localId;
-    return `<div class="aud">${x}<button type="button" class="play" data-play="${f.localId}" `+
+    return `<div class="aud" data-tile="${f.localId}">${x}<button type="button" class="play" data-play="${f.localId}" `+
       `aria-label="${playing?'Pause':'Play'} ${esc(f.name)}">${icon(playing?'pause':'play',16)}</button>`+
       `<div class="meta"><span class="name">${esc(f.name)}</span><div class="wave">${waveSvg(f.peaks)}</div>`+
-      (f.progress!=null?`<span class="sub">Uploading… ${f.progress}%</span>`:'')+'</div>'+
+      (f.progress!=null?`<span class="sub" data-pct="Uploading… ">Uploading… ${f.progress}%</span>`:'')+'</div>'+
       `<span class="dur">${f.duration?timeLabel(f.duration):''}</span>${bar}${bad}</div>`;
   }
   if(f.type==='application/pdf'||f.type==='text/plain'){
     const kind=f.type==='application/pdf'?'PDF':(/\.md$/i.test(f.name)?'MD':'TXT');
-    return `<div class="tile doc-tile">${x}<span class="doc-ic${kind==='PDF'?'':' txt'}">${kind}</span>`+
+    return `<div class="tile doc-tile" data-tile="${f.localId}">${x}<span class="doc-ic${kind==='PDF'?'':' txt'}">${kind}</span>`+
       `<span><div class="doc-name">${esc(f.name)}</div><div class="doc-sub">${kind} · `+
       `${sizeLabel(f.size)}</div></span>${bar}${bad}</div>`;
   }
@@ -136,8 +136,8 @@ function tileHtml(f){
     :`<div class="art icon-art">${icon(isVideo?'video':'doc',24)}</div>`;
   const overlay=isVideo?`<span class="vid-ic">${icon('video',14)}</span>`+
     `<span class="dur">${f.duration?timeLabel(f.duration):''}</span>`:`<span class="tname-ov">${esc(f.name)}</span>`;
-  const up=f.progress!=null?`<div class="up">${ring(f.progress)}<span>${f.progress}%</span></div>`:'';
-  return `<div class="tile">${x}${art}${overlay}${up}${bad}</div>`;
+  const up=f.progress!=null?`<div class="up">${ring(f.progress)}<span data-pct="">${f.progress}%</span></div>`:'';
+  return `<div class="tile" data-tile="${f.localId}">${x}${art}${overlay}${up}${bad}</div>`;
 }
 
 function renderFiles(){
@@ -150,6 +150,17 @@ function renderFiles(){
   const uploading=files.filter(f=>f.progress!=null).length;
   fileCount.textContent=files.length?`${files.length} file${files.length>1?'s':''}`+
     (uploading?` · ${uploading} uploading`:''):'';
+}
+
+// Progress events fire many times a second: repaint just the one tile's bar/ring/percent.
+// Rebuilding the grid here would destroy the × under the pointer or keyboard focus,
+// losing the click that cancels a slow upload.
+function paintProgress(f){
+  const t=filesBox.querySelector&&filesBox.querySelector(`[data-tile="${f.localId}"]`);
+  if(!t){renderFiles();return}
+  const bar=t.querySelector('.bar i');if(bar)bar.style.width=f.progress+'%';
+  const arc=t.querySelector('.ring-prog circle:last-child');if(arc)arc.setAttribute('stroke-dasharray',ringDash(f.progress));
+  for(const s of t.querySelectorAll('[data-pct]'))s.textContent=s.dataset.pct+f.progress+'%';
 }
 
 function computePeaks(data,n){
@@ -174,13 +185,20 @@ function enrich(f){
     }else if(f.type.startsWith('video/')){
       f.url=URL.createObjectURL(f.file);
       const v=document.createElement('video');
-      v.preload='metadata';v.muted=true;v.src=f.url;
-      v.onloadeddata=()=>{
+      v.preload='auto';v.muted=true;v.src=f.url;
+      // Frame 0 is often black or mid-fade: seek a little way in before grabbing one.
+      v.onloadedmetadata=()=>{
         f.duration=v.duration;
+        renderFiles();
+        try{v.currentTime=Math.min(1,(v.duration||0)/4)}catch(_){}
+      };
+      v.onseeked=()=>{
         try{
+          // Centre-crop to a square; scaling the whole frame into 160×160 would squash it.
+          const w=v.videoWidth,h=v.videoHeight,side=Math.min(w,h);
           const c=document.createElement('canvas');
           c.width=160;c.height=160;
-          c.getContext('2d').drawImage(v,0,0,c.width,c.height);
+          c.getContext('2d').drawImage(v,(w-side)/2,(h-side)/2,side,side,0,0,c.width,c.height);
           f.frame=c.toDataURL('image/jpeg',.7);
         }catch(_){}
         renderFiles();
@@ -209,7 +227,11 @@ function upload(f){
   f.xhr=xhr;
   xhr.open('POST','/api/videos/staging?name='+encodeURIComponent(f.name));
   xhr.setRequestHeader('Content-Type',f.type||'application/octet-stream');
-  xhr.upload.onprogress=e=>{if(e.lengthComputable){f.progress=Math.round(e.loaded/e.total*100);renderFiles()}};
+  xhr.upload.onprogress=e=>{
+    if(!e.lengthComputable)return;
+    const p=Math.round(e.loaded/e.total*100);
+    if(p!==f.progress&&files.includes(f)){f.progress=p;paintProgress(f)}
+  };
   xhr.onload=()=>{
     f.xhr=null;
     if(xhr.status>=200&&xhr.status<300){
@@ -289,7 +311,7 @@ if(document.body){
 pageDrop.addEventListener('click',()=>{pageDrop.hidden=true});
 
 /* ---------- plan / build ---------- */
-let suggestion=null,userPicked=null,modeTimer=null,modeSeq=0;
+let suggestion=null,userPicked=null,modeTimer=null,modeSeq=0,creating=false;
 const MODE_TITLE={plan:'Plan it first',build:'Just build it'};
 
 function renderMode(){
@@ -320,8 +342,10 @@ function renderMode(){
 function renderGo(){
   const m=renderMode();
   const uploading=files.some(f=>f.progress!=null);
-  go.disabled=uploading;
-  if(uploading){
+  go.disabled=uploading||creating;
+  if(creating){
+    go.textContent='Creating…';
+  }else if(uploading){
     go.textContent='Uploading…';goNote.textContent='Waiting for the files to finish uploading.';
   }else{
     go.textContent=m==='plan'?'Start planning':(hasContent()?'Create and build':'Create');
@@ -376,6 +400,7 @@ suggestName.addEventListener('click',async()=>{
 /* ---------- create ---------- */
 $('#nv-form').addEventListener('submit',async e=>{
   e.preventDefault();
+  if(creating)return;
   const name=fullName();
   if(!name)return;
   if(files.some(f=>f.progress!=null)){err.textContent='Wait for the files to finish uploading.';return}
@@ -387,7 +412,7 @@ $('#nv-form').addEventListener('submit',async e=>{
   if(attachments.length)body.attachments=attachments;
   if(format.value)body.format=format.value;
   if(userPicked)body.plan=userPicked==='plan';
-  go.disabled=true;go.textContent='Creating…';
+  creating=true;renderGo();
   const href='/v/'+name.split('/').map(encodeURIComponent).join('/')+'/';
   try{
     await post('/api/videos/new',body);
@@ -395,7 +420,7 @@ $('#nv-form').addEventListener('submit',async e=>{
     location.href=href;
   }catch(x){
     err.textContent=x.message;
-    renderGo();
+    creating=false;renderGo();
   }
 });
 

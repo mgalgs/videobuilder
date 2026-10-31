@@ -211,7 +211,7 @@ globalThis.XMLHttpRequest=FakeXHR;
   await new Promise(r=>setTimeout(r,0));
   console.log(JSON.stringify({{calls,href:location.href,session:Object.fromEntries(session),
     error:els['name-error'].textContent,name:els['name'].value,why:els['why'].innerHTML,
-    goText:els['go'].textContent,
+    goText:els['go'].textContent,goDisabled:els['go'].disabled,extra:globalThis.extra,
     modePlan:els['mode-plan'].attrs['aria-checked'],modeBuild:els['mode-build'].attrs['aria-checked'],
     suggestHidden:els['suggest-name'].hidden,suggestDisabled:els['suggest-name'].disabled}}));
 }})();
@@ -310,6 +310,34 @@ for(const f of els['file-input'].listeners.change)
 """)
         self.assertEqual(out['calls'], [])
         self.assertIn('finish uploading', out['error'])
+
+    def test_create_stays_disabled_while_it_runs_and_a_second_submit_is_ignored(self):
+        # A late plan/build answer (or a mode click) re-renders the button mid-create; it
+        # must not re-enable it, or a second click posts the same name again.
+        out = self.run_page('a', idea='A quick reel.', submit=False, before_submit="""
+const submit=els['nv-form'].listeners.submit[0];
+const first=submit({preventDefault(){}});
+for(const f of els['mode-plan'].listeners.click)await f({});
+globalThis.extra={disabled:els['go'].disabled,text:els['go'].textContent};
+await submit({preventDefault(){}});
+await first;
+""")
+        self.assertEqual(out['extra'], {'disabled': True, 'text': 'Creating…'})
+        self.assertEqual(len(out['calls']), 1)
+
+    def test_upload_progress_repaints_the_tile_without_rebuilding_the_grid(self):
+        # Rebuilding the grid on every progress event destroys the × mid-click.
+        out = self.run_page('a', submit=False, before_submit="""
+for(const f of els['file-input'].listeners.change)
+  await f({target:{files:[{name:'pic.png',type:'image/png',size:3}],value:''}});
+const pct={dataset:{pct:''},textContent:'0%'},arc={setAttribute(n,v){arc[n]=v}};
+const tile={querySelector:s=>s==='.ring-prog circle:last-child'?arc:null,querySelectorAll:()=>[pct]};
+els['files'].querySelector=s=>s==='[data-tile="1"]'?tile:null;
+const before=els['files'].innerHTML;
+xhrs[0].upload.onprogress({lengthComputable:true,loaded:5,total:10});
+globalThis.extra={same:els['files'].innerHTML===before,pct:pct.textContent,dash:arc['stroke-dasharray']};
+""")
+        self.assertEqual(out['extra'], {'same': True, 'pct': '50%', 'dash': '47.1 94.2'})
 
     def test_suggest_name_button_is_hidden_without_a_model(self):
         out = self.run_page('a', submit=False)
