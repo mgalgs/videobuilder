@@ -5,6 +5,7 @@ import os
 import shutil
 import tempfile
 import threading
+import time
 import unittest
 import wave
 from pathlib import Path
@@ -172,6 +173,79 @@ class ListenerTests(FakeCase):
         self.assertNotIn(KEY, err.getvalue())
         self.assertFalse(self.cache.exists() and any(self.cache.iterdir()))
 
+
+def _wait_until(predicate, timeout=5):
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        if predicate():
+            return True
+        time.sleep(0.01)
+    return False
+
+
+class Warming(FakeCase):
+    """Listener.warm: starting a listen as soon as a file is known to be
+    audio, and the in-flight registry that keeps a note-time listen for the
+    same audio from asking Gemini a second time while a warm is still out."""
+
+    def setUp(self):
+        super().setUp()
+        self.cache = self.dir / 'cache'
+        self.attach = self.dir / 'attach'
+        self.attach.mkdir()
+
+    def _note_for(self, name):
+        return {'attachments': [{'name': name, 'type': 'audio/mpeg'}]}
+
+    def test_warm_fills_the_cache_and_a_later_listen_makes_no_request(self):
+        song = self.dir / 'song.mp3'
+        song.write_bytes(b'ID3' + b'a' * 30)
+        listener = listen.Listener(self.cache)
+        listener.warm(song)
+        self.assertTrue(_wait_until(lambda: self.fake.requests))
+        time.sleep(0.2)   # let the warm thread finish writing the cache
+        self.assertEqual(len(self.fake.requests), 1)
+        shutil.copy(song, self.attach / 'song.mp3')
+        got = listener(self._note_for('song.mp3'), str(self.attach))
+        self.assertEqual(got[0]['notes'], 'song.mp3.listening.md')
+        self.assertEqual(len(self.fake.requests), 1)
+
+    def test_a_note_time_listen_waits_for_a_slow_warm_instead_of_asking_twice(self):
+        song = self.dir / 'song.mp3'
+        song.write_bytes(b'ID3' + b'b' * 30)
+        self.fake.delay = 0.3
+        listener = listen.Listener(self.cache, timeout=5)
+        listener.warm(song)
+        time.sleep(0.05)   # let warm claim the in-flight slot before the note-time listen starts
+        shutil.copy(song, self.attach / 'song.mp3')
+        got = listener(self._note_for('song.mp3'), str(self.attach))
+        self.assertEqual(got[0]['notes'], 'song.mp3.listening.md')
+        self.assertEqual(len(self.fake.requests), 1)
+
+    def test_without_a_key_warm_makes_no_request_and_starts_no_thread(self):
+        song = self.dir / 'song.mp3'
+        song.write_bytes(b'ID3')
+        before = {t.ident for t in threading.enumerate()}
+        with mock.patch.dict(os.environ, {'GEMINI_API_KEY': ''}):
+            listen.Listener(self.cache).warm(song)
+        time.sleep(0.05)
+        self.assertEqual({t.ident for t in threading.enumerate()} - before, set())
+        self.assertEqual(self.fake.requests, [])
+
+    def test_a_failed_warm_leaves_the_registry_empty_and_a_retry_still_works(self):
+        song = self.dir / 'song.mp3'
+        song.write_bytes(b'ID3' + b'c' * 30)
+        self.fake.queue(500, {'error': {'message': 'warm failed'}})
+        listener = listen.Listener(self.cache)
+        with contextlib.redirect_stderr(io.StringIO()):
+            listener.warm(song)
+            self.assertTrue(_wait_until(lambda: self.fake.requests))
+            self.assertTrue(_wait_until(lambda: not listen._inflight))
+        self.assertEqual(listen._inflight, {})
+        shutil.copy(song, self.attach / 'song.mp3')
+        got = listener(self._note_for('song.mp3'), str(self.attach))
+        self.assertEqual(got[0]['notes'], 'song.mp3.listening.md')
+        self.assertEqual(len(self.fake.requests), 2)
 
 
 class Recorder(AgentBackend):

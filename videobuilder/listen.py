@@ -8,7 +8,12 @@ gets the song inline and answers in markdown: genre, mood, instruments and
 feel; a timestamped section-by-section timeline; lyrics as heard; the
 song's emotional arc; and where a film's scenes could turn. The editor runs
 this for every audio attachment on a note (see `Listener`) and stages the
-notes beside the file; without the key it does nothing at all.
+notes beside the file; without the key it does nothing at all. `Listener.warm`
+starts listening to an audio file as soon as it is uploaded -- a staged New
+video attachment, or an attachment on an existing video -- so the notes are
+usually already cached by the time a note needs them; an in-flight note-time
+listen for the same audio waits for a warm already underway instead of
+asking Gemini again.
 
 The notes are a description, not a measurement: cut on `videobuilder
 beats`, not on the timestamps here.
@@ -147,16 +152,91 @@ def cache_key(data):
     return hashlib.sha256(f'{h}\0{model()}\0{PROMPT}'.encode()).hexdigest()
 
 
+# Keyed by cache_key, shared by every Listener in the process: lets a note-time
+# listen for a song a warm() is already fetching wait for that one call instead
+# of asking Gemini again (see Listener._notes). Not per-instance, since a
+# library's staging warm and a project's own Editor each have their own
+# Listener object but can race on the very same audio.
+_inflight_lock = threading.Lock()
+_inflight = {}
+
+
+def _claim(key):
+    """None if someone else already claimed `key` (the caller should wait,
+    not fetch); otherwise an Event this caller must set via `_release` once
+    it's done, win or lose."""
+    with _inflight_lock:
+        if key in _inflight:
+            return None
+        event = threading.Event()
+        _inflight[key] = event
+        return event
+
+
+def _release(key, event):
+    with _inflight_lock:
+        if _inflight.get(key) is event:
+            del _inflight[key]
+    event.set()
+
+
+def _wait(key, timeout):
+    with _inflight_lock:
+        event = _inflight.get(key)
+    if event is not None:
+        event.wait(timeout)
+
+
 class Listener:
     """The editor's listening step: for each audio attachment of a note,
     listening notes staged beside it in the note's attach dir as
     `<name>.listening.md`. Songs are listened to in parallel, each within
-    `timeout` seconds; results are cached under `cache_dir` by content.
-    Does nothing (returns []) without $GEMINI_API_KEY."""
+    `timeout` seconds; results are cached under `cache_dir` by content, and
+    also looked up (never written) under `shared_dir` -- a library's shared
+    cache, filled by staged uploads before any video exists (see
+    staging.py). Does nothing (returns []) without $GEMINI_API_KEY."""
 
-    def __init__(self, cache_dir, timeout=None):
+    def __init__(self, cache_dir, timeout=None, shared_dir=None):
         self.cache_dir = Path(cache_dir)
+        self.shared_dir = Path(shared_dir) if shared_dir else None
         self.timeout = timeout
+
+    def warm(self, path, ctype=None):
+        """Starts filling the cache for `path` in the background, as soon as
+        it's known to be audio -- a no-op without $GEMINI_API_KEY, for a
+        file that isn't audio (judged from `ctype` when given, else the
+        extension), or when it's already cached or already being fetched
+        (by an earlier warm, or a note-time listen already underway).
+        Claims the in-flight slot before returning, synchronously, so a
+        note-time listen started right after this call reliably finds it
+        and waits rather than racing it for ownership. A failure here is
+        simply not cached; the note-time listen (__call__) does the work
+        itself when it runs."""
+        key = os.environ.get('GEMINI_API_KEY')
+        if not key:
+            return
+        path = Path(path)
+        is_audio = ctype.startswith('audio/') if ctype else path.suffix.lower() in INLINE_TYPES
+        if not is_audio:
+            return
+        try:
+            ck = cache_key(path.read_bytes())
+        except OSError:
+            return
+        if self._cached(ck) is not None:
+            return
+        event = _claim(ck)
+        if event is None:
+            return
+        timeout = LISTEN_TIMEOUT if self.timeout is None else self.timeout
+
+        def run():
+            try:
+                self._fetch(path, key, timeout, ck, event)
+            except Exception as e:
+                print(f'[editor] warming listening notes for {path.name} failed: {e}', file=sys.stderr, flush=True)
+
+        threading.Thread(target=run, daemon=True, name=f'warm {path.name}').start()
 
     def __call__(self, note, attach_dir):
         """[{name, notes, error}] for the note's audio attachments, `notes`
@@ -197,17 +277,56 @@ class Listener:
                 out.append({'name': name, 'notes': None, 'error': value})
         return out
 
-    def _notes(self, path, key, timeout):
-        cached = self.cache_dir / (cache_key(path.read_bytes()) + '.md')
-        if cached.is_file():
-            return cached.read_text(encoding='utf-8')
-        notes = listen(path, api_key=key, timeout=timeout)
+    def _cached(self, ck):
+        for d in (self.cache_dir, self.shared_dir):
+            if d is None:
+                continue
+            p = d / (ck + '.md')
+            if p.is_file():
+                try:
+                    return p.read_text(encoding='utf-8')
+                except OSError:
+                    continue
+        return None
+
+    def _fetch(self, path, key, timeout, ck, event):
+        """Does the actual Gemini call for an already-claimed `ck`, caches
+        the result on success, and only then releases the claim -- a waiter
+        woken by the release must already find the cache file there, or it
+        would just end up fetching it again itself."""
+        try:
+            notes = listen(path, api_key=key, timeout=timeout)
+        except Exception:
+            _release(ck, event)
+            raise
         try:
             self.cache_dir.mkdir(exist_ok=True)
-            write_atomic(cached, notes)
+            write_atomic(self.cache_dir / (ck + '.md'), notes)
         except OSError as e:   # two notes caching the same song at once share write_atomic's .tmp
             print(f'[editor] could not cache listening notes for {path.name}: {e}', file=sys.stderr, flush=True)
+        finally:
+            _release(ck, event)
         return notes
+
+    def _notes(self, path, key, timeout):
+        ck = cache_key(path.read_bytes())
+        cached = self._cached(ck)
+        if cached is not None:
+            return cached
+        event = _claim(ck)
+        if event is None:
+            # A warm(), or another note, is already fetching this same audio:
+            # wait for it instead of asking Gemini a second time, then take
+            # whatever it left in the cache. On its failure there's nothing to
+            # reuse, so fall through and fetch it ourselves.
+            _wait(ck, timeout)
+            cached = self._cached(ck)
+            if cached is not None:
+                return cached
+            event = _claim(ck)
+        if event is not None:
+            return self._fetch(path, key, timeout, ck, event)
+        return listen(path, api_key=key, timeout=timeout)   # lost the race twice: rare, just do it unclaimed
 
 
 def main(argv=None):

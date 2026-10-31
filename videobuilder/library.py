@@ -90,9 +90,15 @@ class Library:
         # Also a plain attribute (not just in `options`, which only Editor() below reads):
         # New video's suggest catalog (handler_library.py) needs it with no project open yet.
         self.music = music
+        from .listen import Listener
         from .staging import Staging
-        # New video's staged uploads, made before any video (and so any project Editor) exists.
+        # New video's staged uploads (before any video, and so any project Editor, exists),
+        # and the shared listening cache every project's own Listener also reads (see
+        # Editor's shared_listening_dir): staging.py's Staging.upload warms it as each audio
+        # file lands, so a first note's own listen is usually just a cache hit (see A17 in
+        # the pre-production plan).
         self.staging = Staging(self.state_dir / 'staging')
+        self.listener = Listener(self.state_dir / 'listening')
         from .pictures import Artbox
         artbox = Artbox(artbox_url) if artbox_url else None
         # Built once here, shared by every project's Editor (unlike Pictures/Artbox, the
@@ -120,7 +126,8 @@ class Library:
                             account_daily_cost_cap_usd=account_daily_cost_cap_usd,
                             compendium_for_builder=compendium_for_builder, source_max_mb=source_max_mb,
                             source_max_total_mb=source_max_total_mb, artbox=artbox, suggest=self.suggest,
-                            account_daily_picture_cap=account_daily_picture_cap)
+                            account_daily_picture_cap=account_daily_picture_cap,
+                            shared_listening_dir=str(self.state_dir / 'listening'))
         self.editors = {}
         self.lock = threading.RLock()
         from .accounts import Accounts

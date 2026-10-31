@@ -1,6 +1,7 @@
 """Pre-production: the bible's phase, option sets, scenes and script, and
 the board API (preprod.py, preprod_api.py, fountain.py)."""
 import json
+import os
 import threading
 import time
 import unittest
@@ -11,9 +12,10 @@ from pathlib import Path
 from unittest import mock
 
 from tests.fake_artbox import FakeArtbox, png
+from tests.fake_gemini import FakeGemini
 from tests.fixtures import AccountMixin, LibraryFixture, settle
 from tests.test_project import TempProject
-from videobuilder import fountain, preprod
+from videobuilder import fountain, listen, preprod, speech
 from videobuilder.editor import Editor, make_handler
 from videobuilder.gitutil import git
 from videobuilder.notes import AgentBackend, AgentStatus
@@ -1377,6 +1379,65 @@ class StagingAccounts(AccountMixin, LibraryFixture, unittest.TestCase):
         code, err, _ = self.request_full(f"/api/videos/staging/{record['id']}/delete", {},
                                          headers={'Content-Type': 'application/json', 'Cookie': cookie_b})
         self.assertEqual(code, 404)
+
+
+MP3 = b'ID3' + b'song' * 20
+
+
+class ListenEarly(LibraryFixture, unittest.TestCase):
+    """Listening starts as soon as an audio file is staged or attached, not
+    only once a note is submitted (A17)."""
+
+    def library_kwargs(self):
+        self.backend = RecorderBackendLibrary()
+        return {'backend': self.backend}
+
+    def setUp(self):
+        super().setUp()
+        self.fake = FakeGemini()
+        self.addCleanup(self.fake.close)
+        patcher = mock.patch.dict(os.environ, {'GEMINI_API_KEY': 'test-key', 'VIDEOBUILDER_GEMINI_URL': self.fake.url})
+        patcher.start()
+        self.addCleanup(patcher.stop)
+        sleeper = mock.patch.object(speech.time, 'sleep')
+        sleeper.start()
+        self.addCleanup(sleeper.stop)
+
+    def _wait_for_requests(self, n, timeout=5):
+        deadline = time.monotonic() + timeout
+        while time.monotonic() < deadline:
+            if len(self.fake.requests) >= n:
+                time.sleep(0.2)   # let the warm thread finish writing the cache
+                return
+            time.sleep(0.02)
+        self.fail(f'gave up waiting for {n} Gemini request(s); saw {len(self.fake.requests)}')
+
+    def test_staged_audio_is_already_cached_by_the_time_the_video_is_created(self):
+        req = urllib.request.Request(self.base + '/api/videos/staging?name=song.mp3', data=MP3, method='POST',
+                                     headers={'Content-Type': 'audio/mpeg'})
+        with urllib.request.urlopen(req, timeout=20) as r:
+            record = json.loads(r.read())
+        self._wait_for_requests(1)
+        code, result = self.request('/api/videos/new', {
+            'name': 'acme/listen', 'start': 'blank', 'plan': False, 'prompt': 'use this song',
+            'attachments': [record['id']]})
+        self.assertEqual(code, 201, result)
+        self.assertEqual(len(self.fake.requests), 1)   # no second call once the note needs it too
+        self.assertIn('## Listening notes', self.backend.seen[-1])
+
+    def test_attaching_audio_to_an_existing_video_warms_it_too(self):
+        code, result = self.request('/api/videos/new', {'name': 'acme/compose', 'start': 'blank'})
+        self.assertEqual(code, 201, result)
+        req = urllib.request.Request(self.base + '/v/acme/compose/api/attachments?video=film&name=song.mp3',
+                                     data=MP3, method='POST', headers={'Content-Type': 'audio/mpeg'})
+        with urllib.request.urlopen(req, timeout=20) as r:
+            attach = json.loads(r.read())
+        self._wait_for_requests(1)
+        code, note = self.request('/v/acme/compose/api/videos/first-note', {
+            'description': 'use it', 'attachments': [attach['id']]})
+        self.assertEqual(code, 200, note)
+        self.assertEqual(len(self.fake.requests), 1)
+        self.assertIn('## Listening notes', self.backend.seen[-1])
 
 
 if __name__ == '__main__':

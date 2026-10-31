@@ -275,9 +275,10 @@ POST /api/videos/staging?name=F       raw body with Content-Type, like POST
                                      size}; 400 bad type/magic or a .zip
                                      (unpack it first); 413 over the 25 MB
                                      per-file limit or the owner's 50-file/
-                                     300 MB pending allowance; swept after
-                                     24h unclaimed; never reachable with a
-                                     key
+                                     300 MB pending allowance; starts
+                                     listening at once for an audio file
+                                     (see listen.py); swept after 24h
+                                     unclaimed; never reachable with a key
 POST /api/videos/staging/<id>/delete {}
                                      200 {deleted}; 404 unknown id or
                                      someone else's
@@ -651,7 +652,7 @@ class Editor:
                  account_daily_note_cap=None, account_daily_cost_cap_usd=None, compendium_for_builder=None,
                  source_max_mb=None, source_max_total_mb=None, trust_repo_config=True, artbox_url=None, artbox=None,
                  account_daily_picture_cap=None, suggest_url=None, suggest_model=None, suggest=None,
-                 voice_samples=None):
+                 voice_samples=None, shared_listening_dir=None):
         self.capabilities_dir = capabilities_dir
         self.compendium_dir = compendium_dir
         # `music`, a pre-parsed MusicLibrary, is how library mode shares one cache and one
@@ -690,7 +691,7 @@ class Editor:
                                compendium_votes=self._compendium_votes_for_builder,
                                community=self._community_for_builder)
         self.notes.video_refs = self._stage_video_refs
-        self.notes.listen = Listener(os.path.join(self.state_dir, 'listening'))
+        self.notes.listen = Listener(os.path.join(self.state_dir, 'listening'), shared_dir=shared_listening_dir)
         self.attachments = Attachments(self, _positive(cfg, 'attachment_max_file', 25) * 1048576,
                                        _positive(cfg, 'attachment_max_files', 10),
                                        _positive(cfg, 'attachment_max_message', 100) * 1048576,

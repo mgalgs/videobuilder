@@ -20,6 +20,13 @@ from .whats_new import TooLarge as WhatsNewTooLarge
 
 
 class LibraryHandler:
+    def _warm_attachment(self, active, video, record):
+        """Starts listening to a just-uploaded audio attachment at once (see
+        listen.Listener.warm), so its notes are usually already cached by
+        the time a note needs them; a no-op for anything else."""
+        if record['type'].startswith('audio/'):
+            active.notes.listen.warm(active.attachments.get(record['id'], video)[1], ctype=record['type'])
+
     def _access(self, method, name, user):
         library = self.library
         if method == 'GET':
@@ -280,6 +287,8 @@ class LibraryHandler:
                         raise HTTPError(413, str(exc)) from None
                     except ValueError as exc:
                         raise HTTPError(400, str(exc)) from None
+                    if record['type'].startswith('audio/'):
+                        library.listener.warm(library.staging.get(record['id'], user)[1], ctype=record['type'])
                     return self._json(201, record)
                 m = re.fullmatch(r'/api/videos/staging/([0-9a-f]{32})/delete', route)
                 if m and method == 'POST':
@@ -478,11 +487,16 @@ class LibraryHandler:
                     raise HTTPError(413, ('zip upload exceeds the size limit' if is_zip else
                                           'attachment exceeds file size limit'))
                 body_bytes = self.rfile.read(n)
+                video = _need(q, 'video')
                 if is_zip:
-                    self._json(201, active.attachments.upload_zip(_need(q, 'video'), upload_name, body_bytes))
+                    result = active.attachments.upload_zip(video, upload_name, body_bytes)
+                    for a in result['attachments']:
+                        self._warm_attachment(active, video, a)
+                    self._json(201, result)
                 else:
-                    record = active.attachments.upload(_need(q, 'video'), upload_name,
+                    record = active.attachments.upload(video, upload_name,
                                                        self.headers.get('Content-Type', ''), body_bytes)
+                    self._warm_attachment(active, video, record)
                     self._json(201, record)
             elif route == '/api/sources':
                 # Streamed straight to disk in bounded chunks (Sources.stream_upload): a source
