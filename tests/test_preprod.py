@@ -6,8 +6,10 @@ import unittest
 import urllib.error
 import urllib.request
 from http.server import ThreadingHTTPServer
+from unittest import mock
 
 from tests.fake_artbox import png
+from tests.fixtures import settle
 from tests.test_project import TempProject
 from videobuilder import fountain
 from videobuilder.editor import Editor, make_handler
@@ -458,6 +460,113 @@ class Image(Server):
             except urllib.error.HTTPError as e:
                 with e:
                     self.assertEqual(e.code, 404)
+
+
+class PhaseFlip(Server):
+    def test_setting_pre_production_commits_only_the_phase_file(self):
+        before = self.commit_main()
+        code, body = self.post('/api/phase', {'video': VIDEO, 'phase': 'pre-production'})
+        self.assertEqual(code, 200)
+        self.assertTrue(body['changed'])
+        self.assertIsNone(body['note'])
+        self.assertEqual(self.board()['phase'], 'pre-production')
+        files = git(self.root, 'diff', '--name-only', before, 'main')
+        self.assertEqual(files, 'promo/bible/phase.json')
+
+    def test_asking_again_is_a_no_op(self):
+        self.post('/api/phase', {'video': VIDEO, 'phase': 'pre-production'})
+        before = self.commit_main()
+        code, body = self.post('/api/phase', {'video': VIDEO, 'phase': 'pre-production'})
+        self.assertEqual(code, 200)
+        self.assertFalse(body['changed'])
+        self.assertEqual(self.commit_main(), before)
+
+
+class RenderGate(Server):
+    def test_no_render_is_requested_for_a_commit_in_pre_production(self):
+        self.post('/api/phase', {'video': VIDEO, 'phase': 'pre-production'})
+        with mock.patch.object(self.editor.renders, 'request') as req:
+            code, _ = self.post('/api/preprod/script', {'video': VIDEO, 'base': self.commit_main(),
+                                                         'text': SCRIPT_V1})
+            self.assertEqual(code, 200)
+            req.assert_not_called()
+        self.post('/api/phase', {'video': VIDEO, 'phase': 'production'})
+        with mock.patch.object(self.editor.renders, 'request') as req:
+            v2 = SCRIPT_V1.replace('Draft: 1', 'Draft: 2')
+            code, _ = self.post('/api/preprod/script', {'video': VIDEO, 'base': self.commit_main(), 'text': v2})
+            self.assertEqual(code, 200)
+            req.assert_called_once()
+
+    def test_main_moved_does_not_render_in_pre_production(self):
+        self.post('/api/phase', {'video': VIDEO, 'phase': 'pre-production'})
+        self.editor._seen_main = None
+        (self.directory / 'README.md').write_text('changed\n')
+        git(self.root, 'add', '-A')
+        git(self.root, 'commit', '-qm', 'external change')
+        with mock.patch.object(self.editor.renders, 'request') as req:
+            self.editor.main_moved()
+            req.assert_not_called()
+
+    def test_an_auto_landed_note_does_not_render_in_pre_production(self):
+        from videobuilder.agents import FakeBackend
+        self.post('/api/phase', {'video': VIDEO, 'phase': 'pre-production'})
+        self.restart(auto_land=True, backend=FakeBackend(delay=0))
+        with mock.patch.object(self.editor.renders, 'request') as req:
+            code, note = self.post('/api/notes', {'video': VIDEO, 'frame': 0, 'text': 'tweak it'})
+            self.assertEqual(code, 200)
+            settle(self.editor)
+            landed = self.editor.notes.current(note['id'])
+            self.assertEqual(landed['state'], 'landed')
+            req.assert_not_called()
+
+    def test_explicit_render_requests_refuse_409(self):
+        self.post('/api/phase', {'video': VIDEO, 'phase': 'pre-production'})
+        for path in (f'/api/video?video={VIDEO}', f'/api/clip?video={VIDEO}&clip=x'):
+            try:
+                self.get(path)
+                self.fail(f'expected 409 for {path}')
+            except urllib.error.HTTPError as e:
+                with e:
+                    self.assertEqual(e.code, 409)
+        code, body = self.post('/api/video/retry', {'video': VIDEO, 'commit': self.commit_main(), 'format': '16x9'})
+        self.assertEqual(code, 409)
+
+    def test_frame_stills_still_work_in_pre_production(self):
+        self.post('/api/phase', {'video': VIDEO, 'phase': 'pre-production'})
+        png_bytes = self.get(f'/api/frame?video={VIDEO}&frame=0&format=16x9')
+        self.assertTrue(png_bytes.startswith(b'\x89PNG'))
+
+
+class StartProduction(Server):
+    def test_production_note_lists_open_items_and_decides_itself(self):
+        self.post('/api/phase', {'video': VIDEO, 'phase': 'pre-production'})
+        self.post('/api/preprod/sets', {'video': VIDEO, 'base': self.commit_main(), 'set': LOOK_SET})
+        code, body = self.post('/api/phase', {'video': VIDEO, 'phase': 'production'})
+        self.assertEqual(code, 200)
+        self.assertTrue(body['changed'])
+        note = body['note']
+        self.assertEqual(note['said'], 'Start production')
+        self.assertIn('bible/script.fountain', note['text'])
+        self.assertIn('bible/scenes.json', note['text'])
+        self.assertIn('Look', note['text'])
+        self.assertIn('say in your reply', note['text'])
+        self.assertEqual(self.board()['phase'], 'production')
+
+    def test_going_back_to_pre_production_sends_no_note(self):
+        self.post('/api/phase', {'video': VIDEO, 'phase': 'pre-production'})
+        self.post('/api/phase', {'video': VIDEO, 'phase': 'production'})
+        code, body = self.post('/api/phase', {'video': VIDEO, 'phase': 'pre-production'})
+        self.assertEqual(code, 200)
+        self.assertIsNone(body['note'])
+        self.assertEqual(self.board()['phase'], 'pre-production')
+
+    def test_note_cap_refusal_leaves_the_phase_unchanged(self):
+        self.restart(auto_land=False, account_daily_note_cap=1)
+        self.post('/api/phase', {'video': VIDEO, 'phase': 'pre-production'})
+        self.post('/api/notes', {'video': VIDEO, 'frame': 0, 'text': 'already used up the cap'})
+        code, body = self.post('/api/phase', {'video': VIDEO, 'phase': 'production'})
+        self.assertEqual(code, 429)
+        self.assertEqual(self.board()['phase'], 'pre-production')
 
 
 if __name__ == '__main__':

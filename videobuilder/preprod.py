@@ -63,6 +63,12 @@ def read_phase(directory):
     return _phase_from_bytes(data)
 
 
+def phase_bytes(phase):
+    if phase not in PHASES:
+        raise ValueError(f'unknown phase {phase!r}')
+    return (json.dumps({'phase': phase}) + '\n').encode()
+
+
 # ---- raw bible.md sections the builder writes freely (Film details doesn't own them) ----
 
 def read_bible_section(directory, name):
@@ -434,6 +440,20 @@ def checklist(directory):
          'detail': {'count': len(scenes), 'seconds': sum(s['seconds'] for s in scenes),
                     'open': [s['id'] for s, ss in scene_sets if ss and not ss.get('pick')]}},
     ]
+
+
+def production_note_text(directory):
+    """Start production's note text: what to build from, and -- since
+    production can start with items still open -- which checklist items
+    are, so the builder decides them itself and says what it decided."""
+    items = checklist(directory)
+    open_labels = [c['label'] for c in items if not c['settled']]
+    lines = ['Start production: build the film from the bible, the script (bible/script.fountain) '
+             'and the scene plan (bible/scenes.json).']
+    if open_labels:
+        lines.append('Still open: ' + ', '.join(open_labels) + '. Decide these yourself and say in your reply '
+                     'what you decided.')
+    return '\n\n'.join(lines)
 
 
 def _option_label(option_set):

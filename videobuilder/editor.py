@@ -239,15 +239,22 @@ GET  /api/video?video=V&commit=SHA&format=F
                                      200 MP4 when ready; 206 for one byte Range,
                                      ETag "<sha>-<format>", Accept-Ranges bytes;
                                      416 unsatisfiable; 202 {state,position}
-                                     while queued/rendering; 500 {error,log}.
+                                     while queued/rendering; 500 {error,log};
+                                     409 while the video is in pre-production
+                                     (see preprod.py, docs/preproduction.md):
+                                     nothing renders there, not even on
+                                     request -- /api/frame and other stills
+                                     still work.
                                      A video with a timeline.json at the commit
                                      is a film of clips: this is its assembly.
 GET  /api/clip?video=V&clip=ID&commit=SHA&format=F
                                      one clip directory of a film of clips,
                                      rendered alone; answers as /api/video, ETag
                                      "<render key>-<format>"; 404 no such clip
-                                     directory (footage clips have no render).
-POST /api/video/retry {video,commit,format[,clip]}  requeue a failed render
+                                     directory (footage clips have no render);
+                                     409 in pre-production, as above.
+POST /api/video/retry {video,commit,format[,clip]}  requeue a failed render;
+                                     409 in pre-production, as above
 GET  /api/thumbnail                   a small JPEG poster frame grabbed from
                                      the project's first video's latest
                                      finished render on main, for the library
@@ -522,7 +529,7 @@ from http.server import ThreadingHTTPServer
 from importlib import resources
 from pathlib import Path, PurePosixPath
 
-from . import assembly, capabilities, edits, film_setup, video_refs
+from . import assembly, capabilities, edits, film_setup, preprod, video_refs
 from .notes import NoteStore
 from .agents import backend_from_config
 from .drafts import Drafts, git
@@ -757,8 +764,47 @@ class Editor:
             for video in self.project.videos():
                 self.render_first(video.id, sha)
 
+    def phase(self, video):
+        """The video's pre-production phase ('pre-production' or
+        'production', see preprod.py); 404 for an unknown video."""
+        try:
+            directory = Path(self.project.video(video).path).parent
+        except KeyError:
+            raise HTTPError(404, f'no video {video!r} in this project') from None
+        return preprod.read_phase(directory)
+
+    def set_phase(self, video, new_phase, author, is_admin=False):
+        """Flip the video's phase, committing bible/phase.json; starting
+        production also sends the builder a note naming what's still open
+        (preprod.production_note_text) -- going back to pre-production
+        changes nothing else. {phase, changed, commit, n, note}."""
+        if new_phase not in preprod.PHASES:
+            raise HTTPError(400, f'phase must be one of {", ".join(preprod.PHASES)}')
+        directory = Path(self.project.video(video).path).parent
+        if self.phase(video) == new_phase:
+            sha = git(self.root, 'rev-parse', 'main')
+            return {'phase': new_phase, 'changed': False, 'commit': sha, 'n': self.versions.number(sha),
+                    'note': None}
+        note = None
+        if new_phase == 'production':
+            self.check_note_cap(author, is_admin)
+            s = self.session(video)
+            info = s.request('info')
+            if 'frames' not in info:
+                raise HTTPError(409, 'the video does not load; fix it before starting production')
+        commit = self.commit_files(video, {preprod.PHASE_FILE: preprod.phase_bytes(new_phase)},
+                                   f'Phase: {new_phase}', author)
+        sha = commit or git(self.root, 'rev-parse', 'main')
+        if new_phase == 'production':
+            text = preprod.production_note_text(directory)
+            note = self.notes.add(video, info['formats'][0]['name'], None, None, text, None, author=author,
+                                  no_questions=True, said='Start production')
+        return {'phase': new_phase, 'changed': True, 'commit': sha, 'n': self.versions.number(sha), 'note': note}
+
     def render_first(self, video, commit):
         try:
+            if self.phase(video) == 'pre-production':
+                return
             if self.versions.saved_unbuilt(video, commit):
                 return
             timeline = self.renders.timeline(video, commit)

@@ -17,7 +17,8 @@ from .music import FetchError, TooLarge, UnsupportedAudio, attach_track
 from .notes import FINAL
 from .film_api import get_film, get_picture, post_film, post_start
 from .preprod_api import (get_image as get_preprod_image, get_preprod, get_script as get_preprod_script,
-                          post_pick, post_scenes, post_script, post_sets, post_sets_delete)
+                          post_phase, post_pick, post_scenes, post_script, post_sets, post_sets_delete,
+                          refuse_if_preproduction)
 from .sources import TooLarge as SourceTooLarge
 from .timeline_api import get_footage, get_thumb, get_timeline, post_timeline
 from .transcript import feed_source, read_feed
@@ -81,6 +82,7 @@ def _get_video(self, route, q, editor, user):
     editor.main_moved()
     video = _need(q, 'video')
     editor.project.video(video)
+    refuse_if_preproduction(editor, video)
     sha, fmt = _render_target(editor, video, q.get('commit'), q.get('format'))
     state = editor.renders.request(video, sha, fmt)
     if state['state'] == 'failed':
@@ -100,6 +102,7 @@ def _get_video(self, route, q, editor, user):
 def _get_clip(self, route, q, editor, user):
     video, clip = _need(q, 'video'), _need(q, 'clip')
     editor.project.video(video)
+    refuse_if_preproduction(editor, video)
     sha, fmt = _render_target(editor, video, q.get('commit'), q.get('format'))
     try:
         path = editor.renders.clip_path(video, sha, fmt, clip)
@@ -618,6 +621,7 @@ def _post_video_retry(self, route, body, identity, editor, user):
     if clip is not None and not isinstance(clip, str):
         raise HTTPError(400, 'clip must be a string')
     editor.project.video(video)
+    refuse_if_preproduction(editor, video)
     sha, fmt = _render_target(editor, video, sha, fmt)
     if clip is not None:
         try:
@@ -625,6 +629,10 @@ def _post_video_retry(self, route, body, identity, editor, user):
         except KeyError:
             raise HTTPError(404, 'no clip directory with that id in this video\'s timeline') from None
     return self._json(202, editor.renders.retry(video, sha, fmt, clip))
+
+
+def _post_phase(self, route, body, identity, editor, user):
+    return post_phase(self, route, body, identity, editor, user, _is_admin_account(self, user))
 
 
 def _post_versions_restore(self, route, body, identity, editor, user):
@@ -809,6 +817,7 @@ POST_ROUTES = [
     ('/api/preprod/sets', post_sets),
     ('/api/preprod/sets/delete', post_sets_delete),
     ('/api/preprod/pick', post_pick),
+    ('/api/phase', _post_phase),
     (('/api/draft/accept', '/api/draft/drop'), _post_draft_action),
     ('/api/compendium/vote', _post_compendium_vote),
     ('/api/music/attach', _post_music_attach),

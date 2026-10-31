@@ -39,6 +39,16 @@ from .notes import valid_choice_image
 
 SCRIPT_MAX = 200_000
 SCRIPT_LOG_LIMIT = 50
+RENDER_REFUSED = 'This video is in pre-production: nothing renders until production starts.'
+
+
+def refuse_if_preproduction(editor, video):
+    """Raise HTTPError(409) for a render request (GET /api/video, GET
+    /api/clip, POST /api/video/retry) against a video still in
+    pre-production -- stills (/api/frame and friends) aren't renders and
+    don't call this."""
+    if preprod.read_phase(_directory(editor, video)) == 'pre-production':
+        raise HTTPError(409, RENDER_REFUSED)
 
 
 def _directory(editor, video):
@@ -288,6 +298,14 @@ def post_sets_delete(self, route, body, identity, editor, user):
                                      f'Remove options: {set_id}', identity)
     out = read_board(editor, video)
     return self._json(200, {**out, 'changed': commit is not None, 'n': editor.versions.number(out['commit'])})
+
+
+def post_phase(self, route, body, identity, editor, user, is_admin):
+    video = _video(body)
+    phase = body.get('phase')
+    if phase not in preprod.PHASES:
+        raise HTTPError(400, f'phase must be one of {", ".join(preprod.PHASES)}')
+    return self._json(200, editor.set_phase(video, phase, identity, is_admin))
 
 
 def post_pick(self, route, body, identity, editor, user):
