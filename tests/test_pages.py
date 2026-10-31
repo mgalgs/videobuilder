@@ -2,6 +2,7 @@
 scripts' basic syntax (extracted and run through `node --check`, since
 there's no build step to catch a typo otherwise)."""
 from importlib import resources
+import html
 import json
 import re
 import shutil
@@ -99,19 +100,35 @@ class NewVideoPage(unittest.TestCase):
     def _page(self, names=('acme/launch', 'acme/teaser', 'solo', 'zeta/one', 'capabilities/demo')):
         return pages.new_video_page(list(names)).decode()
 
-    def test_the_form_is_a_name_a_project_and_create(self):
+    def test_the_form_has_a_name_files_an_idea_a_mode_switch_a_format_and_create(self):
         page = self._page()
         form = re.search(r'<form class="nv-form" id="nv-form" novalidate>(.*?)</form>', page, re.S).group(1)
         self.assertEqual(re.findall(r'<(input|select|textarea|button)\b[^>]*\bid="([^"]+)"', form),
-                         [('input', 'name'), ('select', 'project'), ('input', 'new-project'), ('button', 'go')])
+                         [('input', 'name'), ('button', 'suggest-name'), ('select', 'project'),
+                          ('input', 'new-project'), ('button', 'add-files'), ('input', 'file-input'),
+                          ('textarea', 'idea'), ('button', 'idea-attach'), ('button', 'mode-plan'),
+                          ('button', 'mode-build'), ('select', 'format'), ('button', 'go')])
         self.assertIn('>Create</button>', form)
         self.assertIn('Project <i>(optional)</i>', form)
+        self.assertIn('Everything below is optional', form)
         main = re.search(r'<main class="nv">(.*?)</main>', page, re.S).group(1)
-        for gone in ('class="ways"', 'id="parts"', 'copy-from', 'nv-pick', 'Look', 'Characters', 'Start building',
-                     'drop files', 'Description', 'textarea'):
+        for gone in ('class="ways"', 'id="parts"', 'copy-from', 'nv-pick', 'Look', 'Characters', 'Start building'):
             self.assertNotIn(gone, main)
         self.assertNotIn('suggest.js', page)
         self.assertNotIn('sg-chips', page)
+
+    def test_suggest_name_button_is_present_but_starts_hidden(self):
+        page = self._page()
+        self.assertIn('id="suggest-name" hidden>Suggest</button>', page)
+
+    def test_file_input_accepts_every_attachment_type(self):
+        page = self._page()
+        m = re.search(r'<input type="file" id="file-input" multiple hidden accept="([^"]+)">', page)
+        self.assertIsNotNone(m)
+        accept = html.unescape(m.group(1)).split(',')
+        self.assertIn('image/png', accept)
+        self.assertIn('.pdf', accept)
+        self.assertNotIn('.zip', accept)
 
     def test_the_project_dropdown_starts_on_no_project(self):
         select = re.search(r'<select id="project">(.*?)</select>', self._page()).group(1)
@@ -124,35 +141,79 @@ class NewVideoPage(unittest.TestCase):
 
 @unittest.skipUnless(shutil.which('node'), 'node is not available in this environment')
 class NewVideoCreate(unittest.TestCase):
-    """new_video.js run under node against a small stand-in for the page."""
+    """new_video.js run under node against a small stand-in for the page:
+    the create flow (a bare name, unchanged; plus idea/files/plan/format),
+    and the Suggest-a-name button."""
 
-    def run_page(self, name, project='', new_project='', query='', fail=False):
-        script = (resources.files('videobuilder') / 'new_video.js').read_text()
-        harness = """
+    HARNESS = """
 const els={};
-function el(id,value=''){const e={id,value,hidden:false,disabled:false,textContent:'',options:[],listeners:{},
-  addEventListener(t,f){(this.listeners[t]??=[]).push(f)},focus(){}};els[id]=e;return e}
+function el(id,value=''){const e={id,value,hidden:false,disabled:false,textContent:'',innerHTML:'',
+  options:[],listeners:{},attrs:{},dataset:{},
+  addEventListener(t,f){(this.listeners[t]??=[]).push(f)},
+  setAttribute(n,v){this.attrs[n]=String(v)},getAttribute(n){return this.attrs[n]},focus(){}};
+  els[id]=e;return e}
+['go','name-error','nv-form','go-note','drop','files','file-input','file-count','add-files','idea-attach',
+ 'why','mode-plan','mode-build','sugg-plan','sugg-build','suggest-name','page-drop'].forEach(id=>el(id));
 el('nv-data').textContent=JSON.stringify({starters:{explainer:'A [topic] explainer.'}});
-el('name',NAME);el('new-project',NEWPROJECT);el('go');el('name-error');el('nv-form');
-const project=el('project',PROJECT);
+el('name',__NAME__);el('new-project',__NEWPROJECT__);el('idea',__IDEA__);el('format',__FORMAT__);
+const project=el('project',__PROJECT__);
 const session=new Map();
 globalThis.sessionStorage={getItem:k=>session.get(k)??null,setItem:(k,v)=>session.set(k,v)};
 globalThis.document={getElementById:id=>els[id],querySelector:s=>els[s.slice(1)]};
-globalThis.location={search:QUERY,href:''};
+globalThis.location={search:__QUERY__,href:''};
 const calls=[];
-globalThis.fetch=async(url,init)=>{calls.push([url,JSON.parse(init.body)]);
-  return FAIL?{ok:false,json:async()=>({error:'that name is taken'})}:{ok:true,json:async()=>({video:'film'})}};
+function routeFetch(url){
+  if(url==='/api/suggest/config')return{ok:true,json:async()=>(__SUGGEST_CONFIG__)};
+  if(url==='/api/videos/mode')return{ok:true,json:async()=>(__MODE_ANSWER__)};
+  if(url==='/api/videos/suggest-name')return{ok:true,json:async()=>(__SUGGEST_NAME_ANSWER__)};
+  if(url==='/api/videos/new')return __FAIL__?{ok:false,json:async()=>({error:'that name is taken'})}
+    :{ok:true,json:async()=>({video:'film'})};
+  return{ok:true,json:async()=>({})};
+}
+globalThis.fetch=async(url,init)=>{
+  const body=init&&init.body?JSON.parse(init.body):undefined;
+  if(url==='/api/videos/new'||url==='/api/videos/suggest-name')calls.push([url,body]);
+  return routeFetch(url,body);
+};
+globalThis.xhrs=[];
+class FakeXHR{
+  constructor(){this.upload={};globalThis.xhrs.push(this)}
+  open(m,u){this.method=m;this.url=u}
+  setRequestHeader(){}
+  send(body){this.sentBody=body}
+  abort(){this.aborted=true}
+}
+globalThis.XMLHttpRequest=FakeXHR;
 """
-        for k, v in (('NEWPROJECT', new_project), ('NAME', name), ('PROJECT', project), ('QUERY', query),
-                     ('FAIL', fail)):
+
+    def run_page(self, name='a', project='', new_project='', query='', fail=False, idea='', fmt='',
+                suggest_config=None, mode_answer=None, suggest_name_answer=None, before_submit='', submit=True):
+        script = (resources.files('videobuilder') / 'new_video.js').read_text()
+        harness = self.HARNESS
+        tokens = {
+            '__NEWPROJECT__': new_project, '__NAME__': name, '__PROJECT__': project, '__QUERY__': query,
+            '__FAIL__': fail, '__IDEA__': idea, '__FORMAT__': fmt,
+            '__SUGGEST_CONFIG__': suggest_config if suggest_config is not None else {'model': False},
+            '__MODE_ANSWER__': mode_answer if mode_answer is not None else
+                {'plan': False, 'why': 'empty', 'reason': "There's nothing to go on yet."},
+            '__SUGGEST_NAME_ANSWER__': suggest_name_answer if suggest_name_answer is not None else {'name': None},
+        }
+        for k, v in tokens.items():
             harness = harness.replace(k, json.dumps(v))
-        run = """
-(async()=>{
-  for(const f of els['nv-form'].listeners.submit)await f({preventDefault(){}});
+        submit_js = (
+            "for(const f of els['nv-form'].listeners.submit)await f({preventDefault(){}});"
+            if submit else '')
+        run = f"""
+(async()=>{{
+  {before_submit}
+  {submit_js}
   await new Promise(r=>setTimeout(r,0));
-  console.log(JSON.stringify({calls,href:location.href,session:Object.fromEntries(session),
-    error:els['name-error'].textContent}));
-})();
+  console.log(JSON.stringify({{calls,href:location.href,session:Object.fromEntries(session),
+    error:els['name-error'].textContent,name:els['name'].value,why:els['why'].innerHTML,
+    goText:els['go'].textContent,
+    modePlan:els['mode-plan'].attrs['aria-checked'],modeBuild:els['mode-build'].attrs['aria-checked'],
+    suggestHidden:els['suggest-name'].hidden,suggestDisabled:els['suggest-name'].disabled}}));
+}})();
 """
         result = subprocess.run(['node', '-'], input=(harness + script + run).encode(), capture_output=True)
         self.assertEqual(result.returncode, 0, result.stderr.decode())
@@ -178,6 +239,71 @@ globalThis.fetch=async(url,init)=>{calls.push([url,JSON.parse(init.body)]);
         out = self.run_page('a', fail=True)
         self.assertEqual(out['href'], '')
         self.assertEqual(out['error'], 'that name is taken')
+
+    def test_an_idea_alone_rides_along_as_the_prompt(self):
+        out = self.run_page('a', idea='A storm film.')
+        self.assertEqual(out['calls'], [['/api/videos/new', {'name': 'a', 'start': 'blank', 'prompt': 'A storm film.'}]])
+
+    def test_a_picked_format_is_included(self):
+        out = self.run_page('a', fmt='9x16')
+        self.assertEqual(out['calls'][0][1]['format'], '9x16')
+
+    def test_accepting_the_suggested_plan_omits_plan_and_lets_the_server_decide(self):
+        out = self.run_page('a', idea='A screenplay with three characters.',
+                            mode_answer={'plan': True, 'why': 'story', 'reason': 'Reads like a story.'})
+        self.assertNotIn('plan', out['calls'][0][1])
+        self.assertEqual(out['modePlan'], 'true')
+        self.assertIn('Reads like a story.', out['why'])
+
+    def test_flipping_the_mode_sends_plan_explicitly(self):
+        out = self.run_page(
+            'a', idea='A screenplay with three characters.',
+            mode_answer={'plan': True, 'why': 'story', 'reason': 'Reads like a story.'},
+            before_submit="for(const f of els['mode-build'].listeners.click)await f({});"
+                          "await new Promise(r=>setTimeout(r,0));")
+        self.assertEqual(out['calls'][0][1]['plan'], False)
+        self.assertEqual(out['modeBuild'], 'true')
+        self.assertIn('Switch back', out['why'])
+
+    def test_a_staged_file_rides_along_as_an_attachment(self):
+        out = self.run_page('a', before_submit="""
+els['file-input'].value='pic.png';
+for(const f of els['file-input'].listeners.change)
+  await f({target:{files:[{name:'pic.png',type:'image/png',size:3}],value:''}});
+xhrs[0].status=201;xhrs[0].responseText=JSON.stringify({id:'abc123',name:'pic.png',type:'image/png',size:3});
+xhrs[0].onload();
+await new Promise(r=>setTimeout(r,0));
+""")
+        self.assertEqual(out['calls'], [['/api/videos/new', {'name': 'a', 'start': 'blank',
+                                                              'attachments': ['abc123']}]])
+
+    def test_submit_is_refused_while_a_file_is_still_uploading(self):
+        out = self.run_page('a', before_submit="""
+for(const f of els['file-input'].listeners.change)
+  await f({target:{files:[{name:'pic.png',type:'image/png',size:3}],value:''}});
+""")
+        self.assertEqual(out['calls'], [])
+        self.assertIn('finish uploading', out['error'])
+
+    def test_suggest_name_button_is_hidden_without_a_model(self):
+        out = self.run_page('a', submit=False)
+        self.assertEqual(out['suggestHidden'], True)
+
+    def test_suggest_name_button_fills_in_a_slugified_name(self):
+        out = self.run_page('a', idea='A lighthouse keeper riding out a storm.',
+                            suggest_config={'model': True}, suggest_name_answer={'name': 'Lighthouse Storm'},
+                            submit=False,
+                            before_submit="await new Promise(r=>setTimeout(r,0));"
+                                         "for(const f of els['suggest-name'].listeners.click)await f({});"
+                                         "await new Promise(r=>setTimeout(r,0));")
+        self.assertEqual(out['name'], 'lighthouse-storm')
+        self.assertEqual(out['calls'], [['/api/videos/suggest-name',
+                                         {'idea': 'A lighthouse keeper riding out a storm.', 'attachments': []}]])
+
+    def test_the_editor_reads_the_same_draft_key(self):
+        js = (resources.files('videobuilder') / 'director.js').read_text()
+        self.assertIn("const DRAFT='vb-draft:';", js)
+        self.assertIn("sessionStorage.getItem(DRAFT+location.pathname)", js)
 
     def test_the_editor_reads_the_same_draft_key(self):
         js = (resources.files('videobuilder') / 'director.js').read_text()

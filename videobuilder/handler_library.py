@@ -308,6 +308,40 @@ class LibraryHandler:
                         raise HTTPError(400, 'types must be a list of strings')
                     from . import preprod
                     return self._json(200, preprod.suggest_mode(prompt, types))
+                if route == '/api/videos/suggest-name' and method == 'POST':
+                    # New video's Suggest-a-name button; hidden client-side when this 404s
+                    # (library.suggest is None, i.e. no --suggest-url configured).
+                    if not library.suggest:
+                        raise HTTPError(404, 'not configured')
+                    body = self._body()
+                    idea = body.get('idea')
+                    if idea is not None and not isinstance(idea, str):
+                        raise HTTPError(400, 'idea must be a string')
+                    attachment_ids = body.get('attachments') or []
+                    if not isinstance(attachment_ids, list) or not all(isinstance(i, str) for i in attachment_ids):
+                        raise HTTPError(400, 'attachments must be a list of ids')
+                    from . import listen
+                    file_names, listening_notes = [], {}
+                    for ident in attachment_ids:
+                        try:
+                            meta, path = library.staging.get(ident, user)
+                        except KeyError:
+                            continue  # best-effort: a stale or already-claimed id just isn't used
+                        file_names.append(meta['name'])
+                        if meta['type'].startswith('audio/'):
+                            try:
+                                notes = library.listener._cached(listen.cache_key(path.read_bytes()))
+                            except OSError:
+                                notes = None
+                            if notes:
+                                listening_notes[meta['name']] = notes
+                    cancel_event = threading.Event()
+                    stop_watching = self._watch_disconnect(cancel_event)
+                    try:
+                        return self._json(200, library.suggest.suggest_name(idea, file_names, listening_notes,
+                                                                             identity, cancel_event=cancel_event))
+                    finally:
+                        stop_watching()
                 if route == '/api/videos/new' and method == 'POST':
                     # Reachable by any signed-in user (the generic session check above
                     # already refused an anonymous one when accounts are on), unlike the

@@ -51,6 +51,35 @@ _LOGO = ('<svg width="34" height="34" viewBox="0 0 34 34" aria-hidden="true">'
          '<path d="M13 10.5v13a1 1 0 0 0 1.5.86l10.8-6.5a1 1 0 0 0 0-1.72l-10.8-6.5A1 1 0 0 0 13 10.5z" '
          'fill="#fff"/></svg>')
 
+# New video's icons (24px grid, stroke=currentColor): the same small inline-SVG convention
+# director.js's own `svg()`/TL_ICON use, so new_video.js can draw the file-tile icons it
+# generates at runtime (remove, play, doc) with the identical path data -- see _NV_ICON there.
+_NV_ICON = {
+    'upload': ('<path d="M12 16V4M7 9l5-5 5 5M5 20h14"/>', 2),
+    'plus': ('<path d="M12 5v14M5 12h14"/>', 2.4),
+    'picture': ('<rect x="3" y="4" width="18" height="16" rx="2.5"/><circle cx="9" cy="9.5" r="1.8"/>'
+                '<path d="M21 15.5l-5-5L6 20"/>', 2),
+    'music': ('<path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/>', 2),
+    'video': ('<rect x="3" y="5" width="14" height="14" rx="2"/><path d="M17 10l4-2.5v9L17 14"/>', 2),
+    'doc': ('<path d="M6 3h8l4 4v14H6zM14 3v4h4M9 12h6M9 15.5h6"/>', 2),
+    'script': ('<path d="M7 3h10a2 2 0 012 2v14a2 2 0 01-2 2H7a2 2 0 01-2-2V5a2 2 0 012-2zM9 8h6M9 11.5h6M10.5 15h3"/>',
+               2),
+    'play': ('<path d="M7 4.5v15l13-7.5z" fill="currentColor" stroke="none"/>', 2),
+    'check': ('<path d="M5 12.5l4.5 4.5L19 7.5"/>', 3),
+    'sparkle': ('<path d="M10 3l1.6 4.4L16 9l-4.4 1.6L10 15l-1.6-4.4L4 9l4.4-1.6zM18 13l.9 2.1L21 16l-2.1.9L18 19l'
+                '-.9-2.1L15 16l2.1-.9z"/>', 2),
+    'clip': ('<path d="M20 11.5l-8.2 8.2a5 5 0 01-7.1-7.1l8.5-8.5a3.4 3.4 0 014.8 4.8l-8.4 8.4a1.7 1.7 0 01-2.4-2.4'
+             'l7.7-7.7"/>', 2),
+    'close': ('<path d="M6 6l12 12M18 6L6 18"/>', 2.2),
+}
+
+
+def _nv_icon(name, size=20):
+    path, width = _NV_ICON[name]
+    return (f'<svg class="ic" width="{size}" height="{size}" viewBox="0 0 24 24" fill="none" '
+            f'stroke="currentColor" stroke-width="{width}" stroke-linecap="round" stroke-linejoin="round" '
+            f'aria-hidden="true">{path}</svg>')
+
 
 def _auth_page(title, heading, fields, button, api, switch, showcase):
     """The sign-in and sign-up pages: the pitch beside the form, the showcase
@@ -698,11 +727,14 @@ def new_video_projects(names):
 
 
 def new_video_page(names, user=None, whats_new=None):
-    """The New video page: a name, an optional project and Create
-    (new_video.js). Everything else about a video, its first note included,
-    happens in the editor. `names` are the videos this user may see: their
-    projects fill the dropdown, after "No project", which is chosen. `user`:
-    who is signed in, for the header's account menu; None without accounts."""
+    """The New video page: a name, an optional project, files you can drop
+    or pick, an idea box, a Plan-it-first/Just-build-it switch and an
+    optional format -- then Create (new_video.js); everything but the name
+    is optional (see docs/preproduction.md's "New video"). `names` are the
+    videos this user may see: their projects fill the dropdown, after "No
+    project", which is chosen. `user`: who is signed in, for the header's
+    account menu; None without accounts."""
+    from .attachments import TYPES as ATTACH_TYPES
     projects = new_video_projects(names)
     files = resources.files(__package__)
     data = json.dumps({'starters': {s['id']: s['prompt'] for s in STARTERS}})
@@ -710,20 +742,70 @@ def new_video_page(names, user=None, whats_new=None):
     options = ('<option value="" selected>No project</option>' +
                ''.join(f'<option value="{html.escape(p)}">{html.escape(p)}</option>' for p in projects) +
                '<option value="+new">+ New project…</option>')
+    accept = ','.join(sorted(set(ATTACH_TYPES.values()) | {'.' + ext for ext in ATTACH_TYPES}))
     style = APP_STYLE + files.joinpath('new_video.css').read_text()
+    icon, I = _nv_icon, html.escape  # noqa: E741 -- short local aliases, used a lot below
+    kinds = ''.join(f'<span>{icon(name, 16)}{I(label)}</span>' for name, label in (
+        ('picture', 'Screenshots'), ('music', 'Songs'), ('video', 'Clips'), ('doc', 'Notes & PDFs')))
+    modes = ''.join(
+        f'<button type="button" class="mode" role="radio" id="mode-{mode}" aria-checked="false">'
+        f'<span class="mic">{icon(mic)}</span><span class="mt"><b>{I(title)}</b><span>{I(desc)}</span>'
+        f'<span class="sugg" id="sugg-{mode}" hidden>{icon("sparkle", 12)} Suggested</span></span>'
+        f'<span class="radio">{icon("check", 14)}</span></button>'
+        for mode, mic, title, desc in (
+            ('plan', 'script', 'Plan it first',
+             'Script, characters, look and a scene plan on a board. You pick; nothing renders until '
+             'you start production.'),
+            ('build', 'play', 'Just build it', 'The builder makes a first version straight away. You give notes '
+             'after.')))
     return (_head('New video', style) +
             '<body>' + app_header('new', user, whats_new=whats_new) + '<main class="nv">'
             '<h1>New video</h1>'
             '<form class="nv-form" id="nv-form" novalidate>'
-            '<div class="nv-row"><div class="f name"><label for="name">Name</label><input id="name" class="tx" '
-            'placeholder="snow-day-reel" required autocapitalize="off" autocorrect="off" spellcheck="false"></div>'
+            '<div class="nv-row"><div class="f name"><label for="name">Name</label>'
+            '<div class="name-row"><input id="name" class="tx" '
+            'placeholder="snow-day-reel" required autocapitalize="off" autocorrect="off" spellcheck="false">'
+            '<button type="button" class="pill" id="suggest-name" hidden>Suggest</button></div></div>'
             '<div class="f project"><label for="project">Project <i>(optional)</i></label>'
             f'<select id="project">{options}</select>'
             '<input id="new-project" class="tx" placeholder="New project name" aria-label="New project name" '
             'autocapitalize="off" autocorrect="off" spellcheck="false" hidden></div></div>'
             '<p class="field-error" id="name-error" role="alert"></p>'
-            '<button type="submit" class="btn btn-primary go" id="go">Create</button>'
+            '<p class="optional-line">Everything below is optional, and you can change any of it as you go.</p>'
+            '<section class="blk" aria-labelledby="files-label">'
+            '<div class="files-head"><span class="sec-label" id="files-label">Files '
+            '<i>— screenshots, songs, notes, clips, PDFs</i></span><span class="count" id="file-count"></span></div>'
+            '<div class="drop" id="drop">'
+            f'<div class="big-ic">{icon("upload", 28)}</div>'
+            f'<button type="button" class="add-big" id="add-files">{icon("plus", 22)}Add files</button>'
+            f'<div class="kinds">{kinds}</div>'
+            '<p class="hint desktop-only">or drop them anywhere on this page</p>'
+            '<p class="hint phone-only">Opens Photos, Files or the camera</p></div>'
+            '<div class="files" id="files" hidden></div>'
+            f'<input type="file" id="file-input" multiple hidden accept="{I(accept)}"></section>'
+            '<section class="blk">'
+            '<label class="sec-label" for="idea">What’s the idea? <i>(optional)</i></label>'
+            '<div class="idea">'
+            '<textarea id="idea" placeholder="Describe it in your own words: the story, the feel, which song '
+            'goes where…"></textarea>'
+            '<div class="idea-tools">'
+            f'<button type="button" class="round" id="idea-attach" aria-label="Attach a file">{icon("clip")}'
+            '</button>'
+            '<span class="hint">Sent as your first note,<br class="phone-only"> with the files above</span>'
+            '</div></div></section>'
+            '<section class="blk" aria-labelledby="mode-label">'
+            '<span class="sec-label" id="mode-label">How should the builder start?</span>'
+            f'<div class="modes" role="radiogroup" aria-labelledby="mode-label">{modes}</div>'
+            '<p class="why" id="why" hidden></p></section>'
+            '<section class="blk format-blk"><label class="sec-label" for="format">Format <i>(optional)</i></label>'
+            '<select id="format"><option value="">Default (9:16 &amp; 16:9)</option>'
+            '<option value="9x16">9:16 vertical</option><option value="16x9">16:9 widescreen</option>'
+            '<option value="1x1">1:1 square</option></select></section>'
+            '<div class="go-row"><span class="note" id="go-note">Only the name is needed.</span>'
+            '<button class="btn btn-primary go" id="go" type="submit">Create</button></div>'
             '</form></main>'
+            f'<div class="nv-page-drop" id="page-drop" hidden><div class="big">{icon("upload", 34)}</div>'
+            '<strong>Drop to attach</strong><span>Screenshots, songs, clips, notes and PDFs</span></div>'
             f'<script type="application/json" id="nv-data">{data}</script>'
             f'<script>{files.joinpath("new_video.js").read_text()}</script></body></html>').encode()
 

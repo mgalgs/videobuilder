@@ -471,6 +471,21 @@ attachments than the first-note allowance (50 files / 300 MiB), an unknown
 `format`, or a non-boolean `plan`. 429 as `POST /api/notes`, before the
 video exists.
 
+### `POST /api/videos/suggest-name {idea?, attachments?: [staged id, ...]}`
+
+Library-only. The New video page's Suggest button on the Name field: a
+short name guessed from `idea` and the names of whatever `attachments`
+(staged ids, as above) are given, using the same suggestion model
+`POST /api/suggest` does (configured by `--suggest-url`; see suggest.py).
+For a staged audio file, when the listening cache (see "Listening early"
+below) already has notes for it, those notes are read too -- not asked
+for fresh. 200 `{name}`: a short string, or `null` when there is nothing
+to go on yet, no model is configured, or the call itself failed (never an
+error -- this must never break the page). `name` is a plain suggestion,
+not validated as a real video name; the page runs it through the same
+name validation any typed name gets before filling the field in. 404
+without a model configured, so the page hides the button entirely.
+
 ### Listening early
 
 As soon as an audio file is staged (`POST /api/videos/staging`) or

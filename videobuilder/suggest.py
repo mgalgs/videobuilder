@@ -48,6 +48,16 @@ from .suggest_index import BM25
 
 NEW_VIDEO_BLOCK = '(There is no video yet: the director is describing a brand new one before it exists.)'
 
+NAME_SYSTEM_BLOCK = (
+    'You suggest a short name for a brand-new video project, from the director\'s idea, the names of any '
+    'files they have attached, and (for songs) notes on what the song sounds like. Answer JSON only: '
+    '{"name": "..."}. The name should read like a short slug a filesystem would accept -- a few words, '
+    'lowercase, hyphens instead of spaces, no punctuation, 2-40 characters (e.g. "lighthouse-storm", '
+    '"snow-day-reel") -- never a sentence, a quote, or a file extension.'
+)
+MAX_NAME_INPUT = 1500  # characters of idea text / file names / listening notes sent to the model
+MAX_LISTENING_EXCERPT = 600
+
 STRONG_CAP = 5
 RELATED_CAP = 8
 MIN_WORDS = 3
@@ -477,6 +487,56 @@ class Suggest:
         if usage:
             self._record_usage(author, usage)
         return {'seq': seq, 'items': items}
+
+    def suggest_name(self, idea, file_names, listening_notes, author, cancel_event=None):
+        """{"name": "..."} for New video's Suggest button: a short slug
+        drawn from the idea text, the names of whatever's been staged, and
+        -- for songs the listening cache already has notes for --
+        `listening_notes` ({file name: notes text}). `name` is None (never
+        an error) when there's nothing to go on yet, the model isn't
+        configured, or the call fails -- the page keeps today's name field
+        either way. The caller still runs the answer through the same name
+        validation any typed name gets; nothing here is trusted as final."""
+        if self.client is None:
+            raise HTTPError(404, 'not configured')
+        idea = (idea or '').strip()
+        if not idea and not file_names:
+            return {'name': None}
+        lines = []
+        if idea:
+            lines.append(f'Idea: {idea[:MAX_NAME_INPUT]}')
+        if file_names:
+            lines.append('Files: ' + ', '.join(file_names[:50]))
+        for name, notes in listening_notes.items():
+            lines.append(f'Notes on {name}:\n{notes[:MAX_LISTENING_EXCERPT]}')
+        user_text = '\n\n'.join(lines)[:MAX_NAME_INPUT]
+        cache_key = ('name', self.client.model, _normalize(user_text))
+        cached = self._cache_get(cache_key)
+        # '' (not None) marks a cached miss -- a cache lookup answering plain None always
+        # means "not cached", so a real miss has to be stored as something else or it would
+        # look uncached forever and re-ask the model every time.
+        if cached is not None:
+            return {'name': cached or None}
+        if cancel_event is None:
+            cancel_event = threading.Event()
+        timer = threading.Timer(self.client.timeout, cancel_event.set)
+        timer.daemon = True
+        timer.start()
+        try:
+            answer, usage = self.client.complete(NAME_SYSTEM_BLOCK, '', user_text, max_tokens=40,
+                                                 cancel_event=cancel_event)
+        except (SuggestCancelled, SuggestError) as exc:
+            if not isinstance(exc, SuggestCancelled) or timer.finished.is_set():
+                print(f'[editor] suggest name: {exc}', file=sys.stderr, flush=True)
+            return {'name': None}
+        finally:
+            timer.cancel()
+        name = answer.get('name') if isinstance(answer, dict) else None
+        name = name.strip().strip('"\'')[:80] if isinstance(name, str) else None
+        self._cache_put(cache_key, name or '')
+        if usage:
+            self._record_usage(author, usage)
+        return {'name': name or None}
 
 
 def _load_notes(path):

@@ -1,32 +1,175 @@
-/* The New video page (pages.new_video_page): one small form. */
-main.nv{max-width:640px;margin:0 auto;padding:28px 24px 60px;font:14px/1.4 system-ui,sans-serif}
+/* The New video page (pages.new_video_page): a name, an optional project,
+   files you can drop or pick, an idea box, a Plan-it-first/Just-build-it
+   switch and an optional format -- then Create. Everything but the name
+   is optional, and only reflected in POST /api/videos/new's body once it
+   has something to say (see new_video.js): a bare name still posts exactly
+   {name, start:"blank"}, as it always has. Shapes and colours follow
+   director.css; see /attachments/preprod-mockups/new-video.html for the
+   signed-off design this implements. */
+main.nv{max-width:760px;margin:0 auto;padding:28px 24px 60px;font:14px/1.4 system-ui,sans-serif}
 .nv *{box-sizing:border-box}
 .nv :where(button,input,textarea,select){font:inherit;color:inherit}
 .nv button:focus-visible,.nv a:focus-visible,.nv input:focus-visible,.nv textarea:focus-visible,
 .nv select:focus-visible{outline:3px solid #fff;outline-offset:2px}
 .nv [hidden]{display:none!important}
 .nv h1{margin:0 0 18px;font-size:clamp(1.6rem,3vw,2.1rem);font-weight:800;letter-spacing:-.02em}
-.nv-form{display:flex;flex-direction:column;gap:16px;padding:18px;border:1px solid #2c2c33;border-radius:14px;
+.nv-form{display:flex;flex-direction:column;gap:18px;padding:18px;border:1px solid #2c2c33;border-radius:14px;
   background:#141417}
 .nv-row{display:flex;flex-wrap:wrap;gap:16px}
 .nv .f{display:flex;flex-direction:column;gap:6px;min-width:0}
 .nv .f.name{flex:2 1 260px}
 .nv .f.project{flex:1 1 160px}
-.nv label{color:#a9a9b2;font-size:13px;font-weight:600}
-.nv label i{font-style:normal;font-weight:500;color:#62626b}
+.nv label,.nv .sec-label{color:#a9a9b2;font-size:13px;font-weight:600}
+.nv label i,.nv .sec-label i{font-style:normal;font-weight:500;color:#62626b}
 .nv select{font-size:15px;min-height:44px;padding:0 .7rem;border-radius:10px;border:1px solid #2c2c33;
   background:#0d0d10;width:100%}
 .nv #new-project{margin-top:8px}
+.nv .name-row{display:flex;gap:8px;align-items:center}
+.nv .name-row .tx{flex:1}
 input.tx,textarea.tx{font-size:16px;min-height:44px;padding:.6rem .8rem;border-radius:10px;border:1px solid #2c2c33;
   background:#0d0d10;width:100%;outline:none;color:#f4f4f2}
 input.tx:focus,textarea.tx:focus{border-color:#6b6b75;box-shadow:0 0 0 3px rgba(244,244,242,.08)}
-.tx::placeholder{color:#62626b}
+.nv .tx::placeholder,.nv textarea::placeholder{color:#62626b}
 .field-error{color:#ff8a80;margin:0;font-size:13px}.field-error:empty{display:none}
 .field-error a{color:#f4f4f2}
-.nv .go{align-self:flex-end;min-height:48px;padding:0 1.6rem;font-size:16px;font-weight:700;border-radius:12px}
+.nv .optional-line{margin:2px 0 -4px;padding-top:16px;border-top:1px solid #23232a;color:#c9c9d1;font-size:14px}
+.nv section.blk{display:flex;flex-direction:column;gap:8px}
+.nv .pill{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:36px;padding:0 14px;
+  border:1px solid #3a3a42;border-radius:20px;background:transparent;color:#c9c9d1;font-weight:700;
+  font-size:13px;white-space:nowrap}
+.nv .pill:disabled{opacity:.45;cursor:default}
+.nv .pill:not(:disabled):hover{border-color:#6b6b75;color:#fff}
+
+/* ---------- files ---------- */
+.nv .files-head{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.nv .files-head .count{color:#a9a9b2;font-size:13px}
+.nv .drop{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;min-height:230px;
+  padding:24px;border:2px dashed #3a3a42;border-radius:16px;background:#0f0f12;text-align:center;
+  transition:border-color .15s,background .15s}
+.nv .drop .big-ic{width:64px;height:64px;border-radius:50%;background:#1d1d22;display:grid;place-items:center;
+  color:#fff}
+.nv .add-big{min-height:56px;padding:0 28px;font-size:17px;font-weight:800;border-radius:28px;border:0;
+  background:#fff;color:#111;display:inline-flex;align-items:center;gap:10px;cursor:pointer}
+.nv .drop .kinds{display:flex;flex-wrap:wrap;justify-content:center;gap:6px 14px;color:#a9a9b2;font-size:13px}
+.nv .drop .kinds span{display:inline-flex;align-items:center;gap:5px}
+.nv .drop .hint{color:#8a8a93;font-size:13px;margin:0}
+.nv .files{display:grid;grid-auto-flow:dense;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;padding:12px;
+  border:2px dashed #2c2c33;border-radius:16px;background:#0f0f12}
+.nv .files .tile{position:relative;aspect-ratio:1;border-radius:12px;overflow:hidden;background:#1d1d22;
+  border:1px solid #34343c;min-width:0}
+.nv .files .tile .art{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;background:#07040f}
+.nv .files .tile .art.icon-art{display:flex;align-items:center;justify-content:center;color:#6b6b75}
+.nv .files .x{position:absolute;top:5px;right:5px;z-index:4;width:28px;height:28px;border-radius:50%;padding:0;
+  background:#000b;border:1px solid #ffffff59;color:#fff;display:grid;place-items:center;cursor:pointer}
+.nv .files .tname-ov{position:absolute;left:0;right:0;bottom:0;z-index:2;padding:16px 7px 6px;font-size:11px;
+  font-weight:600;background:linear-gradient(transparent,#000c);white-space:nowrap;overflow:hidden;
+  text-overflow:ellipsis;color:#fff}
+.nv .files .dur{position:absolute;right:6px;bottom:6px;z-index:2;background:#000c;border-radius:6px;
+  padding:1px 6px;font-size:11px;font-weight:700;font-variant-numeric:tabular-nums;color:#fff}
+.nv .files .vid-ic{position:absolute;left:6px;bottom:6px;z-index:2;background:#000c;border-radius:6px;
+  padding:2px 4px;color:#fff;display:flex}
+.nv .files .up{position:absolute;inset:0;z-index:3;background:#000a;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;gap:6px;font-size:12px;font-weight:800;color:#fff}
+.nv .files .up .ring-prog{width:34px;height:34px}
+.nv .files .bad{position:absolute;inset:0;z-index:3;background:#2a1211e6;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;gap:4px;padding:6px;font-size:11px;font-weight:700;color:#ffb3ab;
+  text-align:center}
+.nv .files .aud{grid-column:span 2;min-height:64px;position:relative;display:flex;align-items:center;gap:10px;
+  padding:8px 34px 8px 8px;border-radius:12px;background:#1d1d22;border:1px solid #34343c;min-width:0}
+.nv .files .aud .play{width:36px;height:36px;border-radius:50%;background:#fff;color:#111;border:0;display:grid;
+  place-items:center;flex:none;cursor:pointer}
+.nv .files .aud .meta{min-width:0;flex:1;display:flex;flex-direction:column;gap:3px}
+.nv .files .aud .name{font-size:13px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  color:#fff}
+.nv .files .aud .sub{font-size:11px;color:#a9a9b2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.nv .files .aud .dur{position:static;background:none;padding:0;color:#a9a9b2;font-weight:400}
+.nv .files .aud .wave{height:22px;width:100%}
+.nv .files .aud .wave svg{width:100%;height:100%;display:block}
+.nv .files .aud .x{top:-8px;right:-8px}
+.nv .files .bar{position:absolute;left:8px;right:8px;bottom:6px;height:4px;border-radius:2px;background:#ffffff30;
+  z-index:3}
+.nv .files .bar i{display:block;height:100%;background:#fff;border-radius:2px}
+.nv .files .doc-tile{aspect-ratio:1;display:flex;flex-direction:column;justify-content:space-between;padding:10px;
+  background:#1a1a1f}
+.nv .files .doc-ic{width:34px;height:40px;border-radius:4px;background:#f4f4f2;color:#c62828;display:grid;
+  place-items:end center;padding-bottom:4px;font:800 9px/1 system-ui;position:relative}
+.nv .files .doc-ic.txt{color:#333}
+.nv .files .doc-name{font-size:12px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+  color:#fff}
+.nv .files .doc-sub{font-size:11px;color:#a9a9b2}
+.nv .files .add-more{aspect-ratio:1;border:1.5px dashed #4a4a52;border-radius:12px;background:transparent;
+  color:#c9c9d1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;
+  font-weight:700;font-size:13px;cursor:pointer}
+
+/* ---------- idea ---------- */
+.nv .idea{border:1px solid #2c2c33;border-radius:16px;background:#0d0d10;display:flex;flex-direction:column}
+.nv .idea:focus-within{border-color:#6b6b75;box-shadow:0 0 0 3px rgba(244,244,242,.08)}
+.nv .idea textarea{border:0;background:none;color:#f4f4f2;padding:14px 16px 6px;font-size:16px;line-height:1.45;
+  min-height:120px;resize:vertical;outline:none}
+.nv .idea-tools{display:flex;align-items:center;gap:8px;padding:8px 10px 10px}
+.nv .idea-tools .round{width:40px;height:40px;border:0;background:#1d1d22;color:#fff;border-radius:50%;
+  display:inline-grid;place-items:center;flex:none;cursor:pointer}
+.nv .idea-tools .hint{margin-left:auto;color:#8a8a93;font-size:12px;text-align:right}
+
+/* ---------- plan / build ---------- */
+.nv .modes{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.nv .mode{position:relative;display:flex;gap:12px;align-items:flex-start;text-align:left;padding:14px;
+  border-radius:14px;border:1px solid #34343c;background:#0f0f12;color:#f4f4f2;min-height:44px;cursor:pointer}
+.nv .mode .mic{width:40px;height:40px;border-radius:50%;background:#1d1d22;display:grid;place-items:center;
+  flex:none}
+.nv .mode .mt{display:flex;flex-direction:column;gap:3px;min-width:0;padding-right:22px}
+.nv .mode .mt b{font-size:15px}
+.nv .mode .mt span{font-size:13px;color:#a9a9b2}
+.nv .mode .radio{position:absolute;top:12px;right:12px;width:22px;height:22px;border-radius:50%;
+  border:2px solid #6b6b75;display:grid;place-items:center;color:#111}
+.nv .mode .radio .ic{display:none}
+.nv .mode[aria-checked=true]{border-color:#fff;box-shadow:0 0 0 1px #fff;background:#17171b}
+.nv .mode[aria-checked=true] .radio{background:#fff;border-color:#fff}
+.nv .mode[aria-checked=true] .radio .ic{display:block}
+.nv .mode .sugg{display:inline-flex;align-items:center;gap:4px;align-self:flex-start;margin-top:4px;
+  font-size:11px;font-weight:800;color:#8fd9c7;border:1px solid #8fd9c766;border-radius:6px;padding:1px 6px}
+.nv .why{display:flex;gap:8px;align-items:flex-start;margin:0;padding:10px 12px;border-radius:10px;
+  background:#183631;color:#d7f3ec;font-size:13px}
+.nv .why .ic{margin-top:1px;color:#8fd9c7;flex:none}
+.nv .why button{border:0;background:none;color:#fff;text-decoration:underline;padding:0;font-weight:700;
+  cursor:pointer;font-size:inherit}
+
+/* ---------- format ---------- */
+.nv .format-blk{flex-direction:row;align-items:center;gap:12px;flex-wrap:wrap}
+.nv .format-blk label{flex:none}
+.nv .format-blk select{width:auto;min-width:220px}
+
+/* ---------- go row ---------- */
+.nv .go-row{display:flex;align-items:center;justify-content:flex-end;gap:14px;flex-wrap:wrap}
+.nv .go-row .note{color:#8a8a93;font-size:13px;margin-right:auto}
+.nv .go{min-height:48px;padding:0 1.6rem;font-size:16px;font-weight:700;border-radius:12px}
 .nv .go:disabled{opacity:.6;cursor:default}
+
+/* ---------- whole-page drop overlay ---------- */
+/* Lives outside main.nv (it must cover the whole page), so the .nv [hidden] override above
+   doesn't reach it -- without its own [hidden] rule, the unconditional display:flex below
+   (an author rule) would beat the UA stylesheet's [hidden]{display:none} and always show it. */
+.nv-page-drop[hidden]{display:none}
+.nv-page-drop{position:fixed;inset:12px;z-index:40;border:3px dashed #fff;border-radius:20px;background:#0d0d10e6;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;text-align:center}
+.nv-page-drop .big{width:80px;height:80px;border-radius:50%;background:#fff;color:#111;display:grid;
+  place-items:center}
+.nv-page-drop strong{font-size:24px;color:#fff}
+.nv-page-drop span{color:#a9a9b2}
+
+.nv .phone-only{display:none!important}
 @media (max-width:700px){
   main.nv{padding:18px 12px 40px}
-  .nv-form{padding:14px}
-  .nv .go{align-self:stretch}
+  .nv-form{padding:14px;gap:16px}
+  .nv .desktop-only{display:none!important}
+  .nv .phone-only{display:revert!important}
+  .nv .drop{min-height:190px;padding:20px 14px}
+  .nv .add-big{width:100%;justify-content:center}
+  .nv .files{grid-template-columns:repeat(3,minmax(0,1fr));padding:10px;gap:8px}
+  .nv .files .aud{grid-column:1/-1}
+  .nv .modes{grid-template-columns:1fr}
+  .nv .go-row .note{flex:1 0 100%}
+  .nv .go{flex:1;justify-content:center}
+  .nv .format-blk select{min-width:0;flex:1}
+  .nv .idea-tools .hint{font-size:11px}
 }
