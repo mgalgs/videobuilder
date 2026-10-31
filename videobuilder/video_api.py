@@ -16,6 +16,8 @@ from .gitutil import git
 from .music import FetchError, TooLarge, UnsupportedAudio, attach_track
 from .notes import FINAL
 from .film_api import get_film, get_picture, post_film, post_start
+from .preprod_api import (get_image as get_preprod_image, get_preprod, get_script as get_preprod_script,
+                          post_pick, post_scenes, post_script, post_sets, post_sets_delete)
 from .sources import TooLarge as SourceTooLarge
 from .timeline_api import get_footage, get_thumb, get_timeline, post_timeline
 from .transcript import feed_source, read_feed
@@ -567,6 +569,9 @@ GET_ROUTES = [
     ('/api/timeline', get_timeline),
     ('/api/film', get_film),
     ('/api/film/picture', get_picture),
+    ('/api/preprod', get_preprod),
+    ('/api/preprod/script', get_preprod_script),
+    ('/api/preprod/image', get_preprod_image),
     ('/api/timeline/thumb', get_thumb),
     ('/api/timeline/footage', get_footage),
     ('/api/thumbnail', _get_thumbnail),
@@ -799,6 +804,11 @@ POST_ROUTES = [
     ('/api/timeline', post_timeline),
     ('/api/film', post_film),
     ('/api/film/start', post_start),
+    ('/api/preprod/script', post_script),
+    ('/api/preprod/scenes', post_scenes),
+    ('/api/preprod/sets', post_sets),
+    ('/api/preprod/sets/delete', post_sets_delete),
+    ('/api/preprod/pick', post_pick),
     (('/api/draft/accept', '/api/draft/drop'), _post_draft_action),
     ('/api/compendium/vote', _post_compendium_vote),
     ('/api/music/attach', _post_music_attach),

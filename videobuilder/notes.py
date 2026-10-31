@@ -86,7 +86,7 @@ LEAD_IN_MAX = 300
 CHOICE_IMAGE_KINDS = ('vb', 'concept', 'yours')
 
 
-def _valid_choice_image(path):
+def valid_choice_image(path):
     """A choice's image must be a repo path under bible/, with no `..`
     segment, in a known picture extension -- the same rule preprod.py uses
     for option-set images, so a question's picture choices and an option
@@ -97,6 +97,7 @@ def _valid_choice_image(path):
         return False
     ext = path.rsplit('.', 1)[-1].lower() if '.' in path else ''
     return ext in film_setup.PICTURE_EXTS
+
 
 SHORTFALL_KINDS = ('cannot', 'weak')
 SHORTFALLS_MAX = 5
@@ -206,7 +207,7 @@ def parse_questions(reply):
                         return None
                     image, kind = c.get('image'), c.get('kind')
                     if image is not None:
-                        if not _valid_choice_image(image) or kind not in CHOICE_IMAGE_KINDS:
+                        if not valid_choice_image(image) or kind not in CHOICE_IMAGE_KINDS:
                             return None
                     elif kind is not None:
                         return None
