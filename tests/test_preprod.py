@@ -1701,6 +1701,24 @@ console.log(JSON.stringify([
         self.assertFalse(off)
         self.assertTrue(on)
 
+    @unittest.skipUnless(shutil.which('node'), 'node is not available in this environment')
+    def test_look_tab(self):
+        js = (PKG / 'director.js').read_text()
+        script = (_consts(js, 'esc', 'svg', 'TL_ICON', 'PP_ICON', 'PP_KIND', 'api') +
+                 _fns(js, 'ppTag', 'ppConceptFor', 'ppPicture', 'ppSetStatus', 'ppOptionCard', 'ppSceneLookRow',
+                      'ppLookHtml') + """
+console.log(ppLookHtml(BOARD,'promo/film'));
+""".replace('BOARD', json.dumps(self.board())))
+        result = subprocess.run(['node', '-'], input=script.encode(), capture_output=True)
+        self.assertEqual(result.returncode, 0, result.stderr.decode())
+        html = result.stdout.decode()
+        self.assertIn('Picked A', html)
+        self.assertIn('pp-swatches', html)
+        self.assertEqual(html.count('data-pp="pick"'), 2)
+        self.assertEqual(html.count('<select'), 3)                 # one row per scene
+        self.assertIn('value="" selected>Film look</option>', html)      # lantern-room/dawn: no override
+        self.assertIn('value="Sunbleached" selected', html)              # cliff's own override, unknown to the set
+
 
 class BoardActionsJS(BoardFixture):
     @unittest.skipUnless(shutil.which('node'), 'node is not available in this environment')
@@ -1925,7 +1943,7 @@ const $=id=>id==='pp-panel-script'?panel:{hidden:true,textContent:''};
 const PP_TABS=[];
 const ppSettled=()=>0, ppTabStatus=()=>({});
 const renderScript=()=>{state.ppShown=state.script;calls.push('renderScript')};
-const renderCharacters=()=>{};
+const renderCharacters=()=>{}, renderLook=()=>{};
 const savePending=()=>{}, renderPending=()=>{};
 const tlPhone=()=>false;
 const ppCommentBoxHtml=()=>'';
@@ -2067,6 +2085,65 @@ console.log(JSON.stringify(out));
         self.assertIn('no artbox configured', out['unavailable'])
         self.assertIn('preprod/image', out['done'])
         self.assertIn('v=c1', out['done'])
+
+    @unittest.skipUnless(shutil.which('node'), 'node is not available in this environment')
+    def test_scene_look_override_posts_the_stored_plan(self):
+        js = (PKG / 'director.js').read_text()
+        script = _fns(js, 'ppStoredScenes', 'ppSaveScenes', 'ppSetSceneLook') + """
+function freshBoard() {
+  return {commit:'c1',scenes:{songs:[{id:'storm-theme'}],scenes:[
+    {id:'lantern-room',slugline:'A',summary:'s',seconds:28,song:'storm-theme',section:'intro',from:0,to:18,
+     look:null,number:1,length:'0:28',from_clock:'0:00',to_clock:'0:18',set:'scene-lantern-room'},
+    {id:'cliff',slugline:'B',summary:'t',seconds:20,song:null,section:null,from:null,to:null,
+     look:{name:'Sunbleached',reason:'x'},number:2,length:'0:20',from_clock:null,to_clock:null,set:null},
+  ]}};
+}
+let state={video:'promo/film',board:freshBoard()};
+const calls=[];
+const toasts=[];
+const toast=m=>toasts.push(m);
+const renderBoard=()=>calls.push('renderBoard');
+const loadPreprod=()=>calls.push('loadPreprod');
+let reply=null;
+const json=async(path,params,body)=>{calls.push([path,body]);
+  if(reply instanceof Error)throw reply;
+  return reply};
+(async()=>{
+  const out=[];
+  reply={commit:'c2'};
+  await ppSetSceneLook('lantern-room','Moody');
+  out.push([calls.splice(0),state.board]);
+  state=JSON.parse(JSON.stringify({video:'promo/film',board:freshBoard()}));
+  reply={commit:'c3'};
+  await ppSetSceneLook('cliff','');
+  out.push(calls.splice(0)[0][1].scenes.find(s=>s.id==='cliff').look);
+  state.board=freshBoard();
+  reply=Object.assign(new Error('scenes[1].to must be greater than from'),{status:400});
+  await ppSetSceneLook('lantern-room','Moody');
+  out.push([calls.splice(0),toasts.splice(0),state.board]);
+  reply=Object.assign(new Error('stale'),{status:409});
+  await ppSetSceneLook('lantern-room','Moody');
+  out.push([calls.splice(0),toasts.splice(0)]);
+  console.log(JSON.stringify(out));
+})();
+"""
+        out = run_node(script)
+        self.assertEqual(out[0][0][0][0], 'preprod/scenes')
+        body = out[0][0][0][1]
+        self.assertEqual(body['base'], 'c1')
+        self.assertEqual(body['songs'], [{'id': 'storm-theme'}])
+        lantern = next(s for s in body['scenes'] if s['id'] == 'lantern-room')
+        self.assertEqual(lantern['look'], {'name': 'Moody', 'reason': ''})
+        for key in ('number', 'length', 'from_clock', 'to_clock', 'set'):
+            self.assertNotIn(key, lantern)
+        self.assertEqual(out[0][0][1], 'renderBoard')
+        self.assertEqual(out[0][1]['commit'], 'c2')     # the response replaces state.board
+        self.assertIsNone(out[1])                        # '' (Film look) clears the override
+        self.assertEqual(out[2][0], [['preprod/scenes', mock.ANY], 'renderBoard'])
+        self.assertEqual(out[2][1], ['scenes[1].to must be greater than from'])
+        self.assertEqual(out[2][2]['commit'], 'c1')       # and leaves the board exactly as it was
+        self.assertEqual(out[3][0], [['preprod/scenes', mock.ANY], 'loadPreprod'])
+        self.assertEqual(out[3][1], ['The plan changed while you were dragging. Here it is now.'])
 
 
 class Docs(unittest.TestCase):

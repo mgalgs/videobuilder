@@ -4437,7 +4437,8 @@ function renderBoard() {
   // An open comment box holds typed text and quotes the line as shown: a refresh would
   // wipe the one and could shift the other, so the panel catches up when the box closes.
   if(!state.ppComment)renderScript();
-  renderCharacters()
+  renderCharacters();
+  renderLook()
 }
 // The newest note still running, named in the "builder is drafting" banner -- there is no
 // per-scene signal, so this just says what it is working on, not which scenes it touches.
@@ -4532,12 +4533,68 @@ function ppSetStatus(set) {
 }
 function ppOptionCard(set, option, concept, video, commit) {
   const picked=set.pick===option.key;
+  const swatches=option.swatches?.length
+    ? `<span class="pp-swatches">${option.swatches.map(c=>`<i style="background:${esc(c)}"></i>`).join('')}`+
+      '</span>' : '';
   return `<button type="button" class="pp-opt${picked?' picked':''}" data-pp="pick" data-set="${esc(set.id)}" `+
     `data-key="${esc(option.key)}" aria-pressed="${picked}">`+
     `${ppPicture(option.image,option.kind,concept,video,commit)}`+
     `<span class="pp-opt-body"><span class="pp-opt-letter">${esc(option.key)}</span>`+
-    `<strong>${esc(option.label)}</strong><span class="pp-opt-text">${esc(option.text)}</span>`+
+    `<strong>${esc(option.label)}</strong><span class="pp-opt-text">${esc(option.text)}</span>${swatches}`+
     `${picked?'<span class="pp-opt-picked">'+svg(TL_ICON.ready,12)+'Picked</span>':''}</span></button>`
+}
+function ppLookHtml(board, video) {
+  const lookSet=board.sets.find(s=>s.id==='look');
+  const head=lookSet
+    ? `<div class="pp-look-status">${esc(ppSetStatus(lookSet))}</div><div class="pp-sec-label">Film look</div>`+
+      `<div class="pp-opts">${lookSet.options.map(o=>
+        ppOptionCard(lookSet,o,ppConceptFor(board,'look',o.key),video,board.commit)).join('')}</div>`
+    : '<p class="pp-empty">No look options yet. Ask the builder in chat.</p>';
+  const scenes=board.scenes.scenes;
+  const rows=scenes.length
+    ? `<div class="pp-sec-label">Per-scene overrides</div><div class="pp-look-rows">`+
+      `${scenes.map(s=>ppSceneLookRow(s,lookSet)).join('')}</div>` : '';
+  return `<div class="pp-look">${head}${rows}</div>`
+}
+function ppSceneLookRow(scene, lookSet) {
+  const current=scene.look?.name||'';
+  const known=(lookSet?.options||[]).map(o=>o.label);
+  const names=current&&!known.includes(current) ? [...known,current] : known;
+  const opts=['',...names].map(v=>`<option value="${esc(v)}"${v===current?' selected':''}>`+
+    `${esc(v||'Film look')}</option>`).join('');
+  return `<div class="pp-look-row"><span class="pp-look-row-name">${scene.number}. ${esc(scene.slugline)}`+
+    `</span><select data-pp="look-override" data-id="${esc(scene.id)}" aria-label="Look for ${esc(scene.slugline)}">`+
+    `${opts}</select></div>`
+}
+// A9: strips the scenes GET's read-only fields (number, length, the clocks, set) so the
+// POST body is exactly what parse_scenes expects back.
+function ppStoredScenes(scenes) {
+  return scenes.map(({number,length,from_clock,to_clock,set,...rest})=>rest)
+}
+async function ppSaveScenes(scenes) {
+  const body={video:state.video,base:state.board.commit,songs:state.board.scenes.songs,
+             scenes:ppStoredScenes(scenes)};
+  try {
+    state.board=await json('preprod/scenes',null,body);
+    renderBoard()
+  }
+  catch(e) {
+    if(e.status===409) {
+      toast('The plan changed while you were dragging. Here it is now.');
+      await loadPreprod();
+      return
+    }
+    toast(e.message);
+    renderBoard()
+  }
+}
+function ppSetSceneLook(id, value) {
+  const scenes=state.board.scenes.scenes.map(s=>s.id===id?{...s,look:value?{name:value,reason:''}:null}:s);
+  return ppSaveScenes(scenes)
+}
+function renderLook() {
+  if(!state.board)return;
+  $('pp-panel-look').innerHTML=ppLookHtml(state.board,state.video)
 }
 function ppCharacterCard(c, set, board, video) {
   const refs=(c.pictures||[]).map(n=>`<div class="pp-pic pp-pic-yours">`+
@@ -4700,6 +4757,10 @@ function ppImageFallback(e) {
 }
 // Capture phase: an <img> error doesn't bubble.
 $('board').addEventListener('error',ppImageFallback,true);
+$('board').addEventListener('change',e=> {
+  const el=e.target.closest('[data-pp="look-override"]');
+  if(el)ppSetSceneLook(el.dataset.id,el.value)
+});
 $('pp-start').onclick=()=>ppOpenStart(true);
 $('pp-keep').onclick=()=>ppOpenStart(false);
 $('pp-checks').addEventListener('click',e=> {

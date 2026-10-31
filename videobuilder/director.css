@@ -3174,6 +3174,63 @@ button.danger:disabled {
   font-weight: 700;
 }
 
+/* ---- Look tab: swatches, and the per-scene override rows ---- */
+.pp-swatches {
+  display: flex;
+  gap: 4px;
+  margin-top: 2px;
+}
+
+.pp-swatches i {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 1px solid #0006;
+  display: inline-block;
+}
+
+.pp-look-status {
+  margin-bottom: 4px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.pp-look-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.pp-look-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 8px 10px;
+  border: 1px solid #23232a;
+  border-radius: 10px;
+  background: #16161a;
+}
+
+.pp-look-row-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: #c9c9d1;
+  font-size: 12.5px;
+}
+
+.pp-look-row select {
+  flex: none;
+  min-height: 36px;
+  padding: 0 8px;
+  border: 1px solid #34343c;
+  border-radius: 10px;
+  background: #1d1d22;
+  color: #fff;
+}
+
 @media (max-width:700px) {
   .desktop-only {
     display: none !important;
