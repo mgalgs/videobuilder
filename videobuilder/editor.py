@@ -435,7 +435,10 @@ An edit returns {message,commit,warning,changed,undo}. Notes include `id`,
 replied, failed, landed, refused, conflict, accepted, dropped, questions. A
 note that asked carries `questions`: [{text,choices}], `choices` empty for
 free text, even once landed or answered; its `reply`, if any, is a short
-lead-in, never the raw block.
+lead-in, never the raw block. A question whose choices include a picture
+also carries `options`: [{text,image,kind,key}|null], aligned with
+`choices`, and, when the block named one, `set` (an option-set id -- see
+docs/preproduction.md).
 The identity is the session username when accounts are on, else the
 request_hook value, then vb_name cookie, then anonymous. Errors otherwise
 return {error} -- except an unhandled server error, which never reaches the

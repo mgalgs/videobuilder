@@ -496,6 +496,92 @@ class Questions(unittest.TestCase):
                          ('Quick check:', [{'text': 'Light or dark logo?', 'choices': ['Light', 'Dark']}]))
 
 
+class QuestionsWithPictureChoices(unittest.TestCase):
+    def _block(self, questions):
+        return '```questions\n' + json.dumps({'questions': questions}) + '\n```\n'
+
+    def test_string_only_blocks_parse_exactly_as_before(self):
+        reply = self._block([{'text': 'Light or dark logo?', 'choices': ['Light', 'Dark']},
+                             {'text': 'Any specific line of copy?'}])
+        _, questions = parse_questions(reply)
+        self.assertEqual(questions, [{'text': 'Light or dark logo?', 'choices': ['Light', 'Dark']},
+                                     {'text': 'Any specific line of copy?', 'choices': []}])
+        self.assertNotIn('options', questions[0])
+        self.assertNotIn('set', questions[0])
+
+    def test_each_image_kind_is_accepted(self):
+        for kind in ('vb', 'concept', 'yours'):
+            with self.subTest(kind=kind):
+                reply = self._block([{'text': 'Which look?', 'choices': [
+                    {'text': 'Moody', 'image': 'bible/options/look/a.png', 'kind': kind},
+                    {'text': 'Bright', 'image': 'bible/options/look/b.png', 'kind': kind}]}])
+                _, questions = parse_questions(reply)
+                self.assertEqual(questions[0]['choices'], ['Moody', 'Bright'])
+                self.assertEqual(questions[0]['options'][0],
+                                 {'text': 'Moody', 'image': 'bible/options/look/a.png', 'kind': kind, 'key': None})
+
+    def test_a_mix_of_string_and_object_choices(self):
+        reply = self._block([{'text': 'Which look?', 'choices': [
+            {'text': 'Moody', 'image': 'bible/options/look/a.png', 'kind': 'concept'},
+            'Bright']}])
+        _, questions = parse_questions(reply)
+        self.assertEqual(questions[0]['choices'], ['Moody', 'Bright'])
+        self.assertEqual(questions[0]['options'],
+                         [{'text': 'Moody', 'image': 'bible/options/look/a.png', 'kind': 'concept', 'key': None},
+                          None])
+
+    def test_set_and_key_are_carried_through(self):
+        reply = self._block([{'text': 'Which look?', 'set': 'look', 'choices': [
+            {'text': 'Moody', 'image': 'bible/options/look/a.png', 'kind': 'concept', 'key': 'A'},
+            {'text': 'Bright', 'image': 'bible/options/look/b.png', 'kind': 'concept', 'key': 'B'}]}])
+        _, questions = parse_questions(reply)
+        self.assertEqual(questions[0]['set'], 'look')
+        self.assertEqual([o['key'] for o in questions[0]['options']], ['A', 'B'])
+
+    def test_malformed_image_choices_invalidate_the_whole_block(self):
+        bad = [
+            {'text': 'X', 'image': '../bible/options/a.png', 'kind': 'vb'},
+            {'text': 'X', 'image': 'options/a.png', 'kind': 'vb'},
+            {'text': 'X', 'image': 'bible/options/a.exe', 'kind': 'vb'},
+            {'text': 'X', 'image': 'bible/options/a.png'},
+            {'text': 'X', 'image': 'bible/options/a.png', 'kind': 'bogus'},
+            {'text': 'x' * 200, 'image': 'bible/options/a.png', 'kind': 'vb'},
+        ]
+        for choice in bad:
+            with self.subTest(choice=choice):
+                reply = self._block([{'text': 'Which?', 'choices': [choice, 'Other']}])
+                self.assertIsNone(parse_questions(reply))
+
+    def test_image_builder_reply_is_stored_on_the_note(self):
+        from tests.fixtures import settle
+
+        class PictureAgent(AgentBackend):
+            name = 'picture'
+
+            def submit(self, note):
+                return 'h1'
+
+            def poll(self, handle):
+                reply = ('Pick a look.\n\n```questions\n' + json.dumps({'questions': [
+                    {'text': 'Which look?', 'set': 'look', 'choices': [
+                        {'text': 'Moody', 'image': 'bible/options/look/a.png', 'kind': 'concept', 'key': 'A'},
+                        {'text': 'Bright', 'image': 'bible/options/look/b.png', 'kind': 'concept', 'key': 'B'}]}]})
+                          + '\n```\n')
+                return AgentStatus('replied', reply)
+
+        tmp = tempfile.TemporaryDirectory()
+        try:
+            store = NoteStore(Path(tmp.name, 'notes'), PictureAgent())
+            note = store.add('promo/film', '16x9', 0, None, 'Pick a look', b'')
+            settle(store)
+            note = store.current(note['id'])
+            self.assertEqual(note['state'], 'questions')
+            self.assertIn('options', note['questions'][0])
+            self.assertEqual(note['questions'][0]['set'], 'look')
+        finally:
+            tmp.cleanup()
+
+
 class BackgroundSubmit(unittest.TestCase):
     """Submitting a note (staging, the prompt, backend.submit) runs on a thread
     of its own, never in the request that stored the note."""

@@ -26,7 +26,10 @@ A builder that asked is told to commit nothing, so ordinarily no version is
 produced; if it committed anyway, those commits land right away exactly as an
 ordinary reply's would, and the note keeps its `questions` for display. `answer()`
 turns the note into a follow-up note that continues the same draft and is marked
-not to ask again.
+not to ask again. A question's choices are ordinarily plain strings; one may
+instead be a picture choice (an option-set image the builder already
+committed), in which case the question also carries `options` (aligned with
+`choices`) and, when the block names one, `set` -- see parse_questions.
 
 A reply may also carry a ```shortfalls fenced JSON block (see strip_shortfalls),
 naming a request the builder could not do at all or could not do well. It is
@@ -67,6 +70,7 @@ import time
 from dataclasses import asdict, dataclass
 
 from .atomic import write_json_atomic
+from . import film_setup
 from . import prompt
 
 STATES = ('gathering', 'queued', 'working', 'replied', 'failed', 'accepted', 'dropped', 'landed', 'refused',
@@ -78,6 +82,21 @@ CHOICES_MIN, CHOICES_MAX = 2, 4
 TEXT_MAX = 200
 CHOICE_MAX = 120
 LEAD_IN_MAX = 300
+
+CHOICE_IMAGE_KINDS = ('vb', 'concept', 'yours')
+
+
+def _valid_choice_image(path):
+    """A choice's image must be a repo path under bible/, with no `..`
+    segment, in a known picture extension -- the same rule preprod.py uses
+    for option-set images, so a question's picture choices and an option
+    set's pictures are interchangeable."""
+    if not isinstance(path, str) or not path or '..' in path.split('/'):
+        return False
+    if not path.startswith('bible/'):
+        return False
+    ext = path.rsplit('.', 1)[-1].lower() if '.' in path else ''
+    return ext in film_setup.PICTURE_EXTS
 
 SHORTFALL_KINDS = ('cannot', 'weak')
 SHORTFALLS_MAX = 5
@@ -133,7 +152,15 @@ def parse_questions(reply):
     """A builder reply's last ```questions fenced block, strictly
     validated: (lead_in, questions), each question a dict `text` plus
     `choices` (empty for free text, else 2-4 short strings), or None for a
-    missing or malformed block, which is then an ordinary reply."""
+    missing or malformed block, which is then an ordinary reply.
+
+    A choice may instead be an object `{text, image?, kind?, key?}` (a
+    picture option); `choices` still holds plain strings so a renderer that
+    knows nothing about pictures keeps working, and the question gains a
+    parallel `options` list (aligned with `choices`, null where a choice
+    was a plain string) plus, when any choice was an object, the question's
+    `set`, if the block gave one -- the option-set id a chat pick there
+    should record against (preprod.py's pick_from_answer)."""
     if not reply:
         return None
     # The last block wins, and text after it (a habitual Summary line) is dropped:
@@ -161,12 +188,44 @@ def parse_questions(reply):
         choices = q.get('choices') or []
         if not isinstance(choices, list):
             return None
+        has_objects = False
+        strings, options = [], []
         if choices:
             if not CHOICES_MIN <= len(choices) <= CHOICES_MAX:
                 return None
-            if not all(isinstance(c, str) and c.strip() and len(c) <= CHOICE_MAX for c in choices):
-                return None
-        parsed.append({'text': text.strip(), 'choices': [c.strip() for c in choices]})
+            for c in choices:
+                if isinstance(c, str):
+                    if not c.strip() or len(c) > CHOICE_MAX:
+                        return None
+                    strings.append(c.strip())
+                    options.append(None)
+                elif isinstance(c, dict):
+                    has_objects = True
+                    ctext = c.get('text')
+                    if not isinstance(ctext, str) or not ctext.strip() or len(ctext) > CHOICE_MAX:
+                        return None
+                    image, kind = c.get('image'), c.get('kind')
+                    if image is not None:
+                        if not _valid_choice_image(image) or kind not in CHOICE_IMAGE_KINDS:
+                            return None
+                    elif kind is not None:
+                        return None
+                    key = c.get('key')
+                    if key is not None and not isinstance(key, str):
+                        return None
+                    strings.append(ctext.strip())
+                    options.append({'text': ctext.strip(), 'image': image, 'kind': kind, 'key': key})
+                else:
+                    return None
+        parsed_q = {'text': text.strip(), 'choices': strings}
+        if has_objects:
+            parsed_q['options'] = options
+            qset = q.get('set')
+            if qset is not None:
+                if not isinstance(qset, str) or not qset.strip():
+                    return None
+                parsed_q['set'] = qset.strip()
+        parsed.append(parsed_q)
     lead_in = reply[:m.start()].strip()[:LEAD_IN_MAX]
     return lead_in, parsed
 
