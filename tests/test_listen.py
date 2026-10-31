@@ -277,5 +277,15 @@ class NoteListening(TempProject):
         self.assertEqual(prompt, bare_prompt)
         self.assertNotIn('Listening', prompt)
 
+
+class BuilderEnv(unittest.TestCase):
+    def test_the_builder_backend_never_inherits_the_key(self):
+        import sys
+        from videobuilder import agents
+        with mock.patch.dict(os.environ, {'GEMINI_API_KEY': KEY}):
+            out = agents.run([sys.executable, '-c', 'import os; print(os.environ.get("GEMINI_API_KEY"))'])
+        self.assertEqual(out, 'None')
+
+
 if __name__ == '__main__':
     unittest.main()

@@ -130,8 +130,10 @@ def listen(path, api_key=None, timeout=LISTEN_TIMEOUT):
         notes = _text(reply, name)
     except SpeechUnavailable as e:
         raise SpeechUnavailable(str(e).replace(key, '[key]')) from None
+    except TimeoutError:   # a read timeout surfaces raw, not as urllib's URLError
+        raise SpeechUnavailable(f'no answer within {timeout:g} seconds') from None
     except OSError as e:
-        raise SpeechUnavailable(f'could not read {Path(path).name}: {e.strerror or e}'.replace(key, '[key]')) from None
+        raise SpeechUnavailable(f'{Path(path).name}: {e.strerror or e}'.replace(key, '[key]')) from None
     header = (f'# Listening notes: {Path(path).name}\n\n'
               f'Written by {name}, a model that listened to the audio itself. Its timestamps are '
               'approximate: for exact cut timing, use beat detection on the file.\n\n')

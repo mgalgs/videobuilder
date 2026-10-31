@@ -60,6 +60,7 @@ plain-language reply instead of leaving the note with no error text at all.
 import fcntl
 import json
 import logging
+import os
 import re
 import tempfile
 import subprocess
@@ -74,8 +75,14 @@ from .workers import pin_for, pinned_version
 _logger = logging.getLogger(__name__)
 
 
+def backend_env():
+    """The editor's environment for a builder backend's commands, minus the
+    editor's own Gemini key (see listen.py): the builder never gets it."""
+    return {k: v for k, v in os.environ.items() if k != 'GEMINI_API_KEY'}
+
+
 def run(argv):
-    result = subprocess.run(argv, capture_output=True, text=True, timeout=60)
+    result = subprocess.run(argv, capture_output=True, text=True, timeout=60, env=backend_env())
     if result.returncode:
         reason = result.stderr.strip()[-2000:] or result.stdout.strip()[-2000:]
         raise ValueError(f'{argv[0]} exited {result.returncode}: {reason}')
@@ -244,7 +251,7 @@ class ForkSandboxBackend(AgentBackend):
         self._adopted.add(handle)
         stderr = tempfile.TemporaryFile()
         process = subprocess.Popen([self.executable, 'adopt', handle], stdin=subprocess.DEVNULL,
-                                   stdout=subprocess.DEVNULL, stderr=stderr)
+                                   stdout=subprocess.DEVNULL, stderr=stderr, env=backend_env())
         self._adopting[handle] = (process, stderr)
 
     def _reap_adoptions(self):
@@ -270,7 +277,7 @@ class ForkSandboxBackend(AgentBackend):
         if file:
             argv += ['--file', file]
         try:
-            result = subprocess.run(argv, capture_output=True, timeout=_PEEK_TIMEOUT)
+            result = subprocess.run(argv, capture_output=True, timeout=_PEEK_TIMEOUT, env=backend_env())
         except subprocess.TimeoutExpired:
             raise ValueError(f'fork-sandbox k8s peek timed out after {_PEEK_TIMEOUT}s') from None
         if result.returncode:
