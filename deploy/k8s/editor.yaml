@@ -66,6 +66,13 @@ spec:
                 secretKeyRef:
                   name: editor-agent-credential
                   key: api-key
+            # Listening notes for a note's attached songs (listen.py); absent, they're skipped.
+            - name: GEMINI_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: vb-gemini
+                  key: GEMINI_API_KEY
+                  optional: true
           ports:
             - containerPort: 8100
           readinessProbe:

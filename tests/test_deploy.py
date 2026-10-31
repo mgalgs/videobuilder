@@ -198,6 +198,9 @@ class DeploymentYaml(unittest.TestCase):
         self.assertEqual(pod['securityContext']['seccompProfile']['type'], 'Localhost')
         self.assertTrue(pod['securityContext']['runAsNonRoot'])
         self.assertEqual(pod['containers'][0]['securityContext']['capabilities']['drop'], ['ALL'])
+        env = {e['name']: e for e in pod['containers'][0]['env']}
+        self.assertEqual(env['GEMINI_API_KEY']['valueFrom']['secretKeyRef'],
+                         {'name': 'vb-gemini', 'key': 'GEMINI_API_KEY', 'optional': True})
 
 
 COMPOSE = Path(__file__).resolve().parent.parent / 'deploy/compose'
