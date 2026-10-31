@@ -1874,6 +1874,24 @@ const json=(path,params,body)=>new Promise((resolve,reject)=>resolvers.push([pat
         self.assertEqual(out[1], 'new')
 
     @unittest.skipUnless(shutil.which('node'), 'node is not available in this environment')
+    def test_pick_failure_leaves_the_board_unchanged(self):
+        js = (PKG / 'director.js').read_text()
+        script = _fns(js, 'ppPick') + """
+const state={video:'promo/film',board:{marker:'kept'}};
+const renderBoard=()=>{throw new Error('renderBoard must not run on failure')};
+const toasts=[];
+const toast=m=>toasts.push(m);
+const json=async()=>{throw Object.assign(new Error('no such option set'),{status:404})};
+(async()=>{
+  await ppPick('look','Z');
+  console.log(JSON.stringify([state.board, toasts]));
+})();
+"""
+        board, toasts = run_node(script)
+        self.assertEqual(board, {'marker': 'kept'})
+        self.assertEqual(toasts, ['no such option set'])
+
+    @unittest.skipUnless(shutil.which('node'), 'node is not available in this environment')
     def test_checklist_goto_closes_the_dialog_and_shows_the_tab(self):
         js = (PKG / 'director.js').read_text()
         script = _consts(js, 'PP_TABS') + _fns(js, 'ppGoto', 'ppOpenStart', 'ppShowTab') + """
@@ -1907,6 +1925,7 @@ const $=id=>id==='pp-panel-script'?panel:{hidden:true,textContent:''};
 const PP_TABS=[];
 const ppSettled=()=>0, ppTabStatus=()=>({});
 const renderScript=()=>{state.ppShown=state.script;calls.push('renderScript')};
+const renderCharacters=()=>{};
 const savePending=()=>{}, renderPending=()=>{};
 const tlPhone=()=>false;
 const ppCommentBoxHtml=()=>'';
@@ -1957,6 +1976,97 @@ console.log(JSON.stringify(out));
                                    'music': [], 'scriptLine': 7}])
         self.assertIsNone(out[2])
         self.assertEqual(out[3], 'Script, line 3: "A note."\nA second note.')
+
+    @unittest.skipUnless(shutil.which('node'), 'node is not available in this environment')
+    def test_characters_tab(self):
+        js = (PKG / 'director.js').read_text()
+        script = (_consts(js, 'esc', 'svg', 'TL_ICON', 'PP_ICON', 'PP_KIND', 'api') +
+                 _fns(js, 'ppTag', 'ppConceptFor', 'ppPicture', 'ppSetStatus', 'ppOptionCard',
+                      'ppCharacterCard', 'ppCastHtml') + """
+const board={commit:'c1',concepts:[],characters:[
+  {slug:'mara',name:'Mara',description:'The keeper.',pictures:['mara-1.png'],set:'character-mara'},
+  {slug:'tom',name:'Tom',description:'Her brother.',pictures:[],set:null},
+],sets:[
+  {id:'character-mara',topic:'character',character:'mara',pick:'A',
+   options:[{key:'A',label:'Weathered keeper',text:'x',image:null,kind:null},
+            {key:'B',label:'Reluctant heir',text:'y',image:null,kind:null}]},
+  {id:'character-ghost',topic:'character',character:'ghost',pick:null,
+   options:[{key:'A',label:'Ghost A',text:'x',image:null,kind:null},
+            {key:'B',label:'Ghost B',text:'y',image:null,kind:null}]},
+]};
+console.log(ppCastHtml(board,'promo/film'));
+""")
+        result = subprocess.run(['node', '-'], input=script.encode(), capture_output=True)
+        self.assertEqual(result.returncode, 0, result.stderr.decode())
+        html = result.stdout.decode()
+        self.assertIn('Mara', html)
+        self.assertIn('The keeper.', html)
+        self.assertIn('Picked A', html)
+        self.assertIn('>yours<', html)
+        self.assertIn('film/picture?', html)
+        self.assertIn('Tom', html)
+        self.assertIn('No takes yet', html)
+        self.assertIn('ghost', html)       # the orphan set still gets a card, titled by its slug
+        self.assertEqual(html.count('data-pp="pick"'), 4)   # 2 for Mara, 2 for the orphan; none for Tom
+
+    @unittest.skipUnless(shutil.which('node'), 'node is not available in this environment')
+    def test_pick_posts_for_character_look_and_scene_sets(self):
+        js = (PKG / 'director.js').read_text()
+        script = _fns(js, 'ppPick') + """
+const state={video:'promo/film',board:{marker:'old'}};
+const calls=[];
+const renderBoard=()=>calls.push('renderBoard');
+const toast=()=>{};
+let reply=null;
+const json=async(path,params,body)=>{calls.push([path,body]);return reply};
+(async()=>{
+  const out=[];
+  reply={marker:'character'};
+  await ppPick('character-mara','B');
+  out.push([calls.splice(0),state.board]);
+  reply={marker:'look'};
+  await ppPick('look','A');
+  out.push([calls.splice(0),state.board]);
+  reply={marker:'scene'};
+  await ppPick('scene-lantern-room',null);
+  out.push([calls.splice(0),state.board]);
+  console.log(JSON.stringify(out));
+})();
+"""
+        out = run_node(script)
+        self.assertEqual(out[0], [[['preprod/pick', {'video': 'promo/film', 'set': 'character-mara', 'key': 'B'}],
+                                   'renderBoard'], {'marker': 'character'}])
+        self.assertEqual(out[1], [[['preprod/pick', {'video': 'promo/film', 'set': 'look', 'key': 'A'}],
+                                   'renderBoard'], {'marker': 'look'}])
+        self.assertEqual(out[2], [[['preprod/pick',
+                                   {'video': 'promo/film', 'set': 'scene-lantern-room', 'key': None}],
+                                   'renderBoard'], {'marker': 'scene'}])
+
+    @unittest.skipUnless(shutil.which('node'), 'node is not available in this environment')
+    def test_picture_kind_labels_and_concept_states(self):
+        js = (PKG / 'director.js').read_text()
+        script = _consts(js, 'esc', 'svg', 'TL_ICON', 'PP_ICON', 'PP_KIND', 'api') + _fns(js, 'ppTag', 'ppPicture') + """
+const out={};
+out.vb=ppPicture('bible/options/look/A.png','vb',null,'promo/film','c1');
+out.concept=ppPicture('bible/options/look/B.png','concept',null,'promo/film','c1');
+out.yours=ppPicture('bible/options/char/x.png','yours',null,'promo/film','c1');
+out.requested=ppPicture('bible/options/look/C.png','concept',{status:'requested'},'promo/film','c1');
+out.making=ppPicture('bible/options/look/C.png','concept',{status:'making'},'promo/film','c1');
+out.unavailable=ppPicture('bible/options/look/C.png','concept',
+  {status:'unavailable',message:'no artbox configured'},'promo/film','c1');
+out.done=ppPicture('bible/options/look/C.png','concept',{status:'done'},'promo/film','c1');
+console.log(JSON.stringify(out));
+"""
+        out = run_node(script)
+        self.assertIn('vb frame', out['vb'])
+        self.assertIn('concept, not final', out['concept'])
+        self.assertIn('>yours<', out['yours'])
+        for status in ('requested', 'making'):
+            self.assertIn('Making concept art…', out[status])
+        self.assertIn('Concept art unavailable', out['unavailable'])
+        self.assertIn('no artbox configured', out['unavailable'])
+        self.assertIn('preprod/image', out['done'])
+        self.assertIn('v=c1', out['done'])
 
 
 class Docs(unittest.TestCase):

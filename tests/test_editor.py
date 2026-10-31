@@ -184,7 +184,8 @@ class DirectorPageRoutes(API):
                     'draft/accept','draft/drop','upgrade','access','music/sources','music/tracks','music/attach',
                     'videos/first-note','sources','pictures','pictures/gpu','archive/search','sources/import',
                     'clip','timeline','timeline/thumb','timeline/footage','film','film/picture','film/start',
-                    'suggest/catalog','preprod','preprod/script','phase'}
+                    'suggest/catalog','preprod','preprod/script','preprod/image','preprod/pick',
+                    'phase'}
         # Dynamic attachment, draft and source actions have their own router patterns.
         self.assertTrue(paths - {'attachments/', 'draft/', 'sources/', 'pictures/'} <= expected, paths - expected)
         # The route literals live wherever make_handler's pieces do now, not all in editor.py.

@@ -2982,6 +2982,198 @@ button.danger:disabled {
   background: var(--accent);
 }
 
+/* ---- Picture kind tags and slots: vb/concept/yours never differ by colour alone ---- */
+.pp-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  border-radius: 10px;
+  background: #000a;
+  color: #fff;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: .02em;
+}
+
+.pp-tag-concept {
+  font-style: italic;
+}
+
+.pp-pic {
+  position: relative;
+  aspect-ratio: 16/10;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  border-radius: 10px;
+  background: #1c1c21;
+  color: var(--muted);
+  font-size: 12px;
+  text-align: center;
+}
+
+.pp-pic img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.pp-pic-vb {
+  border: 1px solid #fff;
+}
+
+.pp-pic-concept {
+  border: 1px dashed #c9a94a;
+}
+
+.pp-pic-yours {
+  background: #202430;
+}
+
+.pp-pic .pp-tag {
+  position: absolute;
+  left: 6px;
+  top: 6px;
+}
+
+.pp-pic-pending {
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px;
+}
+
+.pp-pic-unavailable {
+  flex-direction: column;
+  gap: 2px;
+  padding: 10px;
+}
+
+.pp-pic-unavailable small {
+  color: #8b8e98;
+}
+
+.pp-pic-missing {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  aspect-ratio: 16/10;
+  border-radius: 10px;
+  background: #1c1c21;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+/* ---- Characters tab ---- */
+.pp-cast {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.pp-char {
+  padding: 14px;
+  border: 1px solid #23232a;
+  border-radius: 14px;
+  background: #16161a;
+}
+
+.pp-char header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.pp-char-status {
+  color: var(--muted);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.pp-char-desc {
+  margin: 4px 0 0;
+  color: #c9c9d1;
+  font-size: 13px;
+}
+
+.pp-sec-label {
+  margin: 12px 0 6px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+}
+
+.pp-opts,.pp-refs {
+  display: grid;
+  grid-template-columns: repeat(auto-fill,minmax(140px,1fr));
+  gap: 10px;
+}
+
+.pp-opt {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px;
+  border: 2px solid #2c2c33;
+  border-radius: 12px;
+  background: #1c1c21;
+  color: #e8e9ee;
+  text-align: left;
+}
+
+.pp-opt.picked {
+  border-color: #fff;
+  background: #202430;
+}
+
+.pp-opt-body {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding-right: 24px;
+}
+
+/* Beside the label, not on the picture: a narrow card's kind tag already fills its top row. */
+.pp-opt-letter {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 20px;
+  height: 20px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: #000a;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.pp-opt strong {
+  font-size: 13px;
+}
+
+.pp-opt-text {
+  color: var(--muted);
+  font-size: 11.5px;
+  line-height: 1.35;
+}
+
+.pp-opt-picked {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  color: #8fd9c7;
+  font-size: 11px;
+  font-weight: 700;
+}
+
 @media (max-width:700px) {
   .desktop-only {
     display: none !important;

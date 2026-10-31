@@ -967,9 +967,12 @@ async function loadNotes() {
     const data=await json('notes', {
       video:state.video
     });
-    const prev=JSON.stringify(state.notes.map(n=>[n.id,n.state,n.version?.commit]));
+    // Pre-production's concept art lands in the background: a note whose only change
+    // is a concept's status (making -> done) must still redraw and refresh the board.
+    const sig=n=>[n.id,n.state,n.version?.commit,(n.concepts||[]).map(c=>c.status)];
+    const prev=JSON.stringify(state.notes.map(sig));
     state.notes=data.notes;
-    const next=JSON.stringify(state.notes.map(n=>[n.id,n.state,n.version?.commit]));
+    const next=JSON.stringify(state.notes.map(sig));
     if(prev!==next) {
       renderNotes();
       if(notBuilt(currentVersion()))showBlank();
@@ -4307,7 +4310,10 @@ function fdShowLink() {
 // below rather than watching a render. Chat stays exactly where it is.
 const PP_TABS=['script','characters','look','scenes'];
 const PP_TAB_LABEL={script:'Script',characters:'Characters',look:'Look',scenes:'Scenes'};
-const PP_ICON={open:'<circle cx="12" cy="12" r="8"/>'};
+const PP_ICON={open:'<circle cx="12" cy="12" r="8"/>',
+  brush:'<path d="M4 20c1-5 3-8 7-12l3 3c-4 4-7 6-12 7z"/><path d="M13 2.5a2.5 2.5 0 0 1 3.5 0l2 2a2.5 2.5 0 0 1 '+
+    '0 3.5L14 12l-5-5z"/>',
+  upload:'<path d="M12 4v11M7 9l5-5 5 5"/><path d="M5 20h14"/>'};
 // Pure: the DOM flags for a phase, with no DOM touched -- testable in node with no stubs.
 function ppLayout(phase) {
   const pre=phase==='pre-production';
@@ -4430,7 +4436,8 @@ function renderBoard() {
   if(!$('pp-start-pop').hidden)renderStartPop();
   // An open comment box holds typed text and quotes the line as shown: a refresh would
   // wipe the one and could shift the other, so the panel catches up when the box closes.
-  if(!state.ppComment)renderScript()
+  if(!state.ppComment)renderScript();
+  renderCharacters()
 }
 // The newest note still running, named in the "builder is drafting" banner -- there is no
 // per-scene signal, so this just says what it is working on, not which scenes it touches.
@@ -4497,6 +4504,69 @@ function ppQueueComment(at, comment) {
   renderScript();
   if(tlPhone())openSheet('chat')
 }
+// A kind badge: never colour alone (A picked state also gets a filled ring and the word
+// "Picked"; a picture's own border/background style differs by kind, in CSS).
+const PP_KIND={vb:['film','vb frame'],concept:['brush','concept, not final'],yours:['upload','yours']};
+function ppTag(kind) {
+  if(!kind)return '';
+  const [icon,label]=PP_KIND[kind]||[null,kind];
+  return `<span class="pp-tag pp-tag-${kind}">${icon?svg(PP_ICON[icon]||TL_ICON[icon],12):''}${esc(label)}</span>`
+}
+function ppConceptFor(board, set, key) {
+  return (board.concepts||[]).find(c=>c.set===set&&c.key===key)||null
+}
+// A picture slot: a concept still being made or that failed, else the option's own image
+// (if it has one), else nothing -- the card still works with no picture at all.
+function ppPicture(path, kind, concept, video, commit) {
+  if(concept&&(concept.status==='requested'||concept.status==='making'))
+    return `<div class="pp-pic pp-pic-pending">${svg(PP_ICON.brush,16)}<span>Making concept art…</span></div>`;
+  if(concept&&concept.status==='unavailable')
+    return `<div class="pp-pic pp-pic-unavailable"><span>Concept art unavailable</span>`+
+      `<small>${esc(concept.message||'')}</small></div>`;
+  if(!path)return '';
+  const src=api('preprod/image', {video,path,v:commit});
+  return `<div class="pp-pic pp-pic-${kind}"><img src="${esc(src)}" alt="" loading="lazy">${ppTag(kind)}</div>`
+}
+function ppSetStatus(set) {
+  return set.pick ? `Picked ${esc(set.pick)}` : 'Open: pick one'
+}
+function ppOptionCard(set, option, concept, video, commit) {
+  const picked=set.pick===option.key;
+  return `<button type="button" class="pp-opt${picked?' picked':''}" data-pp="pick" data-set="${esc(set.id)}" `+
+    `data-key="${esc(option.key)}" aria-pressed="${picked}">`+
+    `${ppPicture(option.image,option.kind,concept,video,commit)}`+
+    `<span class="pp-opt-body"><span class="pp-opt-letter">${esc(option.key)}</span>`+
+    `<strong>${esc(option.label)}</strong><span class="pp-opt-text">${esc(option.text)}</span>`+
+    `${picked?'<span class="pp-opt-picked">'+svg(TL_ICON.ready,12)+'Picked</span>':''}</span></button>`
+}
+function ppCharacterCard(c, set, board, video) {
+  const refs=(c.pictures||[]).map(n=>`<div class="pp-pic pp-pic-yours">`+
+    `<img src="${esc(api('film/picture', {video,name:n}))}" alt="" loading="lazy">${ppTag('yours')}</div>`).join('');
+  const options=set
+    ? set.options.map(o=>ppOptionCard(set,o,ppConceptFor(board,set.id,o.key),video,board.commit)).join('') : '';
+  const status=set?ppSetStatus(set):'No takes yet';
+  return `<section class="pp-char"><header><strong>${esc(c.name)}</strong>`+
+    `<span class="pp-char-status">${status}</span></header>`+
+    (c.description?`<p class="pp-char-desc">${esc(c.description)}</p>`:'')+
+    (set?`<div class="pp-sec-label">Builder takes</div><div class="pp-opts">${options}</div>`:'')+
+    (refs?`<div class="pp-sec-label">Your references</div><div class="pp-refs">${refs}</div>`:'')+
+    '</section>'
+}
+function ppCastHtml(board, video) {
+  const setsById=Object.fromEntries(board.sets.map(s=>[s.id,s]));
+  const linked=new Set(board.characters.map(c=>c.set).filter(Boolean));
+  const cards=board.characters.map(c=>ppCharacterCard(c,c.set?setsById[c.set]:null,board,video)).join('');
+  const orphans=board.sets.filter(s=>s.topic==='character'&&!linked.has(s.id))
+    .map(s=>ppCharacterCard( {slug:s.character,name:s.character,description:'',pictures:[],set:s.id},s,board,video))
+    .join('');
+  if(!cards&&!orphans)return '<p class="pp-empty">No characters yet. Add them in Film details, or ask the '+
+    'builder in chat.</p>';
+  return `<div class="pp-cast">${cards}${orphans}</div>`
+}
+function renderCharacters() {
+  if(!state.board)return;
+  $('pp-panel-characters').innerHTML=ppCastHtml(state.board,state.video)
+}
 // The box goes straight into the shown panel rather than through a re-render, so the line
 // it quotes is always the one under it (renderBoard holds off while it is open).
 function ppToggleComment(lineButton) {
@@ -4515,6 +4585,15 @@ function ppToggleComment(lineButton) {
 function ppGoto(tab) {
   ppOpenStart(false);
   ppShowTab(tab)
+}
+async function ppPick(set, key) {
+  try {
+    state.board=await json('preprod/pick',null, {video:state.video,set,key});
+    renderBoard()
+  }
+  catch(e) {
+    toast(e.message)
+  }
 }
 function renderStartPop() {
   const b=state.board;
@@ -4609,7 +4688,18 @@ $('board').addEventListener('click',e=> {
     const text=b.closest('.pp-comment-box').querySelector('textarea').value.trim();
     if(text)ppQueueComment(state.ppComment,text)
   }
+  if(act==='pick')ppPick(b.dataset.set,b.dataset.key)
 });
+// A picture that fails to load (a stale cache, a slot cleaned up mid-session) falls back
+// to a plain notice rather than a broken-image glyph.
+function ppImageFallback(e) {
+  const img=e.target;
+  if(img.tagName!=='IMG'||img.dataset.ppFallback)return;
+  img.dataset.ppFallback='1';
+  img.replaceWith(node('span','pp-pic-missing','Picture not available'))
+}
+// Capture phase: an <img> error doesn't bubble.
+$('board').addEventListener('error',ppImageFallback,true);
 $('pp-start').onclick=()=>ppOpenStart(true);
 $('pp-keep').onclick=()=>ppOpenStart(false);
 $('pp-checks').addEventListener('click',e=> {
