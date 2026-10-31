@@ -493,3 +493,72 @@ def _option_label(option_set):
         return None
     return next((o['label'] for o in option_set['options'] if o['key'] == pick), None)
 
+
+# ---- new video: plan or build (A16) ----
+
+STORY_WORDS = {'screenplay', 'script', 'scene', 'scenes', 'character', 'characters', 'story', 'stories',
+              'plot', 'backstory', 'logline', 'protagonist', 'dialogue', 'chapter', 'chapters', 'episode',
+              'episodes', 'narrative'}
+STORY_WORD_COUNT = 80
+_WORD_RE = re.compile(r"[A-Za-z']+")
+REFERENCE_TYPES = ('application/pdf', 'text/plain')
+
+WHY_REASONS = {
+    'story': "Your idea reads like a story to develop -- characters, a plot, maybe a script -- so let's "
+            "walk through pre-production together first.",
+    'references': "With pictures or documents to go on, let's develop the film's look and cast before "
+                 'building it.',
+    'media-only': "Just clips or songs here, so let's build a first version right away.",
+    'short-idea': "That's a quick idea, so let's build a first version right away.",
+    'empty': "There's nothing to go on yet, so let's build a first version and go from there.",
+}
+
+
+def _is_story_like(prompt):
+    words = _WORD_RE.findall(prompt.lower())
+    return len(words) >= STORY_WORD_COUNT or any(w in STORY_WORDS for w in words)
+
+
+def _has_references(types):
+    return any(t.startswith('image/') or t in REFERENCE_TYPES for t in types)
+
+
+def _media_only(prompt, types):
+    return not prompt.strip() and bool(types) and all(t.startswith(('video/', 'audio/')) for t in types)
+
+
+def suggest_mode(prompt, types=None):
+    """{plan, why, reason} for a New video prompt and its attachments' MIME
+    `types`: whether the editor suggests pre-production (`plan` true) or
+    building straight away, and why, in that priority order -- a story-like
+    prompt (a keyword, or at least STORY_WORD_COUNT words) outranks a
+    reference file, which outranks "just media", which outranks any other
+    non-empty prompt, which outranks nothing at all."""
+    prompt = prompt or ''
+    types = types or []
+    if not isinstance(prompt, str):
+        raise ValueError('prompt must be a string')
+    if not isinstance(types, list) or not all(isinstance(t, str) for t in types):
+        raise ValueError('types must be a list of strings')
+    if _is_story_like(prompt):
+        why = 'story'
+    elif _has_references(types):
+        why = 'references'
+    elif _media_only(prompt, types):
+        why = 'media-only'
+    elif prompt.strip():
+        why = 'short-idea'
+    else:
+        why = 'empty'
+    return {'plan': why in ('story', 'references'), 'why': why, 'reason': WHY_REASONS[why]}
+
+
+def decide_mode(prompt, types=None, plan=None):
+    """suggest_mode's decision, unless the caller already chose (`plan` not
+    None): then that choice stands, tagged why: "chosen" instead of guessed."""
+    if plan is None:
+        return suggest_mode(prompt, types)
+    if not isinstance(plan, bool):
+        raise ValueError('plan must be a boolean')
+    return {'plan': plan, 'why': 'chosen',
+            'reason': 'You chose to plan it first.' if plan else 'You chose to build it straight away.'}

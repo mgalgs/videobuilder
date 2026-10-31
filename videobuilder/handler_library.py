@@ -261,6 +261,44 @@ class LibraryHandler:
                     if library.accounts:
                         library.access.set_owner(result['name'], user, library.accounts)
                     return self._json(201, result)
+                if route == '/api/videos/staging' and method == 'POST':
+                    # Same auth as /api/videos/new below: any signed-in user (or everyone,
+                    # without accounts); never reachable with a key (not in handler_auth's
+                    # `creating`). A raw upload is as safe as POST /api/attachments
+                    # (validated magic bytes, forced nosniff), but still same-origin only:
+                    # unlike that route, there's no key to exempt here.
+                    self._same_origin()
+                    from .staging import MAX_FILE, TooLarge
+                    n = int(self.headers.get('Content-Length') or 0)
+                    if n < 0 or n > MAX_FILE:
+                        raise HTTPError(413, 'attachment exceeds file size limit')
+                    body_bytes = self.rfile.read(n)
+                    try:
+                        record = library.staging.upload(_need(q, 'name'), self.headers.get('Content-Type', ''),
+                                                         body_bytes, user)
+                    except TooLarge as exc:
+                        raise HTTPError(413, str(exc)) from None
+                    except ValueError as exc:
+                        raise HTTPError(400, str(exc)) from None
+                    return self._json(201, record)
+                m = re.fullmatch(r'/api/videos/staging/([0-9a-f]{32})/delete', route)
+                if m and method == 'POST':
+                    self._body()
+                    try:
+                        library.staging.delete(m.group(1), user)
+                    except KeyError:
+                        raise HTTPError(404, 'no such staged file') from None
+                    return self._json(200, {'deleted': m.group(1)})
+                if route == '/api/videos/mode' and method == 'POST':
+                    body = self._body()
+                    prompt, types = body.get('prompt'), body.get('types')
+                    if prompt is not None and not isinstance(prompt, str):
+                        raise HTTPError(400, 'prompt must be a string')
+                    if types is not None and (not isinstance(types, list) or
+                                              not all(isinstance(t, str) for t in types)):
+                        raise HTTPError(400, 'types must be a list of strings')
+                    from . import preprod
+                    return self._json(200, preprod.suggest_mode(prompt, types))
                 if route == '/api/videos/new' and method == 'POST':
                     # Reachable by any signed-in user (the generic session check above
                     # already refused an anonymous one when accounts are on), unlike the
@@ -273,8 +311,11 @@ class LibraryHandler:
                         raise HTTPError(400, 'start must be "blank" or "copy"')
                     if self._key and not _key_in_scope(self._key, name):
                         raise HTTPError(403, f"this key can only create videos under {self._key['scope']}/")
+                    extra_fields = [k for k in ('prompt', 'attachments', 'format', 'plan') if k in body]
                     try:
                         if start == 'copy':
+                            if extra_fields:
+                                raise ValueError(f'{", ".join(extra_fields)} only apply to start:"blank"')
                             source = _field(body, 'from', str)
                             # Out of the key's scope answers exactly like "not accessible to this
                             # account" below, so a key can't probe for other projects' existence.
@@ -282,13 +323,16 @@ class LibraryHandler:
                                 raise HTTPError(404, 'repository has no main branch')
                             if library.accounts and not library.access.can_access(source, user, library.accounts):
                                 raise HTTPError(404, 'repository has no main branch')
-                            result = {**library.copied(source, name), 'video': None}
+                            result = {**library.copied(source, name), 'video': None, 'plan': None, 'why': None,
+                                     'reason': None, 'note': None, 'note_error': None, 'attachments': []}
+                            if library.accounts:
+                                library.access.set_owner(result['name'], user, library.accounts)
                         else:
-                            result = library.create_blank(name)
+                            result = library.create_video(name, user, identity, body.get('prompt'),
+                                                          body.get('attachments', []), body.get('format'),
+                                                          body.get('plan'))
                     except ValueError as exc:
                         raise HTTPError(400, str(exc)) from None
-                    if library.accounts:
-                        library.access.set_owner(result['name'], user, library.accounts)
                     return self._json(201, result)
                 if route == '/api/videos/delete' and method == 'POST':
                     # Session only (handler_auth never lets a key reach this route); the

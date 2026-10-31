@@ -11,7 +11,7 @@ from pathlib import Path
 from unittest import mock
 
 from tests.fake_artbox import FakeArtbox, png
-from tests.fixtures import settle
+from tests.fixtures import AccountMixin, LibraryFixture, settle
 from tests.test_project import TempProject
 from videobuilder import fountain, preprod
 from videobuilder.editor import Editor, make_handler
@@ -1075,6 +1075,308 @@ class ConceptsResume(Server):
         with mock.patch('time.time', return_value=time.time() + GIVE_UP_SECONDS + 3600):
             self.editor.concepts.tick()
         self.assertEqual(self.editor.concepts._load()[0]['status'], 'unavailable')
+
+
+class SuggestMode(unittest.TestCase):
+    """preprod.suggest_mode/decide_mode: the plan-or-build rule for New
+    video (A16), checked directly rather than through the HTTP route."""
+
+    def test_a_story_keyword_outranks_everything_else(self):
+        out = preprod.suggest_mode('Develop a screenplay about a lighthouse keeper.', ['image/png'])
+        self.assertEqual(out, {'plan': True, 'why': 'story', 'reason': preprod.WHY_REASONS['story']})
+
+    def test_eighty_words_counts_as_story_like_even_without_a_keyword(self):
+        prompt = ' '.join(['word'] * 80)
+        self.assertEqual(preprod.suggest_mode(prompt)['why'], 'story')
+
+    def test_seventy_nine_words_is_not_enough_on_its_own(self):
+        prompt = ' '.join(['word'] * 79)
+        self.assertEqual(preprod.suggest_mode(prompt)['why'], 'short-idea')
+
+    def test_a_reference_image_outranks_media_only_and_short_idea(self):
+        out = preprod.suggest_mode('', ['image/jpeg'])
+        self.assertEqual(out, {'plan': True, 'why': 'references', 'reason': preprod.WHY_REASONS['references']})
+
+    def test_a_reference_pdf_also_counts(self):
+        self.assertEqual(preprod.suggest_mode('', ['application/pdf'])['why'], 'references')
+
+    def test_media_only_with_no_words_builds(self):
+        out = preprod.suggest_mode('', ['video/mp4', 'audio/mpeg'])
+        self.assertEqual(out, {'plan': False, 'why': 'media-only', 'reason': preprod.WHY_REASONS['media-only']})
+
+    def test_a_short_idea_with_no_references_builds(self):
+        out = preprod.suggest_mode('A quick promo for the launch.', [])
+        self.assertEqual(out, {'plan': False, 'why': 'short-idea', 'reason': preprod.WHY_REASONS['short-idea']})
+
+    def test_nothing_at_all_builds(self):
+        out = preprod.suggest_mode('', [])
+        self.assertEqual(out, {'plan': False, 'why': 'empty', 'reason': preprod.WHY_REASONS['empty']})
+
+    def test_decide_mode_lets_an_explicit_choice_override_the_guess(self):
+        self.assertEqual(preprod.decide_mode('a screenplay', [], plan=False),
+                         {'plan': False, 'why': 'chosen', 'reason': 'You chose to build it straight away.'})
+        self.assertEqual(preprod.decide_mode('', [], plan=True),
+                         {'plan': True, 'why': 'chosen', 'reason': 'You chose to plan it first.'})
+
+    def test_bad_input_is_rejected(self):
+        with self.assertRaises(ValueError):
+            preprod.suggest_mode(123)
+        with self.assertRaises(ValueError):
+            preprod.suggest_mode('', [1, 2])
+        with self.assertRaises(ValueError):
+            preprod.decide_mode('', [], plan='yes')
+
+
+PNG = b'\x89PNG\r\n\x1a\n' + b'0' * 20
+
+
+class RecorderBackendLibrary(AgentBackend):
+    """Records each submitted note's rendered prompt -- the library-mode
+    twin of RecorderBackend above, shared across every project the library
+    opens (see NewVideo.library_kwargs)."""
+    name = 'recorder'
+
+    def __init__(self):
+        self.seen = []
+
+    def submit(self, payload):
+        self.seen.append(Path(payload['note_file']).read_text())
+        return 'rec:' + payload['id']
+
+    def poll(self, handle):
+        return AgentStatus('failed', 'done')
+
+
+class NewVideo(LibraryFixture, unittest.TestCase):
+    """POST /api/videos/staging, its delete route, and the extra New video
+    fields on POST /api/videos/new (prompt, attachments, format, plan)."""
+
+    def library_kwargs(self):
+        self.backend = RecorderBackendLibrary()
+        return {'backend': self.backend}
+
+    def stage(self, name, data, ctype):
+        req = urllib.request.Request(self.base + '/api/videos/staging?name=' + name, data=data, method='POST',
+                                     headers={'Content-Type': ctype})
+        try:
+            with urllib.request.urlopen(req, timeout=20) as r:
+                return r.status, json.loads(r.read())
+        except urllib.error.HTTPError as e:
+            with e:
+                body = e.read()
+                return e.code, json.loads(body) if body else None
+        finally:
+            settle(self.library)
+
+    def test_a_valid_image_stages_successfully(self):
+        code, record = self.stage('pic.png', PNG, 'image/png')
+        self.assertEqual(code, 201, record)
+        self.assertEqual((record['name'], record['type'], record['size']), ('pic.png', 'image/png', len(PNG)))
+
+    def test_bad_magic_is_refused_and_nothing_is_written(self):
+        code, err = self.stage('pic.png', b'not a real png', 'image/png')
+        self.assertEqual(code, 400)
+        self.assertEqual(list(self.library.staging.root.glob('*/meta.json')), [])
+
+    def test_oversize_by_content_length_is_refused_before_reading(self):
+        with mock.patch('videobuilder.staging.MAX_FILE', 10):
+            code, err = self.stage('big.png', PNG, 'image/png')
+        self.assertEqual(code, 413)
+        self.assertEqual(list(self.library.staging.root.glob('*/meta.json')), [])
+
+    def test_the_51st_file_is_refused(self):
+        with mock.patch('videobuilder.staging.MAX_FILES', 2):
+            self.stage('a.png', PNG, 'image/png')
+            self.stage('b.png', PNG, 'image/png')
+            code, err = self.stage('c.png', PNG, 'image/png')
+        self.assertEqual(code, 413, err)
+
+    def test_a_zip_is_refused(self):
+        code, err = self.stage('bundle.zip', b'PK\x03\x04', 'application/zip')
+        self.assertEqual(code, 400)
+        self.assertIn('unpack the zip', err['error'])
+
+    def test_delete_removes_the_staged_file(self):
+        _, record = self.stage('pic.png', PNG, 'image/png')
+        code, body = self.request(f"/api/videos/staging/{record['id']}/delete", {})
+        self.assertEqual((code, body), (200, {'deleted': record['id']}))
+        code, err = self.request(f"/api/videos/staging/{record['id']}/delete", {})
+        self.assertEqual(code, 404)
+
+    def test_unclaimed_files_expire_after_a_day(self):
+        _, record = self.stage('old.png', PNG, 'image/png')
+        with mock.patch('time.time', return_value=time.time() + 86400 + 1):
+            self.stage('new.png', PNG, 'image/png')   # expire() runs as a side effect of the next upload
+        self.assertEqual(list(self.library.staging.root.glob(record['id'] + '/meta.json')), [])
+
+    def test_mode_route_wires_to_suggest_mode(self):
+        code, body = self.request('/api/videos/mode', {'prompt': 'a screenplay about a lighthouse keeper'})
+        self.assertEqual(code, 200)
+        self.assertEqual((body['plan'], body['why']), (True, 'story'))
+
+    def test_plan_true_with_prompt_and_attachments_starts_pre_production(self):
+        _, record = self.stage('ref.png', PNG, 'image/png')
+        code, result = self.request('/api/videos/new', {
+            'name': 'acme/preprod-pitch', 'start': 'blank', 'plan': True,
+            'prompt': 'Develop a multi-scene screenplay for a lighthouse keeper film.',
+            'attachments': [record['id']]})
+        self.assertEqual(code, 201, result)
+        self.assertTrue(result['plan'])
+        self.assertIsNotNone(result['note'])
+        self.assertEqual([a['name'] for a in result['attachments']], ['ref.png'])
+        self.assertEqual([a['name'] for a in result['note']['attachments']], ['ref.png'])
+        self.assertNotIn('Build a first version', result['note']['text'])
+        code, err = self.request(f"/api/videos/staging/{record['id']}/delete", {})
+        self.assertEqual(code, 404)   # claimed, so no longer staged
+        clone = self.root / 'preprod-clone'
+        self.git('clone', self.url('acme/preprod-pitch'), str(clone))
+        self.assertEqual(json.loads((clone / 'bible' / 'phase.json').read_text())['phase'], 'pre-production')
+        self.assertIn('## Pre-production', self.backend.seen[-1])
+
+    def test_plan_omitted_decides_from_the_prompt(self):
+        code, result = self.request('/api/videos/new', {
+            'name': 'acme/auto-plan', 'start': 'blank',
+            'prompt': 'Write me a screenplay with three characters and a twist ending.'})
+        self.assertEqual(code, 201, result)
+        self.assertEqual((result['plan'], result['why']), (True, 'story'))
+
+    def test_plan_omitted_with_only_media_builds(self):
+        _, record = self.stage('song.mp3', b'ID3' + b'0' * 20, 'audio/mpeg')
+        code, result = self.request('/api/videos/new', {
+            'name': 'acme/media-only', 'start': 'blank', 'attachments': [record['id']]})
+        self.assertEqual(code, 201, result)
+        self.assertEqual((result['plan'], result['why']), (False, 'media-only'))
+        self.assertIn('Build a first version', result['note']['text'])
+
+    def test_defaults_match_todays_behaviour(self):
+        code, result = self.request('/api/videos/new', {'name': 'acme/plain', 'start': 'blank'})
+        self.assertEqual(code, 201, result)
+        self.assertEqual((result['note'], result['plan']), (None, False))
+        clone = self.root / 'plain-clone'
+        self.git('clone', self.url('acme/plain'), str(clone))
+        self.assertEqual(self.git('rev-list', '--count', 'main', cwd=clone).stdout.strip(), '1')
+        self.assertFalse((clone / 'bible').exists())
+
+    def test_plan_false_with_prompt_matches_first_note_text_exactly(self):
+        from videobuilder.editor import _first_brief
+        code, result = self.request('/api/videos/new', {
+            'name': 'acme/build-now', 'start': 'blank', 'plan': False, 'prompt': 'A quick promo clip.'})
+        self.assertEqual(code, 201, result)
+        self.assertEqual(result['note']['text'], _first_brief('A quick promo clip.', [], [], []))
+
+    def test_format_narrows_the_blank_film_and_the_brief(self):
+        code, result = self.request('/api/videos/new', {
+            'name': 'acme/square', 'start': 'blank', 'format': '9x16', 'plan': False,
+            'prompt': 'A square test.'})
+        self.assertEqual(code, 201, result)
+        self.assertIn('Format: 9x16.', result['note']['text'])
+        clone = self.root / 'square-clone'
+        self.git('clone', self.url('acme/square'), str(clone))
+        self.assertIn("formats=('9x16',)", (clone / 'film.py').read_text())
+
+    def test_bad_format_is_refused_and_creates_nothing(self):
+        code, err = self.request('/api/videos/new', {'name': 'acme/bad-fmt', 'start': 'blank', 'format': '4x3'})
+        self.assertEqual(code, 400, err)
+        self.assertFalse(self.library.has_main('acme/bad-fmt'))
+
+    def test_invalid_input_leaves_no_repo(self):
+        staged = self.stage('ref.png', png((1, 2, 3)), 'image/png')[1]['id']
+        cases = [
+            {'name': 'acme/x1', 'start': 'blank', 'attachments': ['0' * 32]},
+            {'name': 'acme/x2', 'start': 'blank', 'format': 'nope'},
+            {'name': 'acme/x3', 'start': 'blank', 'plan': 'yes'},
+            {'name': 'acme/x4', 'start': 'copy', 'from': 'acme/does-not-exist', 'prompt': 'hi'},
+            {'name': 'acme/x5', 'start': 'blank', 'prompt': 'hi', 'attachments': [staged, staged]},
+        ]
+        for body in cases:
+            code, err = self.request('/api/videos/new', body)
+            self.assertEqual(code, 400, (body, err))
+            self.assertFalse(self.library.has_main(body['name']))
+
+    def test_note_cap_reached_leaves_no_repo(self):
+        code, result = self.request('/api/videos/new', {'name': 'acme/first', 'start': 'blank', 'prompt': 'First.'})
+        self.assertEqual(code, 201, result)
+        self.library.account_daily_note_cap = 1
+        code, err = self.request('/api/videos/new', {
+            'name': 'acme/capped', 'start': 'blank', 'prompt': 'Second.'})
+        self.assertEqual(code, 429, err)
+        self.assertFalse(self.library.has_main('acme/capped'))
+
+    def test_note_error_after_creation_keeps_the_video_and_the_staged_file(self):
+        from videobuilder.editor import Editor, HTTPError
+        _, record = self.stage('ref.png', PNG, 'image/png')
+        with mock.patch.object(Editor, 'start_video', side_effect=HTTPError(409, 'boom')):
+            code, result = self.request('/api/videos/new', {
+                'name': 'acme/stuck', 'start': 'blank', 'prompt': 'hi', 'attachments': [record['id']]})
+        self.assertEqual(code, 201, result)
+        self.assertIsNone(result['note'])
+        self.assertIn('boom', result['note_error'])
+        self.assertTrue(self.library.has_main('acme/stuck'))
+        meta, _ = self.library.staging.get(record['id'])
+        self.assertEqual(meta['name'], 'ref.png')
+
+
+class FirstNoteInPreproduction(LibraryFixture, unittest.TestCase):
+    """POST .../api/videos/first-note reads the video's phase, so a video
+    started in pre-production with no prompt still gets the planning brief
+    -- including through a links gather, whose spec must survive a restart."""
+
+    def library_kwargs(self):
+        return {'backend': RecorderBackendLibrary()}
+
+    def wait_for(self, editor, nid, timeout=10):
+        deadline = time.monotonic() + timeout
+        while time.monotonic() < deadline:
+            note = editor.notes.current(nid)
+            if note['state'] != 'gathering':
+                return note
+            time.sleep(0.05)
+        self.fail(f'note {nid} is still gathering')
+
+    def test_first_note_on_a_pre_production_video_gets_the_planning_brief(self):
+        code, result = self.request('/api/videos/new', {'name': 'acme/plan-later', 'start': 'blank', 'plan': True})
+        self.assertEqual((code, result['note']), (201, None))
+        code, note = self.request('/v/acme/plan-later/api/videos/first-note', {'description': 'A storm film.'})
+        self.assertEqual(code, 200, note)
+        self.assertIn("don't build or render the film yet", note['text'])
+        self.assertNotIn('Build a first version', note['text'])
+
+    def gathered(self, name, plan):
+        self.request('/api/videos/new', {'name': name, 'start': 'blank', 'plan': plan})
+        editor = self.library.editor(name)
+        started = []
+        real = editor._start_gather
+        with mock.patch.object(editor, '_start_gather', side_effect=lambda n: started.append(n)):
+            code, note = self.request(f'/v/{name}/api/videos/first-note', {
+                'description': 'A storm film.', 'links': ['http://127.0.0.1:1/unreachable']})
+        self.assertEqual((code, note['state']), (200, 'gathering'), note)
+        self.assertEqual(len(started), 1)
+        real(started[0])       # what _resume_gathering does with the saved spec after a restart
+        return started[0]['gather'], self.wait_for(editor, note['id'])
+
+    def test_a_gathered_first_note_keeps_the_planning_brief(self):
+        spec, note = self.gathered('acme/plan-gather', True)
+        self.assertIs(spec['plan'], True)
+        self.assertIn("don't build or render the film yet", note['text'])
+        self.assertNotIn('Build a first version', note['text'])
+
+    def test_a_production_gather_spec_has_no_plan_key(self):
+        spec, note = self.gathered('acme/build-gather', False)
+        self.assertNotIn('plan', spec)
+        self.assertIn('Build a first version', note['text'])
+
+
+class StagingAccounts(AccountMixin, LibraryFixture, unittest.TestCase):
+    def test_someone_elses_staged_file_is_404(self):
+        _, _, cookie_a = self.signup('alice', 'alicepassword1')
+        _, _, cookie_b = self.signup('bob', 'bobpassword1')
+        req = urllib.request.Request(self.base + '/api/videos/staging?name=pic.png', data=PNG, method='POST',
+                                     headers={'Content-Type': 'image/png', 'Cookie': cookie_a})
+        with urllib.request.urlopen(req, timeout=20) as r:
+            record = json.loads(r.read())
+        code, err, _ = self.request_full(f"/api/videos/staging/{record['id']}/delete", {},
+                                         headers={'Content-Type': 'application/json', 'Cookie': cookie_b})
+        self.assertEqual(code, 404)
 
 
 if __name__ == '__main__':

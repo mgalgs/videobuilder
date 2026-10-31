@@ -90,6 +90,9 @@ class Library:
         # Also a plain attribute (not just in `options`, which only Editor() below reads):
         # New video's suggest catalog (handler_library.py) needs it with no project open yet.
         self.music = music
+        from .staging import Staging
+        # New video's staged uploads, made before any video (and so any project Editor) exists.
+        self.staging = Staging(self.state_dir / 'staging')
         from .pictures import Artbox
         artbox = Artbox(artbox_url) if artbox_url else None
         # Built once here, shared by every project's Editor (unlike Pictures/Artbox, the
@@ -369,13 +372,15 @@ class Library:
             git(None, 'update-ref', '-d', 'refs/vb-source', git_dir=target, hooks=False)
         return {'name': name, 'commit': commit, 'from': source, 'source_commit': sha}
 
-    def create_blank(self, name, allow_reserved=False):
+    def create_blank(self, name, allow_reserved=False, formats=('9x16', '16x9')):
         """A new repo at `name` (refusing an existing one, like `copied`) with
         one commit: the minimal film and requirements.txt a video needs to be
         built by the builder, pinned to this editor's own videobuilder
         version the way an existing video's requirements.txt pins one (see
         workers.pinned_version). Nothing film-specific: v1 is the builder's
-        job."""
+        job. `formats` (New video's own `format` field, see Library.create_video)
+        narrows the blank film to just the one the creator chose; the default
+        is today's pair."""
         from . import __version__
         target = self.create(name, allow_reserved=allow_reserved)
         film = (
@@ -385,7 +390,7 @@ class Library:
             "], end=8)\n\n\n"
             "def draw(n, cv):\n"
             "    cv.rect(0, 0, cv.width, cv.height, '#101418')\n\n\n"
-            "FILM = vb.Film(draw=draw, timeline=T, formats=('9x16', '16x9'))\n"
+            f"FILM = vb.Film(draw=draw, timeline=T, formats={tuple(formats)!r})\n"
         ).encode()
         requirements = f'videobuilder=={__version__}\n'.encode()
         env = {**os.environ, 'GIT_AUTHOR_NAME': 'Video Editor', 'GIT_AUTHOR_EMAIL': 'editor@example.com',
@@ -398,6 +403,72 @@ class Library:
                      git_dir=target, hooks=False)
         git(None, 'update-ref', 'refs/heads/main', commit, git_dir=target, hooks=False)
         return {'name': name, 'commit': commit, 'video': 'film'}
+
+    def create_video(self, name, user, identity, prompt=None, attachment_ids=(), fmt=None, plan=None):
+        """Orchestrates New video's "blank" flow with its extra fields (see
+        docs/preproduction.md): validates everything -- ValueError for what
+        should answer 400, HTTPError(429) if sending a note would hit
+        `identity`'s note cap -- before anything is created, so a bad
+        request never leaves a repo behind. Then creates the blank video
+        (narrowed to `fmt` when given), flips its phase to pre-production
+        when planning (preprod.decide_mode, A16), copies in whatever staged
+        attachments `user` named, and -- with a prompt or attachments --
+        sends the first note. A note that can't be sent (the video
+        somehow doesn't load) still leaves the video created, with `note`
+        null and `note_error` set; the staged attachments are removed only
+        once a note actually goes out, so a failed attempt can be retried
+        without re-uploading. `user` is the bare owner (for access and to
+        look up their own staged uploads); `identity` is the attributed
+        note author (see handler_auth._attributed) -- the two differ for a
+        key."""
+        from . import film, preprod, staging
+        from .editor import HTTPError
+        if prompt is not None and not isinstance(prompt, str):
+            raise ValueError('prompt must be a string')
+        if not isinstance(attachment_ids, list) or not all(isinstance(i, str) for i in attachment_ids):
+            raise ValueError('attachments must be a list of ids')
+        if len(attachment_ids) != len(set(attachment_ids)):
+            raise ValueError('attachments lists the same staged id more than once')
+        if fmt is not None and fmt not in film.FORMATS:
+            raise ValueError(f'unknown format {fmt!r}; known: {", ".join(film.FORMATS)}')
+        if plan is not None and not isinstance(plan, bool):
+            raise ValueError('plan must be a boolean')
+        staged = []
+        for ident in attachment_ids:
+            try:
+                staged.append(self.staging.get(ident, user))
+            except KeyError:
+                raise ValueError(f'no staged attachment {ident!r}') from None
+        if len(staged) > staging.MAX_FILES or sum(m['size'] for m, _ in staged) > staging.MAX_BYTES:
+            raise ValueError('too many or too large attachments')
+        mode = preprod.decide_mode(prompt or '', [m['type'] for m, _ in staged], plan)
+        will_note = bool((prompt or '').strip()) or bool(staged)
+        is_admin = bool(self.accounts and self.accounts.is_admin(user))
+        if will_note:
+            self.check_note_cap(identity, is_admin)
+        result = self.create_blank(name, formats=(fmt,) if fmt else ('9x16', '16x9'))
+        vid = result['video']
+        if self.accounts:
+            self.access.set_owner(name, user, self.accounts)
+        editor = self.editor(name)
+        if mode['plan']:
+            editor.set_phase(vid, 'pre-production', identity, is_admin)
+        attachments = [editor.attachments.upload(vid, meta['name'], meta['type'], path.read_bytes())
+                      for meta, path in staged]
+        note, note_error = None, None
+        if will_note:
+            body = {'description': prompt, 'attachments': [a['id'] for a in attachments]}
+            extra_lines = (f'Format: {fmt}.',) if fmt else ()
+            try:
+                note = editor.start_video(body, identity, is_admin, extra_lines=extra_lines)
+            except HTTPError as exc:
+                note_error = str(exc)
+            else:
+                for ident in attachment_ids:
+                    self.staging.delete(ident, user)
+        sha = git(None, 'rev-parse', 'main', git_dir=self.path(name), hooks=False)
+        return {'name': name, 'commit': sha, 'video': vid, 'plan': mode['plan'], 'why': mode['why'],
+               'reason': mode['reason'], 'note': note, 'note_error': note_error, 'attachments': attachments}
 
     def reserve_capability_slot(self, author, is_admin):
         """Holds one of `author`'s next community.CAPABILITY_DAILY_CAP

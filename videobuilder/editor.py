@@ -270,12 +270,56 @@ POST /api/draft/drop {video}         manual drop
 Library-only (not single-project mode), open to any signed-in user (or
 everyone, without accounts):
 GET  /new                             the New Video page
-POST /api/videos/new {name,start:"blank"|"copy",from?}
-                                     201 {name,commit,video}; video is the
-                                     sole video's id for "blank", null for
-                                     "copy"; 400 invalid/existing name, or a
-                                     name under the reserved `capabilities/`
-                                     namespace (see community.is_reserved)
+POST /api/videos/staging?name=F       raw body with Content-Type, like POST
+                                     /api/attachments; 201 {id,name,type,
+                                     size}; 400 bad type/magic or a .zip
+                                     (unpack it first); 413 over the 25 MB
+                                     per-file limit or the owner's 50-file/
+                                     300 MB pending allowance; swept after
+                                     24h unclaimed; never reachable with a
+                                     key
+POST /api/videos/staging/<id>/delete {}
+                                     200 {deleted}; 404 unknown id or
+                                     someone else's
+POST /api/videos/mode {prompt?,types?:[mime...]}
+                                     200 {plan,why,reason}: whether New
+                                     video should suggest pre-production for
+                                     this prompt and these attachment MIME
+                                     types, and a one-line reason (see
+                                     preprod.suggest_mode, docs/
+                                     preproduction.md); callable as the
+                                     creator types or drops files, before
+                                     anything is created
+POST /api/videos/new {name,start:"blank"|"copy",from?,prompt?,
+                      attachments?:[staging id...],format?,plan?}
+                                     201 {name,commit,video,plan,why,reason,
+                                     note,note_error,attachments}; video is
+                                     the sole video's id for "blank", null
+                                     for "copy"; `prompt`/`attachments`/
+                                     `format`/`plan` apply only to "blank"
+                                     (400 with "copy"); with a `prompt` or
+                                     staged `attachments` (claimed from
+                                     POST /api/videos/staging, by id), the
+                                     video's first note is sent -- `plan`
+                                     decides which brief (see
+                                     Library.create_video), defaulting to
+                                     POST /api/videos/mode's own suggestion
+                                     when omitted; `format` narrows the
+                                     blank film to one of film.FORMATS
+                                     instead of today's pair; `note` is
+                                     null with nothing to send, or when the
+                                     video was created but the note itself
+                                     failed (`note_error` then says why --
+                                     the video still exists, retry with
+                                     POST .../api/videos/first-note);
+                                     `attachments` are the claimed
+                                     records, now owned by the new video;
+                                     400 invalid/existing name, invalid
+                                     field, or a name under the reserved
+                                     `capabilities/` namespace (see
+                                     community.is_reserved); 429 as POST
+                                     /api/notes below, before anything is
+                                     created
 POST /api/videos/delete {name}       200 {deleted}: moves the video to the
                                      library's trash (Library.delete); owner
                                      or admin only with accounts (403), 403
@@ -299,10 +343,16 @@ POST /v/<name>/api/videos/first-note {description?,attachments?:[id...],
                                      see POST /api/notes above and
                                      video_refs.py -- so even the first note
                                      for a brand new video can say "like
-                                     <link> but about squid". New video sends
-                                     it, and so does the editor's composer
-                                     for a video's first note while it is
-                                     not built yet
+                                     <link> but about squid". For a video
+                                     already in pre-production, the brief
+                                     asks the builder to develop the film
+                                     with the director rather than build
+                                     it (see preprod.py); the editor's own
+                                     composer sends this for a video's
+                                     first note while it is not built yet,
+                                     and New video sends it as part of
+                                     POST /api/videos/new above when there
+                                     is a prompt or attachments to send
 GET  /whats-new                       the What's new page: the bundled named
                                      releases up to the running version and
                                      this instance's own entries, newest
@@ -1025,7 +1075,7 @@ class Editor:
             raise HTTPError(400, f'no clip {clip!r} in the timeline file') from None
         return clip
 
-    def start_video(self, body, author, is_admin=False):
+    def start_video(self, body, author, is_admin=False, extra_lines=()):
         """The first note for a video just started from scratch: the
         director's brief, their uploaded files (already attached to this
         video, same as any note's) and, for any given links, the gathered
@@ -1035,12 +1085,20 @@ class Editor:
         reload, another device, loadNotes' poll) and the crawl -- which can
         run for up to about two minutes -- happens in the background; this
         call returns as soon as the note exists, so the director page opens
-        immediately instead of waiting on the crawl."""
+        immediately instead of waiting on the crawl. When the video is in
+        pre-production (see preprod.py), the brief asks the builder to
+        develop the film with the director instead of building it, exactly
+        as it does after a restart resumes a gather (see _start_gather).
+        `extra_lines` is for a caller that knows something the brief should
+        say that isn't in `body` -- Library.create_video uses it to add a
+        `Format: <fmt>.` line when New video narrowed the blank film to one
+        format; no route exposes it as a body field."""
         self.check_note_cap(author, is_admin)
         videos = self.project.videos()
         if not videos:
             raise HTTPError(409, 'this project has no video to build yet')
         vid = videos[0].id
+        plan = self.phase(vid) == 'pre-production'
         description = body.get('description')
         if description is not None and not isinstance(description, str):
             raise HTTPError(400, 'description must be a string')
@@ -1059,6 +1117,7 @@ class Editor:
             raise HTTPError(400, str(exc) if not isinstance(exc, TypeError) else 'attachments must be ids') from None
         # What Film details already set, so the first build follows it (see film_setup).
         extra = film_setup.note_lines(film_setup.read_details(Path(self.project.video(vid).path).parent))
+        extra = (*extra, *extra_lines)
         note_capabilities = _note_capabilities(body)
         note_assets = _note_assets(body, self.music)
         s = self.session(vid)
@@ -1078,17 +1137,21 @@ class Editor:
 
         if not links:
             try:
-                return self.notes.add(vid, fmt, None, None, _first_brief(description, attachments, [], [], extra),
+                return self.notes.add(vid, fmt, None, None,
+                                      _first_brief(description, attachments, [], [], extra, plan=plan),
                                       None, author=author, attachments=attachments, capabilities=note_capabilities,
                                       refs=refs, **note_assets, **said)
             except ValueError as e:
                 raise HTTPError(400, str(e)) from None
 
-        # `gather` is what _resume_gathering needs to crawl again after a restart.
+        # `gather` is what _resume_gathering needs to crawl again after a restart. `plan` is
+        # carried only when true, so a gather spec saved before pre-production existed (or for
+        # a video in production) still has no key for it -- _start_gather's .get() default covers that.
+        gather = {'description': description, 'links': links, 'extra': extra, 'skipped': skipped}
+        if plan:
+            gather['plan'] = True
         note = self.notes.start_gathering(vid, fmt, text=description, author=author, attachments=attachments,
-                                          capabilities=note_capabilities,
-                                          gather={'description': description, 'links': links, 'extra': extra,
-                                                  'skipped': skipped},
+                                          capabilities=note_capabilities, gather=gather,
                                           refs=refs, **note_assets, **said)
         self._start_gather(note)
         return note
@@ -1178,7 +1241,8 @@ class Editor:
                 gather_errors = [('(gathering)', str(exc))]
             errors = gather_errors + skipped
             if first:
-                text = _first_brief(description, attachments, links, errors, spec.get('extra', ()))
+                text = _first_brief(description, attachments, links, errors, spec.get('extra', ()),
+                                    plan=spec.get('plan', False))
             else:
                 text = '\n'.join([description.strip(), *_gathered_lines(links, errors)])
             self.notes.finish_gathering(note['id'], text, final_attachments)
@@ -1354,11 +1418,15 @@ def _gathered_lines(links, gather_errors):
     return lines
 
 
-def _first_brief(description, attachments, links, gather_errors, extra=()):
+def _first_brief(description, attachments, links, gather_errors, extra=(), plan=False):
     """A started video's first note text: the creator's description, `extra`
     (film_setup.note_lines: the length, the look, and where the world and
     characters are), the chosen image order, and (with links) the gathered pages'
-    caveat and any failures."""
+    caveat and any failures. `plan` (the video starts in pre-production, see
+    preprod.py) swaps the closing "build a first version" line for one asking
+    the builder to develop the film with the director instead; the fuller
+    pre-production instructions (what to write, where, how to offer options)
+    come from the '## Pre-production' prompt section, not from here."""
     image_names = [a['name'] for a in attachments if a['type'].startswith('image/')]
     lines = []
     if description and description.strip():
@@ -1370,6 +1438,12 @@ def _first_brief(description, attachments, links, gather_errors, extra=()):
         lines += [f'{n}. {name}' for n, name in enumerate(image_names, 1)]
         lines += ['', 'Keep this order unless the brief above says otherwise.']
     lines += _gathered_lines(links, gather_errors)
+    if plan:
+        lines += ['', "Let's develop this together before anything gets built: work out the script, "
+                 "characters, look and a scene plan with me, offering real options to choose from, and "
+                 "don't build or render the film yet."]
+        return '\n'.join(lines).strip() or ("Let's develop this video together before building anything, "
+                                            "starting from scratch.")
     lines += ['', "Build a first version that fits this brief, choosing whichever format(s) and length "
              "suit it best unless the brief already says."]
     return '\n'.join(lines).strip() or 'Build a first version for this video, using your best judgement.'
