@@ -420,14 +420,42 @@ def _gemini_style(style, previous):
     return f'{style} {ctx}' if style else ctx
 
 
-def _gemini_error(code, payload, model):
+def gemini_message(payload):
+    """The error message in a Gemini HTTP error body, or its first 300 characters."""
     try:
-        msg = json.loads(payload)['error']['message']
+        return json.loads(payload)['error']['message']
     except (ValueError, KeyError, TypeError):
-        msg = payload.decode('utf-8', 'replace')[:300] if isinstance(payload, bytes) else str(payload)[:300]
+        return payload.decode('utf-8', 'replace')[:300] if isinstance(payload, bytes) else str(payload)[:300]
+
+
+def _gemini_error(code, payload, model):
+    msg = gemini_message(payload)
     if code == 400 and _GEMINI_UNSUPPORTED.search(msg):
         return SpeechUnavailable(f'{model} does not support a style direction (--style): {msg}')
     return SpeechUnavailable(f'Gemini ({model}): {msg}')
+
+
+def gemini_post(url, api_key, body, error, timeout=GEMINI_TIMEOUT):
+    """POST `body` (JSON) to a Gemini generateContent `url` and return the
+    parsed reply, retrying 429 and 5xx with backoff. `error(code, payload)`
+    makes the exception for a final HTTP error. The key goes only in a
+    header, never in the URL, so no message here can carry it."""
+    data = json.dumps(body).encode('utf-8')
+    headers = {'Content-Type': 'application/json', 'x-goog-api-key': api_key}
+    for attempt in range(GEMINI_HTTP_RETRIES):
+        req = urllib.request.Request(url, data=data, headers=headers, method='POST')
+        try:
+            with urllib.request.urlopen(req, timeout=timeout) as resp:
+                return json.loads(resp.read())
+        except urllib.error.HTTPError as e:
+            payload = e.read()
+            retryable = e.code == 429 or 500 <= e.code < 600
+            if retryable and attempt < GEMINI_HTTP_RETRIES - 1:
+                time.sleep(GEMINI_BACKOFF * (2 ** attempt))
+                continue
+            raise error(e.code, payload) from None
+        except urllib.error.URLError as e:
+            raise SpeechUnavailable(f'Gemini: could not reach {url}: {e.reason}') from None
 
 
 class Gemini:
@@ -475,22 +503,7 @@ class Gemini:
         return self._audio(reply)
 
     def _post(self, body):
-        data = json.dumps(body).encode('utf-8')
-        headers = {'Content-Type': 'application/json', 'x-goog-api-key': self.api_key}
-        for attempt in range(GEMINI_HTTP_RETRIES):
-            req = urllib.request.Request(self.url, data=data, headers=headers, method='POST')
-            try:
-                with urllib.request.urlopen(req, timeout=GEMINI_TIMEOUT) as resp:
-                    return json.loads(resp.read())
-            except urllib.error.HTTPError as e:
-                payload = e.read()
-                retryable = e.code == 429 or 500 <= e.code < 600
-                if retryable and attempt < GEMINI_HTTP_RETRIES - 1:
-                    time.sleep(GEMINI_BACKOFF * (2 ** attempt))
-                    continue
-                raise _gemini_error(e.code, payload, self.model) from None
-            except urllib.error.URLError as e:
-                raise SpeechUnavailable(f'Gemini: could not reach {self.url}: {e.reason}') from None
+        return gemini_post(self.url, self.api_key, body, lambda code, payload: _gemini_error(code, payload, self.model))
 
     def _audio(self, reply):
         try:

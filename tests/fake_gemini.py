@@ -5,7 +5,9 @@ answers with a randomly pitched tone (Gemini can't be seeded, so a real
 re-request would sound different too), sized by the phrase's text length,
 so a test that expects a cached phrase's bytes to stay put would fail if
 the code asked again. `queue` lets a test script exactly what the next
-call(s) get, to exercise retries and error paths.
+call(s) get, to exercise retries and error paths. A request carrying
+audio (`listen`) gets markdown notes naming the audio's type and size back
+instead, after `delay` seconds.
 """
 import base64
 import json
@@ -28,6 +30,7 @@ class FakeGemini:
     def __init__(self):
         self.requests = []
         self.responses = []   # [(status, json body), ...], consumed in request order
+        self.delay = 0
         outer = self
 
         class Handler(BaseHTTPRequestHandler):
@@ -35,6 +38,9 @@ class FakeGemini:
                 n = int(self.headers.get('Content-Length') or 0)
                 body = json.loads(self.rfile.read(n) or b'{}')
                 outer.requests.append(body)
+                if outer.delay:
+                    # Not time.sleep: the say tests patch that out globally.
+                    threading.Event().wait(outer.delay)
                 if outer.responses:
                     status, payload = outer.responses.pop(0)
                 else:
@@ -62,6 +68,11 @@ class FakeGemini:
 
     @staticmethod
     def _default(body):
+        audio = [p['inlineData'] for p in body['contents'][0]['parts'] if 'inlineData' in p]
+        if audio:
+            size = len(base64.b64decode(audio[0]['data']))
+            return {'candidates': [{'content': {'parts': [
+                {'text': f"## Overall\nA song ({audio[0]['mimeType']}, {size} bytes).\n"}]}}]}
         text = body['contents'][0]['parts'][0].get('text', '')
         data = base64.b64encode(_tone(text)).decode('ascii')
         return {'candidates': [{'content': {'parts': [
