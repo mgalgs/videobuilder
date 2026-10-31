@@ -2783,6 +2783,205 @@ button.danger:disabled {
   background: var(--accent);
 }
 
+/* ---- Script tab: a screenplay page, Courier, sluglines and scene numbers ---- */
+.pp-empty {
+  margin: 24px 4px;
+  color: var(--muted);
+}
+
+.pp-script {
+  display: flex;
+  gap: 18px;
+  height: 100%;
+}
+
+.pp-sc-jumplist {
+  flex: none;
+  width: 160px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  overflow-y: auto;
+}
+
+.pp-sc-jump {
+  min-height: 36px;
+  padding: 4px 8px;
+  border: 0;
+  border-radius: 8px;
+  background: none;
+  color: var(--muted);
+  text-align: left;
+  font-size: 12.5px;
+}
+
+.pp-sc-jump:hover {
+  background: #1d1d22;
+  color: #fff;
+}
+
+.pp-pages {
+  flex: 1;
+  min-width: 0;
+}
+
+.pp-script-head {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin-bottom: 8px;
+  color: var(--muted);
+  font-size: 12.5px;
+}
+
+.pp-script-head strong {
+  color: #fff;
+}
+
+.pp-drafting {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0 0 10px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  background: #1c2c28;
+  color: #8fd9c7;
+  font-size: 12.5px;
+}
+
+.pp-page {
+  max-width: 62ch;
+  margin: 0 auto;
+  padding: 24px 0 60px;
+  font-family: "Courier Prime","Courier New",Courier,monospace;
+  font-size: 13.5px;
+  line-height: 1.5;
+  color: #e8e9ee;
+}
+
+.pp-el {
+  position: relative;
+  margin: 0 0 12px;
+}
+
+.pp-el.heading {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-top: 20px;
+  text-transform: uppercase;
+  font-weight: 700;
+}
+
+.pp-sc-num {
+  flex: none;
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.pp-el.character {
+  margin-left: 32%;
+  text-transform: uppercase;
+}
+
+.pp-el.dialogue {
+  margin-left: 18%;
+  margin-right: 18%;
+}
+
+.pp-el.parenthetical {
+  margin-left: 26%;
+  margin-right: 20%;
+  color: var(--muted);
+  font-style: italic;
+}
+
+.pp-el.transition {
+  text-align: right;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.pp-el.section {
+  margin-top: 24px;
+  font-weight: 700;
+  color: #c9c9d1;
+}
+
+.pp-el.synopsis {
+  color: var(--muted);
+  font-style: italic;
+}
+
+.pp-line {
+  display: block;
+  width: 100%;
+  border: 0;
+  padding: 2px 6px;
+  margin: 0 -6px;
+  border-radius: 6px;
+  background: none;
+  color: inherit;
+  text-align: inherit;
+  font: inherit;
+  text-transform: inherit;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.pp-line:hover {
+  background: #ffffff10;
+}
+
+.pp-not-sent {
+  margin: 2px 0 0;
+  color: var(--accent);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.pp-comment-box {
+  margin: 6px 0 16px;
+  padding: 10px;
+  border: 1px solid #2c2c33;
+  border-radius: 10px;
+  background: #1c1c21;
+}
+
+.pp-comment-input {
+  width: 100%;
+  box-sizing: border-box;
+  border: 1px solid #34343c;
+  border-radius: 8px;
+  background: #1d1d22;
+  color: #fff;
+  padding: 8px;
+  font: inherit;
+  resize: vertical;
+}
+
+.pp-comment-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.pp-comment-actions button {
+  min-height: 36px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: 14px;
+  background: #2a2a31;
+  color: #fff;
+  font-weight: 700;
+}
+
+.pp-comment-actions button.accent {
+  background: var(--accent);
+}
+
 @media (max-width:700px) {
   .desktop-only {
     display: none !important;

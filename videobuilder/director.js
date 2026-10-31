@@ -52,8 +52,11 @@ const state = {
   archiveQuery: '',
   phase: null,
   board: null,
+  script: null,
   ppTab: 'script',
-  ppSeq: 0
+  ppSeq: 0,
+  ppComment: null,
+  ppShown: null
 };
 const player = $('player');
 const timeLabel = s => {
@@ -2426,6 +2429,9 @@ async function openVideo(video) {
   state.tl=null;
   state.phase=null;
   state.board=null;
+  state.script=null;
+  state.ppShown=null;
+  state.ppComment=null;
   state.ppTab='script';
   ppShowTab('script');
   renderTimeline();
@@ -4335,6 +4341,17 @@ async function loadPreprod() {
     const board=await json('preprod', {video:state.video});
     if(seq!==state.ppSeq)return;
     state.board=board;
+    if(!board.script.exists)state.script=null;
+    else if(state.script?.commit!==board.commit) {
+      try {
+        state.script=await json('preprod/script', {video:state.video})
+      }
+      catch(e) {
+        if(e.status!==404)throw e;
+        state.script=null
+      }
+      if(seq!==state.ppSeq)return
+    }
     applyPhase(board.phase);
     renderBoard()
   }
@@ -4410,7 +4427,89 @@ function renderBoard() {
   for(const tab of PP_TABS)$(`pp-st-${tab}`).textContent=st[tab];
   $('pp-problems').hidden=!b.problems.length;
   if(b.problems.length)$('pp-problems').textContent=ppProblemsText(b.problems);
-  if(!$('pp-start-pop').hidden)renderStartPop()
+  if(!$('pp-start-pop').hidden)renderStartPop();
+  // An open comment box holds typed text and quotes the line as shown: a refresh would
+  // wipe the one and could shift the other, so the panel catches up when the box closes.
+  if(!state.ppComment)renderScript()
+}
+// The newest note still running, named in the "builder is drafting" banner -- there is no
+// per-scene signal, so this just says what it is working on, not which scenes it touches.
+function ppDraftingNote() {
+  const running=state.notes.filter(n=>['gathering','queued','working'].includes(n.state));
+  if(!running.length)return null;
+  const note=running[running.length-1];
+  return (note.said||note.text||'').slice(0,80)
+}
+function renderScript() {
+  if(!state.board)return;
+  const pendingQuotes=new Set(state.pending.filter(p=>p.scriptLine!=null).map(p=>p.scriptLine));
+  state.ppShown=state.script;
+  $('pp-panel-script').innerHTML=ppScriptHtml(state.script, {
+    drafting:state.notes.some(n=>['gathering','queued','working'].includes(n.state)),
+    draftingNote:ppDraftingNote(),pendingQuotes
+  })
+}
+function ppScriptHtml(script, opts) {
+  if(!script)return '<p class="pp-empty">No script yet. Ask the builder for a draft in chat.</p>';
+  const {drafting,draftingNote,pendingQuotes}=opts;
+  const jump=script.scenes.map(s=>`<button type="button" class="pp-sc-jump" data-pp="jump" `+
+    `data-pp-n="${s.number}">${s.number}. ${esc(s.heading)}</button>`).join('');
+  const banner=drafting?`<p class="pp-drafting">${svg(TL_ICON.building,14)}The builder is drafting`+
+    `${draftingNote?`: ${esc(draftingNote)}`:''}…</p>`:'';
+  const body=script.elements.map((el,i)=>ppScriptElementHtml(el,i,pendingQuotes)).join('');
+  return `<div class="pp-script"><aside class="pp-sc-jumplist" aria-label="Scenes">${jump}</aside>`+
+    `<div class="pp-pages"><div class="pp-script-head"><strong>Draft ${script.draft??'—'}</strong>`+
+    `<span>tap any line to comment</span></div>${banner}<div class="pp-page">${body}</div></div></div>`
+}
+function ppScriptElementHtml(el, i, pendingQuotes) {
+  const queued=pendingQuotes.has(el.line);
+  const line=`<button type="button" class="pp-line" data-pp="line" data-i="${i}">${esc(el.text)}</button>`;
+  const head=el.type==='heading'
+    ? `<p class="pp-el heading" id="pp-sc-${el.scene}"><span class="pp-sc-num">${el.scene}</span>${line}`+
+      `<span class="pp-sc-num">${el.scene}</span></p>`
+    : `<p class="pp-el ${el.type}">${line}</p>`;
+  return head+(queued?'<p class="pp-not-sent">Not sent yet</p>':'')
+}
+function ppCommentBoxHtml() {
+  return '<div class="pp-comment-box"><textarea class="pp-comment-input" rows="2" '+
+    'placeholder="Note about this line…"></textarea><div class="pp-comment-actions">'+
+    '<button type="button" data-pp="comment-cancel">Cancel</button>'+
+    '<button type="button" class="accent" data-pp="comment-add">Add</button></div></div>'
+}
+// A7: the exact text the builder sees, quoting the tapped line (docs/preproduction.md,
+// "Line comments"); draft/scene are left out of the quote header when either is unknown.
+function ppCommentText(script, element, comment) {
+  const parts=[];
+  if(script.draft!=null)parts.push(`draft ${script.draft}`);
+  if(element.scene!=null)parts.push(`scene ${element.scene}`);
+  parts.push(`line ${element.line}`);
+  return `Script, ${parts.join(', ')}: "${element.text}"\n${comment}`
+}
+// `at` is {draft, el}: the tapped line as it was shown, so a redraft that lands while the
+// box is open can't swap in a different line.
+function ppQueueComment(at, comment) {
+  const el=at.el;
+  const text=ppCommentText(at,el,comment);
+  state.pending.push({text,time:null,attachments:[],capabilities:[],fonts:[],sfx:[],music:[],scriptLine:el.line});
+  savePending();
+  renderPending();
+  state.ppComment=null;
+  renderScript();
+  if(tlPhone())openSheet('chat')
+}
+// The box goes straight into the shown panel rather than through a re-render, so the line
+// it quotes is always the one under it (renderBoard holds off while it is open).
+function ppToggleComment(lineButton) {
+  const el=state.ppShown.elements[+lineButton.dataset.i];
+  const was=state.ppComment?.el;
+  $('pp-panel-script').querySelector('.pp-comment-box')?.remove();
+  if(was===el) {
+    state.ppComment=null;
+    return renderScript()
+  }
+  state.ppComment={draft:state.ppShown.draft,el};
+  lineButton.closest('.pp-el').insertAdjacentHTML('afterend',ppCommentBoxHtml());
+  $('pp-panel-script').querySelector('.pp-comment-input').focus()
 }
 // Checklist items live in the dialog, outside #board's delegation.
 function ppGoto(tab) {
@@ -4499,7 +4598,17 @@ $('board').addEventListener('click',e=> {
   const b=e.target.closest('[data-pp]');
   if(!b)return;
   const act=b.dataset.pp;
-  if(act==='tab'||act==='goto')ppShowTab(b.dataset.ppTab)
+  if(act==='tab'||act==='goto')ppShowTab(b.dataset.ppTab);
+  if(act==='line')ppToggleComment(b);
+  if(act==='jump')document.getElementById('pp-sc-'+b.dataset.ppN)?.scrollIntoView({block:'start'});
+  if(act==='comment-cancel') {
+    state.ppComment=null;
+    renderScript()
+  }
+  if(act==='comment-add') {
+    const text=b.closest('.pp-comment-box').querySelector('textarea').value.trim();
+    if(text)ppQueueComment(state.ppComment,text)
+  }
 });
 $('pp-start').onclick=()=>ppOpenStart(true);
 $('pp-keep').onclick=()=>ppOpenStart(false);

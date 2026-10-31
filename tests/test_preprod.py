@@ -1581,6 +1581,9 @@ class BoardFixture(Server):
         self.post('/api/preprod/pick', {'video': VIDEO, 'set': 'look', 'key': 'A'})
         self.post('/api/preprod/pick', {'video': VIDEO, 'set': 'character-mara', 'key': 'A'})
 
+    def script(self):
+        return self.get('/api/preprod/script?video=' + VIDEO)
+
 
 EMPTY_BOARD = {'script': {'exists': False, 'draft': None, 'title': None, 'scenes': 0},
               'characters': [], 'sets': [],
@@ -1656,6 +1659,47 @@ console.log(JSON.stringify([ppProblemsText(BOARD.problems), ppTabStatus(BOARD), 
         self.assertEqual(status, {'script': 'Draft 2', 'characters': '1 of 2 picked',
                                   'look': 'Moody', 'scenes': '3 · 2 to pick'})
         self.assertEqual((settled, checks), (3, 5))
+
+    @unittest.skipUnless(shutil.which('node'), 'node is not available in this environment')
+    def test_script_renders_screenplay_elements(self):
+        js = (PKG / 'director.js').read_text()
+        board_script = self.script()
+        dialogue_line = next(e['line'] for e in board_script['elements'] if e['type'] == 'dialogue')
+        script = _consts(js, 'esc') + _fns(js, 'ppScriptHtml', 'ppScriptElementHtml', 'ppCommentBoxHtml') + """
+const base={drafting:false,draftingNote:null,commentAt:null,pendingQuotes:new Set()};
+console.log(JSON.stringify([
+  ppScriptHtml(SCRIPT, base),
+  ppScriptHtml(SCRIPT, {...base,pendingQuotes:new Set([LINE])}),
+  ppScriptHtml(null, base),
+]));
+""".replace('SCRIPT', json.dumps(board_script)).replace('LINE', str(dialogue_line))
+        html, with_marker, empty_html = run_node(script)
+        for t in ('heading', 'action', 'character', 'parenthetical', 'dialogue', 'transition', 'section',
+                 'synopsis'):
+            self.assertIn(f'class="pp-el {t}"', html)
+        self.assertIn('id="pp-sc-1"', html)
+        self.assertEqual(html.count('>1<'), 2)   # scene 1's number shows on both sides of its heading
+        self.assertIn('Draft 2', html)
+        self.assertIn('&lt;b&gt;Bright&lt;/b&gt; &amp; &quot;loud&quot;', html)
+        self.assertEqual(html.count('data-pp="jump"'), 2)
+        self.assertNotIn('Not sent yet', html)
+        self.assertIn('Not sent yet', with_marker)
+        self.assertIn('No script yet', empty_html)
+
+    @unittest.skipUnless(shutil.which('node'), 'node is not available in this environment')
+    def test_drafting_banner_only_while_a_note_runs(self):
+        js = (PKG / 'director.js').read_text()
+        script = (_consts(js, 'esc', 'svg', 'TL_ICON') +
+                 _fns(js, 'ppScriptHtml', 'ppScriptElementHtml') + """
+const base={drafting:false,draftingNote:null,commentAt:null,pendingQuotes:new Set()};
+console.log(JSON.stringify([
+  ppScriptHtml(SCRIPT, base).includes('pp-drafting'),
+  ppScriptHtml(SCRIPT, {...base,drafting:true,draftingNote:'Drafting scene 3'}).includes('Drafting scene 3'),
+]));
+""".replace('SCRIPT', json.dumps(self.script())))
+        off, on = run_node(script)
+        self.assertFalse(off)
+        self.assertTrue(on)
 
 
 class BoardActionsJS(BoardFixture):
@@ -1846,6 +1890,73 @@ console.log(JSON.stringify([state.ppTab,$('pp-start-pop').hidden,$('pp-start-sha
         wiring = re.search(r"\$\('pp-checks'\)\.addEventListener\('click',.*?\n\}\);", js, re.S)
         self.assertIsNotNone(wiring)
         self.assertIn('ppGoto(b.dataset.ppTab)', wiring.group(0))
+
+    @unittest.skipUnless(shutil.which('node'), 'node is not available in this environment')
+    def test_an_open_comment_box_survives_a_board_refresh(self):
+        js = (PKG / 'director.js').read_text()
+        script = _fns(js, 'renderBoard', 'ppToggleComment', 'ppQueueComment', 'ppCommentText') + """
+const draft1={draft:1,elements:[{type:'action',text:'The lamp turns.',line:3,scene:1},
+  {type:'dialogue',text:'Still turning.',line:5,scene:1}]};
+const draft2={draft:2,elements:[{type:'action',text:'A new opening line.',line:3,scene:1},
+  {type:'action',text:'The lamp turns.',line:5,scene:1}]};
+const state={board:{checklist:[],problems:[],scenes:{scenes:[]}},script:draft1,ppShown:draft1,
+  ppComment:null,pending:[]};
+const calls=[];
+const panel={querySelector:q=>q==='.pp-comment-box'?null:{focus(){}}};
+const $=id=>id==='pp-panel-script'?panel:{hidden:true,textContent:''};
+const PP_TABS=[];
+const ppSettled=()=>0, ppTabStatus=()=>({});
+const renderScript=()=>{state.ppShown=state.script;calls.push('renderScript')};
+const savePending=()=>{}, renderPending=()=>{};
+const tlPhone=()=>false;
+const ppCommentBoxHtml=()=>'';
+const line={dataset:{i:'0'},closest:()=>({insertAdjacentHTML:()=>calls.push('box inserted')})};
+ppToggleComment(line);
+state.script=draft2;          // the builder redrafts while the director types
+renderBoard();
+const out=[calls.splice(0)];
+ppQueueComment(state.ppComment,'Slower here.');
+out.push(state.pending[0].text, calls.splice(0), state.ppShown===draft2, state.ppComment);
+console.log(JSON.stringify(out));
+"""
+        out = run_node(script)
+        self.assertEqual(out[0], ['box inserted'])   # no re-render: the typed text stays put
+        self.assertEqual(out[1], 'Script, draft 1, scene 1, line 3: "The lamp turns."\nSlower here.')
+        self.assertEqual(out[2], ['renderScript'])   # the panel catches up once the box closes
+        self.assertTrue(out[3])
+        self.assertIsNone(out[4])
+
+    @unittest.skipUnless(shutil.which('node'), 'node is not available in this environment')
+    def test_comment_queues_a_quoted_pending_note(self):
+        js = (PKG / 'director.js').read_text()
+        script = _fns(js, 'ppCommentText', 'ppQueueComment') + """
+const calls=[];
+const state={script:{draft:2,elements:[
+  {type:'dialogue',text:'Still turning. Good.',line:7,scene:1},
+  {type:'action',text:'A note.',line:3,scene:null},
+]},pending:[],ppComment:null};
+const savePending=()=>calls.push('save');
+const renderPending=()=>calls.push('render');
+const renderScript=()=>calls.push('renderScript');
+const tlPhone=()=>false;
+const openSheet=()=>calls.push('openSheet');
+const json=()=>{throw new Error('no network call expected')};
+state.ppComment={draft:2,el:state.script.elements[0]};
+ppQueueComment(state.ppComment,'Can she sound more rattled?');
+const out=[calls.splice(0),JSON.parse(JSON.stringify(state.pending)),state.ppComment];
+state.ppComment={draft:null,el:state.script.elements[1]};
+ppQueueComment(state.ppComment,'A second note.');
+out.push(state.pending[1].text);
+console.log(JSON.stringify(out));
+"""
+        out = run_node(script)
+        self.assertEqual(out[0], ['save', 'render', 'renderScript'])
+        self.assertEqual(out[1], [{'text': 'Script, draft 2, scene 1, line 7: "Still turning. Good."\n'
+                                            'Can she sound more rattled?',
+                                   'time': None, 'attachments': [], 'capabilities': [], 'fonts': [], 'sfx': [],
+                                   'music': [], 'scriptLine': 7}])
+        self.assertIsNone(out[2])
+        self.assertEqual(out[3], 'Script, line 3: "A note."\nA second note.')
 
 
 class Docs(unittest.TestCase):
