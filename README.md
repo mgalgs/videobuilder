@@ -362,6 +362,12 @@ clip (a title and a line, shown as a card until the builder makes it),
 starts and renames acts, and takes an uploaded song from an Audio lane's
 menu. **Make a copy** is on each video's card in the library.
 
+**Pre-production.** A video can start (or be switched) into pre-production,
+a stage before anything renders where the director develops the script,
+cast, look and scene plan with the builder first; see
+[docs/preproduction.md](docs/preproduction.md) for the bible files involved
+and the API behind it.
+
 **Fine tuning** opens the original timeline and copy editor. It starts
 collapsed. You can drag rollable cut handles, edit copy, and undo the last
 change there. Each direct edit commits a new version. If `auto_land = false`,

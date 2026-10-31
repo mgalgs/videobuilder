@@ -1440,5 +1440,27 @@ class ListenEarly(LibraryFixture, unittest.TestCase):
         self.assertIn('## Listening notes', self.backend.seen[-1])
 
 
+class Docs(unittest.TestCase):
+    """docs/preproduction.md must name every route preprod_api registers,
+    the library-only New-video routes, and every bible/ file -- so a route
+    added later without updating the doc fails this test (R42)."""
+
+    def test_every_preprod_route_and_bible_file_is_documented(self):
+        from videobuilder import video_api
+        doc = (Path(__file__).resolve().parents[1] / 'docs' / 'preproduction.md').read_text()
+        routes = set()
+        for pattern, handler in video_api.GET_ROUTES + video_api.POST_ROUTES:
+            if getattr(handler, '__module__', '') != 'videobuilder.preprod_api':
+                continue
+            routes |= {pattern} if isinstance(pattern, str) else set(pattern)
+        self.assertTrue(routes, "no route resolved to preprod_api -- the test itself needs updating")
+        library_routes = {'/api/videos/new', '/api/videos/staging', '/api/videos/mode', '/api/phase'}
+        for route in routes | library_routes:
+            self.assertIn(route, doc, f'{route} is not documented in docs/preproduction.md')
+        for name in ('bible/phase.json', 'bible/script.fountain', 'bible/scenes.json',
+                    'bible/options/<id>.json'):
+            self.assertIn(name, doc)
+
+
 if __name__ == '__main__':
     unittest.main()
