@@ -549,6 +549,7 @@ class ArchiveImportInBackground(fixtures.API):
         _mp4(self.clip, audio=True)
         self.data = self.clip.read_bytes()
         self.downloads = []
+        self.lock, self.finishing = threading.Lock(), False
         patches = [mock.patch('videobuilder.archive_org.get_metadata', side_effect=self._item),
                    mock.patch('videobuilder.archive_org.open_download', side_effect=self._open)]
         for patch in patches:
@@ -561,8 +562,12 @@ class ArchiveImportInBackground(fixtures.API):
         self.cut = False
 
     def _finish(self):
-        for download in self.downloads:
-            download.go.set()
+        # An import thread may not have opened its download yet: _open releases
+        # any download opened from here on.
+        with self.lock:
+            self.finishing = True
+            for download in self.downloads:
+                download.go.set()
         _join_imports(self.editor.sources)
         sources_module._BUILD_QUEUE.join()
 
@@ -574,7 +579,10 @@ class ArchiveImportInBackground(fixtures.API):
 
     def _open(self, identifier, filename):
         download = _SlowDownload(self.data, cut=self.cut)
-        self.downloads.append(download)
+        with self.lock:
+            self.downloads.append(download)
+            if self.finishing:
+                download.go.set()
         return download, len(self.data), 'video/mp4'
 
     def _listed(self):
