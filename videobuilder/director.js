@@ -49,7 +49,11 @@ const state = {
   sourcePending: null,
   sourcePlayer: null,
   archiveResults: [],
-  archiveQuery: ''
+  archiveQuery: '',
+  phase: null,
+  board: null,
+  ppTab: 'script',
+  ppSeq: 0
 };
 const player = $('player');
 const timeLabel = s => {
@@ -256,7 +260,9 @@ function updateLabels() {
   $('rail-version').textContent=`v${v.n}`;
   $('caption-by').textContent=`Builder · v${v.n}`;
   $('caption-text').textContent=v.summary||'';
-  $('sheet-subtitle').textContent=`Playing v${v.n} · ${timeLabel(player.currentTime)}`;
+  // In pre-production the sheet keeps applyPhase's own subtitle: nothing is playing.
+  if(state.phase!=='pre-production')
+    $('sheet-subtitle').textContent=`Playing v${v.n} · ${timeLabel(player.currentTime)}`;
   const multi=(state.project?.videos?.length||0)>1;
   const base=libName?(multi?`${libName}-${state.video}`:libName):state.video;
   const name=`${base.replaceAll('/','-')}-v${v.n}-${state.format}.mp4`;
@@ -349,6 +355,7 @@ async function setFormat(format) {
   await loadPlayer()
 }
 async function loadPlayer(retry=false) {
+  if(state.phase==='pre-production')return;
   if(!state.video||!state.format)return;
   clearTimeout(state.renderTimer);
   // visibilitychange treats a non-null timer as "render still pending".
@@ -420,6 +427,11 @@ async function loadPlayer(retry=false) {
     $('poster').hidden=false;
     // editorBack polls again; until then the render reads as still on its way.
     if(state.restarting)return;
+    // Someone else flipped the video back to pre-production: show the board instead of an error.
+    if(e.status===409) {
+      loadPreprod();
+      return
+    }
     $('render-text').textContent=e.message;
     $('retry-render').hidden=false;
     setPlayState('play')
@@ -460,7 +472,8 @@ function playVersion(v,deliberate) {
 function updateTime() {
   const duration=Number.isFinite(player.duration)?player.duration:(state.info?state.info.frames/state.info.fps:0);
   $('time-display').textContent=`${timeLabel(player.currentTime)} / ${timeLabel(duration)}`;
-  $('sheet-subtitle').textContent=`Playing v${currentVersion()?.n||'…'} · ${timeLabel(player.currentTime)}`;
+  if(state.phase!=='pre-production')
+    $('sheet-subtitle').textContent=`Playing v${currentVersion()?.n||'…'} · ${timeLabel(player.currentTime)}`;
   const percent=duration ? Math.min(100, 100*player.currentTime/duration) : 0;
   $('progress-fill').style.width=`${percent}%`;
   $('progress').setAttribute('aria-valuenow', Math.round(percent));
@@ -957,7 +970,8 @@ async function loadNotes() {
     if(prev!==next) {
       renderNotes();
       if(notBuilt(currentVersion()))showBlank();
-      if(state.notes.some(n=>n.version))loadVersions()
+      if(state.notes.some(n=>n.version))loadVersions();
+      if(state.phase==='pre-production')loadPreprod()
     }
     updateBuildPill();
     // Clear only the poll's own error, never one from a send the director made.
@@ -1026,7 +1040,12 @@ async function loadVersions(more=false) {
     state.versionCursor=data.versions.length===50?data.versions.at(-1).commit:null;
     const latest=state.versions[0];
     if(latest&&old&&latest.commit!==old.commit) {
-      if(state.deliberate) {
+      if(state.phase==='pre-production') {
+        state.commit=latest.commit;
+        state.deliberate=false;
+        loadPreprod()
+      }
+      else if(state.deliberate) {
         toast(`v${latest.n} is ready`,latest)
       }
       else {
@@ -2287,7 +2306,7 @@ async function addPending() {
   state.sending=true;
   $('add-note').disabled=true;
   showError('');
-  const time=state.stamp?player.currentTime||0:null;
+  const time=state.stamp&&state.phase!=='pre-production'?player.currentTime||0:null;
   try {
     const attachments=await uploadFiles([...state.files]);
     // The capabilities the note's #id chips named (suggest.js); [] where suggest.js never mounted.
@@ -2405,6 +2424,10 @@ async function openVideo(video) {
   state.versionCursor=null;
   state.steps={};
   state.tl=null;
+  state.phase=null;
+  state.board=null;
+  state.ppTab='script';
+  ppShowTab('script');
   renderTimeline();
   renderScope();
   clearTimeout(state.renderTimer);
@@ -2433,6 +2456,7 @@ async function openVideo(video) {
     const preferred=window.innerWidth<=700 ? formats.find(f=>f.name==='9x16')?.name : null;
     state.format=formats.find(f=>f.name===saved)?.name || preferred || formats[0]?.name;
     renderFormats();
+    await loadPreprod();
     await loadTimeline();
     await loadVersions();
     await loadNotes();
@@ -2751,7 +2775,7 @@ async function sendNow() {
   if(!await ensureName())return;
   state.sending=true;
   showError('Sending…');
-  const time=state.stamp?player.currentTime||0:null;
+  const time=state.stamp&&state.phase!=='pre-production'?player.currentTime||0:null;
   try {
     const attachments=await uploadFiles([...state.files]);
     const capabilities=typeof noteCapabilityIds==='function'?noteCapabilityIds():[];
@@ -4271,6 +4295,224 @@ for(const id of ['blank-details','sources-details'])$(id).onclick=openFilmDetail
 function fdShowLink() {
   $('sources-details').hidden=!canAddClip()
 }
+// ---- Pre-production board (preprod_api.py, docs/preproduction.md) ----
+// A video in pre-production shows the board instead of the player: nothing renders
+// (loadPlayer's own guard), and the director picks, drafts and plans through the API
+// below rather than watching a render. Chat stays exactly where it is.
+const PP_TABS=['script','characters','look','scenes'];
+const PP_TAB_LABEL={script:'Script',characters:'Characters',look:'Look',scenes:'Scenes'};
+const PP_ICON={open:'<circle cx="12" cy="12" r="8"/>'};
+// Pure: the DOM flags for a phase, with no DOM touched -- testable in node with no stubs.
+function ppLayout(phase) {
+  const pre=phase==='pre-production';
+  return {board:pre,watch:!pre,header:pre,phoneFormat:!pre,timestamp:!pre,back:!pre}
+}
+function applyPhase(phase) {
+  const was=state.phase;
+  state.phase=phase;
+  const L=ppLayout(phase);
+  $('board').hidden=!L.board;
+  $('watch').hidden=!L.watch;
+  for(const id of ['pp-sub','pp-phase','pp-settled','pp-start'])$(id).hidden=!L.header;
+  $('phone-format').hidden=!L.phoneFormat;
+  $('timestamp').hidden=!L.timestamp;
+  $('pp-back').hidden=!L.back;
+  document.body.classList.toggle('preprod',phase==='pre-production');
+  if(phase==='pre-production'&&was!=='pre-production') {
+    player.pause();
+    clearTimeout(state.renderTimer);
+    state.renderTimer=null;
+    $('sheet-subtitle').textContent='Pre-production · the board updates as you talk'
+  }
+  else if(phase!=='pre-production'&&was==='pre-production') {
+    loadPlayer()
+  }
+}
+async function loadPreprod() {
+  if(!state.video)return;
+  const seq=++state.ppSeq;
+  try {
+    const board=await json('preprod', {video:state.video});
+    if(seq!==state.ppSeq)return;
+    state.board=board;
+    applyPhase(board.phase);
+    renderBoard()
+  }
+  catch(e) {
+    if(seq!==state.ppSeq)return;
+    // A first load that can't tell the phase renders as production (A1): any later
+    // poll failure leaves the phase as it was and only reports itself.
+    if(state.phase==null)applyPhase('production');
+    showError(e.message)
+  }
+}
+function ppSettled(checklist) {
+  return checklist.filter(c=>c.settled).length
+}
+function ppTabStatus(board) {
+  const setsById=Object.fromEntries(board.sets.map(s=>[s.id,s]));
+  const script=!board.script.exists ? 'No draft yet'
+    : board.script.draft!=null ? `Draft ${board.script.draft}` : 'Untitled draft';
+  const n=board.characters.length;
+  const picked=board.characters.filter(c=>c.set&&setsById[c.set]?.pick).length;
+  const characters=n ? `${picked} of ${n} picked` : 'No characters yet';
+  const lookSet=setsById.look;
+  const lookLabel=lookSet?.pick ? lookSet.options.find(o=>o.key===lookSet.pick)?.label : null;
+  const look=lookLabel||'Open';
+  const scenes=board.scenes.scenes;
+  const open=scenes.filter(s=>s.set&&!setsById[s.set]?.pick).length;
+  const scenesStatus=!scenes.length ? 'No scenes yet'
+    : open ? `${scenes.length} · ${open} to pick` : `${scenes.length} scenes`;
+  return {script,characters,look,scenes:scenesStatus}
+}
+function ppChecklistDetail(item) {
+  const d=item.detail;
+  switch(item.id) {
+    case 'logline':return d.text||'Not written yet';
+    case 'script':return d.scenes ? `Draft ${d.draft??1} · ${d.scenes} scene${d.scenes===1?'':'s'}` : 'No script yet';
+    case 'look':return d.label||'No look chosen yet';
+    case 'cast': {
+      const parts=[];
+      if(d.picked.length)parts.push(`${d.picked.join(', ')} picked`);
+      if(d.open.length)parts.push(`${d.open.join(', ')} open`);
+      return parts.join(' · ')||'No characters yet'
+    }
+    case 'scenes':return d.count
+      ? `${d.count} scene${d.count===1?'':'s'}${d.open.length?` · ${d.open.length} to pick`:''}` : 'No scenes yet';
+    default:return ''
+  }
+}
+const PP_CHECK_TAB={logline:'script',script:'script',look:'look',cast:'characters',scenes:'scenes'};
+function ppChecklistHtml(board) {
+  return board.checklist.map(item=> {
+    const open=!item.settled,tab=PP_CHECK_TAB[item.id];
+    const mark=open?svg(PP_ICON.open,16):svg(TL_ICON.ready,16);
+    const go=open?`<button type="button" class="link-button" data-pp="goto" data-pp-tab="${tab}">`+
+      `Go to ${esc(PP_TAB_LABEL[tab])}</button>`:'';
+    return `<li class="pp-check${open?' open':' settled'}"><span class="pp-check-mark">${mark}</span>`+
+      `<span class="pp-check-body"><strong>${esc(item.label)}</strong>`+
+      `<span class="pp-check-detail">${esc(ppChecklistDetail(item))}</span>${go}</span>`+
+      `<span class="pp-check-state">${open?'Open':'Settled'}</span></li>`
+  }).join('')
+}
+function ppProblemsText(problems) {
+  return 'Some files could not be read: '+problems.map(p=>`${p.file} (${p.error})`).join('; ')
+}
+function renderBoard() {
+  const b=state.board;
+  if(!b)return;
+  const settled=`${ppSettled(b.checklist)} of 5 settled`;
+  $('pp-settled').textContent=settled;
+  $('pp-sub').textContent=`Pre-production · ${settled}`;
+  const openCount=b.checklist.filter(c=>!c.settled).length;
+  $('pp-start').textContent=openCount?`Start production (${openCount} open)`:'Start production';
+  const st=ppTabStatus(b);
+  for(const tab of PP_TABS)$(`pp-st-${tab}`).textContent=st[tab];
+  $('pp-problems').hidden=!b.problems.length;
+  if(b.problems.length)$('pp-problems').textContent=ppProblemsText(b.problems);
+  if(!$('pp-start-pop').hidden)renderStartPop()
+}
+// Checklist items live in the dialog, outside #board's delegation.
+function ppGoto(tab) {
+  ppOpenStart(false);
+  ppShowTab(tab)
+}
+function renderStartPop() {
+  const b=state.board;
+  if(!b)return;
+  $('pp-checks').innerHTML=ppChecklistHtml(b);
+  const openCount=b.checklist.filter(c=>!c.settled).length;
+  $('pp-go').textContent=openCount?`Start production (${openCount} open)`:'Start production';
+  const n=b.scenes.scenes.length;
+  $('pp-est').textContent=n ? `${n} scene${n===1?'':'s'} · about ${b.scenes.length} of video` : 'No scenes planned yet'
+}
+function ppOpenStart(open) {
+  $('pp-start-shade').hidden=!open;
+  $('pp-start-pop').hidden=!open;
+  $('pp-start').setAttribute('aria-expanded',String(open));
+  $('pp-start-error').hidden=true;
+  if(open)renderStartPop()
+}
+function ppShowTab(tab) {
+  state.ppTab=tab;
+  for(const t of PP_TABS) {
+    $(`pp-tab-${t}`).setAttribute('aria-selected',String(t===tab));
+    $(`pp-panel-${t}`).hidden=t!==tab
+  }
+}
+async function ppStartProduction(button) {
+  button.disabled=true;
+  $('pp-start-error').hidden=true;
+  try {
+    const r=await json('phase',null, {video:state.video,phase:'production'});
+    ppOpenStart(false);
+    // applyPhase plays state.commit at once; in pre-production that never advanced.
+    if(r.commit) {
+      state.commit=r.commit;
+      state.deliberate=false
+    }
+    applyPhase(r.phase);
+    await loadNotes();
+    await loadVersions()
+  }
+  catch(e) {
+    $('pp-start-error').textContent=e.message;
+    $('pp-start-error').hidden=false
+  }
+  finally {
+    button.disabled=false
+  }
+}
+// Arm-then-confirm, as Sources' Delete does (keepDeleteConfirm): the first click only
+// asks; the second, within 3 s, actually posts. One button, never redrawn mid-window,
+// so (unlike Sources' list) there is nothing else to keep re-armed.
+let ppBackArmed=false,ppBackTimer=null;
+function ppBackToPreprod(button) {
+  if(ppBackArmed) {
+    clearTimeout(ppBackTimer);
+    ppBackArmed=false;
+    button.textContent='Back to pre-production';
+    return confirmBackToPreprod(button)
+  }
+  ppBackArmed=true;
+  button.textContent='Really go back to planning?';
+  ppBackTimer=setTimeout(()=> {
+    ppBackArmed=false;
+    button.textContent='Back to pre-production'
+  },3000)
+}
+async function confirmBackToPreprod(button) {
+  button.disabled=true;
+  try {
+    const r=await json('phase',null, {video:state.video,phase:'pre-production'});
+    applyPhase(r.phase);
+    await loadPreprod()
+  }
+  catch(e) {
+    toast(e.message)
+  }
+  finally {
+    button.disabled=false
+  }
+}
+$('board').addEventListener('click',e=> {
+  const b=e.target.closest('[data-pp]');
+  if(!b)return;
+  const act=b.dataset.pp;
+  if(act==='tab'||act==='goto')ppShowTab(b.dataset.ppTab)
+});
+$('pp-start').onclick=()=>ppOpenStart(true);
+$('pp-keep').onclick=()=>ppOpenStart(false);
+$('pp-checks').addEventListener('click',e=> {
+  const b=e.target.closest('[data-pp="goto"]');
+  if(b)ppGoto(b.dataset.ppTab)
+});
+$('pp-go').onclick=()=>ppStartProduction($('pp-go'));
+$('pp-start-shade').onclick=()=>ppOpenStart(false);
+$('pp-back').onclick=()=>ppBackToPreprod($('pp-back'));
+document.addEventListener('keydown',e=> {
+  if(e.key==='Escape'&&!$('pp-start-pop').hidden)ppOpenStart(false)
+});
 // ---- Startup and periodic polling ----
 stampLabel();
 init();

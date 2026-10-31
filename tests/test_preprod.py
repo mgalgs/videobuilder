@@ -2,6 +2,9 @@
 the board API (preprod.py, preprod_api.py, fountain.py)."""
 import json
 import os
+import re
+import shutil
+import subprocess
 import threading
 import time
 import unittest
@@ -1438,6 +1441,411 @@ class ListenEarly(LibraryFixture, unittest.TestCase):
         self.assertEqual(code, 200, note)
         self.assertEqual(len(self.fake.requests), 1)
         self.assertIn('## Listening notes', self.backend.seen[-1])
+
+
+PKG = Path(__file__).resolve().parents[1] / 'videobuilder'
+
+
+def _fns(js, *names):
+    """Extract named top-level function (or async function) declarations
+    from director.js: they all close with a bare `}` at column 0, so a
+    lazy DOTALL search finds exactly the function's own body."""
+    return '\n'.join(re.search(r'\n(?:async )?function ' + re.escape(n) + r'\(.*?\n\}', js, re.S).group(0)
+                     for n in names)
+
+
+def _consts(js, *names):
+    """Extract top-level const/let declarations. A braces-bodied arrow (node's) closes with
+    a bare '};' line; everything else here is lazy up to its own first ';' (none embed one)."""
+    out = []
+    for n in names:
+        pat = r'\n(?:const|let) ' + re.escape(n) + r' ?=\s*\([^()]*\)\s*=>\s*\{.*?\n\};\n'
+        m = re.search(pat, js, re.S) or re.search(r'\n(?:const|let) ' + re.escape(n) + r' ?=.*?;\n', js, re.S)
+        out.append(m.group(0))
+    return '\n'.join(out)
+
+
+def run_node(script):
+    result = subprocess.run(['node', '-'], input=script.encode(), capture_output=True)
+    if result.returncode != 0:
+        raise AssertionError(result.stderr.decode())
+    return json.loads(result.stdout)
+
+
+SCRIPT_TEXT = (
+    "Title: The Keeper's Light\n"
+    "Draft: 2\n"
+    "\n"
+    "# Act One\n"
+    "\n"
+    "= A keeper faces the storm, alone in the light.\n"
+    "\n"
+    "INT. LIGHTHOUSE - LANTERN ROOM - NIGHT #1#\n"
+    "\n"
+    'The lamp turns. Rain needles the glass. <b>Bright</b> & "loud".\n'
+    "\n"
+    "MARA\n"
+    "(checking the log)\n"
+    "Still turning. Good.\n"
+    "\n"
+    "> CUT TO:\n"
+    "\n"
+    "EXT. LIGHTHOUSE - CLIFF - NIGHT #2#\n"
+    "\n"
+    "The sea throws itself at the rock.\n"
+)
+
+BOARD_SONGS = [{
+    'id': 'storm-theme', 'name': 'Storm theme', 'file': 'storm-theme.mp3',
+    'duration': 142.5, 'bpm': 92, 'mood': 'tense, building',
+    'sections': [{'name': 'intro', 'start': 0, 'end': 18, 'text': 'sparse, just wind'}],
+}]
+BOARD_SCENES = [
+    {'id': 'lantern-room', 'slugline': 'INT. LIGHTHOUSE - LANTERN ROOM - NIGHT',
+     'summary': 'Mara checks the lamp as the storm builds.', 'seconds': 28,
+     'song': 'storm-theme', 'section': 'intro', 'from': 0, 'to': 18, 'look': None},
+    {'id': 'cliff', 'slugline': 'EXT. LIGHTHOUSE - CLIFF - NIGHT',
+     'summary': 'The sea throws itself at the rock.', 'seconds': 20,
+     'song': None, 'section': None, 'from': None, 'to': None,
+     'look': {'name': 'Sunbleached', 'reason': 'a small warm light against a huge dark sea'}},
+    {'id': 'dawn', 'slugline': 'EXT. LIGHTHOUSE - DAWN',
+     'summary': 'The storm breaks; the light finally rests.', 'seconds': 18,
+     'song': None, 'section': None, 'from': None, 'to': None, 'look': None},
+]
+BOARD_LOOK_SET = {
+    'topic': 'look', 'id': 'look', 'question': 'Which look fits the storm best?',
+    'options': [
+        {'key': 'A', 'label': 'Moody', 'text': 'Low-key lighting, long shadows, a single warm light.',
+         'image': 'bible/options/look/A.png', 'kind': 'vb', 'swatches': ['#101418', '#5a4632', '#8aa0b0']},
+        {'key': 'B', 'label': 'Bright', 'text': 'High-key, saturated colour, storm as spectacle.',
+         'image': 'bible/options/look/B.png', 'kind': 'concept'},
+    ]}
+MARA_SET = {
+    'topic': 'character', 'id': 'character-mara', 'character': 'mara', 'question': 'Who is Mara?',
+    'options': [{'key': 'A', 'label': 'Weathered keeper', 'text': 'Decades at the light; quiet, exact.'},
+               {'key': 'B', 'label': 'Reluctant heir', 'text': 'New to the post, still learning the lamp.'}]}
+TOM_SET = {
+    'topic': 'character', 'id': 'character-tom', 'character': 'tom', 'question': 'Who is Tom?',
+    'options': [{'key': 'A', 'label': 'Worried brother', 'text': 'Calls every night the radio allows.'},
+               {'key': 'B', 'label': 'Estranged brother', 'text': "Hasn't spoken to Mara in years."}]}
+LANTERN_SET = {
+    'topic': 'scene', 'id': 'scene-lantern-room', 'scene': 'lantern-room',
+    'question': 'How does this scene open?',
+    'options': [{'key': 'A', 'label': 'Calm before', 'text': 'Mara checks the lamp, unhurried.',
+                'image': 'bible/options/scene-lantern-room/A.png', 'kind': 'vb'},
+               {'key': 'B', 'label': 'Already tense', 'text': 'The storm is already audible.'}]}
+CLIFF_SET = {
+    'topic': 'scene', 'id': 'scene-cliff', 'scene': 'cliff', 'question': 'What does the sea look like?',
+    'options': [{'key': 'A', 'label': 'Calm', 'text': 'Deceptively still.'},
+               {'key': 'B', 'label': 'Violent', 'text': 'Already breaking over the rocks.'}]}
+
+
+class BoardFixture(Server):
+    """The lighthouse film (docs/preproduction.md's own example), built entirely through
+    the documented API: a draft-2 script with all 8 Fountain element types (and one line
+    carrying `<b>&"` to prove the renderer escapes it), two characters (Mara with an
+    uploaded picture, Tom with none), a 3-scene plan with one per-scene look override,
+    a look set (A a committed vb picture, B a concept not yet made) and two scene-plot
+    sets (lantern-room's with a picture). Look and Mara are picked; Tom and both scene
+    sets are left open, so the checklist reads 3 of 5 settled."""
+
+    def setUp(self):
+        super().setUp()
+        self.post('/api/phase', {'video': VIDEO, 'phase': 'pre-production'})
+        (self.directory / 'bible').mkdir(exist_ok=True)
+        (self.directory / 'bible/bible.md').write_text(
+            '## Logline\n\nA keeper rides out a storm that found her brother first.\n')
+        git(self.root, 'add', '-A')
+        git(self.root, 'commit', '-qm', 'logline')
+        mara_att = self.editor.attachments.upload(VIDEO, 'mara-1.png', 'image/png', png((80, 40, 120)))
+        self.post('/api/film', {'video': VIDEO, 'base': self.commit_main(), 'characters': [
+            {'name': 'Mara', 'description': 'The keeper.', 'keep': [], 'add': [mara_att['id']]},
+            {'name': 'Tom', 'description': 'Her brother, ashore.', 'keep': [], 'add': []},
+        ]})
+        self.post('/api/preprod/script', {'video': VIDEO, 'base': self.commit_main(), 'text': SCRIPT_TEXT})
+        self.post('/api/preprod/scenes', {'video': VIDEO, 'base': self.commit_main(),
+                                          'songs': BOARD_SONGS, 'scenes': BOARD_SCENES})
+        (self.directory / 'bible/options/look').mkdir(parents=True)
+        (self.directory / 'bible/options/look/A.png').write_bytes(png((10, 20, 30)))
+        git(self.root, 'add', '-A')
+        git(self.root, 'commit', '-qm', 'look vb frame')
+        self.post('/api/preprod/sets', {'video': VIDEO, 'base': self.commit_main(), 'set': BOARD_LOOK_SET})
+        self.post('/api/preprod/sets', {'video': VIDEO, 'base': self.commit_main(), 'set': MARA_SET})
+        self.post('/api/preprod/sets', {'video': VIDEO, 'base': self.commit_main(), 'set': TOM_SET})
+        (self.directory / 'bible/options/scene-lantern-room').mkdir(parents=True)
+        (self.directory / 'bible/options/scene-lantern-room/A.png').write_bytes(png((40, 90, 60)))
+        git(self.root, 'add', '-A')
+        git(self.root, 'commit', '-qm', 'scene vb frame')
+        self.post('/api/preprod/sets', {'video': VIDEO, 'base': self.commit_main(), 'set': LANTERN_SET})
+        self.post('/api/preprod/sets', {'video': VIDEO, 'base': self.commit_main(), 'set': CLIFF_SET})
+        self.post('/api/preprod/pick', {'video': VIDEO, 'set': 'look', 'key': 'A'})
+        self.post('/api/preprod/pick', {'video': VIDEO, 'set': 'character-mara', 'key': 'A'})
+
+
+EMPTY_BOARD = {'script': {'exists': False, 'draft': None, 'title': None, 'scenes': 0},
+              'characters': [], 'sets': [],
+              'scenes': {'songs': [], 'scenes': [], 'seconds': 0, 'length': '0:00'}}
+
+
+class BoardLayoutJS(unittest.TestCase):
+    @unittest.skipUnless(shutil.which('node'), 'node is not available in this environment')
+    def test_layout_for_each_phase(self):
+        js = (PKG / 'director.js').read_text()
+        script = _fns(js, 'ppLayout') + """
+console.log(JSON.stringify(['pre-production','production',null].map(ppLayout)));
+"""
+        pre, prod, none = run_node(script)
+        self.assertEqual(pre, {'board': True, 'watch': False, 'header': True, 'phoneFormat': False,
+                               'timestamp': False, 'back': False})
+        self.assertEqual(prod, {'board': False, 'watch': True, 'header': False, 'phoneFormat': True,
+                                'timestamp': True, 'back': True})
+        self.assertEqual(none, prod)
+
+
+class BoardJS(BoardFixture):
+    @unittest.skipUnless(shutil.which('node'), 'node is not available in this environment')
+    def test_settled_count_and_tab_statuses(self):
+        js = (PKG / 'director.js').read_text()
+        script = _fns(js, 'ppSettled', 'ppTabStatus') + """
+console.log(JSON.stringify([ppSettled(BOARD.checklist), ppTabStatus(BOARD), ppTabStatus(EMPTY)]));
+""".replace('BOARD', json.dumps(self.board())).replace('EMPTY', json.dumps(EMPTY_BOARD))
+        settled, status, empty_status = run_node(script)
+        self.assertEqual(settled, 3)
+        self.assertEqual(status, {'script': 'Draft 2', 'characters': '1 of 2 picked',
+                                  'look': 'Moody', 'scenes': '3 · 2 to pick'})
+        self.assertEqual(empty_status, {'script': 'No draft yet', 'characters': 'No characters yet',
+                                        'look': 'Open', 'scenes': 'No scenes yet'})
+
+    @unittest.skipUnless(shutil.which('node'), 'node is not available in this environment')
+    def test_start_production_checklist(self):
+        js = (PKG / 'director.js').read_text()
+        script = (_consts(js, 'esc', 'svg', 'TL_ICON', 'PP_ICON', 'PP_CHECK_TAB', 'PP_TAB_LABEL') +
+                 _fns(js, 'ppChecklistDetail', 'ppChecklistHtml') + """
+console.log(ppChecklistHtml(BOARD));
+""".replace('BOARD', json.dumps(self.board())))
+        result = subprocess.run(['node', '-'], input=script.encode(), capture_output=True)
+        self.assertEqual(result.returncode, 0, result.stderr.decode())
+        html = result.stdout.decode()
+        self.assertEqual(html.count('class="pp-check '), 5)
+        self.assertEqual(html.count('>Settled</span>'), 3)
+        self.assertEqual(html.count('>Open</span>'), 2)
+        self.assertEqual(html.count('data-pp="goto"'), 2)
+        self.assertIn('data-pp-tab="characters"', html)
+        self.assertIn('data-pp-tab="scenes"', html)
+        self.assertNotIn('data-pp-tab="script"', html)   # script and look are already settled
+
+    @unittest.skipUnless(shutil.which('node'), 'node is not available in this environment')
+    def test_problems_are_listed(self):
+        (self.directory / 'bible/options/broken.json').write_text('not json')
+        git(self.root, 'add', '-A')
+        git(self.root, 'commit', '-qm', 'hand-broken set')
+        board = self.board()
+        self.assertEqual(len(board['problems']), 1)
+        js = (PKG / 'director.js').read_text()
+        script = (_consts(js, 'esc', 'svg', 'TL_ICON', 'PP_ICON', 'PP_CHECK_TAB', 'PP_TAB_LABEL') +
+                  _fns(js, 'ppProblemsText', 'ppSettled', 'ppTabStatus', 'ppChecklistDetail',
+                       'ppChecklistHtml') + """
+console.log(JSON.stringify([ppProblemsText(BOARD.problems), ppTabStatus(BOARD), ppSettled(BOARD.checklist),
+  ppChecklistHtml(BOARD).split('class="pp-check ').length-1]));
+""".replace('BOARD', json.dumps(board)))
+        text, status, settled, checks = run_node(script)
+        problem = board['problems'][0]
+        self.assertIn('bible/options/broken.json', text)
+        self.assertIn(f"{problem['file']} ({problem['error']})", text)
+        # everything else still renders from the same body
+        self.assertEqual(status, {'script': 'Draft 2', 'characters': '1 of 2 picked',
+                                  'look': 'Moody', 'scenes': '3 · 2 to pick'})
+        self.assertEqual((settled, checks), (3, 5))
+
+
+class BoardActionsJS(BoardFixture):
+    @unittest.skipUnless(shutil.which('node'), 'node is not available in this environment')
+    def test_start_production_posts_phase_and_survives_a_refusal(self):
+        js = (PKG / 'director.js').read_text()
+        script = _fns(js, 'ppStartProduction', 'ppOpenStart') + """
+const state={video:'promo/film'};
+const els={};
+const mk=()=>({hidden:true,textContent:'',disabled:false,setAttribute(){}});
+const $=id=>els[id]??=mk();
+const calls=[];
+const applyPhase=p=>calls.push(['applyPhase',p]);
+const loadNotes=async()=>calls.push('loadNotes');
+const loadVersions=async()=>calls.push('loadVersions');
+let reply=null;
+const json=async(path,params,body)=>{calls.push([path,body]);
+  if(reply instanceof Error)throw reply;
+  return reply};
+(async()=>{
+  const out=[];
+  reply=Object.assign(new Error('the video does not load; fix it before starting production'),{status:409});
+  const b1={disabled:false};
+  await ppStartProduction(b1);
+  out.push([calls.splice(0), $('pp-start-error').hidden, $('pp-start-error').textContent, b1.disabled]);
+  state.commit='c1';
+  state.deliberate=true;
+  reply={phase:'production',changed:true,commit:'c2',n:2,note:{id:'n1'}};
+  const b2={disabled:false};
+  await ppStartProduction(b2);
+  out.push([calls.splice(0), $('pp-start-pop').hidden, b2.disabled, state.commit, state.deliberate]);
+  console.log(JSON.stringify(out));
+})();
+"""
+        out = run_node(script)
+        posted = ['phase', {'video': VIDEO, 'phase': 'production'}]
+        self.assertEqual(out[0], [[posted], False,
+                                  'the video does not load; fix it before starting production', False])
+        self.assertEqual(out[1][0], [posted, ['applyPhase', 'production'], 'loadNotes', 'loadVersions'])
+        self.assertTrue(out[1][1])     # the popover closes on success
+        self.assertFalse(out[1][2])
+        # production plays the phase commit, not whatever was latest when the video opened
+        self.assertEqual(out[1][3:], ['c2', False])
+
+    @unittest.skipUnless(shutil.which('node'), 'node is not available in this environment')
+    def test_back_to_preproduction_arms_then_posts(self):
+        js = (PKG / 'director.js').read_text()
+        script = _consts(js, 'ppBackArmed') + _fns(js, 'ppBackToPreprod', 'confirmBackToPreprod',
+                                                    'loadPreprod') + """
+const timers=[];
+const setTimeout=fn=>{timers.push(fn);return timers.length};
+const clearTimeout=()=>{};
+const state={video:'promo/film',ppSeq:0};
+const calls=[];
+const applyPhase=p=>calls.push(['applyPhase',p]);
+const renderBoard=()=>calls.push('renderBoard');
+const toast=()=>{};
+let reply={phase:'pre-production',changed:true,commit:'c3',n:3,checklist:[],sets:[],
+  scenes:{scenes:[],songs:[],seconds:0,length:'0:00'},problems:[],characters:[],
+  script:{exists:false,draft:null,title:null,scenes:0}};
+const json=async(path,params,body)=>{calls.push([path,body]);return reply};
+(async()=>{
+  const out=[];
+  const b={textContent:'Back to pre-production'};
+  ppBackToPreprod(b);
+  out.push([b.textContent, calls.splice(0)]);
+  await ppBackToPreprod(b);                  // second click within the window: posts
+  out.push([b.textContent, calls.splice(0)]);
+  const b2={textContent:'Back to pre-production'};
+  ppBackToPreprod(b2);
+  timers.pop()();                            // 3 s pass, unarmed
+  ppBackToPreprod(b2);                       // a click now only re-arms
+  out.push([b2.textContent, calls.splice(0)]);
+  console.log(JSON.stringify(out));
+})();
+"""
+        out = run_node(script)
+        self.assertEqual(out[0], ['Really go back to planning?', []])
+        self.assertEqual(out[1][0], 'Back to pre-production')
+        self.assertEqual(out[1][1][0], ['phase', {'video': 'promo/film', 'phase': 'pre-production'}])
+        self.assertEqual(out[1][1][1], ['applyPhase', 'pre-production'])
+        self.assertIn(['preprod', None], out[1][1])
+        self.assertEqual(out[2], ['Really go back to planning?', []])
+
+    @unittest.skipUnless(shutil.which('node'), 'node is not available in this environment')
+    def test_board_refreshes_from_existing_polls_only(self):
+        js = (PKG / 'director.js').read_text()
+        script = _fns(js, 'loadNotes', 'loadVersions') + """
+const calls={loadPreprod:0,loadPlayer:0};
+const toasts=[];
+const state={video:'promo/film',phase:'pre-production',notes:[],versions:[],versionCursor:null,
+  loadingVersions:false,deliberate:false,commit:null,restarting:false,pollError:null};
+const els={};
+const $=id=>els[id]??=({textContent:''});
+const showError=()=>{};
+const renderNotes=()=>{};
+const notBuilt=()=>false;
+const currentVersion=()=>null;
+const showBlank=()=>{};
+const updateBuildPill=()=>{};
+const updateLabels=()=>{};
+const toast=m=>toasts.push(m);
+const loadPreprod=()=>{calls.loadPreprod++};
+const loadPlayer=()=>{calls.loadPlayer++};
+let notesQueue=[{notes:[{id:'n1',state:'queued'}]},{notes:[{id:'n1',state:'queued'}]},
+  {notes:[{id:'n1',state:'working'}]},{notes:[{id:'n1',state:'replied'}]}];
+let versionsQueue=[{versions:[{n:1,commit:'a'}]},{versions:[{n:2,commit:'b'}]}];
+const json=async path=>path==='notes'?notesQueue.shift():versionsQueue.shift();
+(async()=>{
+  const out=[];
+  await loadNotes();
+  out.push(calls.loadPreprod);
+  await loadNotes();
+  out.push(calls.loadPreprod);
+  await loadNotes();
+  out.push(calls.loadPreprod);
+  state.phase='production';
+  await loadNotes();
+  out.push(calls.loadPreprod);
+  state.phase='pre-production';
+  await loadVersions();
+  out.push([calls.loadPreprod,calls.loadPlayer,toasts.length]);
+  await loadVersions();
+  out.push([calls.loadPreprod,calls.loadPlayer,toasts.length,state.commit]);
+  console.log(JSON.stringify(out));
+})();
+"""
+        out = run_node(script)
+        self.assertEqual(out[:4], [1, 1, 2, 2])
+        self.assertEqual(out[4], [2, 1, 0])     # the first version ever seen just starts playback
+        # a later commit in pre-production refreshes the board only, but still becomes current
+        self.assertEqual(out[5], [3, 1, 0, 'b'])
+
+    @unittest.skipUnless(shutil.which('node'), 'node is not available in this environment')
+    def test_failures_leave_the_board_as_it_was(self):
+        js = (PKG / 'director.js').read_text()
+        script = _fns(js, 'ppStartProduction', 'loadPreprod') + """
+const state={video:'promo/film',phase:null,board:null,ppSeq:0};
+const els={};
+const mk=()=>({hidden:true,textContent:'',disabled:false});
+const $=id=>els[id]??=mk();
+const applyPhase=p=>{};
+const renderBoard=()=>{};
+const loadNotes=async()=>{};
+const loadVersions=async()=>{};
+const showError=()=>{};
+const resolvers=[];
+const json=(path,params,body)=>new Promise((resolve,reject)=>resolvers.push([path,body,resolve,reject]));
+(async()=>{
+  const out=[];
+  const button={disabled:false};
+  const p1=ppStartProduction(button);
+  const [path1,,,reject1]=resolvers.shift();
+  reject1(Object.assign(new Error('the video does not load; fix it before starting production'),{status:409}));
+  await p1;
+  out.push([path1,state.phase,$('pp-start-error').textContent,$('pp-start-error').hidden,button.disabled]);
+  const p2=loadPreprod();
+  const [,,resolve2]=resolvers.shift();
+  const p3=loadPreprod();
+  const [,,resolve3]=resolvers.shift();
+  resolve3({phase:'pre-production',commit:'new',script:{exists:false}});
+  await p3;
+  resolve2({phase:'pre-production',commit:'stale',script:{exists:false}});
+  await p2;
+  out.push(state.board&&state.board.commit);
+  console.log(JSON.stringify(out));
+})();
+"""
+        out = run_node(script)
+        self.assertEqual(out[0], ['phase', None,
+                                  'the video does not load; fix it before starting production', False, False])
+        self.assertEqual(out[1], 'new')
+
+    @unittest.skipUnless(shutil.which('node'), 'node is not available in this environment')
+    def test_checklist_goto_closes_the_dialog_and_shows_the_tab(self):
+        js = (PKG / 'director.js').read_text()
+        script = _consts(js, 'PP_TABS') + _fns(js, 'ppGoto', 'ppOpenStart', 'ppShowTab') + """
+const state={ppTab:'script'};
+const els={};
+const $=id=>els[id]??=({hidden:false,attrs:{},setAttribute(k,v){this.attrs[k]=v}});
+const renderStartPop=()=>{};
+ppGoto('scenes');
+console.log(JSON.stringify([state.ppTab,$('pp-start-pop').hidden,$('pp-start-shade').hidden,
+  $('pp-panel-scenes').hidden,$('pp-panel-script').hidden,$('pp-tab-scenes').attrs['aria-selected']]));
+"""
+        self.assertEqual(run_node(script), ['scenes', True, True, False, True, 'true'])
+        # the checklist lives in the dialog, outside #board's delegated listener
+        wiring = re.search(r"\$\('pp-checks'\)\.addEventListener\('click',.*?\n\}\);", js, re.S)
+        self.assertIsNotNone(wiring)
+        self.assertIn('ppGoto(b.dataset.ppTab)', wiring.group(0))
 
 
 class Docs(unittest.TestCase):

@@ -31,6 +31,13 @@
 <span id="version-label">Loading…</span>
 <span id="video-cost" class="video-cost" hidden></span>
 </div>
+    <span id="pp-sub" class="phone-only pp-sub" hidden></span>
+    <ol id="pp-phase" class="desktop-only pp-phase" aria-label="Phase" hidden>
+<li aria-current="step">Pre-production <small>now</small></li>
+<li>Production</li>
+</ol>
+    <span id="pp-settled" class="desktop-only pp-settled" hidden></span>
+    <button id="pp-start" class="desktop-only pp-start-btn" aria-expanded="false" aria-controls="pp-start-pop" hidden>Start production</button>
     <button id="upgrade" class="upgrade-chip" hidden>
 </button>
     <a id="capabilities-link" class="desktop-only" href="/capabilities" aria-label="Capabilities">
@@ -61,7 +68,29 @@
 <span>Updating the editor, back in a moment. Your notes and files are kept.</span>
 </div>
   <main class="layout">
-    <section class="watch" aria-label="Video player">
+    <section id="board" class="board" aria-label="Pre-production board" hidden>
+      <p id="pp-problems" class="pp-problems" role="alert" hidden></p>
+      <div id="pp-tabs" class="pp-tabs" role="tablist" aria-label="Pre-production">
+<button id="pp-tab-script" class="pp-tab" role="tab" data-pp="tab" data-pp-tab="script" aria-selected="true" aria-controls="pp-panel-script">
+<span>Script</span><small id="pp-st-script"></small>
+</button>
+<button id="pp-tab-characters" class="pp-tab" role="tab" data-pp="tab" data-pp-tab="characters" aria-selected="false" aria-controls="pp-panel-characters">
+<span>Characters</span><small id="pp-st-characters"></small>
+</button>
+<button id="pp-tab-look" class="pp-tab" role="tab" data-pp="tab" data-pp-tab="look" aria-selected="false" aria-controls="pp-panel-look">
+<span>Look</span><small id="pp-st-look"></small>
+</button>
+<button id="pp-tab-scenes" class="pp-tab" role="tab" data-pp="tab" data-pp-tab="scenes" aria-selected="false" aria-controls="pp-panel-scenes">
+<span>Scenes</span><small id="pp-st-scenes"></small>
+</button>
+<span class="desktop-only pp-tabs-hint">The builder fills this as you talk</span>
+</div>
+      <div id="pp-panel-script" class="pp-panel" role="tabpanel" aria-labelledby="pp-tab-script"></div>
+      <div id="pp-panel-characters" class="pp-panel" role="tabpanel" aria-labelledby="pp-tab-characters" hidden></div>
+      <div id="pp-panel-look" class="pp-panel" role="tabpanel" aria-labelledby="pp-tab-look" hidden></div>
+      <div id="pp-panel-scenes" class="pp-panel" role="tabpanel" aria-labelledby="pp-tab-scenes" hidden></div>
+    </section>
+    <section id="watch" class="watch" aria-label="Video player">
       <div class="player" id="player-box">
         <video id="player" playsinline loop preload="metadata" aria-label="Current video">
 </video>
@@ -339,6 +368,7 @@
 <p class="versions-intro">Every builder reply and every fine tuning edit saves one. Restoring makes a new version, so nothing is lost.</p>
 <div id="version-list" class="scroll-list">
 </div>
+<button id="pp-back" class="link-button" hidden>Back to pre-production</button>
 </div>
       <div id="tune-view" class="panel-view" hidden>
 <p>Optional direct edits. Drag a cut to retime it; edit a line of copy. Each edit saves a version.</p>
@@ -408,6 +438,23 @@
 </div>
     </aside>
   </main>
+  <div id="pp-start-shade" class="music-shade" hidden>
+</div>
+  <section id="pp-start-pop" class="pp-start-pop" role="dialog" aria-modal="true" aria-labelledby="pp-start-title" hidden>
+    <strong id="pp-start-title">Start production?</strong>
+    <p class="pp-start-copy">Production renders the film scene by scene from this board. You can start any
+time: whatever is still open, the builder decides and tells you what it chose.</p>
+    <ul id="pp-checks" class="pp-checks">
+</ul>
+    <p id="pp-start-error" role="alert" hidden>
+</p>
+    <p id="pp-est" class="pp-est">
+</p>
+    <div class="pp-start-foot">
+<button id="pp-keep">Keep planning</button>
+<button id="pp-go" class="accent">Start production</button>
+</div>
+  </section>
   <section id="timeline" class="tl-card collapsed" aria-label="Timeline" hidden>
 </section>
   <div id="tl-shade" class="tl-shade" hidden>

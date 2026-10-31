@@ -364,9 +364,12 @@ menu. **Make a copy** is on each video's card in the library.
 
 **Pre-production.** A video can start (or be switched) into pre-production,
 a stage before anything renders where the director develops the script,
-cast, look and scene plan with the builder first; see
-[docs/preproduction.md](docs/preproduction.md) for the bible files involved
-and the API behind it.
+cast, look and scene plan with the builder first. The editor shows this as
+a Pre-production board (Script, Characters, Look and Scenes tabs) in place
+of the player, with a Start production action once the plan is ready; a
+video in production has a quiet "Back to pre-production" link on its
+Versions tab. See [docs/preproduction.md](docs/preproduction.md) for the
+bible files involved and the API behind it.
 
 **Fine tuning** opens the original timeline and copy editor. It starts
 collapsed. You can drag rollable cut handles, edit copy, and undo the last

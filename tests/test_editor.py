@@ -184,7 +184,7 @@ class DirectorPageRoutes(API):
                     'draft/accept','draft/drop','upgrade','access','music/sources','music/tracks','music/attach',
                     'videos/first-note','sources','pictures','pictures/gpu','archive/search','sources/import',
                     'clip','timeline','timeline/thumb','timeline/footage','film','film/picture','film/start',
-                    'suggest/catalog'}
+                    'suggest/catalog','preprod','phase'}
         # Dynamic attachment, draft and source actions have their own router patterns.
         self.assertTrue(paths - {'attachments/', 'draft/', 'sources/', 'pictures/'} <= expected, paths - expected)
         # The route literals live wherever make_handler's pieces do now, not all in editor.py.
@@ -250,6 +250,34 @@ class DirectorPageRoutes(API):
         for marker in ('id="timeline" class="tl-card collapsed" aria-label="Timeline" hidden',
                        'id="play-scope" class="play-scope" role="group" aria-label="What the player plays" hidden'):
             self.assertIn(marker, html)
+
+    def test_preprod_board_is_hidden_and_production_paths_unchanged(self):
+        # The pre-production board (editor.html + director.js): every board/header/dialog
+        # element ships hidden, so a production video's markup is unaffected; loadPlayer
+        # refuses to render in pre-production and recovers from a 409 by showing the board
+        # instead of an error; a queued note carries no timestamp while planning.
+        import re
+        html = (PKG / 'editor.html').read_text()
+        for marker in ('id="board" class="board" aria-label="Pre-production board" hidden',
+                       'id="pp-sub" class="phone-only pp-sub" hidden',
+                       'id="pp-phase" class="desktop-only pp-phase" aria-label="Phase" hidden',
+                       'id="pp-settled" class="desktop-only pp-settled" hidden',
+                       'id="pp-start" class="desktop-only pp-start-btn" aria-expanded="false"',
+                       'id="pp-start-shade" class="music-shade" hidden',
+                       'id="pp-start-pop" class="pp-start-pop" role="dialog"',
+                       'id="pp-back" class="link-button" hidden'):
+            self.assertIn(marker, html)
+        # Start production's copy says the builder decides anything left open (preprod.py's
+        # production_note_text does the deciding; this is just the dialog's own promise of it).
+        self.assertIn('the builder decides', html)
+        js = (PKG / 'director.js').read_text()
+        player = re.search(r'async function loadPlayer\(retry=false\) \{(.*?)\n\}', js, re.S).group(1)
+        self.assertEqual(player.strip().splitlines()[0], "if(state.phase==='pre-production')return;")
+        self.assertIn("if(e.status===409)", player)
+        self.assertLess(player.index("if(e.status===409)"), player.index("$('retry-render').hidden=false"))
+        for name in ('sendNow', 'addPending'):
+            body = re.search(r'async function ' + name + r'\(\) \{(.*?)\n\}', js, re.S).group(1)
+            self.assertIn("state.stamp&&state.phase!=='pre-production'", body)
 
     @unittest.skipUnless(shutil.which('node'), 'node is not available in this environment')
     def test_moving_a_clip_keeps_acts_runs_of_clips(self):
