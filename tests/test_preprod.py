@@ -2641,6 +2641,7 @@ console.log(JSON.stringify({afterRemove,revoked,paused,trayPlayingId,files:state
         self.assertEqual((out['paused'], out['trayPlayingId']), (1, None))
         self.assertEqual((out['files'], out['renders']), (0, 2))
 
+    @unittest.skipUnless(shutil.which('node'), 'node is not available in this environment')
     def test_an_aborted_upload_settles_so_a_waiting_send_finishes_without_it(self):
         js = (PKG / 'director.js').read_text()
         script = (_fns(js, 'uploadAttachment', 'releaseFileRecord', 'removeFileRecord',
@@ -2666,6 +2667,7 @@ sent.then(a=>console.log(JSON.stringify({sent:a.map(x=>x.id),xhr:big.xhr,progres
         out = run_node(script)
         self.assertEqual(out, {'sent': ['att-2'], 'xhr': None, 'progress': None})
 
+    @unittest.skipUnless(shutil.which('node'), 'node is not available in this environment')
     def test_an_upload_cut_off_by_a_restart_raises_the_banner_and_is_retried_on_the_next_send(self):
         js = (PKG / 'director.js').read_text()
         script = (_consts(js, 'GATEWAY', 'draining', 'RESTART_MESSAGE', 'SIGNED_OUT_MESSAGE') +
