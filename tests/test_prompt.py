@@ -413,9 +413,20 @@ class Preproduction(unittest.TestCase):
         self.assertNotIn('Pre-production', self.render())
 
     def test_section_appears_before_ask_first(self):
-        md = self.render(preproduction={})
+        md = self.render(preproduction={'concepts': True})
         self.assertIn('## Pre-production', md)
         self.assertLess(md.index('## Pre-production'), md.index('## Ask first'))
+
+    def test_concepts_available_describes_the_concepts_block_and_its_caps(self):
+        md = self.render(preproduction={'concepts': True})
+        self.assertIn('```concepts', md)
+        self.assertIn('3 per character', md)
+        self.assertIn('4 for the look', md)
+
+    def test_concepts_unavailable_says_to_use_vb_or_yours_instead(self):
+        md = self.render(preproduction={'concepts': False})
+        self.assertNotIn('```concepts', md)
+        self.assertIn('cannot be generated right now', md)
 
     def test_picks_section_lists_each_pick_and_a_cleared_one(self):
         note = {**NOTE, 'picks': [{'set': 'look', 'key': 'A', 'label': 'Moody'}, {'set': 'character-ana', 'key': None}]}

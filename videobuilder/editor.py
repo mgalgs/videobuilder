@@ -659,6 +659,11 @@ class Editor:
         if artbox is None and artbox_url:
             from .pictures import Artbox
             artbox = Artbox(artbox_url)
+        self.artbox = artbox
+        from .concepts import Concepts
+        self.concepts = Concepts(self, artbox)
+        self.notes.concepts = self.concepts.request
+        self.notes.concept_status = self.concepts.refresh
         self.pictures = None
         if artbox is not None:
             from .pictures import DEFAULT_DAILY_CAP, Pictures
@@ -752,6 +757,9 @@ class Editor:
                 self.drafts.accept(video, note.get('author'), note)
             except ValueError as exc:
                 self.notes.update(note, state='conflict', message=str(exc))
+        # Also for a reply with no branch (its commits, if any, are already main's) or one
+        # waiting on a manual Accept, which kick leaves requested until it's decided.
+        self.concepts.kick(video)
 
     def main_moved(self):
         if not self.project.git:
@@ -1668,6 +1676,8 @@ def serve(root, host='127.0.0.1', port=8100, state_dir=None, open_browser=False,
     loops = [_ticker(editor.notes.tick, stop_sync)]
     if editor.pictures:
         loops.append(_ticker(editor.pictures.tick, stop_sync, 'picture poll'))
+    if editor.artbox:
+        loops.append(_ticker(editor.concepts.tick, stop_sync, 'concept poll'))
     if editor.sync:
         def periodic_sync():
             while not stop_sync.wait(editor.sync.interval):

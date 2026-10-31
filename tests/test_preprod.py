@@ -2,6 +2,7 @@
 the board API (preprod.py, preprod_api.py, fountain.py)."""
 import json
 import threading
+import time
 import unittest
 import urllib.error
 import urllib.request
@@ -9,7 +10,7 @@ from http.server import ThreadingHTTPServer
 from pathlib import Path
 from unittest import mock
 
-from tests.fake_artbox import png
+from tests.fake_artbox import FakeArtbox, png
 from tests.fixtures import settle
 from tests.test_project import TempProject
 from videobuilder import fountain, preprod
@@ -93,6 +94,7 @@ class Board(Server):
         self.assertEqual(body['scenes'], {'songs': [], 'scenes': [], 'seconds': 0, 'length': '0:00'})
         self.assertEqual(len(body['checklist']), 5)
         self.assertTrue(all(not item['settled'] for item in body['checklist']))
+        self.assertEqual(body['concepts'], [])
         self.assertEqual(body['problems'], [])
 
 
@@ -448,7 +450,7 @@ class PromptShapes(unittest.TestCase):
     def test_the_prompt_examples_are_files_the_board_accepts(self):
         import re
         from videobuilder import prompt
-        text = '\n'.join(prompt._preproduction_lines({}))
+        text = '\n'.join(prompt._preproduction_lines({'concepts': True}))
         scenes, option_set = re.findall(r'```json\n(.*?)\n```', text, re.S)[:2]
         preprod.parse_scenes(json.loads(scenes))
         preprod.parse_option_set(json.loads(option_set))
@@ -769,6 +771,310 @@ class PickFromAnswer(Server):
         self.assertEqual(code, 200)
         got = next(s for s in self.board()['sets'] if s['id'] == 'look')
         self.assertIsNone(got['pick'])
+
+
+class ScriptedBackend(AgentBackend):
+    """Commits given files on a draft branch (or the current one) and
+    replies with given text -- for scenarios FakeBackend can't script
+    (committing a brand-new file, or a reply carrying a ```concepts
+    block)."""
+    name = 'scripted'
+
+    def __init__(self, files, reply, extra_path=None):
+        self.files, self.reply, self.extra_path = files, reply, extra_path
+
+    def submit(self, payload):
+        path = Path(payload['state_dir']) / (payload['id'] + '.scripted.json')
+        path.write_text(json.dumps(payload))
+        return str(path)
+
+    def poll(self, handle):
+        payload = json.loads(Path(handle).read_text())
+        root = payload['project']
+        branch = payload['draft'] or 'vb-draft/' + payload['session'] + '-' + payload['id']
+        work = Path(payload['state_dir']) / ('scripted-work-' + payload['id'])
+        if not payload['draft']:
+            git(root, 'branch', branch, 'main')
+        git(root, 'worktree', 'add', str(work), branch)
+        try:
+            files = self.files or {'promo/.scripted-marker': str(time.time())}
+            for rel, data in files.items():
+                full = work / rel
+                full.parent.mkdir(parents=True, exist_ok=True)
+                full.write_bytes(data if isinstance(data, bytes) else data.encode())
+                git(work, 'add', '--', rel)
+            if self.extra_path:
+                target = work / self.extra_path
+                target.parent.mkdir(parents=True, exist_ok=True)
+                target.write_text('out of scope')
+                git(work, 'add', '--', self.extra_path)
+            git(work, '-c', 'user.name=Scripted agent', '-c', 'user.email=agent@example.com',
+               'commit', '-qm', 'agent: scripted change')
+        finally:
+            git(root, 'worktree', 'remove', '--force', str(work))
+        return AgentStatus('replied', self.reply, branch)
+
+
+class BranchlessBackend(AgentBackend):
+    """Replies with given text and no draft branch (it committed nothing)."""
+    name = 'branchless'
+
+    def __init__(self, reply):
+        self.reply = reply
+
+    def submit(self, payload):
+        return 'h:' + payload['id']
+
+    def poll(self, handle):
+        return AgentStatus('replied', self.reply)
+
+
+def _concepts_reply(lead_in, requests):
+    return lead_in + '\n\n```concepts\n' + json.dumps({'concepts': requests}) + '\n```\n'
+
+
+class ConceptsStripping(Server):
+    def test_strip_concepts_unit(self):
+        from videobuilder.notes import strip_concepts
+        reply = 'Made the look options.\n\n```concepts\n' + json.dumps(
+            {'concepts': [{'set': 'look', 'key': 'A', 'prompt': 'a moody lighthouse at dusk'}]}) + '\n```\n'
+        cleaned, parsed = strip_concepts(reply)
+        self.assertEqual(cleaned, 'Made the look options.')
+        self.assertEqual(parsed, [{'set': 'look', 'key': 'A', 'prompt': 'a moody lighthouse at dusk'}])
+
+    def test_strip_concepts_malformed_json_is_stripped_but_records_nothing(self):
+        from videobuilder.notes import strip_concepts
+        cleaned, parsed = strip_concepts('Before.\n\n```concepts\nnot json\n```\n')
+        self.assertEqual(cleaned, 'Before.')
+        self.assertIsNone(parsed)
+
+    def test_strip_concepts_before_questions_block_leaves_questions_intact(self):
+        from videobuilder.notes import strip_concepts
+        reply = ('Lead.\n\n```concepts\n' + json.dumps({'concepts': [{'set': 'look', 'key': 'A', 'prompt': 'x'}]})
+                + '\n```\n\n```questions\n' + json.dumps({'questions': [{'text': 'Which?', 'choices': ['A', 'B']}]})
+                + '\n```\n')
+        cleaned, parsed = strip_concepts(reply)
+        self.assertIsNotNone(parsed)
+        self.assertIn('```questions', cleaned)
+
+    def test_production_reply_keeps_a_concepts_block_verbatim(self):
+        backend = ScriptedBackend({}, _concepts_reply('Done.', [{'set': 'look', 'key': 'A', 'prompt': 'x'}]))
+        self.restart(auto_land=False, backend=backend)
+        code, note = self.post('/api/notes', {'video': VIDEO, 'frame': 0, 'text': 'tweak it'})
+        self.assertEqual(code, 200)
+        settle(self.editor)
+        stored = self.editor.notes.current(note['id'])
+        self.assertIn('```concepts', stored['reply'])
+        self.assertNotIn('concepts', stored)
+
+
+class ConceptsLanding(Server):
+    def setUp(self):
+        super().setUp()
+        self.fake = FakeArtbox()
+        self.addCleanup(self.fake.close)
+        self.post('/api/phase', {'video': VIDEO, 'phase': 'pre-production'})
+        self.post('/api/preprod/sets', {'video': VIDEO, 'base': self.commit_main(), 'set': LOOK_SET})
+
+    def poll_concepts(self):
+        with mock.patch('time.time', return_value=time.time() + 120):
+            self.editor.concepts.tick()
+
+    def test_requests_land_commit_and_attach_to_the_set(self):
+        files = {'bible/options/look.json': preprod.set_bytes({**LOOK_SET, 'pick': None,
+                                                                'options': LOOK_SET['options']})}
+        requests = [{'set': 'look', 'key': 'A', 'prompt': 'a moody lighthouse'},
+                   {'set': 'look', 'key': 'B', 'prompt': 'a bright lighthouse'}]
+        backend = ScriptedBackend({}, _concepts_reply('Options drawn up.', requests))
+        self.restart(auto_land=True, backend=backend, artbox_url=self.fake.base)
+        code, note = self.post('/api/notes', {'video': VIDEO, 'frame': 0, 'text': 'offer look options'})
+        self.assertEqual(code, 200)
+        settle(self.editor)
+        landed = self.editor.notes.current(note['id'])
+        self.assertEqual(landed['state'], 'landed')
+        # Landing started them: the note (read fresh) and the board both say so.
+        self.assertEqual({c['status'] for c in landed['concepts']}, {'making'})
+        self.assertEqual({c['status'] for c in self.board()['concepts']}, {'making'})
+        jobs = self.editor.concepts._load()
+        self.assertEqual(len(jobs), 2)
+        for job in jobs:
+            self.fake.finish(job['remote'])
+        self.poll_concepts()
+        got = next(s for s in self.board()['sets'] if s['id'] == 'look')
+        for option in got['options']:
+            self.assertEqual(option['kind'], 'concept')
+            self.assertTrue(option['image'].endswith('.png'))
+            self.assertTrue((self.directory / option['image']).is_file())
+        notes = self.get('/api/notes?video=' + VIDEO)
+        notes = notes['notes'] if isinstance(notes, dict) else notes
+        shown = next(n for n in notes if n['id'] == note['id'])
+        self.assertEqual({c['status'] for c in shown['concepts']}, {'done'})
+        board = self.board()['concepts']
+        self.assertEqual({(c['set'], c['key'], c['status']) for c in board},
+                         {('look', 'A', 'done'), ('look', 'B', 'done')})
+        self.assertEqual({c['image'] for c in board}, {'bible/options/look/A.png', 'bible/options/look/B.png'})
+
+    def test_a_reply_with_no_branch_starts_its_requests_at_once(self):
+        backend = BranchlessBackend(_concepts_reply('Asked for art.', [{'set': 'look', 'key': 'A', 'prompt': 'x'}]))
+        self.restart(auto_land=False, backend=backend, artbox_url=self.fake.base)
+        code, note = self.post('/api/notes', {'video': VIDEO, 'frame': 0, 'text': 'offer look options'})
+        self.assertEqual(code, 200)
+        settle(self.editor)
+        stored = self.editor.notes.current(note['id'])
+        self.assertEqual(stored['state'], 'replied')
+        self.assertEqual(stored['concepts'][0]['status'], 'making')
+
+    def test_a_questions_note_with_no_branch_starts_its_requests(self):
+        reply = (_concepts_reply('Pick one.', [{'set': 'look', 'key': 'A', 'prompt': 'x'}])
+                + '\n```questions\n' + json.dumps({'questions': [{'text': 'Which look?', 'set': 'look', 'choices': [
+                    {'text': 'Moody', 'key': 'A', 'image': 'bible/options/look/A.png', 'kind': 'concept'},
+                    {'text': 'Bright', 'key': 'B'}]}]}) + '\n```\n')
+        self.restart(auto_land=False, backend=BranchlessBackend(reply), artbox_url=self.fake.base)
+        code, note = self.post('/api/notes', {'video': VIDEO, 'frame': 0, 'text': 'offer look options'})
+        self.assertEqual(code, 200)
+        settle(self.editor)
+        self.assertEqual(self.editor.notes.current(note['id'])['state'], 'questions')
+        self.editor.concepts.tick()
+        self.assertEqual(self.editor.notes.get(note['id'])['concepts'][0]['status'], 'making')
+        self.assertEqual(len(self.fake.jobs), 1)
+
+
+class ConceptsUnavailable(Server):
+    def setUp(self):
+        super().setUp()
+        self.post('/api/phase', {'video': VIDEO, 'phase': 'pre-production'})
+        self.post('/api/preprod/sets', {'video': VIDEO, 'base': self.commit_main(), 'set': LOOK_SET})
+
+    def test_reply_shows_and_requests_are_unavailable_with_no_artbox(self):
+        requests = [{'set': 'look', 'key': 'A', 'prompt': 'x'}]
+        backend = ScriptedBackend({}, _concepts_reply('Drawn up.', requests))
+        self.restart(auto_land=True, backend=backend)
+        code, note = self.post('/api/notes', {'video': VIDEO, 'frame': 0, 'text': 'offer look options'})
+        self.assertEqual(code, 200)
+        settle(self.editor)
+        landed = self.editor.notes.current(note['id'])
+        self.assertEqual(landed['reply'], 'Drawn up.')
+        self.assertEqual(landed['concepts'][0]['status'], 'unavailable')
+
+    def test_a_job_that_fails_becomes_unavailable(self):
+        fake = FakeArtbox()
+        self.addCleanup(fake.close)
+        requests = [{'set': 'look', 'key': 'A', 'prompt': 'x'}]
+        backend = ScriptedBackend({}, _concepts_reply('Drawn up.', requests))
+        self.restart(auto_land=True, backend=backend, artbox_url=fake.base)
+        code, note = self.post('/api/notes', {'video': VIDEO, 'frame': 0, 'text': 'offer look options'})
+        settle(self.editor)
+        self.editor.notes.current(note['id'])
+        job = self.editor.concepts._load()[0]
+        fake.fail(job['remote'])
+        with mock.patch('time.time', return_value=time.time() + 120):
+            self.editor.concepts.tick()
+        jobs = self.editor.concepts._load()
+        self.assertEqual(jobs[0]['status'], 'unavailable')
+
+    def test_artbox_down_when_the_note_lands_marks_requests_unavailable(self):
+        fake = FakeArtbox()
+        requests = [{'set': 'look', 'key': 'A', 'prompt': 'x'}]
+        backend = ScriptedBackend({}, _concepts_reply('Drawn up.', requests))
+        self.restart(auto_land=True, backend=backend, artbox_url=fake.base)
+        fake.close()
+        code, note = self.post('/api/notes', {'video': VIDEO, 'frame': 0, 'text': 'offer look options'})
+        self.assertEqual(code, 200)
+        settle(self.editor)
+        landed = self.editor.notes.current(note['id'])
+        self.assertEqual((landed['state'], landed['reply']), ('landed', 'Drawn up.'))
+        job = self.editor.concepts._load()[0]
+        self.assertEqual((job['status'], job['message']), ('unavailable', "The picture maker isn't answering."))
+
+    def test_a_note_that_ends_refused_marks_requests_unavailable(self):
+        requests = [{'set': 'look', 'key': 'A', 'prompt': 'x'}]
+        backend = ScriptedBackend({}, _concepts_reply('Drawn up.', requests), extra_path='README.md')
+        fake = FakeArtbox()
+        self.addCleanup(fake.close)
+        self.restart(auto_land=True, backend=backend, artbox_url=fake.base)
+        code, note = self.post('/api/notes', {'video': VIDEO, 'frame': 0, 'text': 'offer look options'})
+        settle(self.editor)
+        landed = self.editor.notes.current(note['id'])
+        self.assertEqual(landed['state'], 'refused')
+        jobs = self.editor.concepts._load()
+        self.assertEqual(jobs[0]['status'], 'unavailable')
+
+
+class ConceptsCaps(Server):
+    def setUp(self):
+        super().setUp()
+        self.fake = FakeArtbox()
+        self.addCleanup(self.fake.close)
+        self.restart(auto_land=False, artbox_url=self.fake.base)
+        self.post('/api/phase', {'video': VIDEO, 'phase': 'pre-production'})
+
+    def test_character_set_caps_at_three(self):
+        requests = [{'set': 'character-ana', 'key': k, 'prompt': 'x'} for k in ('A', 'B', 'C', 'D')]
+        out = self.editor.concepts.request(VIDEO, 'note-1', requests)
+        self.assertEqual([o['status'] for o in out], ['requested', 'requested', 'requested', 'unavailable'])
+
+    def test_look_set_caps_at_four(self):
+        requests = [{'set': 'look', 'key': str(i), 'prompt': 'x'} for i in range(5)]
+        out = self.editor.concepts.request(VIDEO, 'note-1', requests)
+        self.assertEqual([o['status'] for o in out].count('requested'), 4)
+
+    def test_total_caps_at_sixteen(self):
+        requests = [{'set': f'character-c{i}', 'key': 'A', 'prompt': 'x'} for i in range(17)]
+        out = self.editor.concepts.request(VIDEO, 'note-1', requests)
+        self.assertEqual([o['status'] for o in out].count('requested'), 16)
+
+
+class ConceptsResume(Server):
+    def setUp(self):
+        super().setUp()
+        self.fake = FakeArtbox()
+        self.addCleanup(self.fake.close)
+        self.post('/api/phase', {'video': VIDEO, 'phase': 'pre-production'})
+        self.post('/api/preprod/sets', {'video': VIDEO, 'base': self.commit_main(), 'set': LOOK_SET})
+
+    def test_resumes_after_restart(self):
+        requests = [{'set': 'look', 'key': 'A', 'prompt': 'x'}]
+        backend = ScriptedBackend({}, _concepts_reply('Drawn up.', requests))
+        self.restart(auto_land=True, backend=backend, artbox_url=self.fake.base)
+        code, note = self.post('/api/notes', {'video': VIDEO, 'frame': 0, 'text': 'offer look options'})
+        settle(self.editor)
+        self.editor.notes.current(note['id'])
+        job = self.editor.concepts._load()[0]
+        self.fake.finish(job['remote'])
+        self.restart(auto_land=True, backend=backend, artbox_url=self.fake.base)
+        with mock.patch('time.time', return_value=time.time() + 120):
+            self.editor.concepts.tick()
+        self.assertEqual(self.editor.concepts._load()[0]['status'], 'done')
+
+    def test_dirty_main_checkout_retries_next_tick(self):
+        requests = [{'set': 'look', 'key': 'A', 'prompt': 'x'}]
+        backend = ScriptedBackend({}, _concepts_reply('Drawn up.', requests))
+        self.restart(auto_land=True, backend=backend, artbox_url=self.fake.base)
+        code, note = self.post('/api/notes', {'video': VIDEO, 'frame': 0, 'text': 'offer look options'})
+        settle(self.editor)
+        self.editor.notes.current(note['id'])
+        job = self.editor.concepts._load()[0]
+        self.fake.finish(job['remote'])
+        (self.directory / 'dirty.txt').write_text('uncommitted')
+        with mock.patch('time.time', return_value=time.time() + 120):
+            self.editor.concepts.tick()
+        self.assertEqual(self.editor.concepts._load()[0]['status'], 'ready')
+        (self.directory / 'dirty.txt').unlink()
+        with mock.patch('time.time', return_value=time.time() + 240):
+            self.editor.concepts.tick()
+        self.assertEqual(self.editor.concepts._load()[0]['status'], 'done')
+
+    def test_gives_up_past_the_time_limit(self):
+        requests = [{'set': 'look', 'key': 'A', 'prompt': 'x'}]
+        backend = ScriptedBackend({}, _concepts_reply('Drawn up.', requests))
+        self.restart(auto_land=True, backend=backend, artbox_url=self.fake.base)
+        code, note = self.post('/api/notes', {'video': VIDEO, 'frame': 0, 'text': 'offer look options'})
+        settle(self.editor)
+        self.editor.notes.current(note['id'])
+        from videobuilder.concepts import GIVE_UP_SECONDS
+        with mock.patch('time.time', return_value=time.time() + GIVE_UP_SECONDS + 3600):
+            self.editor.concepts.tick()
+        self.assertEqual(self.editor.concepts._load()[0]['status'], 'unavailable')
 
 
 if __name__ == '__main__':

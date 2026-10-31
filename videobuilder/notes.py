@@ -33,7 +33,10 @@ committed), in which case the question also carries `options` (aligned with
 
 In pre-production (see preprod.py), a submitted note carries `phase:
 'pre-production'` and, when option picks were recorded since the video's last
-submitted note, a `picks` list the prompt lists for the builder.
+submitted note, a `picks` list the prompt lists for the builder. A reply may
+also carry a ```concepts fenced block requesting concept art (see
+notes.strip_concepts and concepts.py); the note then carries a `concepts`
+list with each request's generation status.
 
 A reply may also carry a ```shortfalls fenced JSON block (see strip_shortfalls),
 naming a request the builder could not do at all or could not do well. It is
@@ -277,6 +280,48 @@ def strip_shortfalls(reply):
     return cleaned, parsed
 
 
+CONCEPTS_MAX = 16
+CONCEPT_PROMPT_MAX = 500
+
+
+def strip_concepts(reply):
+    """A builder reply's last ```concepts fenced block (see concepts.py):
+    the reply with that block removed, plus the parsed list of {set, key,
+    prompt} it held, or None for a missing or malformed block. Validated
+    and stripped the same strict way as strip_shortfalls; only looked for
+    on a pre-production note (NoteStore._poll), so a production reply's
+    text is never even scanned for one."""
+    if not reply:
+        return reply, None
+    matches = list(re.finditer(r'```concepts[ \t]*\r?\n((?:(?!```).)*?)\r?\n```[ \t]*(?:\r?\n|\Z)', reply, re.S))
+    if not matches:
+        return reply, None
+    m = matches[-1]
+    cleaned = re.sub(r'\n{3,}', '\n\n', reply[:m.start()] + reply[m.end():]).strip('\n')
+    try:
+        data = json.loads(m.group(1))
+    except ValueError:
+        return cleaned, None
+    if not isinstance(data, dict) or not isinstance(data.get('concepts'), list):
+        return cleaned, None
+    items = data['concepts']
+    if not 1 <= len(items) <= CONCEPTS_MAX:
+        return cleaned, None
+    parsed = []
+    for item in items:
+        if not isinstance(item, dict):
+            return cleaned, None
+        set_id, key, prompt = item.get('set'), item.get('key'), item.get('prompt')
+        if not isinstance(set_id, str) or not set_id.strip():
+            return cleaned, None
+        if not isinstance(key, str) or not key.strip():
+            return cleaned, None
+        if not isinstance(prompt, str) or not prompt.strip() or len(prompt) > CONCEPT_PROMPT_MAX:
+            return cleaned, None
+        parsed.append({'set': set_id.strip(), 'key': key.strip(), 'prompt': prompt.strip()})
+    return cleaned, parsed
+
+
 @dataclass
 class AgentStatus:
     state: str                 # one of STATES
@@ -355,6 +400,13 @@ class NoteStore:
         # preprod.PreprodBrief): None for a video in production, leaving the prompt (and the
         # note's own fields) exactly as before pre-production existed; set by Editor.
         self.preproduction = None
+        # concepts, when set, is a callable (video, note_id, requests) -> [{set,key,prompt,
+        # status,...}] (see concepts.Concepts.request); only ever called on a pre-production
+        # note that asked for concept art (see _poll, notes.strip_concepts).
+        self.concepts = None
+        # concept_status, when set, is a callable (note_id, concepts) -> concepts brought up to
+        # date (concepts.Concepts.refresh): get() applies it, so every reader sees current statuses.
+        self.concept_status = None
         # The background submitters (see kick): video -> its worker thread, and the videos
         # kicked again while their worker was already running.
         self._workers, self._rekicked = {}, set()
@@ -454,6 +506,8 @@ class NoteStore:
         # The clip of a film made of clips the note is about; None for the whole video
         # (and for every note saved before films had clips).
         note.setdefault('clip', None)
+        if note.get('concepts') and self.concept_status:
+            note['concepts'] = self.concept_status(nid, note['concepts'])
         return note
 
     def current(self, nid):
@@ -683,6 +737,12 @@ class NoteStore:
                 # questions block, so it would otherwise end up inside the lead-in text.
                 reply, shortfalls = strip_shortfalls(status.reply)
                 status = AgentStatus(status.state, reply, status.branch, status.cost_usd, status.tokens)
+            concepts_requests = None
+            if status.state == 'replied' and note.get('phase') == 'pre-production':
+                # Only scanned for on a pre-production note, so a production reply's text is
+                # byte-identical to before concept art existed.
+                reply, concepts_requests = strip_concepts(status.reply)
+                status = AgentStatus(status.state, reply, status.branch, status.cost_usd, status.tokens)
             parsed = parse_questions(status.reply) if status.state == 'replied' else None
             if parsed:
                 # Strip the raw block from what's shown even when asking is disabled: a backend
@@ -695,6 +755,8 @@ class NoteStore:
                     status = AgentStatus('questions', lead_in or None, status.branch, status.cost_usd, status.tokens)
             if shortfalls:
                 note['shortfalls'] = shortfalls
+            if concepts_requests and self.concepts:
+                note['concepts'] = self.concepts(video, note['id'], concepts_requests)
             note.update(asdict(status))
             note.pop('poll_error', None)
             if status.branch:

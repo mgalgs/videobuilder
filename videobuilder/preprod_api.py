@@ -6,7 +6,7 @@ file formats, docs/preproduction.md for the full API reference).
          {commit, phase, logline, look: {text, set}, script: {exists, draft,
          title, scenes}, characters: [{...character, set}], sets: [...],
          scenes: {songs, scenes: [{...scene, number, length, from_clock,
-         to_clock, set}], seconds, length}, checklist, problems}
+         to_clock, set}], seconds, length}, checklist, concepts, problems}
     GET  /api/preprod/script?video=V[&draft=N]
          {commit, text, title, draft, scenes: [{number,heading,line}],
          elements: [{type,text,line,scene}], drafts: [{n,commit,time}]}
@@ -129,8 +129,23 @@ def read_board(editor, video):
         'scenes': {'songs': songs, 'scenes': scenes_out, 'seconds': total_seconds,
                    'length': preprod.clock(total_seconds)},
         'checklist': preprod.checklist(directory),
+        'concepts': board_concepts(editor, video),
         'problems': problems,
     }
+
+
+def board_concepts(editor, video):
+    """[{set, key, image, status, message, note}]: every concept request
+    made on this video's notes, as it stands now (NoteStore.get refreshes
+    each note's own `concepts`), the newest note's request winning for a
+    slot asked for more than once."""
+    slots = {}
+    for note in editor.notes.list(video, refresh=False):
+        for c in note.get('concepts') or []:
+            slots[(c['set'], c['key'])] = {
+                'set': c['set'], 'key': c['key'], 'image': f"{preprod.set_image_dir(c['set'])}/{c['key']}.png",
+                'status': c['status'], 'message': c.get('message'), 'note': note['id']}
+    return list(slots.values())
 
 
 def get_preprod(self, route, q, editor, user):

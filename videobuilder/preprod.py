@@ -73,8 +73,8 @@ def phase_bytes(phase):
 
 
 class PreprodBrief:
-    """NoteStore.preproduction: (video, note, state) -> {} once the video
-    is in pre-production on main, else None, so a video in
+    """NoteStore.preproduction: (video, note, state) -> {'concepts': bool}
+    once the video is in pre-production on main, else None, so a video in
     production renders byte-identical to before pre-production existed.
 
     Main, not the builder's draft: the phase is the director's switch
@@ -97,7 +97,7 @@ class PreprodBrief:
         directory = e.drafts.context(video)['directory']
         if _phase_from_bytes(GitTree(e.root, sha, directory).read(PHASE_FILE)) != 'pre-production':
             return None
-        return {}
+        return {'concepts': e.artbox is not None}
 
 
 # ---- raw bible.md sections the builder writes freely (Film details doesn't own them) ----

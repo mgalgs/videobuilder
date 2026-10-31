@@ -356,6 +356,7 @@ class Drafts:
                 e.project.last.pop(video, None)
                 self._remove_previews(video)
                 e.render_first(video, tip)
+                e.concepts.kick(video)
                 return dict(state='landed' if auto else 'accepted', commit=tip)
             finally:
                 git(e.root, 'worktree', 'remove', '--force', str(work))
@@ -369,4 +370,5 @@ class Drafts:
             self._remove_previews(video)
             git(e.root, 'branch', '-D', branch)
             e.notes.resolve(video, branch, 'dropped', author)
+            e.concepts.kick(video)
             return dict(state='dropped')

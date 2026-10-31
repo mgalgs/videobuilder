@@ -837,18 +837,24 @@ class Library:
                 [entry / 'state' / 'pictures' for entry, _ in self._trashed()])
 
     def tick_pictures(self):
-        """Poll generated pictures in every repo, opening an editor only where a
-        set is still on the way -- which is also how they resume after a restart."""
+        """Poll generated pictures and pre-production concept art in every
+        repo, opening an editor only where a set or a concept request is
+        still on the way -- which is also how they resume after a restart."""
+        from . import concepts as concepts_module
         from .pictures import has_pending
         if not self.options.get('artbox'):
             return
         for name in self.names():
             if name not in self.editors:
-                folder = self.state_dir / name.replace('/', '--') / 'pictures'
-                if not folder.is_dir() or not has_pending(folder):
+                flat = name.replace('/', '--')
+                pictures_pending = has_pending(self.state_dir / flat / 'pictures')
+                concepts_pending = concepts_module.has_pending(self.state_dir / flat / 'concepts')
+                if not pictures_pending and not concepts_pending:
                     continue
             try:
-                self.editor(name).pictures.tick()
+                editor = self.editor(name)
+                editor.pictures.tick()
+                editor.concepts.tick()
             except Exception as e:
                 print(f'[editor] {name}: picture poll failed: {e}', file=sys.stderr, flush=True)
 

@@ -422,7 +422,9 @@ def _film_scope(film, directory):
 def _preproduction_lines(preproduction):
     """The pre-production section (see preprod.py, docs/preproduction.md):
     develop with the director rather than build, where everything lives,
-    and how to offer picture option choices."""
+    and how to offer picture option choices -- plus concept-art requests
+    when this editor can generate them (`preproduction['concepts']`,
+    PreprodBrief), or a line saying it can't when it can't."""
     example = json.dumps({'questions': [{'text': 'Which look fits best?', 'set': 'look', 'choices': [
         {'text': 'Moody, low-key lighting', 'image': 'bible/options/look/A.png', 'kind': 'vb', 'key': 'A'},
         {'text': 'Bright and saturated', 'key': 'B'}]}]})
@@ -467,12 +469,24 @@ def _preproduction_lines(preproduction):
              '',
              'Offer an option set through the usual ```questions block: give each choice a `key` (A, B, '
              'C, D) and, once you have committed a picture for it, an `image` (its bible/ path) and a '
-             '`kind` of "vb" (a real frame you rendered); name the set in `set` so a pick is recorded '
-             'against it. For example:', '',
+             '`kind` of "vb" (a real frame you rendered) or "concept" (ask for one, below); name the set '
+             'in `set` so a pick is recorded against it. For example:', '',
              '```json', example, '```', '',
              'A "vb" still is a real frame: render it with videobuilder in your own sandbox, keeping any '
              'scratch output (intermediate frames, caches) outside this checkout so only the finished '
              'picture itself is committed, at bible/options/<set>/<key>.<ext>.']
+    if preproduction.get('concepts'):
+        lines += ['',
+                  'For concept art (a quick mood image, not a final frame -- kind "concept"), add a fenced '
+                  'block to your reply instead of making the image yourself, before any questions block '
+                  '(which stays last): a line containing only ```concepts, one line of JSON {"concepts": '
+                  '[{"set": "...", "key": "...", "prompt": "..."}]}, then a line containing only ```. The '
+                  'editor makes each one after your change '
+                  'lands and commits it at bible/options/<set>/<key>.png; ask for at most 3 per character '
+                  'and 4 for the look, 16 in total in one note -- anything over that is simply skipped.']
+    else:
+        lines += ['', 'Concept art cannot be generated right now: offer "vb" stills (render one yourself) '
+                  'or "yours" (ask the director for a reference picture) instead of "concept".']
     return lines
 
 
