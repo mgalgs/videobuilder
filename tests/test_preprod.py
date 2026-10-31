@@ -2216,6 +2216,139 @@ const json=async(path,params,body)=>{calls.push([path,body]);
         self.assertEqual(out[3], [['preprod/scenes', mock.ANY], 'loadPreprod'])
 
 
+PICTURE_QUESTIONS = [{'text': 'Which look fits best?', 'set': 'look', 'choices': [
+    {'text': 'Moody, low-key lighting', 'image': 'bible/options/look/A.png', 'kind': 'vb', 'key': 'A'},
+    {'text': 'Bright and saturated', 'image': 'bible/options/look/B.png', 'kind': 'concept', 'key': 'B'},
+]}]
+
+
+class ChatPictureCardsJS(Server):
+    """renderQuestionsCard is node()-built and reads a live `answers`/`refresh` closure, so
+    these tests run it for real (not a pure string function) against a note that actually
+    came out of the documented pre-production flow (QuestionBackend + settle), the same
+    picture-choice shape docs/preproduction.md shows."""
+
+    def setUp(self):
+        super().setUp()
+        self.post('/api/phase', {'video': VIDEO, 'phase': 'pre-production'})
+        self.post('/api/preprod/sets', {'video': VIDEO, 'base': self.commit_main(), 'set': LOOK_SET})
+
+    def _ask(self, questions):
+        self.restart(auto_land=False, backend=QuestionBackend(questions))
+        code, note = self.post('/api/notes', {'video': VIDEO, 'frame': 0, 'text': 'pick a look'})
+        self.assertEqual(code, 200)
+        settle(self.editor)
+        return self.get('/api/notes?video=' + VIDEO)['notes'][-1]
+
+    # A minimal DOM: node()-built elements with real parent/child tracking, so querySelectorAll
+    # (by class) and a click handler set by the real code actually work, with no HTML parser
+    # (none is available under plain node) -- innerHTML is stored as a string, not parsed.
+    DOM_STUB = """
+function mkEl(tag) {
+  const el={tag,className:'',textContent:'',innerHTML:'',children:[],dataset:{},attrs:{},hidden:false,
+    disabled:false,type:'',value:'',
+    append(...cs){this.children.push(...cs)},
+    replaceChildren(){this.children=[]},
+    setAttribute(k,v){this.attrs[k]=String(v)},
+    getAttribute(k){return this.attrs[k]},
+    classList:{
+      add:(...cs)=>{for(const c of cs){const parts=el.className.split(' ').filter(Boolean);
+        if(!parts.includes(c))parts.push(c);el.className=parts.join(' ')}},
+      remove:(...cs)=>{el.className=el.className.split(' ').filter(c=>c&&!cs.includes(c)).join(' ')}
+    },
+    querySelectorAll(sel){
+      const cls=sel.replace('.','');
+      const out=[];
+      const walk=n=>{for(const c of n.children){
+        if((c.className||'').split(' ').filter(Boolean).includes(cls))out.push(c);
+        walk(c)
+      }};
+      walk(el);
+      return out
+    }
+  };
+  return el
+}
+const document={createElement:mkEl};
+const text=n=>[n.textContent,n.innerHTML,...n.children.map(text)].join(' ');
+"""
+
+    @unittest.skipUnless(shutil.which('node'), 'node is not available in this environment')
+    def test_picture_question_renders_cards_and_answers_with_choice_text(self):
+        note = self._ask(PICTURE_QUESTIONS)
+        js = (PKG / 'director.js').read_text()
+        script = (self.DOM_STUB + _consts(js, 'node', 'esc', 'svg', 'TL_ICON', 'PP_ICON', 'PP_KIND', 'api') +
+                 _fns(js, 'ppTag', 'questionAnswered', 'ppPictureNode', 'ppUnpickCards', 'questionPictureCards',
+                      'renderQuestionsCard', 'sendAnswers') + """
+const state={pendingAnswers:{},video:'promo/film'};
+const calls=[];
+let reply={};
+// A copy: sendAnswers posts the live `answers` array, which the Other… click below mutates.
+const json=async(path,params,body)=>{calls.push([path,structuredClone(body)]);return reply};
+const loadNotes=async()=>calls.push('loadNotes');
+const showError=()=>{};
+(async()=>{
+  const out=[];
+  const wrap=renderQuestionsCard(NOTE);
+  const row=wrap.querySelectorAll('.choice-row')[0];
+  const cards=row.querySelectorAll('.pp-opt');
+  out.push(cards.map(text));
+  cards[1].onclick();
+  out.push(cards.map(c=>c.className.includes('picked')));
+  out.push(cards.map(c=>c.attrs['aria-pressed']));
+  const send=wrap.querySelectorAll('.questions-send')[0];
+  await send.onclick();
+  out.push(calls.splice(0));
+  out.push(wrap.querySelectorAll('.questions-build').length);
+  const otherChip=wrap.querySelectorAll('.other')[0];
+  out.push(otherChip?.textContent);
+  wrap.querySelectorAll('.other-input')[0].focus=()=>{};
+  otherChip.onclick();
+  out.push([cards.map(c=>c.className.includes('picked')),cards.map(c=>c.attrs['aria-pressed'])]);
+  out.push(text(ppPictureNode('bible/options/look/C.png','concept',{status:'making'},'c1')));
+  console.log(JSON.stringify(out));
+})();
+""".replace('NOTE', json.dumps(note)))
+        out = run_node(script)
+        self.assertIn('vb frame', out[0][0])
+        self.assertIn('Moody, low-key lighting', out[0][0])
+        self.assertIn('concept, not final', out[0][1])
+        self.assertIn('Bright and saturated', out[0][1])
+        self.assertEqual(out[1], [False, True])
+        self.assertEqual(out[2], ['false', 'true'])
+        self.assertTrue(out[3][0][0].endswith('/answer'))
+        self.assertEqual(out[3][0][1], {'answers': ['Bright and saturated']})
+        self.assertEqual(out[3][1], 'loadNotes')
+        self.assertEqual(out[4], 1)                 # Just build it remains
+        self.assertEqual(out[5], 'Other…')           # Other… remains
+        self.assertIn('Making concept art…', out[7])
+        # Other… takes the pick away from the picture cards, so two answers never look chosen.
+        self.assertEqual(out[6], [[False, False], ['false', 'false']])
+
+    @unittest.skipUnless(shutil.which('node'), 'node is not available in this environment')
+    def test_text_only_question_renders_chips_as_before(self):
+        note = self._ask([{'text': 'Which look?', 'choices': ['Moody', 'Bright']}])
+        js = (PKG / 'director.js').read_text()
+        script = self.DOM_STUB + _consts(js, 'node') + _fns(js, 'questionAnswered', 'renderQuestionsCard') + """
+const state={pendingAnswers:{}};
+const wrap=renderQuestionsCard(NOTE);
+const row=wrap.querySelectorAll('.choice-row')[0];
+console.log(JSON.stringify({
+  chips: row.querySelectorAll('.choice-chip').map(c=>c.textContent),
+  opts: row.querySelectorAll('.pp-opt').length,
+  otherInput: wrap.querySelectorAll('.other-input').length,
+  send: wrap.querySelectorAll('.questions-send').length,
+  build: wrap.querySelectorAll('.questions-build').length,
+}));
+""".replace('NOTE', json.dumps(note))
+        out = run_node(script)
+        self.assertEqual(out['chips'], ['Moody', 'Bright', 'Other…'])
+        self.assertEqual(out['opts'], 0)
+        self.assertEqual(out['otherInput'], 1)
+        self.assertEqual(out['send'], 1)
+        self.assertEqual(out['build'], 1)
+
+
 class Docs(unittest.TestCase):
     """docs/preproduction.md must name every route preprod_api registers,
     the library-only New-video routes, and every bible/ file -- so a route

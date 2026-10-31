@@ -714,6 +714,66 @@ function questionAnswered(note) {
   if(note.answered_build)return [];
   return note.questions.map((q,i)=>[q.text,(note.answered_answers||[])[i]])
 }
+// The same picture slot ppPicture renders for the board, as a DOM node: a builder question's
+// cards are node()-built, sharing renderQuestionsCard's live `answers`/`refresh` closure, not
+// string HTML like the board's own panels.
+function ppPictureNode(path, kind, concept, commit) {
+  if(concept&&(concept.status==='requested'||concept.status==='making')) {
+    const d=node('div','pp-pic pp-pic-pending');
+    d.append(node('span',null,'Making concept art…'));
+    return d
+  }
+  if(concept&&concept.status==='unavailable') {
+    const d=node('div','pp-pic pp-pic-unavailable');
+    d.append(node('span',null,'Concept art unavailable'),node('small',null,concept.message||''));
+    return d
+  }
+  const d=node('div','pp-pic pp-pic-'+kind),img=node('img');
+  img.src=api('preprod/image', {video:state.video,path,v:commit});
+  img.alt='';
+  img.loading='lazy';
+  const tag=node('span');
+  tag.innerHTML=ppTag(kind);
+  d.append(img,tag);
+  return d
+}
+// A picture-choice question (docs/preproduction.md, "Chat: picture choices and picks"): one
+// card per choice; a choice with no image (options[j] null, or an object with no image) is a
+// text-only card. Tapping a card answers it exactly as a chip does -- same `answers[i]`.
+function ppUnpickCards(row) {
+  row.querySelectorAll('.choice-chip').forEach(c=>c.classList.remove('active'));
+  row.querySelectorAll('.pp-opt').forEach(c=> {
+    c.classList.remove('picked');
+    c.setAttribute('aria-pressed','false')
+  })
+}
+function questionPictureCards(note, q, i, answers, row, other, refresh) {
+  q.choices.forEach((choice,j)=> {
+    const opt=q.options[j];
+    const card=node('button','pp-opt'+(choice===answers[i]?' picked':''));
+    card.type='button';
+    card.setAttribute('aria-pressed',String(choice===answers[i]));
+    if(opt?.image) {
+      const concept=q.set?(note.concepts||[]).find(c=>c.set===q.set&&c.key===opt.key):null;
+      card.append(ppPictureNode(opt.image,opt.kind,concept,note.id))
+    }
+    const body=node('span','pp-opt-body');
+    const picked=node('span','pp-opt-picked');
+    picked.innerHTML=svg(TL_ICON.ready,12)+'Picked';
+    body.append(node('span','pp-opt-letter',opt?.key||String.fromCharCode(65+j)),
+               node('span','pp-opt-text',choice),picked);
+    card.append(body);
+    card.onclick=()=> {
+      answers[i]=choice;
+      ppUnpickCards(row);
+      card.classList.add('picked');
+      card.setAttribute('aria-pressed','true');
+      other.hidden=true;
+      refresh()
+    };
+    row.append(card)
+  })
+}
 function renderQuestionsCard(note) {
   const wrap=node('div','questions-wrap'),card=node('div','questions-card'),answered=questionAnswered(note);
   if(answered) {
@@ -750,7 +810,11 @@ function renderQuestionsCard(note) {
       const isOther=!!answers[i]&&!matched;
       other.hidden=!isOther;
       if(isOther)other.value=answers[i];
-      for(const choice of q.choices) {
+      if(q.options?.some(o=>o&&o.image)) {
+        row.classList.add('pp-opts');
+        questionPictureCards(note,q,i,answers,row,other,refresh)
+      }
+      else for(const choice of q.choices) {
         const chip=node('button','choice-chip'+(choice===answers[i]?' active':''),choice);
         chip.type='button';
         chip.onclick=()=> {
@@ -765,7 +829,7 @@ function renderQuestionsCard(note) {
       const otherChip=node('button','choice-chip other'+(isOther?' active':''),'Other…');
       otherChip.type='button';
       otherChip.onclick=()=> {
-        row.querySelectorAll('.choice-chip').forEach(c=>c.classList.remove('active'));
+        ppUnpickCards(row);
         otherChip.classList.add('active');
         other.hidden=false;
         other.focus();
@@ -4870,6 +4934,7 @@ function ppImageFallback(e) {
 }
 // Capture phase: an <img> error doesn't bubble.
 $('board').addEventListener('error',ppImageFallback,true);
+$('note-list').addEventListener('error',ppImageFallback,true);
 $('board').addEventListener('change',e=> {
   const el=e.target.closest('[data-pp="look-override"]');
   if(el)ppSetSceneLook(el.dataset.id,el.value)
