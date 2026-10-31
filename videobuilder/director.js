@@ -1523,11 +1523,23 @@ function paintTrayProgress(record) {
 }
 function uploadAttachment(record) {
   if(record._upload)return record._upload;
+  record.error=null;
   record.progress=0;
   renderFiles();
   record._upload=new Promise(resolve=> {
     const xhr=new XMLHttpRequest();
     record.xhr=xhr;
+    // retry: a restart or sign-out isn't this file's fault, so the banner goes up and the
+    // next send uploads the same File again (collectAttachments) rather than failing on it.
+    const settle=(error,retry)=> {
+      record.xhr=null;
+      record.progress=null;
+      record.error=error;
+      record.retry=retry;
+      if(retry)record._upload=null;
+      renderFiles();
+      resolve()
+    };
     xhr.open('POST',api('attachments', {video:state.video,name:record.name}));
     xhr.setRequestHeader('Content-Type',record.type||'application/octet-stream');
     xhr.upload.onprogress=e=> {
@@ -1536,7 +1548,6 @@ function uploadAttachment(record) {
       paintTrayProgress(record)
     };
     xhr.onload=()=> {
-      record.xhr=null;
       let data=null;
       try {
         data=JSON.parse(xhr.responseText)
@@ -1545,22 +1556,19 @@ function uploadAttachment(record) {
       }
       if(xhr.status>=200&&xhr.status<300&&data) {
         record.id=data.id;
-        record.progress=null
+        settle(null,false)
       }
-      else {
-        record.error=(data&&data.error)||'upload failed';
-        record.progress=null
+      else if(xhr.status===401) {
+        handleSignedOut();
+        settle(SIGNED_OUT_MESSAGE,true)
       }
-      renderFiles();
-      resolve()
+      else if(data?draining(xhr.status,data):GATEWAY.includes(xhr.status))settle(restarting().message,true);
+      else settle((data&&data.error)||'upload failed',false)
     };
-    xhr.onerror=()=> {
-      record.xhr=null;
-      record.error='upload failed';
-      record.progress=null;
-      renderFiles();
-      resolve()
-    };
+    xhr.onerror=()=>settle(restarting().message,true);
+    // The tray's × aborts an upload a send may be awaiting; abort fires neither load nor
+    // error, and an unsettled promise would leave state.sending stuck true.
+    xhr.onabort=()=>settle(null,true);
     xhr.send(record.file)
   });
   return record._upload
@@ -1799,9 +1807,10 @@ function addFiles(files) {
 // Every record's upload settled (already uploaded, or started here for a footage file whose
 // "Add as a clip" offer went untaken), or throws naming what's still wrong.
 async function collectAttachments(records) {
-  await Promise.all(records.filter(r=>r.file&&!r.id&&!r.error).map(uploadAttachment));
+  await Promise.all(records.filter(r=>r.file&&!r.id&&(!r.error||r.retry)).map(uploadAttachment));
   const bad=records.find(r=>r.error);
-  if(bad)throw Error(`${bad.name}: ${bad.error}`);
+  // A restart/sign-out message stands alone, so editorBack() can recognise it in #composer-error.
+  if(bad)throw Error(bad.retry?bad.error:`${bad.name}: ${bad.error}`);
   if(records.some(r=>r.progress!=null))throw Error('Wait for the attachments to finish uploading.');
   if(records.some(r=>!r.id))throw Error('Something went wrong attaching a file; remove it and try again.');
   return records.map(r=>({id:r.id,name:r.name,type:r.type}))
@@ -3463,9 +3472,10 @@ $('drop-overlay').onclick=()=> {
 $('lb-close').onclick=closeLightbox;
 $('lb-prev').onclick=()=>lightboxStep(-1);
 $('lb-next').onclick=()=>lightboxStep(1);
-// Tapping the backdrop (not the stage, the image/video itself, or a control button) closes it.
+// A tap anywhere but the picture/video or a button closes it: #lb-stage and .lb-top fill the
+// whole overlay, so checking for the backdrop's own id would leave only thin edge strips.
 $('lightbox').onclick=e=> {
-  if(e.target.id==='lightbox'||e.target.id==='lb-mid')closeLightbox()
+  if(!e.target.closest('img,video,button'))closeLightbox()
 };
 let lightboxTouch=null;
 $('lightbox').addEventListener('touchstart',e=> {

@@ -2641,6 +2641,80 @@ console.log(JSON.stringify({afterRemove,revoked,paused,trayPlayingId,files:state
         self.assertEqual((out['paused'], out['trayPlayingId']), (1, None))
         self.assertEqual((out['files'], out['renders']), (0, 2))
 
+    def test_an_aborted_upload_settles_so_a_waiting_send_finishes_without_it(self):
+        js = (PKG / 'director.js').read_text()
+        script = (_fns(js, 'uploadAttachment', 'releaseFileRecord', 'removeFileRecord',
+                       'collectAttachments') + """
+const xhrs=[];
+class FakeXHR{
+  constructor(){this.upload={};xhrs.push(this)}
+  open(){} setRequestHeader(){} send(){}
+  abort(){this.onabort&&this.onabort()}
+}
+globalThis.XMLHttpRequest=FakeXHR;
+const api=()=>'/api/attachments',renderFiles=()=>{},paintTrayProgress=()=>{};
+const URL={revokeObjectURL(){}};
+const trayPlayer=null;let trayPlayingId=null;
+const state={video:'v',files:[]};
+const big={localId:1,name:'big.mov',type:'video/quicktime',file:{}};
+const doc={localId:2,name:'notes.pdf',type:'application/pdf',file:{},id:'att-2'};
+state.files.push(big,doc);
+const sent=collectAttachments(state.files);
+removeFileRecord(big);
+sent.then(a=>console.log(JSON.stringify({sent:a.map(x=>x.id),xhr:big.xhr,progress:big.progress})));
+""")
+        out = run_node(script)
+        self.assertEqual(out, {'sent': ['att-2'], 'xhr': None, 'progress': None})
+
+    def test_an_upload_cut_off_by_a_restart_raises_the_banner_and_is_retried_on_the_next_send(self):
+        js = (PKG / 'director.js').read_text()
+        script = (_consts(js, 'GATEWAY', 'draining', 'RESTART_MESSAGE', 'SIGNED_OUT_MESSAGE') +
+                  _fns(js, 'uploadAttachment', 'collectAttachments') + """
+const xhrs=[];
+class FakeXHR{
+  constructor(){this.upload={};xhrs.push(this)}
+  open(){} setRequestHeader(){} send(){}
+}
+globalThis.XMLHttpRequest=FakeXHR;
+const api=()=>'/api/attachments',renderFiles=()=>{},paintTrayProgress=()=>{};
+let banners=[];
+const restarting=()=>{banners.push('restart');return Error(RESTART_MESSAGE)};
+const handleSignedOut=()=>banners.push('signed-out');
+const state={video:'v',files:[]};
+const rec={localId:1,name:'song.mp3',type:'audio/mpeg',file:{}};
+state.files.push(rec);
+(async()=>{
+  const out={};
+  let p=collectAttachments(state.files);
+  xhrs[0].onerror();
+  out.first=await p.catch(e=>e.message);
+  p=collectAttachments(state.files);
+  xhrs[1].status=503;xhrs[1].responseText=JSON.stringify({error:'The editor is updating'});xhrs[1].onload();
+  out.drain=await p.catch(e=>e.message);
+  p=collectAttachments(state.files);
+  xhrs[2].status=401;xhrs[2].responseText='{}';xhrs[2].onload();
+  out.signedOut=await p.catch(e=>e.message);
+  p=collectAttachments(state.files);
+  xhrs[3].status=200;xhrs[3].responseText=JSON.stringify({id:'att-9'});xhrs[3].onload();
+  out.retried=(await p).map(a=>a.id);
+  p=collectAttachments([{name:'huge.wav',type:'audio/wav',file:{}}]);
+  xhrs[4].status=413;xhrs[4].responseText=JSON.stringify({error:'too big (25 MB max)'});xhrs[4].onload();
+  out.refused=await p.catch(e=>e.message);
+  out.uploads=xhrs.length;out.banners=banners;
+  console.log(JSON.stringify(out));
+})();
+""")
+        out = run_node(script)
+        restart = re.search(r"RESTART_MESSAGE='([^']+)'", js)[1]
+        self.assertEqual(out['first'], restart)
+        self.assertEqual(out['drain'], restart)
+        self.assertIn('signed out', out['signedOut'])
+        self.assertEqual(out['retried'], ['att-9'])
+        # The server's own refusal is the file's, named on it, and not retried behind the user's back.
+        self.assertEqual(out['refused'], 'huge.wav: too big (25 MB max)')
+        self.assertEqual(out['uploads'], 5)
+        self.assertEqual(out['banners'], ['restart', 'restart', 'signed-out'])
+
 
 class Docs(unittest.TestCase):
     """docs/preproduction.md must name every route preprod_api registers,
