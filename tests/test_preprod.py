@@ -6,14 +6,16 @@ import unittest
 import urllib.error
 import urllib.request
 from http.server import ThreadingHTTPServer
+from pathlib import Path
 from unittest import mock
 
 from tests.fake_artbox import png
 from tests.fixtures import settle
 from tests.test_project import TempProject
-from videobuilder import fountain
+from videobuilder import fountain, preprod
 from videobuilder.editor import Editor, make_handler
 from videobuilder.gitutil import git
+from videobuilder.notes import AgentBackend, AgentStatus
 
 VIDEO = 'promo/film'
 
@@ -442,6 +444,17 @@ class MalformedFiles(Server):
         self.assertFalse(next(c for c in body['checklist'] if c['id'] == 'look')['settled'])
 
 
+class PromptShapes(unittest.TestCase):
+    def test_the_prompt_examples_are_files_the_board_accepts(self):
+        import re
+        from videobuilder import prompt
+        text = '\n'.join(prompt._preproduction_lines({}))
+        scenes, option_set = re.findall(r'```json\n(.*?)\n```', text, re.S)[:2]
+        preprod.parse_scenes(json.loads(scenes))
+        preprod.parse_option_set(json.loads(option_set))
+        self.assertIn('"ask first"', text)
+
+
 class Image(Server):
     def test_committed_picture_is_served_and_traversal_is_refused(self):
         self.post('/api/preprod/sets', {'video': VIDEO, 'base': self.commit_main(), 'set': LOOK_SET})
@@ -567,6 +580,195 @@ class StartProduction(Server):
         code, body = self.post('/api/phase', {'video': VIDEO, 'phase': 'production'})
         self.assertEqual(code, 429)
         self.assertEqual(self.board()['phase'], 'pre-production')
+
+
+class RecorderBackend(AgentBackend):
+    """Takes each submitted note's prompt, then fails at once so the next
+    note (if any) goes out right away."""
+    name = 'recorder'
+
+    def __init__(self):
+        self.seen = []
+
+    def submit(self, payload):
+        self.seen.append(Path(payload['note_file']).read_text())
+        return 'rec:' + payload['id']
+
+    def poll(self, handle):
+        return AgentStatus('failed', 'done')
+
+
+class FlakyBackend(AgentBackend):
+    """Fails the first submission outright (before a handle is ever
+    returned), then succeeds on every one after."""
+    name = 'flaky'
+
+    def __init__(self):
+        self.calls = 0
+        self.seen = []
+
+    def submit(self, payload):
+        self.calls += 1
+        if self.calls == 1:
+            raise RuntimeError('boom')
+        self.seen.append(Path(payload['note_file']).read_text())
+        return 'h:' + payload['id']
+
+    def poll(self, handle):
+        return AgentStatus('failed', 'done')
+
+
+class QuestionBackend(AgentBackend):
+    """Always replies with the same picture-choice ```questions block."""
+    name = 'question'
+
+    def __init__(self, questions):
+        self.questions = questions
+
+    def submit(self, payload):
+        return 'h:' + payload['id']
+
+    def poll(self, handle):
+        reply = 'Pick a look.\n\n```questions\n' + json.dumps({'questions': self.questions}) + '\n```\n'
+        return AgentStatus('replied', reply)
+
+
+class PreproductionPrompt(Server):
+    def test_prompt_carries_the_section_and_the_note_carries_the_phase(self):
+        backend = RecorderBackend()
+        self.restart(auto_land=False, backend=backend)
+        self.post('/api/phase', {'video': VIDEO, 'phase': 'pre-production'})
+        code, note = self.post('/api/notes', {'video': VIDEO, 'frame': 0, 'text': 'develop the opening'})
+        self.assertEqual(code, 200)
+        settle(self.editor)
+        text = backend.seen[0]
+        self.assertIn('## Pre-production', text)
+        self.assertIn('do not build or render the film', text)
+        for path in ('bible/phase.json', 'bible/script.fountain', 'bible/scenes.json', 'bible/options/'):
+            self.assertIn(path, text)
+        self.assertIn('```json', text)
+        self.assertIn('outside this checkout', text)
+        stored = self.editor.notes.current(note['id'])
+        self.assertEqual(stored['phase'], 'pre-production')
+
+    def test_a_production_note_carries_no_pre_production_section(self):
+        backend = RecorderBackend()
+        self.restart(auto_land=False, backend=backend)
+        code, note = self.post('/api/notes', {'video': VIDEO, 'frame': 0, 'text': 'tweak it'})
+        self.assertEqual(code, 200)
+        settle(self.editor)
+        text = backend.seen[0]
+        self.assertNotIn('Pre-production', text)
+        stored = self.editor.notes.current(note['id'])
+        self.assertNotIn('phase', stored)
+
+
+class PicksInPrompt(Server):
+    def setUp(self):
+        super().setUp()
+        self.backend = RecorderBackend()
+        self.restart(auto_land=False, backend=self.backend)
+        self.post('/api/phase', {'video': VIDEO, 'phase': 'pre-production'})
+        self.post('/api/preprod/sets', {'video': VIDEO, 'base': self.commit_main(), 'set': LOOK_SET})
+
+    def test_picks_since_last_note_then_nothing_on_the_next_one(self):
+        self.post('/api/preprod/pick', {'video': VIDEO, 'set': 'look', 'key': 'A'})
+        self.post('/api/preprod/pick', {'video': VIDEO, 'set': 'look', 'key': None})
+        code, note1 = self.post('/api/notes', {'video': VIDEO, 'frame': 0, 'text': 'go'})
+        self.assertEqual(code, 200)
+        settle(self.editor)
+        text1 = self.backend.seen[0]
+        self.assertIn('## Picks since your last note', text1)
+        self.assertIn('look: A', text1)
+        self.assertIn('look: cleared', text1)
+        code, note2 = self.post('/api/notes', {'video': VIDEO, 'frame': 0, 'text': 'go again'})
+        self.assertEqual(code, 200)
+        settle(self.editor)
+        text2 = self.backend.seen[1]
+        self.assertNotIn('Picks since your last note', text2)
+
+
+class PicksReachStartProduction(Server):
+    def test_picks_just_before_start_production_are_in_its_prompt(self):
+        backend = RecorderBackend()
+        self.restart(auto_land=False, backend=backend)
+        self.post('/api/phase', {'video': VIDEO, 'phase': 'pre-production'})
+        self.post('/api/preprod/sets', {'video': VIDEO, 'base': self.commit_main(), 'set': LOOK_SET})
+        self.post('/api/preprod/pick', {'video': VIDEO, 'set': 'look', 'key': 'B'})
+        code, body = self.post('/api/phase', {'video': VIDEO, 'phase': 'production'})
+        self.assertEqual(code, 200)
+        settle(self.editor)
+        text = backend.seen[0]
+        self.assertNotIn('## Pre-production', text)
+        self.assertIn('## Picks since your last note', text)
+        self.assertIn('look: B (Bright)', text)
+        self.assertNotIn('picks', self.editor.notes.session(VIDEO))
+
+
+class PhaseIsReadOnMain(Server):
+    def test_an_unlanded_draft_does_not_decide_the_phase(self):
+        self.post('/api/phase', {'video': VIDEO, 'phase': 'pre-production'})
+        git(self.root, 'branch', 'vb-draft/stale', 'main')
+        self.post('/api/phase', {'video': VIDEO, 'phase': 'production'})
+        brief = preprod.PreprodBrief(self.editor)
+        self.assertIsNone(brief(VIDEO, {}, {'draft': 'vb-draft/stale'}))
+        self.post('/api/phase', {'video': VIDEO, 'phase': 'pre-production'})
+        git(self.root, 'branch', '-f', 'vb-draft/stale2', 'HEAD~1')
+        self.assertIsNotNone(brief(VIDEO, {}, {'draft': 'vb-draft/stale2'}))
+
+
+class RetryCarriesPicks(Server):
+    def test_retry_after_a_failed_submission_keeps_the_picks(self):
+        self.post('/api/phase', {'video': VIDEO, 'phase': 'pre-production'})
+        self.post('/api/preprod/sets', {'video': VIDEO, 'base': self.commit_main(), 'set': LOOK_SET})
+        self.post('/api/preprod/pick', {'video': VIDEO, 'set': 'look', 'key': 'B'})
+        backend = FlakyBackend()
+        self.restart(auto_land=False, backend=backend)
+        code, note = self.post('/api/notes', {'video': VIDEO, 'frame': 0, 'text': 'go'})
+        self.assertEqual(code, 200)
+        settle(self.editor)
+        failed = self.editor.notes.current(note['id'])
+        self.assertEqual(failed['state'], 'failed')
+        self.assertEqual(failed['picks'][0]['key'], 'B')
+        code, retried = self.post(f'/api/notes/{note["id"]}/retry', {})
+        self.assertEqual(code, 200)
+        settle(self.editor)
+        self.assertEqual(len(backend.seen), 1)
+        text = backend.seen[0]
+        self.assertIn('## Picks since your last note', text)
+        self.assertIn('look: B', text)
+
+
+class PickFromAnswer(Server):
+    def setUp(self):
+        super().setUp()
+        self.post('/api/phase', {'video': VIDEO, 'phase': 'pre-production'})
+        self.post('/api/preprod/sets', {'video': VIDEO, 'base': self.commit_main(), 'set': LOOK_SET})
+        questions = [{'text': 'Which look?', 'set': 'look', 'choices': [
+            {'text': 'Moody', 'key': 'A'}, {'text': 'Bright', 'key': 'B'}]}]
+        self.backend = QuestionBackend(questions)
+        self.restart(auto_land=False, backend=self.backend)
+
+    def test_matching_answer_records_the_pick(self):
+        code, note = self.post('/api/notes', {'video': VIDEO, 'frame': 0, 'text': 'pick a look'})
+        self.assertEqual(code, 200)
+        settle(self.editor)
+        stored = self.editor.notes.current(note['id'])
+        self.assertEqual(stored['state'], 'questions')
+        code, followup = self.post(f'/api/notes/{note["id"]}/answer', {'answers': ['Moody']})
+        self.assertEqual(code, 200)
+        got = next(s for s in self.board()['sets'] if s['id'] == 'look')
+        self.assertEqual(got['pick'], 'A')
+
+    def test_free_text_answer_records_no_pick(self):
+        code, note = self.post('/api/notes', {'video': VIDEO, 'frame': 0, 'text': 'pick a look'})
+        self.assertEqual(code, 200)
+        settle(self.editor)
+        self.editor.notes.current(note['id'])  # polls the backend so the note reaches 'questions'
+        code, followup = self.post(f'/api/notes/{note["id"]}/answer', {'answers': ['Something else entirely']})
+        self.assertEqual(code, 200)
+        got = next(s for s in self.board()['sets'] if s['id'] == 'look')
+        self.assertIsNone(got['pick'])
 
 
 if __name__ == '__main__':

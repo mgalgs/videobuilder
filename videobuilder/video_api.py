@@ -5,6 +5,7 @@ a tuple of literal routes, or a compiled regex matched with `.fullmatch`
 it did in the original if-chain: keep it exactly as found there."""
 import os
 import re
+import sys
 import threading
 from importlib import resources
 from urllib.parse import unquote
@@ -17,8 +18,8 @@ from .music import FetchError, TooLarge, UnsupportedAudio, attach_track
 from .notes import FINAL
 from .film_api import get_film, get_picture, post_film, post_start
 from .preprod_api import (get_image as get_preprod_image, get_preprod, get_script as get_preprod_script,
-                          post_phase, post_pick, post_scenes, post_script, post_sets, post_sets_delete,
-                          refuse_if_preproduction)
+                          pick_from_answer, post_phase, post_pick, post_scenes, post_script, post_sets,
+                          post_sets_delete, refuse_if_preproduction)
 from .sources import TooLarge as SourceTooLarge
 from .timeline_api import get_footage, get_thumb, get_timeline, post_timeline
 from .transcript import feed_source, read_feed
@@ -797,12 +798,20 @@ def _post_note_answer(self, route, body, identity, editor, user, note_id):
         raise HTTPError(400, 'answers must be a list of strings')
     editor.check_note_cap(identity, _is_admin_account(self, user))
     try:
-        return self._json(200, _note_response(self, user, editor.notes.answer(
-            unquote(note_id), build, None if build else answers, identity)))
+        original = editor.notes.get(unquote(note_id))
+        followup = editor.notes.answer(unquote(note_id), build, None if build else answers, identity)
     except KeyError:
         raise HTTPError(404, f'no note {note_id!r}') from None
     except ValueError as exc:
         raise HTTPError(409, str(exc)) from None
+    if not build and answers:
+        # The answer (and its follow-up note) already went through: a pick that can't be committed
+        # right now (a dirty main checkout, a git error) must not turn that into an error response.
+        try:
+            pick_from_answer(editor, original['video'], original, answers, identity)
+        except (HTTPError, ValueError) as exc:
+            print(f'[editor] recording a pick from an answer failed: {exc}', file=sys.stderr, flush=True)
+    return self._json(200, _note_response(self, user, followup))
 
 
 POST_ROUTES = [

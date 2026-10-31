@@ -300,12 +300,38 @@ def post_sets_delete(self, route, body, identity, editor, user):
     return self._json(200, {**out, 'changed': commit is not None, 'n': editor.versions.number(out['commit'])})
 
 
+def _option_label(data, key):
+    return next((o['label'] for o in data['options'] if o['key'] == key), None) if key else None
+
+
 def post_phase(self, route, body, identity, editor, user, is_admin):
     video = _video(body)
     phase = body.get('phase')
     if phase not in preprod.PHASES:
         raise HTTPError(400, f'phase must be one of {", ".join(preprod.PHASES)}')
     return self._json(200, editor.set_phase(video, phase, identity, is_admin))
+
+
+def queue_pick(editor, video, set_id, key, label, author):
+    """A7: appends {set, key, label, author, at} to this video's session
+    `picks`, which NoteStore._submit pops onto the next submitted note so
+    the builder's prompt lists picks made since its last note."""
+    with editor.notes.video_lock(video):
+        state = editor.notes.session(video)
+        state.setdefault('picks', []).append({'set': set_id, 'key': key, 'label': label, 'author': author,
+                                              'at': time.time()})
+        editor.notes.save_session(video, state)
+
+
+def _apply_pick(editor, video, data, set_id, key, author):
+    """Commits `set_id`'s pick (`data` already has the set's current
+    options) and queues it; the caller has already checked the set exists
+    and `key` names one of its options or is None."""
+    commit = editor.commit_files(video, {preprod.set_path(set_id): preprod.set_bytes({**data, 'pick': key})},
+                                 f'Pick: {set_id} {key or "cleared"}', author)
+    if commit:
+        queue_pick(editor, video, set_id, key, _option_label(data, key), author)
+    return commit
 
 
 def post_pick(self, route, body, identity, editor, user):
@@ -326,7 +352,33 @@ def post_pick(self, route, body, identity, editor, user):
             raise HTTPError(404, f'no such option set {set_id!r}')
         if key is not None and key not in [o['key'] for o in data['options']]:
             raise HTTPError(400, f'no option {key!r} in {set_id!r}')
-        commit = editor.commit_files(video, {preprod.set_path(set_id): preprod.set_bytes({**data, 'pick': key})},
-                                     f'Pick: {set_id} {key or "cleared"}', identity)
+        commit = _apply_pick(editor, video, data, set_id, key, identity)
     out = read_board(editor, video)
     return self._json(200, {**out, 'changed': commit is not None, 'n': editor.versions.number(out['commit'])})
+
+
+def pick_from_answer(editor, video, original_note, answers, author=None):
+    """A9: a chat answer to a picture question that exactly matches one of
+    its options' text records that option's pick, the same as the board's
+    pick control -- a free-text answer, one naming no option, or a set
+    that no longer exists changes nothing, silently: this never blocks the
+    ordinary answer flow."""
+    questions = original_note.get('questions') or []
+    if not isinstance(answers, list) or len(answers) != len(questions):
+        return
+    directory = _directory(editor, video)
+    with editor.lock:
+        for q, answer in zip(questions, answers):
+            set_id, options = q.get('set'), q.get('options')
+            if not set_id or not options or not isinstance(answer, str):
+                continue
+            match = next((o for o in options if o and o.get('key') and o['text'] == answer.strip()), None)
+            if not match:
+                continue
+            try:
+                data = preprod.read_set(directory, set_id)
+            except ValueError:
+                continue
+            if data is None or match['key'] not in [o['key'] for o in data['options']]:
+                continue
+            _apply_pick(editor, video, data, set_id, match['key'], author or original_note.get('author'))

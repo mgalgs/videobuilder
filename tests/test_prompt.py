@@ -405,6 +405,29 @@ class RequestedAssetsSection(unittest.TestCase):
         self.assertIn('Music:', md)
 
 
+class Preproduction(unittest.TestCase):
+    def render(self, **kw):
+        return prompt.render(NOTE, PAYLOAD, None, **kw)
+
+    def test_omitted_by_default(self):
+        self.assertNotIn('Pre-production', self.render())
+
+    def test_section_appears_before_ask_first(self):
+        md = self.render(preproduction={})
+        self.assertIn('## Pre-production', md)
+        self.assertLess(md.index('## Pre-production'), md.index('## Ask first'))
+
+    def test_picks_section_lists_each_pick_and_a_cleared_one(self):
+        note = {**NOTE, 'picks': [{'set': 'look', 'key': 'A', 'label': 'Moody'}, {'set': 'character-ana', 'key': None}]}
+        md = prompt.render(note, PAYLOAD, None)
+        self.assertIn('## Picks since your last note', md)
+        self.assertIn('look: A (Moody)', md)
+        self.assertIn('character-ana: cleared', md)
+
+    def test_no_picks_key_omits_the_section(self):
+        self.assertNotIn('Picks since your last note', self.render())
+
+
 class PinGuidance(unittest.TestCase):
     def test_looks_and_type_tell_the_builder_to_raise_only_the_version(self):
         # drafts.inspect() only keeps a pin change that raises just the version on the

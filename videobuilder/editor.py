@@ -698,6 +698,7 @@ class Editor:
         self.renders = Renders(self, _positive(cfg, 'render_jobs', min(4, default_jobs())),
                                _positive(cfg, 'render_keep', 20))
         self.notes.film = FilmBrief(self)
+        self.notes.preproduction = preprod.PreprodBrief(self)
         from .thumbnails import Thumbnails
         self.thumbnails = Thumbnails(self)
         self.allowed_hosts = {h.lower().rstrip('.') for h in

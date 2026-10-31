@@ -31,6 +31,10 @@ instead be a picture choice (an option-set image the builder already
 committed), in which case the question also carries `options` (aligned with
 `choices`) and, when the block names one, `set` -- see parse_questions.
 
+In pre-production (see preprod.py), a submitted note carries `phase:
+'pre-production'` and, when option picks were recorded since the video's last
+submitted note, a `picks` list the prompt lists for the builder.
+
 A reply may also carry a ```shortfalls fenced JSON block (see strip_shortfalls),
 naming a request the builder could not do at all or could not do well. It is
 stripped from the reply either way -- the creator must never see raw JSON -- and,
@@ -347,6 +351,10 @@ class NoteStore:
         # listen, when set, is a callable (note, attach_dir) -> [{name, notes, error}] for
         # the note's audio attachments (see listen.Listener); [] when listening is off.
         self.listen = None
+        # preproduction, when set, is a callable (video, note, state) -> dict or None (see
+        # preprod.PreprodBrief): None for a video in production, leaving the prompt (and the
+        # note's own fields) exactly as before pre-production existed; set by Editor.
+        self.preproduction = None
         # The background submitters (see kick): video -> its worker thread, and the videos
         # kicked again while their worker was already running.
         self._workers, self._rekicked = {}, set()
@@ -599,6 +607,17 @@ class NoteStore:
         try:
             if self.before_submit:
                 self.before_submit(video, note, state)
+            preproduction = self.preproduction(video, note, state) if self.preproduction else None
+            if preproduction is not None:
+                note['phase'] = 'pre-production'
+            # Picked since this video's last submitted note (preprod_api.queue_pick), in either phase:
+            # Start production's own note is the "next note" after the last picks. Left alone (not
+            # overwritten with nothing) when the queue is empty, so a retried submission that already
+            # carried `picks` forward (NoteStore.retry) doesn't lose them.
+            picks = state.pop('picks', None)
+            if picks:
+                note['picks'] = note.get('picks', []) + picks
+                self.save_session(video, state)
             payload = {**note, **self.context(video), **state,
                        'state_dir': str(self.session_dir(video)),
                        'image': self._path(note['id'], 'png') if note.get('frame') is not None else None}
@@ -637,7 +656,7 @@ class NoteStore:
             votes = self.compendium_votes() if compendium and self.compendium_votes else None
             path.write_text(prompt.render(note, payload, image, compendium=compendium, votes=votes,
                                           sources=sources, community=staged_community, film=film, refs=staged_refs,
-                                          music=self.music, listening=listening),
+                                          music=self.music, listening=listening, preproduction=preproduction),
                             encoding='utf-8')
             payload['note_file'] = str(path)
             note['handle'] = self.backend.submit(payload)
@@ -723,7 +742,7 @@ class NoteStore:
             png = self.image(nid) if note.get('frame') is not None else None
             context = {k: note[k] for k in ('time', 'beat', 'attachments', 'no_questions', 'clip', 'said',
                                             'capabilities', 'refs', 'fonts', 'sfx', 'music',
-                                            'music_over_budget') if k in note}
+                                            'music_over_budget', 'picks', 'phase') if k in note}
             new = self.add(video, note['format'], note['frame'], note['segment'], note['text'], png,
                            author=author or note.get('author'), retried_from=nid, **context)
             note['retried'] = new['id']

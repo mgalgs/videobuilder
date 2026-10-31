@@ -419,6 +419,75 @@ def _film_scope(film, directory):
             f"clip and say what else it needs."]
 
 
+def _preproduction_lines(preproduction):
+    """The pre-production section (see preprod.py, docs/preproduction.md):
+    develop with the director rather than build, where everything lives,
+    and how to offer picture option choices."""
+    example = json.dumps({'questions': [{'text': 'Which look fits best?', 'set': 'look', 'choices': [
+        {'text': 'Moody, low-key lighting', 'image': 'bible/options/look/A.png', 'kind': 'vb', 'key': 'A'},
+        {'text': 'Bright and saturated', 'key': 'B'}]}]})
+    scenes_example = json.dumps({
+        'songs': [{'id': 'song-1', 'name': 'Harbour Lights', 'file': 'harbour-lights.mp3', 'duration': 212.5,
+                   'bpm': 96, 'mood': None,
+                   'sections': [{'name': 'verse 1', 'start': 0, 'end': 32.5, 'text': ''}]}],
+        'scenes': [{'id': 'opening', 'slugline': 'EXT. CLIFF - DUSK', 'summary': 'The keeper climbs to the lamp.',
+                    'seconds': 28, 'song': 'song-1', 'section': 'verse 1', 'from': 0, 'to': 28, 'look': None}]})
+    set_example = json.dumps({
+        'id': 'character-mara', 'topic': 'character', 'character': 'mara', 'question': 'How should Mara look?',
+        'pick': None, 'options': [
+            {'key': 'A', 'label': 'Weathered', 'text': 'Grey oilskin, salt in her hair.',
+             'image': 'bible/options/character-mara/A.png', 'kind': 'vb'},
+            {'key': 'B', 'label': 'Young', 'text': 'Bright scarf, first winter on the rock.',
+             'image': None, 'kind': None}]})
+    lines = ['## Pre-production', '',
+             'This video is in pre-production: develop it with the director, do not build or render the '
+             'film yet. Write and revise the bible: the screenplay (bible/script.fountain, in Fountain, '
+             'numbered scenes, a title-page `Draft: N` you raise on a real rewrite), the scene plan '
+             '(bible/scenes.json: each scene\'s slugline, one-line summary, approximate length, and the '
+             'song section it sits on), and option sets (bible/options/<id>.json: the look, each '
+             'character, or a scene\'s plot alternatives) -- offer real choices, 2 to 4 of them, each with '
+             'a short label and text. Never edit bible/phase.json yourself: that is the director\'s own '
+             'switch, for starting production.',
+             '',
+             'The director\'s board reads these two JSON files strictly and skips one that doesn\'t match '
+             'its shape exactly, so write them like this (ids are lowercase letters, digits and hyphens; '
+             'times are seconds; null where there is nothing to say). bible/scenes.json, a scene\'s number '
+             'being its place in the list:', '',
+             '```json', scenes_example, '```', '',
+             'bible/options/<id>.json, one set per file: `id` is "look" for topic "look", '
+             '"character-<slug>" (with `character`) for topic "character", "scene-<scene id>" (with '
+             '`scene`) for topic "scene", or any id for topic "other"; 2 to 4 options with distinct keys '
+             'A-D, `label` up to 80 characters, `text` up to 400, `image` a bible/ picture path or null '
+             'and `kind` "vb", "concept" or "yours" with an image, else null. Leave `pick` as you found '
+             'it (null for a new set): picks are the director\'s.', '',
+             '```json', set_example, '```', '',
+             'Offering a set is not the "ask first" case below: commit the set file and its pictures '
+             'first, then ask with the questions block; its `set`, `key` and `image` fields are meant '
+             'for those paths, while each choice\'s `text` stays plain words.',
+             '',
+             'Offer an option set through the usual ```questions block: give each choice a `key` (A, B, '
+             'C, D) and, once you have committed a picture for it, an `image` (its bible/ path) and a '
+             '`kind` of "vb" (a real frame you rendered); name the set in `set` so a pick is recorded '
+             'against it. For example:', '',
+             '```json', example, '```', '',
+             'A "vb" still is a real frame: render it with videobuilder in your own sandbox, keeping any '
+             'scratch output (intermediate frames, caches) outside this checkout so only the finished '
+             'picture itself is committed, at bible/options/<set>/<key>.<ext>.']
+    return lines
+
+
+def _picks_lines(picks):
+    lines = ['## Picks since your last note', '', 'The director has picked, since you last wrote:']
+    for p in picks:
+        if not p.get('key'):
+            lines.append(f"- {p['set']}: cleared")
+        elif p.get('label'):
+            lines.append(f"- {p['set']}: {p['key']} ({p['label']})")
+        else:
+            lines.append(f"- {p['set']}: {p['key']}")
+    return lines
+
+
 def _listening_lines(listening):
     lines = ['## Listening notes', '']
     if any(item['notes'] for item in listening):
@@ -438,7 +507,7 @@ def _listening_lines(listening):
 
 
 def render(note, payload, image, compendium=False, votes=None, sources=None, community=None, film=None, refs=None,
-          music=None, listening=None):
+          music=None, listening=None, preproduction=None):
     """The exact text written to `<state>/sessions/<slug>/<note-id>.md`, the file
     the submitted payload's `note_file` points the builder at. `payload` is the
     note merged with its context and session fields (see NoteStore._submit);
@@ -477,6 +546,13 @@ def render(note, payload, image, compendium=False, votes=None, sources=None, com
     `listening` is listen.Listener's result for the note's audio attachments,
     the notes already staged beside them; falsy (no key, no audio) leaves the
     section out entirely.
+    `preproduction` is NoteStore.preproduction's result (preprod.PreprodBrief):
+    None for a video in production, leaving this prompt exactly as before
+    pre-production existed; otherwise a dict that adds the '## Pre-production'
+    section. `note['picks']` (set by NoteStore._submit from the picks queued
+    since this video's last submitted note -- see preprod_api.queue_pick) adds
+    a '## Picks since your last note' section whenever it's non-empty, in
+    production or not.
     """
     lines = ['# Review request', '', *([note['rejection']] if note.get('rejection') else []), note['text'], '']
     if note.get('time') is not None:
@@ -513,6 +589,10 @@ def render(note, payload, image, compendium=False, votes=None, sources=None, com
         bible = _bible_lines(film, bool(film['clip']))
         if bible:
             lines += ['', *bible]
+    if preproduction is not None:
+        lines += ['', *_preproduction_lines(preproduction)]
+    if note.get('picks'):
+        lines += ['', *_picks_lines(note['picks'])]
     asking_enabled = not (note.get('no_questions') or note.get('automatic'))
     if not asking_enabled:
         lines += ['', '## No more questions', '',

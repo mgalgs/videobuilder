@@ -13,7 +13,10 @@ Most of this module is pure data: parsing, validating and building the
 bytes of those files from a directory on disk (the working tree at some
 commit), the same shape as film_setup.py; it raises no HTTPError and never
 touches git. preprod_api.py is the editor-facing layer that commits these
-files and exposes them over the API.
+files and exposes them over the API. The one exception is `PreprodBrief`,
+`NoteStore.preproduction` (see film_brief.FilmBrief for the same pattern):
+it reads the phase at main's tip, so it does reach into git and the
+editor.
 """
 import json
 import re
@@ -67,6 +70,34 @@ def phase_bytes(phase):
     if phase not in PHASES:
         raise ValueError(f'unknown phase {phase!r}')
     return (json.dumps({'phase': phase}) + '\n').encode()
+
+
+class PreprodBrief:
+    """NoteStore.preproduction: (video, note, state) -> {} once the video
+    is in pre-production on main, else None, so a video in
+    production renders byte-identical to before pre-production existed.
+
+    Main, not the builder's draft: the phase is the director's switch
+    (POST /api/phase commits it on main), and an unlanded draft carries
+    whatever phase it branched from -- reading it there would brief Start
+    production's own note as pre-production, and disagree with the render
+    gate (Editor.phase), which reads main."""
+
+    def __init__(self, editor):
+        self.editor = editor
+
+    def __call__(self, video, note, state):
+        from .clip_cache import GitTree
+        from .drafts import git
+        e = self.editor
+        try:
+            sha = git(e.root, 'rev-parse', '--verify', 'main^{commit}')
+        except ValueError:
+            return None
+        directory = e.drafts.context(video)['directory']
+        if _phase_from_bytes(GitTree(e.root, sha, directory).read(PHASE_FILE)) != 'pre-production':
+            return None
+        return {}
 
 
 # ---- raw bible.md sections the builder writes freely (Film details doesn't own them) ----

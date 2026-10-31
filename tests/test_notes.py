@@ -338,6 +338,22 @@ class Notes(unittest.TestCase):
             'described above and do not add a Summary line.\n'
         ))
 
+    def test_a_preproduction_callable_returning_none_leaves_the_prompt_and_note_untouched(self):
+        """R20: a NoteStore whose `preproduction` always says "not pre-production" (as a
+        production video's does) must submit and store a note exactly as one with no
+        `preproduction` wired at all -- no `phase` or `picks` key appears."""
+        agent = FakeAgent()
+        store = NoteStore(self.dir, agent)
+        store.preproduction = lambda video, note, state: None
+        note = sent(store, store.add('promo/film', '16x9', None, None, 'Make it punchier', None))
+        md = (store.session_dir('promo/film') / (note['id'] + '.md')).read_text()
+        plain = NoteStore(Path(self.tmp.name, 'notes2'), FakeAgent())
+        plain_note = sent(plain, plain.add('promo/film', '16x9', None, None, 'Make it punchier', None))
+        plain_md = (plain.session_dir('promo/film') / (plain_note['id'] + '.md')).read_text()
+        self.assertEqual(md, plain_md)
+        for key in ('phase', 'picks'):
+            self.assertNotIn(key, note)
+
     def test_retry_carries_no_questions_forward(self):
         agent = FakeAgent()
         store = NoteStore(self.dir, agent)
