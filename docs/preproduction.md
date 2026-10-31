@@ -481,9 +481,10 @@ For a staged audio file, when the listening cache (see "Listening early"
 below) already has notes for it, those notes are read too -- not asked
 for fresh. 200 `{name}`: a short string, or `null` when there is nothing
 to go on yet, no model is configured, or the call itself failed (never an
-error -- this must never break the page). `name` is a plain suggestion,
-not validated as a real video name; the page runs it through the same
-name validation any typed name gets before filling the field in. 404
+error -- this must never break the page). `name` is already slugged and
+valid as a video name without a project (the same rule
+`POST /api/videos/new` applies); an answer that can't be made one is
+`null`. 404
 without a model configured, so the page hides the button entirely.
 
 ### Listening early

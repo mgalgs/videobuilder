@@ -64,6 +64,7 @@ const ICONS={
   video:['<rect x="3" y="5" width="14" height="14" rx="2"/><path d="M17 10l4-2.5v9L17 14"/>',2],
   doc:['<path d="M6 3h8l4 4v14H6zM14 3v4h4M9 12h6M9 15.5h6"/>',2],
   plus:['M12 5v14M5 12h14',2.4],
+  sparkle:['M10 3l1.6 4.4L16 9l-4.4 1.6L10 15l-1.6-4.4L4 9l4.4-1.6zM18 13l.9 2.1L21 16l-2.1.9L18 19l-.9-2.1L15 16l2.1-.9z',2],
 };
 function icon(name,size=16){
   const v=ICONS[name];if(!v)return'';
@@ -220,7 +221,7 @@ function upload(f){
     }
     renderFiles();renderGo();renderSuggestButton();
   };
-  xhr.onerror=()=>{f.xhr=null;f.error='upload failed';f.progress=null;renderFiles();renderGo()};
+  xhr.onerror=()=>{f.xhr=null;f.error='upload failed';f.progress=null;renderFiles();renderGo();renderSuggestButton()};
   xhr.send(f.file);
 }
 
@@ -288,7 +289,8 @@ if(document.body){
 pageDrop.addEventListener('click',()=>{pageDrop.hidden=true});
 
 /* ---------- plan / build ---------- */
-let suggestion=null,userPicked=null,modeTimer=null;
+let suggestion=null,userPicked=null,modeTimer=null,modeSeq=0;
+const MODE_TITLE={plan:'Plan it first',build:'Just build it'};
 
 function renderMode(){
   const sVal=suggestion?(suggestion.plan?'plan':'build'):null;
@@ -297,17 +299,20 @@ function renderMode(){
   modeBuild.setAttribute('aria-checked',String(m==='build'));
   suggPlan.hidden=sVal!=='plan';
   suggBuild.hidden=sVal!=='build';
+  why.hidden=!suggestion;
+  const empty=!suggestion||suggestion.why==='empty';
+  why.classList.toggle('neutral',empty);
   if(!suggestion){
-    why.hidden=true;
+    /* hidden until the first answer */
+  }else if(empty&&!userPicked){
+    why.innerHTML=icon('sparkle',16)+'<span>Add files or write the idea and the builder suggests one, with '+
+      'its reason. You can flip it.</span>';
+  }else if(userPicked&&userPicked!==sVal){
+    why.innerHTML=icon('sparkle',16)+`<span>You picked <b>${MODE_TITLE[m]}</b>. The builder `+
+      `suggested ${sVal==='plan'?'planning it first':'building it straight away'}: ${esc(suggestion.reason)} `+
+      '<button type="button" id="mode-back">Switch back</button></span>';
   }else{
-    why.hidden=false;
-    if(userPicked&&userPicked!==sVal){
-      why.innerHTML=`<span>You picked <b>${m==='plan'?'Plan it first':'Just build it'}</b>. The builder `+
-        `suggested ${sVal==='plan'?'planning it first':'building it straight away'}: ${esc(suggestion.reason)} `+
-        '<button type="button" id="mode-back">Switch back</button></span>';
-    }else{
-      why.innerHTML=`<span>${esc(suggestion.reason)}</span>`;
-    }
+    why.innerHTML=icon('sparkle',16)+`<span>Suggested <b>${MODE_TITLE[sVal]}</b>: ${esc(suggestion.reason)}</span>`;
   }
   return m;
 }
@@ -331,10 +336,13 @@ why.addEventListener('click',e=>{if(e.target&&e.target.id==='mode-back'){userPic
 
 async function fetchMode(){
   const types=files.map(f=>f.type).filter(Boolean);
+  const seq=++modeSeq;
   try{
     const r=await fetch('/api/videos/mode',{method:'POST',headers:{'Content-Type':'application/json'},
       body:JSON.stringify({prompt:idea.value,types})});
-    if(r.ok)suggestion=await r.json();
+    // An older answer arriving late must not overwrite the one for what's on the page now.
+    const data=r.ok?await r.json():null;
+    if(data&&seq===modeSeq)suggestion=data;
   }catch(_){ /* keep whatever suggestion we already had; this must never show an error */ }
   renderGo();
 }

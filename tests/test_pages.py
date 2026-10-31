@@ -106,8 +106,8 @@ class NewVideoPage(unittest.TestCase):
         self.assertEqual(re.findall(r'<(input|select|textarea|button)\b[^>]*\bid="([^"]+)"', form),
                          [('input', 'name'), ('button', 'suggest-name'), ('select', 'project'),
                           ('input', 'new-project'), ('button', 'add-files'), ('input', 'file-input'),
-                          ('textarea', 'idea'), ('button', 'idea-attach'), ('button', 'mode-plan'),
-                          ('button', 'mode-build'), ('select', 'format'), ('button', 'go')])
+                          ('textarea', 'idea'), ('button', 'idea-attach'), ('select', 'format'),
+                          ('button', 'mode-plan'), ('button', 'mode-build'), ('button', 'go')])
         self.assertIn('>Create</button>', form)
         self.assertIn('Project <i>(optional)</i>', form)
         self.assertIn('Everything below is optional', form)
@@ -148,7 +148,8 @@ class NewVideoCreate(unittest.TestCase):
     HARNESS = """
 const els={};
 function el(id,value=''){const e={id,value,hidden:false,disabled:false,textContent:'',innerHTML:'',
-  options:[],listeners:{},attrs:{},dataset:{},
+  options:[],listeners:{},attrs:{},dataset:{},classes:new Set(),
+  classList:{toggle(c,on){on?e.classes.add(c):e.classes.delete(c)}},
   addEventListener(t,f){(this.listeners[t]??=[]).push(f)},
   setAttribute(n,v){this.attrs[n]=String(v)},getAttribute(n){return this.attrs[n]},focus(){}};
   els[id]=e;return e}
@@ -277,6 +278,31 @@ await new Promise(r=>setTimeout(r,0));
         self.assertEqual(out['calls'], [['/api/videos/new', {'name': 'a', 'start': 'blank',
                                                               'attachments': ['abc123']}]])
 
+    def test_files_an_idea_and_a_flip_to_plan_all_ride_along(self):
+        out = self.run_page('a', idea='A quick reel.', fmt='1x1',
+                            mode_answer={'plan': False, 'why': 'short-idea', 'reason': 'A quick idea.'},
+                            before_submit="""
+for(const f of els['file-input'].listeners.change)
+  await f({target:{files:[{name:'pic.png',type:'image/png',size:3},{name:'song.mp3',type:'audio/mpeg',size:9}],
+           value:''}});
+xhrs.forEach((x,i)=>{x.status=201;x.responseText=JSON.stringify({id:'id'+i});x.onload()});
+for(const f of els['mode-plan'].listeners.click)await f({});
+await new Promise(r=>setTimeout(r,0));
+""")
+        self.assertEqual(out['calls'], [['/api/videos/new', {
+            'name': 'a', 'start': 'blank', 'prompt': 'A quick reel.', 'attachments': ['id0', 'id1'],
+            'format': '1x1', 'plan': True}]])
+        self.assertEqual(out['goText'], 'Creating…')
+        self.assertEqual(out['href'], '/v/a/')
+
+    def test_the_why_line_names_the_suggestion_and_is_neutral_with_nothing_to_go_on(self):
+        out = self.run_page('a', idea='A screenplay.', submit=False,
+                            mode_answer={'plan': True, 'why': 'story', 'reason': 'Reads like a story.'},
+                            before_submit='await new Promise(r=>setTimeout(r,0));')
+        self.assertIn('Suggested <b>Plan it first</b>: Reads like a story.', out['why'])
+        out = self.run_page('a', submit=False, before_submit='await new Promise(r=>setTimeout(r,0));')
+        self.assertIn('the builder suggests one', out['why'])
+
     def test_submit_is_refused_while_a_file_is_still_uploading(self):
         out = self.run_page('a', before_submit="""
 for(const f of els['file-input'].listeners.change)
@@ -299,11 +325,6 @@ for(const f of els['file-input'].listeners.change)
         self.assertEqual(out['name'], 'lighthouse-storm')
         self.assertEqual(out['calls'], [['/api/videos/suggest-name',
                                          {'idea': 'A lighthouse keeper riding out a storm.', 'attachments': []}]])
-
-    def test_the_editor_reads_the_same_draft_key(self):
-        js = (resources.files('videobuilder') / 'director.js').read_text()
-        self.assertIn("const DRAFT='vb-draft:';", js)
-        self.assertIn("sessionStorage.getItem(DRAFT+location.pathname)", js)
 
     def test_the_editor_reads_the_same_draft_key(self):
         js = (resources.files('videobuilder') / 'director.js').read_text()

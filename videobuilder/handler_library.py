@@ -338,10 +338,15 @@ class LibraryHandler:
                     cancel_event = threading.Event()
                     stop_watching = self._watch_disconnect(cancel_event)
                     try:
-                        return self._json(200, library.suggest.suggest_name(idea, file_names, listening_notes,
-                                                                             identity, cancel_event=cancel_event))
+                        answer = library.suggest.suggest_name(idea, file_names, listening_notes, identity,
+                                                              cancel_event=cancel_event)
                     finally:
                         stop_watching()
+                    # Slugged the way new_video.js slugs a typed name, then held to the same rule
+                    # /api/videos/new holds it to: a project-less video name, or nothing.
+                    name = re.sub(r'[^a-z0-9._-]', '', re.sub(r'\s+', '-', (answer.get('name') or '').strip().lower()))
+                    name = re.sub(r'^[^a-z0-9]+', '', name)[:63]
+                    return self._json(200, {'name': name if valid_name(name) else None})
                 if route == '/api/videos/new' and method == 'POST':
                     # Reachable by any signed-in user (the generic session check above
                     # already refused an anonymous one when accounts are on), unlike the

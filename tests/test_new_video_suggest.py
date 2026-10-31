@@ -35,6 +35,17 @@ class SuggestName(LibraryFixture, unittest.TestCase):
         self.assertEqual(code, 200, body)
         self.assertEqual(body, {'name': 'lighthouse-storm'})
 
+    def test_the_answer_comes_back_as_a_valid_video_name(self):
+        self.fake.answer = {'name': 'Lighthouse Storm!'}
+        code, body = self.request('/api/videos/suggest-name', {'idea': 'A lighthouse keeper riding out a storm.'})
+        self.assertEqual((code, body), (200, {'name': 'lighthouse-storm'}))
+
+    def test_an_answer_that_cannot_be_a_video_name_is_none(self):
+        for answer in ('???', 'reel.git', '-- '):
+            self.fake.answer = {'name': answer}
+            code, body = self.request('/api/videos/suggest-name', {'idea': f'Idea for {answer!r}.'})
+            self.assertEqual((code, body), (200, {'name': None}), answer)
+
     def test_nothing_to_go_on_skips_the_model_entirely(self):
         code, body = self.request('/api/videos/suggest-name', {'idea': ''})
         self.assertEqual((code, body), (200, {'name': None}))
