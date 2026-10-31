@@ -2739,6 +2739,16 @@ button.danger:disabled {
     opacity: .4;
   }
 
+  /* Eight buttons only fit under the format chip on a short phone when packed tighter. */
+  .phone-rail:has(#rail-photos:not([hidden])) {
+    gap: 4px;
+  }
+
+  .phone-rail:has(#rail-photos:not([hidden])) .rail-icon {
+    width: 44px;
+    height: 44px;
+  }
+
   .rail-icon {
     width: 48px;
     height: 48px;
