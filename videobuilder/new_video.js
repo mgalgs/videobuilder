@@ -126,7 +126,7 @@ function tileHtml(f){
   }
   if(f.type==='application/pdf'||f.type==='text/plain'){
     const kind=f.type==='application/pdf'?'PDF':(/\.md$/i.test(f.name)?'MD':'TXT');
-    return `<div class="doc-tile">${x}<span class="doc-ic${kind==='PDF'?'':' txt'}">${kind}</span>`+
+    return `<div class="tile doc-tile">${x}<span class="doc-ic${kind==='PDF'?'':' txt'}">${kind}</span>`+
       `<span><div class="doc-name">${esc(f.name)}</div><div class="doc-sub">${kind} · `+
       `${sizeLabel(f.size)}</div></span>${bar}${bad}</div>`;
   }
