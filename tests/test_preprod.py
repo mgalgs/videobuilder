@@ -2489,9 +2489,9 @@ console.log(JSON.stringify(out));
         script = (self.DOM_STUB + _consts(js, 'node', 'api', 'TL_ICON', 'svg', 'remoteMediaCache') +
                  _fns(js, 'icon', 'sizedIcon', 'sizeLabel', 'attachmentUrl', 'attachmentKind',
                       'bubbleImageGrid', 'enrichRemoteVideo', 'bubbleVideoTile', 'enrichRemoteAudio',
-                      'bubbleAudioTile', 'bubbleFileChip', 'bubbleAttachments') + """
+                      'bubbleAudioState', 'bubbleAudioTile', 'bubbleFileChip', 'bubbleAttachments') + """
 const timeLabel=s=>{s=Math.max(0,Math.floor(s||0));return `${Math.floor(s/60)}:${String(s%60).padStart(2,'0')}`};
-let bubbleAudioId=null;
+let bubbleAudioId=null,bubbleAudioPlayer=null;
 function renderNotes(){}
 const atts=[
   {id:'i1',name:'cliff-night.jpg',type:'image/jpeg',size:1},
@@ -2566,6 +2566,80 @@ console.log(JSON.stringify({a:bubbleA.children.length,b:bubbleB.children.length}
 """)
         out = run_node(script)
         self.assertEqual(out, {'a': 0, 'b': 0})
+
+
+    @unittest.skipUnless(shutil.which('node'), 'node is not available in this environment')
+    def test_lightbox_swipe_steps_sideways_closes_downward_and_ignores_taps(self):
+        js = (PKG / 'director.js').read_text()
+        script = (self.DOM_STUB + _consts(js, 'node', 'api', 'lightboxItems') +
+                 _fns(js, 'attachmentUrl', 'attachmentKind', 'renderLightbox', 'lightboxStep',
+                      'lightboxKeydown', 'lightboxSwipe', 'openLightbox', 'closeLightbox') + """
+const items=[{id:'i1',name:'a.jpg',type:'image/jpeg'},{id:'i2',name:'b.jpg',type:'image/jpeg'},
+  {id:'i3',name:'c.jpg',type:'image/jpeg'}];
+openLightbox(items,0);
+lightboxSwipe(-120,10);
+const left=$('lb-name').textContent;
+lightboxSwipe(120,-5);
+const right=$('lb-name').textContent;
+lightboxSwipe(8,4);
+const tap={name:$('lb-name').textContent,hidden:$('lightbox').hidden};
+lightboxSwipe(10,140);
+console.log(JSON.stringify({left,right,tap,closed:$('lightbox').hidden}));
+""")
+        out = run_node(script)
+        self.assertEqual(out['left'], 'b.jpg', 'swiping left shows the next item')
+        self.assertEqual(out['right'], 'a.jpg', 'swiping right shows the previous item')
+        self.assertEqual(out['tap'], {'name': 'a.jpg', 'hidden': False})
+        self.assertTrue(out['closed'], 'swiping down closes it')
+
+    @unittest.skipUnless(shutil.which('node'), 'node is not available in this environment')
+    def test_bubble_audio_chip_keeps_its_progress_and_elapsed_time_across_a_rerender(self):
+        js = (PKG / 'director.js').read_text()
+        script = (self.DOM_STUB + _consts(js, 'node', 'api') +
+                 _fns(js, 'icon', 'sizedIcon', 'attachmentUrl', 'bubbleAudioState', 'bubbleAudioTile') + """
+const timeLabel=s=>{s=Math.max(0,Math.floor(s||0));return `${Math.floor(s/60)}:${String(s%60).padStart(2,'0')}`};
+const remoteMediaCache=new Map([['a1',{duration:192}],['a2',{duration:228}]]);
+const enrichRemoteAudio=()=>{};
+const bubbleAudioPlayer={duration:192,currentTime:48};
+let bubbleAudioId='a1';
+const playing=bubbleAudioTile({id:'a1',name:'storm-theme.wav',type:'audio/wav'});
+const idle=bubbleAudioTile({id:'a2',name:'harbor-song.mp3',type:'audio/mpeg'});
+const fill=n=>n.querySelector('.bar-wave').children[0].style.width;
+const times=n=>n.children.find(c=>c.className==='times').textContent;
+const label=n=>n.children[0].attrs['aria-label'];
+console.log(JSON.stringify({playing:[fill(playing),times(playing),label(playing)],
+  idle:[fill(idle),times(idle),label(idle)]}));
+""")
+        out = run_node(script)
+        self.assertEqual(out['playing'], ['25%', '0:48 / 3:12', 'Pause storm-theme.wav'])
+        self.assertEqual(out['idle'], ['0%', '3:48', 'Play harbor-song.mp3'])
+
+    @unittest.skipUnless(shutil.which('node'), 'node is not available in this environment')
+    def test_removing_or_sending_tray_items_frees_their_previews_and_stops_playback(self):
+        js = (PKG / 'director.js').read_text()
+        script = (self.DOM_STUB + _fns(js, 'releaseFileRecord', 'removeFileRecord', 'clearFiles') + """
+const revoked=[],aborted=[];
+const URL={revokeObjectURL:u=>revoked.push(u)};
+let paused=0;
+const trayPlayer={pause(){paused++}};
+let trayPlayingId=2;
+let renders=0;
+const renderFiles=()=>renders++;
+const xhr={abort(){aborted.push('img')}};
+const state={files:[
+  {localId:1,url:'blob:img',audioUrl:null,xhr},
+  {localId:2,url:null,audioUrl:'blob:song',xhr:null},
+  {localId:3,url:null,audioUrl:null,xhr:null}]};
+removeFileRecord(state.files[0]);
+const afterRemove={left:state.files.map(r=>r.localId),revoked:[...revoked],aborted};
+clearFiles();
+console.log(JSON.stringify({afterRemove,revoked,paused,trayPlayingId,files:state.files.length,renders}));
+""")
+        out = run_node(script)
+        self.assertEqual(out['afterRemove'], {'left': [2, 3], 'revoked': ['blob:img'], 'aborted': ['img']})
+        self.assertEqual(out['revoked'], ['blob:img', 'blob:song'])
+        self.assertEqual((out['paused'], out['trayPlayingId']), (1, None))
+        self.assertEqual((out['files'], out['renders']), (0, 2))
 
 
 class Docs(unittest.TestCase):

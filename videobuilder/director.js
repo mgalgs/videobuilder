@@ -980,10 +980,23 @@ if(bubbleAudioPlayer) {
   };
   bubbleAudioPlayer.ontimeupdate=()=>paintBubbleAudioProgress()
 }
+// The playing chip shows "elapsed / total"; the rest just their length once known.
+function bubbleAudioState(att) {
+  const duration=(remoteMediaCache.get(att.id)||{}).duration;
+  if(bubbleAudioId!==att.id||!bubbleAudioPlayer||!bubbleAudioPlayer.duration)
+    return {pct:0,times:duration!=null?timeLabel(duration):''};
+  const total=bubbleAudioPlayer.duration,now=bubbleAudioPlayer.currentTime;
+  return {pct:Math.min(100,now/total*100),times:`${timeLabel(now)} / ${timeLabel(total)}`}
+}
+// Repainted in place: the chat rerenders on every poll, and a rebuilt chip would otherwise
+// snap back to 0 until the next timeupdate.
 function paintBubbleAudioProgress() {
-  if(!bubbleAudioId||!bubbleAudioPlayer.duration)return;
-  const fill=document.querySelector(`.aud[data-att="${bubbleAudioId}"] .bar-wave i`);
-  if(fill)fill.style.width=Math.min(100,bubbleAudioPlayer.currentTime/bubbleAudioPlayer.duration*100)+'%'
+  if(!bubbleAudioId)return;
+  const el=document.querySelector(`.aud[data-att="${bubbleAudioId}"]`);
+  if(!el)return;
+  const {pct,times}=bubbleAudioState({id:bubbleAudioId});
+  el.querySelector('.bar-wave i').style.width=pct+'%';
+  el.querySelector('.times').textContent=times
 }
 function toggleBubbleAudio(att) {
   if(!bubbleAudioPlayer)return;
@@ -1015,7 +1028,6 @@ function enrichRemoteAudio(att) {
   }
 }
 function bubbleAudioTile(att) {
-  const cached=remoteMediaCache.get(att.id)||{};
   const playing=bubbleAudioId===att.id;
   const el=node('div','aud');
   el.dataset.att=att.id;
@@ -1026,10 +1038,12 @@ function bubbleAudioTile(att) {
   play.onclick=()=>toggleBubbleAudio(att);
   const meta=node('div','meta');
   meta.append(node('span','name',att.name));
-  const wave=node('div','wave bar-wave');
-  wave.append(node('i'));
+  const {pct,times}=bubbleAudioState(att);
+  const wave=node('div','wave bar-wave'),fill=node('i');
+  fill.style.width=pct+'%';
+  wave.append(fill);
   meta.append(wave);
-  el.append(play,meta,node('span','times',cached.duration!=null?timeLabel(cached.duration):''));
+  el.append(play,meta,node('span','times',times));
   enrichRemoteAudio(att);
   return el
 }
@@ -1095,6 +1109,12 @@ function lightboxKeydown(e) {
   if(e.key==='Escape')closeLightbox();
   else if(e.key==='ArrowLeft')lightboxStep(-1);
   else if(e.key==='ArrowRight')lightboxStep(1)
+}
+// Phone: a sideways swipe steps, a downward one closes; anything shorter is a tap and left to
+// the click handlers.
+function lightboxSwipe(dx, dy) {
+  if(Math.abs(dx)>=50&&Math.abs(dx)>Math.abs(dy))lightboxStep(dx<0?1:-1);
+  else if(dy>=80&&dy>Math.abs(dx))closeLightbox()
 }
 function openLightbox(items, index) {
   lightboxItems=items;
@@ -1616,10 +1636,7 @@ function enrichFile(record) {
   catch(_) {
   }
 }
-function removeFileRecord(record) {
-  const i=state.files.indexOf(record);
-  if(i<0)return;
-  state.files.splice(i,1);
+function releaseFileRecord(record) {
   if(record.xhr) {
     try {
       record.xhr.abort()
@@ -1627,13 +1644,29 @@ function removeFileRecord(record) {
     catch(_) {
     }
   }
-  if(record.url) {
+  if(trayPlayer&&trayPlayingId===record.localId) {
+    trayPlayer.pause();
+    trayPlayingId=null
+  }
+  for(const url of [record.url,record.audioUrl])if(url) {
     try {
-      URL.revokeObjectURL(record.url)
+      URL.revokeObjectURL(url)
     }
     catch(_) {
     }
   }
+}
+function removeFileRecord(record) {
+  const i=state.files.indexOf(record);
+  if(i<0)return;
+  state.files.splice(i,1);
+  releaseFileRecord(record);
+  renderFiles()
+}
+// After a send: the records' uploads are done, only their blob previews are left to free.
+function clearFiles() {
+  state.files.forEach(releaseFileRecord);
+  state.files=[];
   renderFiles()
 }
 function trayItemNode(record) {
@@ -2887,8 +2920,7 @@ async function addPending() {
     // A suggestion layer (suggest.js) listens for 'input' to know the note was cleared.
     $('message').dispatchEvent(new Event('input',{bubbles:true}));
     hintSendAgain();
-    state.files=[];
-    renderFiles();
+    clearFiles();
     showError('')
   }
   catch(e) {
@@ -3356,8 +3388,7 @@ async function sendNow() {
     fitMessage();
     // A suggestion layer (suggest.js) listens for 'input' to know the note was cleared.
     $('message').dispatchEvent(new Event('input',{bubbles:true}));
-    state.files=[];
-    renderFiles();
+    clearFiles();
     showError('');
     await loadNotes()
   }
@@ -3436,6 +3467,16 @@ $('lb-next').onclick=()=>lightboxStep(1);
 $('lightbox').onclick=e=> {
   if(e.target.id==='lightbox'||e.target.id==='lb-mid')closeLightbox()
 };
+let lightboxTouch=null;
+$('lightbox').addEventListener('touchstart',e=> {
+  lightboxTouch=e.touches.length===1?{x:e.touches[0].clientX,y:e.touches[0].clientY}:null
+},{passive:true});
+$('lightbox').addEventListener('touchend',e=> {
+  if(!lightboxTouch)return;
+  const t=e.changedTouches[0];
+  lightboxSwipe(t.clientX-lightboxTouch.x,t.clientY-lightboxTouch.y);
+  lightboxTouch=null
+});
 // ---- Timeline: a film made of clips (timeline.json) ----
 // The strip under the player and the chat, for a video with a timeline file. Its direct edits
 // (order, trims, transitions, J/L cuts, Audio lanes) each commit the timeline file alone
