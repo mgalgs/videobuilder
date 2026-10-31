@@ -284,6 +284,9 @@ class NoteStore:
         # descriptors for a note's own `refs` (see video_refs.extract/stage, Editor.
         # _stage_video_refs); set by Editor, None outside library mode.
         self.video_refs = None
+        # listen, when set, is a callable (note, attach_dir) -> [{name, notes, error}] for
+        # the note's audio attachments (see listen.Listener); [] when listening is off.
+        self.listen = None
         # The background submitters (see kick): video -> its worker thread, and the videos
         # kicked again while their worker was already running.
         self._workers, self._rekicked = {}, set()
@@ -553,6 +556,8 @@ class NoteStore:
                 if image:
                     from .attachments import FRAME_NAME
                     image = '/attachments/' + FRAME_NAME
+            listening = (self.listen(note, payload['attach_dir'])
+                         if self.listen and payload.get('attach_dir') else [])
             if grabs and payload.get('attach_dir'):
                 # After the uploads, like the pinned frame, so the prompt's names stay true.
                 for side, name, grab in grabs:
@@ -572,7 +577,7 @@ class NoteStore:
             votes = self.compendium_votes() if compendium and self.compendium_votes else None
             path.write_text(prompt.render(note, payload, image, compendium=compendium, votes=votes,
                                           sources=sources, community=staged_community, film=film, refs=staged_refs,
-                                          music=self.music),
+                                          music=self.music, listening=listening),
                             encoding='utf-8')
             payload['note_file'] = str(path)
             note['handle'] = self.backend.submit(payload)

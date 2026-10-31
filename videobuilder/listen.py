@@ -201,7 +201,7 @@ class Listener:
             return cached.read_text(encoding='utf-8')
         notes = listen(path, api_key=key, timeout=timeout)
         try:
-            self.cache_dir.mkdir(parents=True, exist_ok=True)
+            self.cache_dir.mkdir(exist_ok=True)
             write_atomic(cached, notes)
         except OSError as e:   # two notes caching the same song at once share write_atomic's .tmp
             print(f'[editor] could not cache listening notes for {path.name}: {e}', file=sys.stderr, flush=True)

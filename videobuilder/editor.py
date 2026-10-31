@@ -472,6 +472,10 @@ source's small preview copy under the note's own /attachments/sources/,
 within the same budget as its other attachments; a source with no preview
 copy yet, or that doesn't fit, is still named in the prompt, without a
 sandbox copy.
+With $GEMINI_API_KEY in the editor's environment, each audio attachment of
+a note is listened to before the note goes out (listen.Listener, cached in
+<state>/listening/ by content) and its notes staged beside it as
+<name>.listening.md; the key itself never reaches the sandbox.
 
 account_daily_note_cap and account_daily_cost_cap_usd (unset by default,
 meaning no cap) each limit one account to that many new notes, or that much
@@ -524,6 +528,7 @@ from .render import default_jobs
 from .renders import Renders
 from .film_brief import FilmBrief
 from .attachments import Attachments, dedupe_names
+from .listen import Listener
 from .music import MusicLibrary
 from .sources import Sources
 from .versions import Versions
@@ -625,6 +630,7 @@ class Editor:
                                compendium_votes=self._compendium_votes_for_builder,
                                community=self._community_for_builder)
         self.notes.video_refs = self._stage_video_refs
+        self.notes.listen = Listener(os.path.join(self.state_dir, 'listening'))
         self.attachments = Attachments(self, _positive(cfg, 'attachment_max_file', 25) * 1048576,
                                        _positive(cfg, 'attachment_max_files', 10),
                                        _positive(cfg, 'attachment_max_message', 100) * 1048576,
