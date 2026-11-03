@@ -7,6 +7,7 @@ import re
 import shutil
 import subprocess
 import unittest
+from unittest import mock
 from importlib import resources
 
 from PIL import Image
@@ -66,8 +67,27 @@ class Routes(Offline, fixtures.AccountMixin, fixtures.LibraryFixture, unittest.T
 
     def test_the_worker_carries_the_version(self):
         _, body, _ = self.request_full('/sw.js')
-        self.assertIn(f'const VERSION = "{__version__}";'.encode(), body)
+        self.assertIn(f'const VERSION = "{pwa.shell_version()}";'.encode(), body)
         self.assertNotIn(b'__VERSION__', body)
+
+    def test_an_edited_asset_changes_the_version_without_a_version_bump(self):
+        # A deploy between bumps, or a checkout's edited director.js, must install a new worker.
+        before = pwa.shell_version()
+        self.assertTrue(before.startswith(__version__ + '-'))
+        real = pwa.resources.files
+
+        class Edited:
+            def __init__(self, files):
+                self.files = files
+
+            def joinpath(self, name):
+                path = self.files.joinpath(name)
+                if name != 'director.js':
+                    return path
+                return type('Edited', (), {'read_bytes': lambda _: path.read_bytes() + b'\n// edited'})()
+
+        with mock.patch.object(pwa.resources, 'files', lambda package: Edited(real(package))):
+            self.assertNotEqual(pwa.shell_version(), before)
 
     def test_other_paths_beside_them_still_need_a_session(self):
         self.assertEqual(self.request('/icons/other.png')[0], 200)  # the sign-in page, not a file
@@ -99,14 +119,15 @@ class Heads(Offline, fixtures.AccountMixin, fixtures.LibraryFixture, unittest.Te
         cookie = self.admin_login()
         self.seed('acme/launch', film=True)
         _, page = self.request('/v/acme/launch/', headers={'Cookie': cookie})
+        version = pwa.shell_version()
         for page in (page.decode(), _page().decode()):
             self.assertHead(page, 'editor')
             self.assertIn('viewport-fit=cover', page)
             for asset in ('director.css', 'suggest.css', 'settings_card.css'):
-                self.assertIn(f'href="{asset}?v={__version__}"', page)
+                self.assertIn(f'href="{asset}?v={version}"', page)
             for asset in ('director.js', 'suggest.js', 'settings_card.js'):
-                self.assertIn(f'src="{asset}?v={__version__}"', page)
-        code, js, headers = self.request_full(f'/v/acme/launch/director.js?v={__version__}',
+                self.assertIn(f'src="{asset}?v={version}"', page)
+        code, js, headers = self.request_full(f'/v/acme/launch/director.js?v={version}',
                                               headers={'Cookie': cookie})
         self.assertEqual((code, headers['Content-Type']), (200, 'text/javascript; charset=utf-8'))
         self.assertTrue(js)
@@ -195,14 +216,14 @@ async function seed(path, body) {
 class WorkerRouting(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        script = WORKER_HARNESS % (json.dumps(pwa.worker().decode()), json.dumps(__version__))
+        script = WORKER_HARNESS % (json.dumps(pwa.worker().decode()), json.dumps(pwa.shell_version()))
         result = subprocess.run(['node', '-'], input=script.encode(), capture_output=True, timeout=60)
         if result.returncode:
             raise AssertionError(result.stderr.decode())
         cls.out = json.loads(result.stdout)
 
     def test_activating_a_new_version_deletes_only_older_versions_caches(self):
-        self.assertEqual(self.out['caches_after_activate'], sorted([f'vb-shell-{__version__}', 'someone-elses-cache']))
+        self.assertEqual(self.out['caches_after_activate'], sorted([f'vb-shell-{pwa.shell_version()}', 'someone-elses-cache']))
 
     def test_a_versioned_static_asset_is_answered_from_the_cache(self):
         self.assertEqual(self.out['asset_first'], ['200 network', 1])

@@ -2,6 +2,7 @@
 (sw.js, the app shell only) and the head tags every top-level page carries.
 All of it is served signed-out (editor.OPEN_ROUTES): a browser fetches the
 manifest without cookies, and install has to work from the sign-in page."""
+import hashlib
 import json
 import re
 from importlib import resources
@@ -14,6 +15,7 @@ ICONS = {'/icons/icon-192.png': 'icon-192.png', '/icons/icon-512.png': 'icon-512
          '/icons/icon-maskable-512.png': 'icon-maskable-512.png',
          '/icons/apple-touch-icon.png': 'apple-touch-icon.png'}
 ROUTES = ('/manifest.webmanifest', '/sw.js', *ICONS)
+SHELL = ('director.js', 'director.css', 'suggest.js', 'suggest.css', 'settings_card.js', 'settings_card.css')
 
 # `black`, not `black-translucent`: translucent would slide every page's top bar under the
 # status bar, and only the editor's phone layout pads for a top inset.
@@ -41,19 +43,32 @@ def manifest():
     }).encode()
 
 
+def shell_version():
+    """The version plus a hash of the cached files' bytes. Commits land between
+    version bumps, and a checkout's director.js changes under a running worker:
+    keyed by the bare version, the worker's cache-first answer would keep
+    serving the old script with nothing but a hard reload to clear it."""
+    files = resources.files(__package__)
+    digest = hashlib.sha256()
+    for name in (*SHELL, *(f'icons/{icon}' for icon in ICONS.values())):
+        digest.update(files.joinpath(name).read_bytes())
+    return f'{__version__}-{digest.hexdigest()[:12]}'
+
+
 def worker():
-    # The version in the script's own bytes is what makes a deploy install a new worker,
-    # whose activate step then deletes the previous version's cache.
+    # The shell version in the script's own bytes is what makes a deploy (or an edited
+    # asset) install a new worker, whose activate step then deletes the previous cache.
     return (resources.files(__package__).joinpath('sw.js').read_text()
-            .replace('__VERSION__', json.dumps(__version__))).encode()
+            .replace('__VERSION__', json.dumps(shell_version()))).encode()
 
 
 def editor_html(page):
     """editor.html with the install tags, and its own scripts and styles
-    stamped with the version: the worker caches those by URL, so a deploy's
-    new page can never pick up the previous deploy's cached script."""
+    stamped with the shell version: the worker caches those by URL, so a new
+    page can never pick up a cached copy of a script that has since changed."""
+    version = shell_version()
     page = re.sub(r'((?:href|src)="(?:director|suggest|settings_card)\.(?:js|css))"',
-                  rf'\1?v={__version__}"', page)
+                  rf'\1?v={version}"', page)
     return page.replace('</head>', HEAD + '</head>', 1)
 
 
