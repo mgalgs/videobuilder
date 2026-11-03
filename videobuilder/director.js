@@ -165,6 +165,16 @@ function handleSignedOut() {
   state.signedOut=true;
   $('signed-out-banner').hidden=false
 }
+// Installed, the sign-in link leaves this page (pwa.HEAD), so the note being typed goes where
+// takeDraft picks it up when the sign-in page comes back here.
+$('signed-out-link').addEventListener('click',()=> {
+  if(!(matchMedia('(display-mode: standalone)').matches||navigator.standalone))return;
+  const text=$('message').value;
+  try {
+    if(text.trim())sessionStorage.setItem(DRAFT+location.pathname,text)
+  }
+  catch(_) {}
+});
 function clearSignedOut() {
   state.signedOut=false;
   $('signed-out-banner').hidden=true
@@ -179,7 +189,7 @@ function httpError(r, data) {
   error.status=r.status;
   return error
 }
-// Called when the tab regains focus: the sign-in link opens in a new tab, so this
+// Called when the tab regains focus: in a browser the sign-in link opens a new tab, so this
 // one's draft was never touched; once a session exists again, polling resumes.
 async function resumeFromSignedOut() {
   if(!state.signedOut)return;

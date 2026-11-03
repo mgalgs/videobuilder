@@ -429,7 +429,7 @@ def page_html(compendium_dir, version):
         '<meta name="viewport" content="width=device-width, initial-scale=1">' + pwa.HEAD +
         f'<style>{_PAGE_STYLE}</style></head><body>'
         '<div id="signed-out-banner" class="signed-out-banner" role="alert" hidden>'
-        '<span>You’ve been signed out. <a href="/login" target="_blank" rel="noopener">Sign in again</a> '
+        '<span>You’ve been signed out. <a href="/login" target="_blank" rel="noopener" data-sign-in>Sign in again</a> '
         'to keep going; your votes are kept.</span></div>'
         '<header><a class="back" href="/" aria-label="Back">&larr;</a>'
         '<h1>Compendium</h1>'

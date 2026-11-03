@@ -27,7 +27,19 @@ HEAD = ('<link rel="manifest" href="/manifest.webmanifest">'
         '<meta name="apple-mobile-web-app-title" content="videobuilder">'
         '<meta name="apple-mobile-web-app-status-bar-style" content="black">'
         '<script>if("serviceWorker"in navigator)addEventListener("load",()=>navigator.serviceWorker'
-        '.register("/sw.js").catch(e=>console.warn("service worker not registered",e)))</script>')
+        '.register("/sw.js").catch(e=>console.warn("service worker not registered",e)));'
+        # An installed iOS app has its own cookie jar, and a new-window link leaves the app for
+        # Safari: signing in there never signs the app in. So a signed-out banner's link stays in
+        # this window when installed, and the sign-in page comes back here (AUTH_RETURN).
+        'document.addEventListener("click",e=>{const a=e.target.closest&&e.target.closest("a[data-sign-in]");'
+        'if(!a||!(matchMedia("(display-mode: standalone)").matches||navigator.standalone))return;'
+        'e.preventDefault();try{sessionStorage.setItem("vb-after-login",location.pathname+location.search)}'
+        'catch(_){}location.href=a.href})</script>')
+
+# The sign-in page's way back to where HEAD's banner link left: same-origin paths only.
+AUTH_RETURN = ('let n="/";try{n=sessionStorage.getItem("vb-after-login")||"/";'
+               'sessionStorage.removeItem("vb-after-login")}catch(_){}'
+               'location.href=/^\\/(?![\\/\\\\])/.test(n)?n:"/"')
 
 
 def manifest():

@@ -115,6 +115,24 @@ class Heads(Offline, fixtures.AccountMixin, fixtures.LibraryFixture, unittest.Te
             self.assertEqual(code, 200, path)
             self.assertHead(page.decode(), path)
 
+    def test_installed_sign_in_links_stay_in_the_app_and_come_back(self):
+        # An installed iOS app's cookie jar is its own: a new-window sign-in never reaches it.
+        self.assertIn('data-sign-in', re.search(r'<a id="signed-out-link"[^>]*>', _page().decode()).group(0))
+        cookie = self.admin_login()
+        _, page = self.request('/compendium', headers={'Cookie': cookie})
+        self.assertIn('data-sign-in', re.search(r'<a href="/login"[^>]*>', page.decode()).group(0))
+        for path in ('/login', '/signup'):
+            self.assertIn(pwa.AUTH_RETURN, self.request(path)[1].decode(), path)
+
+    @unittest.skipUnless(shutil.which('node'), 'node is not available in this environment')
+    def test_the_sign_in_page_only_goes_back_to_a_same_origin_path(self):
+        script = ('const out=[];for(const saved of %s){const location={},sessionStorage={getItem:()=>saved,'
+                  'removeItem(){}};' + pwa.AUTH_RETURN + ';out.push(location.href)}'
+                  'console.log(JSON.stringify(out))')
+        cases = ['/v/acme/launch/', '//evil.example/', '/\\evil.example/', 'https://evil.example/', '']
+        result = subprocess.run(['node', '-e', script % json.dumps(cases)], capture_output=True, timeout=60)
+        self.assertEqual(json.loads(result.stdout), ['/v/acme/launch/', '/', '/', '/', '/'], result.stderr)
+
     def test_the_editor_stamps_its_own_assets_and_keeps_viewport_fit_cover(self):
         cookie = self.admin_login()
         self.seed('acme/launch', film=True)

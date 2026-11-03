@@ -108,7 +108,7 @@ def _auth_page(title, heading, fields, button, api, switch, showcase):
             '<script>document.querySelector("#f").onsubmit=async e=>{e.preventDefault();'
             f'const form=new FormData(e.target);const r=await fetch("{api}",{{method:"POST",'
             'headers:{"Content-Type":"application/json"},body:JSON.stringify(Object.fromEntries(form))});'
-            'if(r.ok)location.href="/";else document.querySelector("#error").textContent=(await r.json()).error};'
+            'if(r.ok){' + pwa.AUTH_RETURN + '}else document.querySelector("#error").textContent=(await r.json()).error};'
             '</script></body></html>').encode()
 
 
