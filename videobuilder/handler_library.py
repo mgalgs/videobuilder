@@ -9,7 +9,7 @@ import threading
 import traceback
 from urllib.parse import parse_qs, quote, unquote, urlparse
 
-from . import community
+from . import community, pwa
 from .capabilities import showcase_available
 from .editor import UPDATING, HTTPError, _field, _need
 from .handler_auth import _key_in_scope
@@ -472,7 +472,7 @@ class LibraryHandler:
                     return self._json(200, {'slug': slug, 'status': record['status']})
                 if route == '/whats-new' or route.startswith(('/whats-new/', '/api/whats-new')):
                     return self._whats_new(method, route, q, user)
-                if (route != '/healthz' and route != '/capabilities' and not route.startswith('/capabilities/')
+                if (route != '/healthz' and route not in pwa.ROUTES and route != '/capabilities' and not route.startswith('/capabilities/')
                         and route != '/compendium' and not route.startswith('/compendium/')
                         and route != '/api/compendium' and route != '/api/compendium/vote'):
                     if video_name is None:

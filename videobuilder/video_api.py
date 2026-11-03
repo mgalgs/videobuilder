@@ -10,7 +10,7 @@ import threading
 from importlib import resources
 from urllib.parse import unquote
 
-from . import archive_org, speech
+from . import archive_org, pwa, speech
 from .attachments import TYPES
 from .editor import HTTPError, _field, _need, _page
 from .gitutil import git
@@ -46,6 +46,10 @@ def _get_healthz(self, route, q, editor, user):
 
 def _get_index(self, route, q, editor, user):
     return self._send(200, _page(), 'text/html; charset=utf-8')
+
+
+def _get_pwa(self, route, q, editor, user):
+    return pwa.serve(self, route)
 
 
 def _get_static(self, route, q, editor, user):
@@ -565,6 +569,7 @@ _OLD_URL_SEGMENT = 'tech' + 'niques'
 GET_ROUTES = [
     ('/healthz', _get_healthz),
     (('/', '/index.html'), _get_index),
+    (pwa.ROUTES, _get_pwa),
     (('/tuning.html', '/director.js', '/director.css', '/suggest.js', '/suggest.css',
      '/settings_card.js', '/settings_card.css', '/settings_card_test.html'), _get_static),
     ('/api/versions', _get_versions),

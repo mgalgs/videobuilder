@@ -8,6 +8,7 @@ import time
 from importlib import resources
 from urllib.parse import quote
 
+from . import pwa
 from .starters import STARTERS
 
 
@@ -96,7 +97,7 @@ def _auth_page(title, heading, fields, button, api, switch, showcase):
                 '<li><b>Give notes.</b> Each one makes a new version, until it\'s right.</li></ol>')
     return ('<!doctype html><html lang="en"><head><meta charset="utf-8">'
             f'<title>{title} · videobuilder</title>'
-            '<meta name="viewport" content="width=device-width, initial-scale=1">' + _AUTH_STYLE +
+            '<meta name="viewport" content="width=device-width, initial-scale=1">' + pwa.HEAD + _AUTH_STYLE +
             '</head><body><main class="auth"><section class="pitch">'
             '<div class="brand">' + _LOGO + 'videobuilder</div>'
             '<h1>Direct videos <em>in plain words.</em></h1>'
@@ -262,7 +263,7 @@ def editor_page(user=None, can_create=True, whats_new=None):
     (`whats_new` as for app_header). The
     `has-app-bar` body class tells director.css to drop the topbar links and
     the account bar the header now covers; phones keep the compact topbar."""
-    page = resources.files(__package__).joinpath('editor.html').read_text()
+    page = pwa.editor_html(resources.files(__package__).joinpath('editor.html').read_text())
     header = '<div class="desktop-only app-bar-wrap">' + app_header(None, user, can_create, whats_new) + '</div>'
     return (page.replace('</head>', f'<style>{APP_HEADER_STYLE}</style></head>', 1)
             .replace('<body>', '<body class="has-app-bar">', 1)
@@ -272,7 +273,7 @@ def editor_page(user=None, can_create=True, whats_new=None):
 def _head(title, style):
     return ('<!doctype html><html lang="en"><head><meta charset="utf-8">'
             f'<title>{title} · videobuilder</title>'
-            '<meta name="viewport" content="width=device-width, initial-scale=1">'
+            '<meta name="viewport" content="width=device-width, initial-scale=1">' + pwa.HEAD +
             f'<style>{style}</style></head>')
 
 

@@ -580,7 +580,7 @@ from http.server import ThreadingHTTPServer
 from importlib import resources
 from pathlib import Path, PurePosixPath
 
-from . import assembly, capabilities, edits, film_setup, preprod, video_refs
+from . import assembly, capabilities, edits, film_setup, preprod, pwa, video_refs
 from .notes import NoteStore
 from .agents import backend_from_config
 from .drafts import Drafts, git
@@ -609,7 +609,7 @@ REPO_CONFIG_KEYS = {'videos', 'auto_land'}
 # the repo's own examples. Every other capability clip stays behind sign-in.
 OPEN_ROUTES = {'/healthz','/login', '/signup', '/api/login', '/api/signup', '/api/logout',
                '/capabilities/showcase-16x9.mp4', '/capabilities/showcase-16x9.jpg',
-               '/capabilities/showcase-9x16.mp4', '/capabilities/showcase-9x16.jpg'}
+               '/capabilities/showcase-9x16.mp4', '/capabilities/showcase-9x16.jpg', *pwa.ROUTES}
 
 
 class HTTPError(Exception):
@@ -1611,7 +1611,7 @@ def _short(message, film_path):
 
 
 def _page():
-    return resources.files(__package__).joinpath('editor.html').read_bytes()
+    return pwa.editor_html(resources.files(__package__).joinpath('editor.html').read_text()).encode()
 
 
 def make_handler(editor, hook=request_hook):

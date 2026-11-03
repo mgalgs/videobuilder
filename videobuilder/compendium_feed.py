@@ -18,6 +18,8 @@ import json
 import os
 import threading
 
+from . import pwa
+
 VOTES = ('up', 'down', None)
 MAX_REASON = 300
 
@@ -424,7 +426,7 @@ def page_html(compendium_dir, version):
     html = (
         '<!doctype html><html lang="en"><head><meta charset="utf-8">'
         '<title>Compendium · videobuilder</title>'
-        '<meta name="viewport" content="width=device-width, initial-scale=1">'
+        '<meta name="viewport" content="width=device-width, initial-scale=1">' + pwa.HEAD +
         f'<style>{_PAGE_STYLE}</style></head><body>'
         '<div id="signed-out-banner" class="signed-out-banner" role="alert" hidden>'
         '<span>You’ve been signed out. <a href="/login" target="_blank" rel="noopener">Sign in again</a> '

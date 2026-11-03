@@ -38,6 +38,7 @@ import json
 import os
 from functools import lru_cache
 
+from .. import pwa
 from . import registry
 from .schema import CATEGORIES, REPO_ROOT, Example, module_name
 
@@ -570,7 +571,7 @@ def family_page_html(family, capabilities_dir, version, header='', header_style=
     html = (
         '<!doctype html><html lang="en"><head><meta charset="utf-8">'
         f'<title>{_esc(title)} · videobuilder</title>'
-        '<meta name="viewport" content="width=device-width, initial-scale=1">'
+        '<meta name="viewport" content="width=device-width, initial-scale=1">' + pwa.HEAD +
         f'<style>{style}</style></head><body>{header}'
         f'<main><div class="cap-head"><h1>{_esc(title)}</h1>'
         f'<span class="version">videobuilder v{_esc(version)}</span>'
@@ -1598,7 +1599,7 @@ def page_html(capabilities_dir, version, header='', header_style='', community=N
     html = (
         '<!doctype html><html lang="en"><head><meta charset="utf-8">'
         '<title>Capabilities · videobuilder</title>'
-        '<meta name="viewport" content="width=device-width, initial-scale=1">'
+        '<meta name="viewport" content="width=device-width, initial-scale=1">' + pwa.HEAD +
         f'<style>{style}</style></head><body>{header}'
         f'<main><div class="cap-head"><h1>Capabilities</h1>'
         f'<span class="version">videobuilder v{_esc(version)}</span>'
